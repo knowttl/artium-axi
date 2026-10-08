@@ -1,4 +1,8 @@
 export const errors = {
+  TOKEN_INVALID: { status: 401, message: 'The access token is invalid, expired or revoked.', next: 'Sign in again to obtain a valid access token.' },
+  USER_DISABLED: { status: 403, message: 'The user is disabled.', next: 'Ask the administrator to enable the user.' },
+  TOOL_DISABLED: { status: 403, message: 'The tool is disabled.', next: 'Ask the administrator to enable the tool.' },
+  TOOL_NOT_GRANTED: { status: 403, message: 'The user has no role granting this tool.', next: 'Ask the administrator to assign a role granting the tool.' },
   MASTER_KEY_INVALID: { status: 503, message: 'The master key is missing or invalid.', next: 'Supply a 32-byte master key file or a base64 master key.' },
   CREDENTIAL_INVALID: { status: 503, message: 'A stored credential could not be authenticated or contains malformed JSON.', next: 'Restore the matching master key and an intact credential store containing valid credential JSON.' },
   FLAG_BLOCKED: { status: 400, message: 'The arguments override the managed tool boundary.', next: 'Remove destination, tenant, credential or local configuration overrides.' },
