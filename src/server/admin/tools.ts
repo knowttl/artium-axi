@@ -143,16 +143,17 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     parse(adminToolRoutes.test.input, request.body ?? {})
     const adapter = adapters.find(adapter => adapter.name === tool)
     const context = { userId: actor, tool, requestId: request.id, clientAddress: request.ip }
-    let reference: CredentialReference
+    let reference: CredentialReference | undefined
     try {
       readTool(tool)
+      reference = store?.findCredential(tool)
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
-      const configured = credentialStore().findCredential(tool)
-      if (!configured) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (!reference) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
       if (testing.has(tool)) throw new ArtiumError('TOO_MANY_CALLS')
-      reference = configured
     } catch (error) {
-      audit.record({ ...context, event: 'credential-test', outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+      const errorCode = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
+      audit.record({ ...context, event: 'credential-test', outcome: errorCode,
+        checkedAt: Date.now(), credentialRevision: reference?.revision ?? null, errorCode })
       throw error
     }
     testing.add(tool)
@@ -163,7 +164,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     let durationMs = 0
     let outputBytes = { stdout: 0, stderr: 0 }
     try {
-      audit.record({ ...context, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args) })
+      audit.record({ ...context, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args),
+        checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
       try {
         const prepared = await adapter.prepare(args, reference)
         const result = await runner.run(actor, prepared.executable, prepared.args, prepared.environment, prepared.secrets,
@@ -181,10 +183,11 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         durationMs = runnerError?.durationMs ?? Date.now() - started
         outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
       }
-      audit.record({ ...context, event: 'run-terminal', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes })
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
-      audit.change({ ...context, event: 'credential-test', outcome: failure?.code ?? 'success' }, () => {
+      const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
+      audit.record({ ...context, event: 'run-terminal', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })
+      audit.change({ ...context, event: 'credential-test', outcome: failure?.code ?? 'success', ...evidence }, () => {
         if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
           'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
           && credentialStore().findCredential(tool)?.revision === reference.revision) {
