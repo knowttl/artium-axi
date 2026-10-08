@@ -67,6 +67,34 @@ test('security hygiene catches external release assets', () => {
   })
 })
 
+const unsupportedText = [
+  ['UTF-16LE', Buffer.from('\ufeffSYNTHETIC-RESTRICTED', 'utf16le')],
+  ['UTF-16BE', Buffer.from('\ufeffSYNTHETIC-RESTRICTED', 'utf16le').swap16()],
+  ['UTF-32LE', Buffer.from('fffe000073000000', 'hex')],
+  ['UTF-32BE', Buffer.from('0000feff00000073', 'hex')],
+] as const
+
+test.each(unsupportedText)('security hygiene rejects BOM-marked %s candidate logs', (_encoding, content) => {
+  fixture((_directory, list, candidate) => {
+    writeFileSync(join(candidate, 'build.log'), content)
+    const result = check(candidate, list)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('unsupported text encoding')
+    expect(result.stdout).not.toContain('hygiene: pass')
+  })
+})
+
+test.each(unsupportedText)('security hygiene rejects BOM-marked %s release logs', (_encoding, content) => {
+  fixture((directory, list, candidate) => {
+    const asset = join(directory, 'build.log')
+    writeFileSync(asset, content)
+    const result = check(candidate, list, [asset])
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('unsupported text encoding')
+    expect(result.stdout).not.toContain('hygiene: pass')
+  })
+})
+
 test('security hygiene checks committed messages without printing their contents', () => {
   fixture((_directory, list, candidate) => {
     spawnSync('git', ['-C', candidate, '-c', 'user.name=Synthetic', '-c', 'user.email=synthetic@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'SYNTHETIC-RESTRICTED private narrative'])
