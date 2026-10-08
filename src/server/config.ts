@@ -6,6 +6,7 @@ export const toolPaths = {
 export const runtimePath = '/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'
 export const serverDefaults = { host: '0.0.0.0', port: 8080, database: '/data/artium.db', temporaryDirectory: '/tmp/artium-calls' } as const
 export const passwordDefaults = { memoryCost: 65536, timeCost: 3, parallelism: 1, concurrentHashes: 2 } as const
+export const tokenDefaults = { accessMs: 3_600_000, familyMs: 43_200_000, passwordChangeMs: 600_000 } as const
 export const runnerLimits = {
   globalCalls: 8,
   userCalls: 2,

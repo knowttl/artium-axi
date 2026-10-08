@@ -46,7 +46,7 @@ export async function runTool<Credential>(
     const prepared = await adapter.prepare(args, reference, input)
     result = await runner.run(userId, prepared.executable, prepared.args, prepared.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal },
-      { ...input, fileArguments: prepared.fileArguments }, prepared.files)
+      { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) })
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
     audit.record({ ...identity, event: 'run-terminal',

@@ -1,11 +1,19 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import * as childProcess from 'node:child_process'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import * as filesystem from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import type { MockInstance } from 'vitest'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import type { AuditRecord } from '../../src/server/audit/audit.js'
+import { LocalAuthProvider } from '../../src/server/auth/local.js'
+import { issueLoginTokens } from '../../src/server/auth/tokens.js'
+import { tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { runTool } from '../../src/server/runner/run.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -14,6 +22,11 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { issueTestAccessToken } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
+
+vi.mock('node:fs/promises', { spy: true })
+vi.mock('node:child_process', { spy: true })
+
+const actualFilesystem = await vi.importActual<typeof filesystem>('node:fs/promises')
 
 let directory: string
 let db: Database.Database
@@ -53,6 +66,7 @@ beforeEach(async () => {
 })
 afterEach(async () => {
   vi.restoreAllMocks()
+  vi.useRealTimers()
   await runner.shutdown()
   db.close()
   rmSync(directory, { recursive: true, force: true })
@@ -175,4 +189,88 @@ test('credential preparation failure completes its start with a safe code', asyn
   await expect(runTool(db, audit, runner, token, { args: ['print'] }, adapter, resolver, context)).rejects.toThrow('CANARY-private-diagnostic')
   expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'INTERNAL_ERROR' })
   expect(lines.join('')).not.toContain('CANARY-private-diagnostic')
+})
+
+describe.each([
+  { tool: 'falcon-axi', create: () => createFalconAdapter({ getCredential }) },
+  { tool: 'vectra-axi', create: () => createVectraAdapter({ getCredential: async () => ({
+    kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-vectra-token', origin: 'https://synthetic.invalid',
+  }) }, join(directory, 'vectra-writes.log')) },
+] as const)('$tool authentication at child creation', ({ tool, create }) => {
+  let executionAdapter: Adapter<unknown>
+  let release: () => void
+  let setup: Promise<void>
+  let spawn: MockInstance<typeof childProcess.spawn>
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+    db.prepare('INSERT OR IGNORE INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
+    executionAdapter = create()
+    const prepare = executionAdapter.prepare.bind(executionAdapter)
+    vi.spyOn(executionAdapter, 'prepare').mockImplementation(async (...args) => {
+      const call = await prepare(...args)
+      return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, ...call.args],
+        limits: { timeoutMs: 5000 } }
+    })
+    let ready!: () => void
+    setup = new Promise<void>(resolve => { ready = resolve })
+    const resume = new Promise<void>(resolve => { release = resolve })
+    const writeFile = actualFilesystem.writeFile
+    vi.spyOn(filesystem, 'writeFile').mockImplementation(async (...args) => {
+      await writeFile(...args)
+      if (String(args[0]).endsWith('/inputs/synthetic-input')) {
+        ready()
+        await resume
+      }
+    })
+    spawn = vi.spyOn(childProcess, 'spawn').mockClear()
+  })
+  afterEach(() => { release() })
+
+  const start = () => runTool(db, audit, runner, token, { args: ['exit', '0'],
+    files: [{ name: 'synthetic-input', contentBase64: Buffer.from('CANARY-file').toString('base64') }] },
+  executionAdapter, new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-credential', tool }, value: {} },
+  ])), context)
+
+  test('a still-valid token executes after filesystem setup and cleans prepared files', async () => {
+    const result = start()
+    await setup
+    release()
+    await expect(result).resolves.toMatchObject({ exitCode: 0 })
+    expect(spawn).toHaveBeenCalledOnce()
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  })
+
+  test('expiry during filesystem setup prevents child creation and cleans prepared files', async () => {
+    const result = start()
+    const rejected = expect(result).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
+    await setup
+    const [call] = readdirSync(join(directory, 'calls'))
+    expect(readFileSync(join(directory, 'calls', call, 'inputs', 'synthetic-input'), 'utf8')).toBe('CANARY-file')
+    vi.setSystemTime(Date.now() + tokenDefaults.accessMs)
+    release()
+    await rejected
+    expect(spawn).not.toHaveBeenCalled()
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'TOKEN_EXPIRED' })
+  })
+
+  test('password change during filesystem setup prevents child creation and cleans prepared files', async () => {
+    db.exec('UPDATE users SET must_change = 1')
+    const login = issueLoginTokens(db, 'synthetic-user')
+    expect(login.status).toBe('password-change-required')
+    const result = start()
+    const rejected = expect(result).rejects.toMatchObject({ code: 'TOKEN_INVALID' })
+    await setup
+    await new LocalAuthProvider(db).changePassword('synthetic-user', undefined, 'CANARY-new-password', audit,
+      { ...context, requestId: 'synthetic-password-change' }, Date.now(),
+      (login as Extract<typeof login, { status: 'password-change-required' }>).passwordChangeToken)
+    release()
+    await rejected
+    expect(spawn).not.toHaveBeenCalled()
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'TOKEN_INVALID' })
+  })
 })

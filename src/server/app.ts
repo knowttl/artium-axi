@@ -7,9 +7,10 @@ import { inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema } fr
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
-import { developmentAuthentication, readDevelopmentToken } from './auth/development.js'
+import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider } from './auth/local.js'
-import { verifyAccessToken } from './auth/tokens.js'
+import { issueLoginTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
+import { loginSchema } from '../shared/api.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -20,10 +21,10 @@ export function createApp(options: {
   adapters: readonly Adapter<unknown>[], environment?: NodeJS.ProcessEnv,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
-  const token = readDevelopmentToken(environment)
+  checkAuthSettings(environment)
   const proxies = (environment.ARTIUM_AXI_TRUSTED_PROXIES ?? '').split(',').map(value => value.trim()).filter(Boolean)
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
-  const authenticate = developmentAuthentication(db, token)
+  const authenticate = verifyAccessToken
   const localAuth = new LocalAuthProvider(db)
   audit.recoverInterrupted()
   const app = Fastify({ bodyLimit: inputLimits.requestBytes, logger: false,
@@ -62,13 +63,28 @@ export function createApp(options: {
     })
     return toolsResponseSchema.parse({ tools })
   })
+  app.post('/v1/auth/login', async request => {
+    const input = loginSchema.safeParse(request.body)
+    if (!input.success) throw new ArtiumError('INVALID_INPUT')
+    let identity: Awaited<ReturnType<LocalAuthProvider['signIn']>>
+    try { identity = await localAuth.signIn(input.data.username, input.data.password) }
+    catch (error) {
+      if (error instanceof ArtiumError && error.code === 'SIGN_IN_FAILED') {
+        audit.record({ event: 'sign-in', userId: null, tool: null, outcome: 'SIGN_IN_FAILED',
+          requestId: request.id, clientAddress: request.ip })
+      }
+      throw error
+    }
+    return audit.change({ event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success',
+      requestId: request.id, clientAddress: request.ip }, () => issueLoginTokens(db, identity.userId)).value
+  })
   app.post('/v1/auth/password', async (request, reply) => {
-    const userId = verifyAccessToken(db, bearer(request.headers.authorization))
+    const token = bearer(request.headers.authorization)
+    const { user_id: userId } = verifyPasswordToken(db, token)
     const input = passwordChangeSchema.safeParse(request.body)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
-    if (input.data.currentPassword === undefined) throw new ArtiumError('SIGN_IN_FAILED')
     await localAuth.changePassword(userId, input.data.currentPassword, input.data.newPassword, audit,
-      { requestId: request.id, clientAddress: request.ip })
+      { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {

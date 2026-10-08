@@ -53,7 +53,7 @@ export class Runner {
     return new Runner(root)
   }
 
-  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}, files: readonly TemporaryFile[] = []): Promise<RunnerResult> {
+  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}, files: readonly TemporaryFile[] = [], beforeSpawn?: () => void): Promise<RunnerResult> {
     if (!userId) return Promise.reject(new TypeError('An authenticated user is required'))
     try {
       input = validateInput(args, input)
@@ -68,7 +68,7 @@ export class Runner {
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files)
+    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn)
       .finally(() => this.active.delete(key))
     this.active.set(key, { userId, controller, result })
     return result
@@ -102,6 +102,7 @@ async function execute(
   limits: RunnerLimits = {},
   input: RunnerInput = {},
   files: readonly TemporaryFile[] = [],
+  beforeSpawn?: () => void,
 ): Promise<RunnerResult> {
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
@@ -136,6 +137,7 @@ async function execute(
       let exitCode: number | null = null
       const python = limits.runtime === 'python' || executable === toolPaths['falcon-axi']
       const launcher = `import os,resource,sys; resource.setrlimit(resource.RLIMIT_AS, (${runnerLimits.pythonAddressSpaceBytes}, ${runnerLimits.pythonAddressSpaceBytes})); os.execv(sys.argv[1], sys.argv[1:])`
+      beforeSpawn?.()
       const child = spawn(python ? '/usr/bin/python3' : executable, python ? ['-c', launcher, executable, ...args] : [...args], {
         shell: false,
         detached: true,

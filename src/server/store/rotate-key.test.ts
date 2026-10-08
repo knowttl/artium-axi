@@ -144,8 +144,6 @@ test('a running real server blocks rotation and releases maintenance after a cra
     INSERT INTO bootstrap_metadata VALUES (1, 1)`)
   seeded.close()
   await bundle("import './src/server/maintenance.ts'", 'maintenance')
-  const tokenFile = join(directory, 'token')
-  writeFileSync(tokenFile, 'CANARY-development-token', { mode: 0o600 })
   const entry = await bundle(`
     import { Server } from 'node:net';
     import { serverDefaults } from './src/server/config.ts';
@@ -157,8 +155,8 @@ test('a running real server blocks rotation and releases maintenance after a cra
     };
     await import('./src/server/main.ts');
   `, 'server')
-  const environment = { ...process.env, ARTIUM_AXI_DEV: '1',
-    ARTIUM_AXI_DEV_TOKEN_FILE: tokenFile, ARTIUM_AXI_DATABASE_FILE: file, ARTIUM_AXI_MASTER_KEY_FILE: '',
+  const environment = { ...process.env,
+    ARTIUM_AXI_DATABASE_FILE: file, ARTIUM_AXI_MASTER_KEY_FILE: '',
     ARTIUM_AXI_MASTER_KEY: oldProvider.getKey().bytes.toString('base64'), ARTIUM_AXI_AUDIT_STDOUT: '0' }
   const release = acquireMaintenanceLock(file)
   try {

@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import { build } from 'esbuild'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { bootstrapAdministrator } from '../../src/server/auth/bootstrap.js'
-import { developmentAuthentication } from '../../src/server/auth/development.js'
 import { recoverAdministrator } from '../../src/server/auth/recover-admin.js'
 import { LocalAuthProvider } from '../../src/server/auth/local.js'
 import { verifyAccessToken } from '../../src/server/auth/tokens.js'
@@ -189,7 +188,6 @@ test.each(['Synthetic-Admin', '-Synthetic-Admin'])('offline executable recovery 
 test.each(['synthetic-development-user', ' Synthetic-Development-User '])('recovery refuses reserved identity %s without mutation', async username => {
   const db = openStore(file, provider)
   await bootstrapAdministrator(db, settings())
-  developmentAuthentication(db, 'CANARY-development-token')
   const before = db.prepare('SELECT * FROM users ORDER BY id').all()
   db.close()
   await expect(recoverAdministrator(file, provider, username, passwordFile)).rejects.toMatchObject({ code: 'USERNAME_INVALID' })
@@ -292,9 +290,7 @@ test.each(['missing-store', 'missing-user', 'missing-marker'])('recovery refuses
     .rejects.toMatchObject({ code: 'RECOVERY_FAILED' })
 })
 
-test('real entry point bootstraps before development data and repeat starts ignore absent settings', async () => {
-  const tokenFile = join(directory, 'token')
-  writeFileSync(tokenFile, 'CANARY-development-token')
+test('real entry point bootstraps local authentication and repeat starts ignore absent settings', async () => {
   const entry = await bundle(`
     import { Server } from 'node:net';
     const listen = Server.prototype.listen;
@@ -303,7 +299,7 @@ test('real entry point bootstraps before development data and repeat starts igno
     Server.prototype.emit = function(event, ...args) { if (event === 'listening') console.log(JSON.stringify(this.address())); return emit.call(this, event, ...args); };
     await import('./src/server/main.ts');
   `)
-  const environment = { ...process.env, ARTIUM_AXI_DEV: '1', ARTIUM_AXI_DEV_TOKEN_FILE: tokenFile,
+  const environment = { ...process.env,
     ARTIUM_AXI_DATABASE_FILE: file, ARTIUM_AXI_MASTER_KEY_FILE: '',
     ARTIUM_AXI_MASTER_KEY: provider.getKey().bytes.toString('base64'), ARTIUM_AXI_AUDIT_STDOUT: '0' }
   async function start(settings: NodeJS.ProcessEnv) {
@@ -320,7 +316,7 @@ test('real entry point bootstraps before development data and repeat starts igno
   const db = openStore(file, provider)
   try {
     expect(db.prepare('SELECT username, administrator FROM users ORDER BY username').all()).toEqual([
-      { username: 'synthetic-admin', administrator: 1 }, { username: 'synthetic-development-user', administrator: 0 },
+      { username: 'synthetic-admin', administrator: 1 },
     ])
     expect(db.prepare('SELECT COUNT(*) AS count FROM bootstrap_metadata').get()).toEqual({ count: 1 })
   } finally { db.close() }
