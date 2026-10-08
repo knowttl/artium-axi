@@ -15,7 +15,8 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold, hygiene and synthetic upstream tests.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, and `src/cli/` reserves the client layout.
+`test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container scaffold is available, while the server, CLI and adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
@@ -105,7 +106,23 @@ Heap and address-space limits are not total resident-memory caps or complete pro
 A descendant that starts a new session escapes the process group, including when it retains output pipes.
 The runner bounds pipe cleanup but cannot kill or reap that escaped session.
 Ordinary orphan descendants are reaped by the container init process, while the runner reaps its direct child.
-HTTP error mapping and audit integration arrive with the server.
+The [shared contract](src/shared/api.ts) defines strict run request, success and error schemas and the fixed three-tool registry.
+Requests accept only `args`, optional UTF-8 `stdin` and optional uploaded `files` containing `name` and `contentBase64`.
+Limits are 64 arguments of 4096 UTF-8 bytes each, 512 KiB stdin, eight files of 1 MiB each and 4 MiB total decoded uploads.
+Unknown fields, NUL text, malformed or noncanonical base64, duplicate names and unsafe leaf names are rejected.
+The later HTTP server must enforce the exported 16 MiB body limit, JSON content type, schema validation and authorization before credential retrieval.
+The [error catalogue](src/shared/errors.ts) owns the implemented error codes, HTTP status mapping and safe default messages and next steps.
+Success contains upstream `source`, `stdout`, `stderr`, `exitCode`, `durationMs`, `outputBytes` and `truncated` only.
+Artium failures contain only `error` with `code`, `source`, `message`, `next` and `requestId`.
+When building the HTTP success envelope, omit the runner's internal `timedOut` field.
+
+Pass optional input as the seventh `runner.run` argument, with `stdin`, `files` and adapter-reviewed `fileArguments` indices.
+The [input transport](src/server/runner/input.ts) validates inputs before creating the call directory, writes uploads into a separate mode-0700 `inputs/` directory as exclusive mode-0600 files, and substitutes only reviewed argument positions whose value exactly matches an uploaded name.
+File arguments containing server paths or missing uploads are refused.
+Adapters must normalize equals-form flags and supply the reviewed file-value positions after parser-aware validation.
+The runner sends bounded UTF-8 stdin through a pipe and closes it, including when stdin is omitted, and cleans uploads with the call directory on success or failure.
+The CLI's command-specific stdin capture, adapter restrictions on credential/config/output paths, HTTP endpoints and audit integration arrive in later slices.
+See [verification-s11.md](docs/verification-s11.md) for contract and input transport evidence.
 See [verification-s09-10.md](docs/verification-s09-10.md) for lifecycle, resource and limitation evidence.
 See [verification-s08.md](docs/verification-s08.md) for local runner acceptance checks.
 See [verification-s07.md](docs/verification-s07.md) for the local acceptance checks.
