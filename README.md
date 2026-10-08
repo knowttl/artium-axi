@@ -14,6 +14,7 @@ The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test ce
 On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
+See [test-speed verification](docs/verification-test-speed.md) for the controlled-clock stalled-request checks and file-parallelism profiling.
 Compilation is reused only for the same head, Node version, source/toolchain input digest and intact compiled-output digest.
 Run `pnpm test:containers` for the full fake-only container acceptance block after `pnpm check`.
 It completes compilation before probes, runs the runner resource checks, walking skeleton and both fake-service modes, and removes its unique `artium-test-*` images and private tmpfs BuildKit cache.

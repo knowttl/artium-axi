@@ -32,7 +32,7 @@ After the clock change, the default full `pnpm check` passed all 906 tests in 67
 The focused CLI file passed all 26 tests in 6.99 seconds including startup and compilation.
 The four-worker profile passed all 906 tests in 68.78 seconds, with the CLI file reduced to 4.31 seconds and user, API and tool integration files still taking 58.45, 55.02 and 42.55 seconds respectively.
 The eight-worker profile passed all 906 tests in 59.12 seconds, with the stalled case taking 0.34 seconds and user, API and tool integration files taking 57.95, 54.09 and 43.84 seconds respectively.
-The profile supports limiting file concurrency to eight workers, bounded by the host's available CPU count, while preserving Vitest's default file isolation and every suite.
+The profile supports the file concurrency cap in [vitest.config.ts](../vitest.config.ts), while preserving Vitest's default file isolation and every suite.
 Three consecutive full-suite runs after applying the cap passed all 906 tests in all 44 files in 58.91, 60.02 and 59.70 seconds.
 The stalled case took 0.29, 0.52 and 0.26 seconds respectively.
 Their mean suite time is 59.54 seconds, 38.5% below the 96.84-second baseline, with unchanged test count and no failures across these runs.
@@ -63,19 +63,10 @@ Image identities before removal:
 
 ## Final candidate verification plan
 
-Run the following against the committed candidate, in dependency order, recording exact head, exit statuses and elapsed times in the PR body.
+Follow the [README validation guidance](../README.md) for installation, local checks, container acceptance and private hygiene against the committed candidate, recording exact head, exit statuses and elapsed times in the PR body.
 Repeat applicable checks after any pipeline source or test repair.
 
-```sh
-pnpm install --frozen-lockfile
-pnpm check
-pnpm test:containers
-ARTIUM_AXI_HYGIENE_DENY_LIST_FILE=<private-absolute-path> pnpm hygiene:check
-```
-
-`pnpm test:containers` includes the runner resource checks, walking skeleton and both fake-service modes, and owns cleanup of only its unique `artium-test-*` resources.
-Retain its head/input/output digests, image identities, elapsed times and cleanup result as final candidate evidence.
-The real hygiene scan covers the committed candidate tree, generated bundles and HEAD commit messages; never print the private deny-list terms.
+Retain the container check's head/input/output digests, image identities, elapsed times and cleanup result as final candidate evidence.
 Run no-mistakes with this local fake-only plan and `--skip ci`, because the repository declares no hosted CI.
 Its PR must target `knowttl/artium-axi`, base `main`, and include before/after suite counts and times, local check and container evidence, hygiene results and per-step pipeline timings.
 After publication, confirm the PR is ready and mergeable and repeat hygiene on the exact published head.
