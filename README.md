@@ -55,6 +55,10 @@ Arguments after a tool name belong to upstream, so `node dist/cli/artium-axi.mjs
 The [generated error reference](docs/errors.md) records every catalogue code, source, HTTP status, CLI exit code and next step.
 Artium errors withhold captured output and use TOON on stdout, with exit 2 for usage or client configuration failures and exit 1 for other failures.
 Completed upstream calls preserve stdout, stderr and the upstream exit code, including nonzero exits, with the upstream tool as the HTTP envelope source.
+The CLI prefixes commands for the invoked tool with `artium-axi` only within the recorded root `help` suggestion field in recognised TOON or JSON output.
+Rewriting is idempotent and preserves every unrelated byte, including quoting, escaping and line endings.
+Unknown formats, unsupported suggestion shapes and truncated streams remain unchanged.
+See [S44 verification](docs/verification-s44.md) for synthetic captures and bundled stream checks.
 Truncation diagnostics precede upstream stderr while stdout remains parseable.
 Regenerate the reference with `pnpm errors:generate` after changing [the catalogue](src/shared/errors.ts).
 See [S43 verification](docs/verification-s43.md) for First call, No access, help, error mapping and freshness evidence.

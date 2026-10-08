@@ -18,6 +18,15 @@ const execute = async (bin, args, env = {}, input) => {
   return { stdout, stderr, code }
 }
 const environment = { ARTIUM_AXI_URL: 'http://artium-server:8080', XDG_CONFIG_HOME: directory, ARTIUM_AXI_TEST_HTTP: '1' }
+// Parity permits only the wrapper prefix in the recorded root suggestion field.
+const upstreamSuggestions = text => {
+  let help = false
+  return text.split('\n').map(line => {
+    if (/^help(?:\[\d+\])?:/.test(line)) help = true
+    else if (line && !line.startsWith(' ')) help = false
+    return help ? line.replaceAll('artium-axi falcon-axi', 'falcon-axi').replaceAll('artium-axi vectra-axi', 'vectra-axi') : line
+  }).join('\n')
+}
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
 try {
   assert.deepEqual(readdirSync(directory), ['artium-axi.mjs'])
@@ -81,7 +90,7 @@ try {
           FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
         })
         const remote = await cli(['falcon-axi', ...args])
-        assert.deepEqual({ ...remote, stdout: clean(remote.stdout), stderr: clean(remote.stderr) },
+        assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
           { ...local, stdout: clean(local.stdout), stderr: clean(local.stderr) })
         if (!args.includes('--unknown') && !args.includes('--filter') && !args.includes('--help')) assert.match(remote.stdout, /synthetic-detection/)
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
@@ -127,7 +136,7 @@ try {
           remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-profile.json')
           local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-profile.json')}`, '  config: <private call>/vectra-profile.json')
         }
-        assert.deepEqual(remote, local)
+        assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
       }
       assert.equal((await requests()).mutations, 0)
       const write = await cli(['vectra-axi', ...tagArgs, '--execute', '--confirm', 'detection 42'])

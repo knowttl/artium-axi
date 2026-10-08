@@ -8,6 +8,7 @@ import { readPassword } from './password.js'
 import { doctor } from './doctor.js'
 import { commandHelp, helpCommand } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
+import { rewriteSuggestions } from './rewrite.js'
 
 async function main(args: string[]) {
   const prefixHelp = args[0] === '--help'
@@ -115,8 +116,8 @@ async function main(args: string[]) {
     if (!parsed.success || parsed.data.source !== command) throw new ArtiumError('INVALID_RESPONSE')
     const { stdout, stderr, exitCode, truncated } = parsed.data
     if (truncated.stdout || truncated.stderr) process.stderr.write(`artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
-    process.stdout.write(stdout)
-    process.stderr.write(stderr)
+    process.stdout.write(rewriteSuggestions(stdout, command!, truncated.stdout))
+    process.stderr.write(rewriteSuggestions(stderr, command!, truncated.stderr))
     process.exitCode = exitCode
   }
 }
