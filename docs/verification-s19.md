@@ -3,7 +3,8 @@
 T1.6 uses real Fastify loopback requests, temporary SQLite stores, synthetic local identities, canary credentials and the existing fake executable.
 No real platform or credential is used.
 See [README.md](../README.md) for current server startup and authentication settings and [S30 verification](verification-s30.md) for local sign-in checks.
-Remote health scheduling and actual deployed proxy acceptance remain later gates.
+See [S42 verification](verification-s42.md) for cached platform health scheduling.
+Actual deployed proxy acceptance remains a captain check.
 
 Run `pnpm exec vitest run test/integration/api.test.ts` for the focused HTTP checks.
 
