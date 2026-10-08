@@ -102,13 +102,42 @@ Bootstrap metadata starts empty and is written atomically with the first adminis
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
 The [access-token verifier](src/server/auth/tokens.ts) looks up SHA-256 hashes and enforces access-token type, token and family deadlines, consumption and revocation.
 The [tool policy](src/server/policy/policy.ts) reads the current enabled user, enabled tool and role grants on every call.
-The [run preparation function](src/server/runner/prepare.ts) verifies the token and policy before resolving the shared identity and retrieving credentials through the adapter.
-It returns the authenticated user ID and prepared call for the later audited HTTP run flow.
+The [audited execution function](src/server/runner/run.ts) verifies the token, current policy and bounded request before persisting a start, resolving the shared identity and retrieving credentials through the adapter.
+It executes through the runner and persists a terminal event before returning a completed result, including nonzero upstream exits.
 The [error catalogue](src/shared/errors.ts) owns token and policy denial codes and their distinct responses.
 The random [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness and refuses execution outside `NODE_ENV=test`.
 It stores only the token hash, sets a one-hour access-token expiry and a fixed 12-hour family deadline, and issues tokens checked by the production verifier in tests.
 [S16 verification](docs/verification-s16.md) covers expiry and revocation, next-call role changes and proof that denied preparation retrieves no secret.
-Login, production token issuance, bootstrap execution, audited execution and HTTP integration arrive in later slices.
+Login, production token issuance, bootstrap execution and HTTP integration arrive in later slices.
+
+The [audit store](src/server/audit/audit.ts) records UTC Unix millisecond timestamps, actor IDs, tools, request IDs, verified client addresses, outcomes and safe run metadata.
+`runTool(db, audit, runner, token, request, adapter, resolver, context)` owns admission and execution.
+The HTTP owner supplies a unique request ID, a verified client address and an optional disconnect signal through `context`.
+Audit persistence failure returns `AUDIT_UNAVAILABLE`, prevents credential retrieval and child creation at admission, and withholds the completed result if terminal persistence fails.
+Run failures record only stable error codes, duration and observed output sizes, including secret-output failures.
+The [argument redactor](src/server/audit/redact.ts) hides sensitive separate and equals flag values and the positional indices identified by `adapter.sensitiveArguments(args)`.
+It records at most 64 original arguments, caps each recorded value at 512 characters and escapes control characters.
+Injected credential arguments, request bodies, stdin, uploaded contents, tokens, passwords and output streams never enter audit storage.
+
+Create one `Audit` per server and call `recoverInterrupted()` before admitting requests at startup.
+It appends interrupted terminal events for unmatched starts without replaying commands, using null exit codes and unknown output sizes.
+Call `maintain()` from the server's daily maintenance tick.
+It deletes at most 500 events strictly older than 90 days per day, persists the cutoff and deletion count atomically, and rolls back deletion if that event cannot be stored.
+The last persisted maintenance timestamp keeps the daily bound across restarts.
+Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
+SQLite remains authoritative if the optional stream fails.
+For export, capture that stream in a protected external collector before retention expires.
+Database backup includes retained audit records and account metadata and must be protected as sensitive data, with the master key stored separately.
+Online backup and stopped restore execution arrive in the later maintenance slice.
+
+`audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
+The later authentication and admin producers must call it using metadata only.
+`audit.change(event, mutation)` commits a synchronous database mutation and its event together, then streams the committed event.
+It preserves mutation errors and rolls the mutation back when audit persistence fails.
+Do not call these operations inside another transaction, where a stream could precede commit.
+There is no audit update or deletion interface for administrators.
+The server startup and daily tick wiring arrive with HTTP integration.
+[S17+S18 verification](docs/verification-s17-18.md) defines the local checks.
 
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
 Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `child-exit`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
@@ -176,7 +205,7 @@ The [input transport](src/server/runner/input.ts) validates inputs before creati
 File arguments containing server paths or missing uploads are refused.
 Adapters must normalize equals-form flags and supply the reviewed file-value positions after parser-aware validation.
 The runner sends bounded UTF-8 stdin through a pipe and closes it, including when stdin is omitted, and cleans uploads with the call directory on success or failure.
-The CLI's command-specific stdin capture, remaining adapters' restrictions on credential/config/output paths, HTTP endpoints and audit integration arrive in later slices.
+The CLI's command-specific stdin capture, remaining adapters' restrictions on credential/config/output paths and HTTP endpoints arrive in later slices.
 See [verification-s11.md](docs/verification-s11.md) for contract and input transport evidence.
 See [verification-s09-10.md](docs/verification-s09-10.md) for lifecycle, resource and limitation evidence.
 See [verification-s08.md](docs/verification-s08.md) for local runner acceptance checks.
