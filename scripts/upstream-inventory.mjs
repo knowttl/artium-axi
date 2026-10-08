@@ -35,6 +35,12 @@ const inventories = {
         .filter(flag => !flag.startsWith('--')).map(flag => [flag.slice(1), argument.flags[0].slice(2)]))) }
     }
     return { command, canonicalCommand: leaf.path, handlerCommand: leaf.handlerPath ?? leaf.path,
+      tokenResources: leaf.capability !== 'native' || /^(config|setup)\b/.test(leaf.path) ? null
+        : leaf.path === 'home' ? [] : leaf.path === 'doctor' ? ['arm', 'logs', 'graph']
+        : leaf.path === 'api' ? [] : leaf.path === 'rbac list' ? ['arm', 'graph']
+        : leaf.path === 'monitor log-analytics query' ? ['logs']
+        : leaf.path.startsWith('storage ') ? ['storage'] : leaf.path.startsWith('keyvault ') ? ['vault']
+        : leaf.path.startsWith('acr ') ? ['registry'] : ['arm'],
       effect: leaf.effect, capability: leaf.capability, flags, flagAliases, shortFlags,
       positionalInput: Boolean(leaf.positionalInput && !canonical) }
   })),
@@ -107,6 +113,10 @@ for (const [tool, commands] of Object.entries(inventories)) {
       sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
     suggestionFields: ['help'], format: 'TOON',
+    ...(tool === 'az-axi' ? { tokenResourceSources: ['lib/registry.js', 'lib/client.js', 'lib/principals.js',
+      'lib/storageMetadata.js', 'lib/keyvaultMetadata.js', 'lib/acrMetadata.js', 'commands/rbac.js',
+      'commands/logs.js', 'commands/doctor.js', 'commands/api.js'].map(path => ({ path: `dist/${path}`,
+      sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/az-axi/dist/${path}`, root))).digest('hex') })) } : {}),
     ...(tool === 'vectra-axi' ? { adapterBoundary: {
       blockedCommands: ['setup'],
       unsafeOverrides: ['config', 'profile'], inputFileFlags: ['tags-file', 'ids-file', 'note-file'],

@@ -29,8 +29,8 @@ export interface AzureToken {
   secrets: string[]
 }
 
-// One acquisition, with no persistent cache. Resource selection and shared caching belong to S25.
-export async function mintAzureToken(value: unknown, resource: AzureResource, networkClient?: INetworkModule): Promise<AzureToken> {
+// One acquisition, with no persistent cache.
+export async function mintAzureToken(value: unknown, resource: AzureResource, networkClient?: INetworkModule, signal?: AbortSignal): Promise<AzureToken> {
   try {
     const parsed = azureCredentialSchema.safeParse(value)
     if (!parsed.success || !Object.hasOwn(azureAudiences, resource)) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
@@ -48,6 +48,16 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
         const jwt = assertion.getJwt(new CryptoProvider(), clientId, tokenEndpoint!)
         secrets.push(jwt)
         return jwt
+      }
+    }
+    if (!networkClient && signal) {
+      const request = async <T>(url: string, method: string, options?: import('@azure/msal-node').NetworkRequestOptions) => {
+        const response = await fetch(url, { method, headers: options?.headers, body: options?.body, signal })
+        return { status: response.status, headers: Object.fromEntries(response.headers), body: await response.json() as T }
+      }
+      networkClient = {
+        sendGetRequestAsync: (url, options) => request(url, 'GET', options),
+        sendPostRequestAsync: (url, options) => request(url, 'POST', options),
       }
     }
     const client = new ConfidentialClientApplication({
