@@ -118,6 +118,30 @@ test('credential testing uses the same recent-auth challenge', async () => {
   expect((await request('POST', '/v1/admin/tools/falcon-axi/test', { _csrf: csrf })).headers.location).toBe('/reauth')
 })
 
+test('Roles page escapes names and change actors and preserves bounded pagination', async () => {
+  await signIn()
+  db.prepare('UPDATE users SET username = ? WHERE id = ?').run('<b>actor</b>', userId)
+  db.prepare('UPDATE roles SET name = ?, updated_by = ?, updated_at = ?').run('<img src=x>', userId, now)
+  db.exec("INSERT INTO roles (id, name) VALUES ('a', 'First')")
+  const first = await request('GET', '/admin/roles?limit=1')
+  expect(first.statusCode).toBe(200)
+  expect(first.body).toContain('<h2>First</h2>')
+  expect(first.body).toContain('/admin/roles?cursor=a&amp;limit=1')
+  const second = await request('GET', '/admin/roles?cursor=a&limit=1')
+  expect(second.body).toContain('<h2>&lt;img src=x&gt;</h2>')
+  expect(second.body).toContain('Last changed by &lt;b&gt;actor&lt;/b&gt;')
+  expect(second.body).toContain(new Date(now).toISOString())
+  expect(second.body).toContain('value="falcon-axi" checked')
+  expect((await request('GET', '/admin/roles?limit=101')).statusCode).toBe(400)
+})
+
+test.each(['/admin/tools', '/admin/credentials', '/admin/roles'])('page %s requires the current administrator capability', async path => {
+  expect((await request('GET', path)).headers.location).toBe('/login')
+  await signIn()
+  db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
+  expect((await request('GET', path)).statusCode).toBe(403)
+})
+
 test.each([
   { method: 'PATCH', path: '/v1/admin/users/synthetic-development-user' },
   { method: 'PUT', path: '/v1/admin/users/synthetic-development-user/roles' },
