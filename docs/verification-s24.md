@@ -1,7 +1,7 @@
 # S24 local verification
 
 S24 implements T2.5 steps 1 and 2 only.
-The credential schema and MSAL Node 7.0.1 acquisition boundary live in [azure-tokens.ts](../src/server/adapters/azure-tokens.ts).
+The credential schema and MSAL acquisition boundary live in [azure-tokens.ts](../src/server/adapters/azure-tokens.ts).
 The root package and lockfile pin MSAL to the version already installed with the pinned Graph upstream.
 Azure adapter preparation remains S26, and resource selection, refresh, deadlines, backoff, coalescing and replacement eviction remain S25.
 No live tenant or identity provider is contacted.
@@ -22,19 +22,8 @@ Diagnostics tests observe stdout and stderr and require no emitted secret-bearin
 Both auth forms also run in a real Node child with filesystem writes denied by the permission model, proving authentication needs no disk cache.
 The test selects the permission flag supported by the running Node version, including Node 22.12's experimental flag.
 
-The six audience values come from az-axi 0.1.4 `dist/lib/auth.js` `RESOURCE_URL`.
-Tests inspect actual MSAL token-request scopes and require exactly these source-derived candidates.
-
-| Resource | Scope candidate |
-|---|---|
-| ARM | `https://management.azure.com//.default` |
-| Logs | `https://api.loganalytics.io/.default` |
-| Graph | `https://graph.microsoft.com/.default` |
-| Storage | `https://storage.azure.com//.default` |
-| Vault | `https://vault.azure.net//.default` |
-| Registry | `https://containerregistry.azure.net/.default` |
-
-Appending `/.default` preserves each upstream audience's existing trailing slash.
+The `azureAudiences` map in [azure-tokens.ts](../src/server/adapters/azure-tokens.ts) owns the six audience values, derived from the pinned az-axi `dist/lib/auth.js` `RESOURCE_URL`.
+[The authentication tests](../src/server/adapters/azure-tokens.test.ts) inspect actual MSAL token-request scopes and check the exact source-derived candidates, including preserved trailing slashes when appending `/.default`.
 These values have fake transport evidence only.
 The certificate fields follow the pinned MSAL public API and [Microsoft's certificate credential documentation](https://learn.microsoft.com/en-us/entra/msal/javascript/node/certificate-credentials).
 No certificate or private key is published as a fixture.
