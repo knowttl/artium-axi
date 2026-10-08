@@ -16,8 +16,8 @@ export async function doctor(): Promise<void> {
     return
   }
   try {
-    const ready = await client.request('/health/ready', 'GET')
-    const ok = !!ready && typeof ready === 'object' && 'status' in ready && ready.status === 'ok'
+    const live = await client.request('/health/live', 'GET')
+    const ok = !!live && typeof live === 'object' && 'status' in live && live.status === 'ok'
     line('server address', ok)
     line('certificate', client.serverUrl.startsWith('https:'), client.serverUrl.startsWith('https:') ? undefined : 'test HTTP')
   } catch (error) {

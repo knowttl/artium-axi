@@ -177,10 +177,14 @@ test('TLS certificate trust cannot be bypassed and connection failure is not ret
   expect(requests).toEqual([])
 })
 
-test('doctor reports trusted HTTPS, token, version and each cached tool without a platform call', async () => {
+test.each([
+  { status: 200, body: { status: 'ok' } },
+  { status: 503, body: { status: 'unavailable' } },
+])('doctor reports trusted HTTPS, token, version and each cached tool when readiness returns $status', async readiness => {
   requests = []
   doctorResponses = {
-    '/health/ready': { status: 200, body: { status: 'ok' } },
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/health/ready': readiness,
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000 } },
     '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' },
@@ -189,7 +193,7 @@ test('doctor reports trusted HTTPS, token, version and each cached tool without 
   try {
     expect(await cli(['doctor'])).toMatchObject({ code: 1, stderr: '', stdout:
       'pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi (ok)\nfail: vectra-axi (error)\n' })
-    expect(requests.map(request => request.path)).toEqual(['/health/ready', '/v1/me', '/v1/me', '/v1/tools'])
+    expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
     doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] }
     expect(await cli(['doctor'])).toMatchObject({ code: 0, stdout: expect.stringContaining('pass: falcon-axi (ok)') })
