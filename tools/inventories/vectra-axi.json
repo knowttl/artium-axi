@@ -24,6 +24,29 @@
     }
   ],
   "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "nativeWriteSettings": {
+    "default": "disabled",
+    "disposition": "server-owned",
+    "profileFields": {
+      "writes.allowWrites": "boolean",
+      "writes.operations": "string[]"
+    },
+    "scope": {
+      "configuredField": "writes.operations",
+      "resolvedField": "scope.operations",
+      "rule": "Explicit nonempty operation allowlist, snapshotted by the mutation coordinator for QUX and RUX"
+    },
+    "sources": [
+      {
+        "path": "dist/src/profiles.js",
+        "sha256": "2e7ced037e4150a414793554970fb8f89011d579aafc4aad7a477db2d05ac403"
+      },
+      {
+        "path": "dist/src/writes.js",
+        "sha256": "3148132d366beec56e5d1f187d2922037b340d52a5d350ff252187ce28e0f83f"
+      }
+    ]
+  },
   "suggestionFields": [
     "help"
   ],

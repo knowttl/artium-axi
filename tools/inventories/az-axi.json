@@ -56,6 +56,29 @@
     }
   ],
   "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "nativeWriteSettings": {
+    "default": "disabled",
+    "disposition": "server-owned",
+    "profileFields": {
+      "allowWrites": "boolean",
+      "subscriptions": "string[]"
+    },
+    "scope": {
+      "configuredField": "subscriptions",
+      "resolvedField": "writeSubscriptions",
+      "rule": "Copied from configured subscriptions before flag or environment read-scope overrides; unscoped writes denied"
+    },
+    "sources": [
+      {
+        "path": "dist/lib/config.js",
+        "sha256": "df929b416ff42b456d33455027e84f0ade2d59483eed34f2ca81ea7e99e16648"
+      },
+      {
+        "path": "dist/lib/gates.js",
+        "sha256": "c7631668079e44a7dc6666192e9cc6bbfa7f3776fa4e6f8adef12e419a9f143f"
+      }
+    ]
+  },
   "suggestionFields": [
     "help"
   ],

@@ -1,5 +1,0 @@
-items[1]{id,name}:
-  42,Synthetic item
-help[2]:
-  Run `fake-axi fixture empty`
-  Run `fake-axi print "quoted text"`

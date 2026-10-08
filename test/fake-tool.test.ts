@@ -39,12 +39,6 @@ test('fake executable preserves exit status and signal termination', () => {
   expect(run(['missing']).status).toBe(2)
 })
 
-test.each(['empty', 'error', 'suggestions'])('synthetic %s fixture is executable output', (name) => {
-  const result = run(['fixture', name])
-  expect(result.status).toBe(name === 'error' ? 1 : 0)
-  expect(result.stdout).toContain(name === 'error' ? 'API_ERROR' : name === 'empty' ? 'count: 0' : 'help[2]')
-})
-
 test.each(['az-axi', 'vectra-axi', 'mg-axi'])('%s synthetic captures preserve streams and status', (tool) => {
   expect(run(['upstream', tool, 'empty']).status).toBe(0)
   expect(run(['upstream', tool, 'error']).status).toBe(1)

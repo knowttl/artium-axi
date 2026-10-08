@@ -46,11 +46,12 @@ The root install runs their frozen installation, with native dependency build sc
 mg-axi is inventoried for phase 8, with no production adapter enabled.
 `pnpm test` checks the generated parser inventories against the installed catalogues before running Vitest.
 Regenerate them with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
-These inventories record provisional flag dispositions, environment variables, aliases and suggestion fields, not a production allow-list.
+These inventories record provisional flag dispositions, environment variables, aliases, native profile write settings and suggestion fields, not a production allow-list.
+Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The native write gates remain upstream-owned.
 
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
-Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `descendant`, `exit`, `split`, `leak`, `signal`, `fixture` and `upstream`.
+Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
 For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stderr bytes, and `upstream az-axi error` emits a synthetic stream capture with an error status.
 `leak` reads only `ARTIUM_TEST_CANARY`, with `raw`, `base64`, `base64url` or `url` encoding and an optional `stderr` argument.
 `child` creates an ordinary descendant, while `descendant` starts a separate session.
@@ -68,7 +69,6 @@ The build requires an existing `moby/buildkit:buildx-stable-1` image and permits
 It uses a uniquely named, privileged `artium-test-` BuildKit container with bounded CPU and memory, and cache on private tmpfs.
 Its finalizer removes that builder, cache and exported temporary archive without touching the shared Docker builder.
 It refuses to replace an existing `artium-test-node22` image.
-Alternatively set `ARTIUM_TEST_IMAGE` to an existing image whose name starts with `artium-test-`.
 An existing suitable Node image can be tagged with `docker image tag <existing-node-image> artium-test-node22`.
 The harness never pulls an image, builds one, publishes ports or alters existing containers.
 It creates uniquely named `artium-test-` internal networks and containers, routes the fixed upstream names to the fake TLS service and trusts only its ephemeral test CA.
