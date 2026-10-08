@@ -13,7 +13,7 @@ Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 The executable toolchain tests compile synthetic TypeScript and run its emitted ESM with Node, and verify strict null checking rejects an invalid assignment.
 `pnpm test:security` selects tests whose names contain `security`.
-It currently includes the synthetic hygiene checker tests and permits an empty selection.
+It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
 `src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container scaffold is available, while the server, CLI and adapters arrive in later slices.
@@ -59,6 +59,16 @@ For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stde
 `child` creates an ordinary descendant, while `descendant` starts a separate session.
 Callers must terminate both PIDs printed by those modes.
 [`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for future runner tests, without a production fake-tool entry.
+
+[`SecretScanner`](src/server/runner/scan.ts) is the standalone S07 runner component.
+Create one per call with all known injected secret values, then call `scan('stdout' | 'stderr', chunk)` on every raw byte chunk before retention or rewriting, including chunks after the 4 MiB per-stream cap.
+A `true` result stays true and tells the caller to discard both streams and report `SECRET_IN_OUTPUT`.
+The scanner checks raw UTF-8, canonical base64, base64url and `encodeURIComponent` forms, including short values, without retaining output bytes.
+Each stream carries independent prefix-match positions, so split UTF-8 bytes work and interleaved streams cannot create a false combined match.
+An empty supplied value is rejected, while an empty list is valid for a call with no injected secrets.
+Exact-value scanning cannot identify unknown tokens minted inside an upstream tool.
+Runner capture, process limits, error mapping and audit integration arrive in later slices.
+See [verification-s07.md](docs/verification-s07.md) for the local acceptance checks.
 
 Local HTTPS tests create an ephemeral CA and exercise the pinned Vectra native default refusal, preview, confirmed execution and ambiguous-write response against a loopback fake service.
 They assert mutation counts and native write-log creation.

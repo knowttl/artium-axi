@@ -65,7 +65,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Credential store, data ownership and master key (T2.1-T2.3) | pending | pending | unverified: real secrets remain outside the build environment |
 | Vectra read, preview, native write policy and logs (T2.4) | pending | pending | unverified: verify live read and native profile permissions |
 | Azure authentication, resource reads and write families (T2.5) | pending | pending | unverified: both auth forms and every enabled resource/write family |
-| Upstream token and output redaction (T2.6) | pending | pending | unverified: safe real-output checks, unknown-token claims remain limited |
+| Upstream token and output redaction (T2.6) | S07 standalone bounded byte scanner and [verification plan](verification-s07.md); known raw/base64/base64url/URL forms in both streams, chunk/UTF-8/cap boundaries and short values; final-head checks recorded in delivery status and PR body; runner/API/audit integration pending | Synthetic fake executable leak and split modes exercised on both streams; real upstream minted-token redaction pending | unverified: safe real-output checks, unknown-token claims remain limited |
 | Master-key rotation and maintenance (T2.7) | pending | pending | unverified: production rotation requires separate approval |
 | Identity, role and administrative transactions (T3.1-T3.4) | pending | pending | unverified: real account and credential changes require authorization |
 | Password hashing capacity (T4.1) | pending | not applicable | unverified: benchmark production host capacity |
