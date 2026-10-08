@@ -1,6 +1,6 @@
-import { execFile, spawnSync } from 'node:child_process'
+import { execFile, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
@@ -309,3 +309,54 @@ test('the real server process exits at startup with the dev setting absent', asy
   expect(result.status).toBe(1)
   expect(JSON.parse(result.stderr)).toMatchObject({ error: { code: 'DEV_AUTH_INVALID', requestId: 'startup' } })
 })
+
+test('the real server remains available after startup encounters a damaged native journal', async () => {
+  const { build } = await import('esbuild')
+  const entry = join(directory, 'server.mjs')
+  const logDirectory = join(directory, 'data', 'tool-logs', 'vectra-axi')
+  const journal = join(logDirectory, 'writes.log')
+  const damaged = '{"kind":"intent","synthetic":"CANARY-partial'
+  mkdirSync(logDirectory, { recursive: true })
+  writeFileSync(journal, damaged, { mode: 0o600 })
+  writeFileSync(`${journal}.lock`, '')
+  writeFileSync(`${journal}.retention`, 'interrupted compaction')
+  symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
+  cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
+  await build({ stdin: { contents: `
+    import { Server } from 'node:net';
+    import { serverDefaults } from './src/server/config.ts';
+    Object.assign(serverDefaults, { host: '127.0.0.1', port: 0, temporaryDirectory: ${JSON.stringify(join(directory, 'startup-calls'))} });
+    const listen = Server.prototype.listen;
+    Server.prototype.listen = function (...args) {
+      this.once('listening', () => process.stdout.write(JSON.stringify(this.address()) + '\\n'));
+      return listen.apply(this, args);
+    };
+    await import('./src/server/main.ts');
+  `, resolveDir: process.cwd() }, outfile: entry, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
+  const child = spawn(process.execPath, [entry], { cwd: directory,
+    env: { ...process.env, ...environment, ARTIUM_AXI_DATABASE_FILE: join(directory, 'data', 'artium.db'),
+      ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }, stdio: ['ignore', 'pipe', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', chunk => { stderr += chunk.toString() })
+  const closed = once(child, 'close')
+  try {
+    const [output] = await Promise.race([once(child.stdout, 'data'), closed.then(() => { throw new Error(stderr) })])
+    const address = JSON.parse(output.toString()) as { port: number }
+    const origin = `http://127.0.0.1:${address.port}`
+    const health = await fetch(`${origin}/health/ready`)
+    expect(health.status).toBe(200)
+    expect(await health.json()).toEqual({ status: 'ok' })
+    const listing = await fetch(`${origin}/v1/tools`, { headers })
+    expect(listing.status).toBe(200)
+    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured' })
+    expect(readFileSync(journal, 'utf8')).toBe(damaged)
+  } finally {
+    child.kill('SIGTERM')
+    await closed
+  }
+  expect(stderr.trim().split('\n').map(line => JSON.parse(line))).toEqual(expect.arrayContaining([
+    { error: { code: 'AUDIT_UNAVAILABLE', source: 'artium-axi', message: errors.AUDIT_UNAVAILABLE.message,
+      next: errors.AUDIT_UNAVAILABLE.next, requestId: 'retention' } },
+  ]))
+  expect(stderr).not.toContain('CANARY-partial')
+}, 10_000)
