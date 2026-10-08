@@ -160,6 +160,33 @@ test('browser pages escape the signed-in display name', async () => {
   expect(response.headers['cache-control']).toBe('no-store')
 })
 
+test('Users screen escapes HTML usernames, role names and change actors as text', async () => {
+  db.prepare('UPDATE users SET username = ? WHERE id = ?').run('<b>synthetic</b>', 'synthetic-second')
+  db.prepare('UPDATE users SET updated_by = ?, updated_at = ?, revision = 7 WHERE id = ?')
+    .run('synthetic-second', now, userId)
+  db.prepare('UPDATE roles SET name = ?').run('<img src=x onerror=alert(1)>')
+  await signIn()
+  const response = await request('GET', '/admin')
+  expect(response.statusCode).toBe(200)
+  expect(response.body).toContain('&lt;b&gt;synthetic&lt;/b&gt;')
+  expect(response.body).not.toContain('<b>synthetic</b>')
+  expect(response.body).toContain('&lt;img src=x onerror=alert(1)&gt;')
+  expect(response.body).not.toContain('<img')
+  expect(response.body).toContain(`Last changed by &lt;b&gt;synthetic&lt;/b&gt; at ${new Date(now).toISOString()}. Revision 7.`)
+})
+
+test('Users screen paginates accounts and retains role choices from later API pages', async () => {
+  const insert = db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)')
+  for (let index = 0; index < 101; index++) insert.run(`role-${index.toString().padStart(3, '0')}`, `Role ${index}`)
+  await signIn()
+  const response = await request('GET', '/admin?limit=1')
+  expect(response.body).toContain('Role 100')
+  expect(response.body).toContain('Next page')
+  const next = /href="(\/admin\?cursor=[^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&')
+  expect((await request('GET', next)).body).not.toContain('Next page')
+  expect((await request('GET', '/admin?limit=101')).statusCode).toBe(400)
+})
+
 test.each([
   { name: 'idle', elapsed: browserDefaults.idleMs, lastSeenAgo: browserDefaults.idleMs },
   { name: 'absolute', elapsed: browserDefaults.absoluteMs, lastSeenAgo: 1 },
