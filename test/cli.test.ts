@@ -138,6 +138,20 @@ test('truncation diagnostic precedes upstream stderr without changing stdout', a
   expect(await cli(['falcon-axi'])).toMatchObject({ code: 0, stdout: 'data', stderr: 'artium-axi: output truncated (stdout).\nupstream' })
 })
 
+test('bundle rewrites only complete suggestion streams and preserves the upstream exit code', async () => {
+  requests = []
+  const stdout = 'help[1]:\n  Run `falcon-axi host list`\n'
+  const stderr = '{ "help": ["Run `falcon-axi detection list`"], "data": "falcon-axi" }'
+  response = { status: 200, body: { source: 'falcon-axi', stdout, stderr, exitCode: 7,
+    durationMs: 1, outputBytes: { stdout: stdout.length, stderr: stderr.length }, truncated: { stdout: false, stderr: false } } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
+    stdout: 'help[1]:\n  Run `artium-axi falcon-axi host list`\n',
+    stderr: '{ "help": ["Run `artium-axi falcon-axi detection list`"], "data": "falcon-axi" }' })
+  response.body = { ...response.body as object, truncated: { stdout: true, stderr: false } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: 7, stdout,
+    stderr: 'artium-axi: output truncated (stdout).\n{ "help": ["Run `artium-axi falcon-axi detection list`"], "data": "falcon-axi" }' })
+})
+
 test.each([301, 302, 303, 307, 308])('authenticated redirect %i is refused without a second request', async status => {
   requests = []
   response = { status, body: {}, location: `${url}/destination`, stall: true }
