@@ -94,10 +94,10 @@ The [authentication schema](src/server/store/migrations/002-authentication.sql) 
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
 The account-writing flow owns canonicalization before insertion.
 The `administrator` flag is a reserved account capability independent of role tool grants.
-Users and roles have optimistic revisions, alongside the existing tool and credential revisions.
+The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later account and role writers must enforce optimistic concurrency.
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
 Family deadlines, browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
-All authentication and audit timestamps use UTC Unix milliseconds.
+Authentication and audit writers must store timestamps as UTC Unix milliseconds.
 Bootstrap metadata starts empty and is written atomically with the first administrator in the later bootstrap slice.
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
 Token verification, issuance, login, bootstrap execution and audit writing arrive in later slices.
