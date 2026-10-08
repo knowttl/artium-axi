@@ -450,6 +450,7 @@ Azure configuration remains editable, but its runtime enable and test operations
 Both revisions are checked atomically before either record changes, so a stale credential form cannot overwrite newer native settings even when the tool has no credential yet.
 No response returns a credential value, token, private key or client secret; Falcon's client ID is also withheld because that adapter treats it as a scan secret.
 The replacement splits native settings into the tool configuration and encrypts the remaining credential fields, updating both records with one audit commit.
+Omitted native settings are cleared rather than preserved; include every setting to retain in the replacement `value`.
 It advances the tool revision as well as the credential revision, clears cached health and immediately evicts old Azure resource tokens and pending acquisitions.
 Native-settings patches also advance the configured credential revision so an old prepared profile cannot be reused by a manual test after the edit.
 `POST /v1/admin/tools/{tool}/test` accepts only an empty body and runs the fixed Falcon `auth status`, Vectra `health list` or internal Azure `account list` read.

@@ -8,10 +8,11 @@ Azure runtime enable and Test remain unavailable.
 
 The [tool administration integration suite](../test/integration/admin-tools.test.ts) requests the actual rendered Users, Tools, Credentials and Roles pages after storing canary credentials.
 It verifies that stored Falcon client ID/secret, Vectra token and Azure secret are absent, credential editors are blank, responses prohibit caching and change actors appear.
+It also verifies stale tool revisions reject credential replacement without mutation for unconfigured Vectra and Azure and configured tools, with native settings present or omitted, and that current complete replacements clear omitted settings.
 The [browser integration suite](../test/integration/browser-auth.test.ts) verifies escaped role and actor names, UTC change time, selected grants, bounded pagination and current administrator capability on all new pages.
 Existing S34/S35/S38 tests cover revision conflicts, atomic audit, manual-test quota, recent authentication and CSRF through the same real APIs the forms submit.
 The [HTTP integration suite](../test/integration/api.test.ts) verifies both user-role removal and role-grant removal immediately deny the next run using the existing token and audit both the change and denial.
-The focused browser/tool suites passed 86 tests before final aggregate validation.
+The initial focused browser/tool suites passed 86 tests before the dual-revision regression additions; this result is not final-head validation.
 
 Real browser acceptance used [the TLS fixture](../test/fake-service/browser-auth.mjs), named session `CHROME_DEVTOOLS_AXI_SESSION=artium-s40`, `start`, `selectpage 1`, then individual `open`, `fill`, `click`, `dialog`, `snapshot` and `eval` commands.
 Only the fixture certificate public-key digest was trusted.
