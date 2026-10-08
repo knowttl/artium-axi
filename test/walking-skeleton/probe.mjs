@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { copyFileSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -63,6 +63,47 @@ try {
         if (!args.includes('--unknown') && !args.includes('--filter')) assert.match(remote.stdout, /synthetic-detection/)
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
       }
+      const redaction = await execute('/opt/falcon-axi/bin/falcon-axi', ['detection', 'list', '--filter', "hostname:'synthetic-redaction'", '--region', 'us-1'], {
+        FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
+      })
+      assert.equal(redaction.code, 0)
+      console.log(JSON.stringify({ pinnedFalconRedaction: 'synthetic minted token echoed in display field',
+        rawMintedTokenVisible: redaction.stdout.includes('CANARY-falcon-token') || redaction.stderr.includes('CANARY-falcon-token') }))
+      const { createVectraAdapter } = await import('/opt/artium/dist/src/server/adapters/vectra.js')
+      const adapter = createVectraAdapter({ getCredential: async () => ({
+        kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token', token: 'CANARY-vectra-token',
+        caBundle: readFileSync('/certs/ca.crt', 'utf8'), writes: { allowWrites: true, operations: ['qux.detection.tag.set'] },
+      }) }, join(directory, 'writes.log'))
+      // The profile's CA is used by the actual binary; the harness reads evidence through HTTPS with its test CA.
+      const requests = async () => {
+        const { request } = await import('node:https')
+        return new Promise((resolve, reject) => {
+          const req = request('https://appliance.test/__evidence', { ca: readFileSync('/certs/ca.crt') }, res => {
+            let body = ''
+            res.on('data', chunk => { body += chunk })
+            res.on('end', () => resolve(JSON.parse(body)))
+          })
+          req.on('error', reject)
+          req.end()
+        })
+      }
+      const tagArgs = ['detection', 'tag', 'set', '--id', '42', '--tags', 'synthetic']
+      const prepared = await adapter.prepare(tagArgs, { id: 'synthetic-vectra', tool: 'vectra-axi' })
+      for (const file of prepared.files) writeFileSync(join(directory, file.name), file.content, { mode: 0o600 })
+      for (const args of [['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
+        const local = await execute(prepared.executable, args, prepared.environment)
+        const remote = await cli(['vectra-axi', ...args])
+        assert.deepEqual(remote, local)
+      }
+      assert.equal((await requests()).mutations, 0)
+      const write = await cli(['vectra-axi', ...tagArgs, '--execute', '--confirm', 'detection 42'])
+      assert.equal(write.code, 0, write.stdout + write.stderr)
+      assert.equal((await requests()).mutations, 1)
+      const log = '/test-data/tool-logs/vectra-axi/writes.log'
+      assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line).kind), ['intent', 'outcome'])
+      assert.equal(statSync(log).mode & 0o777, 0o600)
+      console.log(JSON.stringify({ pinnedVectra: '0.1.3', profile: 'local and Artium parity', dryRun: 'zero mutations',
+        execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.3.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
     }
   } finally { await new Promise((resolve, reject) => proxy.close(error => error ? reject(error) : resolve())) }

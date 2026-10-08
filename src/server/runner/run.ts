@@ -31,7 +31,7 @@ export async function runTool<Credential>(
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
     args = parsed.data.args
     input = { stdin: parsed.data.stdin, files: parsed.data.files }
-    adapter.validateArgs(args)
+    adapter.validateArgs(args, input)
   } catch (error) {
     audit.record({ event: 'denial', userId, tool: adapter.name, requestId: context.requestId,
       clientAddress: context.clientAddress, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
@@ -43,10 +43,10 @@ export async function runTool<Credential>(
   let result: RunnerResult
   try {
     const reference = await resolver.resolve(userId, adapter.name)
-    const prepared = await adapter.prepare(args, reference)
-    if (prepared.files.length) throw new ArtiumError('UNSUPPORTED_INPUT')
+    const prepared = await adapter.prepare(args, reference, input)
     result = await runner.run(userId, prepared.executable, prepared.args, prepared.environment,
-      prepared.secrets, { ...prepared.limits, signal: context.signal }, input)
+      prepared.secrets, { ...prepared.limits, signal: context.signal },
+      { ...input, fileArguments: prepared.fileArguments }, prepared.files)
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
     audit.record({ ...identity, event: 'run-terminal',

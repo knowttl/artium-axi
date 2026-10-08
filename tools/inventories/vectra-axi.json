@@ -80,6 +80,31 @@
     "help"
   ],
   "format": "TOON",
+  "adapterBoundary": {
+    "blockedCommands": [
+      "setup"
+    ],
+    "unsafeOverrides": [
+      "config",
+      "profile"
+    ],
+    "inputFileFlags": [
+      "tags-file",
+      "ids-file",
+      "note-file"
+    ],
+    "parser": {
+      "aliases": {},
+      "shortFlags": {},
+      "repeats": "refused",
+      "equals": true,
+      "doubleDash": "unknown flag"
+    },
+    "source": {
+      "path": "dist/src/catalogue.js",
+      "sha256": "7d35e9ae2276de90e3448f720e6e6993f66d8513b0d031c129a60898ab7a3269"
+    }
+  },
   "flags": [
     {
       "name": "account",
