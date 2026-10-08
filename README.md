@@ -142,11 +142,13 @@ Passwords allow spaces and Unicode, with 15 to 128 code points and at most 512 U
 `POST /v1/auth/login` accepts strict JSON `{ "username": string, "password": string }`.
 Ordinary success returns HTTP 200 with `status: authenticated`, distinct 32-byte random `accessToken` and `refreshToken`, and Unix millisecond `accessExpiresAt` and `familyExpiresAt` timestamps.
 Access lasts one hour and the family ends 12 hours after login.
-`POST /v1/auth/refresh` accepts strict JSON `{ "refreshToken": string }` and returns a new authenticated token pair.
+`POST /v1/auth/refresh` accepts strict JSON `{ "refreshToken": string }` with a nonempty token and returns HTTP 200 with a new authenticated token pair.
 Rotation consumes the refresh token atomically and preserves the original family deadline.
 Older access tokens remain valid until their own expiry or family revocation, and new access expiry is capped by the family deadline.
-Reusing a consumed refresh token revokes the entire family and records a token-reuse audit event.
-`POST /v1/auth/logout` accepts a bearer access or refresh token, including an expired token, and returns 204 after audited family revocation.
+Consumed refresh hashes remain stored for reuse detection through the family deadline.
+Reusing a consumed refresh token before that deadline revokes the entire family, records a token-reuse audit event and returns `TOKEN_INVALID`.
+`POST /v1/auth/logout` accepts a stored, unrevoked bearer access or refresh token, including an expired or consumed token, and returns 204 after audited family revocation.
+Revocation includes every token and browser session in that family, leaving other families unchanged.
 See [S31 verification](docs/verification-s31.md) for concurrent refresh, deadline and logout checks.
 Only SHA-256 token hashes and metadata are stored.
 A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
@@ -343,13 +345,13 @@ All tools remain disabled until the development store is configured.
 Use only synthetic encrypted credentials and fake upstream services during the build.
 Never put a token or key in an argument, source file, image or log.
 
-The [Fastify API](src/server/app.ts) implements local sign-in, password change, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
+The [Fastify API](src/server/app.ts) implements the authentication endpoints described above, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
 Use an ordinary access token from local sign-in in `Authorization: Bearer <token>` and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
 Tools listing includes enabled, granted adapters without contacting an upstream service.
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
-All bearer authentication uses the stored-token verifier, with current database policy applied to every tool request.
+Tool requests use the stored access-token verifier, with current database policy applied to every request.
 Admin routes and recent password reauthentication remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
