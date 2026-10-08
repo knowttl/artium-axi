@@ -4,7 +4,6 @@ The [shared API contract](../src/shared/api.ts) owns strict login requests and t
 The [token module](../src/server/auth/tokens.ts) owns random issuance, hash lookup, token types, deadlines and user session revocation.
 The [local provider](../src/server/auth/local.ts) checks password proofs and rechecks token validity inside the audited password-change transaction after hashing.
 See [README.md](../README.md) for current usage and the client-only legacy access-token file setting.
-The server rejects both development authentication settings.
 The existing [AGENTS.md](../AGENTS.md) pointers to package commands and README verification remain current.
 
 Use only synthetic accounts, canary passwords, temporary stores and fake upstream services.
@@ -13,10 +12,11 @@ Refresh rotation and logout are S31, rate limits and recent reauthentication are
 The restricted token fails the ordinary access verifier used by tool and future admin callers.
 Unimplemented admin routes return the existing 404 response for all callers.
 
-1. Run `pnpm exec vitest run test/integration/api.test.ts src/server/auth/tokens.test.ts src/server/auth/local.test.ts`.
+1. Run `pnpm exec vitest run test/integration/api.test.ts test/integration/audited-run.test.ts src/server/auth/tokens.test.ts src/server/auth/local.test.ts`.
    Verify real HTTP local sign-in, canonical usernames, distinct 32-byte random access and refresh values, hash-only persistence, one-hour access and fixed 12-hour family deadlines.
    Verify wrong-password and unknown-user failures have the same safe response, with no issued session.
    Verify strict JSON input, disabled users, expired and revoked proofs, and refresh tokens denied as access.
+   Verify expiry and password-change revocation during controlled filesystem setup each prevent child creation and remove prepared files, using fake time and the real audited execution boundary.
    Verify must-change sign-in issues only a restricted 10-minute proof, denying listing, execution and ordinary administration authentication before credential retrieval.
    Verify password change succeeds once, concurrent consumes commit once, all CLI families/tokens and browser sessions are revoked, and fresh login is required.
    Verify audit failures roll back issuance and password replacement, leaving the restricted proof usable for a retry.
