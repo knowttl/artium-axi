@@ -134,6 +134,45 @@
     "help"
   ],
   "format": "TOON",
+  "discovery": {
+    "commands": [
+      "home",
+      "doctor",
+      "sub",
+      "account",
+      "monitor",
+      "group",
+      "resource",
+      "tag",
+      "graph",
+      "rg",
+      "rbac",
+      "role",
+      "activity",
+      "defender",
+      "security",
+      "sentinel",
+      "exposure",
+      "logs",
+      "api",
+      "op",
+      "storage",
+      "keyvault",
+      "acr",
+      "network",
+      "policy",
+      "lock",
+      "deny-assignment",
+      "vm",
+      "vmss",
+      "disk"
+    ],
+    "example": [
+      "group",
+      "list"
+    ],
+    "help": "az-axi group list\naz-axi group show --name <group> --subscription <id>\nLists live ARM resource groups in selected subscriptions (flags, environment, profile, else all accessible). Subscription names resolve to IDs. Management-group scope is unsupported.\n--limit defaults to 50; --full shows complete metadata and all fetched rows; --fields selects metadata fields. Lists follow up to 100 pages per subscription and disclose incomplete counts.\nExamples: az-axi group list; az-axi group list -s <subscription> --full\nRequires --name / -n and exactly one selected subscription (ID or unambiguous name).\nDefault: name, id, location, state; --full returns the complete ARM resource group.\nExamples: az-axi group show -n <group> -s <subscription>; az-axi group show -n <group> --full"
+  },
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",

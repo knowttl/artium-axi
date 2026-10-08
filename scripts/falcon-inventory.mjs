@@ -21,6 +21,8 @@ for node in tree.body:
             values[name] = ast.literal_eval(node.value.args[0] if isinstance(node.value, ast.Call) else node.value)
 print(json.dumps({ 'globalFlags': values['GLOBAL_FLAGS'], 'commands': values['COMMAND_FLAGS'], 'valueFlags': sorted(values['VALUE_FLAGS']) }))
 `, parser], { encoding: 'utf8' }))
+const help = execFileSync('python3', ['-c', 'from falcon_axi.cli import help_text; print(help_text("detection list"), end="")'],
+  { encoding: 'utf8', env: { ...process.env, PYTHONPATH: source } })
 const serverOwned = ['region', 'member-cid']
 const blocked = ['allow-unknown-origin', 'no-member-cid', 'profile']
 const inventory = {
@@ -40,6 +42,8 @@ const inventory = {
       .map(name => ({ name, disposition: 'never injected' }))),
   requirements: { runtime: 'python', timeoutMs: 60_000, temporaryFiles: [], nativeWrites: 'read-only upstream design' },
   healthRead: ['auth', 'status'], suggestionFields: ['help'],
+  discovery: { commands: [...new Set(Object.keys(data.commands).map(command => command.split(' ')[0]))],
+    example: ['detection', 'list'], help },
   acceptance: 'Local fake-only evidence; live region, read and search timing remain unverified',
 }
 const destination = new URL('../tools/inventories/falcon-axi.json', import.meta.url)

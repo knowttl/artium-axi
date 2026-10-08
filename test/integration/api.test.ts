@@ -14,7 +14,7 @@ import { Audit } from '../../src/server/audit/audit.js'
 import { checkAuthSettings } from '../../src/server/auth/settings.js'
 import { errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits, loginResponseSchema } from '../../src/shared/api.js'
 import { hashToken, requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
-import { errors } from '../../src/shared/errors.js'
+import { ArtiumError, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
@@ -88,6 +88,21 @@ async function login(password = 'CANARY-local-password', username = 'synthetic-u
   return fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username, password }) })
 }
+
+test('the server handler maps every catalogue error to its HTTP envelope', async () => {
+  await app.close()
+  const runner = await Runner.create(join(directory, 'catalogue-calls'))
+  app = createApp({ ...options, runner })
+  app.get<{ Params: { code: keyof typeof errors } }>('/v1/catalogue/:code', async request => {
+    throw new ArtiumError(request.params.code)
+  })
+  for (const [code, definition] of Object.entries(errors)) {
+    const response = await app.inject(`/v1/catalogue/${code}`)
+    expect(response.statusCode).toBe(definition.status)
+    expect(response.json()).toEqual({ error: { code, source: 'artium-axi', message: definition.message,
+      next: definition.next, requestId: expect.any(String) } })
+  }
+})
 
 test.each([
   { path: '/users/synthetic-development-user/roles', body: { roleIds: [], expectedRevision: 1 }, action: 'assign-user-roles' },

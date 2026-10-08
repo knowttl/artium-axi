@@ -22,7 +22,8 @@
     "test:runner-container": "pnpm build && node scripts/runner-container-check.mjs",
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
     "lint": "tsc --noEmit",
-    "check": "pnpm lint && pnpm test && pnpm build",
+    "errors:generate": "node scripts/errors-reference.mjs --write",
+    "check": "node scripts/errors-reference.mjs && pnpm lint && pnpm test && pnpm build",
     "hygiene:check": "node scripts/hygiene-check.mjs"
   },
   "devDependencies": {
