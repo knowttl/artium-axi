@@ -5,6 +5,7 @@ It adds role-based access to those tools and a command-line client that follows 
 
 Status: under construction.
 The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
+User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 CLI sign-in commands remain later-slice work.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
@@ -365,7 +366,16 @@ Tools listing includes enabled, granted adapters without contacting an upstream 
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
-Admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+User administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
+`GET /v1/admin/users` accepts `cursor` and `limit` (1 to 100); account fields exclude password hashes.
+`POST /v1/admin/users` accepts `username`, `displayName`, `temporaryPassword`, `administrator` and `roleIds`, returning 201 with the public account.
+`PATCH /v1/admin/users/{id}` accepts `displayName`, `enabled` and/or `administrator`, together with `expectedRevision`.
+`POST /v1/admin/users/{id}/unlock` clears account lockout; `POST /v1/admin/users/{id}/password-reset` accepts `temporaryPassword` and forces a password change.
+Successful mutations return public account metadata and the new revision; stale edits return 409 and unknown accounts return 404.
+Disabling and resetting revoke CLI and browser sessions in the same transaction as the audit event.
+The last enabled administrator cannot be disabled or demoted, including concurrent edits.
+See [S33 verification](docs/verification-s33.md) for real local login, authorization, audit rollback and concurrency evidence.
+Role administration, remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

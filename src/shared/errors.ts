@@ -1,4 +1,7 @@
 export const errors = {
+  ADMIN_REQUIRED: { status: 403, message: 'Administrator capability is required.', next: 'Ask an administrator to perform this operation.' },
+  REVISION_CONFLICT: { status: 409, message: 'The account changed since it was read.', next: 'Read the current account revision and retry your edit.' },
+  LAST_ADMINISTRATOR: { status: 409, message: 'The last enabled administrator must remain enabled.', next: 'Enable another administrator before changing this account.' },
   USERNAME_INVALID: { status: 400, message: 'The local username is invalid.', next: 'Supply a nonempty username without whitespace or control characters.' },
   PASSWORD_FILE_INVALID: { status: 400, message: 'The password file is missing or unreadable.', next: 'Supply a readable UTF-8 password file containing the exact password, without an added newline.' },
   BOOTSTRAP_INCONSISTENT: { status: 503, message: 'The store contains data without a bootstrap marker.', next: 'Stop the server and restore a consistent bootstrapped store and matching master key.' },
