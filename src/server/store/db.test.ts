@@ -100,7 +100,48 @@ it.each(['ciphertext', 'id'] as const)('refuses startup after persisted %s corru
 it('refuses startup with a different valid master key', () => {
   seed()
   const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
+  expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+})
+
+it('binds an unconfigured store to its creation key', () => {
+  openStore(file, provider).close()
+  const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
+  expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+  openStore(file, provider).close()
+})
+
+it('refuses an unbound legacy store without key evidence and rolls back migration', () => {
+  const db = openStore(file, provider)
+  db.exec('DROP TABLE store_metadata; DELETE FROM migrations WHERE version = 6')
+  db.close()
+  expect(() => openStore(file, provider)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+  const unchanged = new Database(file)
+  try {
+    expect(unchanged.prepare("SELECT name FROM sqlite_master WHERE name = 'store_metadata'").get()).toBeUndefined()
+    expect(unchanged.prepare('SELECT version FROM migrations WHERE version = 6').get()).toBeUndefined()
+  } finally { unchanged.close() }
+})
+
+it('binds a legacy store only after its credentials authenticate', () => {
+  seed()
+  const db = new Database(file)
+  db.exec('DROP TABLE store_metadata; DELETE FROM migrations WHERE version = 6')
+  db.close()
+  const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
   expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
+  openStore(file, provider).close()
+  expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+})
+
+it('binds an empty legacy store to its latest rotation key', () => {
+  const db = openStore(file, provider)
+  db.prepare('INSERT INTO key_rotations (old_key_id, new_key_id) VALUES (?, ?)').run('synthetic-old-key', key.id)
+  db.exec('DROP TABLE store_metadata; DELETE FROM migrations WHERE version = 6')
+  db.close()
+  const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
+  expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+  openStore(file, provider).close()
+  expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
 })
 
 it('rejects authenticated plaintext that is not credential JSON with a safe error', () => {

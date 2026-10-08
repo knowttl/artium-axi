@@ -18,4 +18,5 @@ Rerun frozen install, lint, tests, aggregate checks and hygiene after any pipeli
 The PR body records results against the final implementation head.
 See [S16 verification](verification-s16.md) for token verification and the test fixture issuer.
 See [S17+S18 verification](verification-s17-18.md) for audit writing checks.
-Login, refresh, browser authentication, bootstrap execution and administrator safeguards belong to later slices.
+See [S29 verification](verification-s29.md) for bootstrap execution and administrator safeguards.
+Login, refresh and browser authentication belong to later slices.
