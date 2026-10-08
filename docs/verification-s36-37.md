@@ -18,7 +18,7 @@ No live service, real credential, deployment or hosted CI is involved.
   It checks restricted first login, tool denial until password change and new login, ordinary password verification including expired access, current-role identity, stdin precedence, environment login without prompting, exact password spaces/Unicode, password argument refusal, no password in child argv, no token in output, six concurrent process refreshes, logout after expiry, offline logout and changed-URL refusal.
 - `test/cli-refresh.test.ts` checks exact run request counts and argument preservation for a single safe refresh retry, repeated expiry, malformed refresh, connection loss, service errors and completed upstream failures.
   Uncertain calls are never retried.
-- `test/cli.test.ts` preserves the HTTPS trust, redirect refusal, passthrough, truncation and bounded stalled-response checks using securely stored sessions.
+- `test/cli.test.ts` preserves the HTTPS trust, redirect refusal, server request IDs, passthrough, truncation and bounded stalled-response checks using securely stored sessions.
 - The walking-skeleton container journey exercises bundled first login, password change and identity before the existing pinned-upstream fake-service comparisons.
 
 ## Final-head validation

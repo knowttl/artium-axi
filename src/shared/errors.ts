@@ -54,12 +54,12 @@ export type ErrorCode = keyof typeof errors
 export class ArtiumError extends Error {
   readonly source = 'artium-axi'
   readonly next: string
-  constructor(readonly code: ErrorCode, message: string = errors[code].message, next: string = errors[code].next) {
+  constructor(readonly code: ErrorCode, message: string = errors[code].message, next: string = errors[code].next, readonly requestId?: string) {
     super(message)
     this.next = next
   }
 }
 
 export function errorResponse(error: ArtiumError, requestId: string) {
-  return { error: { code: error.code, source: error.source, message: error.message, next: error.next, requestId } }
+  return { error: { code: error.code, source: error.source, message: error.message, next: error.next, requestId: error.requestId ?? requestId } }
 }

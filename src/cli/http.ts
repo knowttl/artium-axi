@@ -53,7 +53,7 @@ export class Client {
     const failure = errorResponseSchema.safeParse(result.body)
     if (failure.success) {
       const { code, message, next } = failure.data.error
-      throw new ArtiumError(code, message, next)
+      throw new ArtiumError(code, message, next, failure.data.error.requestId)
     }
     if (result.status !== 200 && result.status !== 204) throw new ArtiumError('INVALID_RESPONSE')
     return result.body
