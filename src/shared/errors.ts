@@ -1,4 +1,8 @@
 export const errors = {
+  USERNAME_INVALID: { status: 400, message: 'The local username is invalid.', next: 'Supply a nonempty username without whitespace or control characters.' },
+  PASSWORD_FILE_INVALID: { status: 400, message: 'The password file is missing or unreadable.', next: 'Supply a readable UTF-8 password file containing the exact password, without an added newline.' },
+  BOOTSTRAP_INCONSISTENT: { status: 503, message: 'The store contains data without a bootstrap marker.', next: 'Stop the server and restore a consistent bootstrapped store and matching master key.' },
+  RECOVERY_FAILED: { status: 500, message: 'Administrator recovery did not complete.', next: 'Use an existing local username in a bootstrapped store, check the matching master key and inspect local storage.' },
   PASSWORD_INVALID: { status: 400, message: 'The password does not meet the local password rules.', next: 'Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords.' },
   SIGN_IN_FAILED: { status: 401, message: 'The username or password is incorrect.', next: 'Check your username and password.' },
   AUTH_BUSY: { status: 429, message: 'The concurrent password hashing limit was reached.', next: 'Wait for an active authentication request to finish.' },
