@@ -22,12 +22,16 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     for (const match of span.value.matchAll(commands)) {
       const quote = match[1]
       const command = match[2]
-      const remainder = command.slice(tool.length)
-      if (!command.startsWith(tool) || !(remainder === '' || /^\s/.test(remainder) || (quote && remainder.startsWith(quote)))) continue
+      if (!quote && /^(?:artium-axi )?\S+-axi(?:\s|$)/.test(command)) commandLines.push([match.index!, match.index! + match[0].length])
+      const wrapped = command.startsWith(`artium-axi ${tool}`)
+      const executable = wrapped ? `artium-axi ${tool}` : tool
+      const remainder = command.slice(executable.length)
+      if (!command.startsWith(executable) || !(remainder === '' || /^\s/.test(remainder) || (quote && remainder.startsWith(quote)))) continue
       if (quote && !command.includes(quote)) return output
+      commandLines.push([match.index!, match.index! + match[0].length])
+      if (wrapped) continue
       const start = match.index! + match[0].length - command.length
       insertions.add(span.start + offsets[start])
-      commandLines.push([match.index!, match.index! + match[0].length])
     }
     for (const match of span.value.matchAll(/([`'"])([^\n]*?)\1/g)) {
       if (commandLines.some(([start, end]) => match.index! >= start && match.index! < end)) continue
