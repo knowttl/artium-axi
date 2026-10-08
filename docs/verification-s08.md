@@ -10,7 +10,8 @@ Linux `/proc/self/stat` verifies the child's process group equals its PID.
 Completed calls preserve streams and nonzero exit status.
 Every test checks for abandoned call directories, including lookup failure, synchronous spawn failure, signal termination and secret rejection.
 Capture tests verify byte counts, draining beyond 4 MiB, independent truncation flags and UTF-8 boundaries.
-The scanner integration rejects encoded and split canaries on both streams, including canaries after retention ends, without exposing either stream in the error.
+The scanner integration rejects raw and encoded canaries on stdout, and split canaries on both streams.
+Canaries after retention ends on either stream cause rejection without exposing either stream in the error.
 
 Run `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test` and `pnpm check` against the final committed implementation.
 Run the real private hygiene scan using the external deny list described in [README.md](../README.md), without printing the list.
@@ -18,7 +19,7 @@ Record the exact commit and results in the delivery status and PR body.
 Source or test changes during pipeline review require renewed final-head checks.
 Scan the exact published head again before reporting delivery.
 
-S09/10 owns timeout, cancellation, descendant cleanup, admission, flood and memory enforcement.
+See [README.md](../README.md) for the runner's current contract and deferred enforcement.
 The present detached process group does not claim containment of descendants that create a new session.
 Stdin and uploaded inputs arrive in the request-contract slice.
 Existing container checks remain documented in README and the evidence ledger.
