@@ -13,6 +13,7 @@ Any validation fix changing source or tests repeats these checks.
 The executable CLI tests copy the esbuild artifact into a temporary directory with no sibling dependencies.
 They verify tools and empty listing, exact shell tokens, independent streams, nonzero upstream status, truncation diagnostics, safe server errors, malformed response rejection, owner-only token permissions and usage failures before any request.
 Ephemeral HTTPS certificates verify configured CA trust and failure without trust.
+The inherited TLS-bypass regression checks both commands against an untrusted HTTPS server with `NODE_TLS_REJECT_UNAUTHORIZED=0`, requiring refusal without transmitting the token.
 Authenticated redirect statuses 301, 302, 303, 307 and 308 never produce a second request.
 HTTP without explicit test mode and non-loopback HTTP even with test mode are rejected before transmitting tokens.
 URLs with embedded credentials, queries or fragments are rejected.
@@ -30,4 +31,3 @@ All Docker names begin with `artium-test-`; the harness removes only resources i
 
 Actual Windows and macOS execution, real Falcon permission/output captures, the deployed proxy and the owner's first live call remain unverified captain acceptance after the full build.
 Linux containers and platform logic tests cannot substitute for those checks.
-AGENTS.md's existing README pointer remains correct, so it needs no factual correction.

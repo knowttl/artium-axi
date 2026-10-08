@@ -23,20 +23,17 @@ All application validation will use fakes and synthetic data, with live acceptan
 `pnpm build` produces the standalone `dist/cli/artium-axi.mjs`, requiring Node 22.12 or later and no sibling files or `node_modules`.
 Set `ARTIUM_AXI_URL` to the server's HTTPS base URL and `ARTIUM_AXI_DEV_TOKEN_FILE` to an owner-only file containing your synthetic development token.
 The URL cannot contain credentials, a query or a fragment.
-The client uses Node's certificate trust, optionally extended with `ARTIUM_AXI_CA_FILE`; authenticated redirects are refused and requests are never retried automatically.
+The client uses Node's certificate trust, optionally extended with `ARTIUM_AXI_CA_FILE`; certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+Authenticated redirects are refused and requests are never retried automatically.
 Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
 Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
 The client preserves argument tokens, upstream stdout, stderr and exit status, with truncation diagnostics on stderr.
-Artium errors use structured TOON on stdout with exit 2 for usage failures and exit 1 for other failures.
+Artium errors withhold captured output and use structured TOON on stdout with exit 2 for usage or client configuration failures and exit 1 for other failures.
 Login, complete home/help views, suggestion rewriting and download/launcher distribution remain later-slice work.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
-It builds slice-owned `artium-test-*` images with the real server and pinned Falcon 0.3.0, runs them on an internal Docker network with a synthetic encrypted credential, and compares local and remote read, pagination and usage-error results.
-A trusted local HTTPS proxy exercises CLI transport, while replacing the test container's Falcon executable with the environment-mode fake proves `SECRET_IN_OUTPUT` with both streams withheld.
-The canary client runs the isolated bundle on actual Node 22.12.0 with no sibling dependencies.
-The harness removes its own containers, images, networks and volumes on completion and never manages unrelated Docker resources.
-Actual Windows/macOS smoke and the owner's first live call remain captain checks, recorded in [S20+S21 verification](docs/verification-s20-21.md).
+See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resource cleanup and deferred captain checks.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
