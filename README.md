@@ -14,9 +14,9 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon adapter and encrypted credential store, and `src/cli/` contains the minimal client.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon and Vectra adapters and encrypted credential store, and `src/cli/` contains the minimal client.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
-The pinned container, development server, bundled CLI and Falcon adapter are available, while the remaining adapters arrive in later slices.
+The pinned container, development server, bundled CLI and Falcon and Vectra adapters are available, while the remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
 
@@ -34,6 +34,8 @@ Login, complete home/help views, suggestion rewriting and download/launcher dist
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
 See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resource cleanup and deferred captain checks.
+The same harness now exercises pinned Vectra reads, native write gates and durable logs through the production server entry point.
+See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance and output-redaction limits.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
@@ -66,6 +68,18 @@ Regenerate them with `node scripts/upstream-inventory.mjs --write` when delibera
 These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The native write gates remain upstream-owned.
+
+The [Vectra adapter](src/server/adapters/vectra.ts) accepts QUX v2.5 token or OAuth credentials and RUX v3.4 OAuth credentials.
+Each record contains `kind`, `apiVersion`, HTTPS `origin`, `auth`, and either `token` or `clientId` plus `clientSecret`.
+Optional fields are PEM `caBundle`, QUX `applianceRelease`, and the native `writes: { allowWrites, operations }` policy.
+Artium carries the validated write policy into its generated profile and never sets `VECTRA_AXI_READ_ONLY`.
+The runner creates the profile and CA beside each other with mode 0600, sets `VECTRA_AXI_CONFIG`, injects the referenced secret variable, and removes the private call directory on completion.
+Caller config/profile overrides and local setup commands are blocked before credential retrieval.
+Reviewed `--tags-file`, `--ids-file` and `--note-file` inputs accept uploaded names or the upstream stdin marker `-`, rather than server paths.
+The development server stores native Vectra JSONL write logs under `tool-logs/vectra-axi/writes.log` beside its database, normally `/data/tool-logs/vectra-axi/writes.log`.
+These mode 0600 logs survive call cleanup and use the pinned tool's exclusive lock for daily 90-day retention, preserving intent/outcome pairs and their native format.
+Native logs complement the requesting user's Artium audit.
+Platform grants, API-version compatibility and other native write families remain unverified captain acceptance.
 
 The Falcon adapter is [falcon.ts](src/server/adapters/falcon.ts), implementing the shared [adapter contract](src/server/adapters/types.ts).
 Create it with `createFalconAdapter(secretSource)`, then call `adapter.prepare(args, credentialReference)` after authorization and identity selection.

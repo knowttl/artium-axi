@@ -46,7 +46,7 @@ try {
     console.log(command(process.execPath, ['scripts/build-fake-service-image.mjs', flag, tag], 0))
   }
   console.log(`server image: ${docker('image', 'inspect', image, '--format', '{{.Id}}')}`)
-  const hosts = ['api.crowdstrike.com', 'localhost']
+  const hosts = ['api.crowdstrike.com', 'appliance.test', 'localhost']
   createTestCertificates(directory, hosts)
   chmodSync(directory, 0o755)
   chmodSync(join(directory, 'server.key'), 0o644)
@@ -57,7 +57,7 @@ try {
   network = true
   if (!JSON.parse(docker('network', 'inspect', name))[0].Internal) throw new Error('Fake-only network must be internal')
   const service = `${name}-service`
-  run('service', ['--detach', '--network', name, '--network-alias', 'api.crowdstrike.com', ...mounts,
+  run('service', ['--detach', '--network', name, '--network-alias', 'api.crowdstrike.com', '--network-alias', 'appliance.test', ...mounts,
     cliImage, 'node', '/work/test/fake-service/server.mjs'])
   await ready(service)
   for (const mode of ['pinned', 'canary']) {
@@ -83,6 +83,7 @@ try {
       image, 'node', '--import', '/work/test/walking-skeleton/ready.mjs', 'dist/src/server/main.js'])
     await ready(`${name}-${mode}-server`)
     console.log(run(`${mode}-client`, ['--rm', '--user', '0', '--network', name, ...mounts,
+      '--mount', `type=volume,src=${volume},dst=/test-data,readonly`,
       '--mount', `type=bind,src=${join(directory, 'token')},dst=/test-token,readonly`,
       mode === 'pinned' ? image : cliImage, 'node', '/work/test/walking-skeleton/probe.mjs', mode]))
     docker('stop', `${name}-${mode}-server`)

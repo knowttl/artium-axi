@@ -12,6 +12,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ requests, mutations }))
     return
   }
+  if (url.pathname === '/api/v2.5/oauth2/token' || (url.pathname === '/oauth2/token' && req.headers.authorization?.startsWith('Basic '))) {
+    requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
+      canaryReceived: req.headers.authorization === `Basic ${Buffer.from('synthetic-vectra-id:CANARY-vectra-secret').toString('base64')}` })
+    req.resume()
+    res.end(JSON.stringify({ access_token: 'CANARY-vectra-minted', refresh_token: 'CANARY-vectra-refresh',
+      token_type: 'bearer', expires_in: 3600 }))
+    return
+  }
   if (url.pathname === '/oauth2/token') {
     let body = ''
     req.setEncoding('utf8')
@@ -37,7 +45,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     } else {
       const offset = Number(url.searchParams.get('offset') ?? 0)
       const ids = url.searchParams.get('filter') === "hostname:'synthetic-empty'" ? [] : ['synthetic-detection-1', 'synthetic-detection-2']
-      res.end(JSON.stringify({ resources: ids.slice(offset, offset + Number(url.searchParams.get('limit') ?? 1)),
+      const redaction = url.searchParams.get('filter') === "hostname:'synthetic-redaction'"
+      res.end(JSON.stringify({ resources: redaction ? ['synthetic-redaction'] : ids.slice(offset, offset + Number(url.searchParams.get('limit') ?? 1)),
         meta: { pagination: { offset, total: ids.length } } }))
     }
   } else if (url.pathname === '/alerts/entities/alerts/v2' && req.method === 'POST') {
@@ -47,7 +56,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     req.on('end', () => {
       const { composite_ids: ids } = JSON.parse(body)
       res.end(JSON.stringify({ resources: ids.map(id => ({ composite_id: id, severity_name: 'Low',
-        tactic: 'Discovery', device: { hostname: `host-${id}` } })) }))
+        tactic: 'Discovery', device: { hostname: id === 'synthetic-redaction' ? 'CANARY-falcon-token' : `host-${id}` } })) }))
     })
   } else if (url.pathname === '/redirect') {
     res.writeHead(302, { location: 'https://management.azure.com/redirect-destination' })
@@ -55,9 +64,18 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname === '/cross-redirect') {
     res.writeHead(302, { location: 'https://graph.microsoft.com/cross-redirect-destination' })
     res.end()
+  } else if (/^\/api\/v(2\.5|3\.4)\/detections\/42\/?$/.test(url.pathname)) {
+    res.end(JSON.stringify({ id: 42, detection_type: 'synthetic', description:
+      ['CANARY-vectra-token', 'CANARY-vectra-secret', 'CANARY-vectra-minted', 'CANARY-vectra-refresh'].join(' ') }))
+  } else if (/^\/api\/v(2\.5|3\.4)\/detections\/43\/?$/.test(url.pathname)) {
+    res.end(JSON.stringify({ id: 43, description: Buffer.from('CANARY-vectra-minted').toString('base64') }))
+  } else if (url.pathname === '/api/v2.5/tagging/detection/44') {
+    res.writeHead(403)
+    res.end(JSON.stringify({ error: 'Synthetic permission denial' }))
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++
-    if (url.pathname === '/api/v2.5/tagging/detection/42') res.end(JSON.stringify({ tags: ['synthetic'] }))
+    if (url.pathname === '/api/v2.5/tagging/detection/45') req.socket.destroy()
+    else if (url.pathname === '/api/v2.5/tagging/detection/42') res.end(JSON.stringify({ tags: ['synthetic'] }))
     else {
       res.writeHead(503, { 'retry-after': '0' })
       res.end(JSON.stringify({ error: { code: 'SyntheticAmbiguousWrite', message: 'Mutation recorded before response failed' } }))
@@ -68,7 +86,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ value: [{ id: 'synthetic-page-1' }], nextLink: 'https://management.azure.com/page-next?api-version=2022-12-01' }))
   } else if (url.pathname === '/page-next') {
     res.end(JSON.stringify({ value: [{ id: 'synthetic-page-2' }] }))
-  } else if (url.pathname.startsWith('/api/v2.5/detections')) {
+  } else if (/^\/api\/v(2\.5|3\.4)\/detections/.test(url.pathname)) {
     res.end(JSON.stringify({ count: 0, results: [], next: null }))
   } else {
     res.end(JSON.stringify({ value: [] }))
