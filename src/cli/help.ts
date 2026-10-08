@@ -1,4 +1,6 @@
 import { toolSchema } from '../shared/api.js'
+import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 
 const commands = {
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: [], example: 'artium-axi' },
@@ -13,18 +15,22 @@ const commands = {
     example: 'artium-axi passwd --password-stdin' },
   logout: { usage: 'artium-axi logout', purpose: 'Remove local tokens and revoke the server session.', flags: [], example: 'artium-axi logout' },
   doctor: { usage: 'artium-axi doctor', purpose: 'Check the server, certificate, token, CLI version and cached tool health.', flags: [], example: 'artium-axi doctor' },
+  'falcon-axi': { usage: 'artium-axi falcon-axi [<args>]', purpose: 'Run Falcon commands with your managed credentials.',
+    flags: ['Arguments after falcon-axi are forwarded upstream, including --help.'], example: `artium-axi falcon-axi ${falcon.discovery.example.join(' ')}` },
+  'vectra-axi': { usage: 'artium-axi vectra-axi [<args>]', purpose: 'Run Vectra commands with your managed credentials.',
+    flags: ['Arguments after vectra-axi are forwarded upstream, including --help.'], example: `artium-axi vectra-axi ${vectra.discovery.example.join(' ')}` },
 } as const
 
 export type HelpCommand = keyof typeof commands
 
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
-  const flags = ['--help (default false)', ...entry.flags]
+  const flags = [command === 'falcon-axi' || command === 'vectra-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags]
   return `usage: ${entry.usage}\npurpose: ${entry.purpose}\nflags[${flags.length}]:\n${flags.map(flag => `  ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n`
 }
 
-// Tool arguments belong to upstream, including --help. Only Artium commands use this layout.
-export function helpCommand(args: string[]): HelpCommand | undefined {
+export function helpCommand(args: string[], prefixHelp = false): HelpCommand | undefined {
+  if (args[0] === 'falcon-axi' || args[0] === 'vectra-axi') return prefixHelp && args.length === 2 ? args[0] : undefined
   if (args[0] === 'login' || args[0] === 'passwd') {
     let requested = false
     let username = false

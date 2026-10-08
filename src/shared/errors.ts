@@ -11,7 +11,7 @@ const definitions = {
   PASSWORD_INVALID: { status: 400, message: 'The password does not meet the local password rules.', next: 'Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords.' },
   SIGN_IN_FAILED: { status: 401, message: 'The username or password is incorrect.', next: 'Check your username and password.' },
   AUTH_RATE_LIMITED: { status: 429, message: 'The authentication attempt limit was reached.', next: 'Wait 15 minutes before trying again.' },
-  ACCOUNT_LOCKED: { status: 423, message: 'The account is temporarily locked.', next: 'Wait 15 minutes or ask an administrator to unlock the account.' },
+  ACCOUNT_LOCKED: { status: 429, message: 'The account is temporarily locked.', next: 'Wait 15 minutes or ask an administrator to unlock the account.' },
   REAUTH_REQUIRED: { status: 401, message: 'Recent password confirmation is required.', next: 'Confirm your password through /v1/auth/reauth.' },
   CSRF_INVALID: { status: 403, message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.' },
   AUTH_BUSY: { status: 429, message: 'The concurrent password hashing limit was reached.', next: 'Wait for an active authentication request to finish.' },

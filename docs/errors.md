@@ -19,7 +19,7 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | PASSWORD_INVALID | artium-axi | 400 | 1 | The password does not meet the local password rules. | Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords. |
 | SIGN_IN_FAILED | artium-axi | 401 | 1 | The username or password is incorrect. | Check your username and password. |
 | AUTH_RATE_LIMITED | artium-axi | 429 | 1 | The authentication attempt limit was reached. | Wait 15 minutes before trying again. |
-| ACCOUNT_LOCKED | artium-axi | 423 | 1 | The account is temporarily locked. | Wait 15 minutes or ask an administrator to unlock the account. |
+| ACCOUNT_LOCKED | artium-axi | 429 | 1 | The account is temporarily locked. | Wait 15 minutes or ask an administrator to unlock the account. |
 | REAUTH_REQUIRED | artium-axi | 401 | 1 | Recent password confirmation is required. | Confirm your password through /v1/auth/reauth. |
 | CSRF_INVALID | artium-axi | 403 | 1 | The form token or request origin is invalid. | Reload the form on this server and submit it again. |
 | AUTH_BUSY | artium-axi | 429 | 1 | The concurrent password hashing limit was reached. | Wait for an active authentication request to finish. |

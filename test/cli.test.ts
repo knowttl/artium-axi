@@ -192,8 +192,9 @@ test.each([
       { name: 'vectra-axi', status: 'error', version: '0.1.3' }] } },
   }
   try {
-    expect(await cli(['doctor'])).toMatchObject({ code: 1, stderr: '', stdout:
-      'pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi (ok)\nfail: vectra-axi (error)\n' })
+    const result = await cli(['doctor'])
+    expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
+      /^pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "CREDENTIAL_UNAVAILABLE"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
     doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] }
@@ -202,8 +203,82 @@ test.each([
 })
 
 test('doctor reports all prerequisite failures for an invalid server address', async () => {
-  expect(await cli(['doctor'], { ARTIUM_AXI_URL: 'invalid' })).toMatchObject({ code: 1, stdout:
-    'fail: server address (CLIENT_CONFIG_INVALID)\nfail: certificate (CLIENT_CONFIG_INVALID)\nfail: token (CLIENT_CONFIG_INVALID)\nfail: CLI version (CLIENT_CONFIG_INVALID)\n' })
+  const result = await cli(['doctor'], { ARTIUM_AXI_URL: 'invalid' })
+  expect(result).toMatchObject({ code: 2, stderr: '', stdout: expect.stringMatching(
+    /^fail: server address \(CLIENT_CONFIG_INVALID\)\nfail: certificate \(CLIENT_CONFIG_INVALID\)\nfail: token \(CLIENT_CONFIG_INVALID\)\nfail: CLI version \(CLIENT_CONFIG_INVALID\)\nerror:\n  code: "CLIENT_CONFIG_INVALID"\n/) })
+  expect(result.stdout).toContain('  source: "artium-axi"\n')
+  expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.CLIENT_CONFIG_INVALID.message)}\n`)
+  expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.CLIENT_CONFIG_INVALID.next)}\n`)
+})
+
+test('doctor retains the certificate error after continuing its prerequisite checks', async () => {
+  const result = await cli(['doctor'], { ARTIUM_AXI_CA_FILE: undefined })
+  expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining('fail: certificate (CERTIFICATE_INVALID)\n') })
+  expect(result.stdout).toContain('error:\n  code: "CERTIFICATE_INVALID"\n  source: "artium-axi"\n')
+  expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.CERTIFICATE_INVALID.message)}\n`)
+  expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.CERTIFICATE_INVALID.next)}\n`)
+})
+
+test.each([
+  { path: '/health/live', code: 'SERVER_UNAVAILABLE', diagnostic: 'server address' },
+  { path: '/v1/me', code: 'TOKEN_INVALID', diagnostic: 'token' },
+  { path: '/v1/me', code: 'CLI_OUTDATED', diagnostic: 'CLI version' },
+  { path: '/v1/tools', code: 'CREDENTIAL_UNAVAILABLE', diagnostic: 'tools' },
+] as const)('doctor emits the catalogue error for $diagnostic failures', async ({ path, code, diagnostic }) => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+    [path]: { status: errors[code].status, body: errorResponse(new ArtiumError(code), 'synthetic-doctor') },
+  }
+  try {
+    const result = await cli(['doctor'])
+    expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining(`fail: ${diagnostic}`) })
+    expect(result.stdout).toContain(`error:\n  code: "${code}"\n  source: "artium-axi"\n`)
+    expect(result.stdout).toContain(`  message: ${JSON.stringify(errors[code].message)}\n`)
+    expect(result.stdout).toContain(`  next: ${JSON.stringify(errors[code].next)}\n`)
+    expect(result.stdout).toMatch(/  requestId: "synthetic-doctor"\n$/)
+  } finally { doctorResponses = undefined }
+})
+
+test.each([
+  { status: 'unconfigured', code: 'CREDENTIAL_UNAVAILABLE' },
+  { status: 'unknown', code: 'SERVER_UNAVAILABLE' },
+  { status: 'error', code: 'CREDENTIAL_UNAVAILABLE' },
+  { status: 'disabled', code: 'TOOL_DISABLED' },
+] as const)('doctor maps cached $status health to $code', async ({ status, code }) => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.3.0', status }] } },
+  }
+  try {
+    const result = await cli(['doctor'])
+    expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining(`fail: falcon-axi (${status})\n`) })
+    expect(result.stdout).toContain(`error:\n  code: "${code}"\n  source: "artium-axi"\n`)
+    expect(result.stdout).toContain(`  message: ${JSON.stringify(errors[code].message)}\n`)
+    expect(result.stdout).toContain(`  next: ${JSON.stringify(errors[code].next)}\n`)
+    expect(result.stdout).toMatch(/  requestId: "[^"\n]+"\n$/)
+  } finally { doctorResponses = undefined }
+})
+
+test.each(['/v1/me', '/v1/tools'])('doctor rejects a malformed %s response through the catalogue', async path => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+    [path]: { status: 200, body: {} },
+  }
+  try {
+    const result = await cli(['doctor'])
+    expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining('error:\n  code: "INVALID_RESPONSE"\n  source: "artium-axi"\n') })
+    expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.INVALID_RESPONSE.message)}\n`)
+    expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.INVALID_RESPONSE.next)}\n`)
+    expect(result.stdout).toMatch(/  requestId: "[^"\n]+"\n$/)
+  } finally { doctorResponses = undefined }
 })
 
 test('inherited TLS bypass cannot send the token to an untrusted server', async () => {
@@ -224,7 +299,7 @@ test('Artium errors preserve the server request ID and withhold streams', async 
   expect(result.stdout).toContain('requestId: "synthetic-request"')
 })
 
-test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }])('malformed response does not print unvalidated data', async body => {
+test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name: 'az-axi', status: 'ok', version: '0.1.4' }] }])('malformed response does not print unvalidated data', async body => {
   requests = []
   response = { status: 200, body }
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
@@ -257,6 +332,25 @@ test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['
     expect(requests).toEqual([])
   })
 
+test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'],
+  ['falcon-axi'], ['vectra-axi']].map(command => ({ command })))(
+  'prefix help uses the local layout without configuration or network: $command', async ({ command }) => {
+    requests = []
+    const result = await cli(['--help', ...command], { ARTIUM_AXI_URL: undefined })
+    expect(result).toMatchObject({ code: 0, stderr: '' })
+    expect(result.stdout).toMatch(/^usage: artium-axi[^\n]*\npurpose: [^\n]+\nflags\[\d+\]:\n(?:  [^\n]+\n)+example: artium-axi[^\n]*\n$/)
+    expect(requests).toEqual([])
+  })
+
+test.each([
+  ['--help', 'missing'], ['--unknown', 'falcon-axi'], ['--help', '--unknown', 'falcon-axi'],
+  ['--help', 'falcon-axi', 'unexpected'],
+].map(args => ({ args })))('invalid prefix help fails before configuration or network: $args', async ({ args }) => {
+  requests = []
+  expect(await cli(args, { ARTIUM_AXI_URL: undefined })).toMatchObject({ code: 2, stderr: '', stdout: expect.stringContaining('INVALID_INPUT') })
+  expect(requests).toEqual([])
+})
+
 test('tool detail uses pinned help without running the tool', async () => {
   requests = []
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
@@ -280,10 +374,10 @@ test('tool detail refuses a mismatched pinned version', async () => {
     stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
 })
 
-test('upstream help remains an authenticated passthrough', async () => {
+test.each(['falcon-axi', 'vectra-axi'] as const)('%s upstream help remains an authenticated passthrough', async tool => {
   requests = []
-  response = { status: 200, body: { source: 'falcon-axi', stdout: 'upstream help\n', stderr: '', exitCode: 0,
+  response = { status: 200, body: { source: tool, stdout: 'upstream help\n', stderr: '', exitCode: 0,
     durationMs: 1, outputBytes: { stdout: 14, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
-  expect(await cli(['falcon-axi', '--help'])).toMatchObject({ code: 0, stdout: 'upstream help\n', stderr: '' })
-  expect(requests[0]).toMatchObject({ path: '/v1/tools/falcon-axi/run', body: { args: ['--help'] } })
+  expect(await cli([tool, '--help'])).toMatchObject({ code: 0, stdout: 'upstream help\n', stderr: '' })
+  expect(requests[0]).toMatchObject({ path: `/v1/tools/${tool}/run`, body: { args: ['--help'] } })
 })
