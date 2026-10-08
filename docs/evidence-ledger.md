@@ -8,6 +8,12 @@ All live checks wait until the full build is complete and require approved ident
 Real captures, credential details and policy records stay in the private evidence store.
 Public conversion and release, deployment, real writes and destructive maintenance require separate approval.
 
+S16 implements T3.1 step 4 and T3.2: hashed expiring access-token verification, test-only fixture issuance and current database tool policy before credential retrieval.
+Its local verification plan is [verification-s16.md](verification-s16.md).
+Focused verification passed 25 cases covering expiry, revoked/consumed tokens, revoked/expired families, restricted token types, disabled user/tool, missing grants, administrator separation and immediate role changes.
+Run preparation tests execute the real Falcon adapter and shared identity resolver with a synthetic secret-source boundary, proving denied calls retrieve no secret.
+Final committed-head frozen install, lint, full tests, aggregate check, runner-container and private hygiene results are bound to delivery status and the PR body.
+
 S13 implements the encrypted SQLite store and file/environment master-key provider.
 Its local verification plan is [verification-s13.md](verification-s13.md).
 Focused tests passed 24 cases covering real database reopen, persisted corruption, wrong-row and wrong-key authentication failure, invalid startup keys and transactional migration rollback.
@@ -101,7 +107,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Azure authentication, resource reads and write families (T2.5) | pending | pending | unverified: both auth forms and every enabled resource/write family |
 | Upstream token and output redaction (T2.6) | S07 scanner and S08 runner integration; [S07 verification](verification-s07.md) and [S08 verification](verification-s08.md) own local checks, [README.md](../README.md) owns usage; final-head checks recorded in delivery status and PR body | pending: scanner and runner checks exercise the synthetic fake executable, not pinned upstream output | unverified: safe real-output checks, unknown-token claims remain limited |
 | Master-key rotation and maintenance (T2.7) | pending | pending | unverified: production rotation requires separate approval |
-| Identity, role and administrative transactions (T3.1-T3.4) | S15 schema implements T3.1 steps 1-3; [S15 verification](verification-s15.md) owns empty/prior-store migration, preserved credentials, foreign-key and canonical-name uniqueness checks; verifier, policy, audit writing and administration pending | not applicable to schema migrations | unverified: real account and credential changes require authorization |
+| Identity, role and administrative transactions (T3.1-T3.4) | S15 schema implements T3.1 steps 1-3; [S15 verification](verification-s15.md) owns migration checks; S16 implements hashed expiring verification and current-role policy before secret retrieval, with [S16 verification](verification-s16.md); audit writing and administration pending | not applicable to local authentication and policy | unverified: real account and credential changes require authorization |
 | Password hashing capacity (T4.1) | pending | not applicable | unverified: benchmark production host capacity |
 | Bootstrap, recovery, sessions and proxy verification (T4.2-T4.4) | pending | not applicable | unverified: real recovery and administrator reset require authorization |
 | Secure CLI storage and cross-process refresh (T4.5) | pending | not applicable | unverified: actual Windows ACLs and clean installation |
