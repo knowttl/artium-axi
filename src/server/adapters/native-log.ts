@@ -1,6 +1,7 @@
 import { closeSync, fsyncSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
+// Call only before admission with no prior writers alive; the journal belongs exclusively to this server's children.
 export function initializeNativeWriteLog(path: string, now = Date.now()): void {
   for (const suffix of ['.lock', '.retention']) {
     try { unlinkSync(`${path}${suffix}`) }

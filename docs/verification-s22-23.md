@@ -13,8 +13,9 @@ Source or test changes during validation require renewed checks.
 
 The adapter tests execute pinned Vectra 0.1.3 against the fake HTTPS appliance using QUX token, QUX OAuth and RUX OAuth profiles.
 Each variant uses its own generated profile and trusted private CA, with certificate rejection and zero requests when CA trust is removed.
-Schema failures, unsafe config/profile overrides, delimiter attempts, local management and server file paths fail before credential retrieval.
-Native write settings pass unchanged into the profile, with no Artium read-only override.
+Unsafe config/profile overrides, delimiter attempts, setup commands and server file paths fail before credential retrieval.
+Retrieved credentials that fail the schema are refused before child execution.
+Profile preparation assertions verify the native write policy described in [README.md](../README.md).
 
 The API test compares the native dry-run result locally and through the audited runner.
 Dry runs, disabled writes, out-of-scope operations, missing or wrong confirmation and native platform denial produce zero mutations.
