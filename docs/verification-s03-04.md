@@ -20,7 +20,6 @@ Confirm every harness-created container, network and temporary directory was rem
 Remove the freshly built slice-owned test image after collecting the network evidence.
 The image builder removes its own worker, private cache and archive, and the network harness creates no additional images or build cache.
 
-az-axi 0.1.4's reproduced retry behaviour must not be treated as a commissioned write capability.
-The probe expects two requests after a recorded mutation returns 503 with Retry-After.
-Until executable evidence and a safe pin settle that limitation, Azure writes remain unavailable.
+The [probe](../test/fake-service/probe.mjs) owns the expected ambiguous-mutation request count.
+See [the evidence ledger](evidence-ledger.md) for the observed retry behaviour and Azure write-capability restriction.
 Live scopes, authentication, permissions, output parity and production host behaviour remain on the captain checklist.
