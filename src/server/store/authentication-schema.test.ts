@@ -43,17 +43,20 @@ it('migrates an empty store and persists the identity relationships on reopen', 
     INSERT INTO sessions (id, family_id, user_id, csrf_token, created_at, last_seen_at, expires_at)
       VALUES ('browser', 'family', 'person', 'CANARY-csrf', 1000, 1000, 43201000);
     INSERT INTO bootstrap_metadata (id, bootstrapped_at) VALUES (1, 1000);
+    INSERT INTO recent_auth_tickets (family_id, hash, expires_at) VALUES ('family', 'CANARY-ticket-hash', 901000);
     INSERT INTO audit (occurred_at, event, user_id, tool, outcome) VALUES (1000, 'sign-in', 'person', 'falcon-axi', 'success');
   `)
   db.close()
   db = openStore(file, provider)
-  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }])
+  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }])
   expect(db.prepare(`SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'person'`).all())
     .toEqual([{ tool: 'falcon-axi' }])
   expect(db.prepare('SELECT source, administrator, revision FROM users WHERE id = ?').get('person'))
     .toEqual({ source: 'local', administrator: 0, revision: 1 })
   expect(db.prepare('SELECT type FROM tokens').get()).toEqual({ type: 'refresh' })
   expect(db.prepare('SELECT id FROM sessions').get()).toEqual({ id: 'browser' })
+  expect(db.prepare('SELECT family_id, hash, expires_at FROM recent_auth_tickets').get())
+    .toEqual({ family_id: 'family', hash: 'CANARY-ticket-hash', expires_at: 901000 })
   expect(db.prepare('SELECT bootstrapped_at FROM bootstrap_metadata').get()).toEqual({ bootstrapped_at: 1000 })
   expect(db.prepare('SELECT outcome FROM audit').get()).toEqual({ outcome: 'success' })
 })
