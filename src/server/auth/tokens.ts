@@ -18,15 +18,16 @@ export function verifyPasswordToken(db: Database.Database, token: string, now = 
 
 function verifyToken(db: Database.Database, token: string, types: readonly string[], now: number) {
   const row = db.prepare(`
-    SELECT tokens.user_id, tokens.type, tokens.expires_at, session_families.expires_at AS family_expires_at FROM tokens
+    SELECT tokens.user_id, tokens.type, tokens.expires_at, users.disabled, session_families.expires_at AS family_expires_at FROM tokens
     JOIN session_families ON session_families.id = tokens.family_id
     JOIN users ON users.id = tokens.user_id
-    WHERE tokens.hash = ? AND users.disabled = 0
+    WHERE tokens.hash = ?
       AND tokens.revoked_at IS NULL AND tokens.consumed_at IS NULL
       AND session_families.revoked_at IS NULL
-  `).get(hashToken(token)) as { user_id: string, type: string, expires_at: number, family_expires_at: number } | undefined
+  `).get(hashToken(token)) as { user_id: string, type: string, expires_at: number, family_expires_at: number, disabled: number } | undefined
   if (!row || !types.includes(row.type)) throw new ArtiumError('TOKEN_INVALID')
   if (row.expires_at <= now || row.family_expires_at <= now) throw new ArtiumError('TOKEN_EXPIRED')
+  if (row.disabled) throw new ArtiumError('USER_DISABLED')
   return row
 }
 
