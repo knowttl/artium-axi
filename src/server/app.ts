@@ -23,6 +23,8 @@ import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
 import type { Runner } from './runner/runner.js'
 import type { MutableCredentialStore } from './store/credential-store.js'
+import { ToolHealth } from './health/health.js'
+import { acceptsCliVersion } from '../shared/version.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -42,6 +44,8 @@ export function createApp(options: {
     trustProxy: address => proxies.includes(address) })
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
   const browser = registerBrowser(app, db, audit, authAttempts)
+  const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
+  app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
     const failure = error instanceof ArtiumError ? error
       : error.code?.startsWith('FST_CSRF_') ? new ArtiumError('CSRF_INVALID')
@@ -60,6 +64,13 @@ export function createApp(options: {
   })
   app.setNotFoundHandler(() => { throw new ArtiumError('NOT_FOUND') })
   app.addHook('onRequest', async request => {
+    const version = request.headers['x-artium-cli-version']
+    if (request.url.split('?')[0].startsWith('/v1/') && version !== undefined &&
+      !browser.isBrowser(request) && (typeof version !== 'string' || !acceptsCliVersion(version))) {
+      const host = request.headers.host
+      throw new ArtiumError('CLI_OUTDATED', undefined,
+        `Download the current CLI: curl --fail --output artium-axi.mjs https://${host}/cli/artium-axi.mjs`)
+    }
     if (!proxies.includes(request.socket.remoteAddress ?? '') &&
       Object.keys(request.headers).some(name => name === 'forwarded' || name.startsWith('x-forwarded-'))) {
       throw new ArtiumError('PROXY_HEADERS_UNTRUSTED')
@@ -145,7 +156,7 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore })
+  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health })
   registerUsersPage(app, db)
   registerAdminPages(app, db)
   registerAuditPage(app, db)
@@ -175,6 +186,6 @@ export function createApp(options: {
       return { source: adapter.name, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
     } finally { reply.raw.off('close', disconnect) }
   })
-  app.addHook('preClose', async () => { await runner.shutdown() })
+  app.addHook('preClose', async () => { await runner.shutdown(); await health.stop() })
   return app
 }

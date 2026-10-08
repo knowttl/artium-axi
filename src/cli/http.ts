@@ -4,6 +4,7 @@ import { request as httpsRequest } from 'node:https'
 import { rootCertificates } from 'node:tls'
 import { errorResponseSchema, loginResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
+import { cliVersion } from '../shared/version.js'
 import { SessionStore, sessionPath } from './session.js'
 import type { StoredSession } from './session.js'
 
@@ -34,7 +35,7 @@ export class Client {
     const result = await new Promise<{ status: number, body: unknown }>((resolve, reject) => {
       const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
         method, ca, rejectUnauthorized: true, signal: controller.signal,
-        headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
+        headers: { 'x-artium-cli-version': cliVersion, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
       }, response => {
         if (response.statusCode! >= 300 && response.statusCode! < 400) {
           response.destroy()
@@ -49,7 +50,10 @@ export class Client {
           catch { reject(new ArtiumError('INVALID_RESPONSE')) }
         })
       })
-      request.on('error', () => reject(new ArtiumError('SERVER_UNAVAILABLE')))
+      request.on('error', error => reject(new ArtiumError(
+        ['CERT_HAS_EXPIRED', 'CERT_NOT_YET_VALID', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',
+          'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'ERR_TLS_CERT_ALTNAME_INVALID']
+          .includes((error as NodeJS.ErrnoException).code ?? '') ? 'CERTIFICATE_INVALID' : 'SERVER_UNAVAILABLE')))
       request.end(body)
     }).finally(() => clearTimeout(deadline))
     const failure = errorResponseSchema.safeParse(result.body)

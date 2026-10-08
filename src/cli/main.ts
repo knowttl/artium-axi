@@ -3,9 +3,15 @@ import { loginResponseSchema, meResponseSchema, runRequestSchema, runSuccessSche
 import { ArtiumError, errorResponse } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
+import { doctor } from './doctor.js'
 
 async function main(args: string[]) {
   const command = args[0]
+  if (command === 'doctor') {
+    if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
+    await doctor()
+    return
+  }
   if (command === 'login' || command === 'passwd') {
     const remaining = args.slice(1)
     let stdin = false
@@ -61,7 +67,7 @@ async function main(args: string[]) {
   }
   const listing = command === 'tools'
   const whoami = command === 'whoami'
-  if (listing || whoami ? args.length !== 1 : !toolSchema.safeParse(command).success) throw new ArtiumError('INVALID_INPUT', 'Use artium-axi login, passwd, logout, whoami, tools or artium-axi <tool> <args>.')
+  if (listing || whoami ? args.length !== 1 : !toolSchema.safeParse(command).success) throw new ArtiumError('INVALID_INPUT', 'Use artium-axi login, passwd, logout, whoami, tools, doctor or artium-axi <tool> <args>.')
   const input = listing || whoami ? undefined : runRequestSchema.parse({ args: args.slice(1) })
   const client = new Client()
   const result = await client.authenticated(whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, listing || whoami ? 'GET' : 'POST', input)
