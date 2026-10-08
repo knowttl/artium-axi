@@ -26,6 +26,8 @@ document.addEventListener('submit', async event => {
   button.disabled = true;
   const message = document.getElementById('message');
   message.textContent = '';
+  const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
+  if (testResult) testResult.textContent = '';
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
   try {
@@ -42,24 +44,24 @@ document.addEventListener('submit', async event => {
     const response = await fetch(form.action, { method: form.dataset.method || 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (response.redirected) { location.assign(response.url); return; }
-    if (form.dataset.testTool) {
-      const result = form.closest('section').querySelector('[data-test-result]');
-      const refreshed = await fetch('/v1/admin/tools');
-      if (refreshed.redirected) { location.assign(refreshed.url); return; }
-      if (refreshed.ok) {
+    if (testResult) testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+    if (!response.ok) {
+      const result = await response.json();
+      message.textContent = result.error.message + ' ' + result.error.next;
+      message.focus();
+      if (!testResult) return;
+    }
+    if (testResult) {
+      try {
+        const refreshed = await fetch('/v1/admin/tools');
+        if (refreshed.redirected) { location.assign(refreshed.url); return; }
+        if (!refreshed.ok) throw new Error();
         const data = await refreshed.json();
         const tool = data.tools.find(tool => tool.name === form.dataset.testTool);
         document.getElementById('status-' + tool.name).textContent = tool.health.status;
         form.closest('section').querySelector('[data-check-time]').textContent = tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toISOString();
         form.closest('section').querySelector('[data-check-error]').textContent = tool.health.errorCode || '';
-      }
-      result.textContent = response.ok ? 'Test passed.' : 'Test failed.';
-      if (response.ok) return;
-    }
-    if (!response.ok) {
-      const result = await response.json();
-      message.textContent = result.error.message + ' ' + result.error.next;
-      message.focus();
+      } catch { message.textContent += ' Tool health could not refresh. Reload the page to check the current status.'; }
       return;
     }
     location.reload();
