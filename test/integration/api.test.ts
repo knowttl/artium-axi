@@ -43,7 +43,7 @@ beforeEach(async () => {
   vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference) => {
     const prepared = await prepare(args, reference)
     return { ...prepared, executable: fakeTool.executable, args: [...fakeTool.args, ...args], limits: { timeoutMs: 5000 },
-      environment: { ...prepared.environment, ARTIUM_TEST_CANARY: 'CANARY-secret' } }
+      environment: { ...prepared.environment, ARTIUM_TEST_CANARY: prepared.environment.FALCON_CLIENT_SECRET } }
   })
   getCredential.mockClear()
   options = { db, runner, audit: new Audit(db), environment, adapters: [adapter],
@@ -223,6 +223,23 @@ test('bundled CLI runs through the real API and withholds environment-mode canar
     .rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '' })
   const terminal = db.prepare("SELECT outcome, stdout_bytes FROM audit WHERE event = 'run-terminal' ORDER BY id").all()
   expect(terminal).toEqual([{ outcome: 'completed', stdout_bytes: 16 }, { outcome: 'SECRET_IN_OUTPUT', stdout_bytes: expect.any(Number) }])
+})
+
+test.each(['stdout', 'stderr'])('security: bundled CLI withholds every encoded canary in %s and records only safe metadata', async stream => {
+  const { build } = await import('esbuild')
+  const bundle = join(directory, 'artium-axi.mjs')
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: bundle, bundle: true, platform: 'node', format: 'esm', target: 'node22.12' })
+  const execute = promisify(execFile)
+  const canary = 'CANARY-☃ÿ?/+='
+  for (const form of ['raw', 'base64', 'base64url', 'url']) {
+    getCredential.mockResolvedValueOnce({ clientId: 'CANARY-client', clientSecret: canary, region: 'us-2' })
+    await expect(execute(process.execPath, [bundle, 'falcon-axi', 'leak', form, stream], { cwd: directory, timeout: 10_000,
+      env: { PATH: process.env.PATH, ...environment, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } }))
+      .rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '' })
+  }
+  const records = db.prepare("SELECT tool, outcome, arguments FROM audit WHERE event = 'run-terminal'").all()
+  expect(records).toEqual(Array(4).fill({ tool: 'falcon-axi', outcome: 'SECRET_IN_OUTPUT', arguments: null }))
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(canary)
 })
 
 test('malformed JSON, content type, unknown tool and body byte limit use safe errors', async () => {
