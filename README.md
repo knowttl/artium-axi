@@ -129,7 +129,7 @@ The [input transport](src/server/runner/input.ts) validates inputs before creati
 File arguments containing server paths or missing uploads are refused.
 Adapters must normalize equals-form flags and supply the reviewed file-value positions after parser-aware validation.
 The runner sends bounded UTF-8 stdin through a pipe and closes it, including when stdin is omitted, and cleans uploads with the call directory on success or failure.
-The CLI's command-specific stdin capture, adapter restrictions on credential/config/output paths, HTTP endpoints and audit integration arrive in later slices.
+The CLI's command-specific stdin capture, remaining adapters' restrictions on credential/config/output paths, HTTP endpoints and audit integration arrive in later slices.
 See [verification-s11.md](docs/verification-s11.md) for contract and input transport evidence.
 See [verification-s09-10.md](docs/verification-s09-10.md) for lifecycle, resource and limitation evidence.
 See [verification-s08.md](docs/verification-s08.md) for local runner acceptance checks.
@@ -180,4 +180,4 @@ They cover ENOSPC during upstream writes and directory creation under a tighter 
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 It is a packaging example, not a running API yet.
 The image's default command prints the Node version until the server entry point exists.
-See [verification-s05-06.md](docs/verification-s05-06.md) for this slice's local verification and deferred Falcon live checks.
+See [verification-s05-06.md](docs/verification-s05-06.md) for packaging verification and deferred Falcon live checks.

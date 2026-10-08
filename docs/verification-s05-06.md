@@ -29,14 +29,11 @@ Do not use the shared builder or prune Docker resources.
 ## Falcon boundary evidence
 
 Source pin: [`tools/falcon-source.json`](../tools/falcon-source.json).
-The upstream `GLOBAL_FLAGS` are `help`, `region`, `allow-unknown-origin`, `member-cid` and `no-member-cid`.
-`help` is provisional passthrough.
-`region` and `member-cid` are server-managed, while `allow-unknown-origin` and `no-member-cid` are blocked caller overrides.
-These dispositions are commissioning evidence, not an implemented adapter allow-list.
+The [generated Falcon manifest](../tools/inventories/falcon-axi.json) owns the implemented adapter's reviewed flag dispositions and credential boundary.
+See [S12 verification](verification-s12.md) for parser-aware preparation and pinned-binary fake-origin checks.
 
 The source reads `FALCON_CLIENT_ID`, `FALCON_CLIENT_SECRET`, `FALCON_MEMBER_CID`, `FALCON_BASE_URL`, `FALCON_AXI_CREDENTIALS_FILE` and `FALCON_PROXY_URL`.
-The server will inject only the client ID and secret, adding its region and optional member CID arguments.
-It will not inherit the remaining variables.
+See [README.md](../README.md) for adapter preparation and the runner's clean child environment.
 Requests also supports transport environment such as `REQUESTS_CA_BUNDLE` and proxy settings, which the production clean child environment must not inherit from callers.
 The loopback test supplies only a synthetic CA for verified TLS.
 The pinned tool rejects non-default ports even with `--allow-unknown-origin`, so the isolated loopback service listens on 443.

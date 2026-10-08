@@ -10,15 +10,11 @@ Public conversion and release, deployment, real writes and destructive maintenan
 
 S12 implements plain-function Falcon preparation and its generated parser-aware manifest.
 Its local verification plan is [verification-s12.md](verification-s12.md).
-The adapter refuses managed destination and tenant overrides, profile selection, double-dash and local credential/configuration commands before either Docker secret file is read.
-The pinned parser has no aliases or short flags; repeats and equals forms cannot bypass the adapter refusal.
-The S12 review fixture now serves two detection pages and hydration responses, records query offsets, and routes managed us-2 to the same isolated service.
-The probe checks continuation and cross-origin cursor refusal both with and without a managed member CID, alongside token and API redirect refusal without destination requests.
+The [generated Falcon manifest](../tools/inventories/falcon-axi.json) owns the reviewed command and credential boundary.
 Focused review verification executed the HTTPS fixture with trusted synthetic certificates and passed distinct pages at offsets 0 and 1, hydration, canary receipt, token and API redirect responses, zero mutations, and syntax checks for the three changed harness modules.
 The production image was absent in the review worktree, so this focused result does not claim pinned-binary cursor or redirect acceptance.
 Renewed pinned-binary harness and final-head validation evidence remain pending with the outer executor after this review correction.
-Final-head frozen install, lint, tests, aggregate check, runner-container, pinned Falcon fake-origin checks and private hygiene results are recorded in delivery status and the PR body.
-The existing AGENTS.md pointers to package.json, the upstream pins and README.md remain accurate.
+The outer executor records final-head results in delivery status and the PR body.
 
 S11 implements the shared run schemas, error catalogue and bounded runner input transport.
 Its local verification plan is [verification-s11.md](verification-s11.md).
@@ -84,7 +80,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Pinned container image (T1.2) | Digest-pinned Node 22 bookworm image, Python 3.11, UID 10001, fixed tool paths and validated Compose example; native build approval pinned in package.json | Clean builder and read-only non-root runtime execute SQLite open/write/reopen, Argon2id hash/verify and esbuild bundle execution; image is a scaffold until the API entry point lands | not applicable: local image only, registry push excluded |
 | Deterministic fake executable (T1.3) | Executable modes and runner-test descriptor in `test/fake-tool/`; CLI tests in `test/fake-tool.test.ts` | not applicable | not applicable: local build only |
 | Process cleanup and container resource limits (T1.4) | S09/10 lifecycle, admission, flood and runtime limits implemented; [README.md](../README.md) owns the runner contract; [verification-s09-10.md](verification-s09-10.md) owns local checks and escaped-session limitation; final-head results pending with the outer executor for delivery status and PR body | Synthetic fake executable and slice-owned non-root Linux container checks defined in verification-s09-10.md, no pinned upstream runner acceptance yet | unverified: verify production host behaviour and whether pinned tools require escaped-session containment |
-| Falcon adapter boundary (T1.5) | Plain-function secret-file preparation and generated manifest implemented in [falcon.ts](../src/server/adapters/falcon.ts); [S12 verification](verification-s12.md) covers repeats, equals and double-dash refusal before secret access, safe file errors and runner scanning | Canary reads and token/API redirect checks use the actual pinned binary through the S03/04 internal-network TLS/DNS harness; final-head results recorded in delivery status and PR body | unverified: verify real adapter behaviour, harmless read and region selection; measure 24-hour search before increasing timeout |
+| Falcon adapter boundary (T1.5) | Secret-file preparation implemented in [falcon.ts](../src/server/adapters/falcon.ts); reviewed boundary and resource requirements owned by the [generated manifest](../tools/inventories/falcon-axi.json) | [S12 verification](verification-s12.md) defines pinned-binary pagination, cursor-origin replay and redirect checks; final-head results pending with the outer executor | unverified: verify real adapter behaviour, harmless read and region selection; measure 24-hour search before increasing timeout |
 | Server readiness, audit and proxy addresses (T1.6) | S11 shared contract and error catalogue implemented in [api.ts](../src/shared/api.ts) and [errors.ts](../src/shared/errors.ts); endpoints, readiness, audit and proxy integration pending | pending | unverified: verify actual trusted proxy addresses |
 | Bundled CLI on supported operating systems (T1.7) | pending | not applicable | unverified: actual Windows and macOS smoke checks |
 | First container-to-CLI call (T1.8) | pending | pending | unverified: captain runs live first call |
