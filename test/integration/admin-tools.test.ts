@@ -103,7 +103,7 @@ afterEach(async () => {
 
 test('rendered Tools and Credentials pages never contain stored secret values', async () => {
   for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
-    expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0 })).status).toBe(200)
+    expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0, expectedToolRevision: 1 })).status).toBe(200)
   }
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
@@ -122,13 +122,17 @@ test('rendered Tools and Credentials pages never contain stored secret values', 
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
     if (path === '/admin/credentials') {
       expect(page.body).toContain('name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea>')
+      expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(3)
       expect(page.body).toContain('Last changed by synthetic-user')
     }
     if (path === '/admin/tools') expect(page.body).toContain('&quot;operations&quot;')
   }
 })
 async function replace(tool: ToolName, value: unknown = values[tool], expectedRevision = 0) {
-  const response = await request('PUT', `/${tool}/credential`, { value, expectedRevision })
+  const listed = await request('GET', '')
+  const { tools } = await listed.json() as { tools: unknown[] }
+  const expectedToolRevision = tools.map(item => adminToolSchema.parse(item)).find(item => item.name === tool)!.revision
+  const response = await request('PUT', `/${tool}/credential`, { value, expectedRevision, expectedToolRevision })
   expect(response.status).toBe(200)
   return adminCredentialSchema.parse(await response.json())
 }
@@ -136,7 +140,7 @@ const routes = [
   { method: 'GET', path: '', body: undefined },
   { method: 'PATCH', path: '/falcon-axi', body: { enabled: false, expectedRevision: 1 } },
   { method: 'GET', path: '/falcon-axi/credential', body: undefined },
-  { method: 'PUT', path: '/falcon-axi/credential', body: { value: values['falcon-axi'], expectedRevision: 0 } },
+  { method: 'PUT', path: '/falcon-axi/credential', body: { value: values['falcon-axi'], expectedRevision: 0, expectedToolRevision: 1 } },
   { method: 'POST', path: '/falcon-axi/test', body: {} },
 ]
 test.each(routes)('$method $path requires admin capability despite tool grants', async route => {
@@ -182,10 +186,73 @@ test('credential replacement rejects a stale revision without data, policy or au
   await replace('vectra-axi')
   const before = db.prepare('SELECT * FROM credentials').all()
   const tools = db.prepare('SELECT * FROM tools').all()
-  await failure(await request('PUT', '/vectra-axi/credential', { value: { ...values['vectra-axi'], token: 'CANARY-new' }, expectedRevision: 0 }), 'REVISION_CONFLICT')
+  await failure(await request('PUT', '/vectra-axi/credential', { value: { ...values['vectra-axi'], token: 'CANARY-new' }, expectedRevision: 0, expectedToolRevision: 2 }), 'REVISION_CONFLICT')
   expect(db.prepare('SELECT * FROM credentials').all()).toEqual(before)
   expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
   expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
+})
+test.each([
+  { tool: 'vectra-axi', settings: { writes: values['vectra-axi'].writes }, value: { ...values['vectra-axi'], writes: undefined } },
+  { tool: 'az-axi', settings: { allowWrites: true }, value: { ...values['az-axi'], subscriptions: undefined, allowWrites: undefined } },
+  { tool: 'vectra-axi', settings: { writes: values['vectra-axi'].writes }, value: values['vectra-axi'] },
+  { tool: 'az-axi', settings: { allowWrites: true }, value: values['az-axi'] },
+] as const)('$tool unconfigured credential replacement rejects newer native settings without mutation', async ({ tool, settings, value }) => {
+  const edited = await request('PATCH', `/${tool}`, { nativeSettings: settings, expectedRevision: 1 })
+  expect(edited.status).toBe(200)
+  const tools = db.prepare('SELECT * FROM tools').all()
+  const audit = db.prepare('SELECT * FROM audit').all()
+  await failure(await request('PUT', `/${tool}/credential`, { value, expectedRevision: 0, expectedToolRevision: 1 }), 'REVISION_CONFLICT')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual([])
+  expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual(audit)
+})
+test.each([
+  { tool: 'falcon-axi', value: values['falcon-axi'] },
+  { tool: 'vectra-axi', value: values['vectra-axi'] },
+  { tool: 'vectra-axi', value: { ...values['vectra-axi'], writes: undefined } },
+  { tool: 'az-axi', value: values['az-axi'] },
+  { tool: 'az-axi', value: { ...values['az-axi'], subscriptions: undefined, allowWrites: undefined } },
+] as const)('$tool configured credential replacement rejects a stale tool revision without mutation', async ({ tool, value }) => {
+  await replace(tool)
+  expect((await request('POST', `/${tool}/test`, {})).status).toBe(200)
+  expect((await request('PATCH', `/${tool}`, { enabled: false, expectedRevision: 2 })).status).toBe(200)
+  const credentials = db.prepare('SELECT * FROM credentials').all()
+  const tools = db.prepare('SELECT * FROM tools').all()
+  const health = db.prepare('SELECT * FROM tool_health').all()
+  const audit = db.prepare('SELECT * FROM audit').all()
+  await failure(await request('PUT', `/${tool}/credential`, { value, expectedRevision: 1, expectedToolRevision: 2 }), 'REVISION_CONFLICT')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual(credentials)
+  expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
+  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual(audit)
+})
+test.each(['falcon-axi', 'vectra-axi', 'az-axi'] as const)('%s settings edit rejects a newer credential replacement without mutation', async tool => {
+  await replace(tool)
+  const credentials = db.prepare('SELECT * FROM credentials').all()
+  const tools = db.prepare('SELECT * FROM tools').all()
+  const audit = db.prepare('SELECT * FROM audit').all()
+  await failure(await request('PATCH', `/${tool}`, { nativeSettings: {}, expectedRevision: 1 }), 'REVISION_CONFLICT')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual(credentials)
+  expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual(audit)
+})
+test.each([
+  { tool: 'vectra-axi', value: { ...values['vectra-axi'], writes: undefined } },
+  { tool: 'az-axi', value: { ...values['az-axi'], subscriptions: undefined, allowWrites: undefined } },
+] as const)('$tool current complete credential replacement clears omitted settings', async ({ tool, value }) => {
+  await replace(tool)
+  const replaced = await replace(tool, value, 1)
+  expect(replaced.revision).toBe(2)
+  const listed = await request('GET', '')
+  const { tools } = await listed.json() as { tools: unknown[] }
+  expect(tools.map(item => adminToolSchema.parse(item)).find(item => item.name === tool))
+    .toMatchObject({ revision: 3, nativeSettings: {} })
+})
+test.each([undefined, 0, -1, 1.5, '1'])('credential replacement requires a positive integer tool revision: %s', async expectedToolRevision => {
+  await failure(await request('PUT', '/falcon-axi/credential', { value: values['falcon-axi'], expectedRevision: 0, expectedToolRevision }), 'INVALID_INPUT')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual([])
+  expect(db.prepare('SELECT revision FROM tools WHERE name = ?').get('falcon-axi')).toEqual({ revision: 1 })
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
 })
 test('native settings apply to adapter profiles and clearing them removes the previous write policy', async () => {
   await replace('vectra-axi')
@@ -243,7 +310,7 @@ test.each(['PATCH', 'PUT'] as const)('%s audit failure rolls back credentials, s
   const before = db.prepare('SELECT * FROM credentials').all()
   const tools = db.prepare('SELECT * FROM tools').all()
   db.exec("CREATE TRIGGER fail_admin BEFORE INSERT ON audit WHEN NEW.event = 'admin-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
-  const body = method === 'PUT' ? { value: { ...values['vectra-axi'], token: 'CANARY-new' }, expectedRevision: 1 }
+  const body = method === 'PUT' ? { value: { ...values['vectra-axi'], token: 'CANARY-new' }, expectedRevision: 1, expectedToolRevision: 2 }
     : { nativeSettings: {}, expectedRevision: 2 }
   await failure(await request(method, `/vectra-axi${method === 'PUT' ? '/credential' : ''}`, body), 'AUDIT_UNAVAILABLE')
   expect(db.prepare('SELECT * FROM credentials').all()).toEqual(before)
@@ -393,8 +460,8 @@ test('credential test audit failure withholds success and rolls back cached heal
 })
 test.each([
   { method: 'GET', path: '/unknown/credential', body: undefined, code: 'NOT_FOUND' },
-  { method: 'PUT', path: '/falcon-axi/credential', body: { value: { clientSecret: 'CANARY-secret' }, expectedRevision: 0 }, code: 'INVALID_INPUT' },
-  { method: 'PUT', path: '/vectra-axi/credential', body: { value: { ...values['vectra-axi'], executable: '/synthetic' }, expectedRevision: 0 }, code: 'INVALID_INPUT' },
+  { method: 'PUT', path: '/falcon-axi/credential', body: { value: { clientSecret: 'CANARY-secret' }, expectedRevision: 0, expectedToolRevision: 1 }, code: 'INVALID_INPUT' },
+  { method: 'PUT', path: '/vectra-axi/credential', body: { value: { ...values['vectra-axi'], executable: '/synthetic' }, expectedRevision: 0, expectedToolRevision: 1 }, code: 'INVALID_INPUT' },
   { method: 'POST', path: '/falcon-axi/test', body: {}, code: 'CREDENTIAL_UNAVAILABLE' },
 ] as const)('$method $path returns $code without leaking the submitted value', async route => {
   await failure(await request(route.method, route.path, route.body), route.code)
@@ -402,8 +469,8 @@ test.each([
 })
 test('concurrent credential replacements accept one revision and return 409 for the other', async () => {
   const responses = await Promise.all([
-    request('PUT', '/falcon-axi/credential', { value: values['falcon-axi'], expectedRevision: 0 }),
-    request('PUT', '/falcon-axi/credential', { value: { ...values['falcon-axi'], clientSecret: 'CANARY-other' }, expectedRevision: 0 }),
+    request('PUT', '/falcon-axi/credential', { value: values['falcon-axi'], expectedRevision: 0, expectedToolRevision: 1 }),
+    request('PUT', '/falcon-axi/credential', { value: { ...values['falcon-axi'], clientSecret: 'CANARY-other' }, expectedRevision: 0, expectedToolRevision: 1 }),
   ])
   expect(responses.map(response => response.status).sort()).toEqual([200, 409])
   expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
