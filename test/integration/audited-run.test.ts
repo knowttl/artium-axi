@@ -23,6 +23,11 @@ import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { issueTestAccessToken } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 
+vi.mock('node:fs/promises', { spy: true })
+vi.mock('node:child_process', { spy: true })
+
+const actualFilesystem = await vi.importActual<typeof filesystem>('node:fs/promises')
+
 let directory: string
 let db: Database.Database
 let audit: Audit
@@ -211,7 +216,7 @@ describe.each([
     let ready!: () => void
     setup = new Promise<void>(resolve => { ready = resolve })
     const resume = new Promise<void>(resolve => { release = resolve })
-    const writeFile = filesystem.writeFile
+    const writeFile = actualFilesystem.writeFile
     vi.spyOn(filesystem, 'writeFile').mockImplementation(async (...args) => {
       await writeFile(...args)
       if (String(args[0]).endsWith('/inputs/synthetic-input')) {
@@ -219,7 +224,7 @@ describe.each([
         await resume
       }
     })
-    spawn = vi.spyOn(childProcess, 'spawn')
+    spawn = vi.spyOn(childProcess, 'spawn').mockClear()
   })
   afterEach(() => { release() })
 
