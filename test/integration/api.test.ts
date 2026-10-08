@@ -8,6 +8,7 @@ import { once } from 'node:events'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
+import { SessionStore } from '../../src/cli/session.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { checkAuthSettings } from '../../src/server/auth/settings.js'
@@ -55,12 +56,13 @@ beforeEach(async () => {
   const login = await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username: 'synthetic-user', password: 'CANARY-local-password' }) })
   expect(login.status).toBe(200)
-  token = (await login.json() as { accessToken: string }).accessToken
+  const session = loginResponseSchema.parse(await login.json())
+  if (session.status !== 'authenticated') throw new Error('Expected ordinary local login')
+  token = session.accessToken
   db.exec('DELETE FROM audit')
   headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
-  const tokenFile = join(directory, 'access-token')
-  writeFileSync(tokenFile, token, { mode: 0o600 })
-  environment.ARTIUM_AXI_DEV_TOKEN_FILE = tokenFile
+  new SessionStore(url, join(directory, 'artium-axi', 'session.json')).write(session)
+  environment.XDG_CONFIG_HOME = directory
   options.environment = {}
 })
 afterEach(async () => {

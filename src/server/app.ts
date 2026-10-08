@@ -9,7 +9,7 @@ import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider } from './auth/local.js'
-import { issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
+import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
 import { registerAdmin } from './admin/api.js'
@@ -69,6 +69,17 @@ export function createApp(options: {
       return [{ name: adapter.name, version: row.version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }]
     })
     return toolsResponseSchema.parse({ tools })
+  })
+  app.get('/v1/me', async request => {
+    const token = bearer(request.headers.authorization)
+    const userId = authenticate(db, token)
+    const user = db.prepare('SELECT username, display_name, administrator FROM users WHERE id = ?').get(userId) as
+      { username: string, display_name: string, administrator: number }
+    const roles = db.prepare('SELECT name FROM roles JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = ? ORDER BY name')
+      .all(userId) as { name: string }[]
+    const expiry = db.prepare('SELECT expires_at FROM tokens WHERE hash = ?').get(hashToken(token)) as { expires_at: number }
+    return { username: user.username, displayName: user.display_name, administrator: Boolean(user.administrator),
+      roles: roles.map(role => role.name), accessExpiresAt: expiry.expires_at }
   })
   app.post('/v1/auth/login', async request => {
     const input = loginSchema.safeParse(request.body)

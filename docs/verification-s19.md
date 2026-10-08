@@ -7,7 +7,7 @@ Remote health scheduling and actual deployed proxy acceptance remain later gates
 
 Run `pnpm exec vitest run test/integration/api.test.ts` for the focused HTTP checks.
 
-- Both protected endpoints use current tool policy with ordinary access tokens obtained through local sign-in.
+- Tool listing and execution use current tool policy with ordinary access tokens obtained through local sign-in.
 - Listing makes no credential retrieval or remote health call and omits unavailable grants.
 - A real child preserves streams, observed byte counts, truncation metadata and nonzero exit code in the exact HTTP 200 envelope.
 - Shared strict schemas reject caller environment fields, invalid base64, duplicate names, traversal and oversized stdin before credential retrieval.

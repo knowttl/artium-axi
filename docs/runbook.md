@@ -47,7 +47,8 @@ Recovery checks the mounted key against the store's active key ID, authenticates
 An unrelated key fails with `MASTER_KEY_INVALID` even if the store has no credentials or rotation history.
 An audit failure rolls back the entire recovery.
 After success, restart the server, sign in with the recovery password and change it.
-Use the API sign-in and restricted password-change flow in [README.md](../README.md); CLI sign-in commands and browser login remain later-slice work.
+Use the CLI sign-in and restricted password-change flow in [README.md](../README.md).
+Browser login remains later-slice work.
 
 ## Offline master key rotation
 

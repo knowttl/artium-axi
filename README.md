@@ -7,10 +7,11 @@ Status: under construction.
 The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
-CLI sign-in commands remain later-slice work.
+The bundled CLI supports local login, password change, identity, logout and serialized session refresh.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
+On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 The executable toolchain tests compile synthetic TypeScript and run its emitted ESM with Node, and verify strict null checking rejects an invalid assignment.
@@ -25,17 +26,40 @@ All application validation will use fakes and synthetic data, with live acceptan
 
 `pnpm build` produces the standalone `dist/cli/artium-axi.mjs`, requiring Node 22.12 or later and no sibling files or `node_modules`.
 Set `ARTIUM_AXI_URL` to the server's HTTPS base URL.
-Until CLI sign-in and session storage land, the minimal client reads an ordinary access token obtained through local sign-in from an owner-only file named by the legacy client setting `ARTIUM_AXI_DEV_TOKEN_FILE`.
-This setting is client-only and is rejected by the server.
+Sign in with `node dist/cli/artium-axi.mjs login --username <username> --password-stdin`, piping the password into stdin.
+Without `--password-stdin`, login reads `ARTIUM_AXI_PASSWORD`, then uses a hidden prompt at a terminal.
+Password arguments are refused and tokens are never printed.
+Stdin removes one final LF or CRLF, preserving all other spaces and Unicode.
+The client no longer reads `ARTIUM_AXI_DEV_TOKEN_FILE`.
+It stores tokens bound to the normalized server URL in `artium-axi/session.json` under `%APPDATA%` on Windows, `$XDG_CONFIG_HOME` when set on Linux/macOS, or `~/.config` otherwise.
+POSIX directories use mode 0700 and files mode 0600.
+Windows storage uses PowerShell to restrict the ACL to the current user, SYSTEM and local administrators before writing tokens, and fails if the ACL cannot be established.
+File replacement is atomic.
+Each stored session includes a UUID `loginGeneration`, replaced on every login and preserved during refresh.
+Files from earlier builds without this field require a new login.
+Session reloads during authenticated requests and password changes stop with `SESSION_CHANGED` if a concurrent login or logout replaces their originating session.
+Local CLI processes serialize refreshes through `session.lock`, reload the session after acquiring it and reuse a rotation completed by another process.
+If a process dies holding the lock, the next command reports `SESSION_BUSY` after 100 seconds.
+Remove that directory only after all CLI processes have exited.
+Changing `ARTIUM_AXI_URL` never sends the previous server's stored tokens to the new URL.
+`logout` removes local tokens even when remote revocation fails and prints `remoteRevocation: unverified` in that case.
+For a temporary password, login stores only the restricted password-change token and reports `PASSWORD_CHANGE_REQUIRED`.
+Run `passwd --password-stdin` with the new password, then log in again before using tools.
+An ordinary `passwd` also reads the current password from `ARTIUM_AXI_CURRENT_PASSWORD` or a hidden terminal prompt.
+New passwords use stdin or the terminal prompt.
+`whoami` prints the current identity, roles, access expiry and server URL through `GET /v1/me`.
 The URL cannot contain credentials, a query or a fragment.
 The client uses Node's certificate trust, optionally extended with `ARTIUM_AXI_CA_FILE`; certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`.
-Authenticated redirects are refused and requests are never retried automatically.
+Authenticated redirects are refused.
+Only an explicit pre-execution `TOKEN_EXPIRED` response permits one serialized refresh and one retry.
+A network failure or uncertain command outcome is never retried.
 Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
 Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
 The client preserves argument tokens, upstream stdout, stderr and exit status, with truncation diagnostics on stderr.
 Artium errors withhold captured output and use structured TOON on stdout with exit 2 for usage or client configuration failures and exit 1 for other failures.
-Login, complete home/help views, suggestion rewriting and download/launcher distribution remain later-slice work.
+Complete home/help views, suggestion rewriting and download/launcher distribution remain later-slice work.
+See [S36+S37 verification](docs/verification-s36-37.md) for Linux process and storage evidence and deferred Windows/macOS acceptance.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
 See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resource cleanup and deferred captain checks.
