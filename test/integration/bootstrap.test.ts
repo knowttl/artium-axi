@@ -242,6 +242,22 @@ test('recovery refuses a held store before reading passwords', async () => {
   } finally { release() }
 })
 
+test('recovery with an unrelated key refuses a fresh bootstrapped store without mutation', async () => {
+  const db = openStore(file, provider)
+  await bootstrapAdministrator(db, settings())
+  const before = db.prepare('SELECT * FROM users').get()
+  const marker = db.prepare('SELECT * FROM bootstrap_metadata').get()
+  db.close()
+  const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
+  await expect(recoverAdministrator(file, wrong, 'synthetic-admin', passwordFile)).rejects.toMatchObject({ code: 'MASTER_KEY_INVALID' })
+  const reopened = openStore(file, provider)
+  try {
+    expect(reopened.prepare('SELECT * FROM users').get()).toEqual(before)
+    expect(reopened.prepare('SELECT * FROM bootstrap_metadata').get()).toEqual(marker)
+    expect(reopened.prepare('SELECT * FROM audit').all()).toEqual([])
+  } finally { reopened.close() }
+})
+
 test('a marker without enabled administrators never reads bootstrap settings or recreates an account', async () => {
   const db = openStore(file, provider)
   try {

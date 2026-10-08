@@ -111,7 +111,10 @@ SQLite uses foreign keys, WAL, FULL synchronous writes and a 5-second busy timeo
 The default [KeyProvider](src/server/store/key-provider.ts) reads exactly 32 raw bytes from `ARTIUM_AXI_MASTER_KEY_FILE`, or canonical base64 from `ARTIUM_AXI_MASTER_KEY` when no file is configured.
 An unreadable configured file does not fall back to the environment key.
 Its key ID is the full SHA-256 digest.
-Missing or invalid keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
+Missing, invalid or mismatched store keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
+Store metadata binds the database to its active key ID even before any credential is configured.
+Legacy stores acquire this binding transactionally only after authenticating existing credentials or matching the latest rotation receipt.
+An unbound legacy store with neither form of key evidence is refused; see [the runbook](docs/runbook.md) before upgrading.
 [Credential encryption](src/server/store/crypto.ts) uses AES-256-GCM with a fresh 12-byte nonce, a 16-byte authentication tag and canonical JSON associated data `[schemaVersion, tool, credentialId, keyId]`.
 The [credential schema](src/server/store/migrations/001-credentials.sql) owns the stored fields and constraints; credential plaintext must be encrypted before insertion.
 The `tools` table holds pinned versions, enabled state, validated native settings and revisions.
