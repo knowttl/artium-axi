@@ -39,4 +39,4 @@ See [README.md](../README.md) for current server startup and maintenance integra
 Later producers must use metadata-only event shapes and `audit.change` for transactional database mutations.
 Native upstream logs and SQLite cannot share a transaction.
 These checks establish Artium audit persistence only, not cross-system atomicity or live platform acceptance.
-Export/backup guidance is in README.md, with executable backup and restore assigned to later slices.
+See [README.md](../README.md) for audit export and [the runbook](runbook.md) for database backup requirements and deferred backup/restore execution.

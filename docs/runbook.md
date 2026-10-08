@@ -6,9 +6,11 @@ During the build, use only disposable stores and synthetic 32-byte key files.
 Production key rotation requires separate approval.
 
 1. Stop the server and take a consistent database backup, including retained audit and account data.
+   Protect the backup as sensitive data.
    Keep the matching old master key separately from that backup.
-   Backup and restore automation remain assigned to a later slice.
+   Online backup and stopped restore execution remain assigned to a later slice.
 2. Mount the same data volume and both raw 32-byte key files in a one-shot container using the same application image.
+   The new key must differ from the old key, and both files must be readable by the container's runtime UID.
    Set `ARTIUM_AXI_MASTER_KEY_FILE` to the old key file.
    Set `ARTIUM_AXI_DATABASE_FILE` if the store differs from `/data/artium.db`.
 3. Run the maintenance command.
@@ -29,6 +31,8 @@ docker run --rm --network none --read-only --tmpfs /tmp \
 ```
 
 Use the same runtime UID and data-volume ownership as the server.
+Replace `artium-data` in the invocation with the server's actual volume name; Compose normally prefixes it with the project name.
+Replace the bind source paths with the absolute paths of the synthetic key files.
 Maintenance does not require development authentication.
 For local disposable-store work after `pnpm build`, run `node bin/artium-axi-server rotate-key --new-key-file <path>` with the same database and old-key environment settings.
 Only key file paths go in arguments, never key bytes.
@@ -44,6 +48,7 @@ Restart with the old key.
 After commit, restart with the new key, even if no success receipt reached stdout.
 The database's `key_rotations` table stores the old and new full SHA-256 key IDs atomically with the credentials.
 Its latest row identifies the required startup key.
+Inspect it with `SELECT old_key_id, new_key_id FROM key_rotations ORDER BY rowid DESC LIMIT 1` while the server is stopped.
 Startup rejects a different key and reports the required key ID, including when no credentials remain.
 The durable audit event uses action `rotate-key`, no user identity for offline maintenance, and the new key ID as its target.
 Maintenance keeps its receipt output separate from the optional online audit stream.

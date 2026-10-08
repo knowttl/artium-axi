@@ -130,10 +130,8 @@ The [EmbeddedSecretSource](src/server/store/secret-source.ts) retrieves that ref
 Selection does not grant access to a tool, so the owning server flow must authorize before resolution and retrieval.
 [S14 verification](docs/verification-s14.md) covers fake-store unit tests and encrypted-store Falcon preparation after reopen, with the T1.5 tests unchanged.
 Server startup opens and validates this store before listening.
-Offline rotation is available through `artium-axi-server rotate-key --new-key-file <path>` after building.
-The server and maintenance command share a process-held lock on the data volume, so a running server prevents rotation.
-Re-encryption, the key-ID receipt and the maintenance audit event commit together.
-See [the rotation runbook](docs/runbook.md) for backup, one-shot container invocation, key switch and crash recovery, and [S27 verification](docs/verification-s27.md) for local evidence.
+See [the rotation runbook](docs/runbook.md) for offline master key rotation, including the local command, backup, one-shot container invocation, key switch and crash recovery.
+See [S27 verification](docs/verification-s27.md) for local evidence.
 
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
@@ -173,8 +171,7 @@ Each batch commits its deletion, cutoff and count in a separate short transactio
 Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
 SQLite remains authoritative if the optional stream fails.
 For export, capture that stream in a protected external collector before retention expires.
-Database backup includes retained audit records and account metadata and must be protected as sensitive data, with the master key stored separately.
-Online backup and stopped restore execution arrive in the later maintenance slice.
+See [the runbook](docs/runbook.md) for database backup requirements and the remaining backup and restore work.
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
 The later authentication and admin producers must call it using metadata only.
