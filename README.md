@@ -62,15 +62,21 @@ They assert mutation counts and native write-log creation.
 They do not prove real appliance permissions.
 
 `pnpm test:fake-services` runs the separate Linux Docker TLS/DNS and outbound-denial check.
-It requires Docker, OpenSSL and an existing image named `artium-test-node22` containing Node 22 or later.
+It requires Docker, OpenSSL and an image named `artium-test-node22` containing Node 22 or later.
+Run `pnpm test:build-image` to build it from the digest-pinned official Node 22 bookworm-slim base in `test/fake-service/Dockerfile`.
+The build requires an existing `moby/buildkit:buildx-stable-1` image and permits fetching the public Node base.
+It uses a uniquely named, privileged `artium-test-` BuildKit container with bounded CPU and memory, and cache on private tmpfs.
+Its finalizer removes that builder, cache and exported temporary archive without touching the shared Docker builder.
+It refuses to replace an existing `artium-test-node22` image.
 Alternatively set `ARTIUM_TEST_IMAGE` to an existing image whose name starts with `artium-test-`.
 An existing suitable Node image can be tagged with `docker image tag <existing-node-image> artium-test-node22`.
 The harness never pulls an image, builds one, publishes ports or alters existing containers.
 It creates uniquely named `artium-test-` internal networks and containers, routes the fixed upstream names to the fake TLS service and trusts only its ephemeral test CA.
 It tests outbound denial using a second synthetic service on a separate internal network, without probing a real endpoint.
 Its finalizer removes its containers, networks and temporary certificates, and leaves the supplied image intact.
-No image or build cache is created by the harness.
+After a check using a freshly built test image, remove that owned image with `docker image rm artium-test-node22`.
+No image or build cache is created by the network harness itself.
 An unavailable image or Docker daemon produces a nonzero `unverified` result, which must be recorded in the evidence ledger.
 The harness also records az-axi same-origin and cross-origin redirects, pagination and the actual mutation request count after an ambiguous 503.
-az-axi 0.1.4 has a source-derived uncertain-write retry limitation, so its write capability remains unavailable pending safe commissioning.
+The Docker check confirmed that az-axi 0.1.4 repeats an uncertain write once after a recorded mutation returns 503 with Retry-After, so its write capability remains unavailable pending safe commissioning.
 Clean Node 22 image installation and Falcon packaging remain for the next image slice.
