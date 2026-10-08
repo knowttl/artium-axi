@@ -37,6 +37,10 @@ Non-default ports were separately observed to remain refused even with the unkno
 The Compose document passed the real Compose parser.
 The private BuildKit worker, tmpfs cache, image archive and local image were removed, with filtered container and image inventories empty.
 
+The S08 review revision removes runner-injected XDG variables; adapter-provided XDG values remain unchanged, while PATH, HOME and TMPDIR are overridden.
+Focused verification uses `pnpm exec vitest run src/server/runner/runner.test.ts` to exercise the revised child environment and runner behavior.
+Final committed-head frozen install, lint, tests, aggregate check and private hygiene results remain pending with the outer executor for the delivery status and PR body.
+
 The review revision adds native profile write-setting inventories with pinned source hashes and retains only the upstream synthetic stream fixtures and fixed `artium-test-node22` harness image.
 Focused review verification covers these inventories and synthetic executable behavior.
 Route inventories now keep Azure canonical and alias inputs separate, record accepted short flags and Graph positional/help contracts, and distinguish native environment defaults from profile-selected credential variables.

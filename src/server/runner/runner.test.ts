@@ -39,15 +39,21 @@ test('security shell metacharacters remain literal arguments', async () => {
   expect((await fake(['print', ...args])).stdout).toBe(args.join(' '))
 })
 
-test('security environment contains only adapter values and fixed runtime paths', async () => {
+test.each([
+  {},
+  {
+    XDG_CONFIG_HOME: '/synthetic/config', XDG_CACHE_HOME: '/synthetic/cache',
+    XDG_DATA_HOME: '/synthetic/data', XDG_STATE_HOME: '/synthetic/state',
+    XDG_RUNTIME_DIR: '/synthetic/runtime',
+  },
+])('security environment contains only adapter values and fixed runtime paths: %j', async (adapterPaths) => {
   vi.stubEnv('ARTIUM_PARENT_ONLY', 'CANARY-parent')
-  const result = await fake(['env'], { ADAPTER_SETTING: 'synthetic', PATH: '/incorrect', HOME: '/incorrect' })
+  const result = await fake(['env'], { ...adapterPaths, ADAPTER_SETTING: 'synthetic', PATH: '/incorrect', HOME: '/incorrect', TMPDIR: '/incorrect' })
   const environment = JSON.parse(result.stdout)
   const directory = environment.HOME
   expect(environment).toEqual({
+    ...adapterPaths,
     ADAPTER_SETTING: 'synthetic', PATH: runtimePath, HOME: directory, TMPDIR: directory,
-    XDG_CONFIG_HOME: directory, XDG_CACHE_HOME: directory, XDG_DATA_HOME: directory,
-    XDG_STATE_HOME: directory, XDG_RUNTIME_DIR: directory,
   })
   expect(directory.startsWith(join(root, 'artium-call-'))).toBe(true)
   await expect(stat(directory)).rejects.toMatchObject({ code: 'ENOENT' })
