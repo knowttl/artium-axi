@@ -62,11 +62,6 @@ export async function run(
           PATH: runtimePath,
           HOME: directory,
           TMPDIR: directory,
-          XDG_CONFIG_HOME: directory,
-          XDG_CACHE_HOME: directory,
-          XDG_DATA_HOME: directory,
-          XDG_STATE_HOME: directory,
-          XDG_RUNTIME_DIR: directory,
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       })

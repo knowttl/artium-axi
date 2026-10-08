@@ -70,7 +70,8 @@ Exact-value scanning cannot identify unknown tokens minted inside an upstream to
 The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
 Call `run(executable, args, environment, secrets, limits)` with adapter-provided environment values and all known injected secrets.
 It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
-Each call has a private mode-0700 directory for its working directory, HOME, TMPDIR and XDG paths, removed after completion or failure.
+Each call has a private mode-0700 directory for its working directory, HOME and TMPDIR, removed after completion or failure.
+The child environment contains exactly the adapter-provided values with PATH, HOME and TMPDIR overridden by the runner.
 No parent environment variables are inherited.
 The result preserves stdout, stderr and the upstream exit code, with duration, observed byte counts and per-stream truncation flags.
 Capture defaults to 4 MiB per stream, drains subsequent output and scans every chunk before retention.
