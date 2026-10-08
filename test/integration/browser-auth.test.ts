@@ -135,11 +135,49 @@ test('Roles page escapes names and change actors and preserves bounded paginatio
   expect((await request('GET', '/admin/roles?limit=101')).statusCode).toBe(400)
 })
 
-test.each(['/admin/tools', '/admin/credentials', '/admin/roles'])('page %s requires the current administrator capability', async path => {
+test.each(['/admin/tools', '/admin/credentials', '/admin/roles', '/admin/audit'])('page %s requires the current administrator capability', async path => {
   expect((await request('GET', path)).headers.location).toBe('/login')
   await signIn()
   db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
   expect((await request('GET', path)).statusCode).toBe(403)
+})
+
+test('Audit screen escapes stored fields and retains all filters across pages', async () => {
+  await signIn()
+  db.prepare('UPDATE users SET username = ? WHERE id = ?').run('<b>actor</b>', userId)
+  const audit = new Audit(db)
+  audit.record({ event: 'admin-change', userId, tool: 'falcon-axi', outcome: 'success',
+    action: '<b>action</b>', targetId: '<b>target</b>', requestId: '<b>request</b>', clientAddress: '<b>address</b>' })
+  audit.record({ event: 'admin-change', userId, tool: 'falcon-axi', outcome: 'success',
+    action: 'second', targetId: 'second', requestId: 'second', clientAddress: null })
+  const filters = new URLSearchParams({ user: userId, tool: 'falcon-axi', outcome: 'success',
+    from: new Date(now).toISOString(), to: new Date(now).toISOString(), limit: '1' })
+  const first = await request('GET', '/admin/audit?' + filters)
+  expect(first.statusCode).toBe(200)
+  expect(first.body).toContain('Action: second')
+  expect(first.body).not.toContain('Action: &lt;b&gt;action')
+  const next = /href="([^"]+)">Next page/.exec(first.body)![1]!.replaceAll('&amp;', '&')
+  expect(Object.fromEntries(new URL('http://localhost' + next).searchParams)).toMatchObject(Object.fromEntries(filters))
+  const second = await request('GET', next)
+  expect(second.statusCode).toBe(200)
+  expect(second.body).toContain('Action: &lt;b&gt;action&lt;/b&gt;')
+  expect(second.body).toContain('Target: &lt;b&gt;target&lt;/b&gt;')
+  expect(second.body).toContain('Request: &lt;b&gt;request&lt;/b&gt;')
+  expect(second.body).toContain('Client address: &lt;b&gt;address&lt;/b&gt;')
+  expect(second.body).toContain('&lt;b&gt;actor&lt;/b&gt;')
+  expect(second.body).not.toContain('<b>')
+  expect(second.body).not.toContain('>Next page')
+  expect(second.headers['cache-control']).toBe('no-store')
+})
+
+test('Audit filters handle empty form fields and show a useful empty state', async () => {
+  await signIn()
+  expect((await request('GET', '/admin/audit?user=&tool=&outcome=&from=&to=&limit=50')).statusCode).toBe(200)
+  const empty = await request('GET', '/admin/audit?outcome=missing')
+  expect(empty.body).toContain('No audit records match these filters.')
+  expect(empty.body).toContain('name="outcome" value="missing"')
+  expect((await request('GET', '/admin/audit?from=invalid')).statusCode).toBe(400)
+  expect((await request('GET', '/admin/audit?limit=101')).statusCode).toBe(400)
 })
 
 test.each([
