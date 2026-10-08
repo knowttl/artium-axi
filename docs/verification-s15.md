@@ -19,4 +19,5 @@ The PR body records results against the final implementation head.
 See [S16 verification](verification-s16.md) for token verification and the test fixture issuer.
 See [S17+S18 verification](verification-s17-18.md) for audit writing checks.
 See [S29 verification](verification-s29.md) for bootstrap execution and administrator safeguards.
-Login, refresh and browser authentication belong to later slices.
+See [S30 verification](verification-s30.md) for local login and [S31 verification](verification-s31.md) for refresh and logout.
+Browser authentication remains later-slice work.

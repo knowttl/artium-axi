@@ -18,6 +18,7 @@ export const passwordSchema = z.string().refine(value => {
 }, 'Expected 15 to 128 Unicode code points and at most 512 UTF-8 bytes')
 export const passwordChangeSchema = z.strictObject({ newPassword: z.string(), currentPassword: z.string().optional() })
 export const loginSchema = z.strictObject({ username: z.string(), password: z.string() })
+export const refreshSchema = z.strictObject({ refreshToken: z.string().min(1) })
 export const loginResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('authenticated'), accessToken: z.string(), refreshToken: z.string(),
     accessExpiresAt: z.number().int(), familyExpiresAt: z.number().int() }),
