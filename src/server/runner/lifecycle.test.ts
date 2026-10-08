@@ -125,10 +125,19 @@ test('security resident buffers can exceed the Node heap bound and require a con
   expect((await call.result).code).toBe('CANCELLED')
 })
 
-test('third user call and ninth global call are refused immediately without a queue', async () => {
-  const calls = ['a', 'a', 'b', 'b', 'c', 'c', 'd', 'd'].map(user =>
+test('third user call is refused while another user can still run', async () => {
+  const calls = ['a', 'a'].map(user =>
     runner.run(user, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, []).catch(error => error))
   await expect(runner.run('a', fakeTool.executable, fakeTool.args, {}, [])).rejects.toMatchObject({ code: 'TOO_MANY_CALLS' })
+  await expect(runner.run('b', fakeTool.executable, [...fakeTool.args, 'print', 'admitted'], {}, []))
+    .resolves.toMatchObject({ exitCode: 0, stdout: 'admitted' })
+  await runner.shutdown()
+  expect((await Promise.all(calls)).map(result => result.code)).toEqual(Array(2).fill('CANCELLED'))
+})
+
+test('ninth global call is refused immediately without a queue', async () => {
+  const calls = ['a', 'a', 'b', 'b', 'c', 'c', 'd', 'd'].map(user =>
+    runner.run(user, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, []).catch(error => error))
   await expect(runner.run('e', fakeTool.executable, fakeTool.args, {}, [])).rejects.toMatchObject({ code: 'TOO_MANY_CALLS' })
   await runner.shutdown()
   expect((await Promise.all(calls)).map(result => result.code)).toEqual(Array(8).fill('CANCELLED'))
