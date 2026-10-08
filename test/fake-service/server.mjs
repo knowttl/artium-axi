@@ -48,9 +48,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     })
     return
   }
-  requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
+  const recorded = { method: req.method, host: req.headers.host, path: url.pathname,
     canaryReceived: /CANARY-/.test(req.headers.authorization ?? ''),
-    ...(url.pathname === '/alerts/queries/alerts/v2' ? { offset: url.searchParams.get('offset'), limit: url.searchParams.get('limit') } : {}) })
+    ...(url.pathname === '/alerts/queries/alerts/v2' ? { offset: url.searchParams.get('offset'), limit: url.searchParams.get('limit') } : {}) }
+  requests.push(recorded)
   if (url.pathname === '/alerts/queries/alerts/v2') {
     if (req.headers.host === 'api-redirect.crowdstrike.com') {
       res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })
@@ -89,12 +90,22 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.writeHead(403)
     res.end(JSON.stringify({ error: { code: 'AuthorizationFailed', message: 'Synthetic permission denial' } }))
   } else if (req.headers.host === 'api.loganalytics.io' && /\/workspaces\/[^/]+\/query$/.test(url.pathname)) {
-    req.resume()
-    res.end(JSON.stringify({ tables: [{ name: 'PrimaryResult', columns: [{ name: 'synthetic', type: 'string' }], rows: [['metadata']] }] }))
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      recorded.body = JSON.parse(body)
+      res.end(JSON.stringify({ tables: [{ name: 'PrimaryResult', columns: [{ name: 'synthetic', type: 'string' }], rows: [['metadata']] }] }))
+    })
   } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/single-write' && req.method === 'PATCH') {
     mutations++
-    req.resume()
-    res.end(JSON.stringify({ tags: { synthetic: 'yes' } }))
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      recorded.body = JSON.parse(body)
+      res.end(JSON.stringify({ tags: { synthetic: 'yes' } }))
+    })
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++
     if (url.pathname === '/api/v2.5/tagging/detection/45') req.socket.destroy()
