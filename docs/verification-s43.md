@@ -31,6 +31,8 @@ Detail and execution then fail with `TOOL_NOT_GRANTED`.
 
 `test/cli.test.ts` exercises every catalogue error through synthetic HTTPS, checking exact code, source, message, next step, request ID and CLI exit.
 It also checks every client command's help layout without server configuration or network traffic, inaccessible detail, manifest-version mismatch and upstream help passthrough.
+Prefix-help checks distinguish local `--help <tool>` from authenticated `<tool> --help` passthrough.
+Doctor checks preserve pass/fail diagnostics and verify the final catalogue envelope and exit code for configuration, certificate, server, token, version, cached tool health and malformed-response failures.
 Existing tests cover upstream nonzero exits, separate streams, truncation diagnostics, malformed responses and usage failures before network traffic.
 `test/integration/api.test.ts` exercises the real server error handler for every catalogue entry and checks the HTTP status and complete envelope.
 `test/errors-reference.test.ts` executes the generator, compares its generated public reference with the committed reference, then proves the actual `pnpm check` command rejects a stale copy.
