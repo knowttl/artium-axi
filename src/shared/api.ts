@@ -71,6 +71,29 @@ export const adminUserRoutes = {
 } as const
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
+// The ceiling excludes inserts after the first page, including backdated events.
+const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$/)
+  .refine(value => {
+    const [ceiling, time, id] = value.split(':').map(Number) as [number, number, number]
+    return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
+  })
+export const adminAuditQuerySchema = z.strictObject({
+  cursor: auditCursorSchema.optional(), limit: z.coerce.number().int().min(1).max(100).default(50),
+  user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(),
+  outcome: z.string().min(1).max(100).optional(), from: z.iso.datetime().optional(), to: z.iso.datetime().optional(),
+}).refine(input => !input.from || !input.to || Date.parse(input.from) <= Date.parse(input.to))
+export const adminAuditRecordSchema = z.strictObject({
+  id: z.number().int().positive(), occurred_at: z.number().int(), event: z.string(), user_id: z.string().nullable(),
+  tool: toolSchema.nullable(), arguments: z.string().nullable(), request_id: z.string(),
+  exit_code: z.number().int().nullable(), duration_ms: z.number().int().nullable(),
+  stdout_bytes: z.number().int().nullable(), stderr_bytes: z.number().int().nullable(),
+  client_address: z.string().nullable(), outcome: z.string(), action: z.string().nullable(), target_id: z.string().nullable(),
+  cutoff: z.number().int().nullable(), deleted_count: z.number().int().nullable(), checked_at: z.number().int().nullable(),
+  credential_revision: z.number().int().nullable(), error_code: z.string().nullable(),
+})
+export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: adminAuditQuerySchema,
+  response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
+  authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const nativeSettingsSchemas = {
   'falcon-axi': z.strictObject({}),
   'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),

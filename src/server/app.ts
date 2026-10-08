@@ -16,6 +16,7 @@ import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
 import { registerAdmin } from './admin/api.js'
 import { registerUsersPage } from './admin/users.js'
 import { registerAdminPages } from './admin/pages.js'
+import { registerAuditPage } from './admin/audit.js'
 import { escape } from './admin/escape.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
@@ -147,6 +148,7 @@ export function createApp(options: {
   registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore })
   registerUsersPage(app, db)
   registerAdminPages(app, db)
+  registerAuditPage(app, db)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')

@@ -1,4 +1,6 @@
 import type Database from 'better-sqlite3'
+import type { z } from 'zod'
+import type { adminAuditQuerySchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { ErrorCode } from '../../shared/errors.js'
 import type { ToolName } from '../store/credential-store.js'
@@ -74,6 +76,35 @@ export class Audit {
 
   record(event: AuditEvent): AuditRecord {
     return this.change(event, () => undefined).record
+  }
+
+  query(input: z.infer<typeof adminAuditQuerySchema>): { records: AuditRecord[], nextCursor: string | null } {
+    const cursor = input.cursor?.split(':').map(Number)
+    const ceiling = cursor?.[0] ?? (this.db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM audit').get() as { id: number }).id
+    const clauses = ['id <= @ceiling']
+    const values: Record<string, string | number> = { ceiling, limit: input.limit + 1 }
+    if (cursor) {
+      clauses.push('(occurred_at < @time OR (occurred_at = @time AND id < @id))')
+      values.time = cursor[1]!
+      values.id = cursor[2]!
+    }
+    for (const [filter, column] of [['user', 'user_id'], ['tool', 'tool'], ['outcome', 'outcome']] as const) {
+      if (input[filter] !== undefined) {
+        clauses.push(`${column} = @${filter}`)
+        values[filter] = input[filter]!
+      }
+    }
+    for (const [filter, operator] of [['from', '>='], ['to', '<=']] as const) {
+      if (input[filter] !== undefined) {
+        clauses.push(`occurred_at ${operator} @${filter}`)
+        values[filter] = Date.parse(input[filter]!)
+      }
+    }
+    const rows = this.db.prepare(`SELECT * FROM audit WHERE ${clauses.join(' AND ')}
+      ORDER BY occurred_at DESC, id DESC LIMIT @limit`).all(values) as AuditRecord[]
+    const records = rows.slice(0, input.limit)
+    const last = records.at(-1)
+    return { records, nextCursor: rows.length > input.limit ? `${ceiling}:${last!.occurred_at}:${last!.id}` : null }
   }
 
   // Future mutation producers use this boundary to commit their change and event together.
