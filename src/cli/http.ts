@@ -7,6 +7,8 @@ import { ArtiumError } from '../shared/errors.js'
 import { SessionStore, sessionPath } from './session.js'
 import type { StoredSession } from './session.js'
 
+export const DEFAULT_REQUEST_DEADLINE_MS = 90_000
+
 export class Client {
   readonly serverUrl: string
   readonly sessions: SessionStore
@@ -27,7 +29,7 @@ export class Client {
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
     const body = input === undefined ? undefined : JSON.stringify(input)
     const controller = new AbortController()
-    const deadline = setTimeout(() => controller.abort(), 90_000)
+    const deadline = setTimeout(() => controller.abort(), DEFAULT_REQUEST_DEADLINE_MS)
     const url = new URL(`${this.serverUrl}${path}`)
     const result = await new Promise<{ status: number, body: unknown }>((resolve, reject) => {
       const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
