@@ -406,18 +406,20 @@ Never put a token or key in an argument, source file, image or log.
 The [Fastify API](src/server/app.ts) implements the authentication endpoints described above, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
 Use an ordinary access token from local sign-in in `Authorization: Bearer <token>` and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
-Tools listing includes enabled, granted adapters without contacting an upstream service.
+Tools listing includes enabled, granted adapters and reads cached health without contacting an upstream service.
 Configured tools have `unknown` status until a health check records `ok` or `error`; missing credentials have `unconfigured` status.
+Health records carry check time, credential revision and a safe error code, never upstream output.
 The server checks enabled configured tools every 15 minutes and after credential or native-setting replacement.
-Manual tests run the same checker and immediately store their result.
+Manual tests run the same checker and store completed check results subject to the cache rules below.
 One check per tool can run at a time across both paths, including preparation and cleanup.
 Replacement during a check queues one check of the latest revision after the current check finishes.
 Background reads share global runner slots, with per-tool system accounting named `system:tool-health:<tool>`.
 Their `health-check` audit record identifies `system:tool-health` in `action`, without creating a sign-in account.
 Admission and authorization failures preserve the previous cache, and an old credential revision never replaces newer health.
-Listing reads stored results and never calls a platform.
+Health status does not change platform permissions or hide permitted commands.
 
-Run `node dist/cli/artium-axi.mjs doctor` to print one pass/fail line for the server address, certificate, token, CLI version and each available tool's cached health.
+Run `node dist/cli/artium-axi.mjs doctor` to print one pass/fail line for the server address, certificate, token and CLI version.
+When token and version checks pass, it also prints a line for each available tool's cached health; only `ok` passes.
 Any failed check exits 1, while all passing checks exit 0.
 Certificate trust is verified through HTTPS, and a local test HTTP connection reports a failed certificate check.
 Doctor does not run platform checks or require administrator access.
@@ -475,7 +477,7 @@ Native-settings patches also advance the configured credential revision so an ol
 Configured disabled Falcon and Vectra tools can be tested before enabling them.
 Manual tests never overlap for one tool and use the same global and per-administrator runner slots as ordinary calls.
 They return only safe health fields and retain no upstream output; the audit contract is described above.
-Health records carry check time, credential revision and a safe error code, and never replace the cached health of a newer credential.
+The health cache rules above also apply to manual tests.
 Tool administration follows the same authorization rules as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.

@@ -14,8 +14,7 @@ Manual tests run fixed harmless reads through real adapter preparation and a rea
 They prove per-tool exclusion, administrator runner quota, safe health success/failure, secret-output blocking, replacement during preparation, audit-before-child and atomic health/audit commit.
 The [integration tests](../test/integration/admin-tools.test.ts) also verify legacy native-setting reconciliation and durable audit evidence after credential replacement clears cached health, for both successful and failed tests.
 An Azure adapter is injected only in tests with fake token transport; production runtime Azure enable and test remain unavailable.
-Tool listing makes no remote call and replacement clears cached health.
-Automatic health scheduling and post-replacement background checks are implemented in [S42 verification](verification-s42.md).
+See [S42 verification](verification-s42.md) for stored listing, automatic health scheduling and post-replacement checks.
 See [S41 verification](verification-s41.md) for paginated audit query evidence.
 
 Before validation, update README and the existing task row in the evidence ledger.

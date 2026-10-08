@@ -44,4 +44,5 @@ No fake check closes a live acceptance gate.
 
 See [README.md](../README.md) for current server lifecycle integration and [S19 verification](verification-s19.md) for its HTTP checks.
 See [S11 verification](verification-s11.md) for implemented input transport and [the error catalogue](../src/shared/errors.ts) for HTTP error mappings.
-Preparation deadlines and background health cancellation remain later-slice work.
+Preparation deadlines remain later-slice work.
+See [S42 verification](verification-s42.md) for background health scheduling and shutdown checks.
