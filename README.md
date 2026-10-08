@@ -90,6 +90,18 @@ Selection does not grant access to a tool, so the owning server flow must author
 [S14 verification](docs/verification-s14.md) covers fake-store unit tests and encrypted-store Falcon preparation after reopen, with the T1.5 tests unchanged.
 Offline rotation and server startup integration arrive in later slices.
 
+The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
+`users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
+The account-writing flow owns canonicalization before insertion.
+The `administrator` flag is a reserved account capability independent of role tool grants.
+The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later account and role writers must enforce optimistic concurrency.
+Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
+Family deadlines, browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
+Authentication and audit writers must store timestamps as UTC Unix milliseconds.
+Bootstrap metadata starts empty and is written atomically with the first administrator in the later bootstrap slice.
+[S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
+Token verification, issuance, login, bootstrap execution and audit writing arrive in later slices.
+
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
 Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `child-exit`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
 For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stderr bytes, and `upstream az-axi error` emits a synthetic stream capture with an error status.
