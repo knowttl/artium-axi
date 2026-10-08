@@ -150,6 +150,14 @@ Reusing a consumed refresh token before that deadline revokes the entire family,
 `POST /v1/auth/logout` accepts a stored, unrevoked bearer access or refresh token, including an expired or consumed token, and returns 204 after audited family revocation.
 Revocation includes every token and browser session in that family, leaving other families unchanged.
 See [S31 verification](docs/verification-s31.md) for concurrent refresh, deadline and logout checks.
+Login and password reauthentication share limits of 5 attempts per canonical username and 30 per verified client address within 15 minutes.
+Each counter map retains at most 4096 hashed keys, refuses fresh keys at capacity and expires entries after 15 minutes.
+Five failed password attempts lock a known account for 15 minutes with an atomic lockout audit event; successful authentication resets its failure count.
+Wrong passwords and unknown usernames both return `SIGN_IN_FAILED`; exhausted limits return `AUTH_RATE_LIMITED` and a persisted lock returns `ACCOUNT_LOCKED` when the attempt limit permits the request.
+`POST /v1/auth/reauth` accepts an access bearer token and strict JSON `{ "password": string }`, returning `{ "ticket": string, "expiresAt": number }` after password confirmation.
+The server stores only the ticket hash, replaces the previous ticket for that session family and caps its 15-minute deadline at the family deadline.
+Later admin producers use `requireRecentAuth(db, accessToken, ticket)` to enforce session binding, expiry and immediate session revocation.
+See [S32 verification](docs/verification-s32.md) for rate-limit, lockout and ticket evidence.
 Only SHA-256 token hashes and metadata are stored.
 A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
 The restricted token is accepted only by `POST /v1/auth/password` and cannot list tools, run tools or authenticate administration.
@@ -352,7 +360,7 @@ Tools listing includes enabled, granted adapters without contacting an upstream 
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
-Admin routes and recent password reauthentication remain later slices.
+Admin routes and browser sessions remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.
