@@ -1,0 +1,110 @@
+agent: codex
+no_ci: true
+
+commands:
+  prepare: >-
+    if test -f package.json; then pnpm install --frozen-lockfile;
+    else printf '%s\n' 'BOOTSTRAP_ONLY: no application dependencies yet'; fi
+  test: >-
+    if test -f package.json; then pnpm test;
+    else printf '%s\n' 'BOOTSTRAP_ONLY: no application test evidence yet'; fi
+  lint: >-
+    if test -f package.json; then pnpm lint;
+    else printf '%s\n' 'BOOTSTRAP_ONLY: no application static check yet'; fi
+
+auto_fix:
+  review: 1
+
+ignore_patterns: []
+
+review:
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Keep code, docs, tests and generated assets generic from the first commit.
+        Do not add real employer hostnames, tenant names, secret names or credentials.
+        All execution evidence during the build uses synthetic users and canary credentials.
+        Require the private whole-tree hygiene check before publishing a candidate.
+        Do not treat a synthetic deny list as proof of employer-data absence.
+        Escalate live services, real credentials, deployment and irreversible actions.
+    - path: "src/server/store/**"
+      instructions: |
+        Store credentials only as authenticated AES-256-GCM records.
+        Use fresh nonces and canonical associated data binding schema, tool, row and key.
+        Authenticate every stored credential before startup serves requests.
+        Keep the key outside the database and never expose plaintext in errors or logs.
+        Preserve transactional migrations, revisions, maintenance locking and crash recovery.
+        Restore must revoke all restored authentication sessions.
+    - path: "src/server/auth/**"
+      instructions: |
+        Store only token hashes and verify enabled users and current policy on requests.
+        Keep password-change tokens separate from access and refresh tokens.
+        Refresh rotation is atomic inside a fixed 12-hour family.
+        Reuse revokes the family. Password changes, resets and disable revoke sessions.
+        Preserve Argon2 costs, bounded hashing, lockout and dummy verification for unknown users.
+        Bootstrap once and protect the last enabled administrator transactionally.
+    - path: "src/server/routes/**"
+      instructions: |
+        Validate and authorize before secret retrieval, token minting or spawning.
+        Admin capability is separate from tool grants and requires recent reauthentication.
+        Browser mutations require CSRF and same-origin checks.
+        Accept only the fixed tool registry and bounded strict request schemas.
+        Never return captured output with an Artium error or expose a credential read route.
+        Audit-changing mutations and their audit events must commit together.
+    - path: "src/server/runner/**"
+      instructions: |
+        Spawn fixed absolute executables with argument arrays and no shell.
+        Use an explicit clean environment and private call directories.
+        Scan both streams before truncation or rewriting, including all post-cap chunks.
+        Detect chunk-split known secrets and their encoded forms. Discard both streams on a match.
+        Bound admission, preparation, output, child lifetime and cleanup.
+        Reap descendants before releasing slots and preserve protected native write logs.
+        Do not claim runtime limits provide complete per-call isolation.
+    - path: "src/server/adapters/**"
+      instructions: |
+        Match the exact pinned parser, including aliases, repeats, equals forms and double dash.
+        Reject caller identity, destination, profile, credential and server-file overrides.
+        Review command-specific URLs, redirects, continuation tokens and input paths.
+        Preserve native read, dry-run, opt-in, execute and confirmation gates without widening policy.
+        Do not impose an Artium resource or subscription permission layer.
+        Mint only required fixed-audience Azure tokens and invalidate caches on credential replacement.
+        Test upstream retries against canary fake services, not only the Artium wrapper.
+    - path: "src/cli/**"
+      instructions: |
+        Reject authenticated redirects and insecure TLS bypasses.
+        Bind securely stored tokens to the normalized server URL.
+        Serialize cross-process refresh, reload after locking and write sessions atomically.
+        Never accept a password argument or print a token.
+        Never retry a submitted run except once after pre-execution TOKEN_EXPIRED.
+        Preserve streams and exit codes and rewrite only known suggestion fields.
+        Keep bundled assets self-contained and preserve unrelated setup settings.
+    - path: "src/server/audit/**"
+      instructions: |
+        Persist admission and terminal events with the same request ID.
+        Audit failure blocks admission and prevents returning a successful result.
+        Never store output, request bodies, uploaded contents or secret values.
+        Redact sensitive argument forms and record verified client addresses.
+        Recover interrupted starts without replaying commands and retain events for 90 days.
+
+document:
+  instructions: |
+    README.md owns the generic introduction, installation and quick start.
+    docs/architecture.md owns the clean architecture and supported capability boundaries.
+    docs/runbook.md owns deployment, bootstrap, recovery, rotation, retention and rollback.
+    src/shared/api.ts owns API contracts and src/shared/errors.ts owns the error catalogue.
+    src/server/config.ts owns executable defaults. Generated references cite these owners.
+    Adapter manifests own the reviewed pinned command boundary and resource requirements.
+    docs/errors.md and other generated references are rebuilt, never edited manually.
+    AGENTS.md owns concise development instructions and pointers, not duplicate design prose.
+    Private plans, probes and employer policy exceptions stay outside this code repository.
+    Preserve the distinction between local evidence and unverified captain live acceptance.
+    Do not run tests or dependency installs again during documentation housekeeping.
+
+test:
+  instructions: |
+    The configured pnpm test command runs the full real local suite once as the baseline.
+    Use targeted public CLI, API and browser flows for additional evidence only when needed.
+    Reuse baseline evidence instead of rerunning the unchanged full suite.
+    Use only fakes, synthetic identities and canary credentials during implementation.
+    Never contact a real tenant or appliance and never silently skip required local container checks.
+    Record unsupported host-platform checks as unverified rather than pretending they ran.
