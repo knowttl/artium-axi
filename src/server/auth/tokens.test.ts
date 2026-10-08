@@ -38,7 +38,7 @@ test('security: family deadline rejects an otherwise unexpired access token', ()
 test('security: disabling an owner immediately denies token verification', () => {
   const token = issueTestAccessToken(db, 'synthetic-user', now)
   db.exec('UPDATE users SET disabled = 1')
-  expect(() => verifyAccessToken(db, token, now)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+  expect(() => verifyAccessToken(db, token, now)).toThrow(expect.objectContaining({ code: 'USER_DISABLED' }))
 })
 
 test.each([
