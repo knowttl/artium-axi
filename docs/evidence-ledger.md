@@ -42,6 +42,8 @@ Focused review verification covers these inventories and synthetic executable be
 Route inventories now keep Azure canonical and alias inputs separate, record accepted short flags and Graph positional/help contracts, and distinguish native environment defaults from profile-selected credential variables.
 `test/upstream-parser-inventory.test.ts` exercises the pinned routers and synthetic federated assertion files without contacting a service.
 Frozen install, full lint/tests/check, private hygiene and revised container evidence remain pending with the outer validation executor for the final candidate.
+The Falcon pin retains its repository, tag, full commit and version; Dockerfile alone owns the wheel build and install recipe after removal of unused recipe metadata.
+Earlier image results above describe the prior candidate; the outer executor must bind renewed validation and container results to the final published head in the PR body.
 
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
