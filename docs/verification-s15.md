@@ -16,5 +16,5 @@ Verification is local and fake-only, with no hosted CI or live acceptance.
 Start no-mistakes with `--skip ci --verification-plan docs/verification-s15.md`.
 Rerun frozen install, lint, tests, aggregate checks and hygiene after any pipeline source or test fix.
 The PR body records results against the final implementation head.
-Token verification and the test fixture issuer belong to S16.
+See [S16 verification](verification-s16.md) for token verification and the test fixture issuer.
 Login, refresh, browser authentication, bootstrap execution, audit writing and administrator safeguards belong to later slices.
