@@ -19,12 +19,13 @@ export interface RunContext {
 export async function runTool<Credential>(
   db: Database.Database, audit: Audit, runner: Runner, token: string, request: unknown,
   adapter: Adapter<Credential>, resolver: IdentityResolver, context: RunContext,
+  authenticate: (db: Database.Database, token: string) => string = verifyAccessToken,
 ): Promise<RunnerResult> {
   let userId: string | null = null
   let args: string[]
   let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
   try {
-    userId = verifyAccessToken(db, token)
+    userId = authenticate(db, token)
     checkToolPolicy(db, userId, adapter.name)
     const parsed = runRequestSchema.safeParse(request)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')

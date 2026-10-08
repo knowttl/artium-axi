@@ -17,5 +17,5 @@ No live service, deployment, real credential or account change is authorized.
 5. Drive no-mistakes with local verification and CI skipped under the trusted repository `no_ci: true` declaration.
    Revalidate source/test changes from any pipeline fix round, then scan the exact published head again.
 
-HTTP routing remains a later slice; [S17+S18 verification](verification-s17-18.md) owns durable run audit checks.
+See [README.md](../README.md) for current development HTTP usage and [S19 verification](verification-s19.md) for its checks; [S17+S18 verification](verification-s17-18.md) owns durable run audit checks.
 No live acceptance is claimed.

@@ -8,6 +8,7 @@
   },
   "packageManager": "pnpm@10.22.0",
   "scripts": {
+    "start": "node dist/src/server/main.js",
     "prepare": "pnpm --dir tools install --frozen-lockfile",
     "build": "tsc && cp -R src/server/store/migrations dist/src/server/store/",
     "test": "node scripts/upstream-inventory.mjs && vitest run",
@@ -27,11 +28,16 @@
     "vitest": "4.1.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["argon2", "better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "argon2",
+      "better-sqlite3",
+      "esbuild"
+    ]
   },
   "dependencies": {
     "argon2": "0.45.1",
     "better-sqlite3": "13.0.3",
+    "fastify": "^5.12.5",
     "zod": "4.6.5"
   }
 }
