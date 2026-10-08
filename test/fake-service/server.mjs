@@ -12,9 +12,44 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ requests, mutations }))
     return
   }
+  if (url.pathname === '/oauth2/token') {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const values = new URLSearchParams(body)
+      requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
+        canaryReceived: values.get('client_id') === 'CANARY-falcon-id' && values.get('client_secret') === 'CANARY-falcon-secret' })
+      if (req.headers.host === 'redirect.crowdstrike.com') {
+        res.writeHead(302, { location: 'https://appliance.test/falcon-redirect-destination' })
+        res.end()
+      } else res.end(JSON.stringify({ access_token: 'CANARY-falcon-token', token_type: 'bearer', expires_in: 3600 }))
+    })
+    return
+  }
   requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
-    canaryReceived: /CANARY-/.test(req.headers.authorization ?? '') })
-  if (url.pathname === '/redirect') {
+    canaryReceived: /CANARY-/.test(req.headers.authorization ?? ''),
+    ...(url.pathname === '/alerts/queries/alerts/v2' ? { offset: url.searchParams.get('offset'), limit: url.searchParams.get('limit') } : {}) })
+  if (url.pathname === '/alerts/queries/alerts/v2') {
+    if (req.headers.host === 'api-redirect.crowdstrike.com') {
+      res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })
+      res.end()
+    } else {
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      const ids = ['synthetic-detection-1', 'synthetic-detection-2']
+      res.end(JSON.stringify({ resources: ids.slice(offset, offset + Number(url.searchParams.get('limit') ?? 1)),
+        meta: { pagination: { offset, total: ids.length } } }))
+    }
+  } else if (url.pathname === '/alerts/entities/alerts/v2' && req.method === 'POST') {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const { composite_ids: ids } = JSON.parse(body)
+      res.end(JSON.stringify({ resources: ids.map(id => ({ composite_id: id, severity_name: 'Low',
+        tactic: 'Discovery', device: { hostname: `host-${id}` } })) }))
+    })
+  } else if (url.pathname === '/redirect') {
     res.writeHead(302, { location: 'https://management.azure.com/redirect-destination' })
     res.end()
   } else if (url.pathname === '/cross-redirect') {

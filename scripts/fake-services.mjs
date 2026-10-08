@@ -6,8 +6,9 @@ import { fileURLToPath } from 'node:url'
 import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const image = 'artium-test-node22'
-const hosts = ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
+const falcon = process.argv.includes('--falcon')
+const image = falcon ? 'artium-axi:local' : 'artium-test-node22'
+const hosts = falcon ? ['api.crowdstrike.com', 'api.us-2.crowdstrike.com', 'redirect.crowdstrike.com', 'api-redirect.crowdstrike.com', 'appliance.test'] : ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
   'synthetic.blob.core.windows.net', 'synthetic.vault.azure.net', 'synthetic.azurecr.io', 'appliance.test']
 const name = `artium-test-${randomUUID()}`
 const containers = []
@@ -23,6 +24,7 @@ const start = (suffix, network, aliases = []) => {
   const container = `${name}-${suffix}`
   containers.push(container)
   docker('run', '--detach', '--pull', 'never', '--name', container, '--network', network,
+    ...(falcon ? ['--user', '0'] : []),
     ...aliases.flatMap(host => ['--network-alias', host]),
     '--mount', `type=bind,src=${root},dst=/work,readonly`,
     '--mount', `type=bind,src=${certs},dst=/certs,readonly`,
@@ -61,10 +63,10 @@ try {
   const client = `${name}-client`
   containers.push(client)
   console.log(docker('run', '--rm', '--pull', 'never', '--name', client, '--network', networks[0],
-    '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${certs},dst=/certs,readonly`,
-    '--env', 'NODE_EXTRA_CA_CERTS=/certs/ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',
+    '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${join(certs, 'ca.crt')},dst=/test-ca.crt,readonly`,
+    '--env', 'NODE_EXTRA_CA_CERTS=/test-ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',
     '--env', `ARTIUM_TEST_HOSTS=${JSON.stringify(hosts)}`, '--env', `ARTIUM_TEST_OUTSIDE_IP=${outsideIp}`,
-    image, 'node', '/work/test/fake-service/probe.mjs'))
+    image, 'node', falcon ? '/work/test/fake-service/falcon-probe.mjs' : '/work/test/fake-service/probe.mjs'))
 } catch (error) {
   console.error(`fake-services: unverified: ${error.message}`)
   process.exitCode = 1
