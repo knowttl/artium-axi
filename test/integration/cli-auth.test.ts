@@ -141,6 +141,52 @@ test('missing non-terminal password fails immediately without a prompt', async (
   expect(await cli(['login', '--username', 'synthetic-user'])).toMatchObject({ code: 2, stderr: '' })
 })
 
+test.skipIf(process.platform === 'win32').each(['login', 'passwd'])('terminal %s keeps immediately supplied passwords hidden', async command => {
+  if (command === 'passwd') await login()
+  const driver = `import os,pty,fcntl,termios,struct,subprocess,sys,select
+master,slave=pty.openpty()
+fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',24,100,0,0))
+child=subprocess.Popen(sys.argv[1:],stdin=slave,stdout=slave,stderr=slave)
+os.close(slave)
+try:
+ while True:
+  ready,_,_=select.select([master,sys.stdin.buffer],[],[],10)
+  if not ready: raise TimeoutError('Terminal input timed out')
+  if master in ready:
+   try: data=os.read(master,65536)
+   except OSError: break
+   if not data: break
+   sys.stdout.buffer.write(data);sys.stdout.buffer.flush()
+  if sys.stdin.buffer in ready:
+   data=os.read(sys.stdin.fileno(),65536)
+   if data: os.write(master,data)
+finally:
+ os.close(master)
+ if sys.exc_info()[0] is not None: child.kill()
+ child.wait(timeout=10)
+sys.exit(child.returncode)`
+  const args = command === 'login' ? ['login', '--username', 'synthetic-user'] : ['passwd']
+  const child = spawn('python3', ['-c', driver, process.execPath, bundle, ...args], {
+    cwd: directory, env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  let transcript = ''
+  let stderr = ''
+  let supplied = 0
+  const passwords = command === 'login' ? [startingPassword] : [newPassword, startingPassword]
+  child.stdout.on('data', chunk => {
+    transcript += chunk
+    const prompts = transcript.match(/(?:Password|Current password): /g)?.length ?? 0
+    while (supplied < prompts) child.stdin.write(`${passwords[supplied++]}\r`)
+  })
+  child.stderr.on('data', chunk => { stderr += chunk })
+  const [code] = await once(child, 'close')
+  expect({ code, stderr }).toEqual({ code: 0, stderr: '' })
+  expect(transcript).toContain(command === 'login' ? 'status: authenticated' : 'status: password-changed')
+  expect(transcript).not.toContain(startingPassword)
+  expect(transcript).not.toContain(newPassword)
+})
+
 test('concurrent bundled processes rotate an expired access token only once', async () => {
   await login()
   const original = store.read()!

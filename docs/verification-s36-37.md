@@ -16,6 +16,7 @@ No live service, real credential, deployment or hosted CI is involved.
 - `src/cli/session.test.ts` checks POSIX and Windows path selection, Linux mode 0700/0600, atomic inode replacement, URL binding, broad-mode refusal, injected Windows ACL ordering/failure and lock release after a failed action.
 - `test/integration/cli-auth.test.ts` starts the real Fastify server with disposable SQLite and synthetic local users, then spawns the standalone bundle without sibling dependencies.
   It checks restricted first login, tool denial until password change and new login, ordinary password verification including expired access, current-role identity, stdin precedence, environment login without prompting, exact password spaces/Unicode, password argument refusal, no password in child argv, no token in output, six concurrent process refreshes, logout after expiry, offline logout and changed-URL refusal.
+  POSIX pseudo-terminal checks supply passwords immediately after the login and ordinary password-change prompts and verify that the terminal never echoes them.
 - `test/cli-refresh.test.ts` checks exact run request counts and argument preservation for a single safe refresh retry, repeated expiry, malformed refresh, connection loss, service errors and completed upstream failures.
   Uncertain calls are never retried.
   Deterministic concurrent login replacements stop tool, listing, identity and password-change calls without sending requests under the replacement login.

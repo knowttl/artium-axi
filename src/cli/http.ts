@@ -78,7 +78,7 @@ export class Client {
     if (current.accessToken !== previous.accessToken) return current
     const result = loginResponseSchema.safeParse(await this.request('/v1/auth/refresh', 'POST', { refreshToken: current.refreshToken }))
     if (!result.success || result.data.status !== 'authenticated') throw new ArtiumError('INVALID_RESPONSE')
-    return this.sessions.write(result.data, previous.loginGeneration)
+    return this.sessions.write(result.data, previous.loginGeneration) as Extract<StoredSession, { status: 'authenticated' }>
   }
 
   private reload(previous: StoredSession) {
