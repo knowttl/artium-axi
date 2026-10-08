@@ -1,15 +1,8 @@
 # S41 Audit API and screen evidence
 
-The [API contract](../src/shared/api.ts) defines read-only `GET /v1/admin/audit`, administrator authorization, no successful-read audit event, limits from 1 to 100 (default 50), actor ID `user`, fixed `tool`, exact `outcome` and inclusive UTC ISO `from`/`to` filters.
-Bearer callers need the existing session-bound recent password ticket; browser reads require the current administrator capability without recent confirmation.
-Authorization denials use the existing audit event pattern.
-No audit mutation or deletion route exists.
-
-The [audit store](../src/server/audit/audit.ts) returns timestamp-descending, ID-descending pages.
-The bounded cursor carries the initial maximum ID and the last returned timestamp/ID, excluding later inserts even when their timestamps are backdated.
-The query fetches at most limit plus one records to detect continuation.
-The [screen](../src/server/admin/audit.ts) reuses the shared browser layout, navigation and escaping, retains filters on continuation links, and starts over when the filter form is submitted.
-Records show actor, UTC time, event, outcome, tool, action, target, request, redacted arguments, execution metadata and available credential-test or retention evidence.
+The [API contract](../src/shared/api.ts) owns audit query validation, response fields, authorization and audit event declarations.
+The [README](../README.md#audit-screen-and-api) owns Audit screen and API usage.
+The [audit store](../src/server/audit/audit.ts) owns cursor ordering and insert exclusion; the [screen](../src/server/admin/audit.ts) owns rendering and filter navigation.
 
 The [administration API tests](../test/integration/admin-users.test.ts) verify same-time ordering, new and backdated inserts between pages, default and maximum bounds, cursor validation, each filter, combined and empty results, inclusive time boundaries, non-administrator denial, recent-auth enforcement and unavailable mutation routes.
 The [browser integration tests](../test/integration/browser-auth.test.ts) verify current administrator access, escaped record and actor fields, filters retained across pages, no-store responses, empty form fields and invalid queries.
