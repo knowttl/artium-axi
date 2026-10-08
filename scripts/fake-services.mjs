@@ -8,7 +8,7 @@ import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const falcon = process.argv.includes('--falcon')
 const image = falcon ? 'artium-axi:local' : 'artium-test-node22'
-const hosts = falcon ? ['api.crowdstrike.com', 'redirect.crowdstrike.com', 'api-redirect.crowdstrike.com', 'appliance.test'] : ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
+const hosts = falcon ? ['api.crowdstrike.com', 'api.us-2.crowdstrike.com', 'redirect.crowdstrike.com', 'api-redirect.crowdstrike.com', 'appliance.test'] : ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
   'synthetic.blob.core.windows.net', 'synthetic.vault.azure.net', 'synthetic.azurecr.io', 'appliance.test']
 const name = `artium-test-${randomUUID()}`
 const containers = []

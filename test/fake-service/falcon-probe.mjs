@@ -44,15 +44,37 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
     return runner.run('synthetic-user', prepared.executable, prepared.args,
       { ...prepared.environment, REQUESTS_CA_BUNDLE: '/test-ca.crt' }, prepared.secrets, prepared.limits)
   }
-  const result = await run(['detection', 'list'])
-  assert.equal(result.exitCode, 0, result.stdout + result.stderr)
-  assert.match(result.stdout, /0 detections/)
-  const member = await run(['detection', 'list'], { ...configuration, memberCid: 'synthetic-member' })
-  assert.equal(member.exitCode, 0, member.stdout + member.stderr)
+  const evidence = async () => (await fetch('https://api.crowdstrike.com/__evidence')).json()
+  for (const settings of [configuration, { ...configuration, memberCid: 'synthetic-member' }]) {
+    const before = (await evidence()).requests.length
+    const first = await run(['detection', 'list', '--limit', '1'], settings)
+    assert.equal(first.exitCode, 0, first.stdout + first.stderr)
+    assert.match(first.stdout, /synthetic-detection-1/)
+    assert.doesNotMatch(first.stdout, /synthetic-detection-2/)
+    const cursor = first.stdout.match(/^continuation_cursor: ([A-Za-z0-9_-]+)$/m)?.[1]
+    assert.ok(cursor, first.stdout)
+    const second = await run(['detection', 'list', '--limit', '1', '--cursor', cursor], settings)
+    assert.equal(second.exitCode, 0, second.stdout + second.stderr)
+    assert.match(second.stdout, /synthetic-detection-2/)
+    assert.doesNotMatch(second.stdout, /synthetic-detection-1|continuation_cursor:/)
+    const replay = await run(['detection', 'list', '--limit', '1', '--cursor', cursor], { ...settings, region: 'us-2' })
+    assert.notEqual(replay.exitCode, 0)
+    assert.match(replay.stdout, /VALIDATION_ERROR/)
+    assert.deepEqual((await evidence()).requests.slice(before), [
+      { method: 'POST', host: 'api.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
+      { method: 'GET', host: 'api.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true, offset: '0', limit: '1' },
+      { method: 'POST', host: 'api.crowdstrike.com', path: '/alerts/entities/alerts/v2', canaryReceived: true },
+      { method: 'POST', host: 'api.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
+      { method: 'GET', host: 'api.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true, offset: '1', limit: '1' },
+      { method: 'POST', host: 'api.crowdstrike.com', path: '/alerts/entities/alerts/v2', canaryReceived: true },
+      { method: 'POST', host: 'api.us-2.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
+    ])
+  }
+  const beforeRedirects = (await evidence()).requests.length
   const redirected = await run(['detection', 'list'], { ...configuration, region: 'https://redirect.crowdstrike.com' })
   assert.notEqual(redirected.exitCode, 0)
   assert.match(redirected.stdout, /ORIGIN_NOT_ALLOWED/)
-  const apiRedirected = await run(['detection', 'list'], { ...configuration, region: 'https://api-redirect.crowdstrike.com' })
+  const apiRedirected = await run(['detection', 'list', '--limit', '1'], { ...configuration, region: 'https://api-redirect.crowdstrike.com' })
   assert.notEqual(apiRedirected.exitCode, 0)
   assert.match(apiRedirected.stdout, /ORIGIN_NOT_ALLOWED/)
   for (const name of falconManifest.unsafeOverrides) {
@@ -60,18 +82,14 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
       await assert.rejects(run(['detection', 'list', ...args], { ...configuration, clientIdFile: '/missing' }), { code: 'FLAG_BLOCKED' })
     }
   }
-  const evidence = await (await fetch('https://api.crowdstrike.com/__evidence')).json()
-  assert.deepEqual(evidence.requests, [
-    { method: 'POST', host: 'api.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
-    { method: 'GET', host: 'api.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true },
-    { method: 'POST', host: 'api.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
-    { method: 'GET', host: 'api.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true },
+  const recorded = await evidence()
+  assert.deepEqual(recorded.requests.slice(beforeRedirects), [
     { method: 'POST', host: 'redirect.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
     { method: 'POST', host: 'api-redirect.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
-    { method: 'GET', host: 'api-redirect.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true },
+    { method: 'GET', host: 'api-redirect.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true, offset: '0', limit: '1' },
   ])
-  assert.equal(evidence.mutations, 0)
-  console.log(JSON.stringify({ parser: 'matched', reads: 2, tokenRedirect: 'refused', apiRedirect: 'refused', outbound: 'denied', unsafeOverrides: 'refused before secrets', requests: evidence.requests }))
+  assert.equal(recorded.mutations, 0)
+  console.log(JSON.stringify({ parser: 'matched', reads: 4, pagination: 'advanced with and without member CID', cursorOriginReplay: 'refused before detection request', tokenRedirect: 'refused', apiRedirect: 'refused', outbound: 'denied', unsafeOverrides: 'refused before secrets', requests: recorded.requests }))
 } finally {
   await runner.shutdown()
   await rm(directory, { recursive: true, force: true })
