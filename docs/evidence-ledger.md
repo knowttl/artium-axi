@@ -8,6 +8,18 @@ All live checks wait until the full build is complete and require approved ident
 Real captures, credential details and policy records stay in the private evidence store.
 Public conversion and release, deployment, real writes and destructive maintenance require separate approval.
 
+S03/04 implementation is recorded at commit `869aec72cbdefa9d23a8a1bcf5d6614df804dece`.
+Its verification plan is [verification-s03-04.md](verification-s03-04.md).
+The final delivery head and results of frozen install, lint, tests, aggregate check and the private hygiene scan are bound together in the delivery status and PR body.
+The private deny-list SHA-256 is `bddd1b07500f81245fc34634459368648db992b7127d66ff94330849eda45ad2`.
+`pnpm test:fake-services` is unverified on this host because the existing required `artium-test-node22` image is absent.
+The executable returned nonzero at image inspection before creating any container, network, image or build cache.
+Loopback TLS and pinned Vectra gate tests still run in the mandatory local suite.
+DNS routing, Docker outbound denial and az-axi network regression results are not claimed.
+The installed az-axi 0.1.4 general client has a source-derived unconditional retry of one 429/503 with bounded Retry-After.
+Its harness records the actual mutation count, redirects and pagination when a suitable local image is supplied.
+Azure write capability remains unavailable pending executable commissioning of a safe pin.
+
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
 | Deployment prerequisites and harmless-read requests (T0.1) | This ledger records deferred prerequisites | pending | unverified: supply dedicated identities, Linux host, proxy and certificate |
