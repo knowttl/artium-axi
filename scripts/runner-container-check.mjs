@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
-const image = 'artium-test-runner-s09-10'
+const image = `artium-test-runner-s09-10-${randomUUID()}`
 const containers = []
 let ownedImage = false
 function command(executable, args, timeout = 300_000) {
@@ -11,10 +11,8 @@ function command(executable, args, timeout = 300_000) {
 }
 try {
   command('docker', ['info', '--format', '{{.ServerVersion}}'])
-  const existing = spawnSync('docker', ['image', 'inspect', image], { encoding: 'utf8' })
-  if (existing.status === 0) throw new Error(`${image} already exists; refusing to replace or remove it`)
   ownedImage = true
-  command(process.execPath, ['scripts/build-fake-service-image.mjs', '--runner'])
+  command(process.execPath, ['scripts/build-fake-service-image.mjs', '--runner', image])
   for (const mode of ['tmpfs', 'memory']) {
     const name = `artium-test-runner-${randomUUID()}`
     containers.push(name)

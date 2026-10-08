@@ -7,13 +7,27 @@ const docker = vi.hoisted(() => ({
   attempted: '',
   failure: '',
   partial: false,
+  images: new Set<string>(),
+  built: [] as string[],
+  used: [] as string[],
+  removedImages: [] as string[],
+  exportedImage: '',
 }))
 
 vi.mock('node:child_process', async importOriginal => ({
   ...await importOriginal<typeof import('node:child_process')>(),
-  spawnSync: (_bin: string, args: string[]) => {
+  spawnSync: (bin: string, args: string[]) => {
     const result = { status: 0, stdout: '', stderr: '' }
-    if (args[0] === 'run' || (args[0] === 'network' && args[1] === 'create')) {
+    if (bin === process.execPath) {
+      const image = args[args.indexOf('--runner') + 1]
+      if (!args.includes('--runner') || !image) {
+        return { ...result, status: 1, stderr: 'Missing runner image tag' }
+      }
+      docker.built.push(image)
+      if (docker.failure !== 'runner-build' || docker.partial) docker.images.add(image)
+      if (docker.failure === 'runner-build') return { ...result, status: 1, stderr: 'Synthetic build failure' }
+    } else if (args[0] === 'run' || (args[0] === 'network' && args[1] === 'create')) {
+      if (args.includes('test/runner/probe.mjs')) docker.used.push(args[args.indexOf('node') - 1])
       const kind = args[0] === 'run' ? 'container' : 'network'
       const name = kind === 'container' ? args[args.indexOf('--name') + 1] : args.at(-1)!
       const resource = `${kind}:${name}`
@@ -39,7 +53,15 @@ vi.mock('node:child_process', async importOriginal => ({
     } else if (args[0] === 'inspect') {
       result.stdout = '[{"NetworkSettings":{"Networks":{"synthetic":{"IPAddress":"192.0.2.1"}}}}]'
     } else if (args[0] === 'image' && args[1] === 'inspect') {
-      result.status = docker.failure === 'builder' ? 1 : 0
+      result.status = args[2].startsWith('artium-test-runner-')
+        ? Number(!docker.images.has(args[2])) : docker.failure === 'builder' ? 1 : 0
+    } else if (args[0] === 'image' && args[1] === 'rm') {
+      docker.removedImages.push(args[2])
+      if (!docker.images.delete(args[2])) return { ...result, status: 1, stderr: 'No such image' }
+    } else if (args[0] === 'exec' && args.includes('--output')) {
+      docker.exportedImage = args[args.indexOf('--output') + 1].split('name=')[1].split(',')[0]
+    } else if (args[0] === 'load') {
+      docker.images.add(docker.exportedImage)
     }
     return result
   },
@@ -61,15 +83,23 @@ beforeEach(() => {
   docker.attempted = ''
   docker.failure = ''
   docker.partial = false
+  docker.images.clear()
+  docker.built = []
+  docker.used = []
+  docker.removedImages = []
+  docker.exportedImage = ''
 })
 
+const originalArgv = process.argv
 afterEach(() => {
   vi.restoreAllMocks()
   process.exitCode = undefined
+  process.argv = originalArgv
 })
 
 const harness = new URL('../scripts/fake-services.mjs', import.meta.url).href
 const builder = new URL('../scripts/build-fake-service-image.mjs', import.meta.url).href
+const runnerHarness = new URL('../scripts/runner-container-check.mjs', import.meta.url).href
 
 test.each([
   [harness, 'container:version', true],
@@ -88,5 +118,41 @@ test.each([
   expect(process.exitCode).toBe(1)
   expect(docker.attempted).not.toBe('')
   expect(docker.removed).toContain(docker.attempted)
+  expect(docker.resources.size).toBe(0)
+})
+
+test('runner checks use separate images and preserve an unrelated image', async () => {
+  const unrelated = 'artium-test-runner-s09-10'
+  docker.images.add(unrelated)
+  await import(runnerHarness)
+  vi.resetModules()
+  await import(runnerHarness)
+  expect(process.exitCode).toBeUndefined()
+  expect(docker.built).toHaveLength(2)
+  expect(new Set(docker.built).size).toBe(2)
+  expect(docker.used).toEqual(docker.built.flatMap(image => [image, image]))
+  expect(docker.removedImages).toEqual(docker.built)
+  expect([...docker.images]).toEqual([unrelated])
+  expect(docker.resources.size).toBe(0)
+})
+
+test.each([false, true])('runner build failure cleans only its image with partial load %s', async partial => {
+  const unrelated = 'artium-test-runner-s09-10'
+  docker.images.add(unrelated)
+  docker.failure = 'runner-build'
+  docker.partial = partial
+  await import(runnerHarness)
+  expect(process.exitCode).toBe(1)
+  expect(docker.removedImages).toEqual(docker.built)
+  expect(docker.used).toEqual([])
+  expect([...docker.images]).toEqual([unrelated])
+})
+
+test('runner builder loads the caller supplied image tag', async () => {
+  const image = 'artium-test-runner-s09-10-synthetic'
+  process.argv = [process.execPath, 'scripts/build-fake-service-image.mjs', '--runner', image]
+  await import(builder)
+  expect(process.exitCode).toBeUndefined()
+  expect([...docker.images]).toEqual([image])
   expect(docker.resources.size).toBe(0)
 })
