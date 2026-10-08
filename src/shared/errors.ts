@@ -1,4 +1,6 @@
 export const errors = {
+  CLI_OUTDATED: { status: 426, message: 'The CLI version is too old for this server.', next: 'Download the current CLI from /cli/artium-axi.mjs.' },
+  CERTIFICATE_INVALID: { status: 503, message: 'The server certificate could not be verified.', next: 'Check certificate trust or set ARTIUM_AXI_CA_FILE to the trusted CA file.' },
   ADMIN_REQUIRED: { status: 403, message: 'Administrator capability is required.', next: 'Ask an administrator to perform this operation.' },
   REVISION_CONFLICT: { status: 409, message: 'The record changed since it was read.', next: 'Read the current record revision and retry your edit.' },
   LAST_ADMINISTRATOR: { status: 409, message: 'The last enabled administrator must remain enabled.', next: 'Enable another administrator before changing this account.' },
