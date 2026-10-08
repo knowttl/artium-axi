@@ -8,6 +8,7 @@ The API supports local sign-in, password change, refresh rotation, logout, rate 
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
 The bundled CLI supports local login, password change, identity, logout and serialized session refresh.
+Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -457,7 +458,22 @@ Health records carry check time, credential revision and a safe error code, and 
 Every tool administration route requires the administrator capability and the same recent-authentication ticket as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
-Audit queries, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+Audit queries and the complete administration screens remain later slices.
+
+Open `/login` through the HTTPS reverse proxy to sign in from a browser.
+Temporary passwords open `/password` and cannot access administration until changed, after which a new login is required.
+Administrators land on `/admin`; ordinary users land on `/account` with password-change and sign-out forms.
+The session cookie contains an opaque identifier with `Secure`, `HttpOnly` and `SameSite=Strict` attributes.
+Sessions persist in SQLite and end after 30 minutes idle or 12 hours from login, whichever comes first.
+Temporary-password sessions end after 10 minutes.
+Every browser mutation requires a same-origin request and a CSRF token, including sign-in, sign-out, reauthentication and credential tests.
+Browser administration uses the current administrator capability.
+After 15 minutes without password confirmation, a mutation opens `/reauth`; confirm the password and submit the action again.
+Cookie-authenticated `POST /v1/auth/reauth` also confirms the password with CSRF and returns 204, while bearer callers retain their ticket response.
+An ordinary password change accepts the current password or recent browser password confirmation.
+Password changes, administrator resets and account disable revoke browser sessions as well as CLI tokens.
+Browser pages escape account data, send a Content Security Policy and prevent response caching.
+See [S38 verification](docs/verification-s38.md) for fake-time expiry, CSRF and browser-flow evidence.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.
