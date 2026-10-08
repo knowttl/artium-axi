@@ -58,7 +58,7 @@ For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stde
 `leak` reads only `ARTIUM_TEST_CANARY`, with `raw`, `base64`, `base64url` or `url` encoding and an optional `stderr` argument.
 `child` creates an ordinary descendant, while `descendant` starts a separate session.
 Callers must terminate both PIDs printed by those modes.
-[`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for future runner tests, without a production fake-tool entry.
+[`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for runner tests, without a production fake-tool entry.
 
 [`SecretScanner`](src/server/runner/scan.ts) is the standalone S07 runner component.
 Create one per call with all known injected secret values, then call `scan('stdout' | 'stderr', chunk)` on every raw byte chunk before retention or rewriting, including chunks after the 4 MiB per-stream cap.
@@ -67,7 +67,19 @@ The scanner checks raw UTF-8, canonical base64, base64url and `encodeURIComponen
 Each stream carries independent prefix-match positions, so split UTF-8 bytes work and interleaved streams cannot create a false combined match.
 An empty supplied value is rejected, while an empty list is valid for a call with no injected secrets.
 Exact-value scanning cannot identify unknown tokens minted inside an upstream tool.
-Runner capture, process limits, error mapping and audit integration arrive in later slices.
+The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
+Call `run(executable, args, environment, secrets, limits)` with adapter-provided environment values and all known injected secrets.
+It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
+Each call has a private mode-0700 directory for its working directory, HOME and TMPDIR, removed after completion or failure.
+The child environment contains exactly the adapter-provided values with PATH, HOME and TMPDIR overridden by the runner.
+No parent environment variables are inherited.
+The result preserves stdout, stderr and the upstream exit code, with duration, observed byte counts and per-stream truncation flags.
+Capture defaults to 4 MiB per stream, drains subsequent output and scans every chunk before retention.
+A secret match discards both streams and rejects with `SECRET_IN_OUTPUT`.
+Failed spawn and signal termination reject safely without captured output.
+The `timedOut` field is currently false.
+Timeout, cancellation, descendant termination, admission, flood and memory enforcement arrive in S09/10, while HTTP error mapping and audit integration arrive with the server.
+See [verification-s08.md](docs/verification-s08.md) for local runner acceptance checks.
 See [verification-s07.md](docs/verification-s07.md) for the local acceptance checks.
 
 Local HTTPS tests create an ephemeral CA and exercise the pinned Vectra native default refusal, preview, confirmed execution and ambiguous-write response against a loopback fake service.
