@@ -6,13 +6,13 @@ Its private token-mode profile contains no client secret, private key, assertion
 The explicit child environment sets only config, durable write-log path and resource tokens used by the command.
 No read-only variable or Artium subscription/resource permission layer is added.
 The scan set includes the authentication secret or private key, every injected token and every exact MSAL assertion returned by the cache.
-Resolved store references now include the persisted credential revision, and reads reject a stale reference before decryption.
+The adapter requires a revision-bound credential reference; [README.md](../README.md) owns the store's reference and read contract.
 Replacement producers must still evict the cache as described in S25.
 
 The generated [manifest](../tools/inventories/az-axi.json) owns the global flag and environment classifications, reviewed inputs, command resources and pinned parser hashes.
 Config, profile and tenant selection remain server-owned.
 Subscription flags, repeated lists, accepted aliases and short flags retain their upstream spelling and values.
-Leading native selectors are moved behind the command as the pinned normalizer does.
+Leading native selectors are moved behind the command and before any literal `--` separator.
 Literal arguments after `--` remain positional input rather than flags.
 The adapter restricts file inputs to supplied uploads and normalizes equals forms for runner path substitution.
 The pinned clients own fixed API origins, metadata endpoint name validation and opaque continuation markers.
@@ -27,6 +27,8 @@ Storage requests only listing metadata and returns the synthetic blob name and s
 Registry exchange/access tokens are minted inside the upstream process, so exact injected-value scanning does not prove containment of unknown transformed tokens.
 
 The same profile permits a read outside its configured subscription list through `-s`, preserves an upstream permission denial and rejects a foreign API origin upstream.
+The leading-selector probe checks separate and equals forms of `--subscription` and `-s` with Resource Graph and Logs queries after `--`, preserving the raw query and Resource Graph subscription override.
+Write-enabled credentials with omitted or empty subscriptions prepare ARM and Graph reads without an Artium restriction; pinned az-axi still rejects those profiles through its native write-configuration gate.
 Native write tests show zero mutations during preview, one successful executed canary PATCH, a durable log after call cleanup, default opt-in denial, configured write-scope denial and destructive confirmation errors.
 Uploaded KQL, piped KQL, uploaded JSON bodies and piped JSON bodies execute through the real runner.
 The existing ambiguous-503 test still records two native mutation requests.

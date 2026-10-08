@@ -89,6 +89,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/permission-denied') {
     res.writeHead(403)
     res.end(JSON.stringify({ error: { code: 'AuthorizationFailed', message: 'Synthetic permission denial' } }))
+  } else if (url.pathname === '/providers/Microsoft.ResourceGraph/resources') {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      recorded.body = JSON.parse(body)
+      res.end(JSON.stringify({ data: [{ name: 'synthetic-resource' }], totalRecords: 1, count: 1, resultTruncated: 'false' }))
+    })
   } else if (req.headers.host === 'api.loganalytics.io' && /\/workspaces\/[^/]+\/query$/.test(url.pathname)) {
     let body = ''
     req.setEncoding('utf8')
