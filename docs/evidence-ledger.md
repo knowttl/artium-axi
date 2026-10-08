@@ -8,6 +8,13 @@ All live checks wait until the full build is complete and require approved ident
 Real captures, credential details and policy records stay in the private evidence store.
 Public conversion and release, deployment, real writes and destructive maintenance require separate approval.
 
+S11 implements the shared run schemas, error catalogue and bounded runner input transport.
+Its local verification plan is [verification-s11.md](verification-s11.md).
+Focused schema and public runner checks cover UTF-8 byte boundaries, canonical base64, duplicate and unsafe names, private upload permissions, reviewed path substitution, stdin EOF and cleanup.
+Final committed-head frozen install, lint, tests, aggregate check, runner-container checks and real private hygiene results are recorded by the delivery status and PR body.
+HTTP endpoints, command-specific adapter file restrictions and CLI upload capture remain later-slice work.
+The existing AGENTS.md development pointers remain accurate and need no correction for this slice.
+
 S03/04 implementation is recorded at commit `6e2b22e5ba8edc3b72c0c6f8c918fd552f772d13`.
 Its verification plan is [verification-s03-04.md](verification-s03-04.md).
 The final delivery head and results of frozen install, lint, tests, aggregate check and the private hygiene scan are bound together in the delivery status and PR body.
