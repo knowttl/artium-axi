@@ -6,8 +6,29 @@ import { decryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
 import { EnvironmentKeyProvider } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
+import { ArtiumError } from '../../shared/errors.js'
+import type { CredentialStore } from './credential-store.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
+
+export function createCredentialStore(db: Database.Database, provider: KeyProvider): CredentialStore {
+  const key = provider.getKey()
+  return {
+    findCredential(tool) {
+      return db.prepare('SELECT id, tool FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>
+    },
+    readCredential(reference) {
+      const row = db.prepare('SELECT * FROM credentials WHERE id = ? AND tool = ?').get(reference.id, reference.tool) as EncryptedCredential | undefined
+      if (!row) return undefined
+      const plaintext = decryptCredential(row, key)
+      try {
+        return JSON.parse(plaintext.toString('utf8')) as unknown
+      } catch {
+        throw new ArtiumError('CREDENTIAL_INVALID')
+      } finally { plaintext.fill(0) }
+    },
+  }
+}
 
 export function migrate(db: Database.Database, directory = migrationsDirectory): void {
   db.transaction(() => {
