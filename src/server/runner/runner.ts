@@ -5,6 +5,9 @@ import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
+import { ArtiumError } from '../../shared/errors.js'
+import { validateInput, writeInput } from './input.js'
+import type { RunnerInput } from './input.js'
 
 export interface RunnerLimits {
   outputBytesPerStream?: number
@@ -23,12 +26,7 @@ export interface RunnerResult {
   truncated: { stdout: boolean, stderr: boolean }
 }
 
-export class RunnerError extends Error {
-  readonly source = 'artium-axi'
-  constructor(readonly code: 'SECRET_IN_OUTPUT' | 'SPAWN_FAILED' | 'PROCESS_SIGNAL' | 'TIMEOUT' | 'CANCELLED' | 'OUTPUT_LIMIT' | 'TOO_MANY_CALLS' | 'RUNNER_CLOSED' | 'TEMP_UNAVAILABLE', message: string, readonly next: string) {
-    super(message)
-  }
-}
+export class RunnerError extends ArtiumError {}
 
 // A byte cap must not introduce a replacement character from an incomplete UTF-8 suffix.
 function decode(bytes: Buffer, truncated: boolean): string {
@@ -51,17 +49,22 @@ export class Runner {
     return new Runner(root)
   }
 
-  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}): Promise<RunnerResult> {
+  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}): Promise<RunnerResult> {
     if (!userId) return Promise.reject(new TypeError('An authenticated user is required'))
-    if (this.closed) return Promise.reject(new RunnerError('RUNNER_CLOSED', 'The runner is shutting down.', 'Wait for the server to become available.'))
+    try {
+      input = validateInput(args, input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    if (this.closed) return Promise.reject(new RunnerError('RUNNER_CLOSED'))
     const userCalls = [...this.active.values()].filter(call => call.userId === userId).length
     if (this.active.size >= runnerLimits.globalCalls || userCalls >= runnerLimits.userCalls) {
-      return Promise.reject(new RunnerError('TOO_MANY_CALLS', 'The concurrent call limit was reached.', 'Wait for an active call to finish.'))
+      return Promise.reject(new RunnerError('TOO_MANY_CALLS'))
     }
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal })
+    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input)
       .finally(() => this.active.delete(key))
     this.active.set(key, { userId, controller, result })
     return result
@@ -93,6 +96,7 @@ async function execute(
   environment: Readonly<Record<string, string>>,
   secrets: readonly string[],
   limits: RunnerLimits = {},
+  input: RunnerInput = {},
 ): Promise<RunnerResult> {
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
@@ -101,10 +105,12 @@ async function execute(
   const scanner = new SecretScanner(secrets)
   const started = performance.now()
   const directory = await mkdtemp(join(root, 'artium-call-')).catch(() => {
-    throw new RunnerError('TEMP_UNAVAILABLE', 'The private call directory could not be created.', 'Check temporary storage capacity and permissions.')
+    throw new RunnerError('TEMP_UNAVAILABLE')
   })
   try {
-    if (limits.signal?.aborted) throw new RunnerError('CANCELLED', 'The call was cancelled.', 'Check the tool status before retrying.')
+    if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
+    args = await writeInput(directory, args, input)
+    if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     return await new Promise<RunnerResult>((resolve, reject) => {
       const streams = {
         stdout: { chunks: [] as Buffer[], retained: 0, observed: 0 },
@@ -135,11 +141,15 @@ async function execute(
           XDG_RUNTIME_DIR: directory,
           NODE_OPTIONS: `--max-old-space-size=${runnerLimits.nodeHeapMiB}`,
         },
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe'],
       })
+      // An upstream tool can finish without consuming stdin. Its exit status still owns the result.
+      child.stdin.on('error', () => {})
+      child.stdin.end(input.stdin, 'utf8')
       // Even a normally exited leader can leave descendants, with or without inherited pipes.
       const terminate = () => {
         if (killTimer || cleanupDone) return
+        child.stdin.destroy()
         const signalled = signalGroup(child.pid, 'SIGTERM')
         if (signalled || !closed) {
           killTimer = setTimeout(() => {
@@ -155,11 +165,11 @@ async function execute(
         }
       }
       const cancel = () => {
-        failure ??= new RunnerError('CANCELLED', 'The call was cancelled.', 'Check the tool status before retrying.')
+        failure ??= new RunnerError('CANCELLED')
         terminate()
       }
       const timeout = setTimeout(() => {
-        failure ??= new RunnerError('TIMEOUT', 'The upstream tool exceeded its timeout.', 'Check the tool status before retrying.')
+        failure ??= new RunnerError('TIMEOUT')
         terminate()
       }, timeoutMs)
       limits.signal?.addEventListener('abort', cancel, { once: true })
@@ -174,7 +184,7 @@ async function execute(
             terminate()
           }
           if (streams.stdout.observed + streams.stderr.observed >= runnerLimits.floodBytes) {
-            failure ??= new RunnerError('OUTPUT_LIMIT', 'The upstream tool exceeded the output limit.', 'Use a command that produces less output.')
+            failure ??= new RunnerError('OUTPUT_LIMIT')
             terminate()
           }
           if (secretDetected) return
@@ -194,13 +204,13 @@ async function execute(
         clearTimeout(timeout)
         limits.signal?.removeEventListener('abort', cancel)
         if (secretDetected) {
-          reject(new RunnerError('SECRET_IN_OUTPUT', 'A known secret was detected in tool output.', 'Check upstream output redaction before retrying.'))
+          reject(new RunnerError('SECRET_IN_OUTPUT'))
         } else if (spawnFailed) {
-          reject(new RunnerError('SPAWN_FAILED', 'The upstream tool could not be started.', 'Check the configured executable and environment.'))
+          reject(new RunnerError('SPAWN_FAILED'))
         } else if (failure) {
           reject(failure)
         } else if (exitCode === null) {
-          reject(new RunnerError('PROCESS_SIGNAL', 'The upstream tool ended on a signal.', 'Check the tool status before retrying.'))
+          reject(new RunnerError('PROCESS_SIGNAL'))
         } else {
           const truncated = {
             stdout: streams.stdout.observed > cap,

@@ -3,6 +3,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -
 WORKDIR /opt/artium
 COPY package.json ./
 COPY dist/src/server ./dist/src/server
+COPY dist/src/shared ./dist/src/shared
+COPY node_modules/.pnpm/zod@*/node_modules/zod ./node_modules/zod
 COPY test/fake-tool ./test/fake-tool
 COPY test/runner/probe.mjs ./test/runner/probe.mjs
 USER artium
