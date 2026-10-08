@@ -459,7 +459,7 @@ Health records carry check time, credential revision and a safe error code, and 
 Tool administration follows the same authorization rules as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
-Audit queries and the complete administration screens remain later slices.
+Audit queries and the Tools, Credentials and Roles screens remain later slices.
 
 Open `/login` through the HTTPS reverse proxy to sign in from a browser.
 Temporary passwords open `/password` and cannot access administration until changed, after which a new login is required.
@@ -476,6 +476,11 @@ An ordinary password change accepts the current password or recent browser passw
 See the password and user administration usage above for session revocation on password change, reset and disable.
 Browser pages escape account data, send a Content Security Policy and prevent response caching.
 See [S38 verification](docs/verification-s38.md) for fake-time expiry, CSRF and browser-flow evidence.
+The Users screen at `/admin` creates local users, enables or disables accounts, clears lockouts, resets temporary passwords and replaces role assignments through the existing administration API.
+Account edits carry the displayed revision, and each account shows its last change actor and UTC time.
+Disable, unlock, reset and assignment actions ask for confirmation.
+Stale edits and validation failures show the API message and next step without clearing the form.
+See [S39 verification](docs/verification-s39.md) for HTML escaping, pagination and real browser evidence.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.
