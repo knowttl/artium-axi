@@ -3,8 +3,11 @@ services:
     image: artium-axi:local
     build: .
     read_only: true
+    init: true
+    mem_limit: 6g
+    pids_limit: 192
     tmpfs:
-      - /tmp
+      - /tmp:rw,nosuid,nodev,size=268435456,mode=1777
     volumes:
       - artium-data:/data
     ports:
