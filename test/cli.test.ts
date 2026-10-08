@@ -131,10 +131,12 @@ test('inherited TLS bypass cannot send the token to an untrusted server', async 
   expect(requests).toEqual([])
 })
 
-test('Artium errors withhold streams and use the failure status', async () => {
+test('Artium errors preserve the server request ID and withhold streams', async () => {
   requests = []
   response = { status: 500, body: { error: { code: 'SECRET_IN_OUTPUT', source: 'artium-axi', message: 'Known secret detected.', next: 'Check upstream.', requestId: 'synthetic-request' } } }
-  expect(await cli(['falcon-axi', 'env'])).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '' })
+  const result = await cli(['falcon-axi', 'env'])
+  expect(result).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '' })
+  expect(result.stdout).toContain('requestId: "synthetic-request"')
 })
 
 test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }])('malformed response does not print unvalidated data', async body => {
