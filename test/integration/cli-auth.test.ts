@@ -4,13 +4,16 @@ import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync }
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { hashToken } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import { openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, openStore } from '../../src/server/store/db.js'
+import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
+import { fakeTool } from '../fake-tool/tool.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser } from '../fixtures/tokens.js'
@@ -61,6 +64,37 @@ async function cli(args: string[], input?: string, environment: NodeJS.ProcessEn
   return { stdout, stderr, code }
 }
 const login = (password = startingPassword) => cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)
+
+test('doctor shows a failed tool after a manual test of a wrong fake credential', async () => {
+  await app.close()
+  db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
+  const credentials = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
+  credentials.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-wrong', region: 'us-2' },
+    0, 'synthetic-development-user', Date.now())
+  const adapter = createFalconAdapter(new EmbeddedSecretSource(credentials))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference) => {
+    const prepared = await prepare(args, reference)
+    const credential = credentials.readCredential(reference) as { clientSecret: string }
+    return { ...prepared, executable: fakeTool.executable,
+      args: [...fakeTool.args, 'exit', credential.clientSecret === 'CANARY-correct' ? '0' : '3'], limits: { timeoutMs: 5000 } }
+  })
+  const runner = await Runner.create(join(directory, 'calls'))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: credentials, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(credentials) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'))
+  expect(await login()).toMatchObject({ code: 0 })
+  const accessToken = (store.read() as { accessToken: string }).accessToken
+  const headers = { authorization: `Bearer ${accessToken}` }
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: startingPassword } })
+  const response = await app.inject({ method: 'POST', url: '/v1/admin/tools/falcon-axi/test',
+    headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {} })
+  expect(response.statusCode).toBe(503)
+  expect(response.json()).toMatchObject({ error: { code: 'CREDENTIAL_UNAVAILABLE' } })
+  expect(await cli(['doctor'])).toMatchObject({ code: 1, stdout:
+    'pass: server address\nfail: certificate (test HTTP)\npass: token\npass: CLI version\nfail: falcon-axi (error)\n' })
+})
 
 test('bundled first login stores only a restricted token and blocks tools until password change and login', async () => {
   db.exec('UPDATE users SET must_change = 1')

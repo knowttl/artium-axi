@@ -23,7 +23,7 @@ export type AuditEvent = Context & (
   | ({ event: 'run-terminal', outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } } & Partial<CredentialTestEvidence>)
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'sign-out' | 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
-  | ({ event: 'credential-test', outcome: Outcome } & CredentialTestEvidence)
+  | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
   | { event: 'maintenance', outcome: 'success', cutoff: number, deletedCount: number }
 )
@@ -166,7 +166,7 @@ export class Audit {
     const terminal = event.event === 'run-terminal' ? event : undefined
     const admin = event.event === 'admin-change' ? event : undefined
     const maintenance = event.event === 'maintenance' ? event : undefined
-    const test = event.event === 'credential-test' || event.event === 'run-start' || event.event === 'run-terminal'
+    const test = event.event === 'health-check' || event.event === 'credential-test' || event.event === 'run-start' || event.event === 'run-terminal'
       ? event : undefined
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
@@ -175,7 +175,7 @@ export class Audit {
       duration_ms: terminal ? Math.round(terminal.durationMs) : null,
       stdout_bytes: terminal?.outputBytes.stdout ?? null, stderr_bytes: terminal?.outputBytes.stderr ?? null,
       client_address: event.clientAddress, outcome: event.outcome,
-      action: admin?.action ?? null, target_id: admin?.targetId ?? null,
+      action: admin?.action ?? (event.event === 'health-check' ? event.action : null) ?? null, target_id: admin?.targetId ?? null,
       cutoff: maintenance?.cutoff ?? null, deleted_count: maintenance?.deletedCount ?? null,
       checked_at: test?.checkedAt ?? null, credential_revision: test?.credentialRevision ?? null,
       error_code: test?.errorCode ?? null,

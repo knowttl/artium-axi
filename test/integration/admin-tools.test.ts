@@ -340,7 +340,7 @@ test.each([
   const health = healthSchema.parse(await response.json())
   expect(health).toMatchObject({ status: 'ok', credentialRevision: 1, errorCode: null })
   expect(adapters.find(adapter => adapter.name === tool)!.prepare).toHaveBeenCalledWith(args, store.findCredential(tool))
-  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event != 'admin-change' ORDER BY id").all()).toEqual([
+  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id").all()).toEqual([
     { event: 'run-start', user_id: actor, outcome: 'started' },
     { event: 'run-terminal', user_id: actor, outcome: 'completed' },
     { event: 'credential-test', user_id: actor, outcome: 'success' },
@@ -349,16 +349,16 @@ test.each([
   expect(await list.text()).not.toContain('synthetic-health-output')
   expect(db.prepare('SELECT status FROM tool_health WHERE tool = ?').get(tool)).toEqual({ status: 'ok' })
   const evidence = db.prepare(`SELECT event, checked_at, credential_revision, error_code FROM audit
-    WHERE event != 'admin-change' ORDER BY id`).all()
+    WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id`).all()
   expect(evidence).toEqual([
     { event: 'run-start', checked_at: expect.any(Number), credential_revision: 1, error_code: null },
     { event: 'run-terminal', checked_at: health.checkedAt, credential_revision: 1, error_code: null },
     { event: 'credential-test', checked_at: health.checkedAt, credential_revision: 1, error_code: null },
   ])
   await replace(tool, values[tool], 1)
-  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
+  expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
   expect(db.prepare(`SELECT event, checked_at, credential_revision, error_code FROM audit
-    WHERE event != 'admin-change' ORDER BY id`).all()).toEqual(evidence)
+    WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id`).all()).toEqual(evidence)
 })
 test('unconfigured test admission records safe evidence without a credential revision', async () => {
   await failure(await request('POST', '/falcon-axi/test', {}), 'CREDENTIAL_UNAVAILABLE')
@@ -449,14 +449,15 @@ test.each(['SECRET_IN_OUTPUT', 'TIMEOUT', 'OUTPUT_LIMIT'] as const)('manual test
   error.outputBytes = { stdout: 12, stderr: 34 }
   vi.spyOn(runner, 'run').mockRejectedValueOnce(error)
   await failure(await request('POST', '/falcon-axi/test', {}), code)
-  expect(db.prepare("SELECT outcome, duration_ms, stdout_bytes, stderr_bytes FROM audit WHERE event = 'run-terminal'").get())
+  expect(db.prepare("SELECT outcome, duration_ms, stdout_bytes, stderr_bytes FROM audit WHERE event = 'run-terminal' AND user_id IS NOT NULL").get())
     .toEqual({ outcome: code, duration_ms: 17, stdout_bytes: 12, stderr_bytes: 34 })
 })
 test('credential test audit failure withholds success and rolls back cached health', async () => {
   await replace('falcon-axi')
+  const health = db.prepare('SELECT * FROM tool_health').all()
   db.exec("CREATE TRIGGER fail_test BEFORE INSERT ON audit WHEN NEW.event = 'credential-test' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
   await failure(await request('POST', '/falcon-axi/test', {}), 'AUDIT_UNAVAILABLE')
-  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
+  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
 })
 test.each([
   { method: 'GET', path: '/unknown/credential', body: undefined, code: 'NOT_FOUND' },
@@ -476,14 +477,16 @@ test('concurrent credential replacements accept one revision and return 409 for 
   expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
 })
 test('Azure replacement discards an in-flight old-revision acquisition', async () => {
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'az-axi'")
   await replace('az-axi')
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'az-axi'")
   const old = store.findCredential('az-axi')!
   let release!: () => void
   let started!: () => void
   const held = new Promise<void>(resolve => { release = resolve })
   const posted = new Promise<void>(resolve => { started = resolve })
   const post = network.sendPostRequestAsync.bind(network)
-  network.sendPostRequestAsync = async (url, options) => { started(); await held; return post(url, options) }
+  vi.spyOn(network, 'sendPostRequestAsync').mockImplementationOnce(async (url, options) => { started(); await held; return post(url, options) })
   const pending = adapters[2].prepare(['account', 'list'], old)
   const rejected = expect(pending).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
   try {
@@ -492,7 +495,7 @@ test('Azure replacement discards an in-flight old-revision acquisition', async (
   } finally { release() }
   await rejected
   await adapters[2].prepare(['account', 'list'], store.findCredential('az-axi')!)
-  expect(network.requests.map(entry => entry.form.get('client_secret'))).toEqual(['CANARY-azure', 'CANARY-new-azure'])
+  expect(network.requests.map(entry => entry.form.get('client_secret')).sort()).toEqual(['CANARY-azure', 'CANARY-new-azure'])
 })
 test('manual tests never overlap for one tool and reject a credential replaced during preparation', async () => {
   await replace('falcon-axi')
@@ -514,9 +517,11 @@ test('manual tests never overlap for one tool and reject a credential replaced d
     expect(db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE event = 'credential-test'").get())
       .toEqual({ checked_at: expect.any(Number), credential_revision: 1, error_code: 'TOO_MANY_CALLS' })
     await replace('falcon-axi', { ...values['falcon-axi'], clientSecret: 'CANARY-new' }, 1)
+    db.exec("UPDATE tools SET enabled = 0 WHERE name = 'falcon-axi'")
   } finally { release() }
   await failure(await pending, 'CREDENTIAL_UNAVAILABLE')
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
 })
 test.each([
@@ -537,18 +542,21 @@ test.each([
   const evidence = db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE event = 'credential-test'").get()
   expect(evidence).toEqual({ checked_at: expect.any(Number), credential_revision: 1, error_code: code })
   await replace('falcon-axi', values['falcon-axi'], 1)
-  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
+  expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
   expect(db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE event = 'credential-test'").get()).toEqual(evidence)
 })
 test('test admission audit failure prevents credential preparation and child creation', async () => {
   await replace('falcon-axi')
+  const health = db.prepare('SELECT * FROM tool_health').all()
+  vi.mocked(adapters[0].prepare).mockClear()
   db.exec("CREATE TRIGGER fail_start BEFORE INSERT ON audit WHEN NEW.event = 'run-start' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
   await failure(await request('POST', '/falcon-axi/test', {}), 'AUDIT_UNAVAILABLE')
   expect(adapters[0].prepare).not.toHaveBeenCalled()
-  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
+  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
 })
 test('Azure configuration remains editable while runtime enable and tests stay disabled', async () => {
   await replace('az-axi')
+  network.requests.length = 0
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: adapters.slice(0, 2),

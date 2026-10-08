@@ -10,17 +10,17 @@ import { azCredentialSchema, azManifest } from '../adapters/az.js'
 import type { Adapter } from '../adapters/types.js'
 import type { Audit } from '../audit/audit.js'
 import type { Runner } from '../runner/runner.js'
-import { RunnerError } from '../runner/runner.js'
+import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 
 export interface ToolAdminOptions {
   adapters: readonly Adapter<unknown>[]
   runner: Runner
   store?: MutableCredentialStore
+  health: ToolHealth
 }
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema }
-const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'] }
 const versions = { 'falcon-axi': falconManifest.version, 'vectra-axi': vectraManifest.version, 'az-axi': azManifest.version }
 const publicFields = {
   'falcon-axi': ['region', 'memberCid'],
@@ -30,8 +30,7 @@ const publicFields = {
 
 export function registerToolAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, options: ToolAdminOptions): void {
-  const { adapters, runner, store } = options
-  const testing = new Set<ToolName>()
+  const { adapters, store, health } = options
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const result = schema.safeParse(value)
     if (!result.success) throw new ArtiumError('INVALID_INPUT')
@@ -114,6 +113,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return readTool(tool)
     }).value
     invalidate(replacement)
+    if (replacement) await health.refresh(tool, true)
     return result
   } })
   app.route({ method: adminToolRoutes.replace.method, url: adminToolRoutes.replace.path, handler: async request => {
@@ -136,70 +136,13 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return readCredential(tool)
     }).value
     invalidate(replacement)
+    await health.refresh(tool, true)
     return result
   } })
   app.route({ method: adminToolRoutes.test.method, url: adminToolRoutes.test.path, handler: async request => {
     const actor = authorize(request)
     const tool = toolName(request)
     parse(adminToolRoutes.test.input, request.body ?? {})
-    const adapter = adapters.find(adapter => adapter.name === tool)
-    const context = { userId: actor, tool, requestId: request.id, clientAddress: request.ip }
-    let reference: CredentialReference | undefined
-    try {
-      readTool(tool)
-      reference = store?.findCredential(tool)
-      if (!adapter) throw new ArtiumError('TOOL_DISABLED')
-      if (!reference) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
-      if (testing.has(tool)) throw new ArtiumError('TOO_MANY_CALLS')
-    } catch (error) {
-      const errorCode = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
-      audit.record({ ...context, event: 'credential-test', outcome: errorCode,
-        checkedAt: Date.now(), credentialRevision: reference?.revision ?? null, errorCode })
-      throw error
-    }
-    testing.add(tool)
-    const args = healthReads[tool]
-    const started = Date.now()
-    let failure: ArtiumError | undefined
-    let exitCode: number | null = null
-    let durationMs = 0
-    let outputBytes = { stdout: 0, stderr: 0 }
-    try {
-      audit.record({ ...context, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args),
-        checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
-      try {
-        const prepared = await adapter.prepare(args, reference)
-        const result = await runner.run(actor, prepared.executable, prepared.args, prepared.environment, prepared.secrets,
-          prepared.limits, {}, prepared.files, () => {
-            authorize(request)
-            if (credentialStore().findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
-          })
-        exitCode = result.exitCode
-        durationMs = result.durationMs
-        outputBytes = result.outputBytes
-        if (exitCode !== 0) failure = new ArtiumError('CREDENTIAL_UNAVAILABLE')
-      } catch (error) {
-        failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
-        const runnerError = error instanceof RunnerError ? error : undefined
-        durationMs = runnerError?.durationMs ?? Date.now() - started
-        outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
-      }
-      const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
-        credentialRevision: reference.revision, errorCode: failure?.code ?? null })
-      const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
-      audit.record({ ...context, event: 'run-terminal', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })
-      audit.change({ ...context, event: 'credential-test', outcome: failure?.code ?? 'success', ...evidence }, () => {
-        if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
-          'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
-          && credentialStore().findCredential(tool)?.revision === reference.revision) {
-          db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
-            status = excluded.status, error_code = excluded.error_code`)
-            .run(tool, reference.revision, health.checkedAt, health.status, health.errorCode)
-        }
-      })
-      if (failure) throw failure
-      return health
-    } finally { testing.delete(tool) }
+    return health.check(tool, actor, request.id, request.ip, () => { authorize(request) })
   } })
 }
