@@ -23,6 +23,20 @@ Filtered Docker container, network and image inventories showed no remaining sli
 Loopback TLS and pinned Vectra gate tests also run in the mandatory local suite.
 Azure write capability remains unavailable pending executable commissioning of a safe pin.
 
+S05/06 verification is described in [verification-s05-06.md](verification-s05-06.md).
+Its implementation and published head are bound to the final local command results and private hygiene result in the delivery status and PR body.
+The local image built as `sha256:6ace4e0386cc3457d9b8d1cd5fea18639646960790382f978bd6f8865b597a85` with Node 22.23.3 and Debian Python 3.11.
+The build's separate hashed Python installs, Falcon wheel build and no-dependency wheel install ran with BuildKit networking disabled.
+`pip check` passed.
+All four tool versions matched their pins and `id` reported UID/GID 10001 (`artium`).
+The fixed config paths were executed by the version check.
+The clean builder and final read-only runtime passed SQLite open/write/reopen, Argon2id correct/wrong password verification and an esbuild TypeScript bundle executed by Node.
+The Falcon runtime refused an unknown origin before sending a request, then delivered one canary OAuth request to a trusted loopback TLS fake when explicitly opted in.
+The fake's synthetic 401 became `AUTH_FAILED`.
+Non-default ports were separately observed to remain refused even with the unknown-origin flag.
+The Compose document passed the real Compose parser.
+The private BuildKit worker, tmpfs cache, image archive and local image were removed, with filtered container and image inventories empty.
+
 The review revision adds native profile write-setting inventories with pinned source hashes and retains only the upstream synthetic stream fixtures and fixed `artium-test-node22` harness image.
 Focused review verification covers these inventories and synthetic executable behavior.
 Route inventories now keep Azure canonical and alias inputs separate, record accepted short flags and Graph positional/help contracts, and distinguish native environment defaults from profile-selected credential variables.
@@ -32,14 +46,14 @@ Frozen install, full lint/tests/check, private hygiene and revised container evi
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
 | Deployment prerequisites and harmless-read requests (T0.1) | This ledger records deferred prerequisites | pending | unverified: supply dedicated identities, Linux host, proxy and certificate |
-| Exact tool pins and clean installation (T0.2) | Exact Node pins, npm SHA-512 records and frozen tools lockfile in `tools/`; clean production installation and Falcon packaging pending next slice | Local version/help/parser checks for az-axi 0.1.4, vectra-axi 0.1.3 and mg-axi 0.1.4; az-axi client executed under Node 22.23.3 in isolated Docker services | not applicable: local build only, registry publication excluded |
-| Falcon region, harmless read and search duration (T0.3) | pending | pending | unverified: measure region/read/time before increasing timeouts |
+| Exact tool pins and clean installation (T0.2) | Node pins and integrity in `tools/`; Falcon v0.3.0 commit `3eaf23fa8496b8ecf947e45e1a6e7e8227349ccb`, wheel recipe and separately hashed build/runtime locks; clean no-network installs and pip check passed in Node 22/Python 3.11 image | Image version/help checks match Falcon 0.3.0, Vectra 0.1.3, Azure 0.1.4 and Graph 0.1.4 | not applicable: local build only, registry publication excluded |
+| Falcon region, harmless read and search duration (T0.3) | Global flags, source environment names and region precedence recorded in verification-s05-06.md | Unknown-origin refusal and explicit canary TLS delivery checked by scripts/falcon-smoke.mjs in an isolated image; non-default ports remain refused even with the override | unverified: measure region/read/time before increasing timeouts |
 | Vectra API version, token/OAuth and CA (T0.4) | Ephemeral CA and QUX v2.5 token-profile loopback fixtures, isolated TLS/DNS harness | Pinned 0.1.3 native default write refusal, preview, confirmed mutation and single-send ambiguous 503 checked by `test/fake-service.test.ts`; isolated DNS/TLS/outbound checks passed; OAuth/RUX unverified | unverified: approve appliance and authentication combination |
 | Azure secret/certificate auth and six resource audiences (T0.5) | pending | pending | unverified: supply permitted resources, separately approve test resource creation and writes |
 | Tool output, permission and suggestion captures (T0.6) | Synthetic empty/error/suggestion stream fixtures and generated parser inventories in `test/fake-tool/fixtures/` and `tools/inventories/` | Offline pinned CLI version/help/usage checks; az-axi redirects and pagination observed, duplicate uncertain mutation reproduced in Docker; Azure writes unavailable, parser dispositions provisional | unverified: capture safe real outcomes privately |
 | Probe reconciliation and design decisions (T0.7) | This ledger separates evidence status | pending | unverified: approve actual design changes |
 | Whole-tree hygiene and publication (T1.1) | Synthetic CLI tests and private candidate scan required before delivery | not applicable | unverified: public conversion and release require approval, ordinary private delivery settled |
-| Pinned container image (T1.2) | pending | pending | not applicable: local image only, registry push excluded |
+| Pinned container image (T1.2) | Digest-pinned Node 22 bookworm image, Python 3.11, UID 10001, fixed tool paths and validated Compose example; native build approval pinned in package.json | Clean builder and read-only non-root runtime execute SQLite open/write/reopen, Argon2id hash/verify and esbuild bundle execution; image is a scaffold until the API entry point lands | not applicable: local image only, registry push excluded |
 | Deterministic fake executable (T1.3) | Executable modes and runner-test descriptor in `test/fake-tool/`; CLI tests in `test/fake-tool.test.ts` | not applicable | not applicable: local build only |
 | Process cleanup and container resource limits (T1.4) | pending | pending | unverified: verify production host behaviour |
 | Falcon adapter boundary (T1.5) | pending | pending | unverified: verify real adapter behaviour |

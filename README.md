@@ -16,7 +16,7 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 It currently includes the synthetic hygiene checker tests and permits an empty selection.
 
 `src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold, hygiene and synthetic upstream tests.
-The server, CLI, container and upstream integrations arrive in later slices.
+The pinned container scaffold is available, while the server, CLI and adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
 
@@ -42,7 +42,8 @@ See [the evidence ledger](docs/evidence-ledger.md) for local implementation, pin
 No live gate is satisfied by a fake-service result.
 
 The upstream Node packages are pinned separately in [`tools/package.json`](tools/package.json) and `tools/pnpm-lock.yaml`.
-The root install runs their frozen installation, with native dependency build scripts disabled.
+The root install runs their frozen installation.
+Root native build approval is limited to `argon2`, `better-sqlite3` and `esbuild` in `package.json`, while upstream tool build scripts remain disabled.
 [`tools/integrity.json`](tools/integrity.json) records the pinned upstream versions and npm SHA-512 values.
 mg-axi is inventoried for phase 8, with no production adapter enabled.
 `pnpm test` checks the generated parser inventories against the installed catalogues before running Vitest.
@@ -80,4 +81,22 @@ No image or build cache is created by the network harness itself.
 An unavailable image or Docker daemon produces a nonzero `unverified` result, which must be recorded in the evidence ledger.
 The harness also records az-axi same-origin and cross-origin redirects, pagination and the actual mutation request count after an ambiguous 503.
 See [the evidence ledger](docs/evidence-ledger.md) for the observed retry behaviour and Azure write-capability restriction.
-Clean Node 22 image installation and Falcon packaging remain for the next image slice.
+The [Dockerfile](Dockerfile) builds Falcon v0.3.0 from the full commit in [`tools/falcon-source.json`](tools/falcon-source.json).
+Python build and runtime dependencies have separate SHA-256 locks.
+Downloads verify those hashes, and installation and wheel building run with no package index and no network.
+The runtime contains Python 3.11, the pinned tools and UID 10001 (`artium`).
+mg-axi is installed for inventory checks only and has no production tool path or adapter.
+`src/server/config.ts` owns the three executable paths.
+
+Run `node scripts/build-fake-service-image.mjs --production` to build `artium-axi:local` using the private BuildKit worker.
+This larger build uses overlayfs and an executable 3 GiB tmpfs cache with a 4 GiB memory bound.
+The worker and cache are removed on exit, and an existing image is never replaced.
+Run `docker run --rm --network none --read-only --tmpfs /tmp artium-axi:local node scripts/native-smoke.mjs` to verify SQLite persistence across reopen, Argon2id hash/verify and an esbuild bundle executed with Node.
+Run the same command with `scripts/falcon-smoke.mjs` to verify unknown-origin refusal and explicit canary delivery to a loopback TLS fake.
+Remove the owned image afterwards with `docker image rm artium-axi:local`.
+
+[`compose.example.yaml`](compose.example.yaml) records the loopback port, read-only root, `/tmp` tmpfs, `/data` volume and file-backed Docker master-key secret.
+`docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
+It is a packaging example, not a running API yet.
+The image's default command prints the Node version until the server entry point exists.
+See [verification-s05-06.md](docs/verification-s05-06.md) for this slice's local verification and deferred Falcon live checks.
