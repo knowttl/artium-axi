@@ -12,6 +12,11 @@ S12 implements plain-function Falcon preparation and its generated parser-aware 
 Its local verification plan is [verification-s12.md](verification-s12.md).
 The adapter refuses managed destination and tenant overrides, profile selection, double-dash and local credential/configuration commands before either Docker secret file is read.
 The pinned parser has no aliases or short flags; repeats and equals forms cannot bypass the adapter refusal.
+The S12 review fixture now serves two detection pages and hydration responses, records query offsets, and routes managed us-2 to the same isolated service.
+The probe checks continuation and cross-origin cursor refusal both with and without a managed member CID, alongside token and API redirect refusal without destination requests.
+Focused review verification executed the HTTPS fixture with trusted synthetic certificates and passed distinct pages at offsets 0 and 1, hydration, canary receipt, token and API redirect responses, zero mutations, and syntax checks for the three changed harness modules.
+The production image was absent in the review worktree, so this focused result does not claim pinned-binary cursor or redirect acceptance.
+Renewed pinned-binary harness and final-head validation evidence remain pending with the outer executor after this review correction.
 Final-head frozen install, lint, tests, aggregate check, runner-container, pinned Falcon fake-origin checks and private hygiene results are recorded in delivery status and the PR body.
 The existing AGENTS.md pointers to package.json, the upstream pins and README.md remain accurate.
 

@@ -11,7 +11,9 @@ There is no hosted CI.
    Run `node scripts/fake-services.mjs --falcon` after `pnpm build`.
    The existing S03/04 harness routes trusted Falcon names to the fake origin on internal Docker networks with an ephemeral CA.
    The actual pinned parser verifies that no aliases or short flags exist, repetitions select the last value, equals forms work and `--` is not a delimiter.
-   Prepared canary files feed two empty detection reads, with and without the managed member CID.
+   Prepared canary files feed two-page detection reads, with and without the managed member CID.
+   The emitted cursor advances the same-origin query from offset 0 to 1 and returns distinct hydrated records, with no continuation after the final page.
+   Replaying each cursor under managed region us-2 yields VALIDATION_ERROR after authentication but before any detection query or hydration request.
    Token and API redirects are refused without a request to their destinations.
    Every unsafe override is refused with unavailable secret paths before the runner can send another request.
    The client has no default IPv4 route and cannot connect to the separate fake network.
