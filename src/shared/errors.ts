@@ -1,4 +1,7 @@
 export const errors = {
+  CLIENT_CONFIG_INVALID: { status: 400, message: 'The CLI server or development token configuration is invalid.', next: 'Set ARTIUM_AXI_URL to an HTTPS URL and ARTIUM_AXI_DEV_TOKEN_FILE to an owner-only token file; optionally set ARTIUM_AXI_CA_FILE.' },
+  SERVER_UNAVAILABLE: { status: 503, message: 'The CLI could not receive a server response.', next: 'Check the server address and certificate trust; confirm the previous call outcome before retrying.' },
+  INVALID_RESPONSE: { status: 500, message: 'The server returned an invalid response.', next: 'Check the server URL and API version.' },
   DEV_AUTH_INVALID: { status: 503, message: 'Development authentication is not configured.', next: 'Set ARTIUM_AXI_DEV=1 and supply ARTIUM_AXI_DEV_TOKEN_FILE for an isolated development server.' },
   PROXY_HEADERS_UNTRUSTED: { status: 400, message: 'Forwarding headers came from an untrusted address.', next: 'Connect through the configured trusted proxy or remove forwarding headers.' },
   NOT_FOUND: { status: 404, message: 'The endpoint does not exist.', next: 'Use a supported API endpoint and tool name.' },
