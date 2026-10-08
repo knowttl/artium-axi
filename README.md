@@ -74,7 +74,7 @@ Exact-value scanning cannot identify unknown tokens minted inside an upstream to
 The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
 Create one `Runner` per server with `await Runner.create()`, before accepting calls.
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
-Call `runner.run(userId, executable, args, environment, secrets, limits)` with the authenticated user, adapter-provided environment values and all known injected secrets.
+Call `runner.run(userId, executable, args, environment, secrets, limits, input)` with the authenticated user, adapter-provided environment values and all known injected secrets.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
 Adapter preparation is not implemented yet; its later owning flow must enforce a separate 30-second deadline.
 Credential tests and future background health reads must use this same runner and an authenticated identity.
@@ -96,7 +96,7 @@ Termination sends SIGTERM to the whole Linux process group, allows 2 seconds, th
 Normal leader exit also terminates surviving group descendants.
 `await runner.shutdown()` stops admission, cancels runs and waits for their cleanup.
 The later server slice must wire disconnect and shutdown events to these public interfaces, then close its store.
-`TEMP_UNAVAILABLE` reports failure to create a call directory, including full tmpfs, without exposing filesystem diagnostics.
+`TEMP_UNAVAILABLE` reports failure to create a call directory or its uploaded inputs, including full tmpfs, without exposing filesystem diagnostics.
 An upstream tmpfs write failure preserves its ordinary nonzero exit status and still removes the call directory.
 Node children receive a 128 MiB heap limit.
 The fixed Python launcher applies a 512 MiB address-space limit before executing Falcon, preserving its shebang interpreter.
@@ -106,14 +106,12 @@ Heap and address-space limits are not total resident-memory caps or complete pro
 A descendant that starts a new session escapes the process group, including when it retains output pipes.
 The runner bounds pipe cleanup but cannot kill or reap that escaped session.
 Ordinary orphan descendants are reaped by the container init process, while the runner reaps its direct child.
-The [shared contract](src/shared/api.ts) defines strict run request, success and error schemas and the fixed three-tool registry.
-Requests accept only `args`, optional UTF-8 `stdin` and optional uploaded `files` containing `name` and `contentBase64`.
-Limits are 64 arguments of 4096 UTF-8 bytes each, 512 KiB stdin, eight files of 1 MiB each and 4 MiB total decoded uploads.
-Unknown fields, NUL text, malformed or noncanonical base64, duplicate names and unsafe leaf names are rejected.
-The later HTTP server must enforce the exported 16 MiB body limit, JSON content type, schema validation and authorization before credential retrieval.
+The [shared contract](src/shared/api.ts) owns the exact request and response fields, input limits, validation rules and supported tool identifiers.
+Requests support argument arrays, optional UTF-8 stdin and named base64 uploads.
+The later HTTP server must enforce the exported body limit, JSON content type, schema validation and authorization before credential retrieval.
 The [error catalogue](src/shared/errors.ts) owns the implemented error codes, HTTP status mapping and safe default messages and next steps.
-Success contains upstream `source`, `stdout`, `stderr`, `exitCode`, `durationMs`, `outputBytes` and `truncated` only.
-Artium failures contain only `error` with `code`, `source`, `message`, `next` and `requestId`.
+Completed upstream calls use the success envelope even for nonzero exit codes.
+Artium failures use the error envelope without captured output.
 When building the HTTP success envelope, omit the runner's internal `timedOut` field.
 
 Pass optional input as the seventh `runner.run` argument, with `stdin`, `files` and adapter-reviewed `fileArguments` indices.
