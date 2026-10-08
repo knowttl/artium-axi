@@ -6,7 +6,7 @@ See [README.md](../README.md) for current user administration usage and remainin
 
 Run `pnpm exec vitest run test/integration/admin-users.test.ts` for the [HTTP integration checks](../test/integration/admin-users.test.ts).
 Authorization checks use real local sign-in and password reauthentication, with synthetic identities and canary passwords.
-Checks cover all five routes, current capability denial despite tool grants, missing/expired/other-session tickets, capped stable pagination, canonical usernames, temporary passwords and role assignment.
+S33 checks cover its original user routes, current capability denial despite tool grants, missing/expired/other-session tickets, capped stable pagination, canonical usernames, temporary passwords and role assignment.
 They verify enable/disable, capability changes, unlock, reset, unknown accounts, invalid passwords, invalid foreign keys and duplicate usernames.
 Unlock and reset checks exhaust the username counter with five real wrong-password logins, then verify immediate sign-in after the administrator action.
 Audit failure checks verify that the exhausted username counter remains in force.

@@ -179,8 +179,8 @@ The [authentication schema](src/server/store/migrations/002-authentication.sql) 
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
 The account-writing flow owns canonicalization before insertion.
 The `administrator` flag is a reserved account capability independent of role tool grants.
-The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later role writers must enforce optimistic concurrency.
-See the user administration usage below for account edit concurrency.
+The schema provides revision fields for users and roles, alongside the existing tool and credential revisions.
+See the administration usage below for account and role edit concurrency.
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
 Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
@@ -387,8 +387,9 @@ See [S33 verification](docs/verification-s33.md) for real local login, authoriza
 `POST /v1/admin/roles` accepts `name` and returns 201 with public role metadata.
 `PATCH /v1/admin/roles/{id}` accepts `name` and `expectedRevision`.
 `PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi` and `az-axi`.
-Roles return `id`, `name`, `tools`, `revision`, `updatedAt` and `updatedBy`.
-Role and assignment mutations require the current administrator capability and the same reauthentication ticket as user administration, and commit with their audit event.
+The [shared API contract](src/shared/api.ts) owns the complete role inputs, public metadata and audit actions.
+Role administration, including listing, requires the current administrator capability and the same reauthentication ticket as user administration.
+Role and assignment mutations commit with their audit event and return public metadata with the new revision; successful edits return 200.
 Invalid references return 400, unknown targets return 404 and stale revisions return 409 without changes.
 Tool grants never confer administrator capability, and role changes apply to the next tool call using existing tokens.
 See [S34 verification](docs/verification-s34.md) for role, grant and assignment evidence.
