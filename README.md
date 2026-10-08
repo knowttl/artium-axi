@@ -74,7 +74,8 @@ The [runner](src/server/runner/runner.ts) now owns stream capture and scanner in
 Create one `Runner` per server with `await Runner.create()`, before accepting calls.
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
 Call `runner.run(userId, executable, args, environment, secrets, limits)` with the authenticated user, adapter-provided environment values and all known injected secrets.
-Admission includes preparation, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
+Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
+Adapter preparation is not implemented yet; its later owning flow must enforce a separate 30-second deadline.
 Credential tests and future background health reads must use this same runner and an authenticated identity.
 Excess calls reject immediately with `TOO_MANY_CALLS`.
 It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
