@@ -15,9 +15,9 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, and `src/cli/` reserves the client layout.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner and Falcon adapter, and `src/cli/` reserves the client layout.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
-The pinned container scaffold is available, while the server, CLI and adapters arrive in later slices.
+The pinned container scaffold and Falcon preparation are available, while the server, CLI and remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
 
@@ -53,6 +53,16 @@ These inventories record provisional flag dispositions, route-specific aliases, 
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The native write gates remain upstream-owned.
 
+The first Falcon adapter is [falcon.ts](src/server/adapters/falcon.ts).
+Call `prepareFalcon(args, { clientIdFile, clientSecretFile, region, memberCid? })` with server-owned Docker secret-file paths.
+It refuses unsafe overrides before reading either file, injects only `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET`, and adds the managed region and optional member CID.
+Pass its executable, arguments, environment, scan values and limits to the runner.
+The [generated Falcon manifest](tools/inventories/falcon-axi.json) owns the reviewed command and credential boundary, metadata, health read and resource requirements.
+Regenerate or verify it with `node scripts/falcon-inventory.mjs /path/to/pinned-source --write` or the same command without `--write`, respectively.
+The source checkout must match `tools/falcon-source.json`.
+[S12 verification](docs/verification-s12.md) covers the actual pinned parser and canary detection reads using `node scripts/fake-services.mjs --falcon` with the locally built `artium-axi:local` image.
+Live Falcon acceptance remains unverified.
+
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
 Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `child-exit`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
 For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stderr bytes, and `upstream az-axi error` emits a synthetic stream capture with an error status.
@@ -76,7 +86,7 @@ Create one `Runner` per server with `await Runner.create()`, before accepting ca
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
 Call `runner.run(userId, executable, args, environment, secrets, limits, input)` with the authenticated user, adapter-provided environment values and all known injected secrets.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
-Adapter preparation is not implemented yet; its later owning flow must enforce a separate 30-second deadline.
+Falcon preparation reads Docker secret files; its later owning server flow must enforce a separate 30-second preparation deadline.
 Credential tests and future background health reads must use this same runner and an authenticated identity.
 Excess calls reject immediately with `TOO_MANY_CALLS`.
 It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
