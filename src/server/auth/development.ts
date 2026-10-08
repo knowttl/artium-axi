@@ -18,9 +18,13 @@ export function readDevelopmentToken(environment: NodeJS.ProcessEnv): string {
 export function developmentAuthentication(db: Database.Database, token: string) {
   const userId = 'synthetic-development-user'
   db.transaction(() => {
-    db.prepare(`INSERT INTO users (id, username, display_name, password_hash, must_change)
+    const { changes } = db.prepare(`INSERT INTO users (id, username, display_name, password_hash, must_change)
       VALUES (?, ?, 'Synthetic Development User', 'unusable', 0)
-      ON CONFLICT(id) DO UPDATE SET administrator = 0`).run(userId, userId)
+      ON CONFLICT(id) DO NOTHING`).run(userId, userId)
+    if (!changes) {
+      db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
+      return
+    }
     db.prepare("INSERT INTO roles (id, name) VALUES ('synthetic-development-role', 'Synthetic Development Role') ON CONFLICT(id) DO NOTHING").run()
     db.prepare("INSERT INTO user_roles (user_id, role_id) VALUES (?, 'synthetic-development-role') ON CONFLICT DO NOTHING").run(userId)
     for (const tool of toolSchema.options) {
