@@ -1,17 +1,22 @@
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, fork } from 'node:child_process'
 import { promisify } from 'node:util'
-import { once } from 'node:events'
+import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
 import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { TLSSocket } from 'node:tls'
+import { build } from 'esbuild'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestCertificates } from './fake-service/certificates.mjs'
 import { SessionStore } from '../src/cli/session.js'
+import { DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
 
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
 const bundle = join(directory, 'artium-axi.mjs')
+const clockBundle = join(directory, 'artium-axi-clock.mjs')
+const stalls = new EventEmitter()
 let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean }
 let requests: { path: string, token?: string, body: unknown }[]
@@ -20,16 +25,20 @@ const server = createServer()
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
   copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: clockBundle, bundle: true,
+    platform: 'node', format: 'esm', target: 'node22.12', inject: ['test/cli-clock.ts'] })
   createTestCertificates(directory, ['localhost'])
   server.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) })
   server.on('request', async (request, reply) => {
     let body = ''
     for await (const chunk of request) body += chunk
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined })
-    if (request.url!.startsWith('/stall-headers/')) return
+    const stalled = () => stalls.emit(request.url!, { socket: request.socket, closed: once(request.socket, 'close') })
+    if (request.url!.startsWith('/stall-headers/')) { stalled(); return }
     reply.writeHead(response.status, { 'content-type': 'application/json', ...(response.location ? { location: response.location } : {}) })
     if (response.stall || request.url!.startsWith('/stall-body/')) {
       reply.flushHeaders()
+      if (request.url!.startsWith('/stall-body/')) stalled()
       return
     }
     reply.end(JSON.stringify(response.body))
@@ -43,17 +52,60 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, timeout = 10_000) {
+async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false) {
   const configuration = mkdtempSync(join(directory, 'config-'))
   new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
     status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
     accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000,
   })
+  const env = { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
+    ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment }
+  if (controlled) return controlledCli(args, env)
   try {
-    return { ...await execute(process.execPath, [bundle, ...args], { cwd: directory, timeout,
-      env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
-        ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment } }), code: 0 }
+    return { ...await execute(process.execPath, [bundle, ...args], { cwd: directory, timeout: 10_000, env }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
+}
+
+async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
+  const path = new URL(env.ARTIUM_AXI_URL!).pathname + (args[0] === 'tools' ? '/v1/tools' : '/v1/tools/falcon-axi/run')
+  const stalled = once(stalls, path)
+  const child = fork(clockBundle, args, { cwd: directory, env, silent: true, execArgv: [], signal: AbortSignal.timeout(10_000) })
+  const closed = once(child, 'close')
+  const unexpectedExit = closed.then(() => { throw new Error('Controlled CLI exited before socket cleanup was verified') })
+  const messages = new EventEmitter()
+  child.on('message', (message: { event: string }) => messages.emit(message.event, message))
+  const scheduled = once(messages, 'scheduled')
+  const receivedHeaders = path.startsWith('/stall-body/') ? once(messages, 'response') : Promise.resolve()
+  let stdout = ''
+  let stderr = ''
+  child.stdout!.on('data', chunk => { stdout += chunk })
+  child.stderr!.on('data', chunk => { stderr += chunk })
+  try {
+    const [[timer], [connection]] = await Promise.race([Promise.all([scheduled, stalled, receivedHeaders]), unexpectedExit])
+    const { socket, closed: socketClosed } = connection as { socket: TLSSocket, closed: Promise<unknown> }
+    expect(timer.delay).toBe(DEFAULT_REQUEST_DEADLINE_MS)
+    expect(DEFAULT_REQUEST_DEADLINE_MS).toBe(90_000)
+    expect(socket.encrypted).toBe(true)
+    let advanced = once(messages, 'advanced')
+    child.send({ advance: DEFAULT_REQUEST_DEADLINE_MS - 1 })
+    expect((await Promise.race([advanced, unexpectedExit]))[0]).toEqual({ event: 'advanced', elapsed: 89_999, pending: 1 })
+    expect(socket.destroyed).toBe(false)
+    expect(stdout).toBe('')
+    expect(child.exitCode).toBeNull()
+    advanced = once(messages, 'advanced')
+    child.send({ advance: 1 })
+    expect((await Promise.race([advanced, unexpectedExit]))[0]).toEqual({ event: 'advanced', elapsed: 90_000, pending: 0 })
+    await Promise.race([socketClosed, unexpectedExit])
+    expect(socket.destroyed).toBe(true)
+    expect(child.exitCode).toBeNull()
+    child.send({ release: true })
+    const [code, signal] = await closed
+    expect(signal).toBeNull()
+    return { code, stdout, stderr }
+  } finally {
+    if (child.exitCode === null) child.kill()
+    await closed
+  }
 }
 
 test('standalone bundle lists tools and reports an empty list', async () => {
@@ -92,10 +144,10 @@ test('stalled headers and bodies fail without retrying either command', async ()
   requests = []
   response = { status: 200, body: {} }
   const results = await Promise.all([
-    cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, 95_000),
-    cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, 95_000),
-    cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-body` }, 95_000),
-    cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-body` }, 95_000),
+    cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, true),
+    cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, true),
+    cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-body` }, true),
+    cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-body` }, true),
   ])
   const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE'), stderr: '' }
   expect(results).toMatchObject([failure, failure, failure, failure])
@@ -103,7 +155,7 @@ test('stalled headers and bodies fail without retrying either command', async ()
     '/stall-body/v1/tools', '/stall-body/v1/tools/falcon-axi/run',
     '/stall-headers/v1/tools', '/stall-headers/v1/tools/falcon-axi/run',
   ])
-}, 100_000)
+}, 15_000)
 
 test.each([
   ['https://user:password@localhost', {}], ['https://localhost?query=1', {}], ['https://localhost/#fragment', {}],
