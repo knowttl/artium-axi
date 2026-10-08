@@ -23,7 +23,36 @@
       "disposition": "server-owned"
     }
   ],
-  "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "dynamicCredentialEnvironment": [
+    {
+      "profileField": "tokenEnv",
+      "transport": "token value",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "secretEnv",
+      "transport": "client-secret value",
+      "disposition": "server-owned"
+    }
+  ],
+  "environmentSources": [
+    {
+      "path": "dist/src/profiles.js",
+      "sha256": "2e7ced037e4150a414793554970fb8f89011d579aafc4aad7a477db2d05ac403"
+    },
+    {
+      "path": "dist/src/auth.js",
+      "sha256": "b1dff212f4a4f11de2b58bc6975f3bea55ace84fd5f0b2ec5f4e21f94c0e8cce"
+    },
+    {
+      "path": "dist/src/oauth.js",
+      "sha256": "efa73d992a919e00ce3bd2d7a76fa6460e444a3f90558be735835801d9775031"
+    },
+    {
+      "path": "dist/src/writes.js",
+      "sha256": "3148132d366beec56e5d1f187d2922037b340d52a5d350ff252187ce28e0f83f"
+    }
+  ],
   "nativeWriteSettings": {
     "default": "disabled",
     "disposition": "server-owned",

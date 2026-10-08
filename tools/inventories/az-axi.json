@@ -55,7 +55,58 @@
       "disposition": "server-owned"
     }
   ],
-  "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "dynamicCredentialEnvironment": [
+    {
+      "profileField": "tokenEnv.arm",
+      "transport": "token value",
+      "defaultEnvironment": "AZ_AXI_ARM_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "tokenEnv.graph",
+      "transport": "token value",
+      "defaultEnvironment": "AZ_AXI_GRAPH_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "tokenEnv.logs",
+      "transport": "token value",
+      "defaultEnvironment": "AZ_AXI_LOGS_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "tokenEnv.registry",
+      "transport": "token value",
+      "defaultEnvironment": "AZ_AXI_REGISTRY_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "tokenEnv.storage",
+      "transport": "token value",
+      "defaultEnvironment": "AZ_AXI_STORAGE_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "tokenEnv.vault",
+      "transport": "token value",
+      "defaultEnvironment": "AZ_AXI_VAULT_TOKEN",
+      "disposition": "server-owned"
+    }
+  ],
+  "environmentSources": [
+    {
+      "path": "dist/lib/config.js",
+      "sha256": "df929b416ff42b456d33455027e84f0ade2d59483eed34f2ca81ea7e99e16648"
+    },
+    {
+      "path": "dist/lib/auth.js",
+      "sha256": "9ac7b53c42c1622404e8df871b2248c73593c00c365f85713552465dc6bf8362"
+    },
+    {
+      "path": "dist/lib/writeLog.js",
+      "sha256": "e8657b8cf9e92a56ec1ee84b69c69201c65a02fcafbb78a818a82b8869c8ad83"
+    }
+  ],
   "nativeWriteSettings": {
     "default": "disabled",
     "disposition": "server-owned",
@@ -114,6 +165,10 @@
     },
     {
       "name": "assessment-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "assignee",
       "disposition": "passthrough candidate"
     },
     {
@@ -217,6 +272,10 @@
       "disposition": "input/output transport review"
     },
     {
+      "name": "first",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "full",
       "disposition": "passthrough candidate"
     },
@@ -282,6 +341,10 @@
     },
     {
       "name": "nsg-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "offset",
       "disposition": "passthrough candidate"
     },
     {
@@ -440,7 +503,8 @@
   "commands": [
     {
       "command": "home",
-      "aliases": [],
+      "canonicalCommand": "home",
+      "handlerCommand": "home",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -455,11 +519,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "setup hooks",
-      "aliases": [],
+      "canonicalCommand": "setup hooks",
+      "handlerCommand": "setup hooks",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -474,11 +543,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "doctor",
-      "aliases": [],
+      "canonicalCommand": "doctor",
+      "handlerCommand": "doctor",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -493,11 +567,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "config init",
-      "aliases": [],
+      "canonicalCommand": "config init",
+      "handlerCommand": "config init",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -517,11 +596,18 @@
         "default": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "config list",
-      "aliases": [],
+      "canonicalCommand": "config list",
+      "handlerCommand": "config list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -536,11 +622,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "config path",
-      "aliases": [],
+      "canonicalCommand": "config path",
+      "handlerCommand": "config path",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -555,11 +646,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "sub list",
-      "aliases": [],
+      "canonicalCommand": "sub list",
+      "handlerCommand": "sub list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -574,11 +670,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "account list",
-      "aliases": [],
+      "canonicalCommand": "account list",
+      "handlerCommand": "account list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -593,11 +694,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "account show",
-      "aliases": [],
+      "canonicalCommand": "account show",
+      "handlerCommand": "account show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -612,11 +718,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor log-analytics workspace list",
-      "aliases": [],
+      "canonicalCommand": "monitor log-analytics workspace list",
+      "handlerCommand": "monitor log-analytics workspace list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -633,11 +744,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor log-analytics workspace show",
-      "aliases": [],
+      "canonicalCommand": "monitor log-analytics workspace show",
+      "handlerCommand": "monitor log-analytics workspace show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -656,11 +774,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor metrics alert list",
-      "aliases": [],
+      "canonicalCommand": "monitor metrics alert list",
+      "handlerCommand": "monitor metrics alert list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -677,11 +802,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor metrics alert show",
-      "aliases": [],
+      "canonicalCommand": "monitor metrics alert show",
+      "handlerCommand": "monitor metrics alert show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -699,11 +831,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor action-group list",
-      "aliases": [],
+      "canonicalCommand": "monitor action-group list",
+      "handlerCommand": "monitor action-group list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -720,11 +859,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor action-group show",
-      "aliases": [],
+      "canonicalCommand": "monitor action-group show",
+      "handlerCommand": "monitor action-group show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -742,11 +888,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor diagnostic-settings list",
-      "aliases": [],
+      "canonicalCommand": "monitor diagnostic-settings list",
+      "handlerCommand": "monitor diagnostic-settings list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -762,11 +915,16 @@
         "resource": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor diagnostic-settings show",
-      "aliases": [],
+      "canonicalCommand": "monitor diagnostic-settings show",
+      "handlerCommand": "monitor diagnostic-settings show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -784,11 +942,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor metrics list",
-      "aliases": [],
+      "canonicalCommand": "monitor metrics list",
+      "handlerCommand": "monitor metrics list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -809,11 +973,16 @@
         "aggregation": "list"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "group list",
-      "aliases": [],
+      "canonicalCommand": "group list",
+      "handlerCommand": "group list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -828,11 +997,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "group show",
-      "aliases": [],
+      "canonicalCommand": "group show",
+      "handlerCommand": "group show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -848,11 +1022,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "resource list",
-      "aliases": [],
+      "canonicalCommand": "resource list",
+      "handlerCommand": "resource list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -870,11 +1050,18 @@
         "resource-type": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "resource show",
-      "aliases": [],
+      "canonicalCommand": "resource show",
+      "handlerCommand": "resource show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -894,11 +1081,18 @@
         "api-version": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "tag update",
-      "aliases": [],
+      "canonicalCommand": "tag update",
+      "handlerCommand": "tag update",
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -920,13 +1114,16 @@
         "no-wait": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "graph query",
-      "aliases": [
-        "rg query"
-      ],
+      "canonicalCommand": "graph query",
+      "handlerCommand": "rg query",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -946,15 +1143,75 @@
         "management-groups": "list"
       },
       "flagAliases": {
-        "first": "limit"
+        "first": "limit",
+        "subscription": "subscriptions"
+      },
+      "shortFlags": {
+        "h": "help",
+        "s": "subscriptions",
+        "q": "graph-query"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "rg query",
+      "canonicalCommand": "graph query",
+      "handlerCommand": "rg query",
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "skip-token": "value",
+        "file": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
       },
       "positionalInput": true
     },
     {
       "command": "rbac list",
-      "aliases": [
-        "role assignment list"
-      ],
+      "canonicalCommand": "rbac list",
+      "handlerCommand": "rbac list",
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "principal": "value",
+        "role": "value",
+        "scope": "value",
+        "privileged": "boolean",
+        "show-query": "boolean"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "role assignment list",
+      "canonicalCommand": "rbac list",
+      "handlerCommand": "rbac list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -976,13 +1233,46 @@
       "flagAliases": {
         "assignee": "principal"
       },
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "activity list",
-      "aliases": [
-        "monitor activity-log list"
-      ],
+      "canonicalCommand": "activity list",
+      "handlerCommand": "activity list",
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "since": "value",
+        "caller": "value",
+        "resource-group": "value",
+        "status": "value",
+        "operation": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "monitor activity-log list",
+      "canonicalCommand": "activity list",
+      "handlerCommand": "activity list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1004,13 +1294,17 @@
       "flagAliases": {
         "offset": "since"
       },
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group"
+      },
       "positionalInput": false
     },
     {
       "command": "defender alerts",
-      "aliases": [
-        "security alert list"
-      ],
+      "canonicalCommand": "defender alerts",
+      "handlerCommand": "defender alerts",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1028,11 +1322,43 @@
         "since": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "security alert list",
+      "canonicalCommand": "defender alerts",
+      "handlerCommand": "defender alerts",
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "severity": "list",
+        "status": "value",
+        "since": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "defender alerts get",
-      "aliases": [],
+      "canonicalCommand": "defender alerts get",
+      "handlerCommand": "defender alerts get",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1047,11 +1373,16 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": true
     },
     {
       "command": "security pricing list",
-      "aliases": [],
+      "canonicalCommand": "security pricing list",
+      "handlerCommand": "security pricing list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1067,11 +1398,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "security pricing show",
-      "aliases": [],
+      "canonicalCommand": "security pricing show",
+      "handlerCommand": "security pricing show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1088,11 +1425,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "security sub-assessment list",
-      "aliases": [],
+      "canonicalCommand": "security sub-assessment list",
+      "handlerCommand": "security sub-assessment list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1110,11 +1453,17 @@
         "assessed-resource-id": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "security sub-assessment show",
-      "aliases": [],
+      "canonicalCommand": "security sub-assessment show",
+      "handlerCommand": "security sub-assessment show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1133,13 +1482,17 @@
         "assessed-resource-id": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "security alert update",
-      "aliases": [
-        "defender alerts update"
-      ],
+      "canonicalCommand": "security alert update",
+      "handlerCommand": "security alert update",
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1162,11 +1515,54 @@
         "no-wait": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "l": "location"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "defender alerts update",
+      "canonicalCommand": "security alert update",
+      "handlerCommand": "security alert update",
+      "effect": "write",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "location": "value",
+        "name": "value",
+        "resource-group": "value",
+        "status": "value",
+        "execute": "boolean",
+        "if-match": "value",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "l": "location"
+      },
       "positionalInput": false
     },
     {
       "command": "defender assessments",
-      "aliases": [],
+      "canonicalCommand": "defender assessments",
+      "handlerCommand": "defender assessments",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1185,13 +1581,16 @@
         "show-query": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "defender score",
-      "aliases": [
-        "security secure-scores list"
-      ],
+      "canonicalCommand": "defender score",
+      "handlerCommand": "defender score",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1206,11 +1605,40 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "security secure-scores list",
+      "canonicalCommand": "defender score",
+      "handlerCommand": "defender score",
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel incident list",
-      "aliases": [],
+      "canonicalCommand": "sentinel incident list",
+      "handlerCommand": "sentinel incident list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1232,11 +1660,18 @@
         "since": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel incident show",
-      "aliases": [],
+      "canonicalCommand": "sentinel incident show",
+      "handlerCommand": "sentinel incident show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1257,11 +1692,19 @@
         "ids": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel incident list-alert",
-      "aliases": [],
+      "canonicalCommand": "sentinel incident list-alert",
+      "handlerCommand": "sentinel incident list-alert",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1282,11 +1725,19 @@
         "ids": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel incident list-entity",
-      "aliases": [],
+      "canonicalCommand": "sentinel incident list-entity",
+      "handlerCommand": "sentinel incident list-entity",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1307,11 +1758,19 @@
         "ids": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel incident update",
-      "aliases": [],
+      "canonicalCommand": "sentinel incident update",
+      "handlerCommand": "sentinel incident update",
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1342,11 +1801,19 @@
         "no-wait": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel incident comment create",
-      "aliases": [],
+      "canonicalCommand": "sentinel incident comment create",
+      "handlerCommand": "sentinel incident comment create",
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1370,11 +1837,18 @@
         "no-wait": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel alert-rule list",
-      "aliases": [],
+      "canonicalCommand": "sentinel alert-rule list",
+      "handlerCommand": "sentinel alert-rule list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1392,11 +1866,18 @@
         "workspace": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel alert-rule show",
-      "aliases": [],
+      "canonicalCommand": "sentinel alert-rule show",
+      "handlerCommand": "sentinel alert-rule show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1416,11 +1897,19 @@
         "ids": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel data-connector list",
-      "aliases": [],
+      "canonicalCommand": "sentinel data-connector list",
+      "handlerCommand": "sentinel data-connector list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1438,11 +1927,18 @@
         "workspace": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "sentinel data-connector show",
-      "aliases": [],
+      "canonicalCommand": "sentinel data-connector show",
+      "handlerCommand": "sentinel data-connector show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1462,11 +1958,19 @@
         "ids": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
       "positionalInput": false
     },
     {
       "command": "exposure",
-      "aliases": [],
+      "canonicalCommand": "exposure",
+      "handlerCommand": "exposure",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1483,13 +1987,16 @@
         "show-query": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "monitor log-analytics query",
-      "aliases": [
-        "logs query"
-      ],
+      "canonicalCommand": "monitor log-analytics query",
+      "handlerCommand": "logs query",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1508,11 +2015,47 @@
         "analytics-query": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "w": "workspace",
+        "t": "timespan"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "logs query",
+      "canonicalCommand": "monitor log-analytics query",
+      "handlerCommand": "logs query",
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace": "value",
+        "timespan": "value",
+        "file": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "w": "workspace",
+        "t": "timespan"
+      },
       "positionalInput": true
     },
     {
       "command": "api",
-      "aliases": [],
+      "canonicalCommand": "api",
+      "handlerCommand": "api",
       "effect": "dynamic",
       "capability": "native",
       "flags": {
@@ -1539,11 +2082,16 @@
         "no-wait": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": true
     },
     {
       "command": "op status",
-      "aliases": [],
+      "canonicalCommand": "op status",
+      "handlerCommand": "op status",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1558,32 +2106,41 @@
         "limit": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": true
     },
     {
       "command": "az group show",
-      "aliases": [],
+      "canonicalCommand": "az group show",
+      "handlerCommand": "az group show",
       "effect": "read",
       "capability": "passthrough",
       "flags": {
         "profile": "value",
-        "tenant": "value",
-        "subscription": "list",
-        "management-group": "value",
         "config": "value",
-        "help": "boolean",
         "full": "boolean",
-        "fields": "list",
-        "limit": "value",
+        "fields": "value",
+        "help": "boolean",
         "name": "value",
-        "resource-group": "value"
+        "subscription": "value"
       },
-      "flagAliases": {},
+      "flagAliases": {
+        "resource-group": "name"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "name",
+        "g": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "storage container list",
-      "aliases": [],
+      "canonicalCommand": "storage container list",
+      "handlerCommand": "storage container list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1602,11 +2159,16 @@
         "marker": "literal"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "storage container show",
-      "aliases": [],
+      "canonicalCommand": "storage container show",
+      "handlerCommand": "storage container show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1624,11 +2186,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "storage blob list",
-      "aliases": [],
+      "canonicalCommand": "storage blob list",
+      "handlerCommand": "storage blob list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1648,11 +2216,16 @@
         "marker": "literal"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "storage blob show",
-      "aliases": [],
+      "canonicalCommand": "storage blob show",
+      "handlerCommand": "storage blob show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1671,11 +2244,17 @@
         "name": "literal"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "keyvault secret list",
-      "aliases": [],
+      "canonicalCommand": "keyvault secret list",
+      "handlerCommand": "keyvault secret list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1692,11 +2271,16 @@
         "expiring-within": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "keyvault key list",
-      "aliases": [],
+      "canonicalCommand": "keyvault key list",
+      "handlerCommand": "keyvault key list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1713,11 +2297,16 @@
         "expiring-within": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "keyvault certificate list",
-      "aliases": [],
+      "canonicalCommand": "keyvault certificate list",
+      "handlerCommand": "keyvault certificate list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1734,11 +2323,16 @@
         "expiring-within": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
       "positionalInput": false
     },
     {
       "command": "acr repository list",
-      "aliases": [],
+      "canonicalCommand": "acr repository list",
+      "handlerCommand": "acr repository list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1755,11 +2349,17 @@
         "marker": "literal"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "acr repository show-tags",
-      "aliases": [],
+      "canonicalCommand": "acr repository show-tags",
+      "handlerCommand": "acr repository show-tags",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1778,11 +2378,17 @@
         "marker": "literal"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "acr manifest show-metadata",
-      "aliases": [],
+      "canonicalCommand": "acr manifest show-metadata",
+      "handlerCommand": "acr manifest show-metadata",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1799,11 +2405,17 @@
         "name": "literal"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network nsg list",
-      "aliases": [],
+      "canonicalCommand": "network nsg list",
+      "handlerCommand": "network nsg list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1820,11 +2432,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network nsg show",
-      "aliases": [],
+      "canonicalCommand": "network nsg show",
+      "handlerCommand": "network nsg show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1842,11 +2461,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network nsg rule create",
-      "aliases": [],
+      "canonicalCommand": "network nsg rule create",
+      "handlerCommand": "network nsg rule create",
       "effect": "destructive",
       "capability": "native",
       "flags": {
@@ -1878,11 +2504,18 @@
         "no-wait": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network nic list",
-      "aliases": [],
+      "canonicalCommand": "network nic list",
+      "handlerCommand": "network nic list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1899,11 +2532,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network nic show",
-      "aliases": [],
+      "canonicalCommand": "network nic show",
+      "handlerCommand": "network nic show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1921,11 +2561,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network vnet list",
-      "aliases": [],
+      "canonicalCommand": "network vnet list",
+      "handlerCommand": "network vnet list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1942,11 +2589,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network vnet show",
-      "aliases": [],
+      "canonicalCommand": "network vnet show",
+      "handlerCommand": "network vnet show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1964,11 +2618,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network public-ip list",
-      "aliases": [],
+      "canonicalCommand": "network public-ip list",
+      "handlerCommand": "network public-ip list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1985,11 +2646,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network public-ip show",
-      "aliases": [],
+      "canonicalCommand": "network public-ip show",
+      "handlerCommand": "network public-ip show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2007,11 +2675,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network private-endpoint list",
-      "aliases": [],
+      "canonicalCommand": "network private-endpoint list",
+      "handlerCommand": "network private-endpoint list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2028,11 +2703,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network private-endpoint show",
-      "aliases": [],
+      "canonicalCommand": "network private-endpoint show",
+      "handlerCommand": "network private-endpoint show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2050,11 +2732,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns zone list",
-      "aliases": [],
+      "canonicalCommand": "network dns zone list",
+      "handlerCommand": "network dns zone list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2071,11 +2760,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns zone show",
-      "aliases": [],
+      "canonicalCommand": "network dns zone show",
+      "handlerCommand": "network dns zone show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2093,11 +2789,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy assignment list",
-      "aliases": [],
+      "canonicalCommand": "policy assignment list",
+      "handlerCommand": "policy assignment list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2114,11 +2817,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy assignment show",
-      "aliases": [],
+      "canonicalCommand": "policy assignment show",
+      "handlerCommand": "policy assignment show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2136,11 +2846,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy definition list",
-      "aliases": [],
+      "canonicalCommand": "policy definition list",
+      "handlerCommand": "policy definition list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2156,11 +2873,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy definition show",
-      "aliases": [],
+      "canonicalCommand": "policy definition show",
+      "handlerCommand": "policy definition show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2177,11 +2900,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy set-definition list",
-      "aliases": [],
+      "canonicalCommand": "policy set-definition list",
+      "handlerCommand": "policy set-definition list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2197,11 +2926,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy set-definition show",
-      "aliases": [],
+      "canonicalCommand": "policy set-definition show",
+      "handlerCommand": "policy set-definition show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2218,11 +2953,17 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "policy state list",
-      "aliases": [],
+      "canonicalCommand": "policy state list",
+      "handlerCommand": "policy state list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2241,11 +2982,18 @@
         "compliance": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "lock list",
-      "aliases": [],
+      "canonicalCommand": "lock list",
+      "handlerCommand": "lock list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2262,11 +3010,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "lock show",
-      "aliases": [],
+      "canonicalCommand": "lock show",
+      "handlerCommand": "lock show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2284,11 +3039,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "deny-assignment list",
-      "aliases": [],
+      "canonicalCommand": "deny-assignment list",
+      "handlerCommand": "deny-assignment list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2305,11 +3067,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "deny-assignment show",
-      "aliases": [],
+      "canonicalCommand": "deny-assignment show",
+      "handlerCommand": "deny-assignment show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2327,11 +3096,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "role definition list",
-      "aliases": [],
+      "canonicalCommand": "role definition list",
+      "handlerCommand": "role definition list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2349,11 +3125,18 @@
         "custom-role-only": "boolean"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "role definition show",
-      "aliases": [],
+      "canonicalCommand": "role definition show",
+      "handlerCommand": "role definition show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2371,11 +3154,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set list",
+      "handlerCommand": "network dns record-set list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2393,11 +3183,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set a list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set a list",
+      "handlerCommand": "network dns record-set a list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2415,11 +3212,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set a show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set a show",
+      "handlerCommand": "network dns record-set a show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2438,11 +3242,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set aaaa list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set aaaa list",
+      "handlerCommand": "network dns record-set aaaa list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2460,11 +3271,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set aaaa show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set aaaa show",
+      "handlerCommand": "network dns record-set aaaa show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2483,11 +3301,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set caa list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set caa list",
+      "handlerCommand": "network dns record-set caa list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2505,11 +3330,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set caa show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set caa show",
+      "handlerCommand": "network dns record-set caa show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2528,11 +3360,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set cname list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set cname list",
+      "handlerCommand": "network dns record-set cname list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2550,11 +3389,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set cname show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set cname show",
+      "handlerCommand": "network dns record-set cname show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2573,11 +3419,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set mx list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set mx list",
+      "handlerCommand": "network dns record-set mx list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2595,11 +3448,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set mx show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set mx show",
+      "handlerCommand": "network dns record-set mx show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2618,11 +3478,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set ns list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set ns list",
+      "handlerCommand": "network dns record-set ns list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2640,11 +3507,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set ns show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set ns show",
+      "handlerCommand": "network dns record-set ns show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2663,11 +3537,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set ptr list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set ptr list",
+      "handlerCommand": "network dns record-set ptr list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2685,11 +3566,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set ptr show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set ptr show",
+      "handlerCommand": "network dns record-set ptr show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2708,11 +3596,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set soa list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set soa list",
+      "handlerCommand": "network dns record-set soa list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2730,11 +3625,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set soa show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set soa show",
+      "handlerCommand": "network dns record-set soa show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2753,11 +3655,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set srv list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set srv list",
+      "handlerCommand": "network dns record-set srv list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2775,11 +3684,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set srv show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set srv show",
+      "handlerCommand": "network dns record-set srv show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2798,11 +3714,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set txt list",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set txt list",
+      "handlerCommand": "network dns record-set txt list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2820,11 +3743,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "network dns record-set txt show",
-      "aliases": [],
+      "canonicalCommand": "network dns record-set txt show",
+      "handlerCommand": "network dns record-set txt show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2843,11 +3773,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "vm list",
-      "aliases": [],
+      "canonicalCommand": "vm list",
+      "handlerCommand": "vm list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2864,11 +3801,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "vm show",
-      "aliases": [],
+      "canonicalCommand": "vm show",
+      "handlerCommand": "vm show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2886,11 +3830,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "vm get-instance-view",
-      "aliases": [],
+      "canonicalCommand": "vm get-instance-view",
+      "handlerCommand": "vm get-instance-view",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2908,11 +3859,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "vmss list",
-      "aliases": [],
+      "canonicalCommand": "vmss list",
+      "handlerCommand": "vmss list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2929,11 +3887,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "vmss show",
-      "aliases": [],
+      "canonicalCommand": "vmss show",
+      "handlerCommand": "vmss show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2951,11 +3916,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "vmss get-instance-view",
-      "aliases": [],
+      "canonicalCommand": "vmss get-instance-view",
+      "handlerCommand": "vmss get-instance-view",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2973,11 +3945,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "disk list",
-      "aliases": [],
+      "canonicalCommand": "disk list",
+      "handlerCommand": "disk list",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2994,11 +3973,18 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     },
     {
       "command": "disk show",
-      "aliases": [],
+      "canonicalCommand": "disk show",
+      "handlerCommand": "disk show",
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3016,6 +4002,12 @@
         "name": "value"
       },
       "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name"
+      },
       "positionalInput": false
     }
   ]

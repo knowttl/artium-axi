@@ -25,6 +25,8 @@ Azure write capability remains unavailable pending executable commissioning of a
 
 The review revision adds native profile write-setting inventories with pinned source hashes and retains only the upstream synthetic stream fixtures and fixed `artium-test-node22` harness image.
 Focused review verification covers these inventories and synthetic executable behavior.
+Route inventories now keep Azure canonical and alias inputs separate, record accepted short flags and Graph positional/help contracts, and distinguish native environment defaults from profile-selected credential variables.
+`test/upstream-parser-inventory.test.ts` exercises the pinned routers and synthetic federated assertion files without contacting a service.
 Frozen install, full lint/tests/check, private hygiene and revised container evidence remain pending with the outer validation executor for the final candidate.
 
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
