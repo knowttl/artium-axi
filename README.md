@@ -446,7 +446,8 @@ These shared schemas also validate the adapters' native profile settings.
 No executable path, tool installation or caller-selected health command is accepted.
 Azure configuration remains editable, but its runtime enable and test operations remain disabled until the pinned upstream retry issue is resolved.
 `GET /v1/admin/tools/{tool}/credential` returns only allowlisted non-secret metadata, configuration state, revision and last change time/actor.
-`PUT /v1/admin/tools/{tool}/credential` accepts a complete adapter-specific `value` and `expectedRevision`, using revision `0` for the first credential.
+`PUT /v1/admin/tools/{tool}/credential` accepts a complete adapter-specific `value`, `expectedRevision` and `expectedToolRevision`, using credential revision `0` for the first credential and the tool revision observed in `GET /v1/admin/tools`.
+Both revisions are checked atomically before either record changes, so a stale credential form cannot overwrite newer native settings even when the tool has no credential yet.
 No response returns a credential value, token, private key or client secret; Falcon's client ID is also withheld because that adapter treats it as a scan secret.
 The replacement splits native settings into the tool configuration and encrypts the remaining credential fields, updating both records with one audit commit.
 It advances the tool revision as well as the credential revision, clears cached health and immediately evicts old Azure resource tokens and pending acquisitions.

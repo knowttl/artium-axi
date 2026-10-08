@@ -64,6 +64,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database):
             content += `<p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Stored values are never displayed.</p>${changed(db, credential)}
               <p>${escape(credentialGuide[tool.name])}</p><p>Provide the complete replacement, including any native settings to retain.</p>`
             content += form(api + '/credential', 'PUT', credential.configured ? 'Replace credential' : 'Set credential', revision(credential.revision) +
+              `<input type="hidden" name="expectedToolRevision" data-type="number" value="${escape(tool.revision)}">` +
               '<label>New credential (JSON object) <textarea name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea></label>', 'Replace the complete credential and its native settings?')
             if (tool.name !== 'az-axi') content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
             content += '<p data-test-result role="status"></p>'

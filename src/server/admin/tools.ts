@@ -126,7 +126,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
-      readTool(tool)
+      const current = readTool(tool)
+      if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
       const now = Date.now()
       replacement = credentialStore().replaceCredential(tool, credential, input.expectedRevision, actor, now)
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
