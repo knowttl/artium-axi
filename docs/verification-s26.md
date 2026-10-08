@@ -18,7 +18,7 @@ The adapter restricts file inputs to supplied uploads and normalizes equals form
 The pinned clients own fixed API origins, metadata endpoint name validation and opaque continuation markers.
 Local config, setup, Azure CLI passthrough and unknown routes remain adapter gaps.
 
-`pnpm build && pnpm test:fake-services` executes the real compiled adapter, MSAL fake transport, runner and pinned az-axi in an isolated internal Docker network with synthetic DNS and a trusted ephemeral CA.
+`pnpm test:fake-services` completes compilation before executing the real compiled adapter, MSAL fake transport, runner and pinned az-axi in an isolated internal Docker network with synthetic DNS and a trusted ephemeral CA.
 The client has no default route and the harness proves outside TCP is denied.
 It reads ARM subscriptions, Log Analytics query rows, Graph users, Storage blob listings, Key Vault secret properties and Registry repositories in token mode.
 The first ARM read mints only ARM, and each subsequent resource mints only its own audience.

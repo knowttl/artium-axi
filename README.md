@@ -14,6 +14,15 @@ The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test ce
 On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
+Compilation is reused only for the same head, Node version, source/toolchain input digest and intact compiled-output digest.
+Run `pnpm test:containers` for the full fake-only container acceptance block after `pnpm check`.
+It completes compilation before probes, runs the runner resource checks, walking skeleton and both fake-service modes, and removes its unique `artium-test-*` images and private tmpfs BuildKit cache.
+The task-owned worker uses two CPUs, a 4 GiB memory bound and an executable 3 GiB tmpfs cache with overlayfs, retaining layers across the block's image builds until final cleanup.
+Image builds verify the task worker's root and ownership token and remove each exported temporary archive; the block owns worker/cache cleanup.
+Standalone image builds instead create and remove their own private worker/cache and exported archive without touching the shared Docker builder.
+The block emits head/input/output evidence and individual image-build timings.
+Use `pnpm test:containers --measure-cache` to additionally measure an identical-input warm runner build with the same resource probes.
+Keep this output with candidate verification evidence; changed relevant inputs invalidate earlier container results.
 The executable toolchain tests compile synthetic TypeScript and run its emitted ESM with Node, and verify strict null checking rejects an invalid assignment.
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
@@ -338,7 +347,7 @@ It requires Docker, OpenSSL and an image named `artium-test-node22` containing N
 Run `pnpm test:build-image` to build it from the digest-pinned official Node 22 bookworm-slim base in `test/fake-service/Dockerfile`.
 The build requires an existing `moby/buildkit:buildx-stable-1` image and permits fetching the public Node base.
 It uses a uniquely named, privileged `artium-test-` BuildKit container with bounded CPU and memory, and cache on private tmpfs.
-Its finalizer removes that builder, cache and exported temporary archive without touching the shared Docker builder.
+See the container acceptance block above for standalone and combined worker/cache cleanup.
 It refuses to replace an existing `artium-test-node22` image.
 An existing suitable Node image can be tagged with `docker image tag <existing-node-image> artium-test-node22`.
 The harness never pulls an image, builds one, publishes ports or alters existing containers.
@@ -359,7 +368,8 @@ mg-axi is installed for inventory checks only and has no production tool path or
 
 Run `node scripts/build-fake-service-image.mjs --production` to build `artium-axi:local` using the private BuildKit worker.
 This larger build uses overlayfs and an executable 3 GiB tmpfs cache with a 4 GiB memory bound.
-The worker and cache are removed on exit, and an existing image is never replaced.
+Worker/cache cleanup follows the standalone and combined ownership contract above.
+An existing image is never replaced.
 Run `docker run --rm --network none --read-only --tmpfs /tmp artium-axi:local node scripts/native-smoke.mjs` to verify SQLite persistence across reopen, Argon2id hash/verify and an esbuild bundle executed with Node.
 Run the same command with `scripts/falcon-smoke.mjs` to verify unknown-origin refusal and explicit canary delivery to a loopback TLS fake.
 Remove the owned image afterwards with `docker image rm artium-axi:local`.
@@ -367,7 +377,8 @@ Remove the owned image afterwards with `docker image rm artium-axi:local`.
 [`compose.example.yaml`](compose.example.yaml) records the loopback port, read-only root, `/tmp` tmpfs, `/data` volume and file-backed Docker master-key secret.
 It also sets an init process for orphan reaping, a 6 GiB memory limit, a 192-task limit and a 256 MiB `/tmp` tmpfs.
 Run `pnpm test:runner-container` for the separate mandatory Linux cgroup and full-tmpfs checks.
-It builds a unique `artium-test-runner-s09-10-<uuid>` image with a private `artium-test-` BuildKit worker, tests a non-root read-only runtime without network access, and removes its containers, image and private build cache on completion.
+It builds a unique `artium-test-runner-s09-10-<uuid>` image, tests a non-root read-only runtime without network access, and removes its containers and image on completion.
+Worker/cache cleanup follows the standalone and combined ownership contract above.
 The builder owns its Docker operation deadlines; the harness waits for its cleanup without an enclosing kill deadline.
 The checks verify the configured 6 GiB bound and force a resident-memory OOM at a smaller synthetic 256 MiB cgroup bound, without stressing the host with a 6 GiB allocation.
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
