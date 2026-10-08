@@ -3,7 +3,7 @@
 The [shared API contract](../src/shared/api.ts) owns strict login requests and the two success shapes.
 The [token module](../src/server/auth/tokens.ts) owns random issuance, hash lookup, token types, deadlines and user session revocation.
 The [local provider](../src/server/auth/local.ts) checks password proofs and rechecks token validity inside the audited password-change transaction after hashing.
-See [README.md](../README.md) for current usage and the client-only legacy access-token file setting.
+See [README.md](../README.md) for current sign-in usage and CLI session storage.
 The existing [AGENTS.md](../AGENTS.md) pointers to package commands and README verification remain current.
 
 Use only synthetic accounts, canary passwords, temporary stores and fake upstream services.

@@ -15,7 +15,12 @@ export const errors = {
   MAINTENANCE_BUSY: { status: 503, message: 'The store is held by another server or maintenance process.', next: 'Stop the server and wait for maintenance to finish before retrying.' },
   MAINTENANCE_UNAVAILABLE: { status: 503, message: 'The store maintenance lock is unavailable.', next: 'Check data-volume capacity and permissions.' },
   ROTATION_FAILED: { status: 500, message: 'Master key rotation did not complete.', next: 'Keep both keys. Inspect the durable key_rotations receipt and restart with its latest new_key_id, or the old key if no rotation committed.' },
-  CLIENT_CONFIG_INVALID: { status: 400, message: 'The CLI server or development token configuration is invalid.', next: 'Set ARTIUM_AXI_URL to an HTTPS URL and ARTIUM_AXI_DEV_TOKEN_FILE to an owner-only token file; optionally set ARTIUM_AXI_CA_FILE.' },
+  CLIENT_CONFIG_INVALID: { status: 400, message: 'The CLI server configuration is invalid.', next: 'Set ARTIUM_AXI_URL to an HTTPS URL; optionally set ARTIUM_AXI_CA_FILE. Windows requires APPDATA.' },
+  SESSION_STORAGE_UNAVAILABLE: { status: 500, message: 'Secure CLI session storage is unavailable.', next: 'Check your configuration folder permissions and capacity, then sign in again.' },
+  SESSION_SERVER_MISMATCH: { status: 400, message: 'The stored session belongs to a different server.', next: 'Restore ARTIUM_AXI_URL or use artium-axi logout before signing in to the new server.' },
+  SESSION_BUSY: { status: 503, message: 'Another CLI process holds the session lock.', next: 'Wait for the other CLI process. If all CLI processes exited, remove the session.lock directory in your artium-axi configuration folder.' },
+  SESSION_CHANGED: { status: 409, message: 'The signed-in user changed during this operation.', next: 'Check the signed-in identity before starting a new operation.' },
+  PASSWORD_CHANGE_REQUIRED: { status: 409, message: 'Change your temporary password before using tools.', next: 'Run artium-axi passwd --password-stdin.' },
   SERVER_UNAVAILABLE: { status: 503, message: 'The CLI could not receive a server response.', next: 'Check the server address and certificate trust; confirm the previous call outcome before retrying.' },
   INVALID_RESPONSE: { status: 500, message: 'The server returned an invalid response.', next: 'Check the server URL and API version.' },
   DEV_AUTH_INVALID: { status: 503, message: 'Development authentication settings are unsupported.', next: 'Remove ARTIUM_AXI_DEV and ARTIUM_AXI_DEV_TOKEN_FILE and use local sign-in.' },
@@ -50,12 +55,12 @@ export type ErrorCode = keyof typeof errors
 export class ArtiumError extends Error {
   readonly source = 'artium-axi'
   readonly next: string
-  constructor(readonly code: ErrorCode, message: string = errors[code].message, next: string = errors[code].next) {
+  constructor(readonly code: ErrorCode, message: string = errors[code].message, next: string = errors[code].next, readonly requestId?: string) {
     super(message)
     this.next = next
   }
 }
 
 export function errorResponse(error: ArtiumError, requestId: string) {
-  return { error: { code: error.code, source: error.source, message: error.message, next: error.next, requestId } }
+  return { error: { code: error.code, source: error.source, message: error.message, next: error.next, requestId: error.requestId ?? requestId } }
 }

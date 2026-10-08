@@ -21,7 +21,7 @@ The real API integration test runs the bundle against Fastify, SQLite and the ru
 
 The walking-skeleton harness builds the actual production Dockerfile and starts its normal server entry point.
 It seeds encrypted synthetic credentials in disposable data volumes.
-See [S30 verification](verification-s30.md) for the bootstrap, password-change and sign-in checks that supply its CLI access token.
+See [S36+S37 verification](verification-s36-37.md) for the bundled first-login, password-change and sign-in checks that establish its CLI session.
 See [S22+S23 verification](verification-s22-23.md) for the added Vectra harness acceptance.
 An internal Docker network resolves the fixed Falcon origin to the fake TLS service, with a synthetic CA bound over the pinned Python certificate bundle.
 Both the CLI and local pinned Falcon binary execute inside that isolated network.
