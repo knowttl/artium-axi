@@ -47,7 +47,7 @@ it('migrates an empty store and persists the identity relationships on reopen', 
   `)
   db.close()
   db = openStore(file, provider)
-  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }])
+  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }])
   expect(db.prepare(`SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'person'`).all())
     .toEqual([{ tool: 'falcon-axi' }])
   expect(db.prepare('SELECT source, administrator, revision FROM users WHERE id = ?').get('person'))
