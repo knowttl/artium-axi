@@ -1,4 +1,6 @@
 export const errors = {
+  MASTER_KEY_INVALID: { status: 503, message: 'The master key is missing or invalid.', next: 'Supply a 32-byte master key file or a base64 master key.' },
+  CREDENTIAL_INVALID: { status: 503, message: 'A stored credential could not be authenticated.', next: 'Restore the matching master key and an intact credential store.' },
   FLAG_BLOCKED: { status: 400, message: 'The arguments override the managed tool boundary.', next: 'Remove destination, tenant, credential or local configuration overrides.' },
   CREDENTIAL_UNAVAILABLE: { status: 503, message: 'The tool credential is unavailable.', next: 'Ask the administrator to check the tool configuration and secret files.' },
   INVALID_INPUT: { status: 400, message: 'The run input is invalid.', next: 'Check the arguments, stdin and uploaded files.' },
