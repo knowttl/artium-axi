@@ -1,4 +1,7 @@
 export const errors = {
+  MAINTENANCE_BUSY: { status: 503, message: 'The store is held by another server or maintenance process.', next: 'Stop the server and wait for maintenance to finish before retrying.' },
+  MAINTENANCE_UNAVAILABLE: { status: 503, message: 'The store maintenance lock is unavailable.', next: 'Check data-volume capacity and permissions.' },
+  ROTATION_FAILED: { status: 500, message: 'Master key rotation did not complete.', next: 'Keep both keys. Inspect the durable key_rotations receipt and restart with its latest new_key_id, or the old key if no rotation committed.' },
   CLIENT_CONFIG_INVALID: { status: 400, message: 'The CLI server or development token configuration is invalid.', next: 'Set ARTIUM_AXI_URL to an HTTPS URL and ARTIUM_AXI_DEV_TOKEN_FILE to an owner-only token file; optionally set ARTIUM_AXI_CA_FILE.' },
   SERVER_UNAVAILABLE: { status: 503, message: 'The CLI could not receive a server response.', next: 'Check the server address and certificate trust; confirm the previous call outcome before retrying.' },
   INVALID_RESPONSE: { status: 500, message: 'The server returned an invalid response.', next: 'Check the server URL and API version.' },

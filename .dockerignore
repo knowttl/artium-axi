@@ -8,6 +8,8 @@
 tools/node_modules
 !src/
 !src/**
+!bin/
+!bin/artium-axi-server
 !scripts/
 !scripts/native-smoke.mjs
 !scripts/falcon-smoke.mjs

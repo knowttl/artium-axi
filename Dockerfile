@@ -15,20 +15,21 @@ RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runt
 WORKDIR /opt/artium
 COPY tsconfig.json ./
 COPY src ./src
+COPY bin ./bin
 COPY tools/inventories ./tools/inventories
 COPY scripts/build-cli.mjs ./scripts/build-cli.mjs
 COPY scripts/native-smoke.mjs ./scripts/native-smoke.mjs
 COPY scripts/falcon-smoke.mjs ./scripts/falcon-smoke.mjs
 COPY test/fake-service/certificates.mjs ./test/fake-service/certificates.mjs
 RUN --network=none node scripts/native-smoke.mjs
-RUN pnpm exec tsc src/server/main.ts --rootDir . --outDir dist --module NodeNext --target ES2022 --strict --resolveJsonModule --esModuleInterop --skipLibCheck && cp -R src/server/store/migrations dist/src/server/store/ && node scripts/build-cli.mjs
+RUN pnpm exec tsc src/server/main.ts src/server/maintenance.ts --rootDir . --outDir dist --module NodeNext --target ES2022 --strict --resolveJsonModule --esModuleInterop --skipLibCheck && cp -R src/server/store/migrations dist/src/server/store/ && node scripts/build-cli.mjs && chmod +x bin/artium-axi-server
 
 FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data
 COPY --from=builder /opt/falcon-axi /opt/falcon-axi
 COPY --from=builder /opt/tools /opt/tools
 COPY --from=builder /opt/artium /opt/artium
-ENV PATH="/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:$PATH"
+ENV PATH="/opt/artium/bin:/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:$PATH"
 WORKDIR /opt/artium
 USER artium
 EXPOSE 8080
