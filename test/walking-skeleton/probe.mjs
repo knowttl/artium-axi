@@ -57,6 +57,14 @@ try {
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)
     assert.match(listing.stdout, /falcon-axi,unknown,"0.3.0"/)
+    const home = await cli([])
+    assert.equal(home.code, 0, home.stdout + home.stderr)
+    assert.match(home.stdout, /user: "synthetic-admin"/)
+    assert.match(home.stdout, /roles\[1\]/)
+    assert.match(home.stdout, /artium-axi tools show falcon-axi/)
+    const detail = await cli(['tools', 'show', 'falcon-axi'])
+    assert.equal(detail.code, 0, detail.stdout + detail.stderr)
+    assert.match(detail.stdout, /example: artium-axi falcon-axi detection list/)
     if (process.argv[2] === 'canary') {
       const result = await cli(['falcon-axi', 'env'])
       assert.equal(result.code, 1)
@@ -67,7 +75,7 @@ try {
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', canary: 'fake env emits injected secret; CLI receives SECRET_IN_OUTPUT without either stream' }))
     } else {
       const clean = text => text.replace(/^(?:duration_ms|elapsed_ms|durationMs):.*\n/gm, '')
-      for (const args of [['detection', 'list'], ['detection', 'list', '--limit', '1'],
+      for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], ['detection', 'list', '--limit', '1'],
         ['detection', 'list', '--filter', "hostname:'synthetic-empty'"], ['detection', 'list', '--unknown']]) {
         const local = await execute('/opt/falcon-axi/bin/falcon-axi', [...args, '--region', 'us-1'], {
           FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
@@ -75,7 +83,7 @@ try {
         const remote = await cli(['falcon-axi', ...args])
         assert.deepEqual({ ...remote, stdout: clean(remote.stdout), stderr: clean(remote.stderr) },
           { ...local, stdout: clean(local.stdout), stderr: clean(local.stderr) })
-        if (!args.includes('--unknown') && !args.includes('--filter')) assert.match(remote.stdout, /synthetic-detection/)
+        if (!args.includes('--unknown') && !args.includes('--filter') && !args.includes('--help')) assert.match(remote.stdout, /synthetic-detection/)
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
       }
       const redaction = await execute('/opt/falcon-axi/bin/falcon-axi', ['detection', 'list', '--filter', "hostname:'synthetic-redaction'", '--region', 'us-1'], {
@@ -105,9 +113,20 @@ try {
       const tagArgs = ['detection', 'tag', 'set', '--id', '42', '--tags', 'synthetic']
       const prepared = await adapter.prepare(tagArgs, { id: 'synthetic-vectra', tool: 'vectra-axi' })
       for (const file of prepared.files) writeFileSync(join(directory, file.name), file.content, { mode: 0o600 })
-      for (const args of [['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
+      const vectraDetail = await cli(['tools', 'show', 'vectra-axi'])
+      assert.equal(vectraDetail.code, 0, vectraDetail.stdout + vectraDetail.stderr)
+      assert.match(vectraDetail.stdout, /example: artium-axi vectra-axi detection list/)
+      for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
         const local = await execute(prepared.executable, args, prepared.environment)
         const remote = await cli(['vectra-axi', ...args])
+        if (args.length === 0) {
+          // Home reports the generated profile location, which belongs to each call's temp directory.
+          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/vectra-profile\.json$/m
+          assert.match(remote.stdout, privateConfig)
+          assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-profile.json')}\n`))
+          remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-profile.json')
+          local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-profile.json')}`, '  config: <private call>/vectra-profile.json')
+        }
         assert.deepEqual(remote, local)
       }
       assert.equal((await requests()).mutations, 0)

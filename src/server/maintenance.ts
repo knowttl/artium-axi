@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 import { serverDefaults } from './config.js'
 import { EnvironmentKeyProvider } from './store/key-provider.js'
 import { rotateKey } from './store/rotate-key.js'
-import { ArtiumError, errorResponse } from '../shared/errors.js'
+import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { recoverAdministrator } from './auth/recover-admin.js'
 
 const args = process.argv.slice(2)
@@ -34,5 +34,5 @@ try {
 } catch (error) {
   const safe = error instanceof ArtiumError ? error : new ArtiumError(args[0] === 'recover-admin' ? 'RECOVERY_FAILED' : 'ROTATION_FAILED')
   process.stdout.write(`error:\n${Object.entries(errorResponse(safe, 'maintenance').error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
-  process.exitCode = safe.code === 'INVALID_INPUT' ? 2 : 1
+  process.exitCode = errors[safe.code].exitCode
 }

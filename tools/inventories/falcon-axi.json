@@ -349,5 +349,24 @@
   "suggestionFields": [
     "help"
   ],
+  "discovery": {
+    "commands": [
+      "home",
+      "detection",
+      "host",
+      "account",
+      "vuln",
+      "cve",
+      "identity",
+      "search",
+      "auth",
+      "scopes"
+    ],
+    "example": [
+      "detection",
+      "list"
+    ],
+    "help": "falcon-axi detection list [--severity <name>] [--status <name>] [--product <name>] [--since <window>] [--filter <FQL>] [--limit N] [--cursor <token>]\n\n--severity   one of informational, low, medium, high, critical\n--status     one of new, in_progress, closed, reopened\n--product    one of epp, idp, mobile, xdr, overwatch, cwpp, ngsiem, thirdparty, data-protection; epp is endpoint alerts, idp is Identity Protection\n--since      relative window such as 24h or 7d\n--filter     raw FQL; + is AND, `,` is OR, values are single-quoted, relative dates are lowercase\n--limit      rows in this call (default 20, ceiling 10000)\n--cursor     opaque continuation token from a previous call\n\nFilterable fields include severity_name, status, product, tactic, technique, created_timestamp,\nand device.hostname.\nIdentity Protection alerts have no device: their rows show the endpoint they came from as hostname\n(or `n/a`) and add account, account_id, device_id, and product columns when the page holds any.\nExamples:\n  falcon-axi detection list --severity high --since 24h\n  falcon-axi detection list --product idp --since 7d\n  falcon-axi detection list --filter \"severity_name:'Critical'+status:'new'\"\n\nThis command is read-only and requires only Alerts:read."
+  },
   "acceptance": "Local fake-only evidence; live region, read and search timing remain unverified"
 }
