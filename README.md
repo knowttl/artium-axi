@@ -38,8 +38,7 @@ The same harness now exercises pinned Vectra reads, native write gates and durab
 See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance and output-redaction limits.
 
 Azure secret and certificate token minting and the resource token cache are implemented internally; Azure commands are not yet available through Artium.
-See [S24 verification](docs/verification-s24.md) for authentication and [S25 verification](docs/verification-s25.md) for lazy resources, refresh, deadlines, backoff, coalescing and revision eviction.
-Azure profile preparation and command execution remain S26, with live acceptance deferred.
+See [S24 verification](docs/verification-s24.md) for authentication and [S25 verification](docs/verification-s25.md) for the cache contract, remaining adapter work and deferred live acceptance.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
@@ -71,6 +70,7 @@ mg-axi is inventoried for phase 8, with no production adapter enabled.
 Regenerate them with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
 These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
+The [Azure inventory](tools/inventories/az-axi.json) also owns reviewed route resource requirements and their pinned source hashes; [S25 verification](docs/verification-s25.md) describes conditional resource selection.
 The native write gates remain upstream-owned.
 
 The [Vectra adapter](src/server/adapters/vectra.ts) accepts QUX v2.5 token or OAuth credentials and RUX v3.4 OAuth credentials.
