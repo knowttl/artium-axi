@@ -14,6 +14,8 @@ Exact output assertions prove that only suggestion commands change, followed by 
 Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
 `test/cli.test.ts` exercises the standalone bundle over local trusted HTTPS with synthetic tokens, separate TOON stdout and JSON stderr, upstream exit 7 and stream-specific truncation.
 The bundled test failed against the original passthrough with both prefixes absent and exit 7 preserved.
+The first full-suite run exposed existing timeouts in the 30-attempt address-limit test and the multi-hash password-change flow.
+Their test budgets now accommodate real Argon2 work under concurrent suite load without weakening assertions or production hashing settings.
 `test/walking-skeleton/probe.mjs` compares the pinned Falcon and Vectra tools against the bundled client through the real fake-only container server, permitting the wrapper prefix only in root suggestion fields.
 AGENTS.md's existing README pointer remains factually correct and requires no change.
 
