@@ -369,7 +369,8 @@ Run responses use the exact shared success or error envelope, preserving upstrea
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
 User administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
 `GET /v1/admin/users` accepts `cursor` and `limit` (1 to 100); account fields exclude password hashes.
-`POST /v1/admin/users` accepts `username`, `displayName`, `temporaryPassword`, `administrator` and `roleIds`, returning 201 with the public account.
+Pass the response's `nextCursor` as the next request's `cursor`; a null `nextCursor` marks the final page.
+`POST /v1/admin/users` accepts `username`, `displayName`, `temporaryPassword`, `administrator` and `roleIds`, returning 201 with the public account and requiring a password change at first sign-in.
 `PATCH /v1/admin/users/{id}` accepts `displayName`, `enabled` and/or `administrator`, together with `expectedRevision`.
 `POST /v1/admin/users/{id}/unlock` clears account lockout; `POST /v1/admin/users/{id}/password-reset` accepts `temporaryPassword` and forces a password change.
 Both clear the canonical username's in-memory attempt counter on the handling server after the database mutation and audit commit, allowing immediate sign-in subject to the unchanged per-address limit.
