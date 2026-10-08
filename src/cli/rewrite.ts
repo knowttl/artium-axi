@@ -18,23 +18,23 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     // A command starts a suggestion line or a complete quoted command.
     const commands = /(?:^|\n)[ \t]*(?:Run |Use )?([`'"]?)([^\n]*)/g
-    const commandLines: [number, number][] = []
+    const commandRanges: [number, number][] = []
     for (const match of span.value.matchAll(commands)) {
       const quote = match[1]
       const command = match[2]
-      if (!quote && /^(?:artium-axi )?\S+-axi(?:\s|$)/.test(command)) commandLines.push([match.index!, match.index! + match[0].length])
+      if (!quote && /^(?:artium-axi )?\S+-axi(?:\s|$)/.test(command)) commandRanges.push([match.index!, match.index! + match[0].length])
       const wrapped = command.startsWith(`artium-axi ${tool}`)
       const executable = wrapped ? `artium-axi ${tool}` : tool
       const remainder = command.slice(executable.length)
       if (!command.startsWith(executable) || !(remainder === '' || /^\s/.test(remainder) || (quote && remainder.startsWith(quote)))) continue
       if (quote && !command.includes(quote)) return output
-      commandLines.push([match.index!, match.index! + match[0].length])
-      if (wrapped) continue
       const start = match.index! + match[0].length - command.length
+      commandRanges.push([match.index!, quote ? start + command.indexOf(quote) + 1 : match.index! + match[0].length])
+      if (wrapped) continue
       insertions.add(span.start + offsets[start])
     }
     for (const match of span.value.matchAll(/([`'"])([^\n]*?)\1/g)) {
-      if (commandLines.some(([start, end]) => match.index! >= start && match.index! < end)) continue
+      if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
       if (match[2].startsWith(tool) && /^(?:\s|$)/.test(match[2].slice(tool.length))) {
         insertions.add(span.start + offsets[match.index! + 1])
       }

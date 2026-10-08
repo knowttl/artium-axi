@@ -35,6 +35,24 @@ test.each([
 })
 
 test.each([
+  { format: 'JSON scalar', encode: (value: string) => JSON.stringify({ help: value }) },
+  { format: 'JSON list', encode: (value: string) => JSON.stringify({ help: [value] }) },
+  { format: 'TOON scalar', encode: (value: string) => `help: ${value}\n` },
+  { format: 'TOON quoted scalar', encode: (value: string) => `help: ${JSON.stringify(value)}\n` },
+  { format: 'TOON list', encode: (value: string) => `help[1]:\n  ${JSON.stringify(value)}\n` },
+  { format: 'TOON inline list', encode: (value: string) => `help[1]: ${JSON.stringify(value)}\n` },
+].flatMap(({ format, encode }) => ['`', "'", '"'].flatMap(quote => ['', 'artium-axi '].map(prefix =>
+  ({ format, encode, quote, prefix })))))('rewrites same-line commands in $format with $quote and prefix "$prefix"', ({ encode, quote, prefix }) => {
+  const argumentQuote = quote === "'" ? '"' : "'"
+  const first = `falcon-axi host list --filter ${argumentQuote}falcon-axi host show${argumentQuote}`
+  const input = encode(`Run ${quote}${prefix}${first}${quote} or ${quote}falcon-axi host show --id 7${quote}`)
+  const expected = encode(`Run ${quote}artium-axi ${first}${quote} or ${quote}artium-axi falcon-axi host show --id 7${quote}`)
+  expect(rewriteSuggestions(input, 'falcon-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'falcon-axi')).toBe(expected)
+  expect(rewriteSuggestions(input, 'falcon-axi', true)).toBe(input)
+})
+
+test.each([
   'help[2]:\n  Run `falcon-axi host list`\n',
   'help[2]: Run `falcon-axi host list`\n',
   'help[1]: "Run `falcon-axi host list`\n',
