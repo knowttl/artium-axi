@@ -10,8 +10,11 @@ import { commandHelp, helpCommand } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
 
 async function main(args: string[]) {
+  const prefixHelp = args[0] === '--help'
+  if (prefixHelp) args = args.slice(1)
   const command = args[0]
-  const help = helpCommand(args)
+  const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
+  if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
   if (help) { process.stdout.write(commandHelp(help)); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')

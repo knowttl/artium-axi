@@ -121,8 +121,6 @@ for (const [tool, commands] of Object.entries(inventories)) {
         flags: Object.fromEntries(Object.entries(vectra.help('detection list').flags)
           .filter(([flag]) => !/^--(?:config|profile)\b/.test(flag))),
         combinations: [], examples: ['vectra-axi detection list'] } } } : {}),
-    ...(tool === 'az-axi' ? { discovery: { commands: [...new Set(commands.filter(entry => entry.tokenResources !== null)
-      .map(entry => entry.command.split(' ')[0]))], example: ['group', 'list'], help: az.COMMAND_HELP.group } } : {}),
     ...(tool === 'az-axi' ? { adapterBoundary: {
       unsafeOverrides: ['config', 'profile', 'tenant'], inputFileFlags: ['file', 'body-file'],
       sensitiveFlags: ['body', 'graph-query', 'analytics-query', 'query', 'note'],

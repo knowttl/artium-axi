@@ -135,8 +135,8 @@ test('doctor shows a failed tool after a manual test of a wrong fake credential'
     headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {} })
   expect(response.statusCode).toBe(503)
   expect(response.json()).toMatchObject({ error: { code: 'CREDENTIAL_UNAVAILABLE' } })
-  expect(await cli(['doctor'])).toMatchObject({ code: 1, stdout:
-    'pass: server address\nfail: certificate (test HTTP)\npass: token\npass: CLI version\nfail: falcon-axi (error)\n' })
+  expect(await cli(['doctor'])).toMatchObject({ code: 2, stdout: expect.stringMatching(
+    /^pass: server address\nfail: certificate \(test HTTP\)\npass: token\npass: CLI version\nfail: falcon-axi \(error\)\nerror:\n  code: "CLIENT_CONFIG_INVALID"\n/) })
 })
 
 test('bundled first login stores only a restricted token and blocks tools until password change and login', async () => {

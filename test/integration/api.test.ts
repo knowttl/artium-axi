@@ -153,12 +153,16 @@ test('five wrong passwords lock the account with an audit event until the exact 
     { user_id: 'synthetic-development-user', outcome: 'ACCOUNT_LOCKED', client_address: '127.0.0.1' },
   ])
   clock.mockReturnValue(start + 899_999)
-  await expectFailure(await login(), 'AUTH_RATE_LIMITED')
+  const limited = await login()
+  expect(limited.status).toBe(429)
+  await expectFailure(limited, 'AUTH_RATE_LIMITED')
   // The attempt window starts before the fifth failure; the persisted lock still applies after that window.
   await app.close()
   app = createApp(options)
   url = await app.listen({ host: '127.0.0.1', port: 0 })
-  await expectFailure(await login(), 'ACCOUNT_LOCKED')
+  const locked = await login()
+  expect(locked.status).toBe(429)
+  await expectFailure(locked, 'ACCOUNT_LOCKED')
   clock.mockReturnValue(start + 900_000)
   expect((await login()).status).toBe(200)
   expect(db.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 0, locked_until: null })
