@@ -99,6 +99,7 @@ An upstream tmpfs write failure preserves its ordinary nonzero exit status and s
 Node children receive a 128 MiB heap limit.
 The fixed Python launcher applies a 512 MiB address-space limit before executing Falcon, preserving its shebang interpreter.
 Other trusted Python descriptors can set `limits.runtime: 'python'`.
+Python is the only explicit runtime selector; Node heap limits apply to every call without a selector.
 Heap and address-space limits are not total resident-memory caps or complete process isolation.
 A descendant that starts a new session escapes the process group, including when it retains output pipes.
 The runner bounds pipe cleanup but cannot kill or reap that escaped session.
@@ -147,6 +148,7 @@ Remove the owned image afterwards with `docker image rm artium-axi:local`.
 It also sets an init process for orphan reaping, a 6 GiB memory limit, a 192-task limit and a 256 MiB `/tmp` tmpfs.
 Run `pnpm test:runner-container` for the separate mandatory Linux cgroup and full-tmpfs checks.
 It builds a unique `artium-test-runner-s09-10-<uuid>` image with a private `artium-test-` BuildKit worker, tests a non-root read-only runtime without network access, and removes its containers, image and private build cache on completion.
+The builder owns its Docker operation deadlines; the harness waits for its cleanup without an enclosing kill deadline.
 The checks verify the configured 6 GiB bound and force a resident-memory OOM at a smaller synthetic 256 MiB cgroup bound, without stressing the host with a 6 GiB allocation.
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.

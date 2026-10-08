@@ -37,6 +37,11 @@ Non-default ports were separately observed to remain refused even with the unkno
 The Compose document passed the real Compose parser.
 The private BuildKit worker, tmpfs cache, image archive and local image were removed, with filtered container and image inventories empty.
 
+The S09/10 review revision based on `d2b36767402fd32ca6629a28560ced064319f6c5` removes the ineffective Node runtime selector and leaves Docker operation deadlines with the image builder so its finalizer can run.
+In the review worktree with these uncommitted fixes, `pnpm install --frozen-lockfile` completed successfully, including the tools install.
+`pnpm exec vitest run src/server/runner/runner.test.ts src/server/runner/lifecycle.test.ts test/fake-service-cleanup.test.ts` passed all 58 tests across three files.
+Renewed frozen install, full lint/tests/check, runner-container and real private hygiene results remain pending with the outer executor for the final committed candidate.
+
 The S08 runner environment contract is documented in [README.md](../README.md).
 Focused verification is described in [verification-s08.md](verification-s08.md).
 Final committed-head frozen install, lint, tests, aggregate check and private hygiene results remain pending with the outer executor for the delivery status and PR body.

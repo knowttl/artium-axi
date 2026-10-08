@@ -181,7 +181,7 @@ test('security Node heap exhaustion ends the call without captured diagnostics',
     .rejects.toMatchObject({ code: 'PROCESS_SIGNAL' })
 }, 10_000)
 
-test('security Python address-space bound refuses a 600 MiB allocation', async () => {
+test('security explicit Python runtime refuses a 600 MiB allocation', async () => {
   const script = `import resource\nprint(resource.getrlimit(resource.RLIMIT_AS))\ntry:\n bytearray(600 * 1024 * 1024)\nexcept MemoryError:\n print('memory refused')`
   const result = await run('/usr/bin/python3', ['-c', script], {}, [], { runtime: 'python' })
   expect(result.exitCode).toBe(0)
