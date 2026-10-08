@@ -39,7 +39,13 @@ function walk(path) {
       walk(join(path, name))
     }
   } else if (stat.isFile()) {
-    scan(label, readFileSync(path).toString('utf8'))
+    const content = readFileSync(path)
+    if ((content[0] === 0xff && content[1] === 0xfe)
+      || (content[0] === 0xfe && content[1] === 0xff)
+      || (content[0] === 0x00 && content[1] === 0x00 && content[2] === 0xfe && content[3] === 0xff)) {
+      throw new Error(`unsupported text encoding; convert to UTF-8: ${safe(label)}`)
+    }
+    scan(label, content.toString('utf8'))
     files++
   } else {
     throw new Error(`unsupported candidate file: ${safe(label)}`)
