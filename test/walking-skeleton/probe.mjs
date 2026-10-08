@@ -119,6 +119,14 @@ try {
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
         const local = await execute(prepared.executable, args, prepared.environment)
         const remote = await cli(['vectra-axi', ...args])
+        if (args.length === 0) {
+          // Home reports the generated profile location, which belongs to each call's temp directory.
+          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/vectra-profile\.json$/m
+          assert.match(remote.stdout, privateConfig)
+          assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-profile.json')}\n`))
+          remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-profile.json')
+          local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-profile.json')}`, '  config: <private call>/vectra-profile.json')
+        }
         assert.deepEqual(remote, local)
       }
       assert.equal((await requests()).mutations, 0)

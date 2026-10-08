@@ -38,6 +38,7 @@ Existing tests cover upstream nonzero exits, separate streams, truncation diagno
 `test/walking-skeleton/probe.mjs` exercises authenticated home and tool detail in the standalone Node 22.12.0 container journey.
 Pinned Falcon and Vectra run against isolated fake HTTPS services.
 Their bare home, upstream help, command help and manifest example reads are compared with local pinned output through the adapter boundary.
+The Vectra home comparison validates each generated profile location and normalizes only that call-specific temporary path.
 The existing read, pagination, empty output, upstream usage-error, native write-gate and redaction checks remain in the container block.
 
 Final validation results are bound to the implementation and published head in the PR body.
