@@ -9,8 +9,8 @@ let files = 0
 let terms = []
 
 function safe(value) {
-  for (const term of terms) value = value.replaceAll(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '[redacted]')
-  return JSON.stringify(value)
+  const normalized = value.toLowerCase()
+  return JSON.stringify(terms.some(term => normalized.includes(term)) ? '[redacted]' : value)
 }
 
 function scan(label, content) {
