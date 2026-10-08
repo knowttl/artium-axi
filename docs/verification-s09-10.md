@@ -43,7 +43,6 @@ Record the exact commit, command results and private list SHA-256 in delivery ev
 Pipeline fix rounds that change source or tests must renew that evidence for the published head.
 No fake check closes a live acceptance gate.
 
-The server is not implemented in this slice.
-HTTP disconnect and server shutdown must be wired to the runner in the later server slice.
+See [README.md](../README.md) for current server lifecycle integration and [S19 verification](verification-s19.md) for its HTTP checks.
 See [S11 verification](verification-s11.md) for implemented input transport and [the error catalogue](../src/shared/errors.ts) for HTTP error mappings.
-Preparation deadlines, HTTP integration, health cancellation and SQLite closure remain later-slice work.
+Preparation deadlines and background health cancellation remain later-slice work.
