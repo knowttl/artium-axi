@@ -15,7 +15,8 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold, hygiene and synthetic upstream tests.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, and `src/cli/` reserves the client layout.
+`test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container scaffold is available, while the server, CLI and adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
@@ -73,7 +74,7 @@ Exact-value scanning cannot identify unknown tokens minted inside an upstream to
 The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
 Create one `Runner` per server with `await Runner.create()`, before accepting calls.
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
-Call `runner.run(userId, executable, args, environment, secrets, limits)` with the authenticated user, adapter-provided environment values and all known injected secrets.
+Call `runner.run(userId, executable, args, environment, secrets, limits, input)` with the authenticated user, adapter-provided environment values and all known injected secrets.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
 Adapter preparation is not implemented yet; its later owning flow must enforce a separate 30-second deadline.
 Credential tests and future background health reads must use this same runner and an authenticated identity.
@@ -95,7 +96,7 @@ Termination sends SIGTERM to the whole Linux process group, allows 2 seconds, th
 Normal leader exit also terminates surviving group descendants.
 `await runner.shutdown()` stops admission, cancels runs and waits for their cleanup.
 The later server slice must wire disconnect and shutdown events to these public interfaces, then close its store.
-`TEMP_UNAVAILABLE` reports failure to create a call directory, including full tmpfs, without exposing filesystem diagnostics.
+`TEMP_UNAVAILABLE` reports failure to create a call directory or its uploaded inputs, including full tmpfs, without exposing filesystem diagnostics.
 An upstream tmpfs write failure preserves its ordinary nonzero exit status and still removes the call directory.
 Node children receive a 128 MiB heap limit.
 The fixed Python launcher applies a 512 MiB address-space limit before executing Falcon, preserving its shebang interpreter.
@@ -105,7 +106,21 @@ Heap and address-space limits are not total resident-memory caps or complete pro
 A descendant that starts a new session escapes the process group, including when it retains output pipes.
 The runner bounds pipe cleanup but cannot kill or reap that escaped session.
 Ordinary orphan descendants are reaped by the container init process, while the runner reaps its direct child.
-HTTP error mapping and audit integration arrive with the server.
+The [shared contract](src/shared/api.ts) owns the exact request and response fields, input limits, validation rules and supported tool identifiers.
+Requests support argument arrays, optional UTF-8 stdin and named base64 uploads.
+The later HTTP server must enforce the exported body limit, JSON content type, schema validation and authorization before credential retrieval.
+The [error catalogue](src/shared/errors.ts) owns the implemented error codes, HTTP status mapping and safe default messages and next steps.
+Completed upstream calls use the success envelope even for nonzero exit codes.
+Artium failures use the error envelope without captured output.
+When building the HTTP success envelope, omit the runner's internal `timedOut` field.
+
+Pass optional input as the seventh `runner.run` argument, with `stdin`, `files` and adapter-reviewed `fileArguments` indices.
+The [input transport](src/server/runner/input.ts) validates inputs before creating the call directory, writes uploads into a separate mode-0700 `inputs/` directory as exclusive mode-0600 files, and substitutes only reviewed argument positions whose value exactly matches an uploaded name.
+File arguments containing server paths or missing uploads are refused.
+Adapters must normalize equals-form flags and supply the reviewed file-value positions after parser-aware validation.
+The runner sends bounded UTF-8 stdin through a pipe and closes it, including when stdin is omitted, and cleans uploads with the call directory on success or failure.
+The CLI's command-specific stdin capture, adapter restrictions on credential/config/output paths, HTTP endpoints and audit integration arrive in later slices.
+See [verification-s11.md](docs/verification-s11.md) for contract and input transport evidence.
 See [verification-s09-10.md](docs/verification-s09-10.md) for lifecycle, resource and limitation evidence.
 See [verification-s08.md](docs/verification-s08.md) for local runner acceptance checks.
 See [verification-s07.md](docs/verification-s07.md) for the local acceptance checks.

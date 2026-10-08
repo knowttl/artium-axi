@@ -1,6 +1,6 @@
 # S09/10 verification
 
-The public interface is `Runner.create()`, `runner.run(userId, executable, args, environment, secrets, limits)` and `runner.shutdown()` in [runner.ts](../src/server/runner/runner.ts).
+See [README.md](../README.md) for current runner usage and [runner.ts](../src/server/runner/runner.ts) for its public interface.
 [config.ts](../src/server/config.ts) owns runner defaults.
 [compose.example.yaml](../compose.example.yaml) owns final container resource bounds.
 All identities, credentials, tool output and services in these checks are synthetic.
@@ -45,4 +45,5 @@ No fake check closes a live acceptance gate.
 
 The server is not implemented in this slice.
 HTTP disconnect and server shutdown must be wired to the runner in the later server slice.
-Preparation deadlines, input transport, HTTP error mapping, health cancellation and SQLite closure belong to those owning modules.
+See [S11 verification](verification-s11.md) for implemented input transport and [the error catalogue](../src/shared/errors.ts) for HTTP error mappings.
+Preparation deadlines, HTTP integration, health cancellation and SQLite closure remain later-slice work.

@@ -8,6 +8,11 @@ All live checks wait until the full build is complete and require approved ident
 Real captures, credential details and policy records stay in the private evidence store.
 Public conversion and release, deployment, real writes and destructive maintenance require separate approval.
 
+S11 implements the shared run schemas, error catalogue and bounded runner input transport.
+Its local verification plan is [verification-s11.md](verification-s11.md).
+Final committed-head frozen install, lint, tests, aggregate check, runner-container checks and real private hygiene results are recorded by the delivery status and PR body.
+See [README.md](../README.md) for current usage and remaining integration work.
+
 S03/04 implementation is recorded at commit `6e2b22e5ba8edc3b72c0c6f8c918fd552f772d13`.
 Its verification plan is [verification-s03-04.md](verification-s03-04.md).
 The final delivery head and results of frozen install, lint, tests, aggregate check and the private hygiene scan are bound together in the delivery status and PR body.
@@ -61,14 +66,14 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Falcon region, harmless read and search duration (T0.3) | Global flags, source environment names and region precedence recorded in verification-s05-06.md | Unknown-origin refusal and explicit canary TLS delivery checked by scripts/falcon-smoke.mjs in an isolated image; non-default ports remain refused even with the override | unverified: measure region/read/time before increasing timeouts |
 | Vectra API version, token/OAuth and CA (T0.4) | Ephemeral CA and QUX v2.5 token-profile loopback fixtures, isolated TLS/DNS harness | Pinned 0.1.3 native default write refusal, preview, confirmed mutation and single-send ambiguous 503 checked by `test/fake-service.test.ts`; isolated DNS/TLS/outbound checks passed; OAuth/RUX unverified | unverified: approve appliance and authentication combination |
 | Azure secret/certificate auth and six resource audiences (T0.5) | pending | pending | unverified: supply permitted resources, separately approve test resource creation and writes |
-| Tool output, permission and suggestion captures (T0.6) | Synthetic empty/error/suggestion stream fixtures and generated parser inventories in `test/fake-tool/fixtures/` and `tools/inventories/` | Offline pinned CLI version/help/usage checks; az-axi redirects and pagination observed, duplicate uncertain mutation reproduced in Docker; Azure writes unavailable, parser dispositions provisional | unverified: capture safe real outcomes privately |
+| Tool output, permission and suggestion captures (T0.6) | Synthetic empty/error/suggestion stream fixtures and generated parser inventories in `test/fake-tool/fixtures/` and `tools/inventories/`; S11 input transport implemented, local checks in [verification-s11.md](verification-s11.md) | Offline pinned CLI version/help/usage checks; az-axi redirects and pagination observed, duplicate uncertain mutation reproduced in Docker; Azure writes unavailable, parser dispositions provisional | unverified: capture safe real outcomes privately |
 | Probe reconciliation and design decisions (T0.7) | This ledger separates evidence status | pending | unverified: approve actual design changes |
 | Whole-tree hygiene and publication (T1.1) | Synthetic CLI tests and private candidate scan required before delivery | not applicable | unverified: public conversion and release require approval, ordinary private delivery settled |
 | Pinned container image (T1.2) | Digest-pinned Node 22 bookworm image, Python 3.11, UID 10001, fixed tool paths and validated Compose example; native build approval pinned in package.json | Clean builder and read-only non-root runtime execute SQLite open/write/reopen, Argon2id hash/verify and esbuild bundle execution; image is a scaffold until the API entry point lands | not applicable: local image only, registry push excluded |
 | Deterministic fake executable (T1.3) | Executable modes and runner-test descriptor in `test/fake-tool/`; CLI tests in `test/fake-tool.test.ts` | not applicable | not applicable: local build only |
 | Process cleanup and container resource limits (T1.4) | S09/10 lifecycle, admission, flood and runtime limits implemented; [README.md](../README.md) owns the runner contract; [verification-s09-10.md](verification-s09-10.md) owns local checks and escaped-session limitation; final-head results pending with the outer executor for delivery status and PR body | Synthetic fake executable and slice-owned non-root Linux container checks defined in verification-s09-10.md, no pinned upstream runner acceptance yet | unverified: verify production host behaviour and whether pinned tools require escaped-session containment |
 | Falcon adapter boundary (T1.5) | pending | pending | unverified: verify real adapter behaviour |
-| Server readiness, audit and proxy addresses (T1.6) | pending | pending | unverified: verify actual trusted proxy addresses |
+| Server readiness, audit and proxy addresses (T1.6) | S11 shared contract and error catalogue implemented in [api.ts](../src/shared/api.ts) and [errors.ts](../src/shared/errors.ts); endpoints, readiness, audit and proxy integration pending | pending | unverified: verify actual trusted proxy addresses |
 | Bundled CLI on supported operating systems (T1.7) | pending | not applicable | unverified: actual Windows and macOS smoke checks |
 | First container-to-CLI call (T1.8) | pending | pending | unverified: captain runs live first call |
 | Credential store, data ownership and master key (T2.1-T2.3) | pending | pending | unverified: real secrets remain outside the build environment |

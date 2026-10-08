@@ -4,6 +4,14 @@
 !dist/src
 !dist/src/server
 !dist/src/server/**
+!dist/src/shared
+!dist/src/shared/**
+!node_modules
+!node_modules/.pnpm
+!node_modules/.pnpm/zod@*
+!node_modules/.pnpm/zod@*/node_modules
+!node_modules/.pnpm/zod@*/node_modules/zod
+!node_modules/.pnpm/zod@*/node_modules/zod/**
 !test
 !test/fake-tool
 !test/fake-tool/**
