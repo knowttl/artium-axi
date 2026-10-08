@@ -42,7 +42,7 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
     const prepared = await prepareFalcon(args, settings)
     assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_CLIENT_ID', 'FALCON_CLIENT_SECRET'])
     return runner.run('synthetic-user', prepared.executable, prepared.args,
-      { ...prepared.environment, REQUESTS_CA_BUNDLE: '/certs/ca.crt' }, prepared.secrets, prepared.limits)
+      { ...prepared.environment, REQUESTS_CA_BUNDLE: '/test-ca.crt' }, prepared.secrets, prepared.limits)
   }
   const result = await run(['detection', 'list'])
   assert.equal(result.exitCode, 0, result.stdout + result.stderr)

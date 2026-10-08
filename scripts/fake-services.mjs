@@ -24,6 +24,7 @@ const start = (suffix, network, aliases = []) => {
   const container = `${name}-${suffix}`
   containers.push(container)
   docker('run', '--detach', '--pull', 'never', '--name', container, '--network', network,
+    ...(falcon ? ['--user', '0'] : []),
     ...aliases.flatMap(host => ['--network-alias', host]),
     '--mount', `type=bind,src=${root},dst=/work,readonly`,
     '--mount', `type=bind,src=${certs},dst=/certs,readonly`,
@@ -62,8 +63,8 @@ try {
   const client = `${name}-client`
   containers.push(client)
   console.log(docker('run', '--rm', '--pull', 'never', '--name', client, '--network', networks[0],
-    '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${certs},dst=/certs,readonly`,
-    '--env', 'NODE_EXTRA_CA_CERTS=/certs/ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',
+    '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${join(certs, 'ca.crt')},dst=/test-ca.crt,readonly`,
+    '--env', 'NODE_EXTRA_CA_CERTS=/test-ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',
     '--env', `ARTIUM_TEST_HOSTS=${JSON.stringify(hosts)}`, '--env', `ARTIUM_TEST_OUTSIDE_IP=${outsideIp}`,
     image, 'node', falcon ? '/work/test/fake-service/falcon-probe.mjs' : '/work/test/fake-service/probe.mjs'))
 } catch (error) {
