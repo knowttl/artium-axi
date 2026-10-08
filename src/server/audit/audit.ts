@@ -15,11 +15,13 @@ interface Context {
 
 type Outcome = 'success' | 'failure' | ErrorCode
 type Arguments = { args: readonly string[], sensitive: SensitiveArguments }
+type CredentialTestEvidence = { checkedAt: number | null, credentialRevision: number | null, errorCode: ErrorCode | null }
 export type AuditEvent = Context & (
-  | ({ event: 'run-start', outcome: 'started' } & Arguments)
-  | { event: 'run-terminal', outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } }
+  | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
+  | ({ event: 'run-terminal', outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } } & Partial<CredentialTestEvidence>)
   | { event: 'denial', outcome: ErrorCode }
-  | { event: 'sign-in' | 'sign-out' | 'lockout' | 'token-reuse' | 'password-change' | 'credential-test', outcome: Outcome }
+  | { event: 'sign-in' | 'sign-out' | 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
+  | ({ event: 'credential-test', outcome: Outcome } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
   | { event: 'maintenance', outcome: 'success', cutoff: number, deletedCount: number }
 )
@@ -42,6 +44,9 @@ export interface AuditRecord {
   target_id: string | null
   cutoff: number | null
   deleted_count: number | null
+  checked_at: number | null
+  credential_revision: number | null
+  error_code: ErrorCode | null
 }
 
 const dayMs = 24 * 60 * 60 * 1000
@@ -98,7 +103,8 @@ export class Audit {
     for (const start of starts) {
       this.record({ event: 'run-terminal', userId: start.user_id, tool: start.tool,
         requestId: start.request_id, clientAddress: start.client_address, outcome: 'interrupted',
-        exitCode: null, durationMs: Math.max(0, this.clock() - start.occurred_at), outputBytes: { stdout: null, stderr: null } })
+        exitCode: null, durationMs: Math.max(0, this.clock() - start.occurred_at), outputBytes: { stdout: null, stderr: null },
+        credentialRevision: start.credential_revision, checkedAt: null, errorCode: null })
     }
     return starts.length
   }
@@ -129,6 +135,8 @@ export class Audit {
     const terminal = event.event === 'run-terminal' ? event : undefined
     const admin = event.event === 'admin-change' ? event : undefined
     const maintenance = event.event === 'maintenance' ? event : undefined
+    const test = event.event === 'credential-test' || event.event === 'run-start' || event.event === 'run-terminal'
+      ? event : undefined
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
       arguments: event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) : null,
@@ -138,6 +146,8 @@ export class Audit {
       client_address: event.clientAddress, outcome: event.outcome,
       action: admin?.action ?? null, target_id: admin?.targetId ?? null,
       cutoff: maintenance?.cutoff ?? null, deleted_count: maintenance?.deletedCount ?? null,
+      checked_at: test?.checkedAt ?? null, credential_revision: test?.credentialRevision ?? null,
+      error_code: test?.errorCode ?? null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

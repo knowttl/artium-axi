@@ -17,10 +17,12 @@ import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
 import type { Runner } from './runner/runner.js'
+import type { MutableCredentialStore } from './store/credential-store.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
   adapters: readonly Adapter<unknown>[], environment?: NodeJS.ProcessEnv,
+  credentialStore?: MutableCredentialStore,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
   checkAuthSettings(environment)
@@ -60,9 +62,11 @@ export function createApp(options: {
         throw error
       }
       const row = db.prepare(`SELECT pinned_version AS version,
-        EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured FROM tools WHERE name = ?`)
-        .get(adapter.name) as { version: string, configured: number }
-      return [{ name: adapter.name, version: row.version, status: row.configured ? 'unknown' : 'unconfigured' }]
+        EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
+        (SELECT status FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
+          AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = tools.name) AS health
+        FROM tools WHERE name = ?`).get(adapter.name) as { version: string, configured: number, health: 'ok' | 'error' | null }
+      return [{ name: adapter.name, version: row.version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }]
     })
     return toolsResponseSchema.parse({ tools })
   })
@@ -109,7 +113,7 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerAdmin(app, db, audit, authAttempts)
+  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore })
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')

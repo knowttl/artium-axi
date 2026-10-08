@@ -6,6 +6,7 @@ It adds role-based access to those tools and a command-line client that follows 
 Status: under construction.
 The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
+Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
 CLI sign-in commands remain later-slice work.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
@@ -129,7 +130,8 @@ The [credential-store boundary](src/server/store/credential-store.ts) exposes cr
 Create it with `createCredentialStore(connection, keyProvider)` using the same provider as `openStore`.
 Resolved credential references carry the persisted revision, and reads reject a reference with a mismatched revision before decryption.
 The reference type keeps revision optional for compatibility; reads without a revision are not bound to a credential version.
-Credentials are encrypted JSON objects matching the adapter's credential schema.
+Credential reads combine encrypted JSON fields with the tool's native settings to match the adapter's credential schema.
+Creating the credential store moves legacy native settings out of encrypted JSON into the tool configuration, preserving already-stored tool settings when both contain the same key.
 Version 1 uses one shared service credential per tool in the embedded encrypted database; external secret sources and per-user credentials remain deferred.
 The [SharedIdentityResolver](src/server/policy/identity-resolver.ts) selects that credential with `resolve(userId, tool)`, whoever the user is.
 The [EmbeddedSecretSource](src/server/store/secret-source.ts) retrieves that reference through `getCredential(reference)` and decrypts it in memory through the store boundary.
@@ -219,6 +221,9 @@ See [the runbook](docs/runbook.md) for database backup requirements and the rema
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
 Authentication and admin producers must use metadata only.
+Manual credential tests persist `checked_at`, `credential_revision` and `error_code` on admission-failure, run-start, run-terminal and credential-test records, independently of the replaceable health cache.
+Times are UTC Unix milliseconds; the revision is null when no credential was found, and the error code is null at start or on success.
+Startup recovery retains the tested revision on interrupted terminal records, with null check time and error code.
 `audit.change(event, mutation)` commits a synchronous database mutation and its event together, then streams the committed event.
 It preserves mutation errors and rolls the mutation back when audit persistence fails.
 These operations reject calls inside another transaction with `AUDIT_UNAVAILABLE`, so streaming always follows commit.
@@ -364,7 +369,8 @@ The [Fastify API](src/server/app.ts) implements the authentication endpoints des
 Use an ordinary access token from local sign-in in `Authorization: Bearer <token>` and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
 Tools listing includes enabled, granted adapters without contacting an upstream service.
-Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
+Configured tools have `unknown` status until a manual health test records `ok` or `error`; missing credentials have `unconfigured` status.
+The periodic health scheduler remains later-slice work.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
 User administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
@@ -393,7 +399,29 @@ Role and assignment mutations commit with their audit event and return public me
 Invalid references return 400, unknown targets return 404 and stale revisions return 409 without changes.
 Tool grants never confer administrator capability, and role changes apply to the next tool call using existing tokens.
 See [S34 verification](docs/verification-s34.md) for role, grant and assignment evidence.
-Remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+`GET /v1/admin/tools` lists the three fixed tools with pinned versions, enabled state, native settings, revisions, change metadata and cached health without making an upstream call.
+`PATCH /v1/admin/tools/{tool}` accepts `enabled`, `nativeSettings` and `expectedRevision`.
+When supplied, `nativeSettings` replaces the entire settings object; `{}` clears it.
+Falcon has no editable native write settings and accepts only `{}`.
+Vectra accepts `writes: { allowWrites, operations }`; Azure accepts `subscriptions`, `managementGroup`, `workspaces`, `description` and `allowWrites`.
+These shared schemas also validate the adapters' native profile settings.
+No executable path, tool installation or caller-selected health command is accepted.
+Azure configuration remains editable, but its runtime enable and test operations remain disabled until the pinned upstream retry issue is resolved.
+`GET /v1/admin/tools/{tool}/credential` returns only allowlisted non-secret metadata, configuration state, revision and last change time/actor.
+`PUT /v1/admin/tools/{tool}/credential` accepts a complete adapter-specific `value` and `expectedRevision`, using revision `0` for the first credential.
+No response returns a credential value, token, private key or client secret; Falcon's client ID is also withheld because that adapter treats it as a scan secret.
+The replacement splits native settings into the tool configuration and encrypts the remaining credential fields, updating both records with one audit commit.
+It advances the tool revision as well as the credential revision, clears cached health and immediately evicts old Azure resource tokens and pending acquisitions.
+Native-settings patches also advance the configured credential revision so an old prepared profile cannot be reused by a manual test after the edit.
+`POST /v1/admin/tools/{tool}/test` accepts only an empty body and runs the fixed Falcon `auth status`, Vectra `health list` or internal Azure `account list` read.
+Configured disabled Falcon and Vectra tools can be tested before enabling them.
+Manual tests never overlap for one tool and use the same global and per-administrator runner slots as ordinary calls.
+They return only safe health fields and retain no upstream output; the audit contract is described above.
+Health records carry check time, credential revision and a safe error code, and never replace the cached health of a newer credential.
+Every tool administration route requires the administrator capability and the same recent-authentication ticket as user administration.
+Tool edits and credential replacements return public metadata and commit with their audit event.
+See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
+Audit queries, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

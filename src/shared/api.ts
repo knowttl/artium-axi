@@ -65,6 +65,38 @@ export const adminUserRoutes = {
 } as const
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
+export const nativeSettingsSchemas = {
+  'falcon-axi': z.strictObject({}),
+  'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
+    operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
+  'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
+    managementGroup: z.string().min(1).optional(), workspaces: z.record(z.string().min(1), z.uuid()).optional(),
+    description: z.string().optional(), allowWrites: z.boolean().optional() }),
+} as const
+export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
+  checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
+export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),
+  nativeSettings: z.record(z.string(), z.unknown()), revision: z.number().int().positive(),
+  updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema })
+export const adminCredentialSchema = z.strictObject({ tool: toolSchema, configured: z.boolean(),
+  metadata: z.record(z.string(), z.unknown()), revision: z.number().int().nonnegative(),
+  updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
+export const adminToolParamsSchema = z.strictObject({ tool: toolSchema })
+export const adminToolRoutes = {
+  list: { method: 'GET', path: '/v1/admin/tools', input: z.strictObject({}),
+    response: z.strictObject({ tools: z.array(adminToolSchema) }), authorization: 'administrator-and-recent-auth', auditEvent: null },
+  patch: { method: 'PATCH', path: '/v1/admin/tools/:tool',
+    input: z.strictObject({ enabled: z.boolean().optional(), nativeSettings: z.record(z.string(), z.unknown()).optional(),
+      expectedRevision: z.number().int().positive() }).refine(input => input.enabled !== undefined || input.nativeSettings !== undefined),
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'update-tool' },
+  credential: { method: 'GET', path: '/v1/admin/tools/:tool/credential', input: z.strictObject({}),
+    response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
+  replace: { method: 'PUT', path: '/v1/admin/tools/:tool/credential',
+    input: z.strictObject({ value: z.unknown(), expectedRevision: z.number().int().nonnegative() }),
+    response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-credential' },
+  test: { method: 'POST', path: '/v1/admin/tools/:tool/test', input: z.strictObject({}), response: healthSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'credential-test' },
+} as const
 export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })

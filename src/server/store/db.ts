@@ -2,18 +2,43 @@ import { chmodSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
-import { decryptCredential } from './crypto.js'
+import { randomUUID } from 'node:crypto'
+import { decryptCredential, encryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
 import { EnvironmentKeyProvider } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
-import type { CredentialStore } from './credential-store.js'
-import { toolSchema } from '../../shared/api.js'
+import type { CredentialStore, MutableCredentialStore } from './credential-store.js'
+import { nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
 
-export function createCredentialStore(db: Database.Database, provider: KeyProvider): CredentialStore {
+export function createCredentialStore(db: Database.Database, provider: KeyProvider): MutableCredentialStore {
   const key = provider.getKey()
+  db.transaction(() => {
+    const rows = db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]
+    for (const row of rows) {
+      const keys = Object.keys(nativeSettingsSchemas[toolSchema.parse(row.tool)].shape)
+      if (keys.length === 0) continue
+      const plaintext = decryptCredential(row, key)
+      try {
+        let value: Record<string, unknown>
+        try { value = JSON.parse(plaintext.toString('utf8')) } catch { continue }
+        if (!value || typeof value !== 'object') continue
+        const settings = Object.fromEntries(Object.entries(value).filter(([name]) => keys.includes(name)))
+        if (Object.keys(settings).length === 0) continue
+        const current = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(row.tool) as { native_settings: string }
+        db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?')
+          .run(JSON.stringify({ ...settings, ...JSON.parse(current.native_settings) }), row.tool)
+        const credential = Buffer.from(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([name]) => !keys.includes(name)))))
+        try {
+          const encrypted = encryptCredential(row.id, row.tool, credential, key)
+          db.prepare(`UPDATE credentials SET schema_version = @schema_version, key_id = @key_id,
+            nonce = @nonce, ciphertext = @ciphertext, authentication_tag = @authentication_tag WHERE id = @id`).run(encrypted)
+        } finally { credential.fill(0) }
+      } finally { plaintext.fill(0) }
+    }
+  }).immediate()
   return {
     findCredential(tool) {
       return db.prepare('SELECT id, tool, revision FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>
@@ -24,9 +49,28 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
       if (reference.revision !== undefined && row.revision !== reference.revision) return undefined
       const plaintext = decryptCredential(row, key)
       try {
-        return JSON.parse(plaintext.toString('utf8')) as unknown
+        const value = JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>
+        const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(reference.tool) as { native_settings: string }
+        return { ...value, ...JSON.parse(settings.native_settings) }
       } catch {
         throw new ArtiumError('CREDENTIAL_INVALID')
+      } finally { plaintext.fill(0) }
+    },
+    replaceCredential(tool, value, expectedRevision, actor, now) {
+      const current = db.prepare('SELECT id, revision FROM credentials WHERE tool = ?').get(tool) as { id: string, revision: number } | undefined
+      if ((current?.revision ?? 0) !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const id = current?.id ?? randomUUID()
+      const plaintext = Buffer.from(JSON.stringify(value))
+      try {
+        const encrypted = encryptCredential(id, tool, plaintext, key)
+        const revision = (current?.revision ?? 0) + 1
+        db.prepare(`INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, revision, updated_at, updated_by)
+          VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, @revision, @now, @actor)
+          ON CONFLICT(tool) DO UPDATE SET schema_version = excluded.schema_version, key_id = excluded.key_id,
+          nonce = excluded.nonce, ciphertext = excluded.ciphertext, authentication_tag = excluded.authentication_tag,
+          revision = excluded.revision, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
+          .run({ ...encrypted, revision, now, actor })
+        return { id, tool, revision }
       } finally { plaintext.fill(0) }
     },
   }
