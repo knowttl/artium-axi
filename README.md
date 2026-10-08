@@ -146,8 +146,7 @@ Remove the owned image afterwards with `docker image rm artium-axi:local`.
 [`compose.example.yaml`](compose.example.yaml) records the loopback port, read-only root, `/tmp` tmpfs, `/data` volume and file-backed Docker master-key secret.
 It also sets an init process for orphan reaping, a 6 GiB memory limit, a 192-task limit and a 256 MiB `/tmp` tmpfs.
 Run `pnpm test:runner-container` for the separate mandatory Linux cgroup and full-tmpfs checks.
-It builds only `artium-test-runner-s09-10` with a private `artium-test-` BuildKit worker, tests a non-root read-only runtime without network access, and removes its containers, image and private build cache on completion.
-An existing image with that name is refused and left intact.
+It builds a unique `artium-test-runner-s09-10-<uuid>` image with a private `artium-test-` BuildKit worker, tests a non-root read-only runtime without network access, and removes its containers, image and private build cache on completion.
 The checks verify the configured 6 GiB bound and force a resident-memory OOM at a smaller synthetic 256 MiB cgroup bound, without stressing the host with a 6 GiB allocation.
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.

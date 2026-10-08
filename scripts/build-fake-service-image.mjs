@@ -9,7 +9,8 @@ const builder = `artium-test-build-${randomUUID()}`
 const production = process.argv.includes('--production')
 const runner = process.argv.includes('--runner')
 const large = production || runner
-const image = runner ? 'artium-test-runner-s09-10' : production ? 'artium-axi:local' : 'artium-test-node22'
+const image = runner ? process.argv[process.argv.indexOf('--runner') + 1] : production ? 'artium-axi:local' : 'artium-test-node22'
+if (runner && (!image || image.startsWith('--'))) throw new Error('--runner requires an image tag')
 const directory = mkdtempSync(join(root, '.tmp-image-'))
 const docker = args => {
   const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 300_000 })
