@@ -19,7 +19,7 @@ export function redactArguments(args: readonly string[], sensitive: SensitiveArg
     const flag = equals < 0 ? argument : argument.slice(0, equals)
     const sensitiveFlag = sensitive.flags.includes(flag)
     const hide = hideNext || sensitive.positions.includes(index)
-    hideNext = !hide && sensitiveFlag && equals < 0
+    hideNext = sensitiveFlag && equals < 0
     if (hide) return '[redacted]'
     if (sensitiveFlag && equals >= 0) return `${safeText(flag)}=[redacted]`
     return safeText(argument)
