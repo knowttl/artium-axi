@@ -1,12 +1,12 @@
 # S33 user administration evidence
 
 The [shared API](../src/shared/api.ts) defines each user route's method, path, input, public response, authorization and audit action.
-The [HTTP implementation](../src/server/admin/users.ts) uses current administrator capability and session-bound bearer reauthentication, the existing atomic audit boundary and SQLite last-administrator triggers.
+The [HTTP implementation](../src/server/admin/api.ts) uses current administrator capability and session-bound bearer reauthentication, the existing atomic audit boundary and SQLite last-administrator triggers.
 See [README.md](../README.md) for current user administration usage and remaining work, and [the recovery runbook](runbook.md#first-administrator-and-offline-recovery) for offline recovery.
 
 Run `pnpm exec vitest run test/integration/admin-users.test.ts` for the [HTTP integration checks](../test/integration/admin-users.test.ts).
 Authorization checks use real local sign-in and password reauthentication, with synthetic identities and canary passwords.
-Checks cover all five routes, current capability denial despite tool grants, missing/expired/other-session tickets, capped stable pagination, canonical usernames, temporary passwords and role assignment.
+S33 checks cover its original user routes, current capability denial despite tool grants, missing/expired/other-session tickets, capped stable pagination, canonical usernames, temporary passwords and role assignment.
 They verify enable/disable, capability changes, unlock, reset, unknown accounts, invalid passwords, invalid foreign keys and duplicate usernames.
 Unlock and reset checks exhaust the username counter with five real wrong-password logins, then verify immediate sign-in after the administrator action.
 Audit failure checks verify that the exhausted username counter remains in force.

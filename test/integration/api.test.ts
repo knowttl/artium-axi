@@ -87,6 +87,35 @@ async function login(password = 'CANARY-local-password', username = 'synthetic-u
     body: JSON.stringify({ username, password }) })
 }
 
+test.each([
+  { path: '/users/synthetic-development-user/roles', body: { roleIds: [], expectedRevision: 1 }, action: 'assign-user-roles' },
+  { path: '/roles/synthetic-role/tools', body: { tools: [], expectedRevision: 1 }, action: 'replace-role-tools' },
+])('role change through $path denies the next call using the existing local token and audits both', async route => {
+  db.exec('UPDATE users SET administrator = 1')
+  const reauth = await fetch(`${url}/v1/auth/reauth`, { method: 'POST', headers,
+    body: JSON.stringify({ password: 'CANARY-local-password' }) })
+  expect(reauth.status).toBe(200)
+  const { ticket } = await reauth.json() as { ticket: string }
+  expect((await run({ args: ['success'] })).status).toBe(200)
+  getCredential.mockClear()
+  const changed = await fetch(`${url}/v1/admin${route.path}`, { method: 'PUT',
+    headers: { ...headers, 'x-artium-reauth-ticket': ticket }, body: JSON.stringify(route.body) })
+  expect(changed.status).toBe(200)
+  const requestId = await expectFailure(await run({ args: ['success'] }), 'TOOL_NOT_GRANTED')
+  expect(getCredential).not.toHaveBeenCalled()
+  expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change'").get())
+    .toEqual({ action: route.action, user_id: 'synthetic-development-user' })
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'denial' AND request_id = ?").get(requestId))
+    .toEqual({ outcome: 'TOOL_NOT_GRANTED' })
+  const restored = await fetch(`${url}/v1/admin${route.path}`, { method: 'PUT',
+    headers: { ...headers, 'x-artium-reauth-ticket': ticket },
+    body: JSON.stringify(route.action === 'assign-user-roles'
+      ? { roleIds: ['synthetic-role'], expectedRevision: 2 }
+      : { tools: ['falcon-axi'], expectedRevision: 2 }) })
+  expect(restored.status).toBe(200)
+  expect((await run({ args: ['success'] })).status).toBe(200)
+})
+
 async function ordinarySession() {
   const session = loginResponseSchema.parse(await (await login()).json())
   if (session.status !== 'authenticated') throw new Error('Expected ordinary session')

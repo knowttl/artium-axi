@@ -59,9 +59,27 @@ export const adminUserRoutes = {
     authorization: 'administrator-and-recent-auth', auditEvent: 'unlock-user' },
   reset: { method: 'POST', path: '/v1/admin/users/:id/password-reset', input: adminUserResetSchema, response: adminUserSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'reset-user-password' },
+  roles: { method: 'PUT', path: '/v1/admin/users/:id/roles',
+    input: z.strictObject({ roleIds: z.array(accountId).refine(ids => new Set(ids).size === ids.length), expectedRevision: z.number().int().positive() }),
+    response: adminUserSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'assign-user-roles' },
 } as const
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
+export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
+  revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
+export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })
+export const adminRoleRoutes = {
+  list: { method: 'GET', path: '/v1/admin/roles', input: adminUsersQuerySchema, response: adminRolesResponseSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: null },
+  create: { method: 'POST', path: '/v1/admin/roles', input: z.strictObject({ name: z.string().min(1) }), response: adminRoleSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'create-role' },
+  patch: { method: 'PATCH', path: '/v1/admin/roles/:id',
+    input: z.strictObject({ name: z.string().min(1), expectedRevision: z.number().int().positive() }), response: adminRoleSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'rename-role' },
+  tools: { method: 'PUT', path: '/v1/admin/roles/:id/tools',
+    input: z.strictObject({ tools: z.array(toolSchema).refine(tools => new Set(tools).size === tools.length), expectedRevision: z.number().int().positive() }),
+    response: adminRoleSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-role-tools' },
+} as const
 export const toolsResponseSchema = z.strictObject({
   tools: z.array(z.strictObject({
     name: toolSchema,

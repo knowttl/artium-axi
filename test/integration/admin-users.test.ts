@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
+import { adminRoleSchema, adminRolesResponseSchema, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -92,6 +92,7 @@ const routes = [
   { method: 'PATCH', path: '/synthetic-ordinary', body: { enabled: false, expectedRevision: 1 } },
   { method: 'POST', path: '/synthetic-ordinary/unlock', body: {} },
   { method: 'POST', path: '/synthetic-ordinary/password-reset', body: { temporaryPassword: 'CANARY-reset-password' } },
+  { method: 'PUT', path: '/synthetic-ordinary/roles', body: { roleIds: [], expectedRevision: 1 } },
 ]
 
 test.each(routes)('$method $path requires administrator capability even with tool grants and reauth', async route => {
@@ -296,4 +297,116 @@ test('expired and other-session reauth tickets cannot administer accounts', asyn
   await failure(await request('GET', '', undefined, { ...other, 'x-artium-reauth-ticket': headers['x-artium-reauth-ticket']! }), 'REAUTH_REQUIRED')
   vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 900_000)
   await failure(await request('GET', ''), 'REAUTH_REQUIRED')
+})
+
+function roleRequest(method: string, path: string, body?: unknown, proof = headers) {
+  const { 'content-type': _contentType, ...withoutContentType } = proof
+  return fetch(`${url}/v1/admin/roles${path}`, { method, headers: body === undefined ? withoutContentType : proof,
+    body: body === undefined ? undefined : JSON.stringify(body) })
+}
+
+const roleRoutes = [
+  { method: 'GET', path: '', body: undefined },
+  { method: 'POST', path: '', body: { name: 'New Role' } },
+  { method: 'PATCH', path: '/synthetic-role', body: { name: 'Renamed', expectedRevision: 1 } },
+  { method: 'PUT', path: '/synthetic-role/tools', body: { tools: [], expectedRevision: 1 } },
+]
+
+test.each(roleRoutes)('$method roles$path rejects non-admins with all tool grants', async route => {
+  const ordinary = await adminHeaders('synthetic-ordinary')
+  await failure(await roleRequest(route.method, route.path, route.body, ordinary), 'ADMIN_REQUIRED')
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'denial'").get()).toEqual({ outcome: 'ADMIN_REQUIRED' })
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'admin-change'").all()).toEqual([])
+})
+
+test.each(roleRoutes)('$method roles$path requires recent auth', async route => {
+  const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+  await failure(await roleRequest(route.method, route.path, route.body, missing), 'REAUTH_REQUIRED')
+})
+
+test('role creation, rename and grant replacement return current metadata and audit each change', async () => {
+  const response = await roleRequest('POST', '', { name: 'New Role' })
+  expect(response.status).toBe(201)
+  const created = adminRoleSchema.parse(await response.json())
+  expect(created).toMatchObject({ name: 'New Role', tools: [], revision: 1, updatedBy: administrator, updatedAt: expect.any(Number) })
+  const renamed = await roleRequest('PATCH', `/${created.id}`, { name: 'Renamed', expectedRevision: 1 })
+  expect(renamed.status).toBe(200)
+  expect(adminRoleSchema.parse(await renamed.json())).toMatchObject({ name: 'Renamed', revision: 2 })
+  const granted = await roleRequest('PUT', `/${created.id}/tools`, { tools: ['vectra-axi', 'falcon-axi'], expectedRevision: 2 })
+  expect(granted.status).toBe(200)
+  expect(adminRoleSchema.parse(await granted.json())).toMatchObject({ tools: ['falcon-axi', 'vectra-axi'], revision: 3, updatedBy: administrator })
+  expect(db.prepare("SELECT action, target_id, user_id, arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all()).toEqual([
+    { action: 'create-role', target_id: created.id, user_id: administrator, arguments: null },
+    { action: 'rename-role', target_id: created.id, user_id: administrator, arguments: null },
+    { action: 'replace-role-tools', target_id: created.id, user_id: administrator, arguments: null },
+  ])
+})
+
+test('role listing uses bounded stable pagination', async () => {
+  db.exec("INSERT INTO roles (id, name) VALUES ('a', 'First')")
+  const first = adminRolesResponseSchema.parse(await (await roleRequest('GET', '?limit=1')).json())
+  expect(first.roles.map(role => role.id)).toEqual(['a'])
+  expect(first.nextCursor).toBe('a')
+  const second = adminRolesResponseSchema.parse(await (await roleRequest('GET', '?limit=1&cursor=a')).json())
+  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['az-axi', 'falcon-axi', 'vectra-axi'] })
+  expect(second.nextCursor).toBeNull()
+  await failure(await roleRequest('GET', '?limit=101'), 'INVALID_INPUT')
+})
+
+test.each(roleRoutes.filter(route => route.method !== 'GET'))('$method roles$path audit failure rolls back role and grants', async route => {
+  const before = db.prepare('SELECT * FROM roles ORDER BY id').all()
+  const grants = db.prepare('SELECT * FROM role_tools ORDER BY role_id, tool').all()
+  db.exec("CREATE TRIGGER fail_admin BEFORE INSERT ON audit WHEN NEW.event = 'admin-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await failure(await roleRequest(route.method, route.path, route.body), 'AUDIT_UNAVAILABLE')
+  expect(db.prepare('SELECT * FROM roles ORDER BY id').all()).toEqual(before)
+  expect(db.prepare('SELECT * FROM role_tools ORDER BY role_id, tool').all()).toEqual(grants)
+})
+
+test.each([
+  { method: 'POST', path: '', body: { name: 'Synthetic Role' }, code: 'INVALID_INPUT' },
+  { method: 'PATCH', path: '/missing', body: { name: 'New', expectedRevision: 1 }, code: 'NOT_FOUND' },
+  { method: 'PUT', path: '/missing/tools', body: { tools: [], expectedRevision: 1 }, code: 'NOT_FOUND' },
+  { method: 'PUT', path: '/synthetic-role/tools', body: { tools: ['administrator'], expectedRevision: 1 }, code: 'INVALID_INPUT' },
+  { method: 'PUT', path: '/synthetic-role/tools', body: { tools: ['falcon-axi', 'falcon-axi'], expectedRevision: 1 }, code: 'INVALID_INPUT' },
+  { method: 'POST', path: '', body: { name: '' }, code: 'INVALID_INPUT' },
+] as const)('role invalid input $path returns $code without changes', async route => {
+  const before = db.prepare('SELECT * FROM roles').all()
+  const grants = db.prepare('SELECT * FROM role_tools').all()
+  await failure(await roleRequest(route.method, route.path, route.body), route.code)
+  expect(db.prepare('SELECT * FROM roles').all()).toEqual(before)
+  expect(db.prepare('SELECT * FROM role_tools').all()).toEqual(grants)
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
+})
+
+test('missing registered tool foreign key rolls back grant replacement', async () => {
+  db.exec("DELETE FROM role_tools WHERE tool = 'az-axi'; DELETE FROM tools WHERE name = 'az-axi'")
+  const before = db.prepare('SELECT * FROM role_tools').all()
+  await failure(await roleRequest('PUT', '/synthetic-role/tools', { tools: ['az-axi'], expectedRevision: 1 }), 'INVALID_INPUT')
+  expect(db.prepare('SELECT * FROM role_tools').all()).toEqual(before)
+  expect(db.prepare('SELECT revision FROM roles').get()).toEqual({ revision: 1 })
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
+})
+
+test('assignment replaces roles and shares the account revision with other edits', async () => {
+  const response = await request('PUT', '/synthetic-ordinary/roles', { roleIds: [], expectedRevision: 1 })
+  expect(response.status).toBe(200)
+  expect(adminUserSchema.parse(await response.json())).toMatchObject({ roleIds: [], revision: 2, updatedBy: administrator })
+  await failure(await request('PATCH', '/synthetic-ordinary', { enabled: false, expectedRevision: 1 }), 'REVISION_CONFLICT')
+  await failure(await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['synthetic-role'], expectedRevision: 1 }), 'REVISION_CONFLICT')
+  await failure(await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['missing'], expectedRevision: 2 }), 'INVALID_INPUT')
+  await failure(await request('PUT', '/missing/roles', { roleIds: [], expectedRevision: 1 }), 'NOT_FOUND')
+  await failure(await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['synthetic-role', 'synthetic-role'], expectedRevision: 2 }), 'INVALID_INPUT')
+  expect(db.prepare("SELECT role_id FROM user_roles WHERE user_id = 'synthetic-ordinary'").all()).toEqual([])
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'admin-change'").all()).toEqual([{ action: 'assign-user-roles' }])
+})
+
+test('role rename and grant edits share a revision and reject concurrent stale changes', async () => {
+  const results = await Promise.all([
+    roleRequest('PATCH', '/synthetic-role', { name: 'Changed', expectedRevision: 1 }),
+    roleRequest('PUT', '/synthetic-role/tools', { tools: [], expectedRevision: 1 }),
+  ])
+  expect(results.map(result => result.status).sort()).toEqual([200, 409])
+  await failure(results.find(result => result.status === 409)!, 'REVISION_CONFLICT')
+  await failure(await roleRequest('PATCH', '/synthetic-role', { name: 'Stale', expectedRevision: 1 }), 'REVISION_CONFLICT')
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
 })

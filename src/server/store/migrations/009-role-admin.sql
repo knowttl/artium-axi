@@ -1,0 +1,2 @@
+ALTER TABLE roles ADD COLUMN updated_at INTEGER;
+ALTER TABLE roles ADD COLUMN updated_by TEXT REFERENCES users(id);
