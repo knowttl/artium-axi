@@ -36,6 +36,7 @@
     ]
   },
   "dependencies": {
+    "@azure/msal-node": "7.0.1",
     "argon2": "0.45.1",
     "better-sqlite3": "13.0.3",
     "fastify": "^5.12.5",

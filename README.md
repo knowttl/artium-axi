@@ -37,6 +37,15 @@ See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resourc
 The same harness now exercises pinned Vectra reads, native write gates and durable logs through the production server entry point.
 See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance and output-redaction limits.
 
+The [Azure token module](src/server/adapters/azure-tokens.ts) supplies the S24 authentication boundary using MSAL Node 7.0.1, pinned in `package.json`.
+`azureCredentialSchema` discriminates `auth: secret` with a client secret from `auth: certificate` with a PEM private key and the matching certificate's 64-character hexadecimal SHA-256 thumbprint.
+Both forms include tenant and client UUIDs.
+`mintAzureToken(credential, resource, networkClient?)` acquires one token for a fixed az-axi 0.1.4 resource audience and returns its expiry and all known secret values, including MSAL's certificate assertion, for output scanning.
+It uses volatile MSAL state without a disk cache or diagnostic output and converts credential, signing and transport failures to `CREDENTIAL_UNAVAILABLE`.
+The optional MSAL transport is an internal fake-service testing boundary.
+Resource selection, shared caching, acquisition deadlines and coalescing arrive in S25, and Azure adapter preparation arrives in S26.
+See [S24 verification](docs/verification-s24.md) for fake-only authentication checks and pending live acceptance of both auth methods and the exact trailing-slash scope forms.
+
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
 An unset, unreadable, empty or in-tree list fails the check.
