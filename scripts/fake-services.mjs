@@ -21,12 +21,12 @@ const command = (bin, args) => {
 const docker = (...args) => command('docker', args)
 const start = (suffix, network, aliases = []) => {
   const container = `${name}-${suffix}`
+  containers.push(container)
   docker('run', '--detach', '--pull', 'never', '--name', container, '--network', network,
     ...aliases.flatMap(host => ['--network-alias', host]),
     '--mount', `type=bind,src=${root},dst=/work,readonly`,
     '--mount', `type=bind,src=${certs},dst=/certs,readonly`,
     image, 'node', '/work/test/fake-service/server.mjs')
-  containers.push(container)
   return container
 }
 const ready = container => new Promise((resolve, reject) => {
@@ -44,13 +44,15 @@ const ready = container => new Promise((resolve, reject) => {
 try {
   if (!image.startsWith('artium-test-')) throw new Error('ARTIUM_TEST_IMAGE must name an existing artium-test- image')
   docker('image', 'inspect', image)
-  const version = docker('run', '--rm', '--pull', 'never', '--network', 'none', '--name', `${name}-version`, image, 'node', '--version')
+  const versionContainer = `${name}-version`
+  containers.push(versionContainer)
+  const version = docker('run', '--rm', '--pull', 'never', '--network', 'none', '--name', versionContainer, image, 'node', '--version')
   if (Number(version.slice(1).split('.')[0]) < 22) throw new Error('Harness image requires Node 22 or later')
   createTestCertificates(certs, hosts)
   for (const suffix of ['inside', 'outside']) {
     const network = `${name}-${suffix}`
-    docker('network', 'create', '--internal', network)
     networks.push(network)
+    docker('network', 'create', '--internal', network)
     if (!JSON.parse(docker('network', 'inspect', network))[0].Internal) throw new Error('Network is not internal')
   }
   const service = start('service', networks[0], hosts)
@@ -70,13 +72,17 @@ try {
 } finally {
   for (const container of containers.reverse()) {
     const result = spawnSync('docker', ['rm', '--force', container], { encoding: 'utf8', timeout: 30_000 })
-    if (result.status !== 0 && !result.stderr.includes('No such container')) {
+    if (result.error || (result.status !== 0 && !result.stderr.includes('No such container'))) {
       console.error(`Cleanup failed for ${container}`)
       process.exitCode = 1
     }
   }
   for (const network of networks.reverse()) {
-    try { docker('network', 'rm', network) } catch (error) { console.error(error.message); process.exitCode = 1 }
+    const result = spawnSync('docker', ['network', 'rm', network], { encoding: 'utf8', timeout: 30_000 })
+    if (result.error || (result.status !== 0 && !result.stderr.includes(`network ${network} not found`))) {
+      console.error(`Cleanup failed for ${network}`)
+      process.exitCode = 1
+    }
   }
   rmSync(certs, { recursive: true, force: true })
 }

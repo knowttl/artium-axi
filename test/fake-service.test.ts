@@ -17,6 +17,16 @@ test('fake HTTPS service trusts only its test CA and records ambiguous mutations
   })
 })
 
+test('fake pagination serves distinct items and a terminal second page', async () => {
+  await withFakeService(async ({ send }) => {
+    const first = JSON.parse(await send('/page'))
+    expect(first).toEqual({ value: [{ id: 'synthetic-page-1' }],
+      nextLink: 'https://management.azure.com/page-next?api-version=2022-12-01' })
+    const second = JSON.parse(await send(new URL(first.nextLink).pathname))
+    expect(second).toEqual({ value: [{ id: 'synthetic-page-2' }] })
+  })
+})
+
 test.each([
   [false, '42', [], 1, 0, 'WRITES_DISABLED', false],
   [true, '42', [], 0, 0, 'current:', false],
