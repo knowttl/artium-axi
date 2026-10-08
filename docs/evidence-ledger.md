@@ -6,7 +6,7 @@ Each completed slice records its exact commit, commands, result and evidence pat
 `unverified` means no live acceptance is claimed.
 All live checks wait until the full build is complete and require approved identities and destinations.
 Real captures, credential details and policy records stay in the private evidence store.
-Publication, deployment, real writes and destructive maintenance require separate approval.
+Public conversion and release, deployment, real writes and destructive maintenance require separate approval.
 
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
