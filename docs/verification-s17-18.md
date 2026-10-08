@@ -21,14 +21,15 @@ Run tests use the production token verifier, policy, shared identity resolver, F
 - SQLite's real `max_page_count` failure produces `SQLITE_FULL` and prevents admission, secret retrieval and child creation.
 - Terminal-write failure withholds completed output and leaves a start recoverable as interrupted.
 - Denials retain only safe identity metadata and stable codes.
+- Store startup inserts missing supported tools disabled and preserves existing settings; valid-user and invalid-token denials retain the unconfigured tool name.
 - Known-secret output retains only terminal metadata, including observed byte counts.
 - Separate flags, equals flags and adapter-identified positional values are redacted before persistence and streaming.
 - Argument count and length are bounded and control characters are escaped.
 - Request bodies, stdin, uploaded contents, credentials, tokens and output fields are excluded by the stored record projection.
 - Every required event shape persists and streams with identical fields, even when its producer belongs to a later slice.
 - Reopening marks unmatched starts interrupted once without replaying a command.
-- A fake clock proves the strict 90-day boundary, a maximum 500-row batch and persistent daily throttling.
-- Retention rollback preserves old records if the maintenance event cannot persist.
+- A fake clock proves the strict 90-day boundary, complete cutoff drainage and a maximum 500-row batch, including repeated maintenance on the same day.
+- Each retention batch commits separately; a failed maintenance event rolls back its batch while earlier committed batches remain durable.
 - Admin mutation and audit commit together, mutation errors remain intact and failed writes publish no stream event.
 - The environment opt-in emits one persisted JSON line on stdout, while default operation emits none.
 - A failed optional stream leaves SQLite persistence intact.

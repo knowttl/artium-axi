@@ -103,25 +103,26 @@ export class Audit {
     return starts.length
   }
 
-  // Called by the server's daily maintenance tick. Each tick deletes at most one bounded batch.
   maintain(): number {
     if (this.db.inTransaction) throw new ArtiumError('AUDIT_UNAVAILABLE')
     const now = this.clock()
-    const last = this.db.prepare("SELECT MAX(occurred_at) AS time FROM audit WHERE event = 'maintenance'").get() as { time: number | null }
-    if (last.time !== null && now - last.time < dayMs) return 0
     const cutoff = now - retentionMs
+    let total = 0
     let record: AuditRecord
-    try {
-      record = this.db.transaction(() => {
-        const deletedCount = this.db.prepare(`DELETE FROM audit WHERE id IN (
-          SELECT id FROM audit WHERE occurred_at < ? ORDER BY occurred_at, id LIMIT ?
-        )`).run(cutoff, retentionBatch).changes
-        return this.insert({ event: 'maintenance', userId: null, tool: null,
-          requestId: `retention-${now}`, clientAddress: null, outcome: 'success', cutoff, deletedCount })
-      }).immediate()
-    } catch { throw new ArtiumError('AUDIT_UNAVAILABLE') }
-    this.emit(record)
-    return record.deleted_count!
+    do {
+      try {
+        record = this.db.transaction(() => {
+          const deletedCount = this.db.prepare(`DELETE FROM audit WHERE id IN (
+            SELECT id FROM audit WHERE occurred_at < ? ORDER BY occurred_at, id LIMIT ?
+          )`).run(cutoff, retentionBatch).changes
+          return this.insert({ event: 'maintenance', userId: null, tool: null,
+            requestId: `retention-${now}`, clientAddress: null, outcome: 'success', cutoff, deletedCount })
+        }).immediate()
+      } catch { throw new ArtiumError('AUDIT_UNAVAILABLE') }
+      this.emit(record)
+      total += record.deleted_count!
+    } while (record.deleted_count === retentionBatch)
+    return total
   }
 
   private insert(event: AuditEvent): AuditRecord {

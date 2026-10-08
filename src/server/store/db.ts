@@ -8,6 +8,7 @@ import { EnvironmentKeyProvider } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialStore } from './credential-store.js'
+import { toolSchema } from '../../shared/api.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
 
@@ -57,6 +58,8 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
     db.pragma('synchronous = FULL')
     db.transaction(() => {
       migrate(db)
+      const insertTool = db.prepare("INSERT INTO tools (name, enabled, pinned_version) VALUES (?, 0, '') ON CONFLICT(name) DO NOTHING")
+      for (const tool of toolSchema.options) insertTool.run(tool)
       const rows = db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]
       for (const row of rows) decryptCredential(row, key).fill(0)
     }).immediate()
