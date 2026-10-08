@@ -29,6 +29,7 @@ export function rotateKey(file: string, oldProvider: KeyProvider, newProvider: K
           try { update.run(encryptCredential(row.id, row.tool, plaintext, newKey)) }
           finally { plaintext.fill(0) }
         }
+        db.prepare('UPDATE store_metadata SET master_key_id = ? WHERE id = 1').run(newKey.id)
         db.prepare('INSERT INTO key_rotations (old_key_id, new_key_id) VALUES (@old_key_id, @new_key_id)').run(receipt)
       })
       return receipt

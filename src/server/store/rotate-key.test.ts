@@ -44,15 +44,16 @@ test('rotation preserves credential identities and revisions and durably records
     expect(db.prepare("SELECT action, target_id, outcome FROM audit WHERE action = 'rotate-key'").all())
       .toEqual([{ action: 'rotate-key', target_id: newProvider.getKey().id, outcome: 'success' }])
   } finally { db.close() }
-  expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID',
+  expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID',
     next: `Restart with the master key whose SHA-256 ID is ${newProvider.getKey().id}.` }))
 })
 
-test.each(['credential-update', 'receipt', 'audit'])('failure at %s rolls back all rows and the receipt', boundary => {
+test.each(['credential-update', 'metadata', 'receipt', 'audit'])('failure at %s rolls back all rows and the receipt', boundary => {
   const db = openStore(file, oldProvider)
   const rows = db.prepare('SELECT * FROM credentials ORDER BY id').all()
   const trigger = boundary === 'credential-update'
     ? "BEFORE UPDATE ON credentials WHEN OLD.tool = 'vectra-axi'"
+    : boundary === 'metadata' ? 'BEFORE UPDATE ON store_metadata'
     : boundary === 'receipt' ? 'BEFORE INSERT ON key_rotations' : "BEFORE INSERT ON audit WHEN NEW.action = 'rotate-key'"
   db.exec(`CREATE TRIGGER synthetic_failure ${trigger} BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END`)
   db.close()
@@ -70,7 +71,7 @@ test('an empty rotated store still rejects the old key', () => {
   db.exec('DELETE FROM credentials')
   db.close()
   rotateKey(file, oldProvider, newProvider)
-  expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
+  expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
   openStore(file, newProvider).close()
 })
 
@@ -131,7 +132,7 @@ test('a process crash after commit and before receipt output recovers with the n
   const db = openStore(file, newProvider)
   try { expect(db.prepare('SELECT new_key_id FROM key_rotations').get()).toEqual({ new_key_id: newProvider.getKey().id }) }
   finally { db.close() }
-  expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
+  expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
   const release = acquireMaintenanceLock(file)
   release()
 })

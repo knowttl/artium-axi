@@ -41,7 +41,8 @@ docker run --rm --network none --read-only --tmpfs /tmp \
 ```
 
 Supply an existing local username and readable files, never a password or key value in arguments.
-Recovery authenticates stored credentials with the mounted key and takes the same maintenance lock as the server and rotation.
+Recovery checks the mounted key against the store's active key ID, authenticates every stored credential and takes the same maintenance lock as the server and rotation.
+An unrelated key fails with `MASTER_KEY_INVALID` even if the store has no credentials or rotation history.
 An audit failure rolls back the entire recovery.
 After success, restart the server, sign in with the recovery password and change it.
 CLI and browser login and the restricted password-change token flow remain later-slice work.
@@ -60,7 +61,7 @@ Production key rotation requires separate approval.
    Set `ARTIUM_AXI_MASTER_KEY_FILE` to the old key file.
    Set `ARTIUM_AXI_DATABASE_FILE` if the store differs from `/data/artium.db`.
 3. Run the maintenance command.
-   It authenticates existing rows and commits every re-encrypted row, a key-ID receipt and an audit event in one transaction.
+   It authenticates existing rows and commits every re-encrypted row, the active store key ID, a key-ID receipt and an audit event in one transaction.
 4. Save the printed key-ID receipt, switch the server's mounted startup key to the new key and restart.
 5. Check every configured adapter before retiring the old key.
    Retain the old key until backups encrypted with it expire.
@@ -93,10 +94,20 @@ An interruption before commit leaves the old encrypted rows and previous receipt
 Restart with the old key.
 After commit, restart with the new key, even if no success receipt reached stdout.
 The database's `key_rotations` table stores the old and new full SHA-256 key IDs atomically with the credentials.
-Its latest row identifies the required startup key.
+The `store_metadata` row records the required startup key, and the latest rotation receipt must agree with it.
 Inspect it with `SELECT old_key_id, new_key_id FROM key_rotations ORDER BY rowid DESC LIMIT 1` while the server is stopped.
 Startup rejects a different key and reports the required key ID, including when no credentials remain.
 The durable audit event uses action `rotate-key`, no user identity for offline maintenance, and the new key ID as its target.
 Maintenance keeps its receipt output separate from the optional online audit stream.
 
 Restore and rollback procedures remain unverified until the backup slice.
+
+## Upgrading stores without a key binding
+
+Before upgrading, stop the server, back up the database and test the migration on a copy with its matching key.
+Migration 006 creates store metadata and records the supplied key ID only after every credential authenticates or the latest rotation receipt matches.
+Schema migration and binding commit together; refusal rolls back both.
+A legacy store with no binding, credentials or rotation receipt cannot establish which key is correct and fails with `MASTER_KEY_INVALID`.
+Do not manufacture metadata to bypass that refusal.
+For a disposable development store, start a new database with synthetic settings instead.
+For a retained store, preserve the backup and use the previous image pending a separately approved migration decision.
