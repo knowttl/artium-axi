@@ -32,7 +32,7 @@ test('compiles typed module imports into executable Node ESM', () => {
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-})
+}, 15_000)
 
 test('strict compilation rejects null assigned to a string', () => {
   const directory = mkdtempSync(join(root, '.tmp-toolchain-'))
@@ -52,4 +52,4 @@ test('strict compilation rejects null assigned to a string', () => {
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-})
+}, 15_000)

@@ -28,6 +28,38 @@ export const loginResponseSchema = z.discriminatedUnion('status', [
     passwordChangeExpiresAt: z.number().int() }),
 ])
 export type LoginResponse = z.infer<typeof loginResponseSchema>
+const accountId = z.string().min(1)
+export const adminUserSchema = z.strictObject({
+  id: accountId, username: z.string(), displayName: z.string(), source: z.literal('local'),
+  enabled: z.boolean(), administrator: z.boolean(), mustChange: z.boolean(),
+  failedAttempts: z.number().int().nonnegative(), lockedUntil: z.number().int().nullable(),
+  revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(),
+  roleIds: z.array(accountId),
+})
+export const adminUsersQuerySchema = z.strictObject({ cursor: accountId.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) })
+export const adminUsersResponseSchema = z.strictObject({ users: z.array(adminUserSchema), nextCursor: accountId.nullable() })
+export const adminUserCreateSchema = z.strictObject({ username: z.string().min(1), displayName: z.string().min(1),
+  temporaryPassword: z.string(), administrator: z.boolean(), roleIds: z.array(accountId).refine(ids => new Set(ids).size === ids.length) })
+export const adminUserPatchSchema = z.strictObject({ displayName: z.string().min(1).optional(), enabled: z.boolean().optional(),
+  administrator: z.boolean().optional(), expectedRevision: z.number().int().positive() })
+  .refine(input => input.displayName !== undefined || input.enabled !== undefined || input.administrator !== undefined)
+export const adminUserUnlockSchema = z.strictObject({})
+export const adminUserResetSchema = z.strictObject({ temporaryPassword: z.string() })
+export const adminUserParamsSchema = z.strictObject({ id: accountId })
+
+// Bearer administration requires both the current capability and a session-bound password ticket.
+export const adminUserRoutes = {
+  list: { method: 'GET', path: '/v1/admin/users', input: adminUsersQuerySchema, response: adminUsersResponseSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: null },
+  create: { method: 'POST', path: '/v1/admin/users', input: adminUserCreateSchema, response: adminUserSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'create-user' },
+  patch: { method: 'PATCH', path: '/v1/admin/users/:id', input: adminUserPatchSchema, response: adminUserSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'update-user' },
+  unlock: { method: 'POST', path: '/v1/admin/users/:id/unlock', input: adminUserUnlockSchema, response: adminUserSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'unlock-user' },
+  reset: { method: 'POST', path: '/v1/admin/users/:id/password-reset', input: adminUserResetSchema, response: adminUserSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'reset-user-password' },
+} as const
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
 export const toolsResponseSchema = z.strictObject({
