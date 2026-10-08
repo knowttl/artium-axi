@@ -133,6 +133,12 @@ Server startup opens and validates this store before listening.
 See [the rotation runbook](docs/runbook.md) for offline master key rotation, including the local command, backup, one-shot container invocation, key switch and crash recovery.
 See [S27 verification](docs/verification-s27.md) for local evidence.
 
+Local accounts use Argon2id with two concurrent hashing slots and a bundled versioned common-password list.
+Passwords allow spaces and Unicode, with 15 to 128 code points and at most 512 UTF-8 bytes, preserved without trimming.
+`POST /v1/auth/password` takes an access token and `{ "newPassword": string, "currentPassword": string }`, returns 204 and revokes existing CLI and browser sessions atomically with its audit record.
+Sign-in issuance and restricted first-login tokens arrive in S30.
+See [S28 verification](docs/verification-s28.md) for the local provider contract and evidence checks.
+
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
 The account-writing flow owns canonicalization before insertion.

@@ -12,6 +12,11 @@ export const inputLimits = {
 } as const
 
 const byteLength = (value: string) => new TextEncoder().encode(value).length
+export const passwordSchema = z.string().refine(value => {
+  const length = [...value].length
+  return length >= 15 && length <= 128 && byteLength(value) <= 512
+}, 'Expected 15 to 128 Unicode code points and at most 512 UTF-8 bytes')
+export const passwordChangeSchema = z.strictObject({ newPassword: z.string(), currentPassword: z.string().optional() })
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
 export const toolsResponseSchema = z.strictObject({

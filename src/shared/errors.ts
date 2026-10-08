@@ -1,4 +1,7 @@
 export const errors = {
+  PASSWORD_INVALID: { status: 400, message: 'The password does not meet the local password rules.', next: 'Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords.' },
+  SIGN_IN_FAILED: { status: 401, message: 'The username or password is incorrect.', next: 'Check your username and password.' },
+  AUTH_BUSY: { status: 429, message: 'The concurrent password hashing limit was reached.', next: 'Wait for an active authentication request to finish.' },
   MAINTENANCE_BUSY: { status: 503, message: 'The store is held by another server or maintenance process.', next: 'Stop the server and wait for maintenance to finish before retrying.' },
   MAINTENANCE_UNAVAILABLE: { status: 503, message: 'The store maintenance lock is unavailable.', next: 'Check data-volume capacity and permissions.' },
   ROTATION_FAILED: { status: 500, message: 'Master key rotation did not complete.', next: 'Keep both keys. Inspect the durable key_rotations receipt and restart with its latest new_key_id, or the old key if no rotation committed.' },
