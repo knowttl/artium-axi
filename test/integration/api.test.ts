@@ -19,6 +19,8 @@ import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { fakeTool } from '../fake-tool/tool.js'
+import { hashPassword, LocalAuthProvider } from '../../src/server/auth/local.js'
+import { issueTestAccessToken } from '../fixtures/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -69,6 +71,29 @@ async function expectFailure(response: Response, code: keyof typeof errors) {
     next: errors[code].next, requestId: expect.any(String) } })
   return body.error.requestId
 }
+
+test('password endpoint changes only the access-token owner and requires a fresh sign-in', async () => {
+  const password = 'CANARY-local-password'
+  const hash = await hashPassword(password)
+  db.prepare("INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-password-user', 'synthetic-password-user', 'Synthetic Password User', ?)").run(hash)
+  const access = issueTestAccessToken(db, 'synthetic-password-user')
+  const change = (body: unknown, proof = access) => fetch(`${url}/v1/auth/password`, {
+    method: 'POST', headers: { ...headers, authorization: `Bearer ${proof}` }, body: JSON.stringify(body),
+  })
+  await expectFailure(await change({ newPassword: 'CANARY-new-password' }), 'SIGN_IN_FAILED')
+  await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: 'wrong' }), 'SIGN_IN_FAILED')
+  await expectFailure(await change({ newPassword: 'short', currentPassword: password }), 'PASSWORD_INVALID')
+  await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password, userId: 'other' }), 'INVALID_INPUT')
+  await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password }, token), 'TOKEN_INVALID')
+  const result = await change({ newPassword: 'CANARY-new-password', currentPassword: password })
+  expect(result.status).toBe(204)
+  expect(await result.text()).toBe('')
+  expect(await new LocalAuthProvider(db).signIn('synthetic-password-user', 'CANARY-new-password'))
+    .toEqual({ userId: 'synthetic-password-user', mustChange: false })
+  await expectFailure(await change({ newPassword: 'CANARY-another-password', currentPassword: 'CANARY-new-password' }), 'TOKEN_INVALID')
+  expect(db.prepare("SELECT user_id, event, client_address FROM audit WHERE event = 'password-change'").all())
+    .toEqual([{ user_id: 'synthetic-password-user', event: 'password-change', client_address: '127.0.0.1' }])
+})
 
 test('real requests list tools without retrieving credentials and preserve the completed upstream envelope', async () => {
   const listing = await fetch(`${url}/v1/tools`, { headers })

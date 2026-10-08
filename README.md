@@ -133,6 +133,15 @@ Server startup opens and validates this store before listening.
 See [the rotation runbook](docs/runbook.md) for offline master key rotation, including the local command, backup, one-shot container invocation, key switch and crash recovery.
 See [S27 verification](docs/verification-s27.md) for local evidence.
 
+Local accounts use Argon2id and reject exact matches in the [versioned common-password list](src/server/auth/common-passwords.v1.json).
+Passwords allow spaces and Unicode, with 15 to 128 code points and at most 512 UTF-8 bytes, preserved without trimming.
+`POST /v1/auth/password` takes a normal access token in `Authorization: Bearer <token>` and a JSON body `{ "newPassword": string, "currentPassword": string }` with `Content-Type: application/json`.
+It changes only the authenticated user's password, clears the must-change flag, returns 204 and revokes existing CLI tokens and browser sessions atomically with its audit record.
+The current password is required; static development tokens cannot use this route.
+The [server configuration](src/server/config.ts) owns hashing costs and concurrency defaults.
+Sign-in issuance and restricted first-login tokens arrive in S30.
+See [S28 verification](docs/verification-s28.md) for local evidence checks.
+
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
 The account-writing flow owns canonicalization before insertion.
@@ -174,7 +183,7 @@ For export, capture that stream in a protected external collector before retenti
 See [the runbook](docs/runbook.md) for database backup requirements and the remaining backup and restore work.
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
-The later authentication and admin producers must call it using metadata only.
+Authentication and admin producers must use metadata only.
 `audit.change(event, mutation)` commits a synchronous database mutation and its event together, then streams the committed event.
 It preserves mutation errors and rolls the mutation back when audit persistence fails.
 These operations reject calls inside another transaction with `AUDIT_UNAVAILABLE`, so streaming always follows commit.
@@ -311,7 +320,7 @@ All tools remain disabled until the development store is configured.
 Use only synthetic encrypted credentials and fake upstream services during the build.
 Never put a token or key in an argument, source file, image or log.
 
-The [Fastify API](src/server/app.ts) implements authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
+The [Fastify API](src/server/app.ts) implements authenticated `GET /v1/tools`, JSON `POST /v1/tools/{tool}/run` and the own-password change route described above.
 Send `Authorization: Bearer <token>` using the token file's contents, and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
 Tools listing includes enabled, granted adapters without contacting an upstream service.

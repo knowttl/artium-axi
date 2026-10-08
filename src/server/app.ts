@@ -3,11 +3,13 @@ import { isIP } from 'node:net'
 import Fastify from 'fastify'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
-import { inputLimits, toolSchema, toolsResponseSchema } from '../shared/api.js'
+import { inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { developmentAuthentication, readDevelopmentToken } from './auth/development.js'
+import { LocalAuthProvider } from './auth/local.js'
+import { verifyAccessToken } from './auth/tokens.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -22,6 +24,7 @@ export function createApp(options: {
   const proxies = (environment.ARTIUM_AXI_TRUSTED_PROXIES ?? '').split(',').map(value => value.trim()).filter(Boolean)
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
   const authenticate = developmentAuthentication(db, token)
+  const localAuth = new LocalAuthProvider(db)
   audit.recoverInterrupted()
   const app = Fastify({ bodyLimit: inputLimits.requestBytes, logger: false,
     genReqId: () => randomUUID(), requestIdHeader: false,
@@ -58,6 +61,15 @@ export function createApp(options: {
       return [{ name: adapter.name, version: row.version, status: row.configured ? 'unknown' : 'unconfigured' }]
     })
     return toolsResponseSchema.parse({ tools })
+  })
+  app.post('/v1/auth/password', async (request, reply) => {
+    const userId = verifyAccessToken(db, bearer(request.headers.authorization))
+    const input = passwordChangeSchema.safeParse(request.body)
+    if (!input.success) throw new ArtiumError('INVALID_INPUT')
+    if (input.data.currentPassword === undefined) throw new ArtiumError('SIGN_IN_FAILED')
+    await localAuth.changePassword(userId, input.data.currentPassword, input.data.newPassword, audit,
+      { requestId: request.id, clientAddress: request.ip })
+    return reply.code(204).send()
   })
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
