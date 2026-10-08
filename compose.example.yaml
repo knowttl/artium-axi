@@ -1,0 +1,20 @@
+services:
+  artium:
+    image: artium-axi:local
+    build: .
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - artium-data:/data
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ARTIUM_AXI_MASTER_KEY_FILE: /run/secrets/artium_master_key
+    secrets:
+      - artium_master_key
+secrets:
+  artium_master_key:
+    file: ./private/artium_master_key
+volumes:
+  artium-data:
