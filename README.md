@@ -179,8 +179,8 @@ The [authentication schema](src/server/store/migrations/002-authentication.sql) 
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
 The account-writing flow owns canonicalization before insertion.
 The `administrator` flag is a reserved account capability independent of role tool grants.
-The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later role writers must enforce optimistic concurrency.
-See the user administration usage below for account edit concurrency.
+The schema provides revision fields for users and roles, alongside the existing tool and credential revisions.
+See the administration usage below for account and role edit concurrency.
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
 Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
@@ -382,7 +382,18 @@ Disabling and resetting revoke CLI and browser sessions in the same transaction 
 The last enabled administrator cannot be disabled or demoted, including concurrent edits.
 The [shared API contract](src/shared/api.ts) owns the complete user inputs, public fields, pagination and audit actions; there is no account delete route.
 See [S33 verification](docs/verification-s33.md) for real local login, authorization, audit rollback and concurrency evidence.
-Role administration, remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+`PUT /v1/admin/users/{id}/roles` replaces `roleIds` with an `expectedRevision` shared with other account edits.
+`GET /v1/admin/roles` uses the same `cursor`, `limit` and `nextCursor` pagination as users.
+`POST /v1/admin/roles` accepts `name` and returns 201 with public role metadata.
+`PATCH /v1/admin/roles/{id}` accepts `name` and `expectedRevision`.
+`PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi` and `az-axi`.
+The [shared API contract](src/shared/api.ts) owns the complete role inputs, public metadata and audit actions.
+Role administration, including listing, requires the current administrator capability and the same reauthentication ticket as user administration.
+Role and assignment mutations commit with their audit event and return public metadata with the new revision; successful edits return 200.
+Invalid references return 400, unknown targets return 404 and stale revisions return 409 without changes.
+Tool grants never confer administrator capability, and role changes apply to the next tool call using existing tokens.
+See [S34 verification](docs/verification-s34.md) for role, grant and assignment evidence.
+Remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.
