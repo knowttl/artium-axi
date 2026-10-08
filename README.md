@@ -8,7 +8,7 @@ The API supports local sign-in, password change, refresh rotation, logout, rate 
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
 Administrators can browse and filter records through the [Audit screen and API](#audit-screen-and-api).
-The bundled CLI supports local login, password change, identity, logout and serialized session refresh.
+The bundled CLI supports local login, password change, identity, logout, serialized session refresh and `doctor` diagnostics.
 Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
@@ -291,7 +291,7 @@ Call `runner.run(userId, executable, args, environment, secrets, limits, input, 
 The audited execution function supplies the synchronous `beforeSpawn` token recheck described above.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
 The later owning server flow must enforce a separate 30-second preparation deadline for the [Falcon adapter](src/server/adapters/falcon.ts).
-Credential tests and future background health reads must use this same runner and an authenticated identity.
+Credential tests and scheduled background health reads use this same runner, with an administrator identity for manual tests and named system accounting for background reads.
 Excess calls reject immediately with `TOO_MANY_CALLS`.
 It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
 Each call has a private mode-0700 directory for its working directory, HOME, TMPDIR and XDG paths, removed after completion or failure.
@@ -406,9 +406,28 @@ Never put a token or key in an argument, source file, image or log.
 The [Fastify API](src/server/app.ts) implements the authentication endpoints described above, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
 Use an ordinary access token from local sign-in in `Authorization: Bearer <token>` and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
-Tools listing includes enabled, granted adapters without contacting an upstream service.
-Configured tools have `unknown` status until a manual health test records `ok` or `error`; missing credentials have `unconfigured` status.
-The periodic health scheduler remains later-slice work.
+Tools listing includes enabled, granted adapters and reads cached health without contacting an upstream service.
+Configured tools have `unknown` status until a health check records `ok` or `error`; missing credentials have `unconfigured` status.
+Health records carry check time, credential revision and a safe error code, never upstream output.
+The server checks enabled configured tools every 15 minutes and after credential or native-setting replacement.
+Manual tests run the same checker and store completed check results subject to the cache rules below.
+One check per tool can run at a time across both paths, including preparation and cleanup.
+Replacement during a check queues one check of the latest revision after the current check finishes.
+Background reads share global runner slots, with per-tool system accounting named `system:tool-health:<tool>`.
+Their `health-check` audit record identifies `system:tool-health` in `action`, without creating a sign-in account.
+Admission and authorization failures preserve the previous cache, and an old credential revision never replaces newer health.
+Health status does not change platform permissions or hide permitted commands.
+
+Run `node dist/cli/artium-axi.mjs doctor` to print one pass/fail line for the server address, certificate, token and CLI version.
+When token and version checks pass, it also prints a line for each available tool's cached health; only `ok` passes.
+Any failed check exits 1, while all passing checks exit 0.
+Certificate trust is verified through HTTPS, and a local test HTTP connection reports a failed certificate check.
+Doctor does not run platform checks or require administrator access.
+Every CLI request carries `X-Artium-Cli-Version` from `package.json`.
+The server accepts that release and newer versions, returning HTTP 426 `CLI_OUTDATED` with a download command for older or malformed version headers.
+Browser requests, health routes and CLI download paths are exempt, and API clients without a CLI header remain supported.
+The download route and complete installation instructions are later distribution work.
+See [S42 verification](docs/verification-s42.md) for fake-time exclusion, stored listing, version exemptions and bundled diagnostics.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
 Bearer user administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
@@ -458,7 +477,7 @@ Native-settings patches also advance the configured credential revision so an ol
 Configured disabled Falcon and Vectra tools can be tested before enabling them.
 Manual tests never overlap for one tool and use the same global and per-administrator runner slots as ordinary calls.
 They return only safe health fields and retain no upstream output; the audit contract is described above.
-Health records carry check time, credential revision and a safe error code, and never replace the cached health of a newer credential.
+The health cache rules above also apply to manual tests.
 Tool administration follows the same authorization rules as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.

@@ -11,6 +11,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestCertificates } from './fake-service/certificates.mjs'
 import { SessionStore } from '../src/cli/session.js'
 import { DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
+import { cliVersion } from '../src/shared/version.js'
 
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
@@ -19,7 +20,8 @@ const clockBundle = join(directory, 'artium-axi-clock.mjs')
 const stalls = new EventEmitter()
 let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean }
-let requests: { path: string, token?: string, body: unknown }[]
+let requests: { path: string, token?: string, body: unknown, version?: string }[]
+let doctorResponses: Record<string, typeof response> | undefined
 const server = createServer()
 
 beforeAll(async () => {
@@ -32,16 +34,18 @@ beforeAll(async () => {
   server.on('request', async (request, reply) => {
     let body = ''
     for await (const chunk of request) body += chunk
-    requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined })
+    requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined,
+      version: request.headers['x-artium-cli-version'] as string | undefined })
+    const current = doctorResponses?.[request.url!] ?? response
     const stalled = () => stalls.emit(request.url!, { socket: request.socket, closed: once(request.socket, 'close') })
     if (request.url!.startsWith('/stall-headers/')) { stalled(); return }
-    reply.writeHead(response.status, { 'content-type': 'application/json', ...(response.location ? { location: response.location } : {}) })
-    if (response.stall || request.url!.startsWith('/stall-body/')) {
+    reply.writeHead(current.status, { 'content-type': 'application/json', ...(current.location ? { location: current.location } : {}) })
+    if (current.stall || request.url!.startsWith('/stall-body/')) {
       reply.flushHeaders()
       if (request.url!.startsWith('/stall-body/')) stalled()
       return
     }
-    reply.end(JSON.stringify(response.body))
+    reply.end(JSON.stringify(current.body))
   })
   server.listen(0)
   await once(server, 'listening')
@@ -112,7 +116,7 @@ test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
   expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version}:\n  falcon-axi,ok,"0.3.0"\n', stderr: '' })
-  expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined }])
+  expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
   expect((await cli(['tools'])).stdout).toBe('tools: 0 available\n')
 })
@@ -169,8 +173,36 @@ test.each([
 
 test('TLS certificate trust cannot be bypassed and connection failure is not retried', async () => {
   requests = []
-  expect(await cli(['tools'], { ARTIUM_AXI_CA_FILE: undefined })).toMatchObject({ code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE') })
+  expect(await cli(['tools'], { ARTIUM_AXI_CA_FILE: undefined })).toMatchObject({ code: 1, stdout: expect.stringContaining('CERTIFICATE_INVALID') })
   expect(requests).toEqual([])
+})
+
+test.each([
+  { status: 200, body: { status: 'ok' } },
+  { status: 503, body: { status: 'unavailable' } },
+])('doctor reports trusted HTTPS, token, version and each cached tool when readiness returns $status', async readiness => {
+  requests = []
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/health/ready': readiness,
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' },
+      { name: 'vectra-axi', status: 'error', version: '0.1.3' }] } },
+  }
+  try {
+    expect(await cli(['doctor'])).toMatchObject({ code: 1, stderr: '', stdout:
+      'pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi (ok)\nfail: vectra-axi (error)\n' })
+    expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
+    expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
+    doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] }
+    expect(await cli(['doctor'])).toMatchObject({ code: 0, stdout: expect.stringContaining('pass: falcon-axi (ok)') })
+  } finally { doctorResponses = undefined }
+})
+
+test('doctor reports all prerequisite failures for an invalid server address', async () => {
+  expect(await cli(['doctor'], { ARTIUM_AXI_URL: 'invalid' })).toMatchObject({ code: 1, stdout:
+    'fail: server address (CLIENT_CONFIG_INVALID)\nfail: certificate (CLIENT_CONFIG_INVALID)\nfail: token (CLIENT_CONFIG_INVALID)\nfail: CLI version (CLIENT_CONFIG_INVALID)\n' })
 })
 
 test('inherited TLS bypass cannot send the token to an untrusted server', async () => {
@@ -178,7 +210,7 @@ test('inherited TLS bypass cannot send the token to an untrusted server', async 
   response = { status: 200, body: { tools: [] } }
   const environment = { ARTIUM_AXI_CA_FILE: undefined, NODE_TLS_REJECT_UNAUTHORIZED: '0' }
   const results = await Promise.all([cli(['tools'], environment), cli(['falcon-axi'], environment)])
-  const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE') }
+  const failure = { code: 1, stdout: expect.stringContaining('CERTIFICATE_INVALID') }
   expect(results).toMatchObject([failure, failure])
   expect(requests).toEqual([])
 })
