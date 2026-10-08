@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const image = process.env.ARTIUM_TEST_IMAGE ?? 'artium-test-node22'
+const image = 'artium-test-node22'
 const hosts = ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
   'synthetic.blob.core.windows.net', 'synthetic.vault.azure.net', 'synthetic.azurecr.io', 'appliance.test']
 const name = `artium-test-${randomUUID()}`
@@ -42,7 +42,6 @@ const ready = container => new Promise((resolve, reject) => {
 })
 
 try {
-  if (!image.startsWith('artium-test-')) throw new Error('ARTIUM_TEST_IMAGE must name an existing artium-test- image')
   docker('image', 'inspect', image)
   const versionContainer = `${name}-version`
   containers.push(versionContainer)

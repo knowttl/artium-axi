@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 
 const [mode, ...args] = process.argv.slice(2)
 const modes = ['env', 'print', 'sleep', 'stdout', 'stderr', 'memory', 'child',
-  'descendant', 'exit', 'split', 'leak', 'signal', 'fixture', 'upstream']
+  'descendant', 'exit', 'split', 'leak', 'signal', 'upstream']
 const hold = () => setInterval(() => {}, 60_000)
 const number = (value, fallback) => {
   const result = Number(value ?? fallback)
@@ -82,11 +82,6 @@ try {
     case 'signal':
       process.kill(process.pid, args[0] ?? 'SIGTERM')
       hold()
-      break
-    case 'fixture':
-      if (!['empty', 'error', 'suggestions'].includes(args[0])) throw new Error('Unknown fixture')
-      process.stdout.write(await readFile(new URL(`./fixtures/${args[0]}.toon`, import.meta.url)))
-      process.exitCode = args[0] === 'error' ? 1 : 0
       break
     case 'upstream': {
       const fixtures = JSON.parse(await readFile(new URL('./fixtures/upstreams.json', import.meta.url), 'utf8'))

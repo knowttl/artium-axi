@@ -25,6 +25,26 @@ const environments = {
   'vectra-axi': ['CONFIG', 'PROFILE', 'READ_ONLY', 'WRITE_LOG'],
   'mg-axi': ['CONFIG', 'READ_ONLY', 'WRITE_LOG', 'CLIENT_SECRET'],
 }
+const nativeWriteSettings = {
+  'az-axi': {
+    profileFields: { allowWrites: 'boolean', subscriptions: 'string[]' },
+    scope: { configuredField: 'subscriptions', resolvedField: 'writeSubscriptions',
+      rule: 'Copied from configured subscriptions before flag or environment read-scope overrides; unscoped writes denied' },
+    sources: ['lib/config.js', 'lib/gates.js'],
+  },
+  'vectra-axi': {
+    profileFields: { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' },
+    scope: { configuredField: 'writes.operations', resolvedField: 'scope.operations',
+      rule: 'Explicit nonempty operation allowlist, snapshotted by the mutation coordinator for QUX and RUX' },
+    sources: ['src/profiles.js', 'src/writes.js'],
+  },
+  'mg-axi': {
+    profileFields: { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' },
+    scope: { configuredField: 'writes.operations', resolvedField: 'scope.operations',
+      rule: 'Explicit nonempty operation allowlist, snapshotted by the mutation coordinator for delegated and application profiles' },
+    sources: ['profiles.js', 'mutations.js'],
+  },
+}
 const disposition = name => ['config', 'profile', 'tenant', 'token-env', 'client-secret-env',
   'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint', 'ca-bundle'].includes(name) ? 'server-owned'
   : name.endsWith('-file') || ['file', 'body', 'input', 'out', 'output', 'cursor'].includes(name) ? 'input/output transport review'
@@ -40,6 +60,10 @@ for (const [tool, commands] of Object.entries(inventories)) {
     packageManifestSha256: createHash('sha256').update(readFileSync(packageUrl)).digest('hex'),
     environment: environments[tool].map(name => ({ name: `${prefix}_${name}`, disposition: 'server-owned' })),
     dynamicCredentialEnvironment: 'Profiles may name credential variables. Server creates and owns those names.',
+    nativeWriteSettings: { default: 'disabled', disposition: 'server-owned',
+      profileFields: nativeWriteSettings[tool].profileFields, scope: nativeWriteSettings[tool].scope,
+      sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
+        sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
     suggestionFields: ['help'], format: 'TOON',
     flags: [...new Set(commands.flatMap(command => Object.keys(command.flags)))].sort()
       .map(name => ({ name, disposition: disposition(name) })), commands }

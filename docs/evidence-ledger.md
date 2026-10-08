@@ -23,6 +23,10 @@ Filtered Docker container, network and image inventories showed no remaining sli
 Loopback TLS and pinned Vectra gate tests also run in the mandatory local suite.
 Azure write capability remains unavailable pending executable commissioning of a safe pin.
 
+The review revision adds native profile write-setting inventories with pinned source hashes and retains only the upstream synthetic stream fixtures and fixed `artium-test-node22` harness image.
+Focused review verification covers these inventories and synthetic executable behavior.
+Frozen install, full lint/tests/check, private hygiene and revised container evidence remain pending with the outer validation executor for the final candidate.
+
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
 | Deployment prerequisites and harmless-read requests (T0.1) | This ledger records deferred prerequisites | pending | unverified: supply dedicated identities, Linux host, proxy and certificate |
