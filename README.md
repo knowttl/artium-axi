@@ -18,3 +18,23 @@ It allows an empty selection for now because no application security contracts e
 The server, CLI, container and upstream integrations arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
+
+Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
+The UTF-8 list contains one literal term per line, matched case-insensitively, with blank lines ignored.
+An unset, unreadable, empty or in-tree list fails the check.
+Never copy real terms or the private list into this repository.
+Record only its revision or SHA-256 alongside the candidate commit and pass/fail result.
+
+The checker scans the whole current tree, including tracked, untracked and ignored files, generated narrative, build logs, bundles and source maps.
+Only `.git` metadata and installed `node_modules` directories are excluded.
+It also scans all commit messages reachable from `HEAD`.
+Pass any intended assets outside the checkout explicitly, for example `pnpm hygiene:check /path/to/release-assets /path/to/build.log`.
+Symlinks and unreadable files fail rather than silently reducing coverage.
+Keep the deny list outside every supplied asset directory too.
+Matches report the file or commit, one-based line and column, and list entry number, without excerpts or term values.
+Matching path terms are redacted in diagnostics.
+Synthetic tests prove checker behaviour, while the real private scan supplies candidate hygiene evidence.
+The check cannot guarantee absence of unknown sensitive values and does not approve publication.
+
+See [the evidence ledger](docs/evidence-ledger.md) for local implementation, pinned-upstream fake-service evidence and the deferred captain live acceptance gates.
+No live gate is satisfied by a fake-service result.
