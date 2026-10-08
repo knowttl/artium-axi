@@ -100,7 +100,15 @@ Family deadlines, browser idle tracking and reauthentication timestamps are stor
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
 Bootstrap metadata starts empty and is written atomically with the first administrator in the later bootstrap slice.
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
-Token verification, issuance, login, bootstrap execution and audit writing arrive in later slices.
+The [access-token verifier](src/server/auth/tokens.ts) looks up SHA-256 hashes and enforces access-token type, token and family deadlines, consumption and revocation.
+The [tool policy](src/server/policy/policy.ts) reads the current enabled user, enabled tool and role grants on every call.
+Administrator capability does not grant tool access.
+The [run preparation function](src/server/runner/prepare.ts) verifies the token and policy before resolving the shared identity and retrieving credentials through the adapter.
+It returns the authenticated user ID and prepared call for the later audited HTTP run flow.
+Policy denials return distinct `USER_DISABLED`, `TOOL_DISABLED` and `TOOL_NOT_GRANTED` errors.
+The random, expiring [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness, refuses execution outside `NODE_ENV=test`, and uses the production verifier.
+[S16 verification](docs/verification-s16.md) covers expiry and revocation, next-call role changes and proof that denied preparation retrieves no secret.
+Login, production token issuance, bootstrap execution, audited execution and HTTP integration arrive in later slices.
 
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
 Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `child-exit`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
