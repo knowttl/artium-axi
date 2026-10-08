@@ -4,7 +4,7 @@ artium-axi is one container that fronts several agent-ergonomic command-line too
 It adds role-based access to those tools and a command-line client that follows the AXI design principles.
 
 Status: under construction.
-The API supports local sign-in and password change, while refresh rotation, logout, rate limits and CLI sign-in commands arrive in later slices.
+The API supports local sign-in, password change, refresh rotation and logout, while rate limits and CLI sign-in commands arrive in later slices.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -142,6 +142,14 @@ Passwords allow spaces and Unicode, with 15 to 128 code points and at most 512 U
 `POST /v1/auth/login` accepts strict JSON `{ "username": string, "password": string }`.
 Ordinary success returns HTTP 200 with `status: authenticated`, distinct 32-byte random `accessToken` and `refreshToken`, and Unix millisecond `accessExpiresAt` and `familyExpiresAt` timestamps.
 Access lasts one hour and the family ends 12 hours after login.
+`POST /v1/auth/refresh` accepts strict JSON `{ "refreshToken": string }` with a nonempty token and returns HTTP 200 with a new authenticated token pair.
+Rotation consumes the refresh token atomically and preserves the original family deadline.
+Older access tokens remain valid until their own expiry or family revocation, and new access expiry is capped by the family deadline.
+Consumed refresh hashes remain stored for reuse detection through the family deadline.
+Reusing a consumed refresh token before that deadline revokes the entire family, records a token-reuse audit event and returns `TOKEN_INVALID`.
+`POST /v1/auth/logout` accepts a stored, unrevoked bearer access or refresh token, including an expired or consumed token, and returns 204 after audited family revocation.
+Revocation includes every token and browser session in that family, leaving other families unchanged.
+See [S31 verification](docs/verification-s31.md) for concurrent refresh, deadline and logout checks.
 Only SHA-256 token hashes and metadata are stored.
 A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
 The restricted token is accepted only by `POST /v1/auth/password` and cannot list tools, run tools or authenticate administration.
@@ -152,7 +160,6 @@ Restricted password change is single-use and requires a new login after success.
 Sign-in success and failure are audited, and token issuance rolls back if its audit record fails.
 The [server configuration](src/server/config.ts) owns hashing costs, concurrency and token lifetime defaults.
 See [S28 verification](docs/verification-s28.md) and [S30 verification](docs/verification-s30.md) for local evidence checks.
-Refresh rotation and logout remain pending.
 
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
@@ -338,13 +345,13 @@ All tools remain disabled until the development store is configured.
 Use only synthetic encrypted credentials and fake upstream services during the build.
 Never put a token or key in an argument, source file, image or log.
 
-The [Fastify API](src/server/app.ts) implements local sign-in, password change, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
+The [Fastify API](src/server/app.ts) implements the authentication endpoints described above, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
 Use an ordinary access token from local sign-in in `Authorization: Bearer <token>` and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
 Tools listing includes enabled, granted adapters without contacting an upstream service.
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
-All bearer authentication uses the stored-token verifier, with current database policy applied to every tool request.
+Tool requests use the stored access-token verifier, with current database policy applied to every request.
 Admin routes and recent password reauthentication remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.

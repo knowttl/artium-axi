@@ -87,6 +87,92 @@ async function login(password = 'CANARY-local-password', username = 'synthetic-u
     body: JSON.stringify({ username, password }) })
 }
 
+async function ordinarySession() {
+  const session = loginResponseSchema.parse(await (await login()).json())
+  if (session.status !== 'authenticated') throw new Error('Expected ordinary session')
+  return session
+}
+
+async function refresh(refreshToken: string) {
+  return fetch(`${url}/v1/auth/refresh`, { method: 'POST', headers,
+    body: JSON.stringify({ refreshToken }) })
+}
+
+test('security: concurrent refresh consumes once and reuse revokes the complete family', async () => {
+  const session = await ordinarySession()
+  const other = await ordinarySession()
+  const responses = await Promise.all([refresh(session.refreshToken), refresh(session.refreshToken)])
+  expect(responses.map(response => response.status).sort()).toEqual([200, 401])
+  const rotated = loginResponseSchema.parse(await responses.find(response => response.status === 200)!.json())
+  if (rotated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  await expectFailure(await fetch(`${url}/v1/tools`, { headers: { authorization: `Bearer ${rotated.accessToken}` } }), 'TOKEN_INVALID')
+  await expectFailure(await fetch(`${url}/v1/tools`, { headers: { authorization: `Bearer ${session.accessToken}` } }), 'TOKEN_INVALID')
+  await expectFailure(await refresh(rotated.refreshToken), 'TOKEN_INVALID')
+  expect((await fetch(`${url}/v1/tools`, { headers: { authorization: `Bearer ${other.accessToken}` } })).status).toBe(200)
+  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event = 'token-reuse'").all()).toEqual([
+    { event: 'token-reuse', user_id: 'synthetic-development-user', outcome: 'TOKEN_INVALID' },
+  ])
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('security: rotation preserves old access expiry and the fixed family deadline', async () => {
+  const session = await ordinarySession()
+  vi.spyOn(Date, 'now').mockReturnValue(session.accessExpiresAt - 1)
+  const rotated = loginResponseSchema.parse(await (await refresh(session.refreshToken)).json())
+  if (rotated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  expect(rotated.familyExpiresAt).toBe(session.familyExpiresAt)
+  expect(rotated.accessExpiresAt).toBe(session.accessExpiresAt - 1 + 3_600_000)
+  expect(verifyAccessToken(db, session.accessToken)).toBe('synthetic-development-user')
+  vi.spyOn(Date, 'now').mockReturnValue(session.accessExpiresAt)
+  expect(() => verifyAccessToken(db, session.accessToken)).toThrow(expect.objectContaining({ code: 'TOKEN_EXPIRED' }))
+  expect(verifyAccessToken(db, rotated.accessToken)).toBe('synthetic-development-user')
+  vi.spyOn(Date, 'now').mockReturnValue(session.familyExpiresAt - 1)
+  const final = loginResponseSchema.parse(await (await refresh(rotated.refreshToken)).json())
+  if (final.status !== 'authenticated') throw new Error('Expected ordinary session')
+  expect(final.accessExpiresAt).toBe(session.familyExpiresAt)
+  expect(final.familyExpiresAt).toBe(session.familyExpiresAt)
+  vi.spyOn(Date, 'now').mockReturnValue(session.familyExpiresAt)
+  await expectFailure(await refresh(final.refreshToken), 'TOKEN_EXPIRED')
+  expect(() => verifyAccessToken(db, final.accessToken)).toThrow(expect.objectContaining({ code: 'TOKEN_EXPIRED' }))
+})
+
+test.each(['access', 'refresh'] as const)('security: logout with expired %s revokes only its family', async type => {
+  const session = await ordinarySession()
+  const other = await ordinarySession()
+  const rotated = loginResponseSchema.parse(await (await refresh(session.refreshToken)).json())
+  if (rotated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  db.prepare('UPDATE tokens SET expires_at = 0 WHERE hash = ?').run(hashToken(type === 'access' ? session.accessToken : session.refreshToken))
+  const response = await fetch(`${url}/v1/auth/logout`, { method: 'POST',
+    headers: { authorization: `Bearer ${type === 'access' ? session.accessToken : session.refreshToken}` } })
+  expect(response.status).toBe(204)
+  expect(await response.text()).toBe('')
+  await expectFailure(await refresh(rotated.refreshToken), 'TOKEN_INVALID')
+  expect(() => verifyAccessToken(db, rotated.accessToken)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+  expect(verifyAccessToken(db, other.accessToken)).toBe('synthetic-development-user')
+  expect(db.prepare("SELECT user_id, outcome FROM audit WHERE event = 'sign-out'").all())
+    .toEqual([{ user_id: 'synthetic-development-user', outcome: 'success' }])
+})
+
+test('reuse audit failure rolls back revocation and permits a durable retry', async () => {
+  const session = await ordinarySession()
+  const rotated = loginResponseSchema.parse(await (await refresh(session.refreshToken)).json())
+  if (rotated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  db.exec("CREATE TRIGGER fail_reuse BEFORE INSERT ON audit WHEN NEW.event = 'token-reuse' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await expectFailure(await refresh(session.refreshToken), 'AUDIT_UNAVAILABLE')
+  expect(verifyAccessToken(db, rotated.accessToken)).toBe('synthetic-development-user')
+  db.exec('DROP TRIGGER fail_reuse')
+  await expectFailure(await refresh(session.refreshToken), 'TOKEN_INVALID')
+  expect(() => verifyAccessToken(db, rotated.accessToken)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+})
+
+test('refresh rejects invalid types and strict input without rotating', async () => {
+  await expectFailure(await refresh(token), 'TOKEN_INVALID')
+  await expectFailure(await refresh('CANARY-unknown'), 'TOKEN_INVALID')
+  await expectFailure(await fetch(`${url}/v1/auth/refresh`, { method: 'POST', headers,
+    body: JSON.stringify({ refreshToken: token, extra: true }) }), 'INVALID_INPUT')
+  expect(verifyAccessToken(db, token)).toBe('synthetic-development-user')
+})
+
 test('login issues distinct random token types with hashes and fixed deadlines', async () => {
   const response = await login(undefined, ' Synthetic-User ')
   expect(response.status).toBe(200)
