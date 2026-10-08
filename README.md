@@ -4,7 +4,7 @@ artium-axi is one container that fronts several agent-ergonomic command-line too
 It adds role-based access to those tools and a command-line client that follows the AXI design principles.
 
 Status: under construction.
-The development API is runnable locally, while the CLI and production authentication arrive in later slices.
+The development API and minimal bundled CLI are runnable locally, while production authentication arrives in later slices.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -14,11 +14,26 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon adapter and encrypted credential store, and `src/cli/` reserves the client layout.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon adapter and encrypted credential store, and `src/cli/` contains the minimal client.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
-The pinned container, development server and Falcon adapter are available, while the CLI and remaining adapters arrive in later slices.
+The pinned container, development server, bundled CLI and Falcon adapter are available, while the remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
+
+`pnpm build` produces the standalone `dist/cli/artium-axi.mjs`, requiring Node 22.12 or later and no sibling files or `node_modules`.
+Set `ARTIUM_AXI_URL` to the server's HTTPS base URL and `ARTIUM_AXI_DEV_TOKEN_FILE` to an owner-only file containing your synthetic development token.
+The URL cannot contain credentials, a query or a fragment.
+The client uses Node's certificate trust, optionally extended with `ARTIUM_AXI_CA_FILE`; certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+Authenticated redirects are refused and requests are never retried automatically.
+Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
+Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
+For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
+The client preserves argument tokens, upstream stdout, stderr and exit status, with truncation diagnostics on stderr.
+Artium errors withhold captured output and use structured TOON on stdout with exit 2 for usage or client configuration failures and exit 1 for other failures.
+Login, complete home/help views, suggestion rewriting and download/launcher distribution remain later-slice work.
+
+Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
+See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resource cleanup and deferred captain checks.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.

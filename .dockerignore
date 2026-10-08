@@ -11,6 +11,7 @@ tools/node_modules
 !scripts/
 !scripts/native-smoke.mjs
 !scripts/falcon-smoke.mjs
+!scripts/build-cli.mjs
 !test/
 !test/fake-service/
 !test/fake-service/certificates.mjs
