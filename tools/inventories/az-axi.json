@@ -134,6 +134,48 @@
     "help"
   ],
   "format": "TOON",
+  "tokenResourceSources": [
+    {
+      "path": "dist/lib/registry.js",
+      "sha256": "94d7c5f4a3f4ab9d58fc745d877d42d8f94da7ccdbd39e68840054d2486616e3"
+    },
+    {
+      "path": "dist/lib/client.js",
+      "sha256": "b9b584b6d4962dbe6d907f3a5f452ae814be0905911838dcc91425e87d6a0f81"
+    },
+    {
+      "path": "dist/lib/principals.js",
+      "sha256": "2116f1b83228356cde237e2512dabf0395cdc816bf1c48974073cbb28165a6e7"
+    },
+    {
+      "path": "dist/lib/storageMetadata.js",
+      "sha256": "85864d2850358818f202fd888e3c98735247040a4674b46c5b32015bca45651d"
+    },
+    {
+      "path": "dist/lib/keyvaultMetadata.js",
+      "sha256": "c558e1f3b9c74471a33dd205fe57600bed9aae4b528f9edda85204957a2225e8"
+    },
+    {
+      "path": "dist/lib/acrMetadata.js",
+      "sha256": "fff1249baa3a3f7407385e54fed69261da5bb7c4474b6d2a7a57d6410914d711"
+    },
+    {
+      "path": "dist/commands/rbac.js",
+      "sha256": "e1a94bf4c74a516b0e4052399f5e73a5a0e21456589ec672269656aab32d9cfc"
+    },
+    {
+      "path": "dist/commands/logs.js",
+      "sha256": "07fc272e2947f12f8c03b9f818ec98fe2fb35beee43f544dcd0d0db15f37574b"
+    },
+    {
+      "path": "dist/commands/doctor.js",
+      "sha256": "50b37a3767713bd308a5ab0e39a54104cc6b620f771d315aeffeb6c02d218300"
+    },
+    {
+      "path": "dist/commands/api.js",
+      "sha256": "baa18308b4049a6e5dbb924be4a4e1aa6361fa95deef99256e5bad689a2fdd4b"
+    }
+  ],
   "flags": [
     {
       "name": "access",
@@ -505,6 +547,7 @@
       "command": "home",
       "canonicalCommand": "home",
       "handlerCommand": "home",
+      "tokenResources": [],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -529,6 +572,7 @@
       "command": "setup hooks",
       "canonicalCommand": "setup hooks",
       "handlerCommand": "setup hooks",
+      "tokenResources": null,
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -553,6 +597,11 @@
       "command": "doctor",
       "canonicalCommand": "doctor",
       "handlerCommand": "doctor",
+      "tokenResources": [
+        "arm",
+        "logs",
+        "graph"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -577,6 +626,7 @@
       "command": "config init",
       "canonicalCommand": "config init",
       "handlerCommand": "config init",
+      "tokenResources": null,
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -608,6 +658,7 @@
       "command": "config list",
       "canonicalCommand": "config list",
       "handlerCommand": "config list",
+      "tokenResources": null,
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -632,6 +683,7 @@
       "command": "config path",
       "canonicalCommand": "config path",
       "handlerCommand": "config path",
+      "tokenResources": null,
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -656,6 +708,9 @@
       "command": "sub list",
       "canonicalCommand": "sub list",
       "handlerCommand": "sub list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -680,6 +735,9 @@
       "command": "account list",
       "canonicalCommand": "account list",
       "handlerCommand": "account list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -704,6 +762,9 @@
       "command": "account show",
       "canonicalCommand": "account show",
       "handlerCommand": "account show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -728,6 +789,9 @@
       "command": "monitor log-analytics workspace list",
       "canonicalCommand": "monitor log-analytics workspace list",
       "handlerCommand": "monitor log-analytics workspace list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -756,6 +820,9 @@
       "command": "monitor log-analytics workspace show",
       "canonicalCommand": "monitor log-analytics workspace show",
       "handlerCommand": "monitor log-analytics workspace show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -786,6 +853,9 @@
       "command": "monitor metrics alert list",
       "canonicalCommand": "monitor metrics alert list",
       "handlerCommand": "monitor metrics alert list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -814,6 +884,9 @@
       "command": "monitor metrics alert show",
       "canonicalCommand": "monitor metrics alert show",
       "handlerCommand": "monitor metrics alert show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -843,6 +916,9 @@
       "command": "monitor action-group list",
       "canonicalCommand": "monitor action-group list",
       "handlerCommand": "monitor action-group list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -871,6 +947,9 @@
       "command": "monitor action-group show",
       "canonicalCommand": "monitor action-group show",
       "handlerCommand": "monitor action-group show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -900,6 +979,9 @@
       "command": "monitor diagnostic-settings list",
       "canonicalCommand": "monitor diagnostic-settings list",
       "handlerCommand": "monitor diagnostic-settings list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -925,6 +1007,9 @@
       "command": "monitor diagnostic-settings show",
       "canonicalCommand": "monitor diagnostic-settings show",
       "handlerCommand": "monitor diagnostic-settings show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -953,6 +1038,9 @@
       "command": "monitor metrics list",
       "canonicalCommand": "monitor metrics list",
       "handlerCommand": "monitor metrics list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -983,6 +1071,9 @@
       "command": "group list",
       "canonicalCommand": "group list",
       "handlerCommand": "group list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1007,6 +1098,9 @@
       "command": "group show",
       "canonicalCommand": "group show",
       "handlerCommand": "group show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1033,6 +1127,9 @@
       "command": "resource list",
       "canonicalCommand": "resource list",
       "handlerCommand": "resource list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1062,6 +1159,9 @@
       "command": "resource show",
       "canonicalCommand": "resource show",
       "handlerCommand": "resource show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1093,6 +1193,9 @@
       "command": "tag update",
       "canonicalCommand": "tag update",
       "handlerCommand": "tag update",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1124,6 +1227,9 @@
       "command": "graph query",
       "canonicalCommand": "graph query",
       "handlerCommand": "rg query",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1157,6 +1263,9 @@
       "command": "rg query",
       "canonicalCommand": "graph query",
       "handlerCommand": "rg query",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1183,6 +1292,10 @@
       "command": "rbac list",
       "canonicalCommand": "rbac list",
       "handlerCommand": "rbac list",
+      "tokenResources": [
+        "arm",
+        "graph"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1212,6 +1325,10 @@
       "command": "role assignment list",
       "canonicalCommand": "rbac list",
       "handlerCommand": "rbac list",
+      "tokenResources": [
+        "arm",
+        "graph"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1243,6 +1360,9 @@
       "command": "activity list",
       "canonicalCommand": "activity list",
       "handlerCommand": "activity list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1273,6 +1393,9 @@
       "command": "monitor activity-log list",
       "canonicalCommand": "activity list",
       "handlerCommand": "activity list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1305,6 +1428,9 @@
       "command": "defender alerts",
       "canonicalCommand": "defender alerts",
       "handlerCommand": "defender alerts",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1332,6 +1458,9 @@
       "command": "security alert list",
       "canonicalCommand": "defender alerts",
       "handlerCommand": "defender alerts",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1359,6 +1488,9 @@
       "command": "defender alerts get",
       "canonicalCommand": "defender alerts get",
       "handlerCommand": "defender alerts get",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1383,6 +1515,9 @@
       "command": "security pricing list",
       "canonicalCommand": "security pricing list",
       "handlerCommand": "security pricing list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1409,6 +1544,9 @@
       "command": "security pricing show",
       "canonicalCommand": "security pricing show",
       "handlerCommand": "security pricing show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1436,6 +1574,9 @@
       "command": "security sub-assessment list",
       "canonicalCommand": "security sub-assessment list",
       "handlerCommand": "security sub-assessment list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1464,6 +1605,9 @@
       "command": "security sub-assessment show",
       "canonicalCommand": "security sub-assessment show",
       "handlerCommand": "security sub-assessment show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1493,6 +1637,9 @@
       "command": "security alert update",
       "canonicalCommand": "security alert update",
       "handlerCommand": "security alert update",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1528,6 +1675,9 @@
       "command": "defender alerts update",
       "canonicalCommand": "security alert update",
       "handlerCommand": "security alert update",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1563,6 +1713,9 @@
       "command": "defender assessments",
       "canonicalCommand": "defender assessments",
       "handlerCommand": "defender assessments",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1591,6 +1744,9 @@
       "command": "defender score",
       "canonicalCommand": "defender score",
       "handlerCommand": "defender score",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1615,6 +1771,9 @@
       "command": "security secure-scores list",
       "canonicalCommand": "defender score",
       "handlerCommand": "defender score",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1639,6 +1798,9 @@
       "command": "sentinel incident list",
       "canonicalCommand": "sentinel incident list",
       "handlerCommand": "sentinel incident list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1672,6 +1834,9 @@
       "command": "sentinel incident show",
       "canonicalCommand": "sentinel incident show",
       "handlerCommand": "sentinel incident show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1705,6 +1870,9 @@
       "command": "sentinel incident list-alert",
       "canonicalCommand": "sentinel incident list-alert",
       "handlerCommand": "sentinel incident list-alert",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1738,6 +1906,9 @@
       "command": "sentinel incident list-entity",
       "canonicalCommand": "sentinel incident list-entity",
       "handlerCommand": "sentinel incident list-entity",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1771,6 +1942,9 @@
       "command": "sentinel incident update",
       "canonicalCommand": "sentinel incident update",
       "handlerCommand": "sentinel incident update",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1814,6 +1988,9 @@
       "command": "sentinel incident comment create",
       "canonicalCommand": "sentinel incident comment create",
       "handlerCommand": "sentinel incident comment create",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "write",
       "capability": "native",
       "flags": {
@@ -1849,6 +2026,9 @@
       "command": "sentinel alert-rule list",
       "canonicalCommand": "sentinel alert-rule list",
       "handlerCommand": "sentinel alert-rule list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1878,6 +2058,9 @@
       "command": "sentinel alert-rule show",
       "canonicalCommand": "sentinel alert-rule show",
       "handlerCommand": "sentinel alert-rule show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1910,6 +2093,9 @@
       "command": "sentinel data-connector list",
       "canonicalCommand": "sentinel data-connector list",
       "handlerCommand": "sentinel data-connector list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1939,6 +2125,9 @@
       "command": "sentinel data-connector show",
       "canonicalCommand": "sentinel data-connector show",
       "handlerCommand": "sentinel data-connector show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1971,6 +2160,9 @@
       "command": "exposure",
       "canonicalCommand": "exposure",
       "handlerCommand": "exposure",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -1997,6 +2189,9 @@
       "command": "monitor log-analytics query",
       "canonicalCommand": "monitor log-analytics query",
       "handlerCommand": "logs query",
+      "tokenResources": [
+        "logs"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2027,6 +2222,9 @@
       "command": "logs query",
       "canonicalCommand": "monitor log-analytics query",
       "handlerCommand": "logs query",
+      "tokenResources": [
+        "logs"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2056,6 +2254,7 @@
       "command": "api",
       "canonicalCommand": "api",
       "handlerCommand": "api",
+      "tokenResources": [],
       "effect": "dynamic",
       "capability": "native",
       "flags": {
@@ -2092,6 +2291,9 @@
       "command": "op status",
       "canonicalCommand": "op status",
       "handlerCommand": "op status",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2116,6 +2318,7 @@
       "command": "az group show",
       "canonicalCommand": "az group show",
       "handlerCommand": "az group show",
+      "tokenResources": null,
       "effect": "read",
       "capability": "passthrough",
       "flags": {
@@ -2141,6 +2344,9 @@
       "command": "storage container list",
       "canonicalCommand": "storage container list",
       "handlerCommand": "storage container list",
+      "tokenResources": [
+        "storage"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2169,6 +2375,9 @@
       "command": "storage container show",
       "canonicalCommand": "storage container show",
       "handlerCommand": "storage container show",
+      "tokenResources": [
+        "storage"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2197,6 +2406,9 @@
       "command": "storage blob list",
       "canonicalCommand": "storage blob list",
       "handlerCommand": "storage blob list",
+      "tokenResources": [
+        "storage"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2226,6 +2438,9 @@
       "command": "storage blob show",
       "canonicalCommand": "storage blob show",
       "handlerCommand": "storage blob show",
+      "tokenResources": [
+        "storage"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2255,6 +2470,9 @@
       "command": "keyvault secret list",
       "canonicalCommand": "keyvault secret list",
       "handlerCommand": "keyvault secret list",
+      "tokenResources": [
+        "vault"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2281,6 +2499,9 @@
       "command": "keyvault key list",
       "canonicalCommand": "keyvault key list",
       "handlerCommand": "keyvault key list",
+      "tokenResources": [
+        "vault"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2307,6 +2528,9 @@
       "command": "keyvault certificate list",
       "canonicalCommand": "keyvault certificate list",
       "handlerCommand": "keyvault certificate list",
+      "tokenResources": [
+        "vault"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2333,6 +2557,9 @@
       "command": "acr repository list",
       "canonicalCommand": "acr repository list",
       "handlerCommand": "acr repository list",
+      "tokenResources": [
+        "registry"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2360,6 +2587,9 @@
       "command": "acr repository show-tags",
       "canonicalCommand": "acr repository show-tags",
       "handlerCommand": "acr repository show-tags",
+      "tokenResources": [
+        "registry"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2389,6 +2619,9 @@
       "command": "acr manifest show-metadata",
       "canonicalCommand": "acr manifest show-metadata",
       "handlerCommand": "acr manifest show-metadata",
+      "tokenResources": [
+        "registry"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2416,6 +2649,9 @@
       "command": "network nsg list",
       "canonicalCommand": "network nsg list",
       "handlerCommand": "network nsg list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2444,6 +2680,9 @@
       "command": "network nsg show",
       "canonicalCommand": "network nsg show",
       "handlerCommand": "network nsg show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2473,6 +2712,9 @@
       "command": "network nsg rule create",
       "canonicalCommand": "network nsg rule create",
       "handlerCommand": "network nsg rule create",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "destructive",
       "capability": "native",
       "flags": {
@@ -2516,6 +2758,9 @@
       "command": "network nic list",
       "canonicalCommand": "network nic list",
       "handlerCommand": "network nic list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2544,6 +2789,9 @@
       "command": "network nic show",
       "canonicalCommand": "network nic show",
       "handlerCommand": "network nic show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2573,6 +2821,9 @@
       "command": "network vnet list",
       "canonicalCommand": "network vnet list",
       "handlerCommand": "network vnet list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2601,6 +2852,9 @@
       "command": "network vnet show",
       "canonicalCommand": "network vnet show",
       "handlerCommand": "network vnet show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2630,6 +2884,9 @@
       "command": "network public-ip list",
       "canonicalCommand": "network public-ip list",
       "handlerCommand": "network public-ip list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2658,6 +2915,9 @@
       "command": "network public-ip show",
       "canonicalCommand": "network public-ip show",
       "handlerCommand": "network public-ip show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2687,6 +2947,9 @@
       "command": "network private-endpoint list",
       "canonicalCommand": "network private-endpoint list",
       "handlerCommand": "network private-endpoint list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2715,6 +2978,9 @@
       "command": "network private-endpoint show",
       "canonicalCommand": "network private-endpoint show",
       "handlerCommand": "network private-endpoint show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2744,6 +3010,9 @@
       "command": "network dns zone list",
       "canonicalCommand": "network dns zone list",
       "handlerCommand": "network dns zone list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2772,6 +3041,9 @@
       "command": "network dns zone show",
       "canonicalCommand": "network dns zone show",
       "handlerCommand": "network dns zone show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2801,6 +3073,9 @@
       "command": "policy assignment list",
       "canonicalCommand": "policy assignment list",
       "handlerCommand": "policy assignment list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2829,6 +3104,9 @@
       "command": "policy assignment show",
       "canonicalCommand": "policy assignment show",
       "handlerCommand": "policy assignment show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2858,6 +3136,9 @@
       "command": "policy definition list",
       "canonicalCommand": "policy definition list",
       "handlerCommand": "policy definition list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2884,6 +3165,9 @@
       "command": "policy definition show",
       "canonicalCommand": "policy definition show",
       "handlerCommand": "policy definition show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2911,6 +3195,9 @@
       "command": "policy set-definition list",
       "canonicalCommand": "policy set-definition list",
       "handlerCommand": "policy set-definition list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2937,6 +3224,9 @@
       "command": "policy set-definition show",
       "canonicalCommand": "policy set-definition show",
       "handlerCommand": "policy set-definition show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2964,6 +3254,9 @@
       "command": "policy state list",
       "canonicalCommand": "policy state list",
       "handlerCommand": "policy state list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -2994,6 +3287,9 @@
       "command": "lock list",
       "canonicalCommand": "lock list",
       "handlerCommand": "lock list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3022,6 +3318,9 @@
       "command": "lock show",
       "canonicalCommand": "lock show",
       "handlerCommand": "lock show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3051,6 +3350,9 @@
       "command": "deny-assignment list",
       "canonicalCommand": "deny-assignment list",
       "handlerCommand": "deny-assignment list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3079,6 +3381,9 @@
       "command": "deny-assignment show",
       "canonicalCommand": "deny-assignment show",
       "handlerCommand": "deny-assignment show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3108,6 +3413,9 @@
       "command": "role definition list",
       "canonicalCommand": "role definition list",
       "handlerCommand": "role definition list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3137,6 +3445,9 @@
       "command": "role definition show",
       "canonicalCommand": "role definition show",
       "handlerCommand": "role definition show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3166,6 +3477,9 @@
       "command": "network dns record-set list",
       "canonicalCommand": "network dns record-set list",
       "handlerCommand": "network dns record-set list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3195,6 +3509,9 @@
       "command": "network dns record-set a list",
       "canonicalCommand": "network dns record-set a list",
       "handlerCommand": "network dns record-set a list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3224,6 +3541,9 @@
       "command": "network dns record-set a show",
       "canonicalCommand": "network dns record-set a show",
       "handlerCommand": "network dns record-set a show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3254,6 +3574,9 @@
       "command": "network dns record-set aaaa list",
       "canonicalCommand": "network dns record-set aaaa list",
       "handlerCommand": "network dns record-set aaaa list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3283,6 +3606,9 @@
       "command": "network dns record-set aaaa show",
       "canonicalCommand": "network dns record-set aaaa show",
       "handlerCommand": "network dns record-set aaaa show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3313,6 +3639,9 @@
       "command": "network dns record-set caa list",
       "canonicalCommand": "network dns record-set caa list",
       "handlerCommand": "network dns record-set caa list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3342,6 +3671,9 @@
       "command": "network dns record-set caa show",
       "canonicalCommand": "network dns record-set caa show",
       "handlerCommand": "network dns record-set caa show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3372,6 +3704,9 @@
       "command": "network dns record-set cname list",
       "canonicalCommand": "network dns record-set cname list",
       "handlerCommand": "network dns record-set cname list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3401,6 +3736,9 @@
       "command": "network dns record-set cname show",
       "canonicalCommand": "network dns record-set cname show",
       "handlerCommand": "network dns record-set cname show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3431,6 +3769,9 @@
       "command": "network dns record-set mx list",
       "canonicalCommand": "network dns record-set mx list",
       "handlerCommand": "network dns record-set mx list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3460,6 +3801,9 @@
       "command": "network dns record-set mx show",
       "canonicalCommand": "network dns record-set mx show",
       "handlerCommand": "network dns record-set mx show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3490,6 +3834,9 @@
       "command": "network dns record-set ns list",
       "canonicalCommand": "network dns record-set ns list",
       "handlerCommand": "network dns record-set ns list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3519,6 +3866,9 @@
       "command": "network dns record-set ns show",
       "canonicalCommand": "network dns record-set ns show",
       "handlerCommand": "network dns record-set ns show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3549,6 +3899,9 @@
       "command": "network dns record-set ptr list",
       "canonicalCommand": "network dns record-set ptr list",
       "handlerCommand": "network dns record-set ptr list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3578,6 +3931,9 @@
       "command": "network dns record-set ptr show",
       "canonicalCommand": "network dns record-set ptr show",
       "handlerCommand": "network dns record-set ptr show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3608,6 +3964,9 @@
       "command": "network dns record-set soa list",
       "canonicalCommand": "network dns record-set soa list",
       "handlerCommand": "network dns record-set soa list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3637,6 +3996,9 @@
       "command": "network dns record-set soa show",
       "canonicalCommand": "network dns record-set soa show",
       "handlerCommand": "network dns record-set soa show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3667,6 +4029,9 @@
       "command": "network dns record-set srv list",
       "canonicalCommand": "network dns record-set srv list",
       "handlerCommand": "network dns record-set srv list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3696,6 +4061,9 @@
       "command": "network dns record-set srv show",
       "canonicalCommand": "network dns record-set srv show",
       "handlerCommand": "network dns record-set srv show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3726,6 +4094,9 @@
       "command": "network dns record-set txt list",
       "canonicalCommand": "network dns record-set txt list",
       "handlerCommand": "network dns record-set txt list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3755,6 +4126,9 @@
       "command": "network dns record-set txt show",
       "canonicalCommand": "network dns record-set txt show",
       "handlerCommand": "network dns record-set txt show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3785,6 +4159,9 @@
       "command": "vm list",
       "canonicalCommand": "vm list",
       "handlerCommand": "vm list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3813,6 +4190,9 @@
       "command": "vm show",
       "canonicalCommand": "vm show",
       "handlerCommand": "vm show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3842,6 +4222,9 @@
       "command": "vm get-instance-view",
       "canonicalCommand": "vm get-instance-view",
       "handlerCommand": "vm get-instance-view",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3871,6 +4254,9 @@
       "command": "vmss list",
       "canonicalCommand": "vmss list",
       "handlerCommand": "vmss list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3899,6 +4285,9 @@
       "command": "vmss show",
       "canonicalCommand": "vmss show",
       "handlerCommand": "vmss show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3928,6 +4317,9 @@
       "command": "vmss get-instance-view",
       "canonicalCommand": "vmss get-instance-view",
       "handlerCommand": "vmss get-instance-view",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3957,6 +4349,9 @@
       "command": "disk list",
       "canonicalCommand": "disk list",
       "handlerCommand": "disk list",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
@@ -3985,6 +4380,9 @@
       "command": "disk show",
       "canonicalCommand": "disk show",
       "handlerCommand": "disk show",
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {
