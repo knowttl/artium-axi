@@ -2,15 +2,15 @@ import { execFile, execFileSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { once } from 'node:events'
 import { createServer } from 'node:https'
-import { chmodSync, copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestCertificates } from './fake-service/certificates.mjs'
+import { SessionStore } from '../src/cli/session.js'
 
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
-const tokenFile = join(directory, 'token')
 const bundle = join(directory, 'artium-axi.mjs')
 let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean }
@@ -20,7 +20,6 @@ const server = createServer()
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
   copyFileSync('dist/cli/artium-axi.mjs', bundle)
-  writeFileSync(tokenFile, 'CANARY-cli-token', { mode: 0o600 })
   createTestCertificates(directory, ['localhost'])
   server.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) })
   server.on('request', async (request, reply) => {
@@ -45,9 +44,14 @@ afterAll(async () => {
 })
 
 async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, timeout = 10_000) {
+  const configuration = mkdtempSync(join(directory, 'config-'))
+  new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
+    status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
+    accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000,
+  })
   try {
     return { ...await execute(process.execPath, [bundle, ...args], { cwd: directory, timeout,
-      env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_DEV_TOKEN_FILE: tokenFile,
+      env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
         ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment } }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
@@ -124,14 +128,6 @@ test('inherited TLS bypass cannot send the token to an untrusted server', async 
   const results = await Promise.all([cli(['tools'], environment), cli(['falcon-axi'], environment)])
   const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE') }
   expect(results).toMatchObject([failure, failure])
-  expect(requests).toEqual([])
-})
-
-test('owner-only development token file is required on Linux', async () => {
-  requests = []
-  chmodSync(tokenFile, 0o644)
-  try { expect(await cli(['tools'])).toMatchObject({ code: 2, stdout: expect.stringContaining('CLIENT_CONFIG_INVALID') }) }
-  finally { chmodSync(tokenFile, 0o600) }
   expect(requests).toEqual([])
 })
 
