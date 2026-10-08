@@ -58,7 +58,7 @@ For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stde
 `leak` reads only `ARTIUM_TEST_CANARY`, with `raw`, `base64`, `base64url` or `url` encoding and an optional `stderr` argument.
 `child` creates an ordinary descendant, while `descendant` starts a separate session.
 Callers must terminate both PIDs printed by those modes.
-[`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for future runner tests, without a production fake-tool entry.
+[`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for runner tests, without a production fake-tool entry.
 
 [`SecretScanner`](src/server/runner/scan.ts) is the standalone S07 runner component.
 Create one per call with all known injected secret values, then call `scan('stdout' | 'stderr', chunk)` on every raw byte chunk before retention or rewriting, including chunks after the 4 MiB per-stream cap.
