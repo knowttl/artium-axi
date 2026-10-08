@@ -12,7 +12,6 @@ S16 implements T3.1 step 4 and T3.2: hashed expiring access-token verification, 
 Its local verification plan is [verification-s16.md](verification-s16.md).
 Focused verification passed 25 cases covering expiry, revoked/consumed tokens, revoked/expired families, restricted token types, disabled user/tool, missing grants, administrator separation and immediate role changes.
 Run preparation tests execute the real Falcon adapter and shared identity resolver with a synthetic secret-source boundary, proving denied calls retrieve no secret.
-AGENTS.md's existing README and validation pointers remain accurate and were reviewed without adding project memory.
 Final committed-head frozen install, lint, full tests, aggregate check, runner-container and private hygiene results are bound to delivery status and the PR body.
 
 S13 implements the encrypted SQLite store and file/environment master-key provider.

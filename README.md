@@ -96,17 +96,17 @@ The account-writing flow owns canonicalization before insertion.
 The `administrator` flag is a reserved account capability independent of role tool grants.
 The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later account and role writers must enforce optimistic concurrency.
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
-Family deadlines, browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
+Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
 Bootstrap metadata starts empty and is written atomically with the first administrator in the later bootstrap slice.
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
 The [access-token verifier](src/server/auth/tokens.ts) looks up SHA-256 hashes and enforces access-token type, token and family deadlines, consumption and revocation.
 The [tool policy](src/server/policy/policy.ts) reads the current enabled user, enabled tool and role grants on every call.
-Administrator capability does not grant tool access.
 The [run preparation function](src/server/runner/prepare.ts) verifies the token and policy before resolving the shared identity and retrieving credentials through the adapter.
 It returns the authenticated user ID and prepared call for the later audited HTTP run flow.
-Policy denials return distinct `USER_DISABLED`, `TOOL_DISABLED` and `TOOL_NOT_GRANTED` errors.
-The random, expiring [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness, refuses execution outside `NODE_ENV=test`, and uses the production verifier.
+The [error catalogue](src/shared/errors.ts) owns token and policy denial codes and their distinct responses.
+The random [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness and refuses execution outside `NODE_ENV=test`.
+It stores only the token hash, sets a one-hour access-token expiry and a fixed 12-hour family deadline, and issues tokens checked by the production verifier in tests.
 [S16 verification](docs/verification-s16.md) covers expiry and revocation, next-call role changes and proof that denied preparation retrieves no secret.
 Login, production token issuance, bootstrap execution, audited execution and HTTP integration arrive in later slices.
 
