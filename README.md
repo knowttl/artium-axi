@@ -49,11 +49,13 @@ Use `node dist/cli/artium-axi.mjs tools` for the counted list, `node dist/cli/ar
 An empty tool list explains that no enabled runtime tool is available through your assigned roles and asks an administrator to check grants and enabled tools.
 Tool details read the bundled manifest and stored server status without retrieving credentials or running upstream help.
 Artium commands support `--help` with usage, purpose, flags and one example, including before sign-in.
+Use `node dist/cli/artium-axi.mjs --help falcon-axi` for Artium's local tool help without signing in or contacting the server.
 Arguments after a tool name belong to upstream, so `node dist/cli/artium-axi.mjs falcon-axi --help` and a bare tool invocation use the authenticated adapter boundary.
 
 The [generated error reference](docs/errors.md) records every catalogue code, source, HTTP status, CLI exit code and next step.
-Artium errors use TOON on stdout, with exit 2 for usage failures and exit 1 for other failures.
+Artium errors withhold captured output and use TOON on stdout, with exit 2 for usage or client configuration failures and exit 1 for other failures.
 Completed upstream calls preserve stdout, stderr and the upstream exit code, including nonzero exits, with the upstream tool as the HTTP envelope source.
+Truncation diagnostics precede upstream stderr while stdout remains parseable.
 Regenerate the reference with `pnpm errors:generate` after changing [the catalogue](src/shared/errors.ts).
 See [S43 verification](docs/verification-s43.md) for First call, No access, help, error mapping and freshness evidence.
 It stores tokens bound to the normalized server URL in `artium-axi/session.json` under `%APPDATA%` on Windows, `$XDG_CONFIG_HOME` when set on Linux/macOS, or `~/.config` otherwise.
@@ -81,9 +83,8 @@ A network failure or uncertain command outcome is never retried.
 Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
 Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
-The client preserves argument tokens, upstream stdout, stderr and exit status, with truncation diagnostics on stderr.
-Artium errors withhold captured output and use structured TOON on stdout with exit 2 for usage or client configuration failures and exit 1 for other failures.
-Complete home/help views, suggestion rewriting and download/launcher distribution remain later-slice work.
+The client preserves argument tokens; output and error handling follow the [generated error reference](docs/errors.md) and CLI guidance above.
+Suggestion rewriting and download/launcher distribution remain later-slice work.
 See [S36+S37 verification](docs/verification-s36-37.md) for Linux process and storage evidence and deferred Windows/macOS acceptance.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
@@ -433,7 +434,7 @@ Health status does not change platform permissions or hide permitted commands.
 
 Run `node dist/cli/artium-axi.mjs doctor` to print one pass/fail line for the server address, certificate, token and CLI version.
 When token and version checks pass, it also prints a line for each available tool's cached health; only `ok` passes.
-Any failed check exits 1, while all passing checks exit 0.
+After any failed check, diagnostics end with the first failure's catalogue error envelope and exit code from the [generated error reference](docs/errors.md); all passing checks exit 0.
 Certificate trust is verified through HTTPS, and a local test HTTP connection reports a failed certificate check.
 Doctor does not run platform checks or require administrator access.
 Every CLI request carries `X-Artium-Cli-Version` from `package.json`.
