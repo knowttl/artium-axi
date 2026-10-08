@@ -18,7 +18,7 @@ There is no hosted CI.
    Every unsafe override is refused with unavailable secret paths before the runner can send another request.
    The client has no default IPv4 route and cannot connect to the separate fake network.
 4. Remove only the slice-owned `artium-axi:local` image after these checks.
-   The harness removes its owned containers, networks and temporary certificates, and the builder removes its private cache.
+   See [README.md](../README.md) for harness cleanup and standalone versus combined BuildKit cache ownership.
 5. Run `pnpm hygiene:check` with the private `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` against the final commit and again against the exact published head.
    Never print the private input.
    Record the head SHA, command results and deny-list SHA-256 in delivery evidence and the PR body.
