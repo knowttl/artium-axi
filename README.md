@@ -77,6 +77,7 @@ Missing or invalid keys fail with `MASTER_KEY_INVALID`, while an unauthenticatab
 [Credential encryption](src/server/store/crypto.ts) uses AES-256-GCM with a fresh 12-byte nonce, a 16-byte authentication tag and canonical JSON associated data `[schemaVersion, tool, credentialId, keyId]`.
 The [credential schema](src/server/store/migrations/001-credentials.sql) owns the stored fields and constraints; credential plaintext must be encrypted before insertion.
 The `tools` table holds pinned versions, enabled state, validated native settings and revisions.
+Store startup inserts missing supported tools disabled with an empty version until configured, preserving existing tool settings.
 The caller owns native settings validation before storage.
 The build copies numbered SQL migrations beside the compiled store.
 [S13 verification](docs/verification-s13.md) covers real database reopen, persisted corruption, row binding, startup key refusal and migration rollback.
@@ -124,7 +125,6 @@ It appends interrupted terminal events for unmatched starts without replaying co
 Call `maintain()` from the server's daily maintenance tick.
 It drains all events strictly older than the captured 90-day cutoff in batches of at most 500 events.
 Each batch commits its deletion, cutoff and count in a separate short transaction, and rolls back that batch if its maintenance event cannot be stored.
-Store startup ensures every supported tool has a row, inserting missing tools disabled with an empty version until configured and preserving existing tool settings.
 Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
 SQLite remains authoritative if the optional stream fails.
 For export, capture that stream in a protected external collector before retention expires.
@@ -135,7 +135,7 @@ Online backup and stopped restore execution arrive in the later maintenance slic
 The later authentication and admin producers must call it using metadata only.
 `audit.change(event, mutation)` commits a synchronous database mutation and its event together, then streams the committed event.
 It preserves mutation errors and rolls the mutation back when audit persistence fails.
-Do not call these operations inside another transaction, where a stream could precede commit.
+These operations reject calls inside another transaction with `AUDIT_UNAVAILABLE`, so streaming always follows commit.
 There is no audit update or deletion interface for administrators.
 The server startup and daily tick wiring arrive with HTTP integration.
 [S17+S18 verification](docs/verification-s17-18.md) defines the local checks.

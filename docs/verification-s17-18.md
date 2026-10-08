@@ -24,6 +24,7 @@ Run tests use the production token verifier, policy, shared identity resolver, F
 - Store startup inserts missing supported tools disabled and preserves existing settings; valid-user and invalid-token denials retain the unconfigured tool name.
 - Known-secret output retains only terminal metadata, including observed byte counts.
 - Separate flags, equals flags and adapter-identified positional values are redacted before persistence and streaming.
+- Repeated or overlapping sensitive separate-form flags still redact the following value, including when the flag itself is hidden.
 - Argument count and length are bounded and control characters are escaped.
 - Request bodies, stdin, uploaded contents, credentials, tokens and output fields are excluded by the stored record projection.
 - Every required event shape persists and streams with identical fields, even when its producer belongs to a later slice.
