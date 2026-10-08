@@ -5,13 +5,14 @@ import type { z } from 'zod'
 import { adminUserParamsSchema, adminUserRoutes, adminUserSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
+import type { AuthAttempts } from '../auth/attempts.js'
 import { readUsername } from '../auth/bootstrap.js'
 import { hashPassword } from '../auth/local.js'
 import { requireRecentAuth, revokeUserSessions, verifyAccessToken } from '../auth/tokens.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
 
-export function registerUserAdmin(app: FastifyInstance, db: Database.Database, audit: Audit): void {
+export function registerUserAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts): void {
   function authorize(request: FastifyRequest): string {
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
     let userId: string | null = null
@@ -106,11 +107,13 @@ export function registerUserAdmin(app: FastifyInstance, db: Database.Database, a
     authorize(request)
     const { id } = parse(adminUserParamsSchema, request.params)
     parse(adminUserRoutes.unlock.input, request.body ?? {})
-    return change(request, adminUserRoutes.unlock.auditEvent, id, (actor, now) => {
+    const user = change(request, adminUserRoutes.unlock.auditEvent, id, (actor, now) => {
       readUser(id)
       db.prepare(`UPDATE users SET failed_attempts = 0, locked_until = NULL, revision = revision + 1,
         updated_at = ?, updated_by = ? WHERE id = ?`).run(now, actor, id)
     })
+    authAttempts.clearUsername(user.username)
+    return user
   } })
   app.route({ method: adminUserRoutes.reset.method, url: adminUserRoutes.reset.path, handler: async request => {
     authorize(request)
@@ -118,11 +121,13 @@ export function registerUserAdmin(app: FastifyInstance, db: Database.Database, a
     const input = parse(adminUserRoutes.reset.input, request.body)
     readUser(id)
     const hash = await hashPassword(input.temporaryPassword)
-    return change(request, adminUserRoutes.reset.auditEvent, id, (actor, now) => {
+    const user = change(request, adminUserRoutes.reset.auditEvent, id, (actor, now) => {
       readUser(id)
       db.prepare(`UPDATE users SET password_hash = ?, must_change = 1, failed_attempts = 0, locked_until = NULL,
         revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?`).run(hash, now, actor, id)
       revokeUserSessions(db, id, now)
     })
+    authAttempts.clearUsername(user.username)
+    return user
   } })
 }

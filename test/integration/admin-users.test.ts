@@ -161,13 +161,45 @@ test('disable revokes CLI and browser sessions atomically and stale edits preser
   expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
 })
 
-test('unlock clears account lockout and records metadata and revision', async () => {
-  db.exec("UPDATE users SET failed_attempts = 5, locked_until = 9999999999999 WHERE id = 'synthetic-ordinary'")
+async function exhaustUsername() {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await failure(await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: ' SYNTHETIC-ORDINARY ', password: 'CANARY-wrong-password' }) }), 'SIGN_IN_FAILED')
+  }
+  await failure(await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: 'synthetic-ordinary', password }) }), 'AUTH_RATE_LIMITED')
+}
+
+test('unlock restores sign-in immediately after five wrong passwords and records metadata and revision', async () => {
+  await exhaustUsername()
   const response = await request('POST', '/synthetic-ordinary/unlock')
   expect(response.status).toBe(200)
   expect(adminUserSchema.parse(await response.json())).toMatchObject({ failedAttempts: 0, lockedUntil: null, revision: 2, updatedBy: administrator })
   expect((await signIn('synthetic-ordinary')).status).toBe('authenticated')
   expect(db.prepare("SELECT action FROM audit WHERE event = 'admin-change'").get()).toEqual({ action: 'unlock-user' })
+})
+
+test('password reset restores restricted sign-in immediately after five wrong passwords', async () => {
+  await exhaustUsername()
+  const temporaryPassword = 'CANARY-reset-password'
+  const response = await request('POST', '/synthetic-ordinary/password-reset', { temporaryPassword })
+  expect(response.status).toBe(200)
+  expect(adminUserSchema.parse(await response.json())).toMatchObject({ failedAttempts: 0, lockedUntil: null, mustChange: true })
+  const login = await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: 'synthetic-ordinary', password: temporaryPassword }) })
+  expect(login.status).toBe(200)
+  expect(loginResponseSchema.parse(await login.json()).status).toBe('password-change-required')
+})
+
+test.each([
+  { path: '/synthetic-ordinary/unlock', body: {} },
+  { path: '/synthetic-ordinary/password-reset', body: { temporaryPassword: 'CANARY-reset-password' } },
+])('$path audit failure preserves the exhausted username counter', async route => {
+  await exhaustUsername()
+  db.exec("CREATE TRIGGER fail_admin BEFORE INSERT ON audit WHEN NEW.event = 'admin-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await failure(await request('POST', route.path, route.body), 'AUDIT_UNAVAILABLE')
+  await failure(await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: 'synthetic-ordinary', password }) }), 'AUTH_RATE_LIMITED')
 })
 
 test('enable and administrator capability edits apply to the next request', async () => {

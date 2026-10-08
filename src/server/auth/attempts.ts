@@ -18,6 +18,10 @@ export class AuthAttempts {
     this.provider = new LocalAuthProvider(db)
   }
 
+  clearUsername(username: string): void {
+    this.limits.clearUsername(username)
+  }
+
   async signIn(username: string, password: string, context: Context) {
     const canonical = canonicalUsername(username)
     const now = Date.now()
@@ -53,6 +57,10 @@ export class AuthAttempts {
 export class AuthRateLimits {
   private readonly usernames = new Map<string, Counter>()
   private readonly addresses = new Map<string, Counter>()
+
+  clearUsername(username: string): void {
+    this.usernames.delete(hashToken(canonicalUsername(username)))
+  }
 
   admit(username: string, address: string, now = Date.now()): void {
     this.prune(this.usernames, now)
