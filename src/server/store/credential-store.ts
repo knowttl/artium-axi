@@ -6,6 +6,7 @@ export type ToolName = z.infer<typeof toolSchema>
 export interface CredentialReference {
   id: string
   tool: ToolName
+  revision?: number
 }
 
 export interface CredentialStore {

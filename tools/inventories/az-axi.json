@@ -8,51 +8,51 @@
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_PROFILE",
-      "disposition": "server-owned"
+      "disposition": "unsafe override"
     },
     {
       "name": "AZ_AXI_TENANT",
-      "disposition": "server-owned"
+      "disposition": "unsafe override"
     },
     {
       "name": "AZ_AXI_SUBSCRIPTION",
-      "disposition": "server-owned"
+      "disposition": "unsafe override"
     },
     {
       "name": "AZ_AXI_READ_ONLY",
-      "disposition": "server-owned"
+      "disposition": "unsafe override"
     },
     {
       "name": "AZ_AXI_WRITE_LOG",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_ARM_TOKEN",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_GRAPH_TOKEN",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_LOGS_TOKEN",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_REGISTRY_TOKEN",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_STORAGE_TOKEN",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     },
     {
       "name": "AZ_AXI_VAULT_TOKEN",
-      "disposition": "server-owned"
+      "disposition": "set by server"
     }
   ],
   "dynamicCredentialEnvironment": [
@@ -134,6 +134,84 @@
     "help"
   ],
   "format": "TOON",
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "tenant"
+    ],
+    "inputFileFlags": [
+      "file",
+      "body-file"
+    ],
+    "sensitiveFlags": [
+      "body",
+      "graph-query",
+      "analytics-query",
+      "query",
+      "note"
+    ],
+    "globalFlags": [
+      {
+        "name": "profile",
+        "disposition": "unsafe override"
+      },
+      {
+        "name": "tenant",
+        "disposition": "unsafe override"
+      },
+      {
+        "name": "subscription",
+        "disposition": "passthrough"
+      },
+      {
+        "name": "management-group",
+        "disposition": "passthrough"
+      },
+      {
+        "name": "config",
+        "disposition": "unsafe override"
+      },
+      {
+        "name": "help",
+        "disposition": "passthrough"
+      },
+      {
+        "name": "full",
+        "disposition": "passthrough"
+      },
+      {
+        "name": "fields",
+        "disposition": "passthrough"
+      },
+      {
+        "name": "limit",
+        "disposition": "passthrough"
+      }
+    ],
+    "inputs": {
+      "stdin": "input transport",
+      "file": "uploaded leaf only",
+      "body-file": "uploaded leaf only",
+      "api": "fixed ARM, Logs or Graph origin enforced by pinned client",
+      "metadata": "account/vault/registry names and opaque markers enforced by pinned clients"
+    },
+    "activation": "Unavailable in runtime registry: pinned client retries ambiguous writes. Native settings and gates preserved for local commissioning.",
+    "parserSources": [
+      {
+        "path": "dist/lib/args.js",
+        "sha256": "53cab64bb03136b4848e7edaefcba96367e90313e5e8abec3f78b981e4bc2cdb"
+      },
+      {
+        "path": "dist/lib/argv.js",
+        "sha256": "d8774be7b8f9565675f550004b77ee80e817a60f0ced24cff45450c946ea1832"
+      },
+      {
+        "path": "dist/lib/router.js",
+        "sha256": "4e1cea3e96ae3534b6a9f216eb843dbba2a1fef0afd61a980b97788e05b8b827"
+      }
+    ]
+  },
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",

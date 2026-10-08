@@ -14,7 +14,7 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon and Vectra adapters and encrypted credential store, and `src/cli/` contains the minimal client.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon, Vectra and internal Azure adapters and encrypted credential store, and `src/cli/` contains the minimal client.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container, development server, bundled CLI and Falcon and Vectra adapters are available, while the remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
@@ -37,8 +37,10 @@ See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resourc
 The same harness now exercises pinned Vectra reads, native write gates and durable logs through the production server entry point.
 See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance and output-redaction limits.
 
-Azure secret and certificate token minting and the resource token cache are implemented internally; Azure commands are not yet available through Artium.
-See [S24 verification](docs/verification-s24.md) for authentication and [S25 verification](docs/verification-s25.md) for the cache contract, remaining adapter work and deferred live acceptance.
+Azure secret and certificate token minting, the resource token cache and the [Azure adapter](src/server/adapters/az.ts) are implemented internally.
+Azure commands remain unavailable through the runtime registry because pinned az-axi 0.1.4 retries ambiguous writes.
+See [S24 verification](docs/verification-s24.md) for authentication, [S25 verification](docs/verification-s25.md) for caching and [S26 verification](docs/verification-s26.md) for profile preparation, inputs, native gates and six fixed-origin fake reads.
+Live authentication, scope forms, reads and permission acceptance remain captain checks.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
@@ -71,6 +73,7 @@ Regenerate them with `node scripts/upstream-inventory.mjs --write` when delibera
 These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The [Azure inventory](tools/inventories/az-axi.json) also owns reviewed route resource requirements and their pinned source hashes; [S25 verification](docs/verification-s25.md) describes conditional resource selection.
+Its adapter boundary classifies every global flag and `AZ_AXI_*` variable, records reviewed input transports and hashes the pinned parser sources.
 The native write gates remain upstream-owned.
 
 The [Vectra adapter](src/server/adapters/vectra.ts) accepts QUX v2.5 token or OAuth credentials and RUX v3.4 OAuth credentials.
@@ -118,6 +121,8 @@ The build copies numbered SQL migrations beside the compiled store.
 [S13 verification](docs/verification-s13.md) covers real database reopen, persisted corruption, row binding, startup key refusal and migration rollback.
 The [credential-store boundary](src/server/store/credential-store.ts) exposes credential references and parsed values without SQLite types.
 Create it with `createCredentialStore(connection, keyProvider)` using the same provider as `openStore`.
+Resolved credential references carry the persisted revision, and reads reject a reference with a mismatched revision before decryption.
+The reference type keeps revision optional for compatibility; reads without a revision are not bound to a credential version.
 Credentials are encrypted JSON objects matching the adapter's credential schema.
 Version 1 uses one shared service credential per tool in the embedded encrypted database; external secret sources and per-user credentials remain deferred.
 The [SharedIdentityResolver](src/server/policy/identity-resolver.ts) selects that credential with `resolve(userId, tool)`, whoever the user is.

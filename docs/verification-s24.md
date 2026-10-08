@@ -3,7 +3,7 @@
 S24 implements T2.5 steps 1 and 2 only.
 The credential schema and MSAL acquisition boundary live in [azure-tokens.ts](../src/server/adapters/azure-tokens.ts).
 The root package and lockfile pin MSAL to the version already installed with the pinned Graph upstream.
-See [S25 verification](verification-s25.md) for the resource cache and remaining adapter work.
+See [S25 verification](verification-s25.md) for the resource cache and [S26 verification](verification-s26.md) for adapter preparation and local pinned-command checks.
 No live tenant or identity provider is contacted.
 
 Run `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test` and `pnpm check` against the final implementation commit.
@@ -29,5 +29,5 @@ The certificate fields follow the pinned MSAL public API and [Microsoft's certif
 No certificate or private key is published as a fixture.
 
 Pending captain checklist: verify harmless live secret authentication, harmless live certificate authentication and all six scope audiences, recording their successful exact trailing-slash forms privately.
-Live resource reads, native permissions and write-family acceptance remain pending with the Azure adapter slices.
+See [S26 verification](verification-s26.md) for the pending live resource, native permission and write-family acceptance.
 Do not mark T2.5's live acceptance complete from these tests.
