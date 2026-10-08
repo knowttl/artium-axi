@@ -15,7 +15,7 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner and Falcon adapter, and `src/cli/` reserves the client layout.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon adapter and encrypted credential store, and `src/cli/` reserves the client layout.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container scaffold and Falcon preparation are available, while the server, CLI and remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
@@ -62,6 +62,22 @@ Regenerate or verify it with `node scripts/falcon-inventory.mjs /path/to/pinned-
 The source checkout must match `tools/falcon-source.json`.
 [S12 verification](docs/verification-s12.md) covers the actual pinned parser and canary detection reads using `node scripts/fake-services.mjs --falcon` with the locally built `artium-axi:local` image.
 Live Falcon acceptance remains unverified.
+
+The [credential store](src/server/store/db.ts) exposes `openStore(file, keyProvider?)`, returning a SQLite connection only after transactional numbered migrations and authentication of every stored credential.
+Use a database file in a dedicated data directory, such as `/data/artium.db`, and close the connection during shutdown.
+The directory and database use modes 0700 and 0600, respectively.
+SQLite uses foreign keys, WAL, FULL synchronous writes and a 5-second busy timeout.
+The default [KeyProvider](src/server/store/key-provider.ts) reads exactly 32 raw bytes from `ARTIUM_AXI_MASTER_KEY_FILE`, or canonical base64 from `ARTIUM_AXI_MASTER_KEY` when no file is configured.
+An unreadable configured file does not fall back to the environment key.
+Its key ID is the full SHA-256 digest.
+Missing or invalid keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
+[Credential encryption](src/server/store/crypto.ts) uses AES-256-GCM with a fresh 12-byte nonce, a 16-byte authentication tag and canonical JSON associated data `[schemaVersion, tool, credentialId, keyId]`.
+The [credential schema](src/server/store/migrations/001-credentials.sql) owns the stored fields and constraints; credential plaintext must be encrypted before insertion.
+The `tools` table holds pinned versions, enabled state, validated native settings and revisions.
+The caller owns native settings validation before storage.
+The build copies numbered SQL migrations beside the compiled store.
+[S13 verification](docs/verification-s13.md) covers real database reopen, persisted corruption, row binding, startup key refusal and migration rollback.
+SecretSource, identity resolution, offline rotation and server startup integration arrive in their assigned later slices.
 
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
 Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `child-exit`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
