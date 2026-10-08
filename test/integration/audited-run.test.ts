@@ -91,8 +91,8 @@ test.each([
 })
 
 test.each([
-  ['valid', () => token, 'TOOL_DISABLED', 'synthetic-user'],
-  ['invalid', () => 'CANARY-invalid-token', 'TOKEN_INVALID', null],
+  ['valid', (): string => token, 'TOOL_DISABLED', 'synthetic-user'],
+  ['invalid', (): string => 'CANARY-invalid-token', 'TOKEN_INVALID', null],
 ] as const)('an unconfigured supported tool records the denial for a %s token', async (_kind, requestToken, code, userId) => {
   db.exec("DELETE FROM role_tools; DELETE FROM tools WHERE name = 'falcon-axi'")
   db.close()
