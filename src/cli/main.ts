@@ -26,13 +26,15 @@ async function main(args: string[]) {
     if (process.env.ARTIUM_AXI_CA_FILE) ca = [...rootCertificates, readFileSync(process.env.ARTIUM_AXI_CA_FILE, 'utf8')]
   } catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
   url.pathname = `${url.pathname.replace(/\/$/, '')}/v1/tools${listing ? '' : `/${args[0]}/run`}`
+  const controller = new AbortController()
+  const deadline = setTimeout(() => controller.abort(), 90_000)
   const result = await new Promise<{ status: number, body: unknown }>((resolve, reject) => {
     const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
-      method: listing ? 'GET' : 'POST', ca,
+      method: listing ? 'GET' : 'POST', ca, signal: controller.signal,
       headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}) },
     }, response => {
       if (response.statusCode! >= 300 && response.statusCode! < 400) {
-        response.resume()
+        response.destroy()
         reject(new ArtiumError('INVALID_RESPONSE', 'Authenticated redirects are refused.'))
         return
       }
@@ -46,7 +48,7 @@ async function main(args: string[]) {
     })
     request.on('error', () => reject(new ArtiumError('SERVER_UNAVAILABLE')))
     request.end(body)
-  })
+  }).finally(() => clearTimeout(deadline))
   const failure = errorResponseSchema.safeParse(result.body)
   if (failure.success) {
     printError(failure.data)
