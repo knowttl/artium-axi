@@ -8,6 +8,14 @@ All live checks wait until the full build is complete and require approved ident
 Real captures, credential details and policy records stay in the private evidence store.
 Public conversion and release, deployment, real writes and destructive maintenance require separate approval.
 
+S17+S18 implement T3.3: durable paired run events, denials, safe record shapes for later producers, argument redaction, interrupted-start recovery, bounded daily 90-day retention and optional stdout streaming.
+Their local verification plan is [verification-s17-18.md](verification-s17-18.md).
+Focused verification passed 38 tests, covering real SQLite disk-full admission failure, withheld success on terminal-write failure, safe failure metrics, separate/equals/positional redaction, next-call role revocation, real database reopen, stream parity and fake-clock retention.
+The audited execution flow replaces preparation-only execution, preserving token and policy regression coverage through the real runner and synthetic executable boundary.
+Final committed-head frozen install, lint, full tests, aggregate check, runner-container and private hygiene results are bound to delivery status and the PR body.
+AGENTS.md's existing README pointer remains accurate and unchanged under the project-memory correction rule.
+Authentication/admin producers, HTTP startup and daily maintenance wiring, paginated audit queries and executable backup/restore remain assigned to later slices.
+
 S16 implements T3.1 step 4 and T3.2: hashed expiring access-token verification, test-only fixture issuance and current database tool policy before credential retrieval.
 Its local verification plan is [verification-s16.md](verification-s16.md).
 Focused verification passed 25 cases covering expiry, revoked/consumed tokens, revoked/expired families, restricted token types, disabled user/tool, missing grants, administrator separation and immediate role changes.
@@ -107,7 +115,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Azure authentication, resource reads and write families (T2.5) | pending | pending | unverified: both auth forms and every enabled resource/write family |
 | Upstream token and output redaction (T2.6) | S07 scanner and S08 runner integration; [S07 verification](verification-s07.md) and [S08 verification](verification-s08.md) own local checks, [README.md](../README.md) owns usage; final-head checks recorded in delivery status and PR body | pending: scanner and runner checks exercise the synthetic fake executable, not pinned upstream output | unverified: safe real-output checks, unknown-token claims remain limited |
 | Master-key rotation and maintenance (T2.7) | pending | pending | unverified: production rotation requires separate approval |
-| Identity, role and administrative transactions (T3.1-T3.4) | S15 schema implements T3.1 steps 1-3; [S15 verification](verification-s15.md) owns migration checks; S16 implements hashed expiring verification and current-role policy before secret retrieval, with [S16 verification](verification-s16.md); audit writing and administration pending | not applicable to local authentication and policy | unverified: real account and credential changes require authorization |
+| Identity, role and administrative transactions (T3.1-T3.4) | S15 schema, S16 hashed expiring verification/current policy and S17+S18 durable audit are implemented; [S17+S18 verification](verification-s17-18.md) owns audit/run/retention/stream checks; authentication and admin producers and HTTP wiring remain pending | Synthetic executable and credential source through real adapter preparation, SQLite and runner; no platform audit acceptance claimed | unverified: real account and credential changes require authorization |
 | Password hashing capacity (T4.1) | pending | not applicable | unverified: benchmark production host capacity |
 | Bootstrap, recovery, sessions and proxy verification (T4.2-T4.4) | pending | not applicable | unverified: real recovery and administrator reset require authorization |
 | Secure CLI storage and cross-process refresh (T4.5) | pending | not applicable | unverified: actual Windows ACLs and clean installation |
