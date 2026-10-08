@@ -17,6 +17,12 @@ async function hashing<T>(operation: () => Promise<T>): Promise<T> {
   try { return await operation() } finally { activeHashes-- }
 }
 
+async function verifyPassword(hash: string | undefined, password: string): Promise<boolean> {
+  const usable = hash !== undefined && hash !== 'unusable'
+  const matches = await hashing(() => argon2.verify(usable ? hash : dummyHash, password))
+  return usable && matches
+}
+
 export function canonicalUsername(username: string): string {
   return username.trim().toLowerCase()
 }
@@ -41,7 +47,7 @@ export class LocalAuthProvider implements AuthProvider {
   async signIn(username: string, password: string) {
     const user = this.db.prepare("SELECT id, password_hash, must_change, disabled FROM users WHERE username = ? AND source = 'local'")
       .get(canonicalUsername(username)) as LocalUser | undefined
-    const matches = await hashing(() => argon2.verify(user?.password_hash ?? dummyHash, password))
+    const matches = await verifyPassword(user?.password_hash, password)
     if (!user || !matches || user.disabled) throw new ArtiumError('SIGN_IN_FAILED')
     const current = this.readUser(user.id)
     if (!current || current.disabled || current.password_hash !== user.password_hash) throw new ArtiumError('SIGN_IN_FAILED')
@@ -51,7 +57,7 @@ export class LocalAuthProvider implements AuthProvider {
   async changePassword(userId: string, currentPassword: string, newPassword: string, audit: Audit,
     context: { requestId: string, clientAddress: string | null }, now = Date.now()): Promise<void> {
     const user = this.readUser(userId)
-    const matches = await hashing(() => argon2.verify(user?.password_hash ?? dummyHash, currentPassword))
+    const matches = await verifyPassword(user?.password_hash, currentPassword)
     if (!user || !matches || user.disabled) throw new ArtiumError('SIGN_IN_FAILED')
     const hash = await hashPassword(newPassword)
     audit.change({ event: 'password-change', userId, tool: null, outcome: 'success', ...context }, () => {

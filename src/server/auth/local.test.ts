@@ -60,6 +60,25 @@ test('disabled accounts cannot sign in', async () => {
   await expect(provider.signIn('synthetic-user', password)).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
 })
 
+test('development accounts perform a dummy comparison and reject password sign-in', async () => {
+  await account()
+  db.exec("UPDATE users SET password_hash = 'unusable'")
+  const verify = vi.spyOn(argon2, 'verify')
+  await expect(provider.signIn('synthetic-user', password)).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
+  expect(verify.mock.calls[0][0]).toMatch(/^\$argon2id\$v=19\$m=65536,p=1,t=3\$/)
+})
+
+test('development accounts perform a dummy comparison and reject password change', async () => {
+  await account()
+  db.exec("UPDATE users SET password_hash = 'unusable'")
+  const verify = vi.spyOn(argon2, 'verify')
+  await expect(provider.changePassword('synthetic-user', password, 'CANARY-new-password', new Audit(db),
+    { requestId: 'synthetic-change', clientAddress: null })).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
+  expect(verify.mock.calls[0][0]).toMatch(/^\$argon2id\$v=19\$m=65536,p=1,t=3\$/)
+  expect(db.prepare('SELECT password_hash FROM users').get()).toEqual({ password_hash: 'unusable' })
+  expect(db.prepare('SELECT COUNT(*) AS count FROM audit').get()).toEqual({ count: 0 })
+})
+
 test('hashing admission is shared by hashing and verification across providers and releases after failure', async () => {
   let finish!: (value: boolean) => void
   let fail!: (error: Error) => void
