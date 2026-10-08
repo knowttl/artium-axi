@@ -71,8 +71,8 @@ export class LocalAuthProvider implements AuthProvider {
         const proof = verifyPasswordToken(this.db, token)
         if (proof.user_id !== userId) throw new ArtiumError('TOKEN_INVALID')
       }
-      const { changes } = this.db.prepare(`UPDATE users SET password_hash = ?, must_change = 0, revision = revision + 1
-        WHERE id = ? AND password_hash = ? AND disabled = 0`).run(hash, userId, user.password_hash)
+      const { changes } = this.db.prepare(`UPDATE users SET password_hash = ?, must_change = 0, revision = revision + 1,
+        updated_at = ?, updated_by = ? WHERE id = ? AND password_hash = ? AND disabled = 0`).run(hash, now, userId, userId, user.password_hash)
       if (!changes) throw new ArtiumError('SIGN_IN_FAILED')
       revokeUserSessions(this.db, userId, now)
     })
