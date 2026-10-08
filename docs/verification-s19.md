@@ -14,7 +14,7 @@ Run `pnpm exec vitest run test/integration/api.test.ts` for the focused HTTP che
 - Malformed JSON, content type, unsupported tool names and the 16 MiB body bound produce safe error envelopes.
 - Admission persists before secret retrieval and child creation, with paired terminal request IDs and the verified socket address.
 - Audit failure refuses admission or withholds completed output.
-- Administrator capability does not bypass tool grants; admin routes remain unimplemented.
+- Administrator capability does not bypass tool grants; see [S33 verification](verification-s33.md) for user administration checks.
 - Public liveness and readiness use local storage only, including unavailable-storage readiness.
 - Spoofed forwarding headers from untrusted sockets fail before execution.
 - A real local proxy replaces a supplied address and the trusted server audits the replacement address.
