@@ -19,8 +19,8 @@ Record the exact commit and results in the delivery status and PR body.
 Source or test changes during pipeline review require renewed final-head checks.
 Scan the exact published head again before reporting delivery.
 
-See [README.md](../README.md) for the runner's current contract and deferred enforcement.
-The present detached process group does not claim containment of descendants that create a new session.
+See [README.md](../README.md) for the runner's current contract.
+See [S09/10 verification](verification-s09-10.md) for subsequent lifecycle and resource checks, including the escaped-session limitation.
 Stdin and uploaded inputs arrive in the request-contract slice.
 Existing container checks remain documented in README and the evidence ledger.
 S08 changes no image recipe, tool pin, native dependency or fake-service network behaviour.

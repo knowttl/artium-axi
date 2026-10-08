@@ -1,0 +1,13 @@
+**
+!package.json
+!dist
+!dist/src
+!dist/src/server
+!dist/src/server/**
+!test
+!test/fake-tool
+!test/fake-tool/**
+!test/runner
+!test/runner/probe.mjs
+!test/runner/Dockerfile
+!test/runner/Dockerfile.dockerignore
