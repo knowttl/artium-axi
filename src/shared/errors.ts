@@ -11,6 +11,7 @@ export const errors = {
   AUTH_RATE_LIMITED: { status: 429, message: 'The authentication attempt limit was reached.', next: 'Wait 15 minutes before trying again.' },
   ACCOUNT_LOCKED: { status: 423, message: 'The account is temporarily locked.', next: 'Wait 15 minutes or ask an administrator to unlock the account.' },
   REAUTH_REQUIRED: { status: 401, message: 'Recent password confirmation is required.', next: 'Confirm your password through /v1/auth/reauth.' },
+  CSRF_INVALID: { status: 403, message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.' },
   AUTH_BUSY: { status: 429, message: 'The concurrent password hashing limit was reached.', next: 'Wait for an active authentication request to finish.' },
   MAINTENANCE_BUSY: { status: 503, message: 'The store is held by another server or maintenance process.', next: 'Stop the server and wait for maintenance to finish before retrying.' },
   MAINTENANCE_UNAVAILABLE: { status: 503, message: 'The store maintenance lock is unavailable.', next: 'Check data-volume capacity and permissions.' },

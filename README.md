@@ -8,6 +8,7 @@ The API supports local sign-in, password change, refresh rotation, logout, rate 
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
 The bundled CLI supports local login, password change, identity, logout and serialized session refresh.
+Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -218,7 +219,7 @@ The `administrator` flag is a reserved account capability independent of role to
 The schema provides revision fields for users and roles, alongside the existing tool and credential revisions.
 See the administration usage below for account and role edit concurrency.
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
-Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
+See the browser sign-in usage below for enforcement of session idle expiry and password confirmation.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
 See [the bootstrap runbook](docs/runbook.md#first-administrator-and-offline-recovery) for the one-time marker and administrator safeguards.
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
@@ -409,7 +410,8 @@ Configured tools have `unknown` status until a manual health test records `ok` o
 The periodic health scheduler remains later-slice work.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
-User administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
+Bearer user administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
+Cookie-authenticated administration follows the browser sign-in rules below.
 `GET /v1/admin/users` accepts `cursor` and `limit` (1 to 100); account fields exclude password hashes.
 Pass the response's `nextCursor` as the next request's `cursor`; a null `nextCursor` marks the final page.
 `POST /v1/admin/users` accepts `username`, `displayName`, `temporaryPassword`, `administrator` and `roleIds`, returning 201 with the public account and requiring a password change at first sign-in.
@@ -430,7 +432,7 @@ See [S33 verification](docs/verification-s33.md) for real local login, authoriza
 `PATCH /v1/admin/roles/{id}` accepts `name` and `expectedRevision`.
 `PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi` and `az-axi`.
 The [shared API contract](src/shared/api.ts) owns the complete role inputs, public metadata and audit actions.
-Role administration, including listing, requires the current administrator capability and the same reauthentication ticket as user administration.
+Role administration follows the same authorization rules as user administration.
 Role and assignment mutations commit with their audit event and return public metadata with the new revision; successful edits return 200.
 Invalid references return 400, unknown targets return 404 and stale revisions return 409 without changes.
 Tool grants never confer administrator capability, and role changes apply to the next tool call using existing tokens.
@@ -454,10 +456,26 @@ Configured disabled Falcon and Vectra tools can be tested before enabling them.
 Manual tests never overlap for one tool and use the same global and per-administrator runner slots as ordinary calls.
 They return only safe health fields and retain no upstream output; the audit contract is described above.
 Health records carry check time, credential revision and a safe error code, and never replace the cached health of a newer credential.
-Every tool administration route requires the administrator capability and the same recent-authentication ticket as user administration.
+Tool administration follows the same authorization rules as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
-Audit queries, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+Audit queries and the complete administration screens remain later slices.
+
+Open `/login` through the HTTPS reverse proxy to sign in from a browser.
+Temporary passwords open `/password` and cannot access administration until changed, after which a new login is required.
+Administrators land on `/admin`; ordinary users land on `/account` with password-change and sign-out forms.
+The session cookie contains an opaque identifier with `Secure`, `HttpOnly` and `SameSite=Strict` attributes.
+Sessions persist in SQLite and end after 30 minutes idle or 12 hours from login, whichever comes first.
+Temporary-password sessions end after 10 minutes.
+Every browser mutation requires a same-origin request and a CSRF token, including sign-in, sign-out, reauthentication and credential tests.
+Browser administration uses the current administrator capability.
+Sign-in counts as password confirmation.
+After 15 minutes without password confirmation, an administration mutation opens `/reauth`; confirm the password and submit the action again.
+Cookie-authenticated `POST /v1/auth/reauth` also confirms the password with CSRF and returns 204, while bearer callers retain their ticket response.
+An ordinary password change accepts the current password or recent browser password confirmation.
+See the password and user administration usage above for session revocation on password change, reset and disable.
+Browser pages escape account data, send a Content Security Policy and prevent response caching.
+See [S38 verification](docs/verification-s38.md) for fake-time expiry, CSRF and browser-flow evidence.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

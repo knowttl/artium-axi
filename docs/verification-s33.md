@@ -21,4 +21,5 @@ Before delivery, run frozen install, lint, test, aggregate checks and the real p
 Run the mandatory fake-only container checks documented in [README](../README.md).
 The PR body records the exact head, command results, hygiene-list digest and no-mistakes step timings.
 Source or test changes during the pipeline require renewed validation.
-Browser authentication, real account changes and live deployment remain deferred captain acceptance.
+See [S38 verification](verification-s38.md) for local browser authentication evidence.
+Real account changes and live deployment remain deferred captain acceptance.
