@@ -2,15 +2,9 @@ agent: codex
 no_ci: true
 
 commands:
-  prepare: >-
-    if test -f package.json; then pnpm install --frozen-lockfile;
-    else printf '%s\n' 'BOOTSTRAP_ONLY: no application dependencies yet'; fi
-  test: >-
-    if test -f package.json; then pnpm test;
-    else printf '%s\n' 'BOOTSTRAP_ONLY: no application test evidence yet'; fi
-  lint: >-
-    if test -f package.json; then pnpm lint;
-    else printf '%s\n' 'BOOTSTRAP_ONLY: no application static check yet'; fi
+  prepare: "pnpm install --frozen-lockfile"
+  test: "pnpm test"
+  lint: "pnpm lint"
 
 auto_fix:
   review: 1
