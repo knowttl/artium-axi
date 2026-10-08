@@ -382,7 +382,17 @@ Disabling and resetting revoke CLI and browser sessions in the same transaction 
 The last enabled administrator cannot be disabled or demoted, including concurrent edits.
 The [shared API contract](src/shared/api.ts) owns the complete user inputs, public fields, pagination and audit actions; there is no account delete route.
 See [S33 verification](docs/verification-s33.md) for real local login, authorization, audit rollback and concurrency evidence.
-Role administration, remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+`PUT /v1/admin/users/{id}/roles` replaces `roleIds` with an `expectedRevision` shared with other account edits.
+`GET /v1/admin/roles` uses the same `cursor`, `limit` and `nextCursor` pagination as users.
+`POST /v1/admin/roles` accepts `name` and returns 201 with public role metadata.
+`PATCH /v1/admin/roles/{id}` accepts `name` and `expectedRevision`.
+`PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi` and `az-axi`.
+Roles return `id`, `name`, `tools`, `revision`, `updatedAt` and `updatedBy`.
+Role and assignment mutations require the current administrator capability and the same reauthentication ticket as user administration, and commit with their audit event.
+Invalid references return 400, unknown targets return 404 and stale revisions return 409 without changes.
+Tool grants never confer administrator capability, and role changes apply to the next tool call using existing tokens.
+See [S34 verification](docs/verification-s34.md) for role, grant and assignment evidence.
+Remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

@@ -1,7 +1,7 @@
 # S33 user administration evidence
 
 The [shared API](../src/shared/api.ts) defines each user route's method, path, input, public response, authorization and audit action.
-The [HTTP implementation](../src/server/admin/users.ts) uses current administrator capability and session-bound bearer reauthentication, the existing atomic audit boundary and SQLite last-administrator triggers.
+The [HTTP implementation](../src/server/admin/api.ts) uses current administrator capability and session-bound bearer reauthentication, the existing atomic audit boundary and SQLite last-administrator triggers.
 See [README.md](../README.md) for current user administration usage and remaining work, and [the recovery runbook](runbook.md#first-administrator-and-offline-recovery) for offline recovery.
 
 Run `pnpm exec vitest run test/integration/admin-users.test.ts` for the [HTTP integration checks](../test/integration/admin-users.test.ts).
