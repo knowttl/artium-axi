@@ -10,8 +10,7 @@ Use only synthetic accounts, canary passwords, temporary stores and fake upstrea
 No live service acceptance is claimed.
 See [S31 verification](verification-s31.md) for refresh rotation and logout checks.
 See [S32 verification](verification-s32.md) for rate-limit, lockout and bearer reauthentication checks, and [README.md](../README.md) for current authentication usage and remaining work.
-The restricted token fails the ordinary access verifier used by tool and future admin callers.
-Unimplemented admin routes return the existing 404 response for all callers.
+See [S33 verification](verification-s33.md) for user administration checks; the HTTP checks below also verify restricted-token rejection by the admin access verifier.
 
 1. Run `pnpm exec vitest run test/integration/api.test.ts test/integration/audited-run.test.ts src/server/auth/tokens.test.ts src/server/auth/local.test.ts`.
    Verify real HTTP local sign-in, canonical usernames, distinct 32-byte random access and refresh values, hash-only persistence, one-hour access and fixed 12-hour family deadlines.

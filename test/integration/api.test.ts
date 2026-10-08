@@ -318,7 +318,7 @@ test('security: restricted token denies tools and admin authentication and chang
   const restrictedHeaders = { ...headers, authorization: `Bearer ${proof}` }
   await expectFailure(await fetch(`${url}/v1/tools`, { headers: restrictedHeaders }), 'TOKEN_INVALID')
   await expectFailure(await run({ args: ['print', 'synthetic'] }, restrictedHeaders), 'TOKEN_INVALID')
-  await expectFailure(await fetch(`${url}/v1/admin/users`, { headers: restrictedHeaders }), 'NOT_FOUND')
+  await expectFailure(await fetch(`${url}/v1/admin/users`, { headers: restrictedHeaders }), 'TOKEN_INVALID')
   expect(getCredential).not.toHaveBeenCalled()
   db.prepare(`INSERT INTO sessions (id, family_id, user_id, csrf_token, created_at, last_seen_at, expires_at)
     SELECT 'synthetic-browser', id, user_id, 'CANARY-csrf', created_at, created_at, expires_at FROM session_families LIMIT 1`).run()
@@ -446,7 +446,7 @@ test('audit is durable before credential preparation and child admission and ide
   ])
   expect(db.prepare('SELECT COUNT(DISTINCT request_id) AS count FROM audit').get()).toEqual({ count: 1 })
   expect(db.prepare('SELECT administrator FROM users').get()).toEqual({ administrator: 0 })
-  await expectFailure(await fetch(`${url}/v1/admin/users`, { headers }), 'NOT_FOUND')
+  await expectFailure(await fetch(`${url}/v1/admin/users`, { headers }), 'ADMIN_REQUIRED')
 })
 
 test.each([

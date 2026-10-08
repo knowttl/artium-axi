@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN updated_at INTEGER;
+ALTER TABLE users ADD COLUMN updated_by TEXT REFERENCES users(id);

@@ -5,6 +5,7 @@ It adds role-based access to those tools and a command-line client that follows 
 
 Status: under construction.
 The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
+User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 CLI sign-in commands remain later-slice work.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
@@ -161,7 +162,7 @@ Wrong passwords and unknown usernames both return `SIGN_IN_FAILED`; exhausted li
 `expiresAt` is a UTC Unix millisecond timestamp; refresh and restricted password-change tokens cannot authenticate this endpoint.
 The server stores only the ticket hash, replaces the previous ticket for that session family and caps its 15-minute deadline at the family deadline.
 Tickets survive refresh within their family and cannot be used with another family or after logout, refresh-token reuse revocation, password change or user disable.
-Administrative routes that require these tickets and an account-unlock API remain later-slice work.
+See the user administration usage below for routes requiring these tickets.
 See [S32 verification](docs/verification-s32.md) for rate-limit, lockout and ticket evidence.
 Only SHA-256 token hashes and metadata are stored.
 A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
@@ -178,7 +179,8 @@ The [authentication schema](src/server/store/migrations/002-authentication.sql) 
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
 The account-writing flow owns canonicalization before insertion.
 The `administrator` flag is a reserved account capability independent of role tool grants.
-The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later account and role writers must enforce optimistic concurrency.
+The schema provides revision fields for users and roles, alongside the existing tool and credential revisions; later role writers must enforce optimistic concurrency.
+See the user administration usage below for account edit concurrency.
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
 Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
@@ -365,7 +367,22 @@ Tools listing includes enabled, granted adapters without contacting an upstream 
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
-Admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
+User administration requires the current administrator capability and the ticket returned by `POST /v1/auth/reauth` in `X-Artium-Reauth-Ticket`.
+`GET /v1/admin/users` accepts `cursor` and `limit` (1 to 100); account fields exclude password hashes.
+Pass the response's `nextCursor` as the next request's `cursor`; a null `nextCursor` marks the final page.
+`POST /v1/admin/users` accepts `username`, `displayName`, `temporaryPassword`, `administrator` and `roleIds`, returning 201 with the public account and requiring a password change at first sign-in.
+`PATCH /v1/admin/users/{id}` accepts `displayName`, `enabled` and/or `administrator`, together with `expectedRevision`.
+`POST /v1/admin/users/{id}/unlock` clears account lockout; `POST /v1/admin/users/{id}/password-reset` accepts `temporaryPassword` and forces a password change.
+Both clear the canonical username's in-memory attempt counter on the handling server after the database mutation and audit commit, allowing immediate sign-in subject to the unchanged per-address limit.
+An audit failure preserves the lockout and username counter.
+Creation and reset use the local password rules above, preserving passwords without trimming; creation canonicalizes the username for lookup and stores the supplied `displayName` separately.
+Successful mutations other than creation return 200 with public account metadata and the new revision; stale edits return 409 and unknown accounts return 404.
+Every mutation commits atomically with its metadata-only audit event.
+Disabling and resetting revoke CLI and browser sessions in the same transaction as the audit event.
+The last enabled administrator cannot be disabled or demoted, including concurrent edits.
+The [shared API contract](src/shared/api.ts) owns the complete user inputs, public fields, pagination and audit actions; there is no account delete route.
+See [S33 verification](docs/verification-s33.md) for real local login, authorization, audit rollback and concurrency evidence.
+Role administration, remaining admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.
