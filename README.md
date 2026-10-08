@@ -158,7 +158,6 @@ Restricted password change is single-use and requires a new login after success.
 Sign-in success and failure are audited, and token issuance rolls back if its audit record fails.
 The [server configuration](src/server/config.ts) owns hashing costs, concurrency and token lifetime defaults.
 See [S28 verification](docs/verification-s28.md) and [S30 verification](docs/verification-s30.md) for local evidence checks.
-Refresh rotation and logout remain pending.
 
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
