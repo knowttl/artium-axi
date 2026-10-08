@@ -7,6 +7,7 @@ Status: under construction.
 The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
+Administrators can browse and filter records through the [Audit screen and API](#audit-screen-and-api).
 The bundled CLI supports local login, password change, identity, logout and serialized session refresh.
 Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 
@@ -461,7 +462,6 @@ Health records carry check time, credential revision and a safe error code, and 
 Tool administration follows the same authorization rules as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
-Audit queries remain later-slice work.
 
 Open `/login` through the HTTPS reverse proxy to sign in from a browser.
 Temporary passwords open `/password` and cannot access administration until changed, after which a new login is required.
@@ -497,6 +497,24 @@ Roles creates and renames roles and replaces their tool grants from the fixed re
 Use Users to assign or remove roles, with changes applying to the next call using existing tokens.
 All three screens show change actor, UTC time and revision, and reuse the existing confirmations, CSRF, recent-authentication challenge and stale-edit handling.
 See [S40 verification](docs/verification-s40.md) for secret-free rendered pages, native settings and the real browser role-removal flow.
+
+### Audit screen and API
+
+Open Audit at `/admin/audit` from the administration navigation to find changes made through Users, Tools, Credentials and Roles, as well as tool calls and authentication events.
+Select a user or tool, enter an exact outcome such as `success`, `completed` or an error code, and optionally set inclusive From and To times as UTC ISO timestamps such as `2026-01-01T00:00:00Z`.
+Records show the actor, UTC time, event, outcome, action, target, request ID, redacted arguments, verified client address and available execution, credential-test or retention metadata.
+Next page retains the filters; Apply filters and Clear filters start a fresh page.
+Browser reads require the current administrator capability without recent password confirmation.
+
+`GET /v1/admin/audit` provides the same records with `user` (actor ID), `tool`, `outcome`, `from`, `to`, `limit` and `cursor` query parameters.
+Bearer callers require the session-bound reauthentication ticket described above.
+The [shared API contract](src/shared/api.ts) owns the query validation and response fields.
+Pages default to 50 records and accept limits from 1 to 100, ordered by timestamp descending and then record ID descending.
+Pass `nextCursor` as the next request's `cursor`, retaining the filters; null marks the final page.
+Continuation cursors exclude later inserts, including backdated records; start without a cursor to see newly inserted records.
+Successful reads append no audit event and do not modify records; API authorization denials append denial events.
+There is no audit mutation or deletion route.
+See [S41 verification](docs/verification-s41.md) for local fake-only API and browser evidence.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

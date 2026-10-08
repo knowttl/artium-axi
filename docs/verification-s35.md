@@ -16,7 +16,7 @@ The [integration tests](../test/integration/admin-tools.test.ts) also verify leg
 An Azure adapter is injected only in tests with fake token transport; production runtime Azure enable and test remain unavailable.
 Tool listing makes no remote call and replacement clears cached health.
 Automatic health scheduling and post-replacement background checks belong to S42.
-Paginated audit queries belong to S41.
+See [S41 verification](verification-s41.md) for paginated audit query evidence.
 
 Before validation, update README and the existing task row in the evidence ledger.
 AGENTS.md already points to the correct command and validation owners and requires no factual correction for this slice.
