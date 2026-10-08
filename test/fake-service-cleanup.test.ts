@@ -16,7 +16,7 @@ const docker = vi.hoisted(() => ({
 
 vi.mock('node:child_process', async importOriginal => ({
   ...await importOriginal<typeof import('node:child_process')>(),
-  spawnSync: (bin: string, args: string[]) => {
+  spawnSync: (bin: string, args: string[], options: { timeout?: number }) => {
     const result = { status: 0, stdout: '', stderr: '' }
     if (bin === process.execPath) {
       const image = args[args.indexOf('--runner') + 1]
@@ -24,6 +24,9 @@ vi.mock('node:child_process', async importOriginal => ({
         return { ...result, status: 1, stderr: 'Missing runner image tag' }
       }
       docker.built.push(image)
+      if (docker.failure === 'slow-builder' && options.timeout) {
+        return { ...result, status: null, error: new Error('Synthetic enclosing build timeout') }
+      }
       if (docker.failure !== 'runner-build' || docker.partial) docker.images.add(image)
       if (docker.failure === 'runner-build') return { ...result, status: 1, stderr: 'Synthetic build failure' }
     } else if (args[0] === 'run' || (args[0] === 'network' && args[1] === 'create')) {
@@ -154,5 +157,16 @@ test('runner builder loads the caller supplied image tag', async () => {
   await import(builder)
   expect(process.exitCode).toBeUndefined()
   expect([...docker.images]).toEqual([image])
+  expect(docker.resources.size).toBe(0)
+})
+
+test('runner waits for a slow builder to finish before probing and cleaning up', async () => {
+  docker.failure = 'slow-builder'
+  await import(runnerHarness)
+  expect(process.exitCode).toBeUndefined()
+  expect(docker.built).toHaveLength(1)
+  expect(docker.used).toEqual([docker.built[0], docker.built[0]])
+  expect(docker.removedImages).toEqual(docker.built)
+  expect(docker.images.size).toBe(0)
   expect(docker.resources.size).toBe(0)
 })

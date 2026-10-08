@@ -12,7 +12,7 @@ function command(executable, args, timeout = 300_000) {
 try {
   command('docker', ['info', '--format', '{{.ServerVersion}}'])
   ownedImage = true
-  command(process.execPath, ['scripts/build-fake-service-image.mjs', '--runner', image])
+  command(process.execPath, ['scripts/build-fake-service-image.mjs', '--runner', image], 0)
   for (const mode of ['tmpfs', 'memory']) {
     const name = `artium-test-runner-${randomUUID()}`
     containers.push(name)

@@ -9,7 +9,7 @@ import { SecretScanner } from './scan.js'
 export interface RunnerLimits {
   outputBytesPerStream?: number
   timeoutMs?: number
-  runtime?: 'node' | 'python'
+  runtime?: 'python'
   signal?: AbortSignal
 }
 
