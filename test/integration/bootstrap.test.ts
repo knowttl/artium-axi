@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { build } from 'esbuild'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { bootstrapAdministrator } from '../../src/server/auth/bootstrap.js'
+import { developmentAuthentication } from '../../src/server/auth/development.js'
 import { recoverAdministrator } from '../../src/server/auth/recover-admin.js'
 import { LocalAuthProvider } from '../../src/server/auth/local.js'
 import { verifyAccessToken } from '../../src/server/auth/tokens.js'
@@ -79,6 +80,8 @@ test.each(['user', 'marker'])('failure inserting %s rolls back administrator and
 test.each([
   [{ ARTIUM_AXI_ADMIN_USERNAME: '' }, 'USERNAME_INVALID'],
   [{ ARTIUM_AXI_ADMIN_USERNAME: 'two names' }, 'USERNAME_INVALID'],
+  [{ ARTIUM_AXI_ADMIN_USERNAME: 'synthetic-development-user' }, 'USERNAME_INVALID'],
+  [{ ARTIUM_AXI_ADMIN_USERNAME: ' Synthetic-Development-User ' }, 'USERNAME_INVALID'],
   [{ ARTIUM_AXI_ADMIN_PASSWORD_FILE: '/missing' }, 'PASSWORD_FILE_INVALID'],
 ])('invalid first-start configuration fails without data: %j', async (override, code) => {
   const db = openStore(file, provider)
@@ -96,6 +99,31 @@ test.each(['short', 'passwordpassword'])('invalid bootstrap password %s leaves n
     await expect(bootstrapAdministrator(db, settings())).rejects.toMatchObject({ code: 'PASSWORD_INVALID' })
     expect(db.prepare('SELECT * FROM bootstrap_metadata').all()).toEqual([])
   } finally { db.close() }
+})
+
+test('malformed UTF-8 bootstrap password leaves no account or marker', async () => {
+  writeFileSync(passwordFile, Buffer.concat([Buffer.from('CANARY-password-'), Buffer.from([0xe9])]))
+  const db = openStore(file, provider)
+  try {
+    await expect(bootstrapAdministrator(db, settings())).rejects.toMatchObject({ code: 'PASSWORD_FILE_INVALID' })
+    expect(db.prepare('SELECT * FROM users').all()).toEqual([])
+    expect(db.prepare('SELECT * FROM bootstrap_metadata').all()).toEqual([])
+  } finally { db.close() }
+})
+
+test('password files retain the leading BOM, spaces and Unicode', async () => {
+  const exactPassword = '\ufeff CANARY-password-雪 '
+  writeFileSync(passwordFile, exactPassword)
+  const db = openStore(file, provider)
+  try {
+    await bootstrapAdministrator(db, settings())
+    expect(await new LocalAuthProvider(db).signIn('synthetic-admin', exactPassword)).toMatchObject({ mustChange: true })
+  } finally { db.close() }
+  await recoverAdministrator(file, provider, 'synthetic-admin', passwordFile)
+  const reopened = openStore(file, provider)
+  try {
+    expect(await new LocalAuthProvider(reopened).signIn('synthetic-admin', exactPassword)).toMatchObject({ mustChange: true })
+  } finally { reopened.close() }
 })
 
 test.each(['UPDATE users SET disabled = 1', 'UPDATE users SET administrator = 0', 'DELETE FROM users'])
@@ -123,9 +151,9 @@ async function bundle(contents: string) {
   return entry
 }
 
-test('offline executable recovery on a copy is audited, restores must-change and revokes sessions without changing the source', async () => {
+test.each(['Synthetic-Admin', '-Synthetic-Admin'])('offline executable recovery for %s on a copy is audited, restores must-change and revokes sessions without changing the source', async username => {
   const source = openStore(file, provider)
-  await bootstrapAdministrator(source, settings())
+  await bootstrapAdministrator(source, { ...settings(), ARTIUM_AXI_ADMIN_USERNAME: username })
   const userId = (source.prepare('SELECT id FROM users').get() as { id: string }).id
   const token = issueTestAccessToken(source, userId)
   source.exec(`INSERT INTO sessions (id, family_id, user_id, csrf_token, created_at, last_seen_at, expires_at)
@@ -135,10 +163,10 @@ test('offline executable recovery on a copy is audited, restores must-change and
   mkdirSync(join(directory, 'copy'))
   await source.backup(copy)
   const recoveryPassword = 'CANARY-recovery-password'
-  writeFileSync(passwordFile, recoveryPassword)
   const entry = await bundle("await import('./src/server/maintenance.ts')")
-  const result = spawnSync(process.execPath, [entry, 'recover-admin', '--username', 'Synthetic-Admin', '--password-file', passwordFile],
-    { encoding: 'utf8', timeout: 10_000, env: { ...process.env, ARTIUM_AXI_DATABASE_FILE: copy,
+  writeFileSync(join(directory, '-password'), recoveryPassword)
+  const result = spawnSync(process.execPath, [entry, 'recover-admin', '--username', username, '--password-file', '-password'],
+    { cwd: directory, encoding: 'utf8', timeout: 10_000, env: { ...process.env, ARTIUM_AXI_DATABASE_FILE: copy,
       ARTIUM_AXI_MASTER_KEY_FILE: '', ARTIUM_AXI_MASTER_KEY: provider.getKey().bytes.toString('base64'), ARTIUM_AXI_AUDIT_STDOUT: '1' } })
   const recovered = openStore(copy, provider)
   try {
@@ -146,17 +174,48 @@ test('offline executable recovery on a copy is audited, restores must-change and
     expect(result.stdout).toContain('status: password-change-required')
     expect(result.stdout + result.stderr).not.toContain(recoveryPassword)
     expect(result.stderr).toBe('')
-    expect(await new LocalAuthProvider(recovered).signIn('synthetic-admin', recoveryPassword)).toEqual({ userId, mustChange: true })
+    expect(await new LocalAuthProvider(recovered).signIn(username, recoveryPassword)).toEqual({ userId, mustChange: true })
     expect(recovered.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 0, locked_until: null })
     expect(() => verifyAccessToken(recovered, token)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
     expect(recovered.prepare('SELECT revoked_at FROM sessions').get()).toEqual({ revoked_at: expect.any(Number) })
     expect(recovered.prepare('SELECT action, target_id, user_id, arguments, outcome FROM audit').all())
       .toEqual([{ action: 'recover-admin', target_id: userId, user_id: null, arguments: null, outcome: 'success' }])
-    expect(await new LocalAuthProvider(source).signIn('synthetic-admin', password)).toMatchObject({ userId })
+    expect(await new LocalAuthProvider(source).signIn(username, password)).toMatchObject({ userId })
     expect(verifyAccessToken(source, token)).toBe(userId)
     expect(source.prepare('SELECT * FROM audit').all()).toEqual([])
   } finally { source.close(); recovered.close() }
 }, 15_000)
+
+test.each(['synthetic-development-user', ' Synthetic-Development-User '])('recovery refuses reserved identity %s without mutation', async username => {
+  const db = openStore(file, provider)
+  await bootstrapAdministrator(db, settings())
+  developmentAuthentication(db, 'CANARY-development-token')
+  const before = db.prepare('SELECT * FROM users ORDER BY id').all()
+  db.close()
+  await expect(recoverAdministrator(file, provider, username, passwordFile)).rejects.toMatchObject({ code: 'USERNAME_INVALID' })
+  const reopened = openStore(file, provider)
+  try {
+    expect(reopened.prepare('SELECT * FROM users ORDER BY id').all()).toEqual(before)
+    expect(reopened.prepare('SELECT * FROM audit').all()).toEqual([])
+  } finally { reopened.close() }
+})
+
+test('malformed UTF-8 recovery password leaves account and sessions unchanged without audit', async () => {
+  const db = openStore(file, provider)
+  await bootstrapAdministrator(db, settings())
+  const userId = (db.prepare('SELECT id FROM users').get() as { id: string }).id
+  const token = issueTestAccessToken(db, userId)
+  const before = db.prepare('SELECT * FROM users').get()
+  db.close()
+  writeFileSync(passwordFile, Buffer.concat([Buffer.from('CANARY-password-'), Buffer.from([0xe9])]))
+  await expect(recoverAdministrator(file, provider, 'synthetic-admin', passwordFile)).rejects.toMatchObject({ code: 'PASSWORD_FILE_INVALID' })
+  const reopened = openStore(file, provider)
+  try {
+    expect(reopened.prepare('SELECT * FROM users').get()).toEqual(before)
+    expect(verifyAccessToken(reopened, token)).toBe(userId)
+    expect(reopened.prepare('SELECT * FROM audit').all()).toEqual([])
+  } finally { reopened.close() }
+})
 
 test('audit failure rolls back recovery password, account state and session revocations', async () => {
   const db = openStore(file, provider)
