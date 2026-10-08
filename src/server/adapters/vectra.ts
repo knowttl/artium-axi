@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
+import { nativeSettingsSchemas } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -16,7 +17,7 @@ const common = {
     } catch { return false }
   }),
   caBundle: nonempty.optional(),
-  writes: z.object({ allowWrites: z.boolean(), operations: z.array(nonempty).min(1) }).strict().optional(),
+  writes: nativeSettingsSchemas['vectra-axi'].shape.writes,
 }
 const clientId = nonempty.refine(value => !/[:\s]/.test(value))
 export const vectraCredentialSchema = z.union([
