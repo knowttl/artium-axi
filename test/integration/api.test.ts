@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
@@ -126,6 +126,54 @@ test('current role removal denies the next request and produces an empty tools l
   expect(await (await fetch(`${url}/v1/tools`, { headers })).json()).toEqual({ tools: [] })
   expect(getCredential).not.toHaveBeenCalled()
 })
+
+test.each(['role_tools', 'user_roles'])('restart preserves revoked development policy in %s', async table => {
+  db.exec(`DELETE FROM ${table}`)
+  await expectFailure(await run({ args: ['exit', '0'] }), 'TOOL_NOT_GRANTED')
+  await app.close()
+  db.close()
+  db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  options = { ...options, db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')) }
+  app = createApp(options)
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  await expectFailure(await run({ args: ['exit', '0'] }), 'TOOL_NOT_GRANTED')
+  expect(await (await fetch(`${url}/v1/tools`, { headers })).json()).toEqual({ tools: [] })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('HTTP shutdown cancels an active child before draining requests and closing storage', async () => {
+  await app.close()
+  options.runner = await Runner.create(join(directory, 'calls'))
+  app = createApp(options)
+  const readyFile = join(directory, 'ready.json')
+  const runChild = options.runner.run.bind(options.runner)
+  vi.spyOn(options.runner, 'run').mockImplementation((userId, executable, args, environment, secrets, limits, input) =>
+    runChild(userId, executable, args, { ...environment, ARTIUM_TEST_READY_FILE: readyFile }, secrets, limits, input))
+  let watcher: ReturnType<typeof watch>
+  const ready = new Promise<number>((resolve, reject) => {
+    watcher = watch(directory, (_event, name) => {
+      if (name !== 'ready.json') return
+      watcher.close()
+      try { resolve(JSON.parse(readFileSync(readyFile, 'utf8')).parent) } catch (error) { reject(error) }
+    })
+  })
+  let terminal: unknown
+  app.addHook('onClose', async () => {
+    terminal = db.prepare("SELECT event, outcome FROM audit ORDER BY id").all()
+    db.close()
+  })
+  try {
+    url = await app.listen({ host: '127.0.0.1', port: 0 })
+    const response = run({ args: ['sleep', '60000'] })
+    const pid = await ready
+    const closing = app.close()
+    await expectFailure(await response, 'CANCELLED')
+    await closing
+    expect(terminal).toEqual([{ event: 'run-start', outcome: 'started' }, { event: 'run-terminal', outcome: 'CANCELLED' }])
+    expect(db.open).toBe(false)
+    expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: 'ESRCH' }))
+  } finally { watcher!.close() }
+}, 10_000)
 
 test('authentication failures use the exact envelope on both endpoints', async () => {
   await expectFailure(await fetch(`${url}/v1/tools`), 'TOKEN_INVALID')

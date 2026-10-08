@@ -85,6 +85,6 @@ export function createApp(options: {
       return { source: adapter.name, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
     } finally { reply.raw.off('close', disconnect) }
   })
-  app.addHook('onClose', async () => { await runner.shutdown() })
+  app.addHook('preClose', async () => { await runner.shutdown() })
   return app
 }
