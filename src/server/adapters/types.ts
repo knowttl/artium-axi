@@ -1,7 +1,8 @@
 import type { z } from 'zod'
 import type { CredentialReference, ToolName } from '../store/credential-store.js'
 
-// Leaf names are resolved under the runner's private call directory, with mode 0600.
+// The owning server flow must materialize these leaf names in the private call directory with mode 0600.
+// RunnerInput currently supports uploads only; adapter-file materialization is not wired yet.
 export interface TemporaryFile {
   name: string
   content: string | Uint8Array

@@ -83,7 +83,8 @@ The build copies numbered SQL migrations beside the compiled store.
 The [credential-store boundary](src/server/store/credential-store.ts) exposes credential references and parsed values without SQLite types.
 Create it with `createCredentialStore(connection, keyProvider)` using the same provider as `openStore`.
 Credentials are encrypted JSON objects matching the adapter's credential schema.
-The [SharedIdentityResolver](src/server/policy/identity-resolver.ts) selects the tool's designated credential with `resolve(userId, tool)`, whoever the user is.
+Version 1 uses one shared service credential per tool in the embedded encrypted database; external secret sources and per-user credentials remain deferred.
+The [SharedIdentityResolver](src/server/policy/identity-resolver.ts) selects that credential with `resolve(userId, tool)`, whoever the user is.
 The [EmbeddedSecretSource](src/server/store/secret-source.ts) retrieves that reference through `getCredential(reference)` and decrypts it in memory through the store boundary.
 Selection does not grant access to a tool, so the owning server flow must authorize before resolution and retrieval.
 [S14 verification](docs/verification-s14.md) covers fake-store unit tests and encrypted-store Falcon preparation after reopen, with the T1.5 tests unchanged.
@@ -112,8 +113,7 @@ Create one `Runner` per server with `await Runner.create()`, before accepting ca
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
 Call `runner.run(userId, executable, args, environment, secrets, limits, input)` with the authenticated user, adapter-provided environment values and all known injected secrets.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
-Falcon preparation retrieves a stored credential through SecretSource, with Docker secret files retained for the compatibility entry point.
-Its later owning server flow must enforce a separate 30-second preparation deadline.
+The later owning server flow must enforce a separate 30-second preparation deadline for the [Falcon adapter](src/server/adapters/falcon.ts).
 Credential tests and future background health reads must use this same runner and an authenticated identity.
 Excess calls reject immediately with `TOO_MANY_CALLS`.
 It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
