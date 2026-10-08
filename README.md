@@ -109,10 +109,11 @@ The [error catalogue](src/shared/errors.ts) owns token and policy denial codes a
 The random [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness and refuses execution outside `NODE_ENV=test`.
 It stores only the token hash, sets a one-hour access-token expiry and a fixed 12-hour family deadline, and issues tokens checked by the production verifier in tests.
 [S16 verification](docs/verification-s16.md) covers expiry and revocation, next-call role changes and proof that denied preparation retrieves no secret.
-Login, production token issuance, bootstrap execution and HTTP integration arrive in later slices.
+Login, production token issuance and bootstrap execution arrive in later slices.
 
 The [audit store](src/server/audit/audit.ts) records UTC Unix millisecond timestamps, actor IDs, tools, request IDs, verified client addresses, outcomes and safe run metadata.
-`runTool(db, audit, runner, token, request, adapter, resolver, context)` owns admission and execution.
+`runTool(db, audit, runner, token, request, adapter, resolver, context, authenticate?)` owns admission and execution.
+It defaults to the production access-token verifier; the development HTTP server supplies its separate static-token authenticator.
 The HTTP owner supplies a unique request ID, a verified client address and an optional disconnect signal through `context`.
 Audit persistence failure returns `AUDIT_UNAVAILABLE`, prevents credential retrieval and child creation at admission, and withholds the completed result if terminal persistence fails.
 Run failures record only stable error codes, duration and observed output sizes, including secret-output failures.
@@ -137,7 +138,6 @@ The later authentication and admin producers must call it using metadata only.
 It preserves mutation errors and rolls the mutation back when audit persistence fails.
 These operations reject calls inside another transaction with `AUDIT_UNAVAILABLE`, so streaming always follows commit.
 There is no audit update or deletion interface for administrators.
-The server startup and daily tick wiring arrive with HTTP integration.
 [S17+S18 verification](docs/verification-s17-18.md) defines the local checks.
 
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
@@ -257,25 +257,31 @@ The checks verify the configured 6 GiB bound and force a resident-memory OOM at 
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 The image's default command starts the development API, which requires an explicit development gate and token file.
+The Compose example supplies only the master key; supply the development gate and a mounted token file before starting it.
 Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.
 See [verification-s05-06.md](docs/verification-s05-06.md) for packaging verification and deferred Falcon live checks.
 
 After `pnpm build`, run `pnpm start` with `ARTIUM_AXI_DEV=1`, `ARTIUM_AXI_DEV_TOKEN_FILE` pointing to an owner-only random token file, and `ARTIUM_AXI_MASTER_KEY_FILE` pointing to a synthetic 32-byte key file.
 Use `ARTIUM_AXI_DATABASE_FILE` to select a dedicated local development database instead of `/data/artium.db`.
-The listener defaults to port 8080, and all tools remain disabled until the development store is configured.
+The [server configuration](src/server/config.ts) owns the listener and storage defaults.
+All tools remain disabled until the development store is configured.
 Use only synthetic encrypted credentials and fake upstream services during the build.
 Never put a token or key in an argument, source file, image or log.
 
 The [Fastify API](src/server/app.ts) implements authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
-Tools listing returns `{ "tools": [{ "name", "version", "status" }] }` for enabled, granted adapters without contacting an upstream service.
+Send `Authorization: Bearer <token>` using the token file's contents, and `Content-Type: application/json` for runs.
+The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
+Tools listing includes enabled, granted adapters without contacting an upstream service.
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Development authentication is a separate static-token path for one synthetic non-administrator, with current database policy applied to every request.
-The server refuses startup unless the development gate is exactly `1` and its token file is readable and nonempty.
+The server refuses startup unless the development gate is exactly `1` and its token file is readable and contains a nonempty token with no internal whitespace after trimming.
 It exposes no admin routes or production login bypass.
 
-Public `/health/live` reports liveness and `/health/ready` reports local initialized storage, key and migrations, never remote health.
+Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
+`GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.
+Readiness does not reload the key or contact remote services.
 Set `ARTIUM_AXI_TRUSTED_PROXIES` only to a comma-separated list of verified proxy source IP addresses.
 The default trusts none and rejects forwarding headers received directly from untrusted sockets.
 The proxy must replace client forwarding headers.
