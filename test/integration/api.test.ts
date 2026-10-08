@@ -12,7 +12,7 @@ import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { checkAuthSettings } from '../../src/server/auth/settings.js'
 import { errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits, loginResponseSchema } from '../../src/shared/api.js'
-import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
+import { hashToken, requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -97,6 +97,101 @@ async function refresh(refreshToken: string) {
   return fetch(`${url}/v1/auth/refresh`, { method: 'POST', headers,
     body: JSON.stringify({ refreshToken }) })
 }
+
+test('five wrong passwords lock the account with an audit event until the exact expiry', async () => {
+  const start = Date.now() + 900_000
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(start)
+  for (let attempt = 0; attempt < 5; attempt++) await expectFailure(await login('CANARY-wrong'), 'SIGN_IN_FAILED')
+  expect(db.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 5, locked_until: start + 900_000 })
+  expect(db.prepare("SELECT user_id, outcome, client_address FROM audit WHERE event = 'lockout'").all()).toEqual([
+    { user_id: 'synthetic-development-user', outcome: 'ACCOUNT_LOCKED', client_address: '127.0.0.1' },
+  ])
+  clock.mockReturnValue(start + 899_999)
+  await expectFailure(await login(), 'AUTH_RATE_LIMITED')
+  // The attempt window starts before the fifth failure; the persisted lock still applies after that window.
+  await app.close()
+  app = createApp(options)
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  await expectFailure(await login(), 'ACCOUNT_LOCKED')
+  clock.mockReturnValue(start + 900_000)
+  expect((await login()).status).toBe(200)
+  expect(db.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 0, locked_until: null })
+})
+
+test('successful logins reset failed-password counts but still consume the username attempt limit', async () => {
+  await expectFailure(await login('CANARY-wrong'), 'SIGN_IN_FAILED')
+  expect((await login()).status).toBe(200)
+  expect(db.prepare('SELECT failed_attempts FROM users').get()).toEqual({ failed_attempts: 0 })
+  expect((await login()).status).toBe(200)
+  expect((await login()).status).toBe(200)
+  await expectFailure(await login(undefined, ' Synthetic-USER '), 'AUTH_RATE_LIMITED')
+})
+
+test('lockout audit failure rolls back the fifth failure and lock deadline', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 900_000)
+  for (let attempt = 0; attempt < 4; attempt++) await expectFailure(await login('CANARY-wrong'), 'SIGN_IN_FAILED')
+  db.exec("CREATE TRIGGER fail_lockout BEFORE INSERT ON audit WHEN NEW.event = 'lockout' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await expectFailure(await login('CANARY-wrong'), 'AUDIT_UNAVAILABLE')
+  expect(db.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 4, locked_until: null })
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'lockout'").get()).toEqual({ count: 0 })
+})
+
+test('reauth requires an access token and strict password input', async () => {
+  const post = (proof: string, body: unknown) => fetch(`${url}/v1/auth/reauth`, { method: 'POST',
+    headers: { ...headers, authorization: `Bearer ${proof}` }, body: JSON.stringify(body) })
+  const session = await ordinarySession()
+  await expectFailure(await post(session.refreshToken, { password: 'CANARY-local-password' }), 'TOKEN_INVALID')
+  db.exec('UPDATE users SET must_change = 1')
+  const restricted = loginResponseSchema.parse(await (await login()).json())
+  if (restricted.status !== 'password-change-required') throw new Error('Expected restricted session')
+  await expectFailure(await post(restricted.passwordChangeToken, { password: 'CANARY-local-password' }), 'TOKEN_INVALID')
+  await expectFailure(await post(token, { password: 'CANARY-local-password', username: 'someone-else' }), 'INVALID_INPUT')
+  expect(db.prepare('SELECT COUNT(*) AS count FROM recent_auth_tickets').get()).toEqual({ count: 0 })
+})
+
+test('address limit bounds distinct unknown usernames and ignores spoofed forwarding', async () => {
+  const start = Date.now() + 900_000
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(start)
+  for (let attempt = 0; attempt < 30; attempt++) await expectFailure(await login('CANARY-wrong', `unknown-${attempt}`), 'SIGN_IN_FAILED')
+  await expectFailure(await login('CANARY-wrong', 'another-unknown'), 'AUTH_RATE_LIMITED')
+  await expectFailure(await fetch(`${url}/v1/auth/login`, { method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': '192.0.2.1' },
+    body: JSON.stringify({ username: 'synthetic-user', password: 'CANARY-local-password' }) }), 'PROXY_HEADERS_UNTRUSTED')
+  clock.mockReturnValue(start + 900_000)
+  expect((await login()).status).toBe(200)
+  expect(db.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 1 })
+}, 15_000)
+
+test('reauth issues a hashed session-bound ticket valid through refresh until its exact expiry', async () => {
+  const start = Date.now()
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(start)
+  const other = await ordinarySession()
+  const response = await fetch(`${url}/v1/auth/reauth`, { method: 'POST', headers, body: JSON.stringify({ password: 'CANARY-local-password' }) })
+  expect(response.status).toBe(200)
+  const proof = await response.json() as { ticket: string, expiresAt: number }
+  expect(Buffer.from(proof.ticket, 'base64url')).toHaveLength(32)
+  expect(proof.expiresAt).toBe(start + 900_000)
+  expect(db.prepare('SELECT hash, expires_at FROM recent_auth_tickets').get()).toEqual({ hash: hashToken(proof.ticket), expires_at: proof.expiresAt })
+  expect(requireRecentAuth(db, token, proof.ticket)).toBe('synthetic-development-user')
+  expect(() => requireRecentAuth(db, other.accessToken, proof.ticket)).toThrow(expect.objectContaining({ code: 'REAUTH_REQUIRED' }))
+  const rotated = loginResponseSchema.parse(await (await refresh(other.refreshToken)).json())
+  if (rotated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  expect(() => requireRecentAuth(db, rotated.accessToken, proof.ticket)).toThrow(expect.objectContaining({ code: 'REAUTH_REQUIRED' }))
+  clock.mockReturnValue(proof.expiresAt - 1)
+  expect(requireRecentAuth(db, token, proof.ticket)).toBe('synthetic-development-user')
+  clock.mockReturnValue(proof.expiresAt)
+  expect(() => requireRecentAuth(db, token, proof.ticket)).toThrow(expect.objectContaining({ code: 'REAUTH_REQUIRED' }))
+})
+
+test('reauth shares username limits with login and rejects incorrect passwords without issuing tickets', async () => {
+  const reauth = (password: string) => fetch(`${url}/v1/auth/reauth`, { method: 'POST', headers, body: JSON.stringify({ password }) })
+  await expectFailure(await reauth('CANARY-wrong'), 'SIGN_IN_FAILED')
+  expect(db.prepare('SELECT COUNT(*) AS count FROM recent_auth_tickets').get()).toEqual({ count: 0 })
+  expect((await reauth('CANARY-local-password')).status).toBe(200)
+  expect((await login()).status).toBe(200)
+  expect((await reauth('CANARY-local-password')).status).toBe(200)
+  await expectFailure(await reauth('CANARY-local-password'), 'AUTH_RATE_LIMITED')
+})
 
 test('security: concurrent refresh consumes once and reuse revokes the complete family', async () => {
   const session = await ordinarySession()

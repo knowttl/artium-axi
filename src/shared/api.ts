@@ -19,6 +19,8 @@ export const passwordSchema = z.string().refine(value => {
 export const passwordChangeSchema = z.strictObject({ newPassword: z.string(), currentPassword: z.string().optional() })
 export const loginSchema = z.strictObject({ username: z.string(), password: z.string() })
 export const refreshSchema = z.strictObject({ refreshToken: z.string().min(1) })
+export const reauthSchema = z.strictObject({ password: z.string() })
+export const reauthResponseSchema = z.strictObject({ ticket: z.string(), expiresAt: z.number().int() })
 export const loginResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('authenticated'), accessToken: z.string(), refreshToken: z.string(),
     accessExpiresAt: z.number().int(), familyExpiresAt: z.number().int() }),
