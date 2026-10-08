@@ -3,7 +3,7 @@
 S24 implements T2.5 steps 1 and 2 only.
 The credential schema and MSAL acquisition boundary live in [azure-tokens.ts](../src/server/adapters/azure-tokens.ts).
 The root package and lockfile pin MSAL to the version already installed with the pinned Graph upstream.
-Azure adapter preparation remains S26, and [S25](verification-s25.md) implements resource selection, refresh, deadlines, backoff, coalescing and replacement eviction.
+See [S25 verification](verification-s25.md) for the resource cache and remaining adapter work.
 No live tenant or identity provider is contacted.
 
 Run `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test` and `pnpm check` against the final implementation commit.
