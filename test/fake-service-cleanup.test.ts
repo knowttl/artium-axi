@@ -54,7 +54,9 @@ vi.mock('node:child_process', async importOriginal => ({
     } else if (args[0] === 'network' && args[1] === 'inspect') {
       result.stdout = '[{"Internal":true}]'
     } else if (args[0] === 'inspect') {
-      result.stdout = '[{"NetworkSettings":{"Networks":{"synthetic":{"IPAddress":"192.0.2.1"}}}}]'
+      result.stdout = args.includes('--format')
+        ? JSON.stringify({ 'artium-test.root': new URL('../', import.meta.url).pathname, 'artium-test.token': 'synthetic-task-token' })
+        : '[{"NetworkSettings":{"Networks":{"synthetic":{"IPAddress":"192.0.2.1"}}}}]'
     } else if (args[0] === 'image' && args[1] === 'inspect') {
       result.status = args[2].startsWith('artium-test-runner-')
         ? Number(!docker.images.has(args[2])) : docker.failure === 'builder' ? 1 : 0
@@ -98,6 +100,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   process.exitCode = undefined
   process.argv = originalArgv
+  vi.unstubAllEnvs()
 })
 
 const harness = new URL('../scripts/fake-services.mjs', import.meta.url).href
@@ -151,13 +154,17 @@ test.each([false, true])('runner build failure cleans only its image with partia
   expect([...docker.images]).toEqual([unrelated])
 })
 
-test('runner builder loads the caller supplied image tag', async () => {
+test('runner builder loads the caller supplied image tag and retains its task cache', async () => {
   const image = 'artium-test-runner-s09-10-synthetic'
+  const cache = 'artium-test-build-00000000-0000-0000-0000-000000000000'
+  vi.stubEnv('ARTIUM_TEST_BUILDER', cache)
+  vi.stubEnv('ARTIUM_TEST_BUILD_TOKEN', 'synthetic-task-token')
+  docker.resources.add(`container:${cache}`)
   process.argv = [process.execPath, 'scripts/build-fake-service-image.mjs', '--runner', image]
   await import(builder)
   expect(process.exitCode).toBeUndefined()
   expect([...docker.images]).toEqual([image])
-  expect(docker.resources.size).toBe(0)
+  expect([...docker.resources]).toEqual([`container:${cache}`])
 })
 
 test('runner waits for a slow builder to finish before probing and cleaning up', async () => {
