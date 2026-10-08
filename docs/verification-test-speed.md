@@ -38,6 +38,29 @@ The stalled case took 0.29, 0.52 and 0.26 seconds respectively.
 Their mean suite time is 59.54 seconds, 38.5% below the 96.84-second baseline, with unchanged test count and no failures across these runs.
 Profiling outputs are temporary local evidence and are removed before publication.
 
+## Committed implementation checks
+
+The worker checked implementation commit `6bedf15e38ee293043b3b31a65a7f4a0f8ef8dd1` in dependency order, with no subsequent source or test changes.
+The evidence commit adds only this report, leaving the relevant container inputs unchanged.
+
+- `pnpm install --frozen-lockfile`: exit 0, 1.45 seconds.
+- `pnpm check`: exit 0, 78.57 seconds; lint, build and all 906 tests in 44 files passed, with suite time 61.85 seconds.
+- `pnpm test:containers`: exit 0, 143.91 seconds; runner resource checks, walking skeleton and both fake-service modes passed.
+- Real `pnpm hygiene:check` using the private external deny list: exit 0, 0.49 seconds; 321 files, zero matches, list SHA-256 `bddd1b07500f81245fc34634459368648db992b7127d66ff94330849eda45ad2`.
+
+Container input digest: `f3d540842c6da6898e75822aac3501ad57972edba16f38496c1757720318cfef`.
+Compiled-output digest: `33d7772d42fd9dd95f65793c7a1574c4c12f3808c08a0cc56e6f1220b0f14718`.
+Container evidence reported `passed: true`, `elapsedMs: 143548` and `cacheRemoved: true`.
+Only unique task-owned `artium-test-*` resources were created, and their finalizers removed them.
+The owned BuildKit worker and its services/falcon images were also confirmed absent after completion.
+
+Image identities before removal:
+
+- Runner: `sha256:1e76fd511e7c47fab6427156d11fda0fc7ebd3a96bda6d1f3694adbfbbfce498`.
+- Production server/falcon: `sha256:8e4df5b8629407cbdb9063d0b9c0e855c530748b96249d53b39841c456815102`.
+- Node 22.12 client: `sha256:1d0274fb8467281ab377b40e1e5442ab8ab69a665ce7b5f85649a925ad5d46ad`.
+- Fake services: `sha256:5b34a45edccbef2f6b5da60598b81702819e9ae16241ce3f60bb192194e660db`.
+
 ## Final candidate verification plan
 
 Run the following against the committed candidate, in dependency order, recording exact head, exit statuses and elapsed times in the PR body.
