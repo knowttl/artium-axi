@@ -167,16 +167,17 @@ See [the bootstrap runbook](docs/runbook.md#first-administrator-and-offline-reco
 The [access-token verifier](src/server/auth/tokens.ts) looks up SHA-256 hashes and enforces access-token type, token and family deadlines, consumption and revocation.
 The [tool policy](src/server/policy/policy.ts) reads the current enabled user, enabled tool and role grants on every call.
 The [audited execution function](src/server/runner/run.ts) verifies the token, current policy and bounded request before persisting a start, resolving the shared identity and retrieving credentials through the adapter.
+It rechecks the stored token synchronously immediately before child creation, after asynchronous preparation and temporary-file setup.
+Expiry or revocation during setup returns the authentication error without creating a child and removes the prepared temporary files.
 It executes through the runner and persists a terminal event before returning a completed result, including nonzero upstream exits.
 The [error catalogue](src/shared/errors.ts) owns token and policy denial codes and their distinct responses.
 The random [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness and refuses execution outside `NODE_ENV=test`.
 It stores only the token hash, sets a one-hour access-token expiry and a fixed 12-hour family deadline, and issues tokens checked by the production verifier in tests.
 [S16 verification](docs/verification-s16.md) covers expiry and revocation, next-call role changes and proof that denied preparation retrieves no secret.
-Login and production token issuance arrive in later slices.
 
 The [audit store](src/server/audit/audit.ts) records UTC Unix millisecond timestamps, actor IDs, tools, request IDs, verified client addresses, outcomes and safe run metadata.
 `runTool(db, audit, runner, token, request, adapter, resolver, context, authenticate?)` owns admission and execution.
-It defaults to the production access-token verifier; the development HTTP server supplies its separate static-token authenticator.
+It defaults to the stored access-token verifier also used by the HTTP server.
 The HTTP owner supplies a unique request ID, a verified client address and an optional disconnect signal through `context`.
 Audit persistence failure returns `AUDIT_UNAVAILABLE`, prevents credential retrieval and child creation at admission, and withholds the completed result if terminal persistence fails.
 Run failures record only stable error codes, duration and observed output sizes, including secret-output failures.
@@ -223,7 +224,8 @@ Exact-value scanning cannot identify unknown tokens minted inside an upstream to
 The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
 Create one `Runner` per server with `await Runner.create()`, before accepting calls.
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
-Call `runner.run(userId, executable, args, environment, secrets, limits, input, files)` with the authenticated user, adapter-provided environment values and all known preparation secrets.
+Call `runner.run(userId, executable, args, environment, secrets, limits, input, files, beforeSpawn?)` with the authenticated user, adapter-provided environment values and all known preparation secrets.
+The audited execution function supplies the synchronous `beforeSpawn` token recheck described above.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
 The later owning server flow must enforce a separate 30-second preparation deadline for the [Falcon adapter](src/server/adapters/falcon.ts).
 Credential tests and future background health reads must use this same runner and an authenticated identity.
@@ -319,8 +321,8 @@ The builder owns its Docker operation deadlines; the harness waits for its clean
 The checks verify the configured 6 GiB bound and force a resident-memory OOM at a smaller synthetic 256 MiB cgroup bound, without stressing the host with a 6 GiB allocation.
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
-The image's default command starts the development API, which requires an explicit development gate and token file.
-The Compose example supplies only the master key; supply the development gate and a mounted token file before starting it, plus the [first-start bootstrap settings](docs/runbook.md#first-administrator-and-offline-recovery) for a new store.
+The image's default command starts the API described below.
+The Compose example supplies only the master key; add the [first-start bootstrap settings](docs/runbook.md#first-administrator-and-offline-recovery) for a new store.
 Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.
 See [verification-s05-06.md](docs/verification-s05-06.md) for packaging verification and deferred Falcon live checks.

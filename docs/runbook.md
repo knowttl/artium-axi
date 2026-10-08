@@ -4,7 +4,7 @@
 
 Use the first-start settings described in [README.md](../README.md).
 The username is trimmed and lowercased for lookup, must be nonempty without whitespace or control characters, and keeps the entered spelling as its display name.
-The canonical name `synthetic-development-user` is reserved for development authentication and cannot be used for bootstrap or recovery.
+The canonical name `synthetic-development-user` remains reserved and cannot be used for bootstrap or recovery.
 Use the local password rules in [README.md](../README.md).
 The store must be empty except for migrations and the default tool registry, and must never have been bootstrapped.
 Startup commits the administrator and one-time marker atomically, with must-change set and no tool grants.
@@ -47,7 +47,7 @@ Recovery checks the mounted key against the store's active key ID, authenticates
 An unrelated key fails with `MASTER_KEY_INVALID` even if the store has no credentials or rotation history.
 An audit failure rolls back the entire recovery.
 After success, restart the server, sign in with the recovery password and change it.
-CLI and browser login and the restricted password-change token flow remain later-slice work.
+Use the API sign-in and restricted password-change flow in [README.md](../README.md); CLI sign-in commands and browser login remain later-slice work.
 
 ## Offline master key rotation
 
