@@ -115,6 +115,14 @@ for (const [tool, commands] of Object.entries(inventories)) {
       sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
     suggestionFields: ['help'], format: 'TOON',
+    ...(tool === 'vectra-axi' ? { discovery: { commands: [...new Set(commands.map(entry => entry.command.split(' ')[0]))].filter(command => command !== 'setup'),
+      example: ['detection', 'list'],
+      help: { ...vectra.help('detection list'),
+        flags: Object.fromEntries(Object.entries(vectra.help('detection list').flags)
+          .filter(([flag]) => !/^--(?:config|profile)\b/.test(flag))),
+        combinations: [], examples: ['vectra-axi detection list'] } } } : {}),
+    ...(tool === 'az-axi' ? { discovery: { commands: [...new Set(commands.filter(entry => entry.tokenResources !== null)
+      .map(entry => entry.command.split(' ')[0]))], example: ['group', 'list'], help: az.COMMAND_HELP.group } } : {}),
     ...(tool === 'az-axi' ? { adapterBoundary: {
       unsafeOverrides: ['config', 'profile', 'tenant'], inputFileFlags: ['file', 'body-file'],
       sensitiveFlags: ['body', 'graph-query', 'analytics-query', 'query', 'note'],

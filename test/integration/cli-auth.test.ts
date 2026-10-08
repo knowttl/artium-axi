@@ -18,6 +18,8 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { SessionStore } from '../../src/cli/session.js'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 
 let directory: string
 let db: Database.Database
@@ -65,6 +67,47 @@ async function cli(args: string[], input?: string, environment: NodeJS.ProcessEn
 }
 const login = (password = startingPassword) => cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)
 
+test('first call discovers tools and preserves fake output, then no access explains the empty state', async () => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'")
+  const credentials = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
+  credentials.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' },
+    0, 'synthetic-development-user', Date.now())
+  const source = new EmbeddedSecretSource(credentials)
+  const getCredential = vi.spyOn(source, 'getCredential')
+  const adapter = createFalconAdapter(source)
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference) => ({
+    ...await prepare(args, reference), executable: fakeTool.executable,
+    args: [...fakeTool.args, 'print', 'synthetic detection'], limits: { timeoutMs: 5000 },
+  }))
+  const runner = await Runner.create(join(directory, 'calls'))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: credentials, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(credentials) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'))
+  expect(await login()).toMatchObject({ code: 0 })
+  const home = await cli([])
+  expect(home).toMatchObject({ code: 0, stderr: '' })
+  expect(home.stdout).toContain('user: "synthetic-user"')
+  expect(home.stdout).toContain('roles[1]: "Synthetic Role"')
+  expect(home.stdout).toContain('falcon-axi,unknown,"0.3.0"')
+  expect(home.stdout).toContain('artium-axi tools show falcon-axi')
+  expect(home.stdout).toContain('artium-axi falcon-axi detection list')
+  expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 0 })
+  expect(getCredential).not.toHaveBeenCalled()
+  const local = await promisify(execFile)(fakeTool.executable, [...fakeTool.args, 'print', 'synthetic detection'])
+  expect(await cli(['falcon-axi', 'detection', 'list'])).toEqual({ ...local, code: 0 })
+  db.exec('DELETE FROM user_roles')
+  const empty = await cli([])
+  expect(empty).toMatchObject({ code: 0, stderr: '' })
+  expect(empty.stdout).toContain('roles[0]:')
+  expect(empty.stdout).toContain('tools: 0 available\nreason:')
+  expect(empty.stdout).toContain('Ask an administrator')
+  expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 1, stdout: expect.stringContaining('TOOL_NOT_GRANTED') })
+  expect(await cli(['falcon-axi', 'detection', 'list'])).toMatchObject({ code: 1, stdout: expect.stringContaining('TOOL_NOT_GRANTED') })
+})
+
 test('doctor shows a failed tool after a manual test of a wrong fake credential', async () => {
   await app.close()
   db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
@@ -107,7 +150,7 @@ test('bundled first login stores only a restricted token and blocks tools until 
   expect(await cli(['passwd', '--password-stdin'], `${newPassword}\n`)).toMatchObject({ code: 0, stdout: expect.stringContaining('password-changed'), stderr: '' })
   expect(existsSync(store.file)).toBe(false)
   expect(await login(newPassword)).toMatchObject({ code: 0, stdout: expect.stringContaining('authenticated'), stderr: '' })
-  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools: 0 available\n' })
+  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: expect.stringContaining('tools: 0 available\n') })
   const identity = await cli(['whoami'])
   expect(identity).toMatchObject({ code: 0, stdout: expect.stringContaining('synthetic-user'), stderr: '' })
   expect(identity.stdout).toContain('Synthetic Role')
@@ -227,7 +270,7 @@ test('concurrent bundled processes rotate an expired access token only once', as
   if (original.status !== 'authenticated') throw new Error('Expected authenticated session')
   db.prepare('UPDATE tokens SET expires_at = ? WHERE hash = ?').run(Date.now() - 1, hashToken(original.accessToken))
   const results = await Promise.all(Array.from({ length: 6 }, () => cli(['tools'])))
-  expect(results).toEqual(Array.from({ length: 6 }, () => ({ code: 0, stdout: 'tools: 0 available\n', stderr: '' })))
+  expect(results).toEqual(Array.from({ length: 6 }, () => ({ code: 0, stdout: expect.stringContaining('tools: 0 available\n'), stderr: '' })))
   expect(db.prepare("SELECT COUNT(*) AS count FROM tokens WHERE type = 'refresh' AND consumed_at IS NOT NULL").get()).toEqual({ count: 1 })
   expect(db.prepare('SELECT COUNT(*) AS count FROM session_families WHERE revoked_at IS NOT NULL').get()).toEqual({ count: 0 })
   const rotated = store.read()!

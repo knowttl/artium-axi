@@ -1,12 +1,18 @@
 import { randomUUID } from 'node:crypto'
+import { homedir } from 'node:os'
+import { resolve, relative, sep } from 'node:path'
 import { loginResponseSchema, meResponseSchema, runRequestSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
-import { ArtiumError, errorResponse } from '../shared/errors.js'
+import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
 import { doctor } from './doctor.js'
+import { commandHelp, helpCommand } from './help.js'
+import { identityView, toolsView, toolView } from './views.js'
 
 async function main(args: string[]) {
   const command = args[0]
+  const help = helpCommand(args)
+  if (help) { process.stdout.write(commandHelp(help)); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
     await doctor()
@@ -65,22 +71,40 @@ async function main(args: string[]) {
     if (!verified) process.stdout.write('next: Remote revocation is unverified. The local tokens were removed.\n')
     return
   }
+  const home = args.length === 0
   const listing = command === 'tools'
   const whoami = command === 'whoami'
-  if (listing || whoami ? args.length !== 1 : !toolSchema.safeParse(command).success) throw new ArtiumError('INVALID_INPUT', 'Use artium-axi login, passwd, logout, whoami, tools, doctor or artium-axi <tool> <args>.')
-  const input = listing || whoami ? undefined : runRequestSchema.parse({ args: args.slice(1) })
+  const detail = listing && args[1] === 'show' && args.length === 3 && toolSchema.safeParse(args[2]).success
+  if (!home && (listing || whoami ? !detail && args.length !== 1 : !toolSchema.safeParse(command).success)) {
+    throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
+  }
+  const parsedInput = runRequestSchema.safeParse({ args: args.slice(1) })
+  if (!home && !listing && !whoami && !parsedInput.success) throw new ArtiumError('INVALID_INPUT')
+  const input = home || listing || whoami ? undefined : parsedInput.data
   const client = new Client()
-  const result = await client.authenticated(whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, listing || whoami ? 'GET' : 'POST', input)
-  if (whoami) {
+  const result = await client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input)
+  if (home || whoami) {
     const parsed = meResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
-    const { username, roles, accessExpiresAt } = parsed.data
-    process.stdout.write(`user: ${JSON.stringify(username)}\nserver: ${JSON.stringify(client.serverUrl)}\nroles[${roles.length}]: ${roles.map(role => JSON.stringify(role)).join(',')}\naccessExpiresAt: ${accessExpiresAt}\n`)
+    let output = identityView(parsed.data, client.serverUrl)
+    if (home) {
+      const tools = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET'))
+      if (!tools.success) throw new ArtiumError('INVALID_RESPONSE')
+      const executable = resolve(process.argv[1])
+      const local = relative(homedir(), executable)
+      const bin = local && !local.startsWith(`..${sep}`) && local !== '..' ? `~${sep}${local}` : executable
+      output = `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n${output}${toolsView(tools.data.tools)}`
+    }
+    process.stdout.write(output)
   } else if (listing) {
     const parsed = toolsResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
     const tools = parsed.data.tools
-    process.stdout.write(tools.length ? `tools[${tools.length}]{name,status,version}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)}`).join('\n')}\n` : 'tools: 0 available\n')
+    if (detail) {
+      const tool = tools.find(tool => tool.name === args[2])
+      if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED', 'The tool is not available to your account.', 'Ask an administrator to check your role assignments and enabled tools.')
+      process.stdout.write(toolView(tool))
+    } else process.stdout.write(toolsView(tools))
   } else {
     const parsed = runSuccessSchema.safeParse(result)
     if (!parsed.success || parsed.data.source !== command) throw new ArtiumError('INVALID_RESPONSE')
@@ -94,7 +118,7 @@ async function main(args: string[]) {
 
 function printError(response: ReturnType<typeof errorResponse>) {
   process.stdout.write(`error:\n${Object.entries(response.error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
-  process.exitCode = ['INVALID_INPUT', 'UNSUPPORTED_INPUT', 'FLAG_BLOCKED', 'CLIENT_CONFIG_INVALID'].includes(response.error.code) ? 2 : 1
+  process.exitCode = errors[response.error.code].exitCode
 }
 
-main(process.argv.slice(2)).catch(error => printError(errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INVALID_INPUT'), randomUUID())))
+main(process.argv.slice(2)).catch(error => printError(errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), randomUUID())))

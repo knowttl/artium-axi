@@ -12,6 +12,7 @@ import { createTestCertificates } from './fake-service/certificates.mjs'
 import { SessionStore } from '../src/cli/session.js'
 import { DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
 import { cliVersion } from '../src/shared/version.js'
+import { ArtiumError, errorResponse, errors } from '../src/shared/errors.js'
 
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
@@ -115,10 +116,10 @@ async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
-  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version}:\n  falcon-axi,ok,"0.3.0"\n', stderr: '' })
+  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version}:\n  falcon-axi,ok,"0.3.0"\nnext[2]:\n  artium-axi tools show falcon-axi\n  artium-axi falcon-axi detection list\n', stderr: '' })
   expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
-  expect((await cli(['tools'])).stdout).toBe('tools: 0 available\n')
+  expect((await cli(['tools'])).stdout).toBe('tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  artium-axi whoami\n')
 })
 
 test('passthrough preserves argument tokens, streams and upstream nonzero status', async () => {
@@ -229,8 +230,58 @@ test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }])('malformed resp
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
 })
 
-test.each([{ args: [] }, { args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['falcon-axi', 'x'.repeat(4097)] }])('usage failure exits 2 before sending a request', async ({ args }) => {
+test.each([{ args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['falcon-axi', 'x'.repeat(4097)] },
+  { args: ['tools', 'show'] }, { args: ['tools', 'show', 'missing'] }, { args: ['login', '--unknown', '--help'] },
+  { args: ['whoami', '--unknown', '--help'] }])('usage failure exits 2 before sending a request', async ({ args }) => {
   requests = []
   expect(await cli(args)).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '' })
   expect(requests).toEqual([])
+})
+
+test.each(Object.entries(errors))('catalogue error %s preserves source, next step, request ID and exit code', async (code, definition) => {
+  response = { status: definition.status, body: errorResponse(new ArtiumError(code as keyof typeof errors), 'synthetic-catalogue') }
+  const result = await cli(['falcon-axi', 'detection', 'list'])
+  expect(result).toMatchObject({ code: ['INVALID_INPUT', 'UNSUPPORTED_INPUT', 'FLAG_BLOCKED', 'CLIENT_CONFIG_INVALID'].includes(code) ? 2 : 1, stderr: '' })
+  expect(result.stdout).toBe(`error:\n  code: ${JSON.stringify(code)}\n  source: "artium-axi"\n  message: ${JSON.stringify(definition.message)}\n  next: ${JSON.stringify(definition.next)}\n  requestId: "synthetic-catalogue"\n`)
+})
+
+test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor']].map(command => ({ command })))(
+  'command help uses the common layout without configuration or network: $command', async ({ command }) => {
+    requests = []
+    const result = await cli([...command, '--help'], { ARTIUM_AXI_URL: undefined })
+    expect(result).toMatchObject({ code: 0, stderr: '' })
+    expect(result.stdout).toMatch(/^usage: artium-axi[^\n]*\npurpose: [^\n]+\nflags\[\d+\]:\n(?:  [^\n]+\n)+example: artium-axi[^\n]*\n$/)
+    expect(result.stdout).toContain('"--help (default false)"')
+    expect(requests).toEqual([])
+  })
+
+test('tool detail uses pinned help without running the tool', async () => {
+  requests = []
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
+  const result = await cli(['tools', 'show', 'falcon-axi'])
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('version: "0.3.0"\nstatus: ok\ncommands[')
+  expect(result.stdout).toContain('example: artium-axi falcon-axi detection list\nupstreamHelp:')
+  expect(result.stdout).toContain('default 20, ceiling 10000')
+  expect(requests.map(request => request.path)).toEqual(['/v1/tools'])
+})
+
+test('tool detail refuses an inaccessible tool with an administrator next step', async () => {
+  response = { status: 200, body: { tools: [] } }
+  expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 1,
+    stdout: expect.stringContaining('TOOL_NOT_GRANTED'), stderr: '' })
+})
+
+test('tool detail refuses a mismatched pinned version', async () => {
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '9.9.9' }] } }
+  expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 1,
+    stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
+})
+
+test('upstream help remains an authenticated passthrough', async () => {
+  requests = []
+  response = { status: 200, body: { source: 'falcon-axi', stdout: 'upstream help\n', stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: 14, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+  expect(await cli(['falcon-axi', '--help'])).toMatchObject({ code: 0, stdout: 'upstream help\n', stderr: '' })
+  expect(requests[0]).toMatchObject({ path: '/v1/tools/falcon-axi/run', body: { args: ['--help'] } })
 })
