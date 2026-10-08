@@ -20,3 +20,16 @@ The PR body records command results, published head, hygiene-list digest and pip
 Any pipeline source or test fix requires renewed final-head validation.
 All service checks use fakes and canary credentials.
 Real account changes, browser acceptance and live deployment remain deferred.
+
+Local validation passed on implementation commit `bcafe8ee5159e423b72fe9bd05ac5b1dac776ae4`.
+`pnpm install --frozen-lockfile` and `pnpm lint` passed.
+`pnpm test` passed 40 files and 800 tests, and `pnpm check` passed lint, the same 800 tests and build.
+`docker compose -f compose.example.yaml config --quiet`, `pnpm test:fake-services` and `pnpm test:runner-container` passed.
+The fake-service probe preserved the existing Azure activation deferral for the pinned tool's ambiguous retry behaviour.
+The runner container verified cgroup limits, byte/inode exhaustion, cleanup, successful following calls and synthetic OOM reaping.
+The private hygiene scan passed with zero matches and list SHA-256 `bddd1b07500f81245fc34634459368648db992b7127d66ff94330849eda45ad2`.
+
+For pipeline validation, use local checks only and skip hosted CI.
+After any source or test fix, rerun `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`, `pnpm check`, Compose validation, `pnpm test:fake-services`, `pnpm test:runner-container` and the real private hygiene check before publication.
+Set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to the private list provided by the dispatcher, without printing its contents.
+Quote the final command results and exact head in the PR body.
