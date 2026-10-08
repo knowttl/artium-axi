@@ -137,6 +137,11 @@ test('a process crash after commit and before receipt output recovers with the n
 })
 
 test('a running real server blocks rotation and releases maintenance after a crash', async () => {
+  const seeded = openStore(file, oldProvider)
+  seeded.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator)
+    VALUES ('synthetic-admin', 'synthetic-admin', 'Synthetic Admin', 'unusable', 1);
+    INSERT INTO bootstrap_metadata VALUES (1, 1)`)
+  seeded.close()
   await bundle("import './src/server/maintenance.ts'", 'maintenance')
   const tokenFile = join(directory, 'token')
   writeFileSync(tokenFile, 'CANARY-development-token', { mode: 0o600 })

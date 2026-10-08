@@ -1,5 +1,51 @@
 # Operations runbook
 
+## First administrator and offline recovery
+
+For first startup only, set `ARTIUM_AXI_ADMIN_USERNAME` and `ARTIUM_AXI_ADMIN_PASSWORD_FILE` alongside the database and master-key settings.
+The password file holds the exact UTF-8 password, without an added newline.
+Use the local password rules in [README.md](../README.md).
+The store must be empty except for migrations and the default tool registry, and must never have been bootstrapped.
+Startup commits the administrator and one-time marker atomically, with must-change set and no tool grants.
+Remove the bootstrap settings after first start.
+Later starts ignore them and never recreate an administrator.
+If existing data has no marker, restore a consistent bootstrapped store and matching key.
+Do not delete data or manufacture a marker to bypass the startup refusal.
+
+The database prevents disabling, demoting or deleting the last enabled administrator.
+Offline recovery can restore an existing local account's administrator capability and access, reset its password and clear its lockout.
+It sets must-change, revokes every existing CLI token and browser session for the account, and commits a durable audit event in the same transaction.
+The event has action `recover-admin`, the account's internal ID as target and no online actor or password data.
+The command does not create an account or bootstrap an inconsistent store.
+
+During development, exercise recovery only on a copy of a disposable store with a canary password and key.
+Real administrator recovery requires separate approval.
+Stop the server, take a consistent backup and retain its matching master key separately.
+After `pnpm build`, run:
+
+```sh
+ARTIUM_AXI_DATABASE_FILE=/absolute/path/copied-data/artium.db \
+ARTIUM_AXI_MASTER_KEY_FILE=/absolute/path/synthetic-key \
+node bin/artium-axi-server recover-admin --username synthetic-admin --password-file /absolute/path/recovery-password
+```
+
+For the equivalent stopped-store container command, use the same image, runtime UID and data volume as the server:
+
+```sh
+docker run --rm --network none --read-only --tmpfs /tmp \
+  --mount type=volume,src=artium-data,dst=/data \
+  --mount type=bind,src=/absolute/path/synthetic-key,dst=/run/secrets/artium_master_key,readonly \
+  --mount type=bind,src=/absolute/path/recovery-password,dst=/run/secrets/recovery_password,readonly \
+  --env ARTIUM_AXI_MASTER_KEY_FILE=/run/secrets/artium_master_key \
+  artium-axi:local artium-axi-server recover-admin --username synthetic-admin --password-file /run/secrets/recovery_password
+```
+
+Supply an existing local username and readable files, never a password or key value in arguments.
+Recovery authenticates stored credentials with the mounted key and takes the same maintenance lock as the server and rotation.
+An audit failure rolls back the entire recovery.
+After success, restart the server, sign in with the recovery password and change it.
+CLI and browser login and the restricted password-change token flow remain later-slice work.
+
 ## Offline master key rotation
 
 During the build, use only disposable stores and synthetic 32-byte key files.
