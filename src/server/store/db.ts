@@ -59,6 +59,10 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
     db.pragma('synchronous = FULL')
     db.transaction(() => {
       migrate(db)
+      const rotation = db.prepare('SELECT new_key_id FROM key_rotations ORDER BY rowid DESC LIMIT 1').get() as { new_key_id: string } | undefined
+      if (rotation && rotation.new_key_id !== key.id) {
+        throw new ArtiumError('CREDENTIAL_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${rotation.new_key_id}.`)
+      }
       const insertTool = db.prepare("INSERT INTO tools (name, enabled, pinned_version) VALUES (?, 0, '') ON CONFLICT(name) DO NOTHING")
       for (const tool of toolSchema.options) insertTool.run(tool)
       const rows = db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]
