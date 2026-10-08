@@ -7,13 +7,13 @@ import { canonicalUsername, hashPassword } from './local.js'
 export function readPasswordFile(file: string | undefined): string {
   try {
     if (!file) throw new Error()
-    return readFileSync(file, 'utf8')
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(readFileSync(file))
   } catch { throw new ArtiumError('PASSWORD_FILE_INVALID') }
 }
 
 export function readUsername(value: string | undefined): string {
   const username = canonicalUsername(value ?? '')
-  if (!username || /[\s\p{Cc}]/u.test(username)) throw new ArtiumError('USERNAME_INVALID')
+  if (!username || username === 'synthetic-development-user' || /[\s\p{Cc}]/u.test(username)) throw new ArtiumError('USERNAME_INVALID')
   return username
 }
 

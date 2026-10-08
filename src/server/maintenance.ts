@@ -16,8 +16,8 @@ try {
   } else if (args.length === 2 && args[0] === 'rotate-key' && args[1] === '--help') {
     process.stdout.write(`description: Rotate the master key offline\nusage: ${usage}\nflags:\n  --new-key-file: Required raw 32-byte key file\n  --help: Show help\nexample: artium-axi-server rotate-key --new-key-file /run/secrets/new_master_key\nnext: Stop the server and take a backup before rotation.\n`)
   } else if (args[0] === 'recover-admin') {
-    if (args.length !== 5 || args[1] !== '--username' || !args[2] || args[2].startsWith('-') ||
-      args[3] !== '--password-file' || !args[4] || args[4].startsWith('-')) {
+    if (args.length !== 5 || args[1] !== '--username' || !args[2] ||
+      args[3] !== '--password-file' || !args[4]) {
       throw new ArtiumError('INVALID_INPUT', 'Invalid recovery command.', recoveryUsage)
     }
     const userId = await recoverAdministrator(resolve(process.env.ARTIUM_AXI_DATABASE_FILE ?? serverDefaults.database),
