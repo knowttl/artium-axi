@@ -13,7 +13,7 @@ const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
 const tokenFile = join(directory, 'token')
 const bundle = join(directory, 'artium-axi.mjs')
 let url: string
-let response: { status: number, body: unknown, location?: string }
+let response: { status: number, body: unknown, location?: string, stall?: boolean }
 let requests: { path: string, token?: string, body: unknown }[]
 const server = createServer()
 
@@ -27,7 +27,12 @@ beforeAll(async () => {
     let body = ''
     for await (const chunk of request) body += chunk
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined })
+    if (request.url!.startsWith('/stall-headers/')) return
     reply.writeHead(response.status, { 'content-type': 'application/json', ...(response.location ? { location: response.location } : {}) })
+    if (response.stall || request.url!.startsWith('/stall-body/')) {
+      reply.flushHeaders()
+      return
+    }
     reply.end(JSON.stringify(response.body))
   })
   server.listen(0)
@@ -39,9 +44,9 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function cli(args: string[], environment: NodeJS.ProcessEnv = {}) {
+async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, timeout = 10_000) {
   try {
-    return { ...await execute(process.execPath, [bundle, ...args], { cwd: directory, timeout: 10_000,
+    return { ...await execute(process.execPath, [bundle, ...args], { cwd: directory, timeout,
       env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_DEV_TOKEN_FILE: tokenFile,
         ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment } }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
@@ -74,10 +79,27 @@ test('truncation diagnostic precedes upstream stderr without changing stdout', a
 
 test.each([301, 302, 303, 307, 308])('authenticated redirect %i is refused without a second request', async status => {
   requests = []
-  response = { status, body: {}, location: `${url}/destination` }
+  response = { status, body: {}, location: `${url}/destination`, stall: true }
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
   expect(requests).toHaveLength(1)
 })
+
+test('stalled headers and bodies fail without retrying either command', async () => {
+  requests = []
+  response = { status: 200, body: {} }
+  const results = await Promise.all([
+    cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, 95_000),
+    cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, 95_000),
+    cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-body` }, 95_000),
+    cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-body` }, 95_000),
+  ])
+  const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE'), stderr: '' }
+  expect(results).toMatchObject([failure, failure, failure, failure])
+  expect(requests.map(request => request.path).sort()).toEqual([
+    '/stall-body/v1/tools', '/stall-body/v1/tools/falcon-axi/run',
+    '/stall-headers/v1/tools', '/stall-headers/v1/tools/falcon-axi/run',
+  ])
+}, 100_000)
 
 test.each([
   ['https://user:password@localhost', {}], ['https://localhost?query=1', {}], ['https://localhost/#fragment', {}],
