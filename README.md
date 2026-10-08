@@ -37,8 +37,9 @@ See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resourc
 The same harness now exercises pinned Vectra reads, native write gates and durable logs through the production server entry point.
 See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance and output-redaction limits.
 
-Azure secret and certificate token minting is implemented internally; Azure commands are not yet available through Artium.
-See [S24 verification](docs/verification-s24.md) for the source-owned authentication boundary, fake-only checks, remaining cache and adapter work, and deferred live acceptance.
+Azure secret and certificate token minting and the resource token cache are implemented internally; Azure commands are not yet available through Artium.
+See [S24 verification](docs/verification-s24.md) for authentication and [S25 verification](docs/verification-s25.md) for lazy resources, refresh, deadlines, backoff, coalescing and revision eviction.
+Azure profile preparation and command execution remain S26, with live acceptance deferred.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
