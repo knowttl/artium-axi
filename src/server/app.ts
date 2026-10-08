@@ -12,6 +12,7 @@ import { LocalAuthProvider } from './auth/local.js'
 import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
+import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
 import { registerAdmin } from './admin/api.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
@@ -36,9 +37,20 @@ export function createApp(options: {
     genReqId: () => randomUUID(), requestIdHeader: false,
     trustProxy: address => proxies.includes(address) })
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
+  const browser = registerBrowser(app, db, audit, authAttempts)
   app.setErrorHandler<FastifyError>((error, request, reply) => {
     const failure = error instanceof ArtiumError ? error
+      : error.code?.startsWith('FST_CSRF_') ? new ArtiumError('CSRF_INVALID')
       : new ArtiumError(error.statusCode && error.statusCode >= 400 && error.statusCode < 500 ? 'INVALID_INPUT' : 'INTERNAL_ERROR')
+    if (browser.isBrowser(request)) {
+      if (failure.code === 'REAUTH_REQUIRED') return reply.redirect('/reauth', 303)
+      if (failure.code === 'PASSWORD_CHANGE_REQUIRED') return reply.redirect('/password', 303)
+      if (['TOKEN_INVALID', 'TOKEN_EXPIRED', 'USER_DISABLED'].includes(failure.code)) {
+        return reply.clearCookie(browserCookie, { path: '/' }).redirect('/login', 303)
+      }
+      reply.code(errors[failure.code].status)
+      return browserPage(reply, 'Request failed', `<p>${errors[failure.code].message}</p><p><a href="/login">Sign in</a> | <a href="/admin">Administration</a></p>`)
+    }
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })
   app.setNotFoundHandler(() => { throw new ArtiumError('NOT_FOUND') })
@@ -97,7 +109,11 @@ export function createApp(options: {
     return audit.change({ event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success',
       requestId: request.id, clientAddress: request.ip }, () => issueLoginTokens(db, identity.userId)).value
   })
-  app.post('/v1/auth/reauth', async request => {
+  app.post('/v1/auth/reauth', async (request, reply) => {
+    if (!request.headers.authorization && request.cookies[browserCookie]) {
+      await browser.reauthenticate(request)
+      return reply.code(204).send()
+    }
     const token = bearer(request.headers.authorization)
     const userId = authenticate(db, token)
     const input = reauthSchema.safeParse(request.body)

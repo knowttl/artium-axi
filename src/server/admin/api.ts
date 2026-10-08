@@ -9,6 +9,8 @@ import type { AuthAttempts } from '../auth/attempts.js'
 import { readUsername } from '../auth/bootstrap.js'
 import { hashPassword } from '../auth/local.js'
 import { requireRecentAuth, revokeUserSessions, verifyAccessToken } from '../auth/tokens.js'
+import { browserCookie } from '../auth/browser.js'
+import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
@@ -18,6 +20,10 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
     let userId: string | null = null
     try {
+      if (!request.headers.authorization && request.cookies[browserCookie]) {
+        userId = readBrowserSession(db, request.cookies[browserCookie]!).user_id
+        return requireBrowserAdmin(db, request.cookies[browserCookie]!, !['GET', 'HEAD'].includes(request.method))
+      }
       userId = verifyAccessToken(db, token)
       const user = db.prepare('SELECT administrator FROM users WHERE id = ?').get(userId) as { administrator: number }
       if (!user.administrator) throw new ArtiumError('ADMIN_REQUIRED')
