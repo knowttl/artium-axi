@@ -49,6 +49,7 @@ test.each([
   'next: falcon-axi host list\n',
   'help: Run `falcon-axi-other host list`\n',
   'help: Run `artium-axi falcon-axi host list`\n',
+  'help: vectra-axi host list --filter \'falcon-axi host show\'\n',
   '{ "help": { "data": "falcon-axi host list" } }',
   '{ "help": [["falcon-axi host list"]] }',
   '{ "help": ["falcon-axi host list", {"data": "falcon-axi host list"}] }',
