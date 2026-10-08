@@ -1,68 +1,79 @@
-import { readFileSync, statSync } from 'node:fs'
-import { request as httpRequest } from 'node:http'
-import { request as httpsRequest } from 'node:https'
-import { rootCertificates } from 'node:tls'
 import { randomUUID } from 'node:crypto'
-import { errorResponseSchema, runRequestSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
+import { loginResponseSchema, meResponseSchema, runRequestSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
 import { ArtiumError, errorResponse } from '../shared/errors.js'
+import { Client } from './http.js'
+import { readPassword } from './password.js'
 
 async function main(args: string[]) {
-  const listing = args[0] === 'tools'
-  if (listing ? args.length !== 1 : !toolSchema.safeParse(args[0]).success) throw new ArtiumError('INVALID_INPUT', 'Use artium-axi tools or artium-axi <tool> <args>.')
-  const body = listing ? undefined : JSON.stringify(runRequestSchema.parse({ args: args.slice(1) }))
-  let url: URL
-  let token: string
-  let ca: string[] | undefined
-  try {
-    url = new URL(process.env.ARTIUM_AXI_URL!)
-    if (url.username || url.password || url.href.includes('?') || url.href.includes('#') ||
-      (url.protocol !== 'https:' && !(url.protocol === 'http:' && process.env.ARTIUM_AXI_TEST_HTTP === '1' &&
-        ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error()
-    const file = process.env.ARTIUM_AXI_DEV_TOKEN_FILE!
-    const stat = statSync(file)
-    if (!stat.isFile() || (process.platform !== 'win32' && (stat.mode & 0o077) !== 0)) throw new Error()
-    token = readFileSync(file, 'utf8').trim()
-    if (!token || /\s/.test(token)) throw new Error()
-    if (process.env.ARTIUM_AXI_CA_FILE) ca = [...rootCertificates, readFileSync(process.env.ARTIUM_AXI_CA_FILE, 'utf8')]
-  } catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
-  url.pathname = `${url.pathname.replace(/\/$/, '')}/v1/tools${listing ? '' : `/${args[0]}/run`}`
-  const controller = new AbortController()
-  const deadline = setTimeout(() => controller.abort(), 90_000)
-  const result = await new Promise<{ status: number, body: unknown }>((resolve, reject) => {
-    const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
-      method: listing ? 'GET' : 'POST', ca, rejectUnauthorized: true, signal: controller.signal,
-      headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}) },
-    }, response => {
-      if (response.statusCode! >= 300 && response.statusCode! < 400) {
-        response.destroy()
-        reject(new ArtiumError('INVALID_RESPONSE', 'Authenticated redirects are refused.'))
-        return
-      }
-      const chunks: Buffer[] = []
-      response.on('data', chunk => chunks.push(chunk))
-      response.on('error', () => reject(new ArtiumError('SERVER_UNAVAILABLE')))
-      response.on('end', () => {
-        try { resolve({ status: response.statusCode!, body: JSON.parse(Buffer.concat(chunks).toString('utf8')) }) }
-        catch { reject(new ArtiumError('INVALID_RESPONSE')) }
+  const command = args[0]
+  if (command === 'login' || command === 'passwd') {
+    const remaining = args.slice(1)
+    const stdin = remaining.includes('--password-stdin')
+    const usernameIndex = remaining.indexOf('--username')
+    const username = usernameIndex >= 0 ? remaining[usernameIndex + 1] : undefined
+    const valid = command === 'login' && username && !username.startsWith('-') ? ['--username', username] : []
+    if (stdin) valid.push('--password-stdin')
+    if ((command === 'login' && !username) || remaining.length !== valid.length || remaining.some(arg => !valid.includes(arg)) || new Set(remaining).size !== remaining.length) {
+      throw new ArtiumError('INVALID_INPUT', 'Invalid sign-in arguments. Password arguments are refused.',
+        command === 'login' ? 'Use artium-axi login --username <username> --password-stdin.' : 'Use artium-axi passwd --password-stdin.')
+    }
+    const client = new Client()
+    if (command === 'login') {
+      const password = await readPassword(stdin, 'ARTIUM_AXI_PASSWORD')
+      const session = await client.sessions.locked(async () => {
+        const parsed = loginResponseSchema.safeParse(await client.request('/v1/auth/login', 'POST', { username, password }))
+        if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
+        client.sessions.write(parsed.data)
+        return parsed.data
       })
-    })
-    request.on('error', () => reject(new ArtiumError('SERVER_UNAVAILABLE')))
-    request.end(body)
-  }).finally(() => clearTimeout(deadline))
-  const failure = errorResponseSchema.safeParse(result.body)
-  if (failure.success) {
-    printError(failure.data)
+      if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+      process.stdout.write('status: authenticated\nnext: artium-axi tools\n')
+    } else {
+      const newPassword = await readPassword(stdin)
+      const session = client.sessions.read()
+      if (!session) throw new ArtiumError('TOKEN_INVALID')
+      const currentPassword = session.status === 'authenticated' ? await readPassword(false, 'ARTIUM_AXI_CURRENT_PASSWORD') : undefined
+      await client.changePassword(newPassword, currentPassword)
+      process.stdout.write('status: password-changed\nnext: artium-axi login --username <username> --password-stdin\n')
+    }
     return
   }
-  if (result.status !== 200) throw new ArtiumError('INVALID_RESPONSE')
-  if (listing) {
-    const parsed = toolsResponseSchema.safeParse(result.body)
+  if (command === 'logout') {
+    if (args.length !== 1) throw new ArtiumError('INVALID_INPUT')
+    const client = new Client()
+    const verified = await client.sessions.locked(async () => {
+      let session
+      try { session = client.sessions.read() }
+      catch { return false }
+      finally { client.sessions.remove() }
+      if (!session) return true
+      if (session.status === 'password-change-required') return false
+      try { await client.request('/v1/auth/logout', 'POST', undefined, session.refreshToken); return true }
+      catch { return false }
+    })
+    process.stdout.write(`status: logged-out\nremoteRevocation: ${verified ? 'verified' : 'unverified'}\n`)
+    if (!verified) process.stdout.write('next: Remote revocation is unverified. The local tokens were removed.\n')
+    return
+  }
+  const listing = command === 'tools'
+  const whoami = command === 'whoami'
+  if (listing || whoami ? args.length !== 1 : !toolSchema.safeParse(command).success) throw new ArtiumError('INVALID_INPUT', 'Use artium-axi login, passwd, logout, whoami, tools or artium-axi <tool> <args>.')
+  const input = listing || whoami ? undefined : runRequestSchema.parse({ args: args.slice(1) })
+  const client = new Client()
+  const result = await client.authenticated(whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, listing || whoami ? 'GET' : 'POST', input)
+  if (whoami) {
+    const parsed = meResponseSchema.safeParse(result)
+    if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
+    const { username, roles, accessExpiresAt } = parsed.data
+    process.stdout.write(`user: ${JSON.stringify(username)}\nserver: ${JSON.stringify(client.serverUrl)}\nroles[${roles.length}]: ${roles.map(role => JSON.stringify(role)).join(',')}\naccessExpiresAt: ${accessExpiresAt}\n`)
+  } else if (listing) {
+    const parsed = toolsResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
     const tools = parsed.data.tools
     process.stdout.write(tools.length ? `tools[${tools.length}]{name,status,version}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)}`).join('\n')}\n` : 'tools: 0 available\n')
   } else {
-    const parsed = runSuccessSchema.safeParse(result.body)
-    if (!parsed.success || parsed.data.source !== args[0]) throw new ArtiumError('INVALID_RESPONSE')
+    const parsed = runSuccessSchema.safeParse(result)
+    if (!parsed.success || parsed.data.source !== command) throw new ArtiumError('INVALID_RESPONSE')
     const { stdout, stderr, exitCode, truncated } = parsed.data
     if (truncated.stdout || truncated.stderr) process.stderr.write(`artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
     process.stdout.write(stdout)

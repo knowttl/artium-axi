@@ -7,16 +7,17 @@ import { join } from 'node:path'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-standalone-'))
 copyFileSync('/work/dist/cli/artium-axi.mjs', join(directory, 'artium-axi.mjs'))
-const execute = async (bin, args, env = {}) => {
-  const child = spawn(bin, args, { cwd: directory, env: { PATH: process.env.PATH, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
+const execute = async (bin, args, env = {}, input) => {
+  const child = spawn(bin, args, { cwd: directory, env: { PATH: process.env.PATH, ...env }, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', chunk => { stdout += chunk })
   child.stderr.on('data', chunk => { stderr += chunk })
+  child.stdin?.end(input)
   const [code] = await once(child, 'close')
   return { stdout, stderr, code }
 }
-const environment = { ARTIUM_AXI_URL: 'http://artium-server:8080', ARTIUM_AXI_DEV_TOKEN_FILE: join(directory, 'access-token'), ARTIUM_AXI_TEST_HTTP: '1' }
+const environment = { ARTIUM_AXI_URL: 'http://artium-server:8080', XDG_CONFIG_HOME: directory, ARTIUM_AXI_TEST_HTTP: '1' }
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
 try {
   assert.deepEqual(readdirSync(directory), ['artium-axi.mjs'])
@@ -38,24 +39,21 @@ try {
   environment.ARTIUM_AXI_URL = `https://localhost:${proxy.address().port}`
   environment.ARTIUM_AXI_CA_FILE = '/certs/ca.crt'
   try {
-    const signIn = password => fetch('http://artium-server:8080/v1/auth/login', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'synthetic-admin', password }),
-    })
-    const restricted = await signIn('CANARY-bootstrap-password')
-    assert.equal(restricted.status, 200)
-    const first = await restricted.json()
-    assert.equal(first.status, 'password-change-required')
-    const changed = await fetch('http://artium-server:8080/v1/auth/password', {
-      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${first.passwordChangeToken}` },
-      body: JSON.stringify({ newPassword: 'CANARY-changed-password' }),
-    })
-    assert.equal(changed.status, 204)
-    const login = await signIn('CANARY-changed-password')
-    assert.equal(login.status, 200)
-    const session = await login.json()
-    assert.equal(session.status, 'authenticated')
-    writeFileSync(environment.ARTIUM_AXI_DEV_TOKEN_FILE, session.accessToken, { mode: 0o600 })
-    const cli = args => execute(process.execPath, [join(directory, 'artium-axi.mjs'), ...args], environment)
+    const cli = (args, input) => execute(process.execPath, [join(directory, 'artium-axi.mjs'), ...args], environment, input)
+    const loginArgs = ['login', '--username', 'synthetic-admin', '--password-stdin']
+    const restricted = await cli(loginArgs, 'CANARY-bootstrap-password\n')
+    assert.equal(restricted.code, 1, restricted.stdout + restricted.stderr)
+    assert.match(restricted.stdout, /PASSWORD_CHANGE_REQUIRED/)
+    assert.doesNotMatch(restricted.stdout + restricted.stderr, /CANARY-|passwordChangeToken/)
+    assert.match((await cli(['tools'])).stdout, /PASSWORD_CHANGE_REQUIRED/)
+    const changed = await cli(['passwd', '--password-stdin'], 'CANARY-changed-password\n')
+    assert.equal(changed.code, 0, changed.stdout + changed.stderr)
+    const login = await cli(loginArgs, 'CANARY-changed-password\n')
+    assert.equal(login.code, 0, login.stdout + login.stderr)
+    assert.doesNotMatch(login.stdout + login.stderr, /CANARY-|accessToken|refreshToken/)
+    const identity = await cli(['whoami'])
+    assert.equal(identity.code, 0, identity.stdout + identity.stderr)
+    assert.match(identity.stdout, /synthetic-admin/)
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)
     assert.match(listing.stdout, /falcon-axi,unknown,"0.3.0"/)

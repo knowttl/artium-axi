@@ -28,6 +28,8 @@ export const loginResponseSchema = z.discriminatedUnion('status', [
     passwordChangeExpiresAt: z.number().int() }),
 ])
 export type LoginResponse = z.infer<typeof loginResponseSchema>
+export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
+  administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
 export const adminUserSchema = z.strictObject({
   id: accountId, username: z.string(), displayName: z.string(), source: z.literal('local'),
