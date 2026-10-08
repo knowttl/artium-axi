@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],

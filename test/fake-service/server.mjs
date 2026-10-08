@@ -12,9 +12,29 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ requests, mutations }))
     return
   }
+  if (url.pathname === '/oauth2/token') {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const values = new URLSearchParams(body)
+      requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
+        canaryReceived: values.get('client_id') === 'CANARY-falcon-id' && values.get('client_secret') === 'CANARY-falcon-secret' })
+      if (req.headers.host === 'redirect.crowdstrike.com') {
+        res.writeHead(302, { location: 'https://appliance.test/falcon-redirect-destination' })
+        res.end()
+      } else res.end(JSON.stringify({ access_token: 'CANARY-falcon-token', token_type: 'bearer', expires_in: 3600 }))
+    })
+    return
+  }
   requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
     canaryReceived: /CANARY-/.test(req.headers.authorization ?? '') })
-  if (url.pathname === '/redirect') {
+  if (url.pathname === '/alerts/queries/alerts/v2') {
+    if (req.headers.host === 'api-redirect.crowdstrike.com') {
+      res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })
+      res.end()
+    } else res.end(JSON.stringify({ resources: [], meta: { pagination: { total: 0 } } }))
+  } else if (url.pathname === '/redirect') {
     res.writeHead(302, { location: 'https://management.azure.com/redirect-destination' })
     res.end()
   } else if (url.pathname === '/cross-redirect') {

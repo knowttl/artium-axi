@@ -1,4 +1,6 @@
 export const errors = {
+  FLAG_BLOCKED: { status: 400, message: 'The arguments override the managed tool boundary.', next: 'Remove destination, tenant, credential or local configuration overrides.' },
+  CREDENTIAL_UNAVAILABLE: { status: 503, message: 'The tool credential is unavailable.', next: 'Ask the administrator to check the tool configuration and secret files.' },
   INVALID_INPUT: { status: 400, message: 'The run input is invalid.', next: 'Check the arguments, stdin and uploaded files.' },
   UNSUPPORTED_INPUT: { status: 400, message: 'The input file is not a matching upload.', next: 'Upload the file using a reviewed input-file flag.' },
   SECRET_IN_OUTPUT: { status: 500, message: 'A known secret was detected in tool output.', next: 'Check upstream output redaction before retrying.' },
