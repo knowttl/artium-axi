@@ -1,0 +1,17 @@
+{
+  "az-axi": {
+    "empty": { "stdout": "count: 0\nsubscriptions[0]{id,name}:\n", "stderr": "", "exitCode": 0 },
+    "error": { "stdout": "error: Synthetic API failure\ncode: API_ERROR\nhelp[1]:\n  Run `az-axi sub list --help`\n", "stderr": "", "exitCode": 1 },
+    "suggestions": { "stdout": "count: 1\nsubscriptions[1]{id,name}:\n  synthetic-subscription,Synthetic subscription\nhelp[1]:\n  Run `az-axi account show`\n", "stderr": "", "exitCode": 0 }
+  },
+  "vectra-axi": {
+    "empty": { "stdout": "count: 0\ndetections[0]{id,state}:\n", "stderr": "", "exitCode": 0 },
+    "error": { "stdout": "error: Synthetic request failure\ncode: REQUEST_FAILED\nhelp[1]:\n  Run `vectra-axi detection list --help`\n", "stderr": "", "exitCode": 1 },
+    "suggestions": { "stdout": "count: 1\ndetections[1]{id,state}:\n  42,active\nhelp[1]:\n  Run `vectra-axi detection show --id 42`\n", "stderr": "", "exitCode": 0 }
+  },
+  "mg-axi": {
+    "empty": { "stdout": "count: 0\nusers[0]{id,displayName}:\n", "stderr": "", "exitCode": 0 },
+    "error": { "stdout": "error: Synthetic Graph failure\ncode: REQUEST_FAILED\nhelp[1]:\n  Run `mg-axi entra user list --help`\n", "stderr": "", "exitCode": 1 },
+    "suggestions": { "stdout": "count: 1\nusers[1]{id,displayName}:\n  synthetic-user,Synthetic user\nhelp[1]:\n  Run `mg-axi entra user show --id synthetic-user`\n", "stderr": "", "exitCode": 0 }
+  }
+}
