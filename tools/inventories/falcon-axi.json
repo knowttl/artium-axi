@@ -1,0 +1,353 @@
+{
+  "generatedBy": "scripts/falcon-inventory.mjs",
+  "tool": "falcon-axi",
+  "repository": "https://github.com/knowttl/falcon-axi.git",
+  "tag": "v0.3.0",
+  "commit": "3eaf23fa8496b8ecf947e45e1a6e7e8227349ccb",
+  "version": "0.3.0",
+  "parser": {
+    "path": "falcon_axi/cli.py",
+    "sha256": "735e1573f78495f687a908839c83f508f4abc9952fe550b980d96101764e5645",
+    "aliases": {},
+    "shortFlags": {},
+    "repeats": "last value wins",
+    "equals": true,
+    "doubleDash": "invalid empty flag; not a positional delimiter"
+  },
+  "flags": [
+    {
+      "name": "help",
+      "disposition": "passthrough"
+    },
+    {
+      "name": "region",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "allow-unknown-origin",
+      "disposition": "blocked"
+    },
+    {
+      "name": "member-cid",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "no-member-cid",
+      "disposition": "blocked"
+    }
+  ],
+  "unsafeOverrides": [
+    "region",
+    "member-cid",
+    "allow-unknown-origin",
+    "no-member-cid",
+    "profile"
+  ],
+  "blockedCommands": [
+    "login",
+    "setup",
+    "config",
+    "profile",
+    "credentials",
+    "credential",
+    "export",
+    "auth login",
+    "auth logout"
+  ],
+  "commands": [
+    {
+      "command": "home",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "detection list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "filter": "value",
+        "severity": "value",
+        "status": "value",
+        "product": "value",
+        "since": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "detection show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "full": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "host list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "filter": "value",
+        "hostname": "value",
+        "platform": "value",
+        "status": "value",
+        "since": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "host show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "host logins",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "since": "value",
+        "limit": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "account list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "filter": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "account show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "vuln list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "filter": "value",
+        "host": "value",
+        "severity": "value",
+        "status": "value",
+        "since": "value",
+        "limit": "value",
+        "cursor": "value",
+        "fields": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "cve show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "identity activity",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "since": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "search start",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "query": "value",
+        "repository": "value",
+        "since": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "search status",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "repository": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "search stop",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "repository": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "identity list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "name": "value",
+        "email": "value",
+        "domain": "value",
+        "type": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "identity show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "full": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "identity timeline",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "since": "value",
+        "category": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "auth status",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "scopes",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    }
+  ],
+  "environment": [
+    {
+      "name": "FALCON_CLIENT_ID",
+      "disposition": "injected"
+    },
+    {
+      "name": "FALCON_CLIENT_SECRET",
+      "disposition": "injected"
+    },
+    {
+      "name": "FALCON_MEMBER_CID",
+      "disposition": "never injected"
+    },
+    {
+      "name": "FALCON_BASE_URL",
+      "disposition": "never injected"
+    },
+    {
+      "name": "FALCON_PROXY_URL",
+      "disposition": "never injected"
+    },
+    {
+      "name": "FALCON_AXI_CREDENTIALS_FILE",
+      "disposition": "never injected"
+    }
+  ],
+  "requirements": {
+    "runtime": "python",
+    "timeoutMs": 60000,
+    "temporaryFiles": [],
+    "nativeWrites": "read-only upstream design"
+  },
+  "healthRead": [
+    "auth",
+    "status"
+  ],
+  "suggestionFields": [
+    "help"
+  ],
+  "acceptance": "Local fake-only evidence; live region, read and search timing remain unverified"
+}
