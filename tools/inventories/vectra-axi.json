@@ -1,0 +1,963 @@
+{
+  "generatedBy": "scripts/upstream-inventory.mjs",
+  "tool": "vectra-axi",
+  "version": "0.1.3",
+  "integrity": "sha512-vt+KWvHArOm1/neFuQgTELGBp/goQau46SwE5hWcklU/41Ahfx4ws7+Jf6fU1koGXZ23lYze0FndD08r1Mkugg==",
+  "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
+  "packageManifestSha256": "e9115eb97b47b4e5c8213943f0c4d422cd9d1a7af7cd47bbc57d95367b8dde66",
+  "environment": [
+    {
+      "name": "VECTRA_AXI_CONFIG",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "VECTRA_AXI_PROFILE",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "VECTRA_AXI_READ_ONLY",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "VECTRA_AXI_WRITE_LOG",
+      "disposition": "server-owned"
+    }
+  ],
+  "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "flags": [
+    {
+      "name": "account",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "assignee",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "certainty-gte",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "check",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "config",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "confirm",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "connector-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "contains",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "created-after",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "cursor",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "data-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "detection-category",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "detection-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "dry-run",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "edr-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "end-date",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "entity-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "entity-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "event-timestamp-gte",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "event-timestamp-lte",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "execute",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "fields",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "fresh",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "from",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "full",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "health-check-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "help",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "host",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "host-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "ids",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "ids-file",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "is-key-asset",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "limit",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "live",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "max-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "min-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "no-vlans",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "note",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "note-file",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "note-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "operation",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "ordering",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "path",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "profile",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "query",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "resolution",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "resolved",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "start-date",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "state",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "status",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "tags",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "tags-file",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "threat-gte",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "unassign",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "user",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "username",
+      "disposition": "passthrough candidate"
+    }
+  ],
+  "commands": [
+    {
+      "command": "home",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "setup",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "setup hooks",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "doctor",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "detection list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "state": "value",
+        "detection-type": "value",
+        "detection-category": "value",
+        "host-id": "value",
+        "tags": "value",
+        "certainty-gte": "value",
+        "threat-gte": "value",
+        "ordering": "value",
+        "min-id": "value",
+        "max-id": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "detection show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "detection event list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "from": "value",
+        "limit": "value",
+        "event-timestamp-gte": "value",
+        "event-timestamp-lte": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "host list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "threat-gte": "value",
+        "certainty-gte": "value",
+        "tags": "value",
+        "min-id": "value",
+        "max-id": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "host show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "account list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "threat-gte": "value",
+        "certainty-gte": "value",
+        "tags": "value",
+        "min-id": "value",
+        "max-id": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "account show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "entity list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "type": "value",
+        "threat-gte": "value",
+        "certainty-gte": "value",
+        "tags": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "entity show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "type": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "entity scoring list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "type": "value",
+        "from": "value",
+        "limit": "value",
+        "event-timestamp-gte": "value",
+        "event-timestamp-lte": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "detection note list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "detection tag list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "detection tag set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "detection tag bulk-set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "ids-file": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "detection tag bulk-delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "ids-file": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "detection note add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "confirm": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "detection note edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "note-id": "value",
+        "confirm": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "detection note delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "note-id": "value",
+        "confirm": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host note list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "host tag list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "host tag set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host tag bulk-set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "ids-file": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host tag bulk-delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "ids-file": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host note add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "confirm": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host note edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "note-id": "value",
+        "confirm": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host note delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "note-id": "value",
+        "confirm": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "account note list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "account tag list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "account tag set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "account tag bulk-set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "ids-file": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "account tag bulk-delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "ids-file": "value",
+        "confirm": "value",
+        "tags": "value",
+        "tags-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "account note add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "confirm": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "account note edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "note-id": "value",
+        "confirm": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "account note delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "note-id": "value",
+        "confirm": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "assignment list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "account": "value",
+        "host": "value",
+        "assignee": "value",
+        "resolution": "value",
+        "resolved": "value",
+        "created-after": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "assignment set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "host": "value",
+        "account": "value",
+        "user": "value",
+        "unassign": "boolean",
+        "confirm": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "assignment outcome list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "assignment outcome show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "user list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "username": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "user show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "audit list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "start-date": "value",
+        "end-date": "value",
+        "from": "value",
+        "limit": "value",
+        "event-timestamp-gte": "value",
+        "event-timestamp-lte": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "group list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "name": "value",
+        "type": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "group show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "group member list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "name": "value",
+        "ordering": "value",
+        "is-key-asset": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "triage rule list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "contains": "value",
+        "ordering": "value",
+        "limit": "value",
+        "fields": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "triage rule show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "health list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "fresh": "boolean",
+        "no-vlans": "boolean"
+      }
+    },
+    {
+      "command": "health show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "check": "value",
+        "fresh": "boolean",
+        "no-vlans": "boolean",
+        "connector-type": "value",
+        "edr-type": "value",
+        "data-type": "value",
+        "live": "boolean"
+      }
+    },
+    {
+      "command": "health event list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "from": "value",
+        "limit": "value",
+        "ordering": "value",
+        "status": "value",
+        "health-check-name": "value",
+        "entity-type": "value",
+        "entity-name": "value",
+        "cursor": "value"
+      }
+    },
+    {
+      "command": "api get",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "operation": "value",
+        "path": "value",
+        "query": "value",
+        "fields": "value",
+        "limit": "value",
+        "cursor": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "lockdown list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "type": "value"
+      }
+    }
+  ]
+}

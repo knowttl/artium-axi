@@ -1,0 +1,3789 @@
+{
+  "generatedBy": "scripts/upstream-inventory.mjs",
+  "tool": "mg-axi",
+  "version": "0.1.4",
+  "integrity": "sha512-k508R4YwELmE7fQLJY2w0Gx/0y9oBbS/nYcYm9FqRugbPGHWC6fOFPpcHE/S+JvxBW9qv48uDN01la1y6lB6ug==",
+  "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
+  "packageManifestSha256": "92a1278950f42ec34e64bb5718f9f28c5603a0f77393dd6f082c34147c46402e",
+  "environment": [
+    {
+      "name": "MG_AXI_CONFIG",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "MG_AXI_READ_ONLY",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "MG_AXI_WRITE_LOG",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "MG_AXI_CLIENT_SECRET",
+      "disposition": "server-owned"
+    }
+  ],
+  "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "flags": [
+    {
+      "name": "access-package",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "account-enabled",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "acknowledge-lockout-risk",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "administrative-unit",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "agreement",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "all",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "allow-device-code",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "api-version",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "application",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "as",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "assignment-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "certificate-key-env",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "certificate-key-file",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "certificate-thumbprint",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "client",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "client-secret-env",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "client-secret-file",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "cloud",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "commerce-subscription-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "conditions",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "confirm",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "cursor",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "definition",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "detail-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "display-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "domain",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "domain-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "execute",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "federated",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "federated-token-file-env",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "fields",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "filter",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "full",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "grant-controls",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "group",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "instance",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "limit",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "member-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "method",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "mode",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "odata",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "operation-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "organization",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "pki",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "policy",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "profile",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "report",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "report-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "request-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "role",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "run",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "scopes",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "select",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "service-principal",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "session-controls",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "since",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "state",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "tenant",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "tenant-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "transitive",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "until",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "user",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "workflow",
+      "disposition": "passthrough candidate"
+    }
+  ],
+  "commands": [
+    {
+      "command": "home",
+      "flags": {
+        "profile": "value"
+      }
+    },
+    {
+      "command": "profile create",
+      "flags": {
+        "name": "value",
+        "tenant": "value",
+        "client": "value",
+        "cloud": "value",
+        "mode": "value",
+        "allow-device-code": "boolean",
+        "certificate-thumbprint": "value",
+        "certificate-key-file": "value",
+        "certificate-key-env": "value",
+        "client-secret-env": "value",
+        "client-secret-file": "value",
+        "federated": "boolean",
+        "federated-token-file-env": "value"
+      }
+    },
+    {
+      "command": "profile list",
+      "flags": {}
+    },
+    {
+      "command": "profile show",
+      "flags": {
+        "profile": "value"
+      }
+    },
+    {
+      "command": "login",
+      "flags": {
+        "profile": "value",
+        "method": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "setup",
+      "flags": {}
+    },
+    {
+      "command": "setup hooks",
+      "flags": {}
+    },
+    {
+      "command": "doctor",
+      "flags": {
+        "profile": "value"
+      }
+    },
+    {
+      "command": "entra user list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra user show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra user update",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "user": "value",
+        "account-enabled": "value",
+        "execute": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "entra user revoke-sessions",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "user": "value",
+        "execute": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "entra user authentication-method list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "user": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra registration list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group member list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "group": "value",
+        "transitive": "boolean",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group member-of list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "group": "value",
+        "transitive": "boolean",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group member add",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "group": "value",
+        "user": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role-template list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role-template show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role member list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "role": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role scoped-member list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "role": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-role scoped-member show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "role": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra scoped-role-membership list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra scoped-role-membership show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra role-assignment list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim eligible list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim active list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-assignment-schedule list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-assignment-schedule show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-assignment-instance list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-assignment-instance show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-eligibility-schedule list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-eligibility-schedule show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-eligibility-instance list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-eligibility-instance show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-eligibility-request list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra pim group-eligibility-request show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra device list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra device show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra administrative-unit list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra administrative-unit show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra administrative-unit member list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "administrative-unit": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra organization list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra organization show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra organization branding show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "organization": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra organization branding-localization list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "organization": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra organization branding-localization show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "organization": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain verification-dns-record list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "domain": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain verification-dns-record show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "domain": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain service-configuration-record list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "domain": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain service-configuration-record show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "domain": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain-dns-record list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra domain-dns-record show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra certificate-auth-pki list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra certificate-auth-pki show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra certificate-auth-pki count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "filter": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra certificate-authority list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "pki": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra certificate-authority show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "pki": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra certificate-authority count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "pki": "value",
+        "filter": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra subscription list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra subscription show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "commerce-subscription-id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra subscription count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra on-premises-synchronization list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra on-premises-synchronization show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra agreement list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra agreement show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra agreement acceptance list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "agreement": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra agreement acceptance show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "agreement": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra agreement-acceptance list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra agreement-acceptance show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-object list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-object show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-object count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact show-manager",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact list-direct-reports",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "as": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact show-direct-report",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "report-id": "value",
+        "as": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact count-direct-reports",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "as": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact list-member-of",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "transitive": "boolean",
+        "as": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact show-member-of",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "member-id": "value",
+        "transitive": "boolean",
+        "as": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contact count-member-of",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "transitive": "boolean",
+        "as": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group-lifecycle-policy list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group-lifecycle-policy show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group-lifecycle-policy count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group-setting-template list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group-setting-template show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra group-setting-template count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra attribute-set list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra attribute-set show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra attribute-set count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra custom-security-attribute-definition list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra custom-security-attribute-definition show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra custom-security-attribute-definition count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "filter": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra allowed-value list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra allowed-value show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra allowed-value count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contract list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contract show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra contract count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-customer list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-customer show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship list-access-assignments",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship show-access-assignment",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "assignment-id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship list-operations",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship show-operation",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "operation-id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship list-requests",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship show-request",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "request-id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-customer list-service-management-details",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "limit": "value",
+        "all": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-customer show-service-management-detail",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "detail-id": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-customer count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-customer count-service-management-details",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship count-access-assignments",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship count-operations",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra delegated-admin-relationship count-requests",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra multi-tenant-organization show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra multi-tenant-organization join-request show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra multi-tenant-organization tenant list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra multi-tenant-organization tenant count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra tenant-information show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "domain-name": "value",
+        "tenant-id": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra sign-in list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "since": "value",
+        "until": "value",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra sign-in show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-audit list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "since": "value",
+        "until": "value",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra directory-audit show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra provisioning list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "since": "value",
+        "until": "value",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra provisioning show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra application list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra application show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra application owner list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "application": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal owner list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal oauth2-grant list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal app-role-assignment list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal app-role-assignment show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal app-role-assigned-to list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal app-role-assigned-to show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra application federated-credential list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "application": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra application federated-credential show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "application": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal federated-credential list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal federated-credential show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-user list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-user show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-user dismiss",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "user": "value",
+        "execute": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "entra risk-detection list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "since": "value",
+        "until": "value",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risk-detection show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-service-principal list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-service-principal show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-service-principal history list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra risky-service-principal history show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "service-principal": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal-risk-detection list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "since": "value",
+        "until": "value",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra service-principal-risk-detection show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access policy list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access policy show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access policy update",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "display-name": "value",
+        "state": "value",
+        "conditions": "value",
+        "grant-controls": "value",
+        "session-controls": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "acknowledge-lockout-risk": "boolean"
+      }
+    },
+    {
+      "command": "entra conditional-access named-location list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access named-location show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access auth-strength-policy list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access auth-strength-policy show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access combination-configuration list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "policy": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access combination-configuration show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "policy": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access auth-method-mode list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access auth-method-mode show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access template list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access template show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access auth-context list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access auth-context show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access deleted-policy list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access deleted-policy show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access deleted-named-location list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra conditional-access deleted-named-location show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra identity-provider list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra identity-provider show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra identity-provider count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "filter": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra identity-provider available-types",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra federation-configuration list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra federation-configuration show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra federation-configuration count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "filter": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra federation-configuration available-types",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-user list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-user count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-group list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-group count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-application list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-application count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-service-principal list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-service-principal count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-administrative-unit list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-administrative-unit count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra deleted-item show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra data-policy-operation list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra data-policy-operation show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra data-policy-operation count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra fraud-protection-provider list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra fraud-protection-provider show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra fraud-protection-provider count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-provider list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-provider show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-provider count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-verification list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-verification show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-verification count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra web-application-firewall-verification provider show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review definition list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review definition show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review instance list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review instance show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review decision list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "instance": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review decision show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "instance": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review contacted-reviewer list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "instance": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review contacted-reviewer show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "instance": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review stage list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "instance": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra access-review stage show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "definition": "value",
+        "instance": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement catalog list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement catalog show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement catalog count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement access-package list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement access-package show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement access-package count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment-policy list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "access-package": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment-policy show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "access-package": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment-policy count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "access-package": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement resource-role-scope list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "access-package": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement resource-role-scope show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "access-package": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement resource-role-scope count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "access-package": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment-request list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment-request show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra entitlement assignment-request count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle workflow list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle workflow show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle workflow count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle workflow-template list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle workflow-template show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle workflow-template count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-definition list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-definition show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-definition count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle settings show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle user-processing-result list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle user-processing-result show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle user-processing-result count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle subject-processing-result list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle subject-processing-result show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "id": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle subject-processing-result count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-report list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-report show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "id": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-report count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-report task show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "report": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle task-report task-definition show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "report": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run user-processing-result list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run user-processing-result show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "id": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run user-processing-result count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run subject-processing-result list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run subject-processing-result show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "id": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run subject-processing-result count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run task-processing-result list",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "limit": "value",
+        "all": "boolean",
+        "filter": "value",
+        "select": "value",
+        "fields": "value",
+        "full": "boolean",
+        "cursor": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run task-processing-result show",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "id": "value",
+        "fields": "value",
+        "full": "boolean",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "entra lifecycle run task-processing-result count",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "workflow": "value",
+        "run": "value",
+        "scopes": "value"
+      }
+    },
+    {
+      "command": "api get",
+      "flags": {
+        "profile": "value",
+        "api-version": "value",
+        "odata": "value",
+        "cursor": "value",
+        "scopes": "value",
+        "limit": "value",
+        "all": "boolean",
+        "full": "boolean"
+      }
+    }
+  ]
+}
