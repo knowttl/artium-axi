@@ -12,7 +12,14 @@ S13 implements the encrypted SQLite store and file/environment master-key provid
 Its local verification plan is [verification-s13.md](verification-s13.md).
 Focused tests passed 24 cases covering real database reopen, persisted corruption, wrong-row and wrong-key authentication failure, invalid startup keys and transactional migration rollback.
 Final committed-head frozen install, lint, full tests, aggregate check, compiled-store smoke, runner-container and real private hygiene results remain pending with the outer executor for delivery status and the PR body.
-Server startup integration, SecretSource and offline maintenance remain assigned to later slices.
+Server startup integration and offline maintenance remain assigned to later slices.
+
+S14 implements T2.2-T2.3: embedded SecretSource, shared IdentityResolver, a SQLite-free credential-store boundary and the shared adapter contract with Falcon migrated onto it.
+Its local verification plan is [verification-s14.md](verification-s14.md).
+Focused verification passed 49 cases, including the unchanged T1.5 Falcon suite, fake-store secret and identity tests and real SQLite reopen followed by Falcon preparation and runner canary suppression.
+Final committed-head frozen install, lint, full tests, aggregate check, runner-container and private hygiene results are bound to the delivery status and PR body.
+The existing AGENTS.md validation pointers remain accurate and require no correction.
+No external secret source or per-user identity implementation is included.
 
 S12 implements plain-function Falcon preparation and its generated parser-aware manifest.
 Its local verification plan is [verification-s12.md](verification-s12.md).
@@ -90,7 +97,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Server readiness, audit and proxy addresses (T1.6) | S11 shared contract and error catalogue implemented in [api.ts](../src/shared/api.ts) and [errors.ts](../src/shared/errors.ts); endpoints, readiness, audit and proxy integration pending | pending | unverified: verify actual trusted proxy addresses |
 | Bundled CLI on supported operating systems (T1.7) | pending | not applicable | unverified: actual Windows and macOS smoke checks |
 | First container-to-CLI call (T1.8) | pending | pending | unverified: captain runs live first call |
-| Credential store, data ownership and master key (T2.1-T2.3) | S13 T2.1 encrypted store, master-key loading, transactional migrations and authentication on store open implemented; [S13 verification](verification-s13.md) owns local checks; T2.2-T2.3 pending | not applicable to T2.1 local SQLite; adapter integration pending | unverified: real secrets remain outside the build environment |
+| Credential store, data ownership and master key (T2.1-T2.3) | S13 encrypted store and key provider; S14 embedded secret source, shared identity resolver and adapter contract implemented; [S13 verification](verification-s13.md) and [S14 verification](verification-s14.md) own local checks | Encrypted-store Falcon preparation after reopen and canary delivery through the real runner; T1.5 suite unchanged | unverified: real secrets remain outside the build environment |
 | Vectra read, preview, native write policy and logs (T2.4) | pending | pending | unverified: verify live read and native profile permissions |
 | Azure authentication, resource reads and write families (T2.5) | pending | pending | unverified: both auth forms and every enabled resource/write family |
 | Upstream token and output redaction (T2.6) | S07 scanner and S08 runner integration; [S07 verification](verification-s07.md) and [S08 verification](verification-s08.md) own local checks, [README.md](../README.md) owns usage; final-head checks recorded in delivery status and PR body | pending: scanner and runner checks exercise the synthetic fake executable, not pinned upstream output | unverified: safe real-output checks, unknown-token claims remain limited |
