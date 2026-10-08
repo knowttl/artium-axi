@@ -62,7 +62,7 @@ Callers must terminate both PIDs printed by those modes.
 
 [`SecretScanner`](src/server/runner/scan.ts) is the standalone S07 runner component.
 Create one per call with all known injected secret values, then call `scan('stdout' | 'stderr', chunk)` on every raw byte chunk before retention or rewriting, including chunks after the 4 MiB per-stream cap.
-A `true` result stays true and tells the caller to discard both streams and report `SECRET_IN_OUTPUT`.
+A `true` result stays true and requires the caller to discard both streams and report `SECRET_IN_OUTPUT` with only safe audit metadata.
 The scanner checks raw UTF-8, canonical base64, base64url and `encodeURIComponent` forms, including short values, without retaining output bytes.
 Each stream carries independent prefix-match positions, so split UTF-8 bytes work and interleaved streams cannot create a false combined match.
 An empty supplied value is rejected, while an empty list is valid for a call with no injected secrets.
