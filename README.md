@@ -16,5 +16,5 @@ It allows an empty selection for now because no application security contracts e
 
 `src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold tests.
 The server, CLI, container and upstream integrations arrive in later slices.
-The `.no-mistakes.yaml` commands are `pnpm install --frozen-lockfile`, `pnpm test` and `pnpm lint`.
+See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
