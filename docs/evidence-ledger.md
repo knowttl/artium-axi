@@ -37,6 +37,10 @@ Non-default ports were separately observed to remain refused even with the unkno
 The Compose document passed the real Compose parser.
 The private BuildKit worker, tmpfs cache, image archive and local image were removed, with filtered container and image inventories empty.
 
+The S08 runner environment contract is documented in [README.md](../README.md).
+Focused verification is described in [verification-s08.md](verification-s08.md).
+Final committed-head frozen install, lint, tests, aggregate check and private hygiene results remain pending with the outer executor for the delivery status and PR body.
+
 The review revision adds native profile write-setting inventories with pinned source hashes and retains only the upstream synthetic stream fixtures and fixed `artium-test-node22` harness image.
 Focused review verification covers these inventories and synthetic executable behavior.
 Route inventories now keep Azure canonical and alias inputs separate, record accepted short flags and Graph positional/help contracts, and distinguish native environment defaults from profile-selected credential variables.
@@ -57,7 +61,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Whole-tree hygiene and publication (T1.1) | Synthetic CLI tests and private candidate scan required before delivery | not applicable | unverified: public conversion and release require approval, ordinary private delivery settled |
 | Pinned container image (T1.2) | Digest-pinned Node 22 bookworm image, Python 3.11, UID 10001, fixed tool paths and validated Compose example; native build approval pinned in package.json | Clean builder and read-only non-root runtime execute SQLite open/write/reopen, Argon2id hash/verify and esbuild bundle execution; image is a scaffold until the API entry point lands | not applicable: local image only, registry push excluded |
 | Deterministic fake executable (T1.3) | Executable modes and runner-test descriptor in `test/fake-tool/`; CLI tests in `test/fake-tool.test.ts` | not applicable | not applicable: local build only |
-| Process cleanup and container resource limits (T1.4) | pending | pending | unverified: verify production host behaviour |
+| Process cleanup and container resource limits (T1.4) | S08 public runner implemented; [README.md](../README.md) owns its contract and deferred enforcement; [verification-s08.md](verification-s08.md) owns local checks; final-head results pending with the outer executor for delivery status and PR body | Synthetic fake executable only, no pinned upstream runner acceptance yet | unverified: verify production host behaviour |
 | Falcon adapter boundary (T1.5) | pending | pending | unverified: verify real adapter behaviour |
 | Server readiness, audit and proxy addresses (T1.6) | pending | pending | unverified: verify actual trusted proxy addresses |
 | Bundled CLI on supported operating systems (T1.7) | pending | not applicable | unverified: actual Windows and macOS smoke checks |
@@ -65,7 +69,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Credential store, data ownership and master key (T2.1-T2.3) | pending | pending | unverified: real secrets remain outside the build environment |
 | Vectra read, preview, native write policy and logs (T2.4) | pending | pending | unverified: verify live read and native profile permissions |
 | Azure authentication, resource reads and write families (T2.5) | pending | pending | unverified: both auth forms and every enabled resource/write family |
-| Upstream token and output redaction (T2.6) | S07 standalone scanner with synthetic fake executable leak and split cases; [verification plan](verification-s07.md) owns local checks, [README.md](../README.md) owns usage and deferred integration; final-head checks recorded in delivery status and PR body | pending: S07 exercises the synthetic fake executable, not pinned upstream output | unverified: safe real-output checks, unknown-token claims remain limited |
+| Upstream token and output redaction (T2.6) | S07 scanner and S08 runner integration; [S07 verification](verification-s07.md) and [S08 verification](verification-s08.md) own local checks, [README.md](../README.md) owns usage; final-head checks recorded in delivery status and PR body | pending: scanner and runner checks exercise the synthetic fake executable, not pinned upstream output | unverified: safe real-output checks, unknown-token claims remain limited |
 | Master-key rotation and maintenance (T2.7) | pending | pending | unverified: production rotation requires separate approval |
 | Identity, role and administrative transactions (T3.1-T3.4) | pending | pending | unverified: real account and credential changes require authorization |
 | Password hashing capacity (T4.1) | pending | not applicable | unverified: benchmark production host capacity |
