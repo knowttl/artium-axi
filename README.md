@@ -8,6 +8,7 @@ Nothing is usable yet.
 Installation and quick-start instructions arrive with the first working release.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
+The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 The executable toolchain tests compile synthetic TypeScript and run its emitted ESM with Node, and verify strict null checking rejects an invalid assignment.
@@ -42,11 +43,11 @@ No live gate is satisfied by a fake-service result.
 
 The upstream Node packages are pinned separately in [`tools/package.json`](tools/package.json) and `tools/pnpm-lock.yaml`.
 The root install runs their frozen installation, with native dependency build scripts disabled.
-[`tools/integrity.json`](tools/integrity.json) records the npm SHA-512 values for az-axi 0.1.4, vectra-axi 0.1.3 and mg-axi 0.1.4.
+[`tools/integrity.json`](tools/integrity.json) records the pinned upstream versions and npm SHA-512 values.
 mg-axi is inventoried for phase 8, with no production adapter enabled.
 `pnpm test` checks the generated parser inventories against the installed catalogues before running Vitest.
 Regenerate them with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
-These inventories record provisional flag dispositions, environment variables, aliases, native profile write settings and suggestion fields, not a production allow-list.
+These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The native write gates remain upstream-owned.
 
@@ -78,5 +79,5 @@ After a check using a freshly built test image, remove that owned image with `do
 No image or build cache is created by the network harness itself.
 An unavailable image or Docker daemon produces a nonzero `unverified` result, which must be recorded in the evidence ledger.
 The harness also records az-axi same-origin and cross-origin redirects, pagination and the actual mutation request count after an ambiguous 503.
-The Docker check confirmed that az-axi 0.1.4 repeats an uncertain write once after a recorded mutation returns 503 with Retry-After, so its write capability remains unavailable pending safe commissioning.
+See [the evidence ledger](docs/evidence-ledger.md) for the observed retry behaviour and Azure write-capability restriction.
 Clean Node 22 image installation and Falcon packaging remain for the next image slice.
