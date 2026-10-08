@@ -185,7 +185,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       audit.change({ ...context, event: 'credential-test', outcome: failure?.code ?? 'success' }, () => {
-        if (failure?.code !== 'TOO_MANY_CALLS' && failure?.code !== 'RUNNER_CLOSED'
+        if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
+          'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
           && credentialStore().findCredential(tool)?.revision === reference.revision) {
           db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,

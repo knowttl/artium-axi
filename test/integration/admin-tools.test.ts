@@ -296,6 +296,43 @@ test('runner shutdown rejects a manual test without changing cached health', asy
   expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-test' ORDER BY id DESC LIMIT 1").get())
     .toEqual({ outcome: 'RUNNER_CLOSED' })
 })
+test.each([
+  { code: 'TOKEN_INVALID', revoke: async () => {
+    const response = await fetch(`${url}/v1/auth/logout`, { method: 'POST', headers: { authorization: headers.authorization } })
+    expect(response.status).toBe(204)
+  } },
+  { code: 'TOKEN_EXPIRED', revoke: () => db.prepare("UPDATE tokens SET expires_at = 0 WHERE user_id = ? AND type = 'access'").run(actor) },
+  { code: 'USER_DISABLED', revoke: () => db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run(actor) },
+  { code: 'ADMIN_REQUIRED', revoke: () => db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(actor) },
+  { code: 'REAUTH_REQUIRED', revoke: () => db.prepare('UPDATE recent_auth_tickets SET expires_at = 0').run() },
+] as const)('pre-spawn $code rejection preserves cached health and is audited', async ({ code, revoke }) => {
+  db.prepare('UPDATE users SET administrator = 1 WHERE id = ?').run('synthetic-ordinary')
+  await replace('falcon-axi')
+  expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
+  const health = db.prepare('SELECT * FROM tool_health').all()
+  db.exec('DELETE FROM audit')
+  let release!: () => void
+  let started!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const preparing = new Promise<void>(resolve => { started = resolve })
+  const prepare = adapters[0].prepare.bind(adapters[0])
+  vi.mocked(adapters[0].prepare).mockImplementationOnce(async (args, reference) => {
+    const prepared = await prepare(args, reference)
+    started()
+    await held
+    return prepared
+  })
+  const pending = request('POST', '/falcon-axi/test', {})
+  try {
+    await preparing
+    await revoke()
+  } finally { release() }
+  await failure(await pending, code)
+  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-test'").get()).toEqual({ outcome: code })
+  expect(db.prepare("SELECT outcome, stdout_bytes, stderr_bytes FROM audit WHERE event = 'run-terminal'").get())
+    .toEqual({ outcome: code, stdout_bytes: 0, stderr_bytes: 0 })
+})
 test.each(['SECRET_IN_OUTPUT', 'TIMEOUT', 'OUTPUT_LIMIT'] as const)('manual test audit preserves %s runner measurements', async code => {
   await replace('falcon-axi')
   const error = new RunnerError(code)
