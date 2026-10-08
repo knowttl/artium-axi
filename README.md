@@ -130,7 +130,8 @@ The [credential-store boundary](src/server/store/credential-store.ts) exposes cr
 Create it with `createCredentialStore(connection, keyProvider)` using the same provider as `openStore`.
 Resolved credential references carry the persisted revision, and reads reject a reference with a mismatched revision before decryption.
 The reference type keeps revision optional for compatibility; reads without a revision are not bound to a credential version.
-Credentials are encrypted JSON objects matching the adapter's credential schema.
+Credential reads combine encrypted JSON fields with the tool's native settings to match the adapter's credential schema.
+Creating the credential store moves legacy native settings out of encrypted JSON into the tool configuration, preserving already-stored tool settings when both contain the same key.
 Version 1 uses one shared service credential per tool in the embedded encrypted database; external secret sources and per-user credentials remain deferred.
 The [SharedIdentityResolver](src/server/policy/identity-resolver.ts) selects that credential with `resolve(userId, tool)`, whoever the user is.
 The [EmbeddedSecretSource](src/server/store/secret-source.ts) retrieves that reference through `getCredential(reference)` and decrypts it in memory through the store boundary.
@@ -220,6 +221,9 @@ See [the runbook](docs/runbook.md) for database backup requirements and the rema
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
 Authentication and admin producers must use metadata only.
+Manual credential tests persist `checked_at`, `credential_revision` and `error_code` on admission-failure, run-start, run-terminal and credential-test records, independently of the replaceable health cache.
+Times are UTC Unix milliseconds; the revision is null when no credential was found, and the error code is null at start or on success.
+Startup recovery retains the tested revision on interrupted terminal records, with null check time and error code.
 `audit.change(event, mutation)` commits a synchronous database mutation and its event together, then streams the committed event.
 It preserves mutation errors and rolls the mutation back when audit persistence fails.
 These operations reject calls inside another transaction with `AUDIT_UNAVAILABLE`, so streaming always follows commit.
@@ -397,6 +401,7 @@ Tool grants never confer administrator capability, and role changes apply to the
 See [S34 verification](docs/verification-s34.md) for role, grant and assignment evidence.
 `GET /v1/admin/tools` lists the three fixed tools with pinned versions, enabled state, native settings, revisions, change metadata and cached health without making an upstream call.
 `PATCH /v1/admin/tools/{tool}` accepts `enabled`, `nativeSettings` and `expectedRevision`.
+When supplied, `nativeSettings` replaces the entire settings object; `{}` clears it.
 Falcon has no editable native write settings and accepts only `{}`.
 Vectra accepts `writes: { allowWrites, operations }`; Azure accepts `subscriptions`, `managementGroup`, `workspaces`, `description` and `allowWrites`.
 These shared schemas also validate the adapters' native profile settings.
@@ -411,9 +416,10 @@ Native-settings patches also advance the configured credential revision so an ol
 `POST /v1/admin/tools/{tool}/test` accepts only an empty body and runs the fixed Falcon `auth status`, Vectra `health list` or internal Azure `account list` read.
 Configured disabled Falcon and Vectra tools can be tested before enabling them.
 Manual tests never overlap for one tool and use the same global and per-administrator runner slots as ordinary calls.
-They record admission, completion and a credential-test audit event, returning only safe health fields and retaining no upstream output.
+They return only safe health fields and retain no upstream output; the audit contract is described above.
 Health records carry check time, credential revision and a safe error code, and never replace the cached health of a newer credential.
-All tool edits and credential replacements require the administrator capability and the same recent-authentication ticket as user administration, return public metadata, and commit with their audit event.
+Every tool administration route requires the administrator capability and the same recent-authentication ticket as user administration.
+Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
 Audit queries, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
