@@ -35,7 +35,7 @@ Run tests use the production token verifier, policy, shared identity resolver, F
 - The environment opt-in emits one persisted JSON line on stdout, while default operation emits none.
 - A failed optional stream leaves SQLite persistence intact.
 
-The HTTP owner must wire startup recovery before admission and the daily maintenance tick when the server lands.
+S19 wires startup recovery before admission and the daily maintenance tick in the runnable server.
 Later producers must use metadata-only event shapes and `audit.change` for transactional database mutations.
 Native upstream logs and SQLite cannot share a transaction.
 These checks establish Artium audit persistence only, not cross-system atomicity or live platform acceptance.

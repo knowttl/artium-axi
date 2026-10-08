@@ -1,4 +1,7 @@
 export const errors = {
+  DEV_AUTH_INVALID: { status: 503, message: 'Development authentication is not configured.', next: 'Set ARTIUM_AXI_DEV=1 and supply ARTIUM_AXI_DEV_TOKEN_FILE for an isolated development server.' },
+  PROXY_HEADERS_UNTRUSTED: { status: 400, message: 'Forwarding headers came from an untrusted address.', next: 'Connect through the configured trusted proxy or remove forwarding headers.' },
+  NOT_FOUND: { status: 404, message: 'The endpoint does not exist.', next: 'Use a supported API endpoint and tool name.' },
   AUDIT_UNAVAILABLE: { status: 503, message: 'The audit event could not be stored.', next: 'Ask the administrator to check audit storage capacity and availability.' },
   TOKEN_INVALID: { status: 401, message: 'The access token is invalid, expired or revoked.', next: 'Sign in again to obtain a valid access token.' },
   USER_DISABLED: { status: 403, message: 'The user is disabled.', next: 'Ask the administrator to enable the user.' },

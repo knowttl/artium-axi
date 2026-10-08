@@ -19,7 +19,7 @@ COPY scripts/native-smoke.mjs ./scripts/native-smoke.mjs
 COPY scripts/falcon-smoke.mjs ./scripts/falcon-smoke.mjs
 COPY test/fake-service/certificates.mjs ./test/fake-service/certificates.mjs
 RUN --network=none node scripts/native-smoke.mjs
-RUN pnpm exec tsc --rootDir src --outDir dist src/server/config.ts --module NodeNext --target ES2022 --strict --skipLibCheck
+RUN pnpm exec tsc src/server/main.ts --rootDir . --outDir dist --module NodeNext --target ES2022 --strict --resolveJsonModule --esModuleInterop --skipLibCheck && cp -R src/server/store/migrations dist/src/server/store/
 
 FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data
@@ -30,5 +30,4 @@ ENV PATH="/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:$PATH"
 WORKDIR /opt/artium
 USER artium
 EXPOSE 8080
-# The API entry point arrives in the server slice.
-CMD ["node", "--version"]
+CMD ["node", "dist/src/server/main.js"]
