@@ -117,6 +117,16 @@ test('TLS certificate trust cannot be bypassed and connection failure is not ret
   expect(requests).toEqual([])
 })
 
+test('inherited TLS bypass cannot send the token to an untrusted server', async () => {
+  requests = []
+  response = { status: 200, body: { tools: [] } }
+  const environment = { ARTIUM_AXI_CA_FILE: undefined, NODE_TLS_REJECT_UNAUTHORIZED: '0' }
+  const results = await Promise.all([cli(['tools'], environment), cli(['falcon-axi'], environment)])
+  const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE') }
+  expect(results).toMatchObject([failure, failure])
+  expect(requests).toEqual([])
+})
+
 test('owner-only development token file is required on Linux', async () => {
   requests = []
   chmodSync(tokenFile, 0o644)
