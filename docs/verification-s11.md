@@ -18,5 +18,5 @@ The delivery status and PR body bind the exact candidate head to the command res
 Pipeline source or test changes require renewed final-head validation.
 Scan the exact published head again before reporting delivery.
 
-See [README.md](../README.md) for remaining server, adapter and CLI integration work, and [api.ts](../src/shared/api.ts) for the authoritative HTTP body limit.
+See [README.md](../README.md) for current server integration and remaining adapter and CLI work, and [api.ts](../src/shared/api.ts) for the authoritative HTTP body limit.
 Captain live acceptance remains unverified.

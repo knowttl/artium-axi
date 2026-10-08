@@ -14,6 +14,13 @@ export const inputLimits = {
 const byteLength = (value: string) => new TextEncoder().encode(value).length
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
+export const toolsResponseSchema = z.strictObject({
+  tools: z.array(z.strictObject({
+    name: toolSchema,
+    version: z.string(),
+    status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
+  })),
+})
 export const inputFileSchema = z.strictObject({
   name: text.min(1).refine(value => value !== '.' && value !== '..' && !/[\\/:\x00-\x1f\x7f]/.test(value) && byteLength(value) <= 255, 'Expected a safe leaf name'),
   contentBase64: z.string().max(4 * Math.ceil(inputLimits.fileBytes / 3))
