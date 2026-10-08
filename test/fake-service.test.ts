@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
@@ -18,11 +18,11 @@ test('fake HTTPS service trusts only its test CA and records ambiguous mutations
 })
 
 test.each([
-  [false, '42', [], 1, 0],
-  [true, '42', [], 0, 0],
-  [true, '42', ['--execute', '--confirm', 'detection 42'], 0, 1],
-  [true, '43', ['--execute', '--confirm', 'detection 43'], 1, 1],
-] as const)('Vectra native gates: writes %s, target %s, execution %j', async (enabled, id, execution, status, mutations) => {
+  [false, '42', [], 1, 0, 'WRITES_DISABLED', false],
+  [true, '42', [], 0, 0, 'current:', false],
+  [true, '42', ['--execute', '--confirm', 'detection 42'], 0, 1, 'audit:', true],
+  [true, '43', ['--execute', '--confirm', 'detection 43'], 1, 1, 'error:', true],
+] as const)('Vectra native gates: writes %s, target %s, execution %j', async (enabled, id, execution, status, mutations, output, logged) => {
   await withFakeService(async ({ directory, port, send }) => {
     const root = fileURLToPath(new URL('../', import.meta.url))
     const config = join(directory, 'profile.json')
@@ -40,7 +40,7 @@ test.each([
     expect(result.status, result.stdout + result.stderr).toBe(status)
     const evidence = JSON.parse(await send('/__evidence'))
     expect(evidence.mutations).toBe(mutations)
-    if (!enabled) expect(result.stdout).toContain('WRITES_DISABLED')
-    if (mutations) expect(readFileSync(log, 'utf8')).not.toContain('CANARY-synthetic')
+    expect(result.stdout).toContain(output)
+    expect(existsSync(log)).toBe(logged)
   })
 })

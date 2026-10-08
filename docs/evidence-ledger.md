@@ -11,15 +11,15 @@ Public conversion and release, deployment, real writes and destructive maintenan
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
 | Deployment prerequisites and harmless-read requests (T0.1) | This ledger records deferred prerequisites | pending | unverified: supply dedicated identities, Linux host, proxy and certificate |
-| Exact tool pins and clean installation (T0.2) | pending | pending | not applicable: local build only, registry publication excluded |
+| Exact tool pins and clean installation (T0.2) | Exact Node pins, npm SHA-512 records and frozen tools lockfile in `tools/`; clean Node 22 image and Falcon packaging pending next slice | Local version/help/parser checks for az-axi 0.1.4, vectra-axi 0.1.3 and mg-axi 0.1.4; Docker execution unverified, see S03/04 below | not applicable: local build only, registry publication excluded |
 | Falcon region, harmless read and search duration (T0.3) | pending | pending | unverified: measure region/read/time before increasing timeouts |
-| Vectra API version, token/OAuth and CA (T0.4) | pending | pending | unverified: approve appliance and authentication combination |
+| Vectra API version, token/OAuth and CA (T0.4) | Ephemeral CA and QUX v2.5 token-profile loopback fixtures | Pinned 0.1.3 native default write refusal, preview, confirmed mutation and single-send ambiguous 503 checked by `test/fake-service.test.ts`; OAuth/RUX and Docker routing unverified | unverified: approve appliance and authentication combination |
 | Azure secret/certificate auth and six resource audiences (T0.5) | pending | pending | unverified: supply permitted resources, separately approve test resource creation and writes |
-| Tool output, permission and suggestion captures (T0.6) | pending | pending | unverified: capture safe real outcomes privately |
+| Tool output, permission and suggestion captures (T0.6) | Synthetic empty/error/suggestion stream fixtures and generated parser inventories in `test/fake-tool/fixtures/` and `tools/inventories/` | Offline pinned CLI version/help/usage checks; az-axi redirect/pagination/ambiguous-write network probe unverified; parser dispositions provisional | unverified: capture safe real outcomes privately |
 | Probe reconciliation and design decisions (T0.7) | This ledger separates evidence status | pending | unverified: approve actual design changes |
 | Whole-tree hygiene and publication (T1.1) | Synthetic CLI tests and private candidate scan required before delivery | not applicable | unverified: public conversion and release require approval, ordinary private delivery settled |
 | Pinned container image (T1.2) | pending | pending | not applicable: local image only, registry push excluded |
-| Deterministic fake executable (T1.3) | pending | not applicable | not applicable: local build only |
+| Deterministic fake executable (T1.3) | Executable modes and runner-test descriptor in `test/fake-tool/`; CLI tests in `test/fake-tool.test.ts` | not applicable | not applicable: local build only |
 | Process cleanup and container resource limits (T1.4) | pending | pending | unverified: verify production host behaviour |
 | Falcon adapter boundary (T1.5) | pending | pending | unverified: verify real adapter behaviour |
 | Server readiness, audit and proxy addresses (T1.6) | pending | pending | unverified: verify actual trusted proxy addresses |
