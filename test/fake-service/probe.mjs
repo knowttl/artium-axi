@@ -24,14 +24,26 @@ const profile = { name: 'synthetic', auth: 'token', subscriptions: ['synthetic-s
 await sendRequest(profile, { path: '/subscriptions', apiVersion: '2022-12-01' })
 await sendRequest(profile, { path: '/redirect', apiVersion: '2022-12-01' })
 await sendRequest(profile, { path: '/cross-redirect', apiVersion: '2022-12-01' })
-await requestAll(profile, { path: '/page', apiVersion: '2022-12-01' })
+assert.deepEqual(await requestAll(profile, { path: '/page', apiVersion: '2022-12-01' }), {
+  items: [{ id: 'synthetic-page-1' }, { id: 'synthetic-page-2' }],
+})
 await assert.rejects(runWithEffect('write', () => sendRequest(profile, {
   method: 'PATCH', path: '/subscriptions/synthetic-subscription/resourceGroups/synthetic',
   apiVersion: '2022-12-01', body: { tags: { synthetic: 'yes' } }, execute: true,
 })), error => error.httpStatus === 503)
 const evidence = await (await fetch('https://management.azure.com/__evidence')).json()
-assert.ok(evidence.requests.some(req => req.host === 'management.azure.com' && req.canaryReceived))
+for (const [host, path, canaryReceived] of [
+  ['management.azure.com', '/subscriptions', true],
+  ['management.azure.com', '/redirect', true],
+  ['management.azure.com', '/redirect-destination', true],
+  ['management.azure.com', '/cross-redirect', true],
+  ['graph.microsoft.com', '/cross-redirect-destination', false],
+  ['management.azure.com', '/page', true],
+  ['management.azure.com', '/page-next', true],
+]) {
+  assert.deepEqual(evidence.requests.filter(req => req.host === host && req.path === path),
+    [{ method: 'GET', host, path, canaryReceived }])
+}
 assert.equal(evidence.mutations, 2, 'Pinned az-axi retries an uncertain write; write capability remains unavailable')
-assert.ok(evidence.requests.some(req => req.host === 'graph.microsoft.com' && !req.canaryReceived))
 console.log(JSON.stringify({ tls: 'trusted', dns: 'routed', outbound: 'denied',
   mutationRequests: evidence.mutations, requests: evidence.requests }))

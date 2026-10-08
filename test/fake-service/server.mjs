@@ -15,10 +15,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
     canaryReceived: /CANARY-/.test(req.headers.authorization ?? '') })
   if (url.pathname === '/redirect') {
-    res.writeHead(302, { location: 'https://management.azure.com/subscriptions' })
+    res.writeHead(302, { location: 'https://management.azure.com/redirect-destination' })
     res.end()
   } else if (url.pathname === '/cross-redirect') {
-    res.writeHead(302, { location: 'https://graph.microsoft.com/subscriptions' })
+    res.writeHead(302, { location: 'https://graph.microsoft.com/cross-redirect-destination' })
     res.end()
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++
@@ -30,7 +30,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname.startsWith('/api/v2.5/tagging/')) {
     res.end(JSON.stringify({ tags: [] }))
   } else if (url.pathname === '/page') {
-    res.end(JSON.stringify({ value: [], nextLink: 'https://management.azure.com/subscriptions?api-version=2022-12-01' }))
+    res.end(JSON.stringify({ value: [{ id: 'synthetic-page-1' }], nextLink: 'https://management.azure.com/page-next?api-version=2022-12-01' }))
+  } else if (url.pathname === '/page-next') {
+    res.end(JSON.stringify({ value: [{ id: 'synthetic-page-2' }] }))
   } else if (url.pathname.startsWith('/api/v2.5/detections')) {
     res.end(JSON.stringify({ count: 0, results: [], next: null }))
   } else {
