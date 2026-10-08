@@ -4,7 +4,7 @@ artium-axi is one container that fronts several agent-ergonomic command-line too
 It adds role-based access to those tools and a command-line client that follows the AXI design principles.
 
 Status: under construction.
-The API supports local sign-in and password change, while refresh rotation, logout, rate limits and CLI sign-in commands arrive in later slices.
+The API supports local sign-in, password change, refresh rotation and logout, while rate limits and CLI sign-in commands arrive in later slices.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -142,6 +142,12 @@ Passwords allow spaces and Unicode, with 15 to 128 code points and at most 512 U
 `POST /v1/auth/login` accepts strict JSON `{ "username": string, "password": string }`.
 Ordinary success returns HTTP 200 with `status: authenticated`, distinct 32-byte random `accessToken` and `refreshToken`, and Unix millisecond `accessExpiresAt` and `familyExpiresAt` timestamps.
 Access lasts one hour and the family ends 12 hours after login.
+`POST /v1/auth/refresh` accepts strict JSON `{ "refreshToken": string }` and returns a new authenticated token pair.
+Rotation consumes the refresh token atomically and preserves the original family deadline.
+Older access tokens remain valid until their own expiry or family revocation, and new access expiry is capped by the family deadline.
+Reusing a consumed refresh token revokes the entire family and records a token-reuse audit event.
+`POST /v1/auth/logout` accepts a bearer access or refresh token, including an expired token, and returns 204 after audited family revocation.
+See [S31 verification](docs/verification-s31.md) for concurrent refresh, deadline and logout checks.
 Only SHA-256 token hashes and metadata are stored.
 A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
 The restricted token is accepted only by `POST /v1/auth/password` and cannot list tools, run tools or authenticate administration.

@@ -9,8 +9,8 @@ import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider } from './auth/local.js'
-import { issueLoginTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
-import { loginSchema } from '../shared/api.js'
+import { issueLoginTokens, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
+import { loginSchema, refreshSchema } from '../shared/api.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -77,6 +77,15 @@ export function createApp(options: {
     }
     return audit.change({ event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success',
       requestId: request.id, clientAddress: request.ip }, () => issueLoginTokens(db, identity.userId)).value
+  })
+  app.post('/v1/auth/refresh', async request => {
+    const input = refreshSchema.safeParse(request.body)
+    if (!input.success) throw new ArtiumError('INVALID_INPUT')
+    return refreshTokens(db, input.data.refreshToken, audit, { requestId: request.id, clientAddress: request.ip })
+  })
+  app.post('/v1/auth/logout', async (request, reply) => {
+    logout(db, bearer(request.headers.authorization), audit, { requestId: request.id, clientAddress: request.ip })
+    return reply.code(204).send()
   })
   app.post('/v1/auth/password', async (request, reply) => {
     const token = bearer(request.headers.authorization)
