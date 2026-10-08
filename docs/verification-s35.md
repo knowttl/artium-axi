@@ -2,10 +2,8 @@
 
 The [shared API](../src/shared/api.ts) owns tool routes, strict inputs, native setting schemas, safe public responses, administrator authorization and audit actions.
 The [tool admin implementation](../src/server/admin/tools.ts) reuses S33/S34 current-capability and password-ticket authorization.
-Migration 010 adds tool and credential change metadata and a safe health cache bound to credential revisions.
-The [credential store](../src/server/store/db.ts) encrypts replacements and merges persisted native settings for the existing adapters.
-The Azure adapter immediately invalidates its resource token cache after committed credential or native-setting changes.
-Falcon and Vectra do not cache credential values or prepared calls.
+The [README](../README.md) owns credential storage, cache invalidation and manual-test audit guidance.
+Migrations [010](../src/server/store/migrations/010-tool-admin.sql) and [011](../src/server/store/migrations/011-credential-test-audit.sql) own the health-cache and durable audit fields.
 
 Run `pnpm exec vitest run test/integration/admin-tools.test.ts src/server/store/authentication-schema.test.ts src/server/store/db.test.ts` for targeted local acceptance.
 HTTP tests use real local login tokens and password reauthentication with synthetic administrators and ordinary users.
@@ -14,6 +12,7 @@ Credential metadata never includes token values, client secrets, private keys or
 Cache tests prove immediate old-token eviction, pending-acquisition rejection and refusal of an old credential reference after replacement.
 Manual tests run fixed harmless reads through real adapter preparation and a real runner with a synthetic child executable.
 They prove per-tool exclusion, administrator runner quota, safe health success/failure, secret-output blocking, replacement during preparation, audit-before-child and atomic health/audit commit.
+The [integration tests](../test/integration/admin-tools.test.ts) also verify legacy native-setting reconciliation and durable audit evidence after credential replacement clears cached health, for both successful and failed tests.
 An Azure adapter is injected only in tests with fake token transport; production runtime Azure enable and test remain unavailable.
 Tool listing makes no remote call and replacement clears cached health.
 Automatic health scheduling and post-replacement background checks belong to S42.

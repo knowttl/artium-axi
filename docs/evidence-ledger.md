@@ -32,7 +32,7 @@ Final committed-head frozen install, lint, full tests, aggregate check, runner-c
 AGENTS.md's existing README pointer remains accurate and unchanged under the project-memory correction rule.
 S19 implements the development HTTP endpoints, startup recovery and daily maintenance wiring, with real loopback and local proxy checks in [S19 verification](verification-s19.md).
 See the T4.1, T4.2 and T4.3 entries below for password-change, offline recovery and local login producers.
-Remaining authentication/admin producers, paginated audit queries and executable backup/restore remain assigned to later slices.
+See the administrative task row below for current producers; paginated audit queries and executable backup/restore remain assigned to later slices.
 
 S16 implements T3.1 step 4 and T3.2: hashed expiring access-token verification, test-only fixture issuance and current database tool policy before credential retrieval.
 Its local verification plan is [verification-s16.md](verification-s16.md).
