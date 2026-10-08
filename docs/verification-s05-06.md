@@ -2,7 +2,7 @@
 
 All application execution uses synthetic values and fake services.
 Only public source, package registries and Debian packages are downloaded during the build.
-No Falcon credential or service is used.
+No real Falcon credential or service is used.
 There is no hosted CI.
 
 1. Run `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test` and `pnpm check` on the final candidate.
@@ -12,7 +12,7 @@ There is no hosted CI.
    `pip check` verifies the resulting runtime dependency graph.
    The clean builder executes the native smokes too.
 4. Run the image with `--network none --read-only --tmpfs /tmp`.
-   Check `id` reports UID 10001 and the tool versions match Falcon 0.3.0, Vectra 0.1.3, Azure 0.1.4 and Graph 0.1.4.
+   Check `id` reports the runtime UID defined in [Dockerfile](../Dockerfile) and the tool versions match [the Falcon source pin](../tools/falcon-source.json) and [the Node tool pins](../tools/package.json).
    Falcon reports its version in `--help`.
    Run `node scripts/native-smoke.mjs` and `node scripts/falcon-smoke.mjs`.
    The latter makes one canary-only OAuth request to a loopback fake, returning a synthetic rejection.
@@ -28,7 +28,7 @@ Do not use the shared builder or prune Docker resources.
 
 ## Falcon boundary evidence
 
-Source pin: v0.3.0, commit `3eaf23fa8496b8ecf947e45e1a6e7e8227349ccb`.
+Source pin: [`tools/falcon-source.json`](../tools/falcon-source.json).
 The upstream `GLOBAL_FLAGS` are `help`, `region`, `allow-unknown-origin`, `member-cid` and `no-member-cid`.
 `help` is provisional passthrough.
 `region` and `member-cid` are server-managed, while `allow-unknown-origin` and `no-member-cid` are blocked caller overrides.

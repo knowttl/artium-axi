@@ -81,9 +81,9 @@ No image or build cache is created by the network harness itself.
 An unavailable image or Docker daemon produces a nonzero `unverified` result, which must be recorded in the evidence ledger.
 The harness also records az-axi same-origin and cross-origin redirects, pagination and the actual mutation request count after an ambiguous 503.
 See [the evidence ledger](docs/evidence-ledger.md) for the observed retry behaviour and Azure write-capability restriction.
-The [Dockerfile](Dockerfile) builds Falcon v0.3.0 from the full commit in [`tools/falcon-source.json`](tools/falcon-source.json).
+The [Dockerfile](Dockerfile) owns the Falcon wheel build and install recipe, using the full commit in [`tools/falcon-source.json`](tools/falcon-source.json).
 Python build and runtime dependencies have separate SHA-256 locks.
-Downloads verify those hashes, and installation and wheel building run with no package index and no network.
+Python dependency downloads verify those hashes, and Python installation and wheel building run with no package index and no network.
 The runtime contains Python 3.11, the pinned tools and UID 10001 (`artium`).
 mg-axi is installed for inventory checks only and has no production tool path or adapter.
 `src/server/config.ts` owns the three executable paths.

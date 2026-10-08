@@ -24,7 +24,7 @@ Loopback TLS and pinned Vectra gate tests also run in the mandatory local suite.
 Azure write capability remains unavailable pending executable commissioning of a safe pin.
 
 S05/06 verification is described in [verification-s05-06.md](verification-s05-06.md).
-Its implementation and published head are bound to the final local command results and private hygiene result in the delivery status and PR body.
+The image results below describe the prior candidate; final-head validation remains pending with the outer executor, which records the commit, command results and private hygiene result in the delivery status and PR body.
 The local image built as `sha256:6ace4e0386cc3457d9b8d1cd5fea18639646960790382f978bd6f8865b597a85` with Node 22.23.3 and Debian Python 3.11.
 The build's separate hashed Python installs, Falcon wheel build and no-dependency wheel install ran with BuildKit networking disabled.
 `pip check` passed.
@@ -48,7 +48,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Gate (task IDs) | Local implementation | Pinned-upstream against fake services | Captain live acceptance |
 |---|---|---|---|
 | Deployment prerequisites and harmless-read requests (T0.1) | This ledger records deferred prerequisites | pending | unverified: supply dedicated identities, Linux host, proxy and certificate |
-| Exact tool pins and clean installation (T0.2) | Node pins and integrity in `tools/`; Falcon v0.3.0 commit `3eaf23fa8496b8ecf947e45e1a6e7e8227349ccb`, wheel recipe and separately hashed build/runtime locks; clean no-network installs and pip check passed in Node 22/Python 3.11 image | Image version/help checks match Falcon 0.3.0, Vectra 0.1.3, Azure 0.1.4 and Graph 0.1.4 | not applicable: local build only, registry publication excluded |
+| Exact tool pins and clean installation (T0.2) | Node pins and integrity in `tools/`; [Falcon source pin](../tools/falcon-source.json), wheel recipe in [Dockerfile](../Dockerfile) and separately hashed build/runtime locks; prior-candidate Python no-network installs and pip check passed in Node 22/Python 3.11 image | Prior-candidate image version/help checks matched the tool pins; final-head results pending | not applicable: local build only, registry publication excluded |
 | Falcon region, harmless read and search duration (T0.3) | Global flags, source environment names and region precedence recorded in verification-s05-06.md | Unknown-origin refusal and explicit canary TLS delivery checked by scripts/falcon-smoke.mjs in an isolated image; non-default ports remain refused even with the override | unverified: measure region/read/time before increasing timeouts |
 | Vectra API version, token/OAuth and CA (T0.4) | Ephemeral CA and QUX v2.5 token-profile loopback fixtures, isolated TLS/DNS harness | Pinned 0.1.3 native default write refusal, preview, confirmed mutation and single-send ambiguous 503 checked by `test/fake-service.test.ts`; isolated DNS/TLS/outbound checks passed; OAuth/RUX unverified | unverified: approve appliance and authentication combination |
 | Azure secret/certificate auth and six resource audiences (T0.5) | pending | pending | unverified: supply permitted resources, separately approve test resource creation and writes |
