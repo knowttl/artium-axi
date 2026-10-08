@@ -2,14 +2,16 @@
 
 ## First administrator and offline recovery
 
-For first startup only, set `ARTIUM_AXI_ADMIN_USERNAME` and `ARTIUM_AXI_ADMIN_PASSWORD_FILE` alongside the database and master-key settings.
-The password file holds the exact UTF-8 password, without an added newline.
+Use the first-start settings described in [README.md](../README.md).
+The username is trimmed and lowercased for lookup, must be nonempty without whitespace or control characters, and keeps the entered spelling as its display name.
+The canonical name `synthetic-development-user` is reserved for development authentication and cannot be used for bootstrap or recovery.
 Use the local password rules in [README.md](../README.md).
 The store must be empty except for migrations and the default tool registry, and must never have been bootstrapped.
 Startup commits the administrator and one-time marker atomically, with must-change set and no tool grants.
 Remove the bootstrap settings after first start.
-Later starts ignore them and never recreate an administrator.
-If existing data has no marker, restore a consistent bootstrapped store and matching key.
+Later starts ignore both bootstrap settings and never recreate an administrator, even when no enabled administrator remains.
+A missing marker with existing account, role, credential, audit, rotation or changed tool data fails with `BOOTSTRAP_INCONSISTENT`.
+Restore a consistent bootstrapped store and matching key.
 Do not delete data or manufacture a marker to bypass the startup refusal.
 
 The database prevents disabling, demoting or deleting the last enabled administrator.
@@ -105,7 +107,8 @@ Restore and rollback procedures remain unverified until the backup slice.
 ## Upgrading stores without a key binding
 
 Before upgrading, stop the server, back up the database and test the migration on a copy with its matching key.
-Migration 006 creates store metadata and records the supplied key ID only after every credential authenticates or the latest rotation receipt matches.
+Migration 006 creates store metadata, and opening the store records the supplied key ID only when existing credentials or a rotation receipt provide key evidence.
+Every stored credential must authenticate, and the latest rotation receipt must match when present.
 Schema migration and binding commit together; refusal rolls back both.
 A legacy store with no binding, credentials or rotation receipt cannot establish which key is correct and fails with `MASTER_KEY_INVALID`.
 Do not manufacture metadata to bypass that refusal.

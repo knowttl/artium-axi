@@ -113,8 +113,7 @@ An unreadable configured file does not fall back to the environment key.
 Its key ID is the full SHA-256 digest.
 Missing, invalid or mismatched store keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
 Store metadata binds the database to its active key ID even before any credential is configured.
-Legacy stores acquire this binding transactionally only after authenticating existing credentials or matching the latest rotation receipt.
-An unbound legacy store with neither form of key evidence is refused; see [the runbook](docs/runbook.md) before upgrading.
+See [the upgrade runbook](docs/runbook.md#upgrading-stores-without-a-key-binding) for legacy-store binding requirements and refusal handling.
 [Credential encryption](src/server/store/crypto.ts) uses AES-256-GCM with a fresh 12-byte nonce, a 16-byte authentication tag and canonical JSON associated data `[schemaVersion, tool, credentialId, keyId]`.
 The [credential schema](src/server/store/migrations/001-credentials.sql) owns the stored fields and constraints; credential plaintext must be encrypted before insertion.
 The `tools` table holds pinned versions, enabled state, validated native settings and revisions.
@@ -153,7 +152,7 @@ The schema provides revision fields for users and roles, alongside the existing 
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
 Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
-Bootstrap metadata starts empty and is written atomically with the first administrator by [startup bootstrap](src/server/auth/bootstrap.ts).
+See [the bootstrap runbook](docs/runbook.md#first-administrator-and-offline-recovery) for the one-time marker and administrator safeguards.
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
 The [access-token verifier](src/server/auth/tokens.ts) looks up SHA-256 hashes and enforces access-token type, token and family deadlines, consumption and revocation.
 The [tool policy](src/server/policy/policy.ts) reads the current enabled user, enabled tool and role grants on every call.
@@ -311,21 +310,15 @@ The checks verify the configured 6 GiB bound and force a resident-memory OOM at 
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 The image's default command starts the development API, which requires an explicit development gate and token file.
-The Compose example supplies only the master key; supply the development gate and a mounted token file before starting it.
+The Compose example supplies only the master key; supply the development gate and a mounted token file before starting it, plus the [first-start bootstrap settings](docs/runbook.md#first-administrator-and-offline-recovery) for a new store.
 Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.
 See [verification-s05-06.md](docs/verification-s05-06.md) for packaging verification and deferred Falcon live checks.
 
 After `pnpm build`, run `pnpm start` with `ARTIUM_AXI_DEV=1`, `ARTIUM_AXI_DEV_TOKEN_FILE` pointing to an owner-only random token file, and `ARTIUM_AXI_MASTER_KEY_FILE` pointing to a synthetic 32-byte key file.
 On first start, also set `ARTIUM_AXI_ADMIN_USERNAME` to a synthetic local username and `ARTIUM_AXI_ADMIN_PASSWORD_FILE` to a UTF-8 file containing the exact starting password, without an added newline.
-The username is trimmed and lowercased for lookup, must be nonempty without whitespace or control characters, and keeps the entered spelling as its display name.
-The password uses the local password rules above, preserving spaces and Unicode.
-An empty, never-bootstrapped store gets one administrator with must-change set and no tool grants.
-Administrator creation and the bootstrap marker commit together.
-Later starts ignore both administrator settings, even when no enabled administrator remains.
-A missing marker with existing account, role, credential, audit, rotation or changed tool data fails with `BOOTSTRAP_INCONSISTENT`.
-Database guards reject disabling, demoting or deleting the last enabled administrator in the same transaction as the attempted change.
-See [the runbook](docs/runbook.md) for offline audited administrator recovery and [S29 verification](docs/verification-s29.md) for local startup and recovery evidence.
+See [the runbook](docs/runbook.md#first-administrator-and-offline-recovery) for bootstrap requirements, later-start behavior, administrator safeguards and offline audited recovery.
+See [S29 verification](docs/verification-s29.md) for local startup and recovery evidence.
 Use `ARTIUM_AXI_DATABASE_FILE` to select a dedicated local development database instead of `/data/artium.db`.
 The [server configuration](src/server/config.ts) owns the listener and storage defaults.
 All tools remain disabled until the development store is configured.
