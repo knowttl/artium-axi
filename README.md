@@ -8,13 +8,14 @@ Nothing is usable yet.
 Installation and quick-start instructions arrive with the first working release.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
+The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 The executable toolchain tests compile synthetic TypeScript and run its emitted ESM with Node, and verify strict null checking rejects an invalid assignment.
 `pnpm test:security` selects tests whose names contain `security`.
 It currently includes the synthetic hygiene checker tests and permits an empty selection.
 
-`src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold and hygiene checker tests.
+`src/shared/`, `src/server/` and `src/cli/` reserve the application layout, and `test/` holds scaffold, hygiene and synthetic upstream tests.
 The server, CLI, container and upstream integrations arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
@@ -39,3 +40,44 @@ The check cannot guarantee absence of unknown sensitive values and does not appr
 
 See [the evidence ledger](docs/evidence-ledger.md) for local implementation, pinned-upstream fake-service evidence and the deferred captain live acceptance gates.
 No live gate is satisfied by a fake-service result.
+
+The upstream Node packages are pinned separately in [`tools/package.json`](tools/package.json) and `tools/pnpm-lock.yaml`.
+The root install runs their frozen installation, with native dependency build scripts disabled.
+[`tools/integrity.json`](tools/integrity.json) records the pinned upstream versions and npm SHA-512 values.
+mg-axi is inventoried for phase 8, with no production adapter enabled.
+`pnpm test` checks the generated parser inventories against the installed catalogues before running Vitest.
+Regenerate them with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
+These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
+Native write-setting records include hashes of the pinned configuration and permission-gate sources.
+The native write gates remain upstream-owned.
+
+`node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
+Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
+For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stderr bytes, and `upstream az-axi error` emits a synthetic stream capture with an error status.
+`leak` reads only `ARTIUM_TEST_CANARY`, with `raw`, `base64`, `base64url` or `url` encoding and an optional `stderr` argument.
+`child` creates an ordinary descendant, while `descendant` starts a separate session.
+Callers must terminate both PIDs printed by those modes.
+[`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for future runner tests, without a production fake-tool entry.
+
+Local HTTPS tests create an ephemeral CA and exercise the pinned Vectra native default refusal, preview, confirmed execution and ambiguous-write response against a loopback fake service.
+They assert mutation counts and native write-log creation.
+They do not prove real appliance permissions.
+
+`pnpm test:fake-services` runs the separate Linux Docker TLS/DNS and outbound-denial check.
+It requires Docker, OpenSSL and an image named `artium-test-node22` containing Node 22 or later.
+Run `pnpm test:build-image` to build it from the digest-pinned official Node 22 bookworm-slim base in `test/fake-service/Dockerfile`.
+The build requires an existing `moby/buildkit:buildx-stable-1` image and permits fetching the public Node base.
+It uses a uniquely named, privileged `artium-test-` BuildKit container with bounded CPU and memory, and cache on private tmpfs.
+Its finalizer removes that builder, cache and exported temporary archive without touching the shared Docker builder.
+It refuses to replace an existing `artium-test-node22` image.
+An existing suitable Node image can be tagged with `docker image tag <existing-node-image> artium-test-node22`.
+The harness never pulls an image, builds one, publishes ports or alters existing containers.
+It creates uniquely named `artium-test-` internal networks and containers, routes the fixed upstream names to the fake TLS service and trusts only its ephemeral test CA.
+It tests outbound denial using a second synthetic service on a separate internal network, without probing a real endpoint.
+Its finalizer removes its containers, networks and temporary certificates, and leaves the supplied image intact.
+After a check using a freshly built test image, remove that owned image with `docker image rm artium-test-node22`.
+No image or build cache is created by the network harness itself.
+An unavailable image or Docker daemon produces a nonzero `unverified` result, which must be recorded in the evidence ledger.
+The harness also records az-axi same-origin and cross-origin redirects, pagination and the actual mutation request count after an ambiguous 503.
+See [the evidence ledger](docs/evidence-ledger.md) for the observed retry behaviour and Azure write-capability restriction.
+Clean Node 22 image installation and Falcon packaging remain for the next image slice.

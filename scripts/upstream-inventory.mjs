@@ -1,0 +1,117 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
+
+const root = new URL('../tools/', import.meta.url)
+const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))
+const pins = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))
+const az = await load('az-axi', 'lib/registry.js')
+const azArgs = await load('az-axi', 'lib/args.js')
+const azConfig = await load('az-axi', 'lib/config.js')
+const azReads = await load('az-axi', 'lib/azReadCatalogue.js')
+const vectra = await load('vectra-axi', 'src/catalogue.js')
+const vectraWrites = await load('vectra-axi', 'src/writes.js')
+const mg = await load('mg-axi', 'catalogue.js')
+const mgWrites = await load('mg-axi', 'mutations.js')
+const azShortFlags = { h: 'help', s: 'subscription', g: 'resource-group', n: 'name',
+  l: 'location', w: 'workspace', t: 'timespan', q: 'graph-query' }
+const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
+const inventories = {
+  'az-axi': az.COMMAND_LEAVES.flatMap(leaf => [leaf.path, ...leaf.aliases ?? []].map(command => {
+    const canonical = command === leaf.path && leaf.handlerPath !== undefined
+    let flags = { ...azArgs.GLOBAL_FLAG_SCHEMA, ...leaf.flags, ...(canonical ? leaf.canonicalFlags : {}) }
+    let flagAliases = command === leaf.path
+      ? { ...leaf.canonicalFlagAliases, ...(command === 'graph query' ? { subscription: 'subscriptions' } : {}) }
+      : { ...leaf.aliasFlags }
+    let shortFlags = Object.fromEntries(Object.entries(azShortFlags)
+      .map(([short, name]) => [short, flagAliases[name] ?? name]).filter(([, name]) => Object.hasOwn(flags, name)))
+    if (leaf.capability === 'passthrough') {
+      const entry = azReads.AZ_READ_CATALOGUE.entries.find(entry => `az ${entry.command}` === command)
+      flags = { profile: 'value', config: 'value', full: 'boolean', fields: 'value', help: 'boolean',
+        ...Object.fromEntries(entry.arguments.map(argument => [argument.flags[0].slice(2), 'value'])) }
+      flagAliases = Object.fromEntries(entry.arguments.flatMap(argument => argument.flags.slice(1)
+        .filter(flag => flag.startsWith('--')).map(flag => [flag.slice(2), argument.flags[0].slice(2)])))
+      shortFlags = { h: 'help', ...Object.fromEntries(entry.arguments.flatMap(argument => argument.flags
+        .filter(flag => !flag.startsWith('--')).map(flag => [flag.slice(1), argument.flags[0].slice(2)]))) }
+    }
+    return { command, canonicalCommand: leaf.path, handlerCommand: leaf.handlerPath ?? leaf.path,
+      effect: leaf.effect, capability: leaf.capability, flags, flagAliases, shortFlags,
+      positionalInput: Boolean(leaf.positionalInput && !canonical) }
+  })),
+  'vectra-axi': Object.entries(vectra.catalogue).map(([command, leaf]) => ({ command,
+    flags: Object.fromEntries(Object.entries(leaf.flags).map(([name, flag]) => [name, flag.kind])) })),
+  'mg-axi': mg.LEAVES.map(leaf => ({ command: leaf.path,
+    flags: { help: 'boolean', ...Object.fromEntries(Object.entries(leaf.flags ?? {})
+      .map(([name, flag]) => [name, flag.value ? 'value' : 'boolean'])) },
+    positionalInput: leaf.positional ? { ...leaf.positional, required: true } : false })),
+}
+const environments = {
+  'az-axi': {
+    native: ['AZ_AXI_CONFIG', 'AZ_AXI_PROFILE', 'AZ_AXI_TENANT', 'AZ_AXI_SUBSCRIPTION', 'AZ_AXI_READ_ONLY',
+      'AZ_AXI_WRITE_LOG', ...azResources.map(resource => azConfig.tokenEnvFor({}, resource))],
+    credentials: azResources.map(resource => ({ profileField: `tokenEnv.${resource}`, transport: 'token value',
+      defaultEnvironment: azConfig.tokenEnvFor({}, resource) })),
+    sources: ['lib/config.js', 'lib/auth.js', 'lib/writeLog.js'],
+  },
+  'vectra-axi': {
+    native: ['VECTRA_AXI_CONFIG', 'VECTRA_AXI_PROFILE', vectraWrites.READ_ONLY_ENV, vectraWrites.WRITE_LOG_ENV],
+    credentials: [{ profileField: 'tokenEnv', transport: 'token value' }, { profileField: 'secretEnv', transport: 'client-secret value' }],
+    sources: ['src/profiles.js', 'src/auth.js', 'src/oauth.js', 'src/writes.js'],
+  },
+  'mg-axi': {
+    native: ['MG_AXI_CONFIG', mgWrites.READ_ONLY_ENV, mgWrites.WRITE_LOG_ENV, 'AZURE_FEDERATED_TOKEN_FILE'],
+    credentials: [{ profileField: 'credentialRef.secretEnv', transport: 'client-secret value' },
+      { profileField: 'credentialRef.keyEnv', transport: 'private-key value' },
+      { profileField: 'credentialRef.tokenFileEnv', transport: 'assertion-file path', defaultEnvironment: 'AZURE_FEDERATED_TOKEN_FILE' }],
+    sources: ['profiles.js', 'mutations.js', 'msal-app-provider.js'],
+  },
+}
+const nativeWriteSettings = {
+  'az-axi': {
+    profileFields: { allowWrites: 'boolean', subscriptions: 'string[]' },
+    scope: { configuredField: 'subscriptions', resolvedField: 'writeSubscriptions',
+      rule: 'Copied from configured subscriptions before flag or environment read-scope overrides; unscoped writes denied' },
+    sources: ['lib/config.js', 'lib/gates.js'],
+  },
+  'vectra-axi': {
+    profileFields: { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' },
+    scope: { configuredField: 'writes.operations', resolvedField: 'scope.operations',
+      rule: 'Explicit nonempty operation allowlist, snapshotted by the mutation coordinator for QUX and RUX' },
+    sources: ['src/profiles.js', 'src/writes.js'],
+  },
+  'mg-axi': {
+    profileFields: { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' },
+    scope: { configuredField: 'writes.operations', resolvedField: 'scope.operations',
+      rule: 'Explicit nonempty operation allowlist, snapshotted by the mutation coordinator for delegated and application profiles' },
+    sources: ['profiles.js', 'mutations.js'],
+  },
+}
+const disposition = name => ['config', 'profile', 'tenant', 'token-env', 'client-secret-env',
+  'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint', 'ca-bundle'].includes(name) ? 'server-owned'
+  : name.endsWith('-file') || ['file', 'body', 'input', 'out', 'output', 'cursor'].includes(name) ? 'input/output transport review'
+  : 'passthrough candidate'
+
+for (const [tool, commands] of Object.entries(inventories)) {
+  const packageUrl = new URL(`node_modules/@knowttl/${tool}/package.json`, root)
+  const pkg = JSON.parse(readFileSync(packageUrl, 'utf8'))
+  if (pkg.version !== pins[pkg.name].version) throw new Error(`Pin mismatch for ${tool}`)
+  const data = { generatedBy: 'scripts/upstream-inventory.mjs', tool, ...pins[pkg.name],
+    parserEvidence: 'Installed pinned catalogue exports, provisional until adapter acceptance',
+    packageManifestSha256: createHash('sha256').update(readFileSync(packageUrl)).digest('hex'),
+    environment: environments[tool].native.map(name => ({ name, disposition: 'server-owned' })),
+    dynamicCredentialEnvironment: environments[tool].credentials.map(record => ({ ...record, disposition: 'server-owned' })),
+    environmentSources: environments[tool].sources.map(path => ({ path: `dist/${path}`,
+      sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })),
+    nativeWriteSettings: { default: 'disabled', disposition: 'server-owned',
+      profileFields: nativeWriteSettings[tool].profileFields, scope: nativeWriteSettings[tool].scope,
+      sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
+        sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
+    suggestionFields: ['help'], format: 'TOON',
+    flags: [...new Set(commands.flatMap(command => [...Object.keys(command.flags), ...Object.keys(command.flagAliases ?? {})]))].sort()
+      .map(name => ({ name, disposition: disposition(name) })), commands }
+  const contents = JSON.stringify(data, null, 2) + '\n'
+  const destination = new URL(`inventories/${tool}.json`, root)
+  if (process.argv[2] === '--write') writeFileSync(destination, contents)
+  else if (readFileSync(destination, 'utf8') !== contents) throw new Error(`Inventory out of date: ${fileURLToPath(destination)}`)
+  console.log(`inventory: ${tool} ${pkg.version}, ${commands.length} commands`)
+}

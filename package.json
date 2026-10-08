@@ -8,8 +8,11 @@
   },
   "packageManager": "pnpm@10.22.0",
   "scripts": {
+    "prepare": "pnpm --dir tools install --frozen-lockfile",
     "build": "tsc",
-    "test": "vitest run",
+    "test": "node scripts/upstream-inventory.mjs && vitest run",
+    "test:fake-services": "node scripts/fake-services.mjs",
+    "test:build-image": "node scripts/build-fake-service-image.mjs",
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
     "lint": "tsc --noEmit",
     "check": "pnpm lint && pnpm test && pnpm build",
