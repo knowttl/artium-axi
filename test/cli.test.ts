@@ -232,7 +232,9 @@ test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }])('malformed resp
 
 test.each([{ args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['falcon-axi', 'x'.repeat(4097)] },
   { args: ['tools', 'show'] }, { args: ['tools', 'show', 'missing'] }, { args: ['login', '--unknown', '--help'] },
-  { args: ['whoami', '--unknown', '--help'] }])('usage failure exits 2 before sending a request', async ({ args }) => {
+  { args: ['whoami', '--unknown', '--help'] }, { args: ['tools', 'show', '--unknown', '--help'] },
+  { args: ['tools', 'show', 'missing', '--help'] }, { args: ['tools', '--help', 'show', '--unknown'] },
+  { args: ['tools', 'show', '--help', '--unknown'] }])('usage failure exits 2 before sending a request', async ({ args }) => {
   requests = []
   expect(await cli(args)).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '' })
   expect(requests).toEqual([])

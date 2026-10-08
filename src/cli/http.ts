@@ -65,16 +65,19 @@ export class Client {
     return result.body
   }
 
-  async authenticated(path: string, method: 'GET' | 'POST', input?: unknown): Promise<unknown> {
-    const session = this.sessions.read()
+  async authenticated(path: string, method: 'GET' | 'POST', input?: unknown, previous?: StoredSession): Promise<unknown> {
+    const session = previous ? this.reload(previous) : this.sessions.read()
     if (!session) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
     if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
-    try { return await this.request(path, method, input, session.accessToken) }
+    let result: unknown
+    try { result = await this.request(path, method, input, session.accessToken) }
     catch (error) {
       if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED') throw error
+      const fresh = await this.sessions.locked(() => this.refresh(session))
+      result = await this.request(path, method, input, fresh.accessToken)
     }
-    const fresh = await this.sessions.locked(() => this.refresh(session))
-    return this.request(path, method, input, fresh.accessToken)
+    if (previous) this.reload(previous)
+    return result
   }
 
   // The caller holds the session lock, including the reload after acquisition.

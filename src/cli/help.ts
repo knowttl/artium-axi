@@ -1,3 +1,5 @@
+import { toolSchema } from '../shared/api.js'
+
 const commands = {
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: [], example: 'artium-axi' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
@@ -41,7 +43,7 @@ export function helpCommand(args: string[]): HelpCommand | undefined {
   if (!args.includes('--help')) return undefined
   const path = args.filter(arg => arg !== '--help')
   if (path.length === 0) return 'home'
-  if (path[0] === 'tools' && path[1] === 'show' && path.length <= 3) return 'tools show'
+  if (path[0] === 'tools' && path[1] === 'show' && (path.length === 2 || path.length === 3 && toolSchema.safeParse(path[2]).success)) return 'tools show'
   if (path.length === 1 && path[0] !== 'home' && Object.hasOwn(commands, path[0])) return path[0] as HelpCommand
   return undefined
 }
