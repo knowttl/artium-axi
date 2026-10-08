@@ -22,14 +22,28 @@ beforeEach(() => {
 })
 afterEach(() => rmSync(directory, { recursive: true, force: true }))
 
-function seed() {
+function seed(value = plaintext) {
   const db = openStore(file, provider)
   db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('synthetic-version', 'falcon-axi')
-  const row = encryptCredential('synthetic-id', 'falcon-axi', plaintext, key)
+  const row = encryptCredential('synthetic-id', 'falcon-axi', value, key)
   db.prepare(`INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag)
     VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag)`).run(row)
   db.close()
 }
+
+it('a resolved revision cannot read a replacement credential', () => {
+  seed(Buffer.from('{"synthetic":true}'))
+  const db = openStore(file, provider)
+  try {
+    const store = createCredentialStore(db, provider)
+    const reference = store.findCredential('falcon-axi')!
+    expect(reference.revision).toBe(1)
+    expect(store.readCredential(reference)).toEqual({ synthetic: true })
+    db.prepare('UPDATE credentials SET revision = revision + 1').run()
+    expect(store.readCredential(reference)).toBeUndefined()
+    expect(store.findCredential('falcon-axi')!.revision).toBe(2)
+  } finally { db.close() }
+})
 
 it('opens an unconfigured store with every supported tool disabled', () => {
   const db = openStore(file, provider)
