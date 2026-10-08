@@ -8,6 +8,7 @@ export const serverDefaults = { host: '0.0.0.0', port: 8080, database: '/data/ar
 export const passwordDefaults = { memoryCost: 65536, timeCost: 3, parallelism: 1, concurrentHashes: 2 } as const
 export const tokenDefaults = { accessMs: 3_600_000, familyMs: 43_200_000, passwordChangeMs: 600_000 } as const
 export const authDefaults = { windowMs: 900_000, usernameAttempts: 5, addressAttempts: 30, counterKeys: 4096, recentAuthMs: 900_000 } as const
+export const browserDefaults = { idleMs: 1_800_000, absoluteMs: 43_200_000 } as const
 export const runnerLimits = {
   globalCalls: 8,
   userCalls: 2,

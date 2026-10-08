@@ -7,6 +7,7 @@ import { passwordDefaults } from '../config.js'
 import type { AuthProvider } from './auth-provider.js'
 import commonPasswords from './common-passwords.v1.json' with { type: 'json' }
 import { revokeUserSessions, verifyPasswordToken } from './tokens.js'
+import { readBrowserSession, recentBrowserAuth } from './sessions.js'
 
 const common = new Set(commonPasswords.passwords)
 const dummyHash = '$argon2id$v=19$m=65536,p=1,t=3$vNZ3Sa+H+g+67iTEmnJxbQ$4dkx0/sgcEmrkpSfYhnbOS9a/6SskDG33I0aMQmBdCI'
@@ -56,21 +57,34 @@ export class LocalAuthProvider implements AuthProvider {
   }
 
   async changePassword(userId: string, currentPassword: string | undefined, newPassword: string, audit: Audit,
-    context: { requestId: string, clientAddress: string | null }, now = Date.now(), token?: string): Promise<void> {
+    context: { requestId: string, clientAddress: string | null }, now = Date.now(), proof?: string | { sessionId: string }): Promise<void> {
     const user = this.readUser(userId)
-    const restricted = token !== undefined && verifyPasswordToken(this.db, token, now).type === 'password-change'
-    if (!restricted) {
+    const verifyProof = () => {
+      if (typeof proof === 'string') {
+        const token = verifyPasswordToken(this.db, proof)
+        if (token.user_id !== userId) throw new ArtiumError('TOKEN_INVALID')
+        return { restricted: token.type === 'password-change', recent: false }
+      }
+      if (proof) {
+        const session = readBrowserSession(this.db, proof.sessionId)
+        if (session.user_id !== userId) throw new ArtiumError('TOKEN_INVALID')
+        return { restricted: Boolean(session.must_change), recent: recentBrowserAuth(session) }
+      }
+      return { restricted: false, recent: false }
+    }
+    const { restricted, recent } = verifyProof()
+    let passwordConfirmed = false
+    if (!restricted && !recent) {
       if (currentPassword === undefined) throw new ArtiumError('SIGN_IN_FAILED')
       const matches = await verifyPassword(user?.password_hash, currentPassword)
       if (!matches) throw new ArtiumError('SIGN_IN_FAILED')
+      passwordConfirmed = true
     }
     if (!user || user.disabled || (restricted && !user.must_change)) throw new ArtiumError('SIGN_IN_FAILED')
     const hash = await hashPassword(newPassword)
     audit.change({ event: 'password-change', userId, tool: null, outcome: 'success', ...context }, () => {
-      if (token !== undefined) {
-        const proof = verifyPasswordToken(this.db, token)
-        if (proof.user_id !== userId) throw new ArtiumError('TOKEN_INVALID')
-      }
+      const current = verifyProof()
+      if (!current.restricted && !current.recent && !passwordConfirmed) throw new ArtiumError('SIGN_IN_FAILED')
       const { changes } = this.db.prepare(`UPDATE users SET password_hash = ?, must_change = 0, revision = revision + 1,
         updated_at = ?, updated_by = ? WHERE id = ? AND password_hash = ? AND disabled = 0`).run(hash, now, userId, userId, user.password_hash)
       if (!changes) throw new ArtiumError('SIGN_IN_FAILED')
