@@ -1,5 +1,8 @@
+import { dirname, join, resolve } from 'node:path'
 import { createApp } from './app.js'
 import { createFalconAdapter } from './adapters/falcon.js'
+import { createVectraAdapter } from './adapters/vectra.js'
+import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { Audit } from './audit/audit.js'
 import { readDevelopmentToken } from './auth/development.js'
 import { serverDefaults } from './config.js'
@@ -12,16 +15,21 @@ import { ArtiumError, errorResponse } from '../shared/errors.js'
 
 async function main() {
   readDevelopmentToken(process.env)
-  const db = openStore(process.env.ARTIUM_AXI_DATABASE_FILE ?? serverDefaults.database)
+  const database = resolve(process.env.ARTIUM_AXI_DATABASE_FILE ?? serverDefaults.database)
+  const db = openStore(database)
   let runner: Runner | undefined
   try {
     const store = createCredentialStore(db, new EnvironmentKeyProvider())
     runner = await Runner.create(serverDefaults.temporaryDirectory)
     const audit = new Audit(db)
+    const source = new EmbeddedSecretSource(store)
+    const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
+    try { initializeNativeWriteLog(writeLog) }
+    catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
     const app = createApp({ db, audit, runner, resolver: new SharedIdentityResolver(store),
-      adapters: [createFalconAdapter(new EmbeddedSecretSource(store))] })
+      adapters: [createFalconAdapter(source), createVectraAdapter(source, writeLog)] })
     const maintain = () => {
-      try { audit.maintain() }
+      try { audit.maintain(); retainNativeWriteLog(writeLog) }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
     }
     maintain()

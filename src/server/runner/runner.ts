@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -8,6 +8,7 @@ import { SecretScanner } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
+import type { TemporaryFile } from '../adapters/types.js'
 
 export interface RunnerLimits {
   outputBytesPerStream?: number
@@ -52,7 +53,7 @@ export class Runner {
     return new Runner(root)
   }
 
-  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}): Promise<RunnerResult> {
+  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}, files: readonly TemporaryFile[] = []): Promise<RunnerResult> {
     if (!userId) return Promise.reject(new TypeError('An authenticated user is required'))
     try {
       input = validateInput(args, input)
@@ -67,7 +68,7 @@ export class Runner {
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input)
+    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files)
       .finally(() => this.active.delete(key))
     this.active.set(key, { userId, controller, result })
     return result
@@ -100,6 +101,7 @@ async function execute(
   secrets: readonly string[],
   limits: RunnerLimits = {},
   input: RunnerInput = {},
+  files: readonly TemporaryFile[] = [],
 ): Promise<RunnerResult> {
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
@@ -112,6 +114,12 @@ async function execute(
   })
   try {
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
+    try {
+      for (const file of files) {
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(file.name)) throw new Error('Invalid adapter file name')
+        await writeFile(join(directory, file.name), file.content, { mode: 0o600, flag: 'wx' })
+      }
+    } catch { throw new RunnerError('TEMP_UNAVAILABLE') }
     args = await writeInput(directory, args, input)
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     return await new Promise<RunnerResult>((resolve, reject) => {

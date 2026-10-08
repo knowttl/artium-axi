@@ -42,6 +42,30 @@ test('security shell metacharacters remain literal arguments', async () => {
   expect((await fake(['print', ...args])).stdout).toBe(args.join(' '))
 })
 
+test('adapter files are private, readable beside the profile and cleaned after execution', async () => {
+  const script = `const fs = require('node:fs'); console.log(JSON.stringify({
+    profile: fs.readFileSync('profile.json', 'utf8'), ca: [...fs.readFileSync('ca.pem')],
+    mode: fs.statSync('profile.json').mode & 0o777, cwdMode: fs.statSync('.').mode & 0o777
+  }));`
+  const result = await run(process.execPath, ['-e', script], {}, [], {}, {}, [
+    { name: 'profile.json', content: '{"synthetic":true}' }, { name: 'ca.pem', content: Uint8Array.of(1, 2, 3) },
+  ])
+  expect(JSON.parse(result.stdout)).toEqual({ profile: '{"synthetic":true}', ca: [1, 2, 3], mode: 0o600, cwdMode: 0o700 })
+  expect(await readdir(root)).toEqual([])
+})
+
+test.each(['', '.', '..', '../profile.json', '/data/profile.json', 'inputs/profile.json', 'profile\\file'])
+  ('adapter file name %j is refused and cleaned', async name => {
+    await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], {}, {}, [{ name, content: 'synthetic' }]))
+      .rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
+  })
+
+test('duplicate adapter files cannot replace an existing profile', async () => {
+  await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], {}, {}, [
+    { name: 'profile.json', content: 'first' }, { name: 'profile.json', content: 'second' },
+  ])).rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
+})
+
 test.each([
   {},
   {
