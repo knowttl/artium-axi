@@ -64,7 +64,7 @@ The source checkout must match `tools/falcon-source.json`.
 Live Falcon acceptance remains unverified.
 
 The [credential store](src/server/store/db.ts) exposes `openStore(file, keyProvider?)`, returning a SQLite connection only after transactional numbered migrations and authentication of every stored credential.
-Use a dedicated data directory, such as `/data/artium.db`, and close the connection during shutdown.
+Use a database file in a dedicated data directory, such as `/data/artium.db`, and close the connection during shutdown.
 The directory and database use modes 0700 and 0600, respectively.
 SQLite uses foreign keys, WAL, FULL synchronous writes and a 5-second busy timeout.
 The default [KeyProvider](src/server/store/key-provider.ts) reads exactly 32 raw bytes from `ARTIUM_AXI_MASTER_KEY_FILE`, or canonical base64 from `ARTIUM_AXI_MASTER_KEY` when no file is configured.
@@ -72,7 +72,7 @@ An unreadable configured file does not fall back to the environment key.
 Its key ID is the full SHA-256 digest.
 Missing or invalid keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
 [Credential encryption](src/server/store/crypto.ts) uses AES-256-GCM with a fresh 12-byte nonce, a 16-byte authentication tag and canonical JSON associated data `[schemaVersion, tool, credentialId, keyId]`.
-Only encrypted fields and revisions belong in `credentials`.
+The [credential schema](src/server/store/migrations/001-credentials.sql) owns the stored fields and constraints; credential plaintext must be encrypted before insertion.
 The `tools` table holds pinned versions, enabled state, validated native settings and revisions.
 The caller owns native settings validation before storage.
 The build copies numbered SQL migrations beside the compiled store.
