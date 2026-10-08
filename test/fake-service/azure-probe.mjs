@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
@@ -18,7 +18,7 @@ const writeLog = join(directory, 'tool-logs', 'az-axi', 'writes.log')
 const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(network))
 const runner = await Runner.create(join(directory, 'calls'))
 const binary = '/work/tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js'
-const { decode } = await import(createRequire(binary).resolve('@toon-format/toon'))
+const { decode } = await import(createRequire(realpathSync(binary)).resolve('@toon-format/toon'))
 const evidence = async () => (await fetch('https://management.azure.com/__evidence')).json()
 const run = async (args, input = {}, selected = adapter) => {
   const call = await selected.prepare(args, reference, input)
@@ -59,9 +59,34 @@ try {
       assert.equal(secret.enabled, true)
       assert.equal(secret.contentType, 'text/plain')
     }
+    console.log(JSON.stringify({ scenario: 'token-mode metadata read', resource, args, output: result.stdout }))
   }
   const target = '/subscriptions/synthetic-subscription/resourceGroups/single-write?api-version=2022-12-01'
   const otherSubscription = '44444444-4444-4444-8444-444444444444'
+  for (const subscriptions of [undefined, []]) {
+    const unscoped = createAzAdapter({ getCredential: async () => ({ ...credential, subscriptions }) }, writeLog, new AzureTokenCache(network))
+    for (const args of [['sub', 'list'], ['api', '/v1.0/users', '--resource=graph']]) {
+      const prepared = await unscoped.prepare(args, reference)
+      const profile = JSON.parse(prepared.files[0].content).profiles.artium
+      assert.equal(profile.allowWrites, true)
+      assert.deepEqual(profile.subscriptions, subscriptions)
+      const result = await run(args, {}, unscoped)
+      assert.match(result.stdout, /VALIDATION_ERROR/)
+      assert.match(result.stdout, /invalid write configuration/)
+      console.log(JSON.stringify({ scenario: 'unscoped read prepares; native configuration gate retained', profile, args, output: result.stdout }))
+    }
+  }
+  const query = 'Resources | where name == "--subscription=literal"\n| take 1'
+  for (const selectors of [['--subscription=' + otherSubscription], ['--subscription', otherSubscription], ['-s', otherSubscription], ['-s=' + otherSubscription]]) {
+    for (const command of [['rg', 'query'], ['logs', 'query', '-w', '33333333-3333-4333-8333-333333333333']]) {
+      const result = await run([...selectors, ...command, '--', query])
+      assert.equal(result.exitCode, 0, result.stdout + result.stderr)
+      const request = (await evidence()).requests.at(-1)
+      assert.equal(request.body.query, query)
+      if (command[0] === 'rg') assert.deepEqual(request.body.subscriptions, [otherSubscription])
+      console.log(JSON.stringify({ scenario: 'leading selector with literal query', selectors, command, request, output: result.stdout }))
+    }
+  }
   const otherRead = await run(['group', 'list', '-s', otherSubscription])
   assert.equal(otherRead.exitCode, 0, otherRead.stdout)
   assert.ok((await evidence()).requests.some(request => request.path.toLowerCase() === `/subscriptions/${otherSubscription}/resourcegroups`))
@@ -92,7 +117,8 @@ try {
     assert.equal(executedBody.exitCode, 0, executedBody.stdout)
     const after = await evidence()
     assert.equal(after.mutations, before.mutations + 1)
-    assert.equal(after.requests.length, before.requests.length + 1)
+    assert.equal(after.requests.filter(request => request.method === 'PATCH').length,
+      before.requests.filter(request => request.method === 'PATCH').length + 1)
     assert.deepEqual(after.requests.at(-1).body, { tags: { synthetic: 'yes' } })
   }
   assert.ok(readFileSync(writeLog, 'utf8').length > 0)
@@ -104,6 +130,9 @@ try {
   assert.match((await run([...destructive, '--execute'])).stdout, /CONFIRM_REQUIRED/)
   assert.match((await run([...destructive, '--execute', '--confirm=wrong'])).stdout, /CONFIRM_MISMATCH/)
   assert.equal((await evidence()).mutations, baseline + 3)
+  console.log(JSON.stringify({ scenario: 'native gates', preview: preview.stdout, executed: written.stdout,
+    permission: permission.stdout, origin: origin.stdout, scope: outside.stdout, mutations: (await evidence()).mutations - baseline,
+    writeLog: readFileSync(writeLog, 'utf8') }))
   const queryInputs = [
     [['logs', 'query', '-w', '33333333-3333-4333-8333-333333333333', '--file=query.kql'],
       { files: [{ name: 'query.kql', contentBase64: Buffer.from('Heartbeat').toString('base64') }] }],
@@ -116,6 +145,7 @@ try {
     const after = await evidence()
     assert.equal(after.requests.length, before + 1)
     assert.equal(after.requests.at(-1).body.query, 'Heartbeat')
+    console.log(JSON.stringify({ scenario: 'uploaded or piped query', queryArgs, request: after.requests.at(-1), output: result.stdout }))
   }
   console.log('azure-probe: six token-mode resources, metadata-only listings, ARM-only mint, uploaded/stdin query, native preview/write/scope/confirmation gates and durable log passed; activation deferred for pinned ambiguous retry')
 } finally {

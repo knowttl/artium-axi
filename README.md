@@ -14,7 +14,7 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon and Vectra adapters and encrypted credential store, and `src/cli/` contains the minimal client.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon, Vectra and internal Azure adapters and encrypted credential store, and `src/cli/` contains the minimal client.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container, development server, bundled CLI and Falcon and Vectra adapters are available, while the remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
@@ -40,9 +40,6 @@ See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance an
 Azure secret and certificate token minting, the resource token cache and the [Azure adapter](src/server/adapters/az.ts) are implemented internally.
 Azure commands remain unavailable through the runtime registry because pinned az-axi 0.1.4 retries ambiguous writes.
 See [S24 verification](docs/verification-s24.md) for authentication, [S25 verification](docs/verification-s25.md) for caching and [S26 verification](docs/verification-s26.md) for profile preparation, inputs, native gates and six fixed-origin fake reads.
-The adapter preserves `subscriptions`, `managementGroup`, workspace GUID aliases, `description` and `allowWrites` alongside either Azure authentication form in its validated credential record.
-It writes only the token-mode native settings to a private profile and supplies needed resource tokens in the environment, without `AZ_AXI_READ_ONLY` or an Artium subscription allow-list.
-Resolved credential references carry the persisted revision, and a stale reference cannot read a replacement credential.
 Live authentication, scope forms, reads and permission acceptance remain captain checks.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
@@ -124,6 +121,8 @@ The build copies numbered SQL migrations beside the compiled store.
 [S13 verification](docs/verification-s13.md) covers real database reopen, persisted corruption, row binding, startup key refusal and migration rollback.
 The [credential-store boundary](src/server/store/credential-store.ts) exposes credential references and parsed values without SQLite types.
 Create it with `createCredentialStore(connection, keyProvider)` using the same provider as `openStore`.
+Resolved credential references carry the persisted revision, and reads reject a reference with a mismatched revision before decryption.
+The reference type keeps revision optional for compatibility; reads without a revision are not bound to a credential version.
 Credentials are encrypted JSON objects matching the adapter's credential schema.
 Version 1 uses one shared service credential per tool in the embedded encrypted database; external secret sources and per-user credentials remain deferred.
 The [SharedIdentityResolver](src/server/policy/identity-resolver.ts) selects that credential with `resolve(userId, tool)`, whoever the user is.
