@@ -30,7 +30,7 @@ async function main(args: string[]) {
   const deadline = setTimeout(() => controller.abort(), 90_000)
   const result = await new Promise<{ status: number, body: unknown }>((resolve, reject) => {
     const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
-      method: listing ? 'GET' : 'POST', ca, signal: controller.signal,
+      method: listing ? 'GET' : 'POST', ca, rejectUnauthorized: true, signal: controller.signal,
       headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}) },
     }, response => {
       if (response.statusCode! >= 300 && response.statusCode! < 400) {
