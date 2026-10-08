@@ -48,13 +48,22 @@ const dayMs = 24 * 60 * 60 * 1000
 const retentionMs = 90 * dayMs
 const retentionBatch = 500
 
+const ignoreStdoutError = () => {}
+
+function writeToStdout(line: string): void {
+  if (!process.stdout.listeners('error').includes(ignoreStdoutError)) {
+    process.stdout.on('error', ignoreStdoutError)
+  }
+  process.stdout.write(line)
+}
+
 // One instance belongs to the server. Startup calls recoverInterrupted before admitting runs.
 export class Audit {
   constructor(
     private readonly db: Database.Database,
     private readonly clock: () => number = Date.now,
     private readonly stream: ((line: string) => void) | undefined = process.env.ARTIUM_AXI_AUDIT_STDOUT === '1'
-      ? line => { process.stdout.write(line) }
+      ? writeToStdout
       : undefined,
   ) {}
 

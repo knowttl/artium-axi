@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Writable } from 'node:stream'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type Database from 'better-sqlite3'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -147,4 +148,21 @@ test('a stream failure preserves the committed event', () => {
   audit = new Audit(db, () => now, () => { throw new Error('synthetic broken stream') })
   const record: AuditRecord = audit.record({ ...context, event: 'sign-out', outcome: 'success' })
   expect(db.prepare('SELECT * FROM audit').get()).toEqual(record)
+})
+
+test('an asynchronous stdout failure preserves run events and allows further auditing', async () => {
+  vi.stubEnv('ARTIUM_AXI_AUDIT_STDOUT', '1')
+  const failure = Object.assign(new Error('synthetic broken pipe'), { code: 'EPIPE' })
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) { queueMicrotask(() => callback(failure)) },
+  })
+  const closed = new Promise<void>(resolve => { stdout.once('close', resolve) })
+  vi.spyOn(process, 'stdout', 'get').mockReturnValue(stdout as typeof process.stdout)
+  audit = new Audit(db, () => now)
+  const first = audit.record(start)
+  await closed
+  const terminal = audit.record({ ...context, event: 'run-terminal', outcome: 'completed',
+    exitCode: 0, durationMs: 2, outputBytes: { stdout: 3, stderr: 0 } })
+  expect(stdout.errored).toBe(failure)
+  expect(db.prepare('SELECT * FROM audit ORDER BY id').all()).toEqual([first, terminal])
 })
