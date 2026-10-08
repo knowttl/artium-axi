@@ -12,7 +12,7 @@ import { LocalAuthProvider } from './auth/local.js'
 import { issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
-import { registerUserAdmin } from './admin/users.js'
+import { registerAdmin } from './admin/api.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -109,7 +109,7 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerUserAdmin(app, db, audit, authAttempts)
+  registerAdmin(app, db, audit, authAttempts)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')
