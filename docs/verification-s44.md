@@ -11,7 +11,7 @@ The TOON dependency matches the upstream lockfile pin, version 2.3.1.
 
 `src/cli/rewrite.test.ts` exercises every empty, error and suggestion capture committed in `test/fake-tool/fixtures/upstreams.json`, including the future Graph fixture without enabling Graph in the runtime.
 Exact output assertions prove that only suggestion commands change, followed by a second rewrite proving idempotence.
-Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
+Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers and inline arrays, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
 `test/cli.test.ts` exercises the standalone bundle over local trusted HTTPS with synthetic tokens, separate TOON stdout and JSON stderr, upstream exit 7 and stream-specific truncation.
 The bundled test failed against the original passthrough with both prefixes absent and exit 7 preserved.
 The first full-suite run exposed existing timeouts in the 30-attempt address-limit test and the multi-hash password-change flow.

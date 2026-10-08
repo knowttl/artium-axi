@@ -8,7 +8,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   let spans: Span[]
   try { spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output) }
   catch { return output }
-  const insertions: number[] = []
+  const insertions = new Set<number>()
   for (const span of spans) {
     const offsets: number[] = []
     let rawIndex = span.quoted ? 1 : 0
@@ -18,6 +18,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     // A command starts a suggestion line or a complete quoted command.
     const commands = /(?:^|\n)[ \t]*(?:Run |Use )?([`'"]?)([^\n]*)/g
+    const commandLines: [number, number][] = []
     for (const match of span.value.matchAll(commands)) {
       const quote = match[1]
       const command = match[2]
@@ -25,10 +26,17 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       if (!command.startsWith(tool) || !(remainder === '' || /^\s/.test(remainder) || (quote && remainder.startsWith(quote)))) continue
       if (quote && !command.includes(quote)) return output
       const start = match.index! + match[0].length - command.length
-      insertions.push(span.start + offsets[start])
+      insertions.add(span.start + offsets[start])
+      commandLines.push([match.index!, match.index! + match[0].length])
+    }
+    for (const match of span.value.matchAll(/([`'"])([^\n]*?)\1/g)) {
+      if (commandLines.some(([start, end]) => match.index! >= start && match.index! < end)) continue
+      if (match[2].startsWith(tool) && /^(?:\s|$)/.test(match[2].slice(tool.length))) {
+        insertions.add(span.start + offsets[match.index! + 1])
+      }
     }
   }
-  for (const offset of insertions.sort((a, b) => b - a)) output = output.slice(0, offset) + 'artium-axi ' + output.slice(offset)
+  for (const offset of [...insertions].sort((a, b) => b - a)) output = output.slice(0, offset) + 'artium-axi ' + output.slice(offset)
   return output
 }
 
@@ -85,8 +93,31 @@ function toonHelp(output: string): Span[] {
       scalar(field[2], lines[index].index! + text.length - field[2].length)
       continue
     }
-    if (field[2]) throw new Error('Unknown inline suggestion array')
     const count = Number(field[1].slice(1, -1))
+    if (field[2]) {
+      const raw = field[2]
+      let cursor = 0
+      let items = 0
+      while (cursor < raw.length) {
+        while (/[ \t]/.test(raw[cursor] ?? '')) cursor++
+        const start = cursor
+        if (raw[cursor] === '"') {
+          const quoted = /^"(?:\\[\s\S]|[^"\\])*"/.exec(raw.slice(cursor))
+          if (!quoted) throw new Error('Incomplete inline suggestion')
+          cursor += quoted[0].length
+        } else {
+          const comma = raw.indexOf(',', cursor)
+          cursor = comma === -1 ? raw.length : comma
+        }
+        scalar(raw.slice(start, cursor).trimEnd(), lines[index].index! + text.length - raw.length + start)
+        items++
+        while (/[ \t]/.test(raw[cursor] ?? '')) cursor++
+        if (cursor < raw.length && raw[cursor++] !== ',') throw new Error('Unknown inline suggestion')
+        if (cursor === raw.length && raw.endsWith(',')) throw new Error('Incomplete inline suggestion')
+      }
+      if (items !== count) throw new Error('Incomplete suggestions')
+      continue
+    }
     for (let item = 0; item < count; item++) {
       index++
       const line = lines[index]

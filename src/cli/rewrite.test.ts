@@ -16,6 +16,11 @@ test.each(Object.entries(captures).flatMap(([tool, cases]) => Object.entries(cas
 test.each([
   ['help: falcon-axi host list\n', 'help: artium-axi falcon-axi host list\n'],
   ['help: Run `falcon-axi`\n', 'help: Run `artium-axi falcon-axi`\n'],
+  ['help: falcon-axi host list --filter \'falcon-axi host show\'\n',
+    'help: artium-axi falcon-axi host list --filter \'falcon-axi host show\'\n'],
+  ['help[2]: "Verify with `falcon-axi host list --id \\"two,words\\"`",Run `vectra-axi host list`\n',
+    'help[2]: "Verify with `artium-axi falcon-axi host list --id \\"two,words\\"`",Run `vectra-axi host list`\n'],
+  ['help[1]: Run `falcon-axi host list`\n', 'help[1]: Run `artium-axi falcon-axi host list`\n'],
   ['help[2]:\r\n  Run `falcon-axi host show --id "two words"`\r\n  Run `vectra-axi host list`\r\n',
     'help[2]:\r\n  Run `artium-axi falcon-axi host show --id "two words"`\r\n  Run `vectra-axi host list`\r\n'],
   ['help[1]:\n  - "Run `falcon-axi host list --filter \\"name\\"`\\nRun `falcon-axi host list`"\n',
@@ -31,6 +36,9 @@ test.each([
 
 test.each([
   'help[2]:\n  Run `falcon-axi host list`\n',
+  'help[2]: Run `falcon-axi host list`\n',
+  'help[1]: "Run `falcon-axi host list`\n',
+  'help[1]: Run `falcon-axi host list`,\n',
   'help[1]:\n  Run `falcon-axi host list`\n  extra\n',
   'rows[2]{id}:\n  1\nhelp: falcon-axi host list\n',
   '{ "help": ["falcon-axi host list"',
