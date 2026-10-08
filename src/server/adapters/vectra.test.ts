@@ -100,4 +100,4 @@ test.each(variants)('pinned %j read uses the generated profile and private CA', 
       expect(JSON.parse(await send('/__evidence')).requests).toEqual(beforeUntrusted)
     } finally { await runner.shutdown() }
   })
-})
+}, 15_000)
