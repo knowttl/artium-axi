@@ -1,4 +1,5 @@
 export const errors = {
+  AUDIT_UNAVAILABLE: { status: 503, message: 'The audit event could not be stored.', next: 'Ask the administrator to check audit storage capacity and availability.' },
   TOKEN_INVALID: { status: 401, message: 'The access token is invalid, expired or revoked.', next: 'Sign in again to obtain a valid access token.' },
   USER_DISABLED: { status: 403, message: 'The user is disabled.', next: 'Ask the administrator to enable the user.' },
   TOOL_DISABLED: { status: 403, message: 'The tool is disabled.', next: 'Ask the administrator to enable the tool.' },

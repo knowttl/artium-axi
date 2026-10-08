@@ -24,12 +24,38 @@ afterEach(() => rmSync(directory, { recursive: true, force: true }))
 
 function seed() {
   const db = openStore(file, provider)
-  db.prepare('INSERT INTO tools (name, pinned_version) VALUES (?, ?)').run('falcon-axi', 'synthetic-version')
+  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('synthetic-version', 'falcon-axi')
   const row = encryptCredential('synthetic-id', 'falcon-axi', plaintext, key)
   db.prepare(`INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag)
     VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag)`).run(row)
   db.close()
 }
+
+it('opens an unconfigured store with every supported tool disabled', () => {
+  const db = openStore(file, provider)
+  try {
+    expect(db.prepare('SELECT name, enabled, pinned_version FROM tools ORDER BY name').all()).toEqual([
+      { name: 'az-axi', enabled: 0, pinned_version: '' },
+      { name: 'falcon-axi', enabled: 0, pinned_version: '' },
+      { name: 'vectra-axi', enabled: 0, pinned_version: '' },
+    ])
+  } finally { db.close() }
+})
+
+it('startup restores missing tools without changing existing tool settings', () => {
+  let db = openStore(file, provider)
+  db.exec(`UPDATE tools SET enabled = 1, pinned_version = 'synthetic-falcon', native_settings = '{"synthetic":true}', revision = 3 WHERE name = 'falcon-axi';
+    UPDATE tools SET pinned_version = 'synthetic-vectra', revision = 2 WHERE name = 'vectra-axi';
+    DELETE FROM tools WHERE name = 'az-axi';`)
+  const configured = db.prepare('SELECT * FROM tools ORDER BY name').all()
+  db.close()
+  db = openStore(file, provider)
+  try {
+    expect(db.prepare("SELECT * FROM tools WHERE name != 'az-axi' ORDER BY name").all()).toEqual(configured)
+    expect(db.prepare("SELECT name, enabled, pinned_version FROM tools WHERE name = 'az-axi'").get())
+      .toEqual({ name: 'az-axi', enabled: 0, pinned_version: '' })
+  } finally { db.close() }
+})
 
 it('reopens a real database and authenticates its persisted credential', () => {
   seed()
