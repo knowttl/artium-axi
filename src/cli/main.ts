@@ -8,12 +8,16 @@ async function main(args: string[]) {
   const command = args[0]
   if (command === 'login' || command === 'passwd') {
     const remaining = args.slice(1)
-    const stdin = remaining.includes('--password-stdin')
-    const usernameIndex = remaining.indexOf('--username')
-    const username = usernameIndex >= 0 ? remaining[usernameIndex + 1] : undefined
-    const valid = command === 'login' && username && !username.startsWith('-') ? ['--username', username] : []
-    if (stdin) valid.push('--password-stdin')
-    if ((command === 'login' && !username) || remaining.length !== valid.length || remaining.some(arg => !valid.includes(arg)) || new Set(remaining).size !== remaining.length) {
+    let stdin = false
+    let username: string | undefined
+    let invalid = false
+    for (let index = 0; index < remaining.length; index++) {
+      const option = remaining[index]
+      if (option === '--username' && command === 'login' && username === undefined) username = remaining[++index]
+      else if (option === '--password-stdin' && !stdin) stdin = true
+      else invalid = true
+    }
+    if (invalid || (command === 'login' && !username)) {
       throw new ArtiumError('INVALID_INPUT', 'Invalid sign-in arguments. Password arguments are refused.',
         command === 'login' ? 'Use artium-axi login --username <username> --password-stdin.' : 'Use artium-axi passwd --password-stdin.')
     }
@@ -29,11 +33,11 @@ async function main(args: string[]) {
       if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
       process.stdout.write('status: authenticated\nnext: artium-axi tools\n')
     } else {
-      const newPassword = await readPassword(stdin)
-      const session = client.sessions.read()
-      if (!session) throw new ArtiumError('TOKEN_INVALID')
-      const currentPassword = session.status === 'authenticated' ? await readPassword(false, 'ARTIUM_AXI_CURRENT_PASSWORD') : undefined
-      await client.changePassword(newPassword, currentPassword)
+      await client.changePassword(async session => {
+        const newPassword = await readPassword(stdin)
+        const currentPassword = session.status === 'authenticated' ? await readPassword(false, 'ARTIUM_AXI_CURRENT_PASSWORD') : undefined
+        return { newPassword, ...(currentPassword === undefined ? {} : { currentPassword }) }
+      })
       process.stdout.write('status: password-changed\nnext: artium-axi login --username <username> --password-stdin\n')
     }
     return

@@ -18,6 +18,10 @@ No live service, real credential, deployment or hosted CI is involved.
   It checks restricted first login, tool denial until password change and new login, ordinary password verification including expired access, current-role identity, stdin precedence, environment login without prompting, exact password spaces/Unicode, password argument refusal, no password in child argv, no token in output, six concurrent process refreshes, logout after expiry, offline logout and changed-URL refusal.
 - `test/cli-refresh.test.ts` checks exact run request counts and argument preservation for a single safe refresh retry, repeated expiry, malformed refresh, connection loss, service errors and completed upstream failures.
   Uncertain calls are never retried.
+  Deterministic concurrent login replacements stop tool, listing, identity and password-change calls without sending requests under the replacement login.
+  Refresh retains the persisted `loginGeneration` and reuses concurrent rotations of that same login.
+  Password-change checks cover ordinary and restricted sessions on both sides of replacement during password input.
+- Bundled login checks accept `-synthetic-user` and usernames equal to option names while still refusing duplicate options.
 - `test/cli.test.ts` preserves the HTTPS trust, redirect refusal, server request IDs, passthrough, truncation and bounded stalled-response checks using securely stored sessions.
 - The walking-skeleton container journey exercises bundled first login, password change and identity before the existing pinned-upstream fake-service comparisons.
 

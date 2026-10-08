@@ -102,6 +102,12 @@ test('stdin takes precedence over the password environment and environment sign-
     .toMatchObject({ code: 0, stderr: '' })
 })
 
+test.each(['-synthetic-user', '--username', '--password-stdin'])('login accepts the username value %s', async username => {
+  db.prepare('UPDATE users SET username = ?').run(username)
+  expect(await cli(['login', '--username', username, '--password-stdin'], startingPassword)).toMatchObject({ code: 0, stderr: '' })
+  expect(await cli(['whoami'])).toMatchObject({ code: 0, stdout: expect.stringContaining(JSON.stringify(username)) })
+})
+
 test('password stdin preserves surrounding spaces and Unicode while removing one line ending', async () => {
   const password = '  CANARY-password-雪  '
   db.exec('UPDATE users SET must_change = 1')
@@ -122,6 +128,8 @@ test.each([
   ['login', '--username', 'synthetic-user', 'CANARY-refused'],
   ['passwd', '--password=CANARY-refused'],
   ['login', '--username', 'synthetic-user', '--unknown'],
+  ['login', '--username', 'synthetic-user', '--username', 'synthetic-user'],
+  ['login', '--username', 'synthetic-user', '--password-stdin', '--password-stdin'],
 ].map(args => ({ args })))('password and unknown arguments are refused without token output: $args', async ({ args }) => {
   const result = await cli(args)
   expect(result).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '' })

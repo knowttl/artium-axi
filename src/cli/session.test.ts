@@ -34,7 +34,7 @@ test('security atomic replacement keeps owner-only modes and no temporary files'
   const originalInode = statSync(store.file).ino
   store.write({ ...session, accessToken: 'CANARY-replacement' })
   expect(statSync(store.file).ino).not.toBe(originalInode)
-  expect(store.read()).toEqual({ ...session, accessToken: 'CANARY-replacement' })
+  expect(store.read()).toMatchObject({ ...session, accessToken: 'CANARY-replacement', loginGeneration: expect.any(String) })
   expect(readdirSync(store.directory)).toEqual(['session.json'])
 })
 
@@ -55,9 +55,9 @@ test('security Windows establishes directory and file ACLs before writing tokens
     if (!isDirectory) expect(readFileSync(path, 'utf8')).toBe('')
   })
   const windows = new SessionStore(url, store.file, 'win32', acl)
-  windows.write(session)
+  const stored = windows.write(session)
   expect(acl.mock.calls.map(call => call[1])).toEqual([true, false])
-  expect(JSON.parse(readFileSync(windows.file, 'utf8'))).toEqual({ serverUrl: url, ...session })
+  expect(JSON.parse(readFileSync(windows.file, 'utf8'))).toEqual({ serverUrl: url, ...stored })
 })
 
 test.each(['directory', 'file'])('security Windows %s ACL failure leaves existing tokens intact', failure => {
