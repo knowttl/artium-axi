@@ -1,4 +1,4 @@
-export const errors = {
+const definitions = {
   CLI_OUTDATED: { status: 426, message: 'The CLI version is too old for this server.', next: 'Download the current CLI from /cli/artium-axi.mjs.' },
   CERTIFICATE_INVALID: { status: 503, message: 'The server certificate could not be verified.', next: 'Check certificate trust or set ARTIUM_AXI_CA_FILE to the trusted CA file.' },
   ADMIN_REQUIRED: { status: 403, message: 'Administrator capability is required.', next: 'Ask an administrator to perform this operation.' },
@@ -11,7 +11,7 @@ export const errors = {
   PASSWORD_INVALID: { status: 400, message: 'The password does not meet the local password rules.', next: 'Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords.' },
   SIGN_IN_FAILED: { status: 401, message: 'The username or password is incorrect.', next: 'Check your username and password.' },
   AUTH_RATE_LIMITED: { status: 429, message: 'The authentication attempt limit was reached.', next: 'Wait 15 minutes before trying again.' },
-  ACCOUNT_LOCKED: { status: 423, message: 'The account is temporarily locked.', next: 'Wait 15 minutes or ask an administrator to unlock the account.' },
+  ACCOUNT_LOCKED: { status: 429, message: 'The account is temporarily locked.', next: 'Wait 15 minutes or ask an administrator to unlock the account.' },
   REAUTH_REQUIRED: { status: 401, message: 'Recent password confirmation is required.', next: 'Confirm your password through /v1/auth/reauth.' },
   CSRF_INVALID: { status: 403, message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.' },
   AUTH_BUSY: { status: 429, message: 'The concurrent password hashing limit was reached.', next: 'Wait for an active authentication request to finish.' },
@@ -55,11 +55,19 @@ export const errors = {
 
 export type ErrorCode = keyof typeof errors
 
+const usageErrors: readonly (keyof typeof definitions)[] = ['INVALID_INPUT', 'UNSUPPORTED_INPUT', 'FLAG_BLOCKED', 'CLIENT_CONFIG_INVALID']
+
+export const errors = Object.fromEntries(Object.entries(definitions).map(([code, definition]) =>
+  [code, { ...definition, source: 'artium-axi', exitCode: usageErrors.includes(code as keyof typeof definitions) ? 2 : 1 }])) as {
+    [Code in keyof typeof definitions]: typeof definitions[Code] & { source: 'artium-axi', exitCode: 1 | 2 }
+  }
+
 export class ArtiumError extends Error {
-  readonly source = 'artium-axi'
+  readonly source: 'artium-axi'
   readonly next: string
   constructor(readonly code: ErrorCode, message: string = errors[code].message, next: string = errors[code].next, readonly requestId?: string) {
     super(message)
+    this.source = errors[code].source
     this.next = next
   }
 }

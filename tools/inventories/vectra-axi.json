@@ -80,6 +80,52 @@
     "help"
   ],
   "format": "TOON",
+  "discovery": {
+    "commands": [
+      "home",
+      "doctor",
+      "detection",
+      "host",
+      "account",
+      "entity",
+      "assignment",
+      "user",
+      "audit",
+      "group",
+      "triage",
+      "health",
+      "api",
+      "lockdown"
+    ],
+    "example": [
+      "detection",
+      "list"
+    ],
+    "help": {
+      "command": "vectra-axi detection list",
+      "description": "List QUX detections with server-side filters and a bounded window",
+      "flags": {
+        "--help": "Show concise help; default false",
+        "--state <state>": "Filter by server-side detection state",
+        "--detection-type <type>": "Filter by server-side detection type",
+        "--detection-category <category>": "Filter by server-side detection category",
+        "--host-id <id>": "Filter by server-side host ID (non-negative integer)",
+        "--tags <tags>": "Filter by server-side tags",
+        "--certainty-gte <score>": "Filter by server-side minimum certainty",
+        "--threat-gte <score>": "Filter by server-side minimum threat",
+        "--ordering <ordering>": "Server-side result ordering",
+        "--min-id <id>": "Server-side minimum detection ID (non-negative integer)",
+        "--max-id <id>": "Server-side maximum detection ID (non-negative integer)",
+        "--limit <rows>": "Row window for this read; default 100",
+        "--fields <list>": "Comma-separated projection over id,detection_type,state,threat,certainty",
+        "--cursor <cursor>": "Resume a capped list with its original filters"
+      },
+      "combinations": [],
+      "examples": [
+        "vectra-axi detection list"
+      ]
+    }
+  },
   "adapterBoundary": {
     "blockedCommands": [
       "setup"

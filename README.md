@@ -8,13 +8,13 @@ The API supports local sign-in, password change, refresh rotation, logout, rate 
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
 Administrators can browse and filter records through the [Audit screen and API](#audit-screen-and-api).
-The bundled CLI supports local login, password change, identity, logout, serialized session refresh and `doctor` diagnostics.
+The bundled CLI supports local login, password change, identity, logout, serialized session refresh, home/tool discovery, consistent help and `doctor` diagnostics.
 Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
 On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
-Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
+Run `pnpm install --frozen-lockfile`, then `pnpm check` for generated error-reference freshness, strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 See [test-speed verification](docs/verification-test-speed.md) for the controlled-clock stalled-request checks and file-parallelism profiling.
 Compilation is reused only for the same head, Node version, source/toolchain input digest and intact compiled-output digest.
@@ -30,7 +30,7 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon, Vectra and internal Azure adapters and encrypted credential store, and `src/cli/` contains the minimal client.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon, Vectra and internal Azure adapters and encrypted credential store, and `src/cli/` contains the bundled client and its discovery views.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
 The pinned container, development server, bundled CLI and Falcon and Vectra adapters are available, while the remaining adapters arrive in later slices.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
@@ -43,6 +43,21 @@ Without `--password-stdin`, login reads `ARTIUM_AXI_PASSWORD`, then uses a hidde
 Password arguments are refused and tokens are never printed.
 Stdin removes one final LF or CRLF, preserving all other spaces and Unicode.
 The client no longer reads `ARTIUM_AXI_DEV_TOKEN_FILE`.
+
+After sign-in, run `node dist/cli/artium-axi.mjs` to see your user, roles, available tools, cached status, pinned versions and next commands.
+Use `node dist/cli/artium-axi.mjs tools` for the counted list, `node dist/cli/artium-axi.mjs tools show falcon-axi` for vetted pinned help and an adapter-compatible example, and `node dist/cli/artium-axi.mjs whoami` for identity, roles, server and access expiry.
+An empty tool list explains that no enabled runtime tool is available through your assigned roles and asks an administrator to check grants and enabled tools.
+Tool details read the bundled manifest and stored server status without retrieving credentials or running upstream help.
+Artium commands support `--help` with usage, purpose, flags and one example, including before sign-in.
+Use `node dist/cli/artium-axi.mjs --help falcon-axi` for Artium's local tool help without signing in or contacting the server.
+Arguments after a tool name belong to upstream, so `node dist/cli/artium-axi.mjs falcon-axi --help` and a bare tool invocation use the authenticated adapter boundary.
+
+The [generated error reference](docs/errors.md) records every catalogue code, source, HTTP status, CLI exit code and next step.
+Artium errors withhold captured output and use TOON on stdout, with exit 2 for usage or client configuration failures and exit 1 for other failures.
+Completed upstream calls preserve stdout, stderr and the upstream exit code, including nonzero exits, with the upstream tool as the HTTP envelope source.
+Truncation diagnostics precede upstream stderr while stdout remains parseable.
+Regenerate the reference with `pnpm errors:generate` after changing [the catalogue](src/shared/errors.ts).
+See [S43 verification](docs/verification-s43.md) for First call, No access, help, error mapping and freshness evidence.
 It stores tokens bound to the normalized server URL in `artium-axi/session.json` under `%APPDATA%` on Windows, `$XDG_CONFIG_HOME` when set on Linux/macOS, or `~/.config` otherwise.
 POSIX directories use mode 0700 and files mode 0600.
 Windows storage uses PowerShell to restrict the ACL to the current user, SYSTEM and local administrators before writing tokens, and fails if the ACL cannot be established.
@@ -68,9 +83,8 @@ A network failure or uncertain command outcome is never retried.
 Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
 Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
-The client preserves argument tokens, upstream stdout, stderr and exit status, with truncation diagnostics on stderr.
-Artium errors withhold captured output and use structured TOON on stdout with exit 2 for usage or client configuration failures and exit 1 for other failures.
-Complete home/help views, suggestion rewriting and download/launcher distribution remain later-slice work.
+The client preserves argument tokens; output and error handling follow the [generated error reference](docs/errors.md) and CLI guidance above.
+Suggestion rewriting and download/launcher distribution remain later-slice work.
 See [S36+S37 verification](docs/verification-s36-37.md) for Linux process and storage evidence and deferred Windows/macOS acceptance.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
@@ -420,7 +434,7 @@ Health status does not change platform permissions or hide permitted commands.
 
 Run `node dist/cli/artium-axi.mjs doctor` to print one pass/fail line for the server address, certificate, token and CLI version.
 When token and version checks pass, it also prints a line for each available tool's cached health; only `ok` passes.
-Any failed check exits 1, while all passing checks exit 0.
+After any failed check, diagnostics end with the first failure's catalogue error envelope and exit code from the [generated error reference](docs/errors.md); all passing checks exit 0.
 Certificate trust is verified through HTTPS, and a local test HTTP connection reports a failed certificate check.
 Doctor does not run platform checks or require administrator access.
 Every CLI request carries `X-Artium-Cli-Version` from `package.json`.
