@@ -20,7 +20,8 @@ URLs with embedded credentials, queries or fragments are rejected.
 The real API integration test runs the bundle against Fastify, SQLite and the runner, including the fake tool's environment-mode canary scan and safe terminal audit.
 
 The walking-skeleton harness builds the actual production Dockerfile and starts its normal server entry point.
-It seeds only an encrypted synthetic Falcon credential and random development token in disposable data volumes.
+It seeds encrypted synthetic credentials and a random development token in disposable data volumes.
+See [S22+S23 verification](verification-s22-23.md) for the added Vectra harness acceptance.
 An internal Docker network resolves the fixed Falcon origin to the fake TLS service, with a synthetic CA bound over the pinned Python certificate bundle.
 Both the CLI and local pinned Falcon binary execute inside that isolated network.
 Detection reads, pagination, empty results and usage-error output match across stdout, stderr and exit codes, apart from recognized timing fields.

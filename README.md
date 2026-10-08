@@ -78,6 +78,9 @@ Caller config/profile overrides and local setup commands are blocked before cred
 Reviewed `--tags-file`, `--ids-file` and `--note-file` inputs accept uploaded names or the upstream stdin marker `-`, rather than server paths.
 The development server stores native Vectra JSONL write logs under `tool-logs/vectra-axi/writes.log` beside its database, normally `/data/tool-logs/vectra-axi/writes.log`.
 These mode 0600 logs survive call cleanup and use the pinned tool's exclusive lock for daily 90-day retention, preserving intent/outcome pairs and their native format.
+Before accepting runs, startup removes abandoned lock and retention files and runs native-log maintenance.
+The [startup recovery contract](src/server/adapters/native-log.ts) requires exclusive server ownership of the journal; the supported Docker restart leaves no prior child writers running.
+Malformed journals remain untouched and emit a safe `AUDIT_UNAVAILABLE` retention diagnostic while the API remains available.
 Native logs complement the requesting user's Artium audit.
 Platform grants, API-version compatibility and other native write families remain unverified captain acceptance.
 
@@ -190,7 +193,7 @@ Exact-value scanning cannot identify unknown tokens minted inside an upstream to
 The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
 Create one `Runner` per server with `await Runner.create()`, before accepting calls.
 It removes abandoned `artium-call-` entries from its private root without following symlinks.
-Call `runner.run(userId, executable, args, environment, secrets, limits, input)` with the authenticated user, adapter-provided environment values and all known injected secrets.
+Call `runner.run(userId, executable, args, environment, secrets, limits, input, files)` with the authenticated user, adapter-provided environment values and all known preparation secrets.
 Admission covers call-directory setup, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
 The later owning server flow must enforce a separate 30-second preparation deadline for the [Falcon adapter](src/server/adapters/falcon.ts).
 Credential tests and future background health reads must use this same runner and an authenticated identity.
@@ -212,7 +215,7 @@ Termination sends SIGTERM to the whole Linux process group, allows 2 seconds, th
 Normal leader exit also terminates surviving group descendants.
 `await runner.shutdown()` stops admission, cancels runs and waits for their cleanup.
 The development server wires HTTP disconnect and shutdown events to these public interfaces, then closes its store.
-`TEMP_UNAVAILABLE` reports failure to create a call directory or its uploaded inputs, including full tmpfs, without exposing filesystem diagnostics.
+`TEMP_UNAVAILABLE` reports failure to create a call directory, adapter-owned files or uploaded inputs, including full tmpfs, without exposing filesystem diagnostics.
 An upstream tmpfs write failure preserves its ordinary nonzero exit status and still removes the call directory.
 Node children receive a 128 MiB heap limit.
 The fixed Python launcher applies a 512 MiB address-space limit before executing Falcon, preserving its shebang interpreter.
@@ -231,6 +234,7 @@ Artium failures use the error envelope without captured output.
 When building the HTTP success envelope, omit the runner's internal `timedOut` field.
 
 Pass optional input as the seventh `runner.run` argument, with `stdin`, `files` and adapter-reviewed `fileArguments` indices.
+Pass adapter-owned profile and CA files as the eighth argument using the [TemporaryFile contract](src/server/adapters/types.ts); the runner creates exclusive mode-0600 files in the call directory and refuses invalid leaf names or collisions.
 The [input transport](src/server/runner/input.ts) validates inputs before creating the call directory, writes uploads into a separate mode-0700 `inputs/` directory as exclusive mode-0600 files, and substitutes only reviewed argument positions whose value exactly matches an uploaded name.
 File arguments containing server paths or missing uploads are refused.
 Adapters must normalize equals-form flags and supply the reviewed file-value positions after parser-aware validation.
