@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { adminRoleSchema, adminRolesResponseSchema, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
+import { adminAuditRoute, adminRoleSchema, adminRolesResponseSchema, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -85,6 +85,96 @@ async function failure(response: Response, code: ErrorCode) {
   expect(response.status).toBe(errors[code].status)
   expect(await response.json()).toMatchObject({ error: { code } })
 }
+
+function auditRequest(query = '', proof = headers, method = 'GET') {
+  const { 'content-type': _contentType, ...withoutContentType } = proof
+  return fetch(`${url}/v1/admin/audit${query ? '?' + query : ''}`, { method, headers: withoutContentType })
+}
+
+function seedAudit() {
+  const audit = new Audit(db, () => Date.parse('2026-01-01T00:00:00Z'))
+  audit.record({ event: 'admin-change', userId: administrator, tool: null, outcome: 'success',
+    requestId: 'first', clientAddress: null, action: 'create-user', targetId: 'synthetic-new' })
+  audit.record({ event: 'credential-test', userId: 'synthetic-ordinary', tool: 'falcon-axi', outcome: 'failure',
+    requestId: 'second', clientAddress: null, checkedAt: null, credentialRevision: 1, errorCode: 'CREDENTIAL_UNAVAILABLE' })
+  new Audit(db, () => Date.parse('2026-01-02T00:00:00Z')).record({ event: 'denial', userId: administrator,
+    tool: 'vectra-axi', outcome: 'TOOL_NOT_GRANTED', requestId: 'third', clientAddress: null })
+}
+
+test('audit pages stay newest first with time ties and exclude newer and backdated inserts', async () => {
+  seedAudit()
+  const first = adminAuditRoute.response.parse(await (await auditRequest('limit=1')).json())
+  expect(first.records.map(record => record.request_id)).toEqual(['third'])
+  expect(first.nextCursor).not.toBeNull()
+  new Audit(db).record({ event: 'sign-in', userId: administrator, tool: null, outcome: 'success', requestId: 'new', clientAddress: null })
+  new Audit(db, () => 0).record({ event: 'sign-in', userId: administrator, tool: null, outcome: 'success', requestId: 'backdated', clientAddress: null })
+  const second = adminAuditRoute.response.parse(await (await auditRequest('limit=1&cursor=' + first.nextCursor)).json())
+  expect(second.records.map(record => record.request_id)).toEqual(['second'])
+  const third = adminAuditRoute.response.parse(await (await auditRequest('limit=1&cursor=' + second.nextCursor)).json())
+  expect(third.records.map(record => record.request_id)).toEqual(['first'])
+  expect(third.nextCursor).toBeNull()
+  const fresh = adminAuditRoute.response.parse(await (await auditRequest()).json())
+  expect(fresh.records.map(record => record.request_id)).toEqual(['new', 'third', 'second', 'first', 'backdated'])
+})
+
+test.each([
+  { query: 'user=synthetic-development-user', requests: ['third', 'first'] },
+  { query: 'tool=falcon-axi', requests: ['second'] },
+  { query: 'outcome=TOOL_NOT_GRANTED', requests: ['third'] },
+  { query: 'from=2026-01-02T00:00:00Z', requests: ['third'] },
+  { query: 'to=2026-01-01T00:00:00Z', requests: ['second', 'first'] },
+  { query: 'from=2026-01-01T00:00:00Z&to=2026-01-01T00:00:00Z', requests: ['second', 'first'] },
+  { query: 'user=synthetic-ordinary&tool=falcon-axi&outcome=failure&from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z', requests: ['second'] },
+  { query: 'user=missing', requests: [] },
+  { query: 'user=synthetic-development-user&tool=falcon-axi', requests: [] },
+])('audit filters $query return matching records without changing them', async ({ query, requests }) => {
+  seedAudit()
+  const before = db.prepare('SELECT * FROM audit ORDER BY id').all()
+  const response = await auditRequest(query)
+  expect(response.status).toBe(200)
+  const page = adminAuditRoute.response.parse(await response.json())
+  expect(page.records.map(record => record.request_id)).toEqual(requests)
+  expect(page.nextCursor).toBeNull()
+  expect(db.prepare('SELECT * FROM audit ORDER BY id').all()).toEqual(before)
+})
+
+test('audit query caps default and maximum pages', async () => {
+  const audit = new Audit(db, () => 0)
+  for (let id = 0; id < 101; id++) audit.record({ event: 'sign-in', userId: administrator, tool: null,
+    outcome: 'success', requestId: String(id), clientAddress: null })
+  expect(adminAuditRoute.response.parse(await (await auditRequest()).json()).records).toHaveLength(50)
+  const first = adminAuditRoute.response.parse(await (await auditRequest('limit=100')).json())
+  expect(first.records).toHaveLength(100)
+  const last = adminAuditRoute.response.parse(await (await auditRequest('limit=100&cursor=' + first.nextCursor)).json())
+  expect(last.records.map(record => record.request_id)).toEqual(['0'])
+  expect(last.nextCursor).toBeNull()
+})
+
+test.each(['limit=0', 'limit=101', 'limit=1.5', 'cursor=x', 'cursor=1:0:2', 'cursor=0:0:0',
+  'cursor=9007199254740992:0:1', 'cursor=1:8640000000000001:1', 'cursor=' + '1'.repeat(200),
+  'tool=unknown', 'from=invalid', 'to=2026-01-01T00:00:00', 'from=2026-01-02T00:00:00Z&to=2026-01-01T00:00:00Z'])
+('audit rejects malformed or unbounded query %s', async query => {
+  await failure(await auditRequest(query), 'INVALID_INPUT')
+})
+
+test('audit query rejects non-admins even with all tool grants and audits the denial', async () => {
+  const ordinary = await adminHeaders('synthetic-ordinary')
+  await failure(await auditRequest('', ordinary), 'ADMIN_REQUIRED')
+  expect(db.prepare("SELECT outcome, user_id FROM audit WHERE event = 'denial'").get())
+    .toEqual({ outcome: 'ADMIN_REQUIRED', user_id: 'synthetic-ordinary' })
+})
+
+test('bearer audit query requires a session-bound recent password ticket', async () => {
+  const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+  await failure(await auditRequest('', missing), 'REAUTH_REQUIRED')
+})
+
+test.each(['POST', 'PATCH', 'DELETE'])('audit has no %s mutation route', async method => {
+  seedAudit()
+  const before = db.prepare('SELECT * FROM audit').all()
+  expect((await auditRequest('', headers, method)).status).toBe(404)
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual(before)
+})
 
 const routes = [
   { method: 'GET', path: '', body: undefined },

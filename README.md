@@ -7,6 +7,10 @@ Status: under construction.
 The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
+The Audit screen and `GET /v1/admin/audit` list records newest first with user ID, tool, outcome and inclusive UTC `from`/`to` filters.
+Pages default to 50 records and cap at 100; continuation cursors exclude later inserts, including backdated records, and preserve timestamp/ID ordering.
+Audit reads never change records; browser pagination retains filters, and applying filters starts a fresh page.
+See [S41 verification](docs/verification-s41.md) for API and browser evidence.
 The bundled CLI supports local login, password change, identity, logout and serialized session refresh.
 Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 

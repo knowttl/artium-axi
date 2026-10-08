@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
-import { adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema } from '../../shared/api.js'
+import { adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from '../auth/attempts.js'
@@ -52,6 +52,11 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   }
 
   registerToolAdmin(app, db, audit, authorize, tools)
+
+  app.route({ method: adminAuditRoute.method, url: adminAuditRoute.path, handler: async request => {
+    authorize(request)
+    return adminAuditRoute.response.parse(audit.query(parse(adminAuditRoute.input, request.query)))
+  } })
 
   function change<T>(request: FastifyRequest, action: string, id: string, read: (id: string) => T, mutation: (actor: string, now: number) => void): T {
     const actor = authorize(request)

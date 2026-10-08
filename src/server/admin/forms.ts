@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 import { escape } from './escape.js'
 
 export function adminNav(current: string): string {
-  return `<nav aria-label="Administration">${[['/admin', 'Users'], ['/admin/tools', 'Tools'], ['/admin/credentials', 'Credentials'], ['/admin/roles', 'Roles']].map(([path, label]) =>
+  return `<nav aria-label="Administration">${[['/admin', 'Users'], ['/admin/tools', 'Tools'], ['/admin/credentials', 'Credentials'], ['/admin/roles', 'Roles'], ['/admin/audit', 'Audit']].map(([path, label]) =>
     `<a href="${path}"${label === current ? ' aria-current="page"' : ''}>${label}</a>`).join('')}<a href="/password">Change password</a><a href="/reauth">Confirm password</a></nav>`
 }
 
