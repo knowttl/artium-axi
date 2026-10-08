@@ -9,8 +9,9 @@ import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider } from './auth/local.js'
-import { issueLoginTokens, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
-import { loginSchema, refreshSchema } from '../shared/api.js'
+import { issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
+import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
+import { AuthAttempts } from './auth/attempts.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -26,6 +27,7 @@ export function createApp(options: {
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
   const authenticate = verifyAccessToken
   const localAuth = new LocalAuthProvider(db)
+  const authAttempts = new AuthAttempts(db, audit)
   audit.recoverInterrupted()
   const app = Fastify({ bodyLimit: inputLimits.requestBytes, logger: false,
     genReqId: () => randomUUID(), requestIdHeader: false,
@@ -67,7 +69,8 @@ export function createApp(options: {
     const input = loginSchema.safeParse(request.body)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
     let identity: Awaited<ReturnType<LocalAuthProvider['signIn']>>
-    try { identity = await localAuth.signIn(input.data.username, input.data.password) }
+    try { identity = await authAttempts.signIn(input.data.username, input.data.password,
+      { requestId: request.id, clientAddress: request.ip }) }
     catch (error) {
       if (error instanceof ArtiumError && error.code === 'SIGN_IN_FAILED') {
         audit.record({ event: 'sign-in', userId: null, tool: null, outcome: 'SIGN_IN_FAILED',
@@ -77,6 +80,15 @@ export function createApp(options: {
     }
     return audit.change({ event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success',
       requestId: request.id, clientAddress: request.ip }, () => issueLoginTokens(db, identity.userId)).value
+  })
+  app.post('/v1/auth/reauth', async request => {
+    const token = bearer(request.headers.authorization)
+    const userId = authenticate(db, token)
+    const input = reauthSchema.safeParse(request.body)
+    if (!input.success) throw new ArtiumError('INVALID_INPUT')
+    const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as { username: string }
+    await authAttempts.signIn(user.username, input.data.password, { requestId: request.id, clientAddress: request.ip })
+    return issueRecentAuthTicket(db, token)
   })
   app.post('/v1/auth/refresh', async request => {
     const input = refreshSchema.safeParse(request.body)
