@@ -3,7 +3,6 @@
 The [shared API](../src/shared/api.ts) owns methods, paths, strict inputs, public responses, authorization and audit actions for roles, tool grants and user-role assignments.
 The [admin implementation](../src/server/admin/api.ts) reuses S33 authorization, transactional revisions and audit error handling.
 Migration 009 adds role change time and actor metadata while preserving existing assignments and grants.
-AGENTS.md's toolchain and README pointers remain accurate and require no correction.
 
 Run `pnpm exec vitest run test/integration/admin-users.test.ts test/integration/api.test.ts src/server/store/authentication-schema.test.ts` for local acceptance.
 The HTTP checks use real local login tokens and password reauthentication with synthetic accounts.
@@ -15,7 +14,7 @@ Failed audit insertion rolls back each mutation, grants, assignments, revisions 
 The Role change flow removes assignments or tool grants through the API, denies the next tool call with the existing token before credential retrieval, and records both the change and denial.
 Restoring the assignment or grant allows the following call with that same token.
 
-Before delivery, run frozen install, lint, test, aggregate checks, Compose validation, fake-service and runner container checks and the real private hygiene scan against the final implementation commit.
+See [README.md](../README.md) for local validation commands, mandatory fake-only container checks and private hygiene requirements.
 The PR body records command results, published head, hygiene-list digest and pipeline timings.
 Any pipeline source or test fix requires renewed final-head validation.
 All service checks use fakes and canary credentials.
@@ -28,8 +27,3 @@ Local validation passed on implementation commit `bcafe8ee5159e423b72fe9bd05ac5b
 The fake-service probe preserved the existing Azure activation deferral for the pinned tool's ambiguous retry behaviour.
 The runner container verified cgroup limits, byte/inode exhaustion, cleanup, successful following calls and synthetic OOM reaping.
 The private hygiene scan passed with zero matches and list SHA-256 `bddd1b07500f81245fc34634459368648db992b7127d66ff94330849eda45ad2`.
-
-For pipeline validation, use local checks only and skip hosted CI.
-After any source or test fix, rerun `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`, `pnpm check`, Compose validation, `pnpm test:fake-services`, `pnpm test:runner-container` and the real private hygiene check before publication.
-Set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to the private list provided by the dispatcher, without printing its contents.
-Quote the final command results and exact head in the PR body.
