@@ -1,6 +1,16 @@
 import { closeSync, fsyncSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
+export function initializeNativeWriteLog(path: string, now = Date.now()): void {
+  for (const suffix of ['.lock', '.retention']) {
+    try { unlinkSync(`${path}${suffix}`) }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+  }
+  retainNativeWriteLog(path, now)
+}
+
 // Use the pinned tool's exclusive lock and JSONL format, keeping each intent and outcome together.
 export function retainNativeWriteLog(path: string, now = Date.now()): void {
   let lock: number
