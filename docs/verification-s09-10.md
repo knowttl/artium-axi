@@ -28,7 +28,7 @@ This proves why the heap limit must not be described as a total resident-memory 
 Python refuses a 600 MiB allocation under its 512 MiB address-space bound.
 
 Run `docker compose -f compose.example.yaml config --quiet` to validate the final container configuration.
-Run `pnpm test:runner-container` for actual Linux cgroup and tmpfs behaviour, using the slice-owned image and an isolated private BuildKit cache.
+Run `pnpm test:runner-container` for actual Linux cgroup and tmpfs behaviour; [README.md](../README.md) owns image and cache lifecycle for standalone and combined checks.
 It checks UID 10001, a 6 GiB memory bound, a 192-task bound and 256 MiB tmpfs.
 An upstream write filling tmpfs returns ENOSPC and its ordinary nonzero status, then its directory is removed.
 A byte-full tmpfs still permits a call that needs only an empty directory and pipes.
@@ -36,7 +36,6 @@ The test also imposes a synthetic 1024-inode tmpfs bound and fills it, making di
 The failed setup releases its slot and allows the next call after inodes are freed.
 Resident-memory enforcement is exercised at a tighter synthetic 256 MiB cgroup bound with a 512 MiB fake allocation, asserting an OOM kill and leader reaping.
 It does not allocate 6 GiB to force the final configured bound.
-The harness removes its named containers, image and private builder/cache, and never stops or prunes unrelated resources.
 
 Before delivery, run `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`, `pnpm check`, the container check and the private hygiene scan against the committed candidate.
 Record the exact commit, command results and private list SHA-256 in delivery evidence and the PR body.
