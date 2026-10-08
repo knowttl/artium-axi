@@ -6,6 +6,7 @@ import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
 import { escape } from './escape.js'
+import { adminNav } from './forms.js'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
   app.get('/admin/assets/confirm.js', async (_request, reply) => reply.type('application/javascript').send(adminScript))
@@ -35,7 +36,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const form = (action: string, method: string, label: string, fields: string, confirmation = '') =>
       `<form data-api data-method="${escape(method)}" data-confirm="${escape(confirmation)}" action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">${fields}<button>${escape(label)}</button></form>`
     const temporaryPassword = '<label>Temporary password <input type="password" name="temporaryPassword" autocomplete="new-password" required></label>'
-    const content = `<nav aria-label="Administration"><a href="/admin" aria-current="page">Users</a><a href="/password">Change password</a><a href="/reauth">Confirm password</a></nav>
+    const content = `${adminNav('Users')}
       <p>Signed in as ${escape(current.display_name)}.</p><p id="message" role="alert" tabindex="-1"></p>
       <section><h2>Create user</h2>${form('/v1/admin/users', 'POST', 'Create user',
         '<label>Username <input name="username" autocomplete="off" required></label><label>Display name <input name="displayName" required></label>' +

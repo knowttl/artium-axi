@@ -6,6 +6,7 @@ a { color: #245781; } h1 { font-size: 32px; } h2 { font-size: 23px; margin-top: 
 section { background: white; padding: 24px; margin: 24px 0; border-left: 4px solid #31577a; }
 form { margin: 16px 0; } label { display: block; margin: 10px 0; }
 input:not([type=checkbox]) { display: block; max-width: 100%; width: 320px; box-sizing: border-box; padding: 8px; }
+textarea { display: block; width: 100%; box-sizing: border-box; padding: 8px; font: 14px/1.5 monospace; }
 fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
 button { padding: 8px 16px; background: #31577a; color: white; border: 0; cursor: pointer; font: inherit; }
 :focus-visible { outline: 3px solid #ab6500; outline-offset: 3px; }
@@ -27,15 +28,34 @@ document.addEventListener('submit', async event => {
   message.textContent = '';
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
-  for (const input of form.querySelectorAll('[data-type]')) {
-    if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
-    if (input.dataset.type === 'number') body[input.name] = Number(input.value);
-  }
-  if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
   try {
+    for (const input of form.querySelectorAll('[data-type]')) {
+      if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
+      if (input.dataset.type === 'number') body[input.name] = Number(input.value);
+      if (input.dataset.type === 'array') body[input.name] = fields.getAll(input.name);
+      if (input.dataset.type === 'json') {
+        try { body[input.name] = JSON.parse(input.value); }
+        catch { message.textContent = 'Enter valid JSON in ' + input.name + '.'; message.focus(); return; }
+      }
+    }
+    if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
     const response = await fetch(form.action, { method: form.dataset.method || 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (response.redirected) { location.assign(response.url); return; }
+    if (form.dataset.testTool) {
+      const result = form.closest('section').querySelector('[data-test-result]');
+      const refreshed = await fetch('/v1/admin/tools');
+      if (refreshed.redirected) { location.assign(refreshed.url); return; }
+      if (refreshed.ok) {
+        const data = await refreshed.json();
+        const tool = data.tools.find(tool => tool.name === form.dataset.testTool);
+        document.getElementById('status-' + tool.name).textContent = tool.health.status;
+        form.closest('section').querySelector('[data-check-time]').textContent = tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toISOString();
+        form.closest('section').querySelector('[data-check-error]').textContent = tool.health.errorCode || '';
+      }
+      result.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+      if (response.ok) return;
+    }
     if (!response.ok) {
       const result = await response.json();
       message.textContent = result.error.message + ' ' + result.error.next;

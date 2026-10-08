@@ -459,7 +459,7 @@ Health records carry check time, credential revision and a safe error code, and 
 Tool administration follows the same authorization rules as user administration.
 Tool edits and credential replacements return public metadata and commit with their audit event.
 See [S35 verification](docs/verification-s35.md) for the fake-only route, quota and cache evidence.
-Audit queries and the Tools, Credentials and Roles screens remain later slices.
+Audit queries remain later-slice work.
 
 Open `/login` through the HTTPS reverse proxy to sign in from a browser.
 Temporary passwords open `/password` and cannot access administration until changed, after which a new login is required.
@@ -481,6 +481,20 @@ Enable/disable and role replacement carry the displayed revision, and each accou
 Enable, disable, unlock, reset and assignment actions ask for confirmation.
 Stale edits and validation failures show the API message and next step without clearing the form.
 See [S39 verification](docs/verification-s39.md) for HTML escaping, pagination and real browser evidence.
+
+Use the administration navigation to open Tools at `/admin/tools`, Credentials at `/admin/credentials` and Roles at `/admin/roles`.
+Tools shows each pinned version, enabled state, cached status, last check and last change actor/time.
+Enable or disable Falcon and Vectra, or edit their native settings as a JSON object using the field guidance beside the editor.
+Settings replace the entire object, and `{}` clears it.
+Malformed JSON stays in the editor with an error, and the existing API validates the tool-specific native policy before saving.
+Azure settings remain editable while runtime enable and Test remain unavailable.
+Credentials accepts a complete replacement JSON object, including any native settings to retain.
+Its editor always starts blank and never renders stored credential values.
+The Test credential button runs the API's fixed harmless read within the existing manual-test quota, shows pass or fail and refreshes the cached status, check time and safe error code.
+Roles creates and renames roles and replaces their tool grants from the fixed registry, including clearing all grants.
+Use Users to assign or remove roles, with changes applying to the next call using existing tokens.
+All three screens show change actor, UTC time and revision, and reuse the existing confirmations, CSRF, recent-authentication challenge and stale-edit handling.
+See [S40 verification](docs/verification-s40.md) for secret-free rendered pages, native settings and the real browser role-removal flow.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

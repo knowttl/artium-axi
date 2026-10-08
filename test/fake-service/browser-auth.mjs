@@ -3,24 +3,45 @@ import { request as httpRequest } from 'node:http'
 import { createHash, X509Certificate } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { createApp } from '../../dist/src/server/app.js'
 import { Audit } from '../../dist/src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../dist/src/server/policy/identity-resolver.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
-import { openStore } from '../../dist/src/server/store/db.js'
+import { createCredentialStore, openStore } from '../../dist/src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../dist/src/server/store/key-provider.js'
 import { seedToolUser } from '../../dist/test/fixtures/tokens.js'
-import { FakeCredentialStore } from '../../dist/test/fixtures/credential-store.js'
+import { EmbeddedSecretSource } from '../../dist/src/server/store/secret-source.js'
+import { createFalconAdapter } from '../../dist/src/server/adapters/falcon.js'
+import { createVectraAdapter } from '../../dist/src/server/adapters/vectra.js'
 import { createTestCertificates } from './certificates.mjs'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
 createTestCertificates(directory, ['localhost'])
-const db = openStore(join(directory, 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+const db = openStore(join(directory, 'artium.db'), key)
 await seedToolUser(db)
 db.exec('UPDATE users SET administrator = 1, must_change = 1')
-const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters: [],
-  resolver: new SharedIdentityResolver(new FakeCredentialStore([])), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
+db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change)
+  SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
+  INSERT INTO user_roles VALUES ('synthetic-ordinary', 'synthetic-role')`)
+const store = createCredentialStore(db, key)
+const source = new EmbeddedSecretSource(store)
+const adapters = [createFalconAdapter(source), createVectraAdapter(source, join(directory, 'writes.log'))]
+// Use the real preparation and secret scan, replacing only the executable boundary.
+for (const adapter of adapters) {
+  const prepare = adapter.prepare.bind(adapter)
+  adapter.prepare = async (...args) => {
+    const prepared = await prepare(...args)
+    const invalid = prepared.secrets.includes('CANARY-invalid')
+    return { ...prepared, executable: process.execPath,
+      args: [fileURLToPath(new URL('../fake-tool/fake-axi.mjs', import.meta.url)), 'exit', invalid ? '1' : '0'],
+      limits: { timeoutMs: 5000 } }
+  }
+}
+const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters,
+  credentialStore: store, resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
 Date.now = () => realNow() + offset

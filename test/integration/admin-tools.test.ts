@@ -100,6 +100,33 @@ afterEach(async () => {
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
 })
+
+test('rendered Tools and Credentials pages never contain stored secret values', async () => {
+  for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
+    expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0 })).status).toBe(200)
+  }
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+  for (const path of ['/admin', '/admin/tools', '/admin/credentials', '/admin/roles']) {
+    const page = await app.inject({ method: 'GET', url: path, headers: { cookie } })
+    expect(page.statusCode).toBe(200)
+    expect(page.headers['cache-control']).toBe('no-store')
+    expect(page.body).not.toContain(values['falcon-axi'].clientId)
+    expect(page.body).not.toContain(values['falcon-axi'].clientSecret)
+    expect(page.body).not.toContain(values['vectra-axi'].token)
+    expect(page.body).not.toContain(values['az-axi'].clientSecret)
+    if (path === '/admin/credentials') {
+      expect(page.body).toContain('name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea>')
+      expect(page.body).toContain('Last changed by synthetic-user')
+    }
+    if (path === '/admin/tools') expect(page.body).toContain('&quot;operations&quot;')
+  }
+})
 async function replace(tool: ToolName, value: unknown = values[tool], expectedRevision = 0) {
   const response = await request('PUT', `/${tool}/credential`, { value, expectedRevision })
   expect(response.status).toBe(200)
