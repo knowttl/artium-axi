@@ -130,7 +130,10 @@ The [EmbeddedSecretSource](src/server/store/secret-source.ts) retrieves that ref
 Selection does not grant access to a tool, so the owning server flow must authorize before resolution and retrieval.
 [S14 verification](docs/verification-s14.md) covers fake-store unit tests and encrypted-store Falcon preparation after reopen, with the T1.5 tests unchanged.
 Server startup opens and validates this store before listening.
-Offline rotation arrives in a later slice.
+Offline rotation is available through `artium-axi-server rotate-key --new-key-file <path>` after building.
+The server and maintenance command share a process-held lock on the data volume, so a running server prevents rotation.
+Re-encryption, the key-ID receipt and the maintenance audit event commit together.
+See [the rotation runbook](docs/runbook.md) for backup, one-shot container invocation, key switch and crash recovery, and [S27 verification](docs/verification-s27.md) for local evidence.
 
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.

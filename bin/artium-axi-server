@@ -1,0 +1,2 @@
+#!/usr/bin/env node
+await import('../dist/src/server/maintenance.js')
