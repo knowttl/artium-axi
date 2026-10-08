@@ -3,9 +3,12 @@ import { homedir } from 'node:os'
 import { dirname, join, win32 } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
 import { loginResponseSchema } from '../shared/api.js'
 import type { LoginResponse } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
+
+export type StoredSession = LoginResponse & { loginGeneration: string }
 
 export function sessionPath(platform = process.platform, environment = process.env, home = homedir()) {
   const paths = platform === 'win32' ? win32 : { join }
@@ -42,33 +45,35 @@ export class SessionStore {
     } catch { throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE') }
   }
 
-  read(): LoginResponse | undefined {
+  read(): StoredSession | undefined {
     try {
       if (!existsSync(this.file)) return undefined
       if (this.platform === 'win32') this.acl(this.file, false)
       const stat = statSync(this.file)
       if (!stat.isFile() || (this.platform !== 'win32' && ((stat.mode & 0o777) !== 0o600 || (statSync(this.directory).mode & 0o777) !== 0o700))) throw new Error()
-      const { serverUrl, ...tokens } = JSON.parse(readFileSync(this.file, 'utf8'))
+      const { serverUrl, loginGeneration, ...tokens } = JSON.parse(readFileSync(this.file, 'utf8'))
       if (serverUrl !== this.serverUrl) throw new ArtiumError('SESSION_SERVER_MISMATCH')
-      return loginResponseSchema.parse(tokens)
+      return { ...loginResponseSchema.parse(tokens), loginGeneration: z.uuid().parse(loginGeneration) }
     } catch (error) {
       if (error instanceof ArtiumError) throw error
       throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE')
     }
   }
 
-  write(session: LoginResponse) {
+  write(session: LoginResponse, loginGeneration: string = randomUUID()): StoredSession {
     this.secureDirectory()
     const temporary = join(this.directory, `${randomUUID()}.tmp`)
     try {
+      const stored = { ...loginResponseSchema.parse(session), loginGeneration: z.uuid().parse(loginGeneration) }
       const file = openSync(temporary, 'wx', 0o600)
       try {
         if (this.platform === 'win32') this.acl(temporary, false)
         else fchmodSync(file, 0o600)
-        writeFileSync(file, JSON.stringify({ serverUrl: this.serverUrl, ...loginResponseSchema.parse(session) }))
+        writeFileSync(file, JSON.stringify({ serverUrl: this.serverUrl, ...stored }))
         fsyncSync(file)
       } finally { closeSync(file) }
       renameSync(temporary, this.file)
+      return stored
     } catch { throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE') }
     finally { rmSync(temporary, { force: true }) }
   }

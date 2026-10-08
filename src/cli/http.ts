@@ -3,9 +3,9 @@ import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { rootCertificates } from 'node:tls'
 import { errorResponseSchema, loginResponseSchema } from '../shared/api.js'
-import type { LoginResponse } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { SessionStore, sessionPath } from './session.js'
+import type { StoredSession } from './session.js'
 
 export class Client {
   readonly serverUrl: string
@@ -72,21 +72,27 @@ export class Client {
   }
 
   // The caller holds the session lock, including the reload after acquisition.
-  private async refresh(previous: Extract<LoginResponse, { status: 'authenticated' }>) {
-    const current = this.sessions.read()
-    if (!current || current.status !== 'authenticated') throw new ArtiumError('TOKEN_INVALID')
+  private async refresh(previous: Extract<StoredSession, { status: 'authenticated' }>) {
+    const current = this.reload(previous)
+    if (current.status !== 'authenticated') throw new ArtiumError('TOKEN_INVALID')
     if (current.accessToken !== previous.accessToken) return current
     const result = loginResponseSchema.safeParse(await this.request('/v1/auth/refresh', 'POST', { refreshToken: current.refreshToken }))
     if (!result.success || result.data.status !== 'authenticated') throw new ArtiumError('INVALID_RESPONSE')
-    this.sessions.write(result.data)
-    return result.data
+    return this.sessions.write(result.data, previous.loginGeneration)
   }
 
-  async changePassword(newPassword: string, currentPassword?: string) {
+  private reload(previous: StoredSession) {
+    const current = this.sessions.read()
+    if (!current || current.loginGeneration !== previous.loginGeneration) throw new ArtiumError('SESSION_CHANGED')
+    return current
+  }
+
+  async changePassword(readPasswords: (session: StoredSession) => Promise<{ newPassword: string, currentPassword?: string }>) {
+    const previous = this.sessions.read()
+    if (!previous) throw new ArtiumError('TOKEN_INVALID')
+    const input = await readPasswords(previous)
     await this.sessions.locked(async () => {
-      const session = this.sessions.read()
-      if (!session) throw new ArtiumError('TOKEN_INVALID')
-      const input = { newPassword, ...(currentPassword === undefined ? {} : { currentPassword }) }
+      const session = this.reload(previous)
       const token = session.status === 'authenticated' ? session.accessToken : session.passwordChangeToken
       try { await this.request('/v1/auth/password', 'POST', input, token) }
       catch (error) {

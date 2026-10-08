@@ -34,6 +34,9 @@ It stores tokens bound to the normalized server URL in `artium-axi/session.json`
 POSIX directories use mode 0700 and files mode 0600.
 Windows storage uses PowerShell to restrict the ACL to the current user, SYSTEM and local administrators before writing tokens, and fails if the ACL cannot be established.
 File replacement is atomic.
+Each stored session includes a UUID `loginGeneration`, replaced on every login and preserved during refresh.
+Files from earlier builds without this field require a new login.
+Tool requests and password changes stop with `SESSION_CHANGED` if a concurrent login or logout replaces their originating session.
 Local CLI processes serialize refreshes through `session.lock`, reload the session after acquiring it and reuse a rotation completed by another process.
 If a process dies holding the lock, the next command reports `SESSION_BUSY` after 100 seconds.
 Remove that directory only after all CLI processes have exited.

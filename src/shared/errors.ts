@@ -19,6 +19,7 @@ export const errors = {
   SESSION_STORAGE_UNAVAILABLE: { status: 500, message: 'Secure CLI session storage is unavailable.', next: 'Check your configuration folder permissions and capacity, then sign in again.' },
   SESSION_SERVER_MISMATCH: { status: 400, message: 'The stored session belongs to a different server.', next: 'Restore ARTIUM_AXI_URL or use artium-axi logout before signing in to the new server.' },
   SESSION_BUSY: { status: 503, message: 'Another CLI process holds the session lock.', next: 'Wait for the other CLI process. If all CLI processes exited, remove the session.lock directory in your artium-axi configuration folder.' },
+  SESSION_CHANGED: { status: 409, message: 'The signed-in user changed during this operation.', next: 'Check the signed-in identity before starting a new operation.' },
   PASSWORD_CHANGE_REQUIRED: { status: 409, message: 'Change your temporary password before using tools.', next: 'Run artium-axi passwd --password-stdin.' },
   SERVER_UNAVAILABLE: { status: 503, message: 'The CLI could not receive a server response.', next: 'Check the server address and certificate trust; confirm the previous call outcome before retrying.' },
   INVALID_RESPONSE: { status: 500, message: 'The server returned an invalid response.', next: 'Check the server URL and API version.' },
