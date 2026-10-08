@@ -4,7 +4,7 @@ artium-axi is one container that fronts several agent-ergonomic command-line too
 It adds role-based access to those tools and a command-line client that follows the AXI design principles.
 
 Status: under construction.
-The development API and minimal bundled CLI are runnable locally, while production authentication arrives in later slices.
+The API supports local sign-in and password change, while refresh rotation, logout, rate limits and CLI sign-in commands arrive in later slices.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -21,7 +21,9 @@ See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline command
 All application validation will use fakes and synthetic data, with live acceptance deferred.
 
 `pnpm build` produces the standalone `dist/cli/artium-axi.mjs`, requiring Node 22.12 or later and no sibling files or `node_modules`.
-Set `ARTIUM_AXI_URL` to the server's HTTPS base URL and `ARTIUM_AXI_DEV_TOKEN_FILE` to an owner-only file containing your synthetic development token.
+Set `ARTIUM_AXI_URL` to the server's HTTPS base URL.
+Until CLI sign-in and session storage land, the minimal client reads an ordinary access token obtained through local sign-in from an owner-only file named by the legacy client setting `ARTIUM_AXI_DEV_TOKEN_FILE`.
+This setting is client-only and is rejected by the server.
 The URL cannot contain credentials, a query or a fragment.
 The client uses Node's certificate trust, optionally extended with `ARTIUM_AXI_CA_FILE`; certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 Authenticated redirects are refused and requests are never retried automatically.
@@ -137,12 +139,20 @@ See [S27 verification](docs/verification-s27.md) for local evidence.
 
 Local accounts use Argon2id and reject exact matches in the [versioned common-password list](src/server/auth/common-passwords.v1.json).
 Passwords allow spaces and Unicode, with 15 to 128 code points and at most 512 UTF-8 bytes, preserved without trimming.
-`POST /v1/auth/password` takes a normal access token in `Authorization: Bearer <token>` and a JSON body `{ "newPassword": string, "currentPassword": string }` with `Content-Type: application/json`.
+`POST /v1/auth/login` accepts strict JSON `{ "username": string, "password": string }`.
+Ordinary success returns HTTP 200 with `status: authenticated`, distinct 32-byte random `accessToken` and `refreshToken`, and Unix millisecond `accessExpiresAt` and `familyExpiresAt` timestamps.
+Access lasts one hour and the family ends 12 hours after login.
+Only SHA-256 token hashes and metadata are stored.
+A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
+The restricted token is accepted only by `POST /v1/auth/password` and cannot list tools, run tools or authenticate administration.
+`POST /v1/auth/password` takes the restricted token or a normal access token in `Authorization: Bearer <token>` and strict JSON `{ "newPassword": string, "currentPassword"?: string }` with `Content-Type: application/json`.
 It changes only the authenticated user's password, clears the must-change flag, returns 204 and revokes existing CLI tokens and browser sessions atomically with its audit record.
-The current password is required; static development tokens cannot use this route.
-The [server configuration](src/server/config.ts) owns hashing costs and concurrency defaults.
-Sign-in issuance and restricted first-login tokens arrive in S30.
-See [S28 verification](docs/verification-s28.md) for local evidence checks.
+The current password is required for a normal access token.
+Restricted password change is single-use and requires a new login after success.
+Sign-in success and failure are audited, and token issuance rolls back if its audit record fails.
+The [server configuration](src/server/config.ts) owns hashing costs, concurrency and token lifetime defaults.
+See [S28 verification](docs/verification-s28.md) and [S30 verification](docs/verification-s30.md) for local evidence checks.
+Refresh rotation and logout remain pending.
 
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
 `users.username` stores the canonical lookup name with a unique constraint; `display_name` retains the entered name separately.
@@ -315,7 +325,8 @@ Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.
 See [verification-s05-06.md](docs/verification-s05-06.md) for packaging verification and deferred Falcon live checks.
 
-After `pnpm build`, run `pnpm start` with `ARTIUM_AXI_DEV=1`, `ARTIUM_AXI_DEV_TOKEN_FILE` pointing to an owner-only random token file, and `ARTIUM_AXI_MASTER_KEY_FILE` pointing to a synthetic 32-byte key file.
+After `pnpm build`, run `pnpm start` with `ARTIUM_AXI_MASTER_KEY_FILE` pointing to a synthetic 32-byte key file.
+The server rejects `ARTIUM_AXI_DEV` and `ARTIUM_AXI_DEV_TOKEN_FILE`, including in production.
 On first start, also set `ARTIUM_AXI_ADMIN_USERNAME` to a synthetic local username and `ARTIUM_AXI_ADMIN_PASSWORD_FILE` to a UTF-8 file containing the exact starting password, without an added newline.
 See [the runbook](docs/runbook.md#first-administrator-and-offline-recovery) for bootstrap requirements, later-start behavior, administrator safeguards and offline audited recovery.
 See [S29 verification](docs/verification-s29.md) for local startup and recovery evidence.
@@ -325,15 +336,14 @@ All tools remain disabled until the development store is configured.
 Use only synthetic encrypted credentials and fake upstream services during the build.
 Never put a token or key in an argument, source file, image or log.
 
-The [Fastify API](src/server/app.ts) implements authenticated `GET /v1/tools`, JSON `POST /v1/tools/{tool}/run` and the own-password change route described above.
-Send `Authorization: Bearer <token>` using the token file's contents, and `Content-Type: application/json` for runs.
+The [Fastify API](src/server/app.ts) implements local sign-in, password change, authenticated `GET /v1/tools` and JSON `POST /v1/tools/{tool}/run`.
+Use an ordinary access token from local sign-in in `Authorization: Bearer <token>` and `Content-Type: application/json` for runs.
 The [shared API contract](src/shared/api.ts) owns the tools listing schema as well as run requests and responses.
 Tools listing includes enabled, granted adapters without contacting an upstream service.
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
-Development authentication is a separate static-token path for one synthetic non-administrator, with current database policy applied to every request.
-The server refuses startup unless the development gate is exactly `1` and its token file is readable and contains a nonempty token with no internal whitespace after trimming.
-It exposes no admin routes or production login bypass.
+All bearer authentication uses the stored-token verifier, with current database policy applied to every tool request.
+Admin routes and recent password reauthentication remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

@@ -16,7 +16,7 @@ const execute = async (bin, args, env = {}) => {
   const [code] = await once(child, 'close')
   return { stdout, stderr, code }
 }
-const environment = { ARTIUM_AXI_URL: 'http://artium-server:8080', ARTIUM_AXI_DEV_TOKEN_FILE: '/test-token', ARTIUM_AXI_TEST_HTTP: '1' }
+const environment = { ARTIUM_AXI_URL: 'http://artium-server:8080', ARTIUM_AXI_DEV_TOKEN_FILE: join(directory, 'access-token'), ARTIUM_AXI_TEST_HTTP: '1' }
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
 try {
   assert.deepEqual(readdirSync(directory), ['artium-axi.mjs'])
@@ -38,6 +38,23 @@ try {
   environment.ARTIUM_AXI_URL = `https://localhost:${proxy.address().port}`
   environment.ARTIUM_AXI_CA_FILE = '/certs/ca.crt'
   try {
+    const signIn = password => fetch('http://artium-server:8080/v1/auth/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'synthetic-admin', password }),
+    })
+    const restricted = await signIn('CANARY-bootstrap-password')
+    assert.equal(restricted.status, 200)
+    const first = await restricted.json()
+    assert.equal(first.status, 'password-change-required')
+    const changed = await fetch('http://artium-server:8080/v1/auth/password', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${first.passwordChangeToken}` },
+      body: JSON.stringify({ newPassword: 'CANARY-changed-password' }),
+    })
+    assert.equal(changed.status, 204)
+    const login = await signIn('CANARY-changed-password')
+    assert.equal(login.status, 200)
+    const session = await login.json()
+    assert.equal(session.status, 'authenticated')
+    writeFileSync(environment.ARTIUM_AXI_DEV_TOKEN_FILE, session.accessToken, { mode: 0o600 })
     const cli = args => execute(process.execPath, [join(directory, 'artium-axi.mjs'), ...args], environment)
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)

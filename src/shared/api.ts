@@ -17,6 +17,14 @@ export const passwordSchema = z.string().refine(value => {
   return length >= 15 && length <= 128 && byteLength(value) <= 512
 }, 'Expected 15 to 128 Unicode code points and at most 512 UTF-8 bytes')
 export const passwordChangeSchema = z.strictObject({ newPassword: z.string(), currentPassword: z.string().optional() })
+export const loginSchema = z.strictObject({ username: z.string(), password: z.string() })
+export const loginResponseSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('authenticated'), accessToken: z.string(), refreshToken: z.string(),
+    accessExpiresAt: z.number().int(), familyExpiresAt: z.number().int() }),
+  z.strictObject({ status: z.literal('password-change-required'), passwordChangeToken: z.string(),
+    passwordChangeExpiresAt: z.number().int() }),
+])
+export type LoginResponse = z.infer<typeof loginResponseSchema>
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
 export const toolsResponseSchema = z.strictObject({
