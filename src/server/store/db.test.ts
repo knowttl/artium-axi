@@ -6,7 +6,7 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { decryptCredential, encryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
-import { migrate, openStore } from './db.js'
+import { createCredentialStore, migrate, openStore } from './db.js'
 import { EnvironmentKeyProvider } from './key-provider.js'
 
 let directory: string
@@ -61,6 +61,16 @@ it('refuses startup with a different valid master key', () => {
   seed()
   const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
   expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
+})
+
+it('rejects authenticated plaintext that is not credential JSON with a safe error', () => {
+  seed()
+  const db = openStore(file, provider)
+  try {
+    const store = createCredentialStore(db, provider)
+    expect(() => store.readCredential({ id: 'synthetic-id', tool: 'falcon-axi' }))
+      .toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
+  } finally { db.close() }
 })
 
 it('rolls back schema changes and version records when a migration fails', () => {
