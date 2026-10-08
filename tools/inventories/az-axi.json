@@ -1,0 +1,2999 @@
+{
+  "generatedBy": "scripts/upstream-inventory.mjs",
+  "tool": "az-axi",
+  "version": "0.1.4",
+  "integrity": "sha512-aeamlHBaMTbm+fqPjrnBqZIrRxzWPn0XYQdp9en9gOlv7r0xdUcOst8BNobIis0i/4WAza0By306nNmxcm7W9g==",
+  "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
+  "packageManifestSha256": "4768e4d45bd68a1ddf6d0448625724fc02f101defc11702d6baa46aa8288bb60",
+  "environment": [
+    {
+      "name": "AZ_AXI_CONFIG",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_PROFILE",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_TENANT",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_SUBSCRIPTION",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_READ_ONLY",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_WRITE_LOG",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_ARM_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_GRAPH_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_LOGS_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_REGISTRY_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_STORAGE_TOKEN",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "AZ_AXI_VAULT_TOKEN",
+      "disposition": "server-owned"
+    }
+  ],
+  "dynamicCredentialEnvironment": "Profiles may name credential variables. Server creates and owns those names.",
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "flags": [
+    {
+      "name": "access",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "account-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "aggregation",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "all",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "analytics-query",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "api-version",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "assessed-resource-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "assessment-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "assignment",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "auth",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "auth-mode",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "body",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "body-file",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "caller",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "check",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "classification",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "classification-comment",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "classification-reason",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "compliance",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "config",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "confirm",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "container-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "custom-role-only",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "default",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "description",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "destination-address-prefixes",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "destination-port-ranges",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "direction",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "end-time",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "execute",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "expiring-within",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "fields",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "file",
+      "disposition": "input/output transport review"
+    },
+    {
+      "name": "full",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "graph-query",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "help",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "ids",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "if-match",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "incident-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "interval",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "limit",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "location",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "management-group",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "management-groups",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "marker",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "message",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "metric",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "no-wait",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "nsg-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "operation",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "orderby",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "owner",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "prefix",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "principal",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "priority",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "privileged",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "profile",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "protocol",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "query",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "raw",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "registry",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "repository",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "resource",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "resource-group",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "resource-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "resource-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "role",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "scope",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "severity",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "show-query",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "since",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "skip-token",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "source-address-prefixes",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "source-port-ranges",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "start-time",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "status",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "subscription",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "subscriptions",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "tags",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "tenant",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "timeout",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "timespan",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "token-env",
+      "disposition": "server-owned"
+    },
+    {
+      "name": "vault-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "workspace",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "workspace-name",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "zone-name",
+      "disposition": "passthrough candidate"
+    }
+  ],
+  "commands": [
+    {
+      "command": "home",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "setup hooks",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "doctor",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "config init",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value",
+        "auth": "value",
+        "workspace": "list",
+        "token-env": "list",
+        "default": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "config list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "config path",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sub list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "account list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "account show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor log-analytics workspace list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor log-analytics workspace show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "workspace-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor metrics alert list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor metrics alert show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor action-group list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor action-group show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor diagnostic-settings list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor diagnostic-settings show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor metrics list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource": "value",
+        "metric": "list",
+        "start-time": "value",
+        "end-time": "value",
+        "interval": "value",
+        "aggregation": "list"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "group list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "group show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "resource list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value",
+        "resource-type": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "resource show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "name": "value",
+        "resource-group": "value",
+        "resource-type": "value",
+        "api-version": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "tag update",
+      "aliases": [],
+      "effect": "write",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-id": "value",
+        "operation": "value",
+        "tags": "literal-list",
+        "execute": "boolean",
+        "if-match": "value",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "graph query",
+      "aliases": [
+        "rg query"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "skip-token": "value",
+        "file": "value",
+        "graph-query": "value",
+        "subscriptions": "list",
+        "management-groups": "list"
+      },
+      "flagAliases": {
+        "first": "limit"
+      },
+      "positionalInput": true
+    },
+    {
+      "command": "rbac list",
+      "aliases": [
+        "role assignment list"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "principal": "value",
+        "role": "value",
+        "scope": "value",
+        "privileged": "boolean",
+        "show-query": "boolean"
+      },
+      "flagAliases": {
+        "assignee": "principal"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "activity list",
+      "aliases": [
+        "monitor activity-log list"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "since": "value",
+        "caller": "value",
+        "resource-group": "value",
+        "status": "value",
+        "operation": "value"
+      },
+      "flagAliases": {
+        "offset": "since"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "defender alerts",
+      "aliases": [
+        "security alert list"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "severity": "list",
+        "status": "value",
+        "since": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "defender alerts get",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": true
+    },
+    {
+      "command": "security pricing list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "security pricing show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "security sub-assessment list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value",
+        "assessment-name": "value",
+        "assessed-resource-id": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "security sub-assessment show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "name": "value",
+        "assessment-name": "value",
+        "assessed-resource-id": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "security alert update",
+      "aliases": [
+        "defender alerts update"
+      ],
+      "effect": "write",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "location": "value",
+        "name": "value",
+        "resource-group": "value",
+        "status": "value",
+        "execute": "boolean",
+        "if-match": "value",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "defender assessments",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "severity": "list",
+        "status": "value",
+        "resource": "value",
+        "show-query": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "defender score",
+      "aliases": [
+        "security secure-scores list"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "status": "list",
+        "severity": "list",
+        "owner": "value",
+        "since": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "incident-id": "value",
+        "ids": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident list-alert",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "incident-id": "value",
+        "ids": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident list-entity",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "incident-id": "value",
+        "ids": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident update",
+      "aliases": [],
+      "effect": "write",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "incident-id": "value",
+        "ids": "value",
+        "status": "value",
+        "severity": "value",
+        "owner": "value",
+        "classification": "value",
+        "classification-reason": "value",
+        "classification-comment": "value",
+        "execute": "boolean",
+        "if-match": "value",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident comment create",
+      "aliases": [],
+      "effect": "write",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "incident-id": "value",
+        "ids": "value",
+        "message": "value",
+        "execute": "boolean",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel alert-rule list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel alert-rule show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "ids": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel data-connector list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel data-connector show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "ids": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "exposure",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "check": "value",
+        "show-query": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "monitor log-analytics query",
+      "aliases": [
+        "logs query"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "workspace": "value",
+        "timespan": "value",
+        "file": "value",
+        "analytics-query": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": true
+    },
+    {
+      "command": "api",
+      "aliases": [],
+      "effect": "dynamic",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource": "value",
+        "api-version": "value",
+        "query": "value",
+        "body": "value",
+        "body-file": "value",
+        "raw": "boolean",
+        "all": "boolean",
+        "execute": "boolean",
+        "confirm": "value",
+        "if-match": "value",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": true
+    },
+    {
+      "command": "op status",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": true
+    },
+    {
+      "command": "az group show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "passthrough",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value",
+        "resource-group": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "storage container list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "account-name": "value",
+        "auth-mode": "value",
+        "prefix": "literal",
+        "marker": "literal"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "storage container show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "account-name": "value",
+        "auth-mode": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "storage blob list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "account-name": "value",
+        "auth-mode": "value",
+        "container-name": "value",
+        "prefix": "literal",
+        "marker": "literal"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "storage blob show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "account-name": "value",
+        "auth-mode": "value",
+        "container-name": "value",
+        "name": "literal"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "keyvault secret list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "vault-name": "value",
+        "expiring-within": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "keyvault key list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "vault-name": "value",
+        "expiring-within": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "keyvault certificate list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "vault-name": "value",
+        "expiring-within": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "acr repository list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value",
+        "marker": "literal"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "acr repository show-tags",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value",
+        "repository": "value",
+        "orderby": "value",
+        "marker": "literal"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "acr manifest show-metadata",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "registry": "value",
+        "name": "literal"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network nsg list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network nsg show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network nsg rule create",
+      "aliases": [],
+      "effect": "destructive",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "nsg-name": "value",
+        "name": "value",
+        "ids": "value",
+        "priority": "value",
+        "direction": "value",
+        "access": "value",
+        "protocol": "value",
+        "source-address-prefixes": "list",
+        "source-port-ranges": "list",
+        "destination-address-prefixes": "list",
+        "destination-port-ranges": "list",
+        "description": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "timeout": "value",
+        "no-wait": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network nic list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network nic show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network vnet list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network vnet show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network public-ip list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network public-ip show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network private-endpoint list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network private-endpoint show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns zone list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns zone show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy assignment list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy assignment show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy definition list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy definition show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy set-definition list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy set-definition show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "policy state list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value",
+        "assignment": "value",
+        "compliance": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "lock list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "lock show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "deny-assignment list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "deny-assignment show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "role definition list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value",
+        "custom-role-only": "boolean"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "role definition show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set a list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set a show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set aaaa list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set aaaa show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set caa list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set caa show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set cname list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set cname show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set mx list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set mx show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set ns list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set ns show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set ptr list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set ptr show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set soa list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set soa show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set srv list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set srv show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set txt list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "network dns record-set txt show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "zone-name": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "vm list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "vm show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "vm get-instance-view",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "vmss list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "vmss show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "vmss get-instance-view",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "disk list",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    },
+    {
+      "command": "disk show",
+      "aliases": [],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "ids": "value",
+        "resource-group": "value",
+        "name": "value"
+      },
+      "flagAliases": {},
+      "positionalInput": false
+    }
+  ]
+}
