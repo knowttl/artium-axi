@@ -47,3 +47,4 @@ for (const [host, path, canaryReceived] of [
 assert.equal(evidence.mutations, 2, 'Pinned az-axi retries an uncertain write; write capability remains unavailable')
 console.log(JSON.stringify({ tls: 'trusted', dns: 'routed', outbound: 'denied',
   mutationRequests: evidence.mutations, requests: evidence.requests }))
+await import('./azure-probe.mjs')
