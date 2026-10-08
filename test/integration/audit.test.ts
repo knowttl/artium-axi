@@ -24,7 +24,7 @@ beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'artium-audit-'))
   db = openStore(join(directory, 'artium.db'), provider)
   db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('person', 'synthetic', 'Synthetic', 'CANARY-hash');
-    INSERT INTO tools (name, enabled, pinned_version) VALUES ('falcon-axi', 1, 'synthetic-version');`)
+    UPDATE tools SET enabled = 1, pinned_version = 'synthetic-version' WHERE name = 'falcon-axi';`)
   now = Date.UTC(2026, 0, 1)
   lines = []
   audit = new Audit(db, () => now, line => { lines.push(line) })
@@ -81,18 +81,37 @@ test('marks unmatched starts interrupted after reopening, once, without replay',
   expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare('SELECT * FROM audit ORDER BY id').all())
 })
 
-test('daily retention deletes at most 500 events strictly older than 90 days', () => {
+test.each([
+  [501, [500, 1]],
+  [1000, [500, 500, 0]],
+] as const)('daily retention drains %i expired events in bounded batches', (expired, counts) => {
+  db.prepare(`WITH RECURSIVE rows(n) AS (VALUES(1) UNION ALL SELECT n + 1 FROM rows WHERE n < ?)
+    INSERT INTO audit (occurred_at, event, outcome) SELECT ?, 'sign-out', 'success' FROM rows`).run(expired, now - 90 * day - 1)
+  db.prepare("INSERT INTO audit (occurred_at, event, outcome) VALUES (?, 'sign-out', 'success')").run(now - 90 * day)
+  expect(audit.maintain()).toBe(expired)
+  expect(db.prepare('SELECT COUNT(*) AS count FROM audit WHERE occurred_at < ?').get(now - 90 * day)).toEqual({ count: 0 })
+  expect(db.prepare("SELECT cutoff, deleted_count FROM audit WHERE event = 'maintenance' ORDER BY id").all())
+    .toEqual(counts.map(deleted_count => ({ cutoff: now - 90 * day, deleted_count })))
+  expect(db.prepare("SELECT occurred_at FROM audit WHERE event = 'sign-out'").all()).toEqual([{ occurred_at: now - 90 * day }])
+  expect(audit.maintain()).toBe(0)
+  db.prepare("INSERT INTO audit (occurred_at, event, outcome) VALUES (?, 'sign-out', 'success')").run(now - 90 * day - 1)
+  expect(audit.maintain()).toBe(1)
+  now += day
+  expect(audit.maintain()).toBe(1)
+  expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare("SELECT * FROM audit WHERE event = 'maintenance' ORDER BY id").all())
+})
+
+test('retention commits earlier batches and rolls back only the failed batch', () => {
   db.prepare(`WITH RECURSIVE rows(n) AS (VALUES(1) UNION ALL SELECT n + 1 FROM rows WHERE n < 501)
     INSERT INTO audit (occurred_at, event, outcome) SELECT ?, 'sign-out', 'success' FROM rows`).run(now - 90 * day - 1)
-  db.prepare("INSERT INTO audit (occurred_at, event, outcome) VALUES (?, 'sign-out', 'success')").run(now - 90 * day)
-  expect(audit.maintain()).toBe(500)
+  db.exec("CREATE TRIGGER fail_audit BEFORE INSERT ON audit WHEN NEW.event = 'maintenance' AND NEW.deleted_count = 1 BEGIN SELECT RAISE(ABORT, 'synthetic full storage'); END")
+  expect(() => audit.maintain()).toThrow(expect.objectContaining({ code: 'AUDIT_UNAVAILABLE' }))
   expect(db.prepare('SELECT COUNT(*) AS count FROM audit WHERE occurred_at < ?').get(now - 90 * day)).toEqual({ count: 1 })
-  expect(db.prepare("SELECT * FROM audit WHERE event = 'maintenance'").get()).toMatchObject({ cutoff: now - 90 * day, deleted_count: 500 })
-  expect(audit.maintain()).toBe(0)
-  expect(db.prepare('SELECT COUNT(*) AS count FROM audit').get()).toEqual({ count: 3 })
-  now += day
-  expect(audit.maintain()).toBe(2)
-  expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare("SELECT * FROM audit WHERE event = 'maintenance' ORDER BY id").all())
+  expect(db.prepare("SELECT deleted_count FROM audit WHERE event = 'maintenance'").all()).toEqual([{ deleted_count: 500 }])
+  expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare("SELECT * FROM audit WHERE event = 'maintenance'").all())
+  db.exec('DROP TRIGGER fail_audit')
+  expect(audit.maintain()).toBe(1)
+  expect(db.prepare('SELECT COUNT(*) AS count FROM audit WHERE occurred_at < ?').get(now - 90 * day)).toEqual({ count: 0 })
 })
 
 test('retention rolls deletion back when its maintenance audit cannot persist', () => {

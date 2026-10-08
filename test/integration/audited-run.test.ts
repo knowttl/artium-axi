@@ -34,7 +34,7 @@ beforeEach(async () => {
   db = openStore(join(directory, 'artium.db'), provider)
   db.exec(`INSERT INTO users (id, username, display_name, password_hash)
       VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
-    INSERT INTO tools (name, enabled, pinned_version) VALUES ('falcon-axi', 1, '0.3.0');
+    UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi';
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
     INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'falcon-axi');`)
@@ -88,6 +88,25 @@ test.each([
   await expect(runTool(db, audit, runner, token, { args: ['print', 'unused'] }, adapter, resolver, context)).rejects.toMatchObject({ code })
   expect(getCredential).not.toHaveBeenCalled()
   expect(db.prepare('SELECT event, outcome, request_id FROM audit').all()).toEqual([{ event: 'denial', outcome: code, request_id: context.requestId }])
+})
+
+test.each([
+  ['valid', () => token, 'TOOL_DISABLED', 'synthetic-user'],
+  ['invalid', () => 'CANARY-invalid-token', 'TOKEN_INVALID', null],
+] as const)('an unconfigured supported tool records the denial for a %s token', async (_kind, requestToken, code, userId) => {
+  db.exec("DELETE FROM role_tools; DELETE FROM tools WHERE name = 'falcon-axi'")
+  db.close()
+  db = openStore(join(directory, 'artium.db'), provider)
+  audit = new Audit(db, Date.now, line => { lines.push(line) })
+  const run = vi.spyOn(runner, 'run')
+  await expect(runTool(db, audit, runner, requestToken(),
+    { args: ['exit', '0'] }, adapter, resolver, context)).rejects.toMatchObject({ code })
+  expect(getCredential).not.toHaveBeenCalled()
+  expect(run).not.toHaveBeenCalled()
+  expect(db.prepare('SELECT event, outcome, user_id, tool, request_id FROM audit').all()).toEqual([
+    { event: 'denial', outcome: code, user_id: userId, tool: 'falcon-axi', request_id: context.requestId },
+  ])
+  expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare('SELECT * FROM audit').all())
 })
 
 test.each([

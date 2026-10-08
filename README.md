@@ -122,8 +122,9 @@ Injected credential arguments, request bodies, stdin, uploaded contents, tokens,
 Create one `Audit` per server and call `recoverInterrupted()` before admitting requests at startup.
 It appends interrupted terminal events for unmatched starts without replaying commands, using null exit codes and unknown output sizes.
 Call `maintain()` from the server's daily maintenance tick.
-It deletes at most 500 events strictly older than 90 days per day, persists the cutoff and deletion count atomically, and rolls back deletion if that event cannot be stored.
-The last persisted maintenance timestamp keeps the daily bound across restarts.
+It drains all events strictly older than the captured 90-day cutoff in batches of at most 500 events.
+Each batch commits its deletion, cutoff and count in a separate short transaction, and rolls back that batch if its maintenance event cannot be stored.
+Store startup ensures every supported tool has a row, inserting missing tools disabled with an empty version until configured and preserving existing tool settings.
 Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
 SQLite remains authoritative if the optional stream fails.
 For export, capture that stream in a protected external collector before retention expires.
