@@ -4,7 +4,7 @@ import { createFalconAdapter } from './adapters/falcon.js'
 import { createVectraAdapter } from './adapters/vectra.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { Audit } from './audit/audit.js'
-import { readDevelopmentToken } from './auth/development.js'
+import { checkAuthSettings } from './auth/settings.js'
 import { bootstrapAdministrator } from './auth/bootstrap.js'
 import { serverDefaults } from './config.js'
 import { SharedIdentityResolver } from './policy/identity-resolver.js'
@@ -16,7 +16,7 @@ import { acquireMaintenanceLock } from './store/maintenance-lock.js'
 import { ArtiumError, errorResponse } from '../shared/errors.js'
 
 async function main() {
-  readDevelopmentToken(process.env)
+  checkAuthSettings(process.env)
   const database = resolve(process.env.ARTIUM_AXI_DATABASE_FILE ?? serverDefaults.database)
   const release = acquireMaintenanceLock(database)
   let db: ReturnType<typeof openStore> | undefined

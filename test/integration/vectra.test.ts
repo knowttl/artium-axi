@@ -12,6 +12,7 @@ import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
+import { seedToolUser } from '../fixtures/tokens.js'
 
 const execute = promisify(execFile)
 const binary = join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/bin/vectra-axi.js')
@@ -32,16 +33,18 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
     }
     const db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.3' WHERE name = 'vectra-axi'")
-    const token = 'CANARY-artium-token'
-    const tokenFile = join(directory, 'token')
-    writeFileSync(tokenFile, token, { mode: 0o600 })
+    await seedToolUser(db)
     const runner = await Runner.create(join(directory, 'calls'))
     const lines: string[] = []
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => { lines.push(line) }),
       resolver: new SharedIdentityResolver(new FakeCredentialStore([
         { reference: { id: 'synthetic-vectra', tool: 'vectra-axi' }, value: credential },
-      ])), adapters: [adapter], environment: { ARTIUM_AXI_DEV: '1', ARTIUM_AXI_DEV_TOKEN_FILE: tokenFile } })
+      ])), adapters: [adapter], environment: {} })
     try {
+      const login = await app.inject({ method: 'POST', url: '/v1/auth/login',
+        payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
+      expect(login.statusCode).toBe(200)
+      const token = login.json().accessToken as string
       const run = async (args: string[], input = {}) => {
         const reply = await app.inject({ method: 'POST', url: '/v1/tools/vectra-axi/run',
           headers: { authorization: `Bearer ${token}` }, payload: { args, ...input } })

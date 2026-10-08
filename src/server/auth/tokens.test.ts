@@ -23,10 +23,22 @@ test('fixture stores only a SHA-256 hash and verifier returns the owning user', 
   expect(hashToken(token)).not.toBe(token)
 })
 
-test('access expiry rejects at its exact deadline', () => {
+test('security: access expiry rejects at its exact deadline', () => {
   const token = issueTestAccessToken(db, 'synthetic-user', now)
   expect(verifyAccessToken(db, token, now + 3_599_999)).toBe('synthetic-user')
-  expect(() => verifyAccessToken(db, token, now + 3_600_000)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+  expect(() => verifyAccessToken(db, token, now + 3_600_000)).toThrow(expect.objectContaining({ code: 'TOKEN_EXPIRED' }))
+})
+
+test('security: family deadline rejects an otherwise unexpired access token', () => {
+  const token = issueTestAccessToken(db, 'synthetic-user', now)
+  db.prepare('UPDATE session_families SET expires_at = ?').run(now)
+  expect(() => verifyAccessToken(db, token, now)).toThrow(expect.objectContaining({ code: 'TOKEN_EXPIRED' }))
+})
+
+test('security: disabling an owner immediately denies token verification', () => {
+  const token = issueTestAccessToken(db, 'synthetic-user', now)
+  db.exec('UPDATE users SET disabled = 1')
+  expect(() => verifyAccessToken(db, token, now)).toThrow(expect.objectContaining({ code: 'USER_DISABLED' }))
 })
 
 test.each([
@@ -35,8 +47,7 @@ test.each([
   "UPDATE tokens SET type = 'refresh'",
   "UPDATE tokens SET type = 'password-change'",
   "UPDATE session_families SET revoked_at = 1",
-  `UPDATE session_families SET expires_at = ${now}`,
-])('verifier refuses invalid token state: %s', sql => {
+])('security: verifier refuses invalid token state: %s', sql => {
   const token = issueTestAccessToken(db, 'synthetic-user', now)
   db.exec(sql)
   expect(() => verifyAccessToken(db, token, now)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))

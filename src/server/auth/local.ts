@@ -6,6 +6,7 @@ import type { Audit } from '../audit/audit.js'
 import { passwordDefaults } from '../config.js'
 import type { AuthProvider } from './auth-provider.js'
 import commonPasswords from './common-passwords.v1.json' with { type: 'json' }
+import { revokeUserSessions, verifyPasswordToken } from './tokens.js'
 
 const common = new Set(commonPasswords.passwords)
 const dummyHash = '$argon2id$v=19$m=65536,p=1,t=3$vNZ3Sa+H+g+67iTEmnJxbQ$4dkx0/sgcEmrkpSfYhnbOS9a/6SskDG33I0aMQmBdCI'
@@ -54,19 +55,26 @@ export class LocalAuthProvider implements AuthProvider {
     return { userId: current.id, mustChange: Boolean(current.must_change) }
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string, audit: Audit,
-    context: { requestId: string, clientAddress: string | null }, now = Date.now()): Promise<void> {
+  async changePassword(userId: string, currentPassword: string | undefined, newPassword: string, audit: Audit,
+    context: { requestId: string, clientAddress: string | null }, now = Date.now(), token?: string): Promise<void> {
     const user = this.readUser(userId)
-    const matches = await verifyPassword(user?.password_hash, currentPassword)
-    if (!user || !matches || user.disabled) throw new ArtiumError('SIGN_IN_FAILED')
+    const restricted = token !== undefined && verifyPasswordToken(this.db, token, now).type === 'password-change'
+    if (!restricted) {
+      if (currentPassword === undefined) throw new ArtiumError('SIGN_IN_FAILED')
+      const matches = await verifyPassword(user?.password_hash, currentPassword)
+      if (!matches) throw new ArtiumError('SIGN_IN_FAILED')
+    }
+    if (!user || user.disabled || (restricted && !user.must_change)) throw new ArtiumError('SIGN_IN_FAILED')
     const hash = await hashPassword(newPassword)
     audit.change({ event: 'password-change', userId, tool: null, outcome: 'success', ...context }, () => {
+      if (token !== undefined) {
+        const proof = verifyPasswordToken(this.db, token)
+        if (proof.user_id !== userId) throw new ArtiumError('TOKEN_INVALID')
+      }
       const { changes } = this.db.prepare(`UPDATE users SET password_hash = ?, must_change = 0, revision = revision + 1
         WHERE id = ? AND password_hash = ? AND disabled = 0`).run(hash, userId, user.password_hash)
       if (!changes) throw new ArtiumError('SIGN_IN_FAILED')
-      this.db.prepare('UPDATE session_families SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
-      this.db.prepare('UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
-      this.db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
+      revokeUserSessions(this.db, userId, now)
     })
   }
 

@@ -10,8 +10,9 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { readDevelopmentToken } from '../../src/server/auth/development.js'
-import { errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits } from '../../src/shared/api.js'
+import { checkAuthSettings } from '../../src/server/auth/settings.js'
+import { errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits, loginResponseSchema } from '../../src/shared/api.js'
+import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -20,24 +21,23 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { fakeTool } from '../fake-tool/tool.js'
 import { hashPassword, LocalAuthProvider } from '../../src/server/auth/local.js'
-import { issueTestAccessToken } from '../fixtures/tokens.js'
+import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
 let directory: string
 let db: Database.Database
 let app: ReturnType<typeof createApp>
 let url: string
-const token = 'CANARY-static-development-token'
-const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+let token: string
+let headers: { authorization: string, 'content-type': string }
 const getCredential = vi.fn(async () => ({ clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }))
 let environment: NodeJS.ProcessEnv
 let options: Parameters<typeof createApp>[0]
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-api-'))
-  const tokenFile = join(directory, 'development-token')
-  writeFileSync(tokenFile, token, { mode: 0o600 })
-  environment = { ARTIUM_AXI_DEV: '1', ARTIUM_AXI_DEV_TOKEN_FILE: tokenFile }
+  environment = {}
   db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  await seedToolUser(db)
   db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'")
   const runner = await Runner.create(join(directory, 'calls'))
   const adapter = createFalconAdapter({ getCredential })
@@ -52,6 +52,16 @@ beforeEach(async () => {
     resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool: 'falcon-axi' }, value: {} }])) }
   app = createApp(options)
   url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const login = await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: 'synthetic-user', password: 'CANARY-local-password' }) })
+  expect(login.status).toBe(200)
+  token = (await login.json() as { accessToken: string }).accessToken
+  db.exec('DELETE FROM audit')
+  headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+  const tokenFile = join(directory, 'access-token')
+  writeFileSync(tokenFile, token, { mode: 0o600 })
+  environment.ARTIUM_AXI_DEV_TOKEN_FILE = tokenFile
+  options.environment = {}
 })
 afterEach(async () => {
   await app.close()
@@ -72,6 +82,131 @@ async function expectFailure(response: Response, code: keyof typeof errors) {
   return body.error.requestId
 }
 
+async function login(password = 'CANARY-local-password', username = 'synthetic-user') {
+  return fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username, password }) })
+}
+
+test('login issues distinct random token types with hashes and fixed deadlines', async () => {
+  const response = await login(undefined, ' Synthetic-User ')
+  expect(response.status).toBe(200)
+  const session = loginResponseSchema.parse(await response.json())
+  if (session.status !== 'authenticated') throw new Error('Expected ordinary session')
+  expect(session.accessToken).not.toBe(session.refreshToken)
+  expect(Buffer.from(session.accessToken, 'base64url')).toHaveLength(32)
+  expect(Buffer.from(session.refreshToken, 'base64url')).toHaveLength(32)
+  const family = db.prepare('SELECT id, created_at, expires_at FROM session_families WHERE id = (SELECT family_id FROM tokens WHERE hash = ?)')
+    .get(hashToken(session.accessToken)) as { id: string, created_at: number, expires_at: number }
+  expect(session.accessExpiresAt).toBe(family.created_at + 3_600_000)
+  expect(session.familyExpiresAt).toBe(family.created_at + 43_200_000)
+  expect(db.prepare('SELECT hash, type, expires_at FROM tokens WHERE family_id = ? ORDER BY type').all(family.id)).toEqual([
+    { hash: hashToken(session.accessToken), type: 'access', expires_at: session.accessExpiresAt },
+    { hash: hashToken(session.refreshToken), type: 'refresh', expires_at: session.familyExpiresAt },
+  ])
+  await expectFailure(await fetch(`${url}/v1/tools`, { headers: { authorization: `Bearer ${session.refreshToken}` } }), 'TOKEN_INVALID')
+})
+
+test.each([['CANARY-wrong-password', 'synthetic-user'], ['CANARY-local-password', 'unknown-user']])(
+  'security: failed login returns the same safe response for password %s and username %s', async (password, username) => {
+    const count = db.prepare('SELECT COUNT(*) AS count FROM tokens').get()
+    await expectFailure(await login(password, username), 'SIGN_IN_FAILED')
+    expect(db.prepare('SELECT COUNT(*) AS count FROM tokens').get()).toEqual(count)
+    expect(db.prepare("SELECT user_id, outcome FROM audit WHERE event = 'sign-in'").all())
+      .toEqual([{ user_id: null, outcome: 'SIGN_IN_FAILED' }])
+  })
+
+test('login rejects unknown fields and non-JSON input without issuing a session', async () => {
+  const count = db.prepare('SELECT COUNT(*) AS count FROM session_families').get()
+  await expectFailure(await fetch(`${url}/v1/auth/login`, { method: 'POST', headers,
+    body: JSON.stringify({ username: 'synthetic-user', password: 'CANARY-local-password', administrator: true }) }), 'INVALID_INPUT')
+  await expectFailure(await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{}' }), 'INVALID_INPUT')
+  expect(db.prepare('SELECT COUNT(*) AS count FROM session_families').get()).toEqual(count)
+})
+
+test('security: restricted token denies tools and admin authentication and changes password only once', async () => {
+  db.exec('UPDATE users SET must_change = 1, administrator = 1')
+  const response = await login()
+  const session = loginResponseSchema.parse(await response.json())
+  if (session.status !== 'password-change-required') throw new Error('Expected restricted session')
+  const proof = session.passwordChangeToken
+  expect(Buffer.from(proof, 'base64url')).toHaveLength(32)
+  const family = db.prepare('SELECT created_at FROM session_families WHERE id = (SELECT family_id FROM tokens WHERE hash = ?)')
+    .get(hashToken(proof)) as { created_at: number }
+  expect(session.passwordChangeExpiresAt).toBe(family.created_at + 600_000)
+  expect(() => verifyAccessToken(db, proof)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+  const restrictedHeaders = { ...headers, authorization: `Bearer ${proof}` }
+  await expectFailure(await fetch(`${url}/v1/tools`, { headers: restrictedHeaders }), 'TOKEN_INVALID')
+  await expectFailure(await run({ args: ['print', 'synthetic'] }, restrictedHeaders), 'TOKEN_INVALID')
+  await expectFailure(await fetch(`${url}/v1/admin/users`, { headers: restrictedHeaders }), 'NOT_FOUND')
+  expect(getCredential).not.toHaveBeenCalled()
+  db.prepare(`INSERT INTO sessions (id, family_id, user_id, csrf_token, created_at, last_seen_at, expires_at)
+    SELECT 'synthetic-browser', id, user_id, 'CANARY-csrf', created_at, created_at, expires_at FROM session_families LIMIT 1`).run()
+  const change = (newPassword: string) => fetch(`${url}/v1/auth/password`, {
+    method: 'POST', headers: restrictedHeaders, body: JSON.stringify({ newPassword }),
+  })
+  await expectFailure(await change('short'), 'PASSWORD_INVALID')
+  expect((await change('CANARY-changed-password')).status).toBe(204)
+  await expectFailure(await change('CANARY-another-password'), 'TOKEN_INVALID')
+  await expectFailure(await fetch(`${url}/v1/tools`, { headers }), 'TOKEN_INVALID')
+  expect(db.prepare('SELECT COUNT(*) AS count FROM session_families WHERE revoked_at IS NULL').get()).toEqual({ count: 0 })
+  expect(db.prepare('SELECT COUNT(*) AS count FROM tokens WHERE revoked_at IS NULL').get()).toEqual({ count: 0 })
+  expect(db.prepare('SELECT COUNT(*) AS count FROM sessions WHERE revoked_at IS NULL').get()).toEqual({ count: 0 })
+  await expectFailure(await login(), 'SIGN_IN_FAILED')
+  const next = await login('CANARY-changed-password')
+  const authenticated = loginResponseSchema.parse(await next.json())
+  expect(authenticated.status).toBe('authenticated')
+  if (authenticated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  expect((await fetch(`${url}/v1/tools`, { headers: { authorization: `Bearer ${authenticated.accessToken}` } })).status).toBe(200)
+})
+
+test('security: concurrent restricted password changes commit exactly once', async () => {
+  db.exec('UPDATE users SET must_change = 1')
+  const session = loginResponseSchema.parse(await (await login()).json())
+  if (session.status !== 'password-change-required') throw new Error('Expected restricted session')
+  const change = () => fetch(`${url}/v1/auth/password`, { method: 'POST',
+    headers: { ...headers, authorization: `Bearer ${session.passwordChangeToken}` },
+    body: JSON.stringify({ newPassword: 'CANARY-concurrent-password' }) })
+  const results = await Promise.all([change(), change()])
+  expect(results.map(response => response.status).sort()).toEqual([204, 401])
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'password-change'").get()).toEqual({ count: 1 })
+})
+
+test.each(['access', 'password-change'] as const)('security: expired %s token cannot authorize a request', async type => {
+  db.prepare('UPDATE users SET must_change = ?').run(type === 'password-change' ? 1 : 0)
+  const session = loginResponseSchema.parse(await (await login()).json())
+  const proof = session.status === 'authenticated' ? session.accessToken : session.passwordChangeToken
+  db.prepare('UPDATE tokens SET expires_at = 0 WHERE hash = ?').run(hashToken(proof))
+  const response = type === 'access' ? await run({ args: [] }, { ...headers, authorization: `Bearer ${proof}` })
+    : await fetch(`${url}/v1/auth/password`, { method: 'POST', headers: { ...headers, authorization: `Bearer ${proof}` },
+      body: JSON.stringify({ newPassword: 'CANARY-changed-password' }) })
+  await expectFailure(response, 'TOKEN_EXPIRED')
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each(['tokens', 'session_families'] as const)('security: revoked %s rejects the next request', async table => {
+  db.exec(`UPDATE ${table} SET revoked_at = 1`)
+  await expectFailure(await run({ args: [] }), 'TOKEN_INVALID')
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('audit failure rolls back login issuance and restricted password change', async () => {
+  const count = db.prepare('SELECT COUNT(*) AS count FROM tokens').get()
+  db.exec("CREATE TRIGGER fail_signin BEFORE INSERT ON audit WHEN NEW.event = 'sign-in' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await expectFailure(await login(), 'AUDIT_UNAVAILABLE')
+  expect(db.prepare('SELECT COUNT(*) AS count FROM tokens').get()).toEqual(count)
+  db.exec('DROP TRIGGER fail_signin; UPDATE users SET must_change = 1')
+  const session = loginResponseSchema.parse(await (await login()).json())
+  if (session.status !== 'password-change-required') throw new Error('Expected restricted session')
+  db.exec("CREATE TRIGGER fail_password BEFORE INSERT ON audit WHEN NEW.event = 'password-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  const change = () => fetch(`${url}/v1/auth/password`, { method: 'POST',
+    headers: { ...headers, authorization: `Bearer ${session.passwordChangeToken}` }, body: JSON.stringify({ newPassword: 'CANARY-changed-password' }) })
+  await expectFailure(await change(), 'AUDIT_UNAVAILABLE')
+  expect(db.prepare('SELECT must_change FROM users').get()).toEqual({ must_change: 1 })
+  expect(db.prepare('SELECT COUNT(*) AS count FROM tokens WHERE revoked_at IS NOT NULL').get()).toEqual({ count: 0 })
+  db.exec('DROP TRIGGER fail_password')
+  expect((await change()).status).toBe(204)
+})
+
 test('password endpoint changes only the access-token owner and requires a fresh sign-in', async () => {
   const password = 'CANARY-local-password'
   const hash = await hashPassword(password)
@@ -84,7 +219,7 @@ test('password endpoint changes only the access-token owner and requires a fresh
   await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: 'wrong' }), 'SIGN_IN_FAILED')
   await expectFailure(await change({ newPassword: 'short', currentPassword: password }), 'PASSWORD_INVALID')
   await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password, userId: 'other' }), 'INVALID_INPUT')
-  await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password }, token), 'TOKEN_INVALID')
+  await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password }, 'CANARY-invalid'), 'TOKEN_INVALID')
   const result = await change({ newPassword: 'CANARY-new-password', currentPassword: password })
   expect(result.status).toBe(204)
   expect(await result.text()).toBe('')
@@ -216,8 +351,8 @@ test('supported tools without an adapter still authenticate and audit their deni
   ])
 })
 
-test.each([{}, { ARTIUM_AXI_DEV: '1' }, { ARTIUM_AXI_DEV: '1', ARTIUM_AXI_DEV_TOKEN_FILE: '/synthetic-missing-token' }])('startup rejects unavailable development token files', env => {
-  expect(() => readDevelopmentToken(env)).toThrow(expect.objectContaining({ code: 'DEV_AUTH_INVALID' }))
+test.each([{ ARTIUM_AXI_DEV: '1' }, { ARTIUM_AXI_DEV_TOKEN_FILE: '/synthetic-missing-token' }])('startup rejects development settings', env => {
+  expect(() => checkAuthSettings(env)).toThrow(expect.objectContaining({ code: 'DEV_AUTH_INVALID' }))
 })
 
 test('audit failure refuses child creation and terminal failure withholds completed output', async () => {
@@ -297,7 +432,7 @@ test.each(['forwarded', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-prot
 test('a real trusted proxy replaces supplied forwarding headers and audits its verified client address', async () => {
   await app.close()
   options.runner = await Runner.create(join(directory, 'proxy-calls'))
-  app = createApp({ ...options, environment: { ...environment, ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
+  app = createApp({ ...options, environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const proxy = createServer(async (request, response) => {
     const chunks: Buffer[] = []
@@ -318,12 +453,12 @@ test('a real trusted proxy replaces supplied forwarding headers and audits its v
   } finally { await new Promise<void>((resolve, reject) => proxy.close(error => error ? reject(error) : resolve())) }
 })
 
-test.each([undefined, '0', 'true', '01'])('startup refuses a configured dev token unless the gate equals 1: %s', value => {
-  expect(() => readDevelopmentToken({ ...environment, ARTIUM_AXI_DEV: value })).toThrow(expect.objectContaining({ code: 'DEV_AUTH_INVALID' }))
-  expect(() => createApp({ ...options, environment: { ...environment, ARTIUM_AXI_DEV: value } })).toThrow(expect.objectContaining({ code: 'DEV_AUTH_INVALID' }))
+test.each(['0', '1', 'true', '01', ''])('production startup rejects development settings: %s', value => {
+  expect(() => createApp({ ...options, environment: { NODE_ENV: 'production', ARTIUM_AXI_DEV: value } }))
+    .toThrow(expect.objectContaining({ code: 'DEV_AUTH_INVALID' }))
 })
 
-test('the real server process exits at startup with the dev setting absent', async () => {
+test('the real server process exits at startup with a development setting', async () => {
   const { build } = await import('esbuild')
   const entry = join(directory, 'server.mjs')
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
@@ -362,7 +497,7 @@ test('the real server remains available after startup encounters a damaged nativ
     await import('./src/server/main.ts');
   `, resolveDir: process.cwd() }, outfile: entry, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
   const child = spawn(process.execPath, [entry], { cwd: directory,
-    env: { ...process.env, ...environment, ARTIUM_AXI_DATABASE_FILE: join(directory, 'data', 'artium.db'),
+    env: { ...process.env, ARTIUM_AXI_DATABASE_FILE: join(directory, 'data', 'artium.db'),
       ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }, stdio: ['ignore', 'pipe', 'pipe'] })
   let stderr = ''
   child.stderr.on('data', chunk => { stderr += chunk.toString() })

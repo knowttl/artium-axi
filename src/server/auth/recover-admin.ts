@@ -7,6 +7,7 @@ import type { KeyProvider } from '../store/key-provider.js'
 import { acquireMaintenanceLock } from '../store/maintenance-lock.js'
 import { readPasswordFile, readUsername } from './bootstrap.js'
 import { hashPassword } from './local.js'
+import { revokeUserSessions } from './tokens.js'
 
 export async function recoverAdministrator(file: string, provider: KeyProvider, enteredUsername: string, passwordFile: string): Promise<string> {
   const username = readUsername(enteredUsername)
@@ -23,9 +24,7 @@ export async function recoverAdministrator(file: string, provider: KeyProvider, 
         userId: null, tool: null, requestId: randomUUID(), clientAddress: null, outcome: 'success' }, () => {
         db.prepare(`UPDATE users SET password_hash = ?, administrator = 1, disabled = 0, must_change = 1,
           failed_attempts = 0, locked_until = NULL, revision = revision + 1 WHERE id = ?`).run(hash, user.id)
-        db.prepare('UPDATE session_families SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, user.id)
-        db.prepare('UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, user.id)
-        db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, user.id)
+        revokeUserSessions(db, user.id, now)
       })
       return user.id
     } finally { db.close() }
