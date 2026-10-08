@@ -43,6 +43,7 @@ try {
       resource === 'logs' ? 'api.loganalytics.io' : resource === 'graph' ? 'graph.microsoft.com' :
         resource === 'registry' ? 'containerregistry.azure.net' : resource === 'vault' ? 'vault.azure.net' : 'storage.azure.com'))
     assert.ok((await evidence()).requests.some(request => request.host === host && request.path === path && request.canaryReceived))
+    if (resource === 'logs') assert.equal((await evidence()).requests.at(-1).body.query, 'Heartbeat')
     assert.doesNotMatch(result.stdout + result.stderr, /CANARY-|blob-content|account-key/)
     if (resource === 'storage') assert.match(result.stdout, /synthetic-blob/)
     if (resource === 'vault') assert.match(result.stdout, /synthetic-secret/)
@@ -64,12 +65,24 @@ try {
   const written = await run([...args, '--execute'])
   assert.equal(written.exitCode, 0, written.stdout)
   assert.equal((await evidence()).mutations, baseline + 1)
-  const bodyFile = await run(['api', 'PATCH', target, '--body-file=body.json'],
-    { files: [{ name: 'body.json', contentBase64: Buffer.from('{"tags":{"synthetic":"yes"}}').toString('base64') }] })
-  assert.equal(bodyFile.exitCode, 0, bodyFile.stdout)
-  const stdinBody = await run(['api', 'PATCH', target], { stdin: '{"tags":{"synthetic":"yes"}}' })
-  assert.equal(stdinBody.exitCode, 0, stdinBody.stdout)
-  assert.equal((await evidence()).mutations, baseline + 1)
+  assert.deepEqual((await evidence()).requests.at(-1).body, { tags: { synthetic: 'yes' } })
+  const bodyInputs = [
+    [['api', 'PATCH', target, '--body-file=body.json'],
+      { files: [{ name: 'body.json', contentBase64: Buffer.from('{"tags":{"synthetic":"yes"}}').toString('base64') }] }],
+    [['api', 'PATCH', target], { stdin: '{"tags":{"synthetic":"yes"}}' }],
+  ]
+  for (const [bodyArgs, input] of bodyInputs) {
+    const before = await evidence()
+    const previewBody = await run(bodyArgs, input)
+    assert.equal(previewBody.exitCode, 0, previewBody.stdout)
+    assert.equal((await evidence()).mutations, before.mutations)
+    const executedBody = await run([...bodyArgs, '--execute'], input)
+    assert.equal(executedBody.exitCode, 0, executedBody.stdout)
+    const after = await evidence()
+    assert.equal(after.mutations, before.mutations + 1)
+    assert.equal(after.requests.length, before.requests.length + 1)
+    assert.deepEqual(after.requests.at(-1).body, { tags: { synthetic: 'yes' } })
+  }
   assert.ok(readFileSync(writeLog, 'utf8').length > 0)
   const outside = await run(['api', 'PATCH', target.replace('synthetic-subscription', 'other-subscription'), '--body', '{}', '--execute'])
   assert.match(outside.stdout, /SUBSCRIPTION_NOT_WRITABLE/)
@@ -78,12 +91,20 @@ try {
   const destructive = ['api', 'DELETE', target]
   assert.match((await run([...destructive, '--execute'])).stdout, /CONFIRM_REQUIRED/)
   assert.match((await run([...destructive, '--execute', '--confirm=wrong'])).stdout, /CONFIRM_MISMATCH/)
-  assert.equal((await evidence()).mutations, baseline + 1)
-  const fileQuery = await run(['logs', 'query', '-w', '33333333-3333-4333-8333-333333333333', '--file=query.kql'],
-    { files: [{ name: 'query.kql', contentBase64: Buffer.from('Heartbeat').toString('base64') }] })
-  assert.equal(fileQuery.exitCode, 0, fileQuery.stdout)
-  const stdinQuery = await run(['logs', 'query', '-w', '33333333-3333-4333-8333-333333333333'], { stdin: 'Heartbeat' })
-  assert.equal(stdinQuery.exitCode, 0, stdinQuery.stdout)
+  assert.equal((await evidence()).mutations, baseline + 3)
+  const queryInputs = [
+    [['logs', 'query', '-w', '33333333-3333-4333-8333-333333333333', '--file=query.kql'],
+      { files: [{ name: 'query.kql', contentBase64: Buffer.from('Heartbeat').toString('base64') }] }],
+    [['logs', 'query', '-w', '33333333-3333-4333-8333-333333333333'], { stdin: 'Heartbeat' }],
+  ]
+  for (const [queryArgs, input] of queryInputs) {
+    const before = (await evidence()).requests.length
+    const result = await run(queryArgs, input)
+    assert.equal(result.exitCode, 0, result.stdout)
+    const after = await evidence()
+    assert.equal(after.requests.length, before + 1)
+    assert.equal(after.requests.at(-1).body.query, 'Heartbeat')
+  }
   console.log('azure-probe: six token-mode resources, metadata-only listings, ARM-only mint, uploaded/stdin query, native preview/write/scope/confirmation gates and durable log passed; activation deferred for pinned ambiguous retry')
 } finally {
   await runner.shutdown()
