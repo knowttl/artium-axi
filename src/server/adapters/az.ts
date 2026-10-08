@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
+import { nativeSettingsSchemas } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/az-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -9,13 +10,7 @@ import { azureCredentialSchema } from './azure-tokens.js'
 import { AzureTokenCache, azureCommandResources } from './azure-token-cache.js'
 import type { Adapter } from './types.js'
 
-const settings = {
-  subscriptions: z.array(z.string().min(1)).optional(),
-  managementGroup: z.string().min(1).optional(),
-  workspaces: z.record(z.string().min(1), z.uuid()).optional(),
-  description: z.string().optional(),
-  allowWrites: z.boolean().optional(),
-}
+const settings = nativeSettingsSchemas['az-axi'].shape
 export const azCredentialSchema = z.discriminatedUnion('auth', [
   azureCredentialSchema.options[0].extend(settings), azureCredentialSchema.options[1].extend(settings),
 ])
@@ -102,6 +97,7 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
   if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
   return {
     name: 'az-axi', executable: toolPaths['az-axi'], credentialSchema: azCredentialSchema,
+    invalidateCredential: reference => { cache.replace(reference.id, reference.revision!) },
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: azManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: args => ({
       flags: [...azManifest.sensitiveFlags.map(name => `--${name}`), '-q'],

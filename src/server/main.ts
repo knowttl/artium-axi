@@ -32,7 +32,7 @@ async function main() {
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
     try { initializeNativeWriteLog(writeLog) }
     catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
-    const app = createApp({ db, audit, runner, resolver: new SharedIdentityResolver(store),
+    const app = createApp({ db, audit, runner, credentialStore: store, resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source), createVectraAdapter(source, writeLog)] })
     const maintain = () => {
       try { audit.maintain(); retainNativeWriteLog(writeLog) }

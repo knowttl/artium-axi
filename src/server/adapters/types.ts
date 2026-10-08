@@ -29,4 +29,5 @@ export interface Adapter<Credential> {
   sensitiveArguments(args: readonly string[]): SensitiveArguments
   validateArgs(args: readonly string[], input?: RunnerInput): void
   prepare(args: readonly string[], reference: CredentialReference, input?: RunnerInput): Promise<PreparedCall>
+  invalidateCredential?(reference: CredentialReference): void
 }

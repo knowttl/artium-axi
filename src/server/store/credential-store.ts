@@ -13,3 +13,7 @@ export interface CredentialStore {
   findCredential(tool: ToolName): CredentialReference | undefined
   readCredential(reference: CredentialReference): unknown
 }
+
+export interface MutableCredentialStore extends CredentialStore {
+  replaceCredential(tool: ToolName, value: unknown, expectedRevision: number, actor: string, now: number): CredentialReference
+}
