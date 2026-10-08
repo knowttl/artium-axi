@@ -111,7 +111,9 @@ SQLite uses foreign keys, WAL, FULL synchronous writes and a 5-second busy timeo
 The default [KeyProvider](src/server/store/key-provider.ts) reads exactly 32 raw bytes from `ARTIUM_AXI_MASTER_KEY_FILE`, or canonical base64 from `ARTIUM_AXI_MASTER_KEY` when no file is configured.
 An unreadable configured file does not fall back to the environment key.
 Its key ID is the full SHA-256 digest.
-Missing or invalid keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
+Missing, invalid or mismatched store keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
+Store metadata binds the database to its active key ID even before any credential is configured.
+See [the upgrade runbook](docs/runbook.md#upgrading-stores-without-a-key-binding) for legacy-store binding requirements and refusal handling.
 [Credential encryption](src/server/store/crypto.ts) uses AES-256-GCM with a fresh 12-byte nonce, a 16-byte authentication tag and canonical JSON associated data `[schemaVersion, tool, credentialId, keyId]`.
 The [credential schema](src/server/store/migrations/001-credentials.sql) owns the stored fields and constraints; credential plaintext must be encrypted before insertion.
 The `tools` table holds pinned versions, enabled state, validated native settings and revisions.
@@ -150,7 +152,7 @@ The schema provides revision fields for users and roles, alongside the existing 
 Token types are `access`, `refresh` and `password-change`, with consumed and revoked timestamps and family ownership enforced by foreign keys.
 Browser idle tracking and reauthentication timestamps are stored for later authentication flows to enforce.
 Authentication and audit writers must store timestamps as UTC Unix milliseconds.
-Bootstrap metadata starts empty and is written atomically with the first administrator in the later bootstrap slice.
+See [the bootstrap runbook](docs/runbook.md#first-administrator-and-offline-recovery) for the one-time marker and administrator safeguards.
 [S15 verification](docs/verification-s15.md) covers empty-store creation, Phase 2 upgrades with encrypted data preserved, canonical-name uniqueness and foreign keys.
 The [access-token verifier](src/server/auth/tokens.ts) looks up SHA-256 hashes and enforces access-token type, token and family deadlines, consumption and revocation.
 The [tool policy](src/server/policy/policy.ts) reads the current enabled user, enabled tool and role grants on every call.
@@ -160,7 +162,7 @@ The [error catalogue](src/shared/errors.ts) owns token and policy denial codes a
 The random [fixture issuer](test/fixtures/tokens.ts) lives only in the test harness and refuses execution outside `NODE_ENV=test`.
 It stores only the token hash, sets a one-hour access-token expiry and a fixed 12-hour family deadline, and issues tokens checked by the production verifier in tests.
 [S16 verification](docs/verification-s16.md) covers expiry and revocation, next-call role changes and proof that denied preparation retrieves no secret.
-Login, production token issuance and bootstrap execution arrive in later slices.
+Login and production token issuance arrive in later slices.
 
 The [audit store](src/server/audit/audit.ts) records UTC Unix millisecond timestamps, actor IDs, tools, request IDs, verified client addresses, outcomes and safe run metadata.
 `runTool(db, audit, runner, token, request, adapter, resolver, context, authenticate?)` owns admission and execution.
@@ -308,12 +310,15 @@ The checks verify the configured 6 GiB bound and force a resident-memory OOM at 
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 The image's default command starts the development API, which requires an explicit development gate and token file.
-The Compose example supplies only the master key; supply the development gate and a mounted token file before starting it.
+The Compose example supplies only the master key; supply the development gate and a mounted token file before starting it, plus the [first-start bootstrap settings](docs/runbook.md#first-administrator-and-offline-recovery) for a new store.
 Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.
 See [verification-s05-06.md](docs/verification-s05-06.md) for packaging verification and deferred Falcon live checks.
 
 After `pnpm build`, run `pnpm start` with `ARTIUM_AXI_DEV=1`, `ARTIUM_AXI_DEV_TOKEN_FILE` pointing to an owner-only random token file, and `ARTIUM_AXI_MASTER_KEY_FILE` pointing to a synthetic 32-byte key file.
+On first start, also set `ARTIUM_AXI_ADMIN_USERNAME` to a synthetic local username and `ARTIUM_AXI_ADMIN_PASSWORD_FILE` to a UTF-8 file containing the exact starting password, without an added newline.
+See [the runbook](docs/runbook.md#first-administrator-and-offline-recovery) for bootstrap requirements, later-start behavior, administrator safeguards and offline audited recovery.
+See [S29 verification](docs/verification-s29.md) for local startup and recovery evidence.
 Use `ARTIUM_AXI_DATABASE_FILE` to select a dedicated local development database instead of `/data/artium.db`.
 The [server configuration](src/server/config.ts) owns the listener and storage defaults.
 All tools remain disabled until the development store is configured.

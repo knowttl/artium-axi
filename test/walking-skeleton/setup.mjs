@@ -1,12 +1,15 @@
 import { openStore } from '/opt/artium/dist/src/server/store/db.js'
 import { encryptCredential } from '/opt/artium/dist/src/server/store/crypto.js'
 import { EnvironmentKeyProvider } from '/opt/artium/dist/src/server/store/key-provider.js'
+import { bootstrapAdministrator } from '/opt/artium/dist/src/server/auth/bootstrap.js'
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const provider = new EnvironmentKeyProvider()
 const db = openStore('/data/artium.db', provider)
 writeFileSync('/data/token', process.env.ARTIUM_TEST_TOKEN, { mode: 0o600 })
 try {
+  writeFileSync('/data/admin-password', 'CANARY-bootstrap-password', { mode: 0o600 })
+  await bootstrapAdministrator(db, { ARTIUM_AXI_ADMIN_USERNAME: 'synthetic-admin', ARTIUM_AXI_ADMIN_PASSWORD_FILE: '/data/admin-password' })
   db.prepare("UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'").run()
   const credential = encryptCredential('synthetic-falcon', 'falcon-axi', Buffer.from(JSON.stringify({
     clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1',

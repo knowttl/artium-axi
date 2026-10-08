@@ -58,15 +58,22 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
     db.pragma('journal_mode = WAL')
     db.pragma('synchronous = FULL')
     db.transaction(() => {
+      const existingStore = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' LIMIT 1").get()
       migrate(db)
+      const metadata = db.prepare('SELECT master_key_id FROM store_metadata WHERE id = 1').get() as { master_key_id: string } | undefined
       const rotation = db.prepare('SELECT new_key_id FROM key_rotations ORDER BY rowid DESC LIMIT 1').get() as { new_key_id: string } | undefined
-      if (rotation && rotation.new_key_id !== key.id) {
-        throw new ArtiumError('CREDENTIAL_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${rotation.new_key_id}.`)
+      if (metadata && metadata.master_key_id !== key.id) {
+        throw new ArtiumError('MASTER_KEY_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${metadata.master_key_id}.`)
       }
+      if (rotation && rotation.new_key_id !== key.id) {
+        throw new ArtiumError('MASTER_KEY_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${rotation.new_key_id}.`)
+      }
+      const rows = db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]
+      if (!metadata && existingStore && !rotation && rows.length === 0) throw new ArtiumError('MASTER_KEY_INVALID')
+      for (const row of rows) decryptCredential(row, key).fill(0)
+      if (!metadata) db.prepare('INSERT INTO store_metadata (id, master_key_id) VALUES (1, ?)').run(key.id)
       const insertTool = db.prepare("INSERT INTO tools (name, enabled, pinned_version) VALUES (?, 0, '') ON CONFLICT(name) DO NOTHING")
       for (const tool of toolSchema.options) insertTool.run(tool)
-      const rows = db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]
-      for (const row of rows) decryptCredential(row, key).fill(0)
     }).immediate()
     return db
   } catch (error) {

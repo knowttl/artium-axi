@@ -5,6 +5,7 @@ import { createVectraAdapter } from './adapters/vectra.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { Audit } from './audit/audit.js'
 import { readDevelopmentToken } from './auth/development.js'
+import { bootstrapAdministrator } from './auth/bootstrap.js'
 import { serverDefaults } from './config.js'
 import { SharedIdentityResolver } from './policy/identity-resolver.js'
 import { Runner } from './runner/runner.js'
@@ -22,6 +23,7 @@ async function main() {
   let runner: Runner | undefined
   try {
     db = openStore(database)
+    await bootstrapAdministrator(db)
     const connection = db
     const store = createCredentialStore(db, new EnvironmentKeyProvider())
     runner = await Runner.create(serverDefaults.temporaryDirectory)

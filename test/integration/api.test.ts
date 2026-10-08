@@ -336,6 +336,9 @@ test('the real server process exits at startup with the dev setting absent', asy
 })
 
 test('the real server remains available after startup encounters a damaged native journal', async () => {
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator)
+    VALUES ('synthetic-admin', 'synthetic-admin', 'Synthetic Admin', 'unusable', 1);
+    INSERT INTO bootstrap_metadata VALUES (1, 1)`)
   const { build } = await import('esbuild')
   const entry = join(directory, 'server.mjs')
   const logDirectory = join(directory, 'data', 'tool-logs', 'vectra-axi')

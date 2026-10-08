@@ -11,6 +11,8 @@ beforeEach(() => {
   db.exec(`
     INSERT INTO users (id, username, display_name, password_hash, administrator)
       VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash', 1);
+    INSERT INTO users (id, username, display_name, password_hash, administrator)
+      VALUES ('synthetic-other-admin', 'synthetic-other-admin', 'Other Admin', 'unusable', 1);
     INSERT INTO tools (name, enabled, pinned_version) VALUES ('falcon-axi', 1, '0.3.0');
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
@@ -24,7 +26,7 @@ test('enabled user with a tool grant is allowed', () => {
 })
 
 test.each([
-  ['UPDATE users SET disabled = 1', 'USER_DISABLED'],
+  ["UPDATE users SET disabled = 1 WHERE id = 'synthetic-user'", 'USER_DISABLED'],
   ['UPDATE tools SET enabled = 0', 'TOOL_DISABLED'],
   ['DELETE FROM role_tools', 'TOOL_NOT_GRANTED'],
   ['DELETE FROM user_roles', 'TOOL_NOT_GRANTED'],
