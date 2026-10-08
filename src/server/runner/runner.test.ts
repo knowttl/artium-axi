@@ -4,14 +4,17 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
 import { runtimePath } from '../config.js'
-import { run } from './runner.js'
+import { Runner } from './runner.js'
 
 let root: string
+let runner: Runner
+const run = (...args: Parameters<Runner['run']> extends [string, ...infer Rest] ? Rest : never) => runner.run('synthetic-user', ...args)
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'artium-runner-test-'))
-  vi.stubEnv('TMPDIR', root)
+  runner = await Runner.create(root)
 })
 afterEach(async () => {
+  await runner.shutdown()
   try {
     expect(await readdir(root)).toEqual([])
   } finally {
@@ -54,6 +57,8 @@ test.each([
   expect(environment).toEqual({
     ...adapterPaths,
     ADAPTER_SETTING: 'synthetic', PATH: runtimePath, HOME: directory, TMPDIR: directory,
+    XDG_CONFIG_HOME: directory, XDG_CACHE_HOME: directory, XDG_DATA_HOME: directory,
+    XDG_STATE_HOME: directory, XDG_RUNTIME_DIR: directory, NODE_OPTIONS: '--max-old-space-size=128',
   })
   expect(directory.startsWith(join(root, 'artium-call-'))).toBe(true)
   await expect(stat(directory)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -156,4 +161,35 @@ test('synchronous spawn failure removes the directory', async () => {
 
 test('signal termination removes the directory without inventing an exit code', async () => {
   await expect(fake(['signal'])).rejects.toMatchObject({ code: 'PROCESS_SIGNAL' })
+})
+
+test.each(['stdout', 'stderr'] as const)('security stops a 64 MiB %s flood without returning captured output', async stream => {
+  const failure = await fake([stream, String(65 * 1024 * 1024)]).catch(error => error)
+  expect(failure).toMatchObject({ code: 'OUTPUT_LIMIT', source: 'artium-axi' })
+  expect(failure).not.toHaveProperty('stdout')
+  expect(failure).not.toHaveProperty('stderr')
+}, 20_000)
+
+test('security flood stop counts stdout and stderr together', async () => {
+  const script = `process.stdout.write(Buffer.alloc(32 * 1024 * 1024)); process.stderr.write(Buffer.alloc(32 * 1024 * 1024))`
+  await expect(run(process.execPath, ['-e', script], {}, [])).rejects.toMatchObject({ code: 'OUTPUT_LIMIT' })
+}, 20_000)
+
+test('security Node heap exhaustion ends the call without captured diagnostics', async () => {
+  const script = `const retained = Array.from({ length: 24 }, () => Array(1024 * 1024).fill(1)); console.log(retained.length)`
+  await expect(run(process.execPath, ['-e', script], { NODE_OPTIONS: '--max-old-space-size=2048' }, []))
+    .rejects.toMatchObject({ code: 'PROCESS_SIGNAL' })
+}, 10_000)
+
+test('security Python address-space bound refuses a 600 MiB allocation', async () => {
+  const script = `import resource\nprint(resource.getrlimit(resource.RLIMIT_AS))\ntry:\n bytearray(600 * 1024 * 1024)\nexcept MemoryError:\n print('memory refused')`
+  const result = await run('/usr/bin/python3', ['-c', script], {}, [], { runtime: 'python' })
+  expect(result.exitCode).toBe(0)
+  expect(result.stdout).toBe('(536870912, 536870912)\nmemory refused\n')
+})
+
+test('already cancelled calls create no child and release admission slots', async () => {
+  await expect(run(fakeTool.executable, fakeTool.args, {}, [], { signal: AbortSignal.abort() }))
+    .rejects.toMatchObject({ code: 'CANCELLED' })
+  expect((await fake(['print', 'ready'])).stdout).toBe('ready')
 })

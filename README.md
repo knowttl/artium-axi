@@ -53,10 +53,13 @@ Native write-setting records include hashes of the pinned configuration and perm
 The native write gates remain upstream-owned.
 
 `node test/fake-tool/fake-axi.mjs <mode>` runs the deterministic test executable.
-Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
+Modes are `env`, `print`, `sleep`, `stdout`, `stderr`, `memory`, `child`, `child-exit`, `descendant`, `exit`, `split`, `leak`, `signal` and `upstream`.
 For example, `stdout 8388608` floods stdout, `split canary 3 stderr` splits stderr bytes, and `upstream az-axi error` emits a synthetic stream capture with an error status.
 `leak` reads only `ARTIUM_TEST_CANARY`, with `raw`, `base64`, `base64url` or `url` encoding and an optional `stderr` argument.
 `child` creates an ordinary descendant, while `descendant` starts a separate session.
+`child-exit` leaves an ordinary descendant after the leader exits.
+`descendant pipes` retains inherited output pipes, and `sleep 60000 ignore-term` ignores SIGTERM.
+Lifecycle tests may set `ARTIUM_TEST_READY_FILE` to an owned fixture path to receive an atomic readiness record.
 Callers must terminate both PIDs printed by those modes.
 [`test/fake-tool/tool.ts`](test/fake-tool/tool.ts) supplies the executable and argument descriptor for runner tests, without a production fake-tool entry.
 
@@ -68,17 +71,40 @@ Each stream carries independent prefix-match positions, so split UTF-8 bytes wor
 An empty supplied value is rejected, while an empty list is valid for a call with no injected secrets.
 Exact-value scanning cannot identify unknown tokens minted inside an upstream tool.
 The [runner](src/server/runner/runner.ts) now owns stream capture and scanner integration.
-Call `run(executable, args, environment, secrets, limits)` with adapter-provided environment values and all known injected secrets.
+Create one `Runner` per server with `await Runner.create()`, before accepting calls.
+It removes abandoned `artium-call-` entries from its private root without following symlinks.
+Call `runner.run(userId, executable, args, environment, secrets, limits)` with the authenticated user, adapter-provided environment values and all known injected secrets.
+Admission includes preparation, execution and cleanup, with no queue, at most 8 global calls and 2 per user.
+Credential tests and future background health reads must use this same runner and an authenticated identity.
+Excess calls reject immediately with `TOO_MANY_CALLS`.
 It spawns an argument array without a shell in a detached Linux process group, using the fixed runtime PATH from `src/server/config.ts`.
-Each call has a private mode-0700 directory for its working directory, HOME and TMPDIR, removed after completion or failure.
-The child environment contains exactly the adapter-provided values with PATH, HOME and TMPDIR overridden by the runner.
+Each call has a private mode-0700 directory for its working directory, HOME, TMPDIR and XDG paths, removed after completion or failure.
+The child environment contains exactly the adapter-provided values with PATH, HOME, TMPDIR, XDG paths and NODE_OPTIONS overridden by the runner.
 No parent environment variables are inherited.
 The result preserves stdout, stderr and the upstream exit code, with duration, observed byte counts and per-stream truncation flags.
 Capture defaults to 4 MiB per stream, drains subsequent output and scans every chunk before retention.
 A secret match discards both streams and rejects with `SECRET_IN_OUTPUT`.
 Failed spawn and signal termination reject safely without captured output.
-The `timedOut` field is currently false.
-Timeout, cancellation, descendant termination, admission, flood and memory enforcement arrive in S09/10, while HTTP error mapping and audit integration arrive with the server.
+The default child timeout is 60 seconds, with a trusted adapter override in `limits.timeoutMs` only after measured probe evidence.
+Supply the caller's disconnect `AbortSignal` in `limits.signal` to cancel the call.
+Timeout and cancellation reject with `TIMEOUT` and `CANCELLED`, without captured output or an invented upstream exit code.
+Completed results retain the existing `timedOut: false` field.
+At 64 MiB observed across both streams, the call stops with `OUTPUT_LIMIT`.
+Termination sends SIGTERM to the whole Linux process group, allows 2 seconds, then sends SIGKILL, closes lingering pipes and waits for the leader's close event before releasing admission.
+Normal leader exit also terminates surviving group descendants.
+`await runner.shutdown()` stops admission, cancels runs and waits for their cleanup.
+The later server slice must wire disconnect and shutdown events to these public interfaces, then close its store.
+`TEMP_UNAVAILABLE` reports failure to create a call directory, including full tmpfs, without exposing filesystem diagnostics.
+An upstream tmpfs write failure preserves its ordinary nonzero exit status and still removes the call directory.
+Node children receive a 128 MiB heap limit.
+The fixed Python launcher applies a 512 MiB address-space limit before executing Falcon, preserving its shebang interpreter.
+Other trusted Python descriptors can set `limits.runtime: 'python'`.
+Heap and address-space limits are not total resident-memory caps or complete process isolation.
+A descendant that starts a new session escapes the process group, including when it retains output pipes.
+The runner bounds pipe cleanup but cannot kill or reap that escaped session.
+Ordinary orphan descendants are reaped by the container init process, while the runner reaps its direct child.
+HTTP error mapping and audit integration arrive with the server.
+See [verification-s09-10.md](docs/verification-s09-10.md) for lifecycle, resource and limitation evidence.
 See [verification-s08.md](docs/verification-s08.md) for local runner acceptance checks.
 See [verification-s07.md](docs/verification-s07.md) for the local acceptance checks.
 
@@ -118,6 +144,12 @@ Run the same command with `scripts/falcon-smoke.mjs` to verify unknown-origin re
 Remove the owned image afterwards with `docker image rm artium-axi:local`.
 
 [`compose.example.yaml`](compose.example.yaml) records the loopback port, read-only root, `/tmp` tmpfs, `/data` volume and file-backed Docker master-key secret.
+It also sets an init process for orphan reaping, a 6 GiB memory limit, a 192-task limit and a 256 MiB `/tmp` tmpfs.
+Run `pnpm test:runner-container` for the separate mandatory Linux cgroup and full-tmpfs checks.
+It builds only `artium-test-runner-s09-10` with a private `artium-test-` BuildKit worker, tests a non-root read-only runtime without network access, and removes its containers, image and private build cache on completion.
+An existing image with that name is refused and left intact.
+The checks verify the configured 6 GiB bound and force a resident-memory OOM at a smaller synthetic 256 MiB cgroup bound, without stressing the host with a 6 GiB allocation.
+They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 It is a packaging example, not a running API yet.
 The image's default command prints the Node version until the server entry point exists.
