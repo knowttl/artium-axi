@@ -18,7 +18,8 @@ See [README.md](../README.md) for local validation commands, mandatory fake-only
 The PR body records command results, published head, hygiene-list digest and pipeline timings.
 Any pipeline source or test fix requires renewed final-head validation.
 All service checks use fakes and canary credentials.
-Real account changes, browser acceptance and live deployment remain deferred.
+See [S38 verification](verification-s38.md) for local browser authentication evidence.
+Real account changes and live deployment remain deferred.
 
 Local validation passed on implementation commit `bcafe8ee5159e423b72fe9bd05ac5b1dac776ae4`.
 `pnpm install --frozen-lockfile` and `pnpm lint` passed.

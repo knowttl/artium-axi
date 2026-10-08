@@ -20,4 +20,4 @@ See [S16 verification](verification-s16.md) for token verification and the test 
 See [S17+S18 verification](verification-s17-18.md) for audit writing checks.
 See [S29 verification](verification-s29.md) for bootstrap execution and administrator safeguards.
 See [S30 verification](verification-s30.md) for local login and [S31 verification](verification-s31.md) for refresh and logout.
-Browser authentication remains later-slice work.
+See [S38 verification](verification-s38.md) for local browser authentication evidence and deferred live acceptance.
