@@ -21,7 +21,7 @@ Scan the exact published head again before reporting delivery.
 
 See [README.md](../README.md) for the runner's current contract.
 See [S09/10 verification](verification-s09-10.md) for subsequent lifecycle and resource checks, including the escaped-session limitation.
-Stdin and uploaded inputs arrive in the request-contract slice.
+See [S11 verification](verification-s11.md) for stdin and uploaded-input checks.
 Existing container checks remain documented in README and the evidence ledger.
 S08 changes no image recipe, tool pin, native dependency or fake-service network behaviour.
 Captain live acceptance remains unverified.

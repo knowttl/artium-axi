@@ -18,7 +18,5 @@ The delivery status and PR body bind the exact candidate head to the command res
 Pipeline source or test changes require renewed final-head validation.
 Scan the exact published head again before reporting delivery.
 
-The later server owns JSON content type, the 16 MiB HTTP body limit, authorization before credentials and endpoint integration.
-Adapters own the parser-aware distinction between ordinary input-file flags and credential, config or output paths.
-The later CLI owns command-specific stdin capture and local upload reading.
+See [README.md](../README.md) for remaining server, adapter and CLI integration work, and [api.ts](../src/shared/api.ts) for the authoritative HTTP body limit.
 Captain live acceptance remains unverified.
