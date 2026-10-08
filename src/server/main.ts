@@ -24,7 +24,8 @@ async function main() {
     const audit = new Audit(db)
     const source = new EmbeddedSecretSource(store)
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
-    initializeNativeWriteLog(writeLog)
+    try { initializeNativeWriteLog(writeLog) }
+    catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
     const app = createApp({ db, audit, runner, resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source), createVectraAdapter(source, writeLog)] })
     const maintain = () => {
