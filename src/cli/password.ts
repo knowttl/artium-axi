@@ -10,7 +10,6 @@ export async function readPassword(stdin: boolean, environmentVariable?: string)
   }
   if (environmentVariable && process.env[environmentVariable] !== undefined) return process.env[environmentVariable]!
   if (!process.stdin.isTTY || !process.stderr.isTTY) throw new ArtiumError('INVALID_INPUT', 'A password source is required.', 'Use --password-stdin or the documented password environment variable.')
-  process.stderr.write(environmentVariable === 'ARTIUM_AXI_CURRENT_PASSWORD' ? 'Current password: ' : 'Password: ')
   emitKeypressEvents(process.stdin)
   process.stdin.setRawMode(true)
   process.stdin.resume()
@@ -26,6 +25,7 @@ export async function readPassword(stdin: boolean, environmentVariable?: string)
         else if (text && !key.ctrl && !/\p{Cc}/u.test(text)) password += text
       }
       process.stdin.on('keypress', keypress)
+      process.stderr.write(environmentVariable === 'ARTIUM_AXI_CURRENT_PASSWORD' ? 'Current password: ' : 'Password: ')
     })
   } finally { process.stdin.setRawMode(false); process.stdin.pause(); process.stderr.write('\n') }
 }

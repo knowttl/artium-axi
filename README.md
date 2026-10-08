@@ -11,6 +11,7 @@ The bundled CLI supports local login, password change, identity, logout and seri
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
+On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 The executable toolchain tests compile synthetic TypeScript and run its emitted ESM with Node, and verify strict null checking rejects an invalid assignment.
@@ -36,7 +37,7 @@ Windows storage uses PowerShell to restrict the ACL to the current user, SYSTEM 
 File replacement is atomic.
 Each stored session includes a UUID `loginGeneration`, replaced on every login and preserved during refresh.
 Files from earlier builds without this field require a new login.
-Tool requests and password changes stop with `SESSION_CHANGED` if a concurrent login or logout replaces their originating session.
+Session reloads during authenticated requests and password changes stop with `SESSION_CHANGED` if a concurrent login or logout replaces their originating session.
 Local CLI processes serialize refreshes through `session.lock`, reload the session after acquiring it and reuse a rotation completed by another process.
 If a process dies holding the lock, the next command reports `SESSION_BUSY` after 100 seconds.
 Remove that directory only after all CLI processes have exited.
