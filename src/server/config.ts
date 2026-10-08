@@ -4,6 +4,7 @@ export const toolPaths = {
   'az-axi': '/opt/tools/node_modules/.bin/az-axi',
 } as const
 export const runtimePath = '/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'
+export const serverDefaults = { host: '0.0.0.0', port: 8080, database: '/data/artium.db', temporaryDirectory: '/tmp/artium-calls' } as const
 export const runnerLimits = {
   globalCalls: 8,
   userCalls: 2,
