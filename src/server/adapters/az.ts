@@ -18,7 +18,7 @@ const settings = {
 }
 export const azCredentialSchema = z.discriminatedUnion('auth', [
   azureCredentialSchema.options[0].extend(settings), azureCredentialSchema.options[1].extend(settings),
-]).refine(value => value.allowWrites !== true || Boolean(value.subscriptions?.length))
+])
 export type AzCredential = z.infer<typeof azCredentialSchema>
 export const azManifest = { ...inventory, ...inventory.adapterBoundary }
 
@@ -30,7 +30,7 @@ function azArguments(args: readonly string[], input: RunnerInput = {}) {
   let leading = 0
   while (args[leading]?.startsWith('-')) {
     const token = args[leading]
-    const name = token === '-s' ? 'subscription' : token.slice(2).split('=')[0]
+    const name = token.split('=')[0] === '-s' ? 'subscription' : token.slice(2).split('=')[0]
     const flag = azManifest.globalFlags.find(flag => flag.name === name)
     if (flag?.disposition === 'unsafe override') throw new ArtiumError('FLAG_BLOCKED')
     if (!flag || ['help'].includes(name)) break
@@ -38,8 +38,10 @@ function azArguments(args: readonly string[], input: RunnerInput = {}) {
     if (!token.includes('=') && (name !== 'full' || ['true', 'false'].includes(args[leading]))) leading++
   }
   if (leading) {
-    const command = args.slice(leading)
-    return azArguments([...(command.length ? command : ['home']), ...args.slice(0, leading)], input)
+    const command = args.length > leading ? args.slice(leading) : ['home']
+    const separator = command.indexOf('--')
+    command.splice(separator === -1 ? command.length : separator, 0, ...args.slice(0, leading))
+    return azArguments(command, input)
   }
   const route = inventory.commands.filter(route => route.tokenResources !== null &&
     (route.command === 'home' && args.length === 0 || route.command.split(' ').every((word, index) => args[index] === word)))

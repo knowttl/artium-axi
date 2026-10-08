@@ -40,6 +40,43 @@ test.each([
 })
 
 test.each([
+  [['rg', 'query'], ['--subscription=other']],
+  [['logs', 'query', '-w', 'synthetic'], ['--subscription=other']],
+  [['rg', 'query'], ['--subscription', 'other']],
+  [['logs', 'query', '-w', 'synthetic'], ['--subscription', 'other']],
+  [['rg', 'query'], ['-s', 'other']],
+  [['logs', 'query', '-w', 'synthetic'], ['-s', 'other']],
+  [['rg', 'query'], ['-s=other']],
+  [['logs', 'query', '-w', 'synthetic'], ['-s=other']],
+  [['rg', 'query'], ['--management-group=synthetic']],
+  [['logs', 'query', '-w', 'synthetic'], ['--full']],
+  [['rg', 'query'], ['--fields=name', '--limit=12']],
+] as const)('leading selectors stay before the literal query: %j %j', async (command, selectors) => {
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(new FakeTokenTransport()))
+  const query = 'Resources | where name == "--subscription=literal"\n| take 1'
+  const args = [...selectors, ...command, '--', query]
+  adapter.validateArgs(args)
+  const call = await adapter.prepare(args, reference)
+  expect(call.args).toEqual([...command, ...selectors, '--', query])
+  expect(JSON.parse(call.files[0].content as string).profiles.artium.subscriptions).toEqual(credential.subscriptions)
+})
+
+test.each([
+  [['sub', 'list'], undefined],
+  [['sub', 'list'], []],
+  [['api', '/v1.0/users', '--resource=graph'], undefined],
+  [['api', '/v1.0/users', '--resource=graph'], []],
+] as const)('write-enabled credentials without write subscriptions prepare reads: %j %j', async (args, subscriptions) => {
+  const adapter = createAzAdapter({ getCredential: async () => ({ ...credential, subscriptions }) }, writeLog,
+    new AzureTokenCache(new FakeTokenTransport()))
+  const call = await adapter.prepare(args, reference)
+  expect(call.args).toEqual(args)
+  const profile = JSON.parse(call.files[0].content as string).profiles.artium
+  expect(profile.allowWrites).toBe(true)
+  expect(profile.subscriptions).toEqual(subscriptions)
+})
+
+test.each([
   ['config', 'list'], ['setup'], ['az', 'group', 'list'], ['update'],
   ['sub', 'list', '--profile=other'], ['--tenant=other', 'sub', 'list'],
   ['sub', 'list', '--config', '/data/artium.db'], ['sub', 'list', '--tenant', 'other'],
@@ -66,7 +103,7 @@ test('certificate preparation keeps the key and exact assertion in the scan set'
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })
   const transport = new FakeTokenTransport()
   const value = { auth: 'certificate', tenantId: credential.tenantId, clientId: credential.clientId,
-    privateKey, thumbprintSha256: 'ab'.repeat(32) }
+    privateKey, thumbprintSha256: 'ab'.repeat(32), allowWrites: true }
   const call = await createAzAdapter({ getCredential: async () => value }, writeLog, new AzureTokenCache(transport))
     .prepare(['sub', 'list'], reference)
   const assertion = transport.requests[0].form.get('client_assertion')!
@@ -79,7 +116,6 @@ test('certificate preparation keeps the key and exact assertion in the scan set'
 })
 
 test('invalid profile or missing revision fails safely', async () => {
-  expect(azCredentialSchema.safeParse({ ...credential, subscriptions: [] }).success).toBe(false)
   expect(azCredentialSchema.safeParse({ ...credential, tokenEnv: { arm: 'OTHER' } }).success).toBe(false)
   await expect(createAzAdapter({ getCredential: async () => credential }, writeLog)
     .prepare(['sub', 'list'], { id: reference.id, tool: reference.tool })).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
