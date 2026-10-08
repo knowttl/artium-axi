@@ -1,0 +1,1 @@
+FROM node:22.12.0-bookworm-slim@sha256:cc993f948cbd77c7cdfa0a9cc5b05e9ec9554c6ecf8cf98b90a2012156a4b998

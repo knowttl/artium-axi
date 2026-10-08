@@ -1,4 +1,5 @@
-import { spawnSync } from 'node:child_process'
+import { execFile, spawnSync } from 'node:child_process'
+import { promisify } from 'node:util'
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -207,6 +208,21 @@ test('a known-secret child output returns only the safe failure envelope', async
   await expectFailure(await run({ args: ['leak'] }), 'SECRET_IN_OUTPUT')
   expect(db.prepare("SELECT outcome, stdout_bytes FROM audit WHERE event = 'run-terminal'").get())
     .toEqual({ outcome: 'SECRET_IN_OUTPUT', stdout_bytes: 13 })
+})
+
+test('bundled CLI runs through the real API and withholds environment-mode canary output', async () => {
+  const { build } = await import('esbuild')
+  const bundle = join(directory, 'artium-axi.mjs')
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: bundle, bundle: true, platform: 'node', format: 'esm', target: 'node22.12' })
+  const execute = promisify(execFile)
+  const settings = { cwd: directory, timeout: 10_000,
+    env: { PATH: process.env.PATH, ...environment, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } }
+  const result = await execute(process.execPath, [bundle, 'falcon-axi', 'print', 'synthetic output'], settings)
+  expect(result).toEqual({ stdout: 'synthetic output', stderr: '' })
+  await expect(execute(process.execPath, [bundle, 'falcon-axi', 'env'], settings))
+    .rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '' })
+  const terminal = db.prepare("SELECT outcome, stdout_bytes FROM audit WHERE event = 'run-terminal' ORDER BY id").all()
+  expect(terminal).toEqual([{ outcome: 'completed', stdout_bytes: 16 }, { outcome: 'SECRET_IN_OUTPUT', stdout_bytes: expect.any(Number) }])
 })
 
 test('malformed JSON, content type, unknown tool and body byte limit use safe errors', async () => {

@@ -36,7 +36,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       res.end()
     } else {
       const offset = Number(url.searchParams.get('offset') ?? 0)
-      const ids = ['synthetic-detection-1', 'synthetic-detection-2']
+      const ids = url.searchParams.get('filter') === "hostname:'synthetic-empty'" ? [] : ['synthetic-detection-1', 'synthetic-detection-2']
       res.end(JSON.stringify({ resources: ids.slice(offset, offset + Number(url.searchParams.get('limit') ?? 1)),
         meta: { pagination: { offset, total: ids.length } } }))
     }
