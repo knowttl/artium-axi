@@ -29,7 +29,7 @@ function seedIdentity() {
     INSERT INTO users (id, username, display_name, password_hash) VALUES ('person', 'synthetic', 'Synthetic', 'CANARY-hash');
     INSERT INTO users (id, username, display_name, password_hash) VALUES ('other', 'other', 'Other', 'CANARY-hash');
     INSERT INTO roles (id, name) VALUES ('reader', 'Reader');
-    INSERT INTO tools (name, pinned_version) VALUES ('falcon-axi', 'synthetic-version');
+    UPDATE tools SET pinned_version = 'synthetic-version' WHERE name = 'falcon-axi';
     INSERT INTO session_families (id, user_id, created_at, expires_at) VALUES ('family', 'person', 1000, 43201000);
   `)
 }
@@ -47,7 +47,7 @@ it('migrates an empty store and persists the identity relationships on reopen', 
   `)
   db.close()
   db = openStore(file, provider)
-  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }])
+  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }])
   expect(db.prepare(`SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'person'`).all())
     .toEqual([{ tool: 'falcon-axi' }])
   expect(db.prepare('SELECT source, administrator, revision FROM users WHERE id = ?').get('person'))
@@ -76,7 +76,7 @@ it('upgrades a Phase 2 store without changing its encrypted credential or tool s
   db.close()
   db = openStore(file, provider)
   expect(db.prepare('SELECT * FROM credentials').get()).toEqual(previousCredential)
-  expect(db.prepare('SELECT * FROM tools').get()).toEqual(previousTool)
+  expect(db.prepare("SELECT * FROM tools WHERE name = 'falcon-axi'").get()).toEqual(previousTool)
   expect(decryptCredential(db.prepare('SELECT * FROM credentials').get() as EncryptedCredential, provider.getKey()))
     .toEqual(Buffer.from('CANARY-preserved'))
   db.prepare('INSERT INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, ?)')

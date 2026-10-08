@@ -42,6 +42,7 @@ export function createFalconAdapter(source: SecretSource): Adapter<FalconCredent
     timeoutMs: inventory.requirements.timeoutMs,
     blockedFlags: inventory.unsafeOverrides.map(flag => `--${flag}`),
     allowedFlagValues: {},
+    sensitiveArguments: () => ({ flags: ['--client-id', '--client-secret'], positions: [] }),
     validateArgs: validateFalconArgs,
     async prepare(args, reference) {
       validateFalconArgs(args)

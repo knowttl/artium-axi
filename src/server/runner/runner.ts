@@ -26,7 +26,10 @@ export interface RunnerResult {
   truncated: { stdout: boolean, stderr: boolean }
 }
 
-export class RunnerError extends ArtiumError {}
+export class RunnerError extends ArtiumError {
+  durationMs?: number
+  outputBytes?: { stdout: number, stderr: number }
+}
 
 // A byte cap must not introduce a replacement character from an incomplete UTF-8 suffix.
 function decode(bytes: Buffer, truncated: boolean): string {
@@ -204,13 +207,16 @@ async function execute(
         clearTimeout(timeout)
         limits.signal?.removeEventListener('abort', cancel)
         if (secretDetected) {
-          reject(new RunnerError('SECRET_IN_OUTPUT'))
+          failure = new RunnerError('SECRET_IN_OUTPUT')
         } else if (spawnFailed) {
-          reject(new RunnerError('SPAWN_FAILED'))
-        } else if (failure) {
+          failure = new RunnerError('SPAWN_FAILED')
+        } else if (!failure && exitCode === null) {
+          failure = new RunnerError('PROCESS_SIGNAL')
+        }
+        if (failure) {
+          failure.durationMs = performance.now() - started
+          failure.outputBytes = { stdout: streams.stdout.observed, stderr: streams.stderr.observed }
           reject(failure)
-        } else if (exitCode === null) {
-          reject(new RunnerError('PROCESS_SIGNAL'))
         } else {
           const truncated = {
             stdout: streams.stdout.observed > cap,
@@ -219,7 +225,7 @@ async function execute(
           resolve({
             stdout: decode(Buffer.concat(streams.stdout.chunks), truncated.stdout),
             stderr: decode(Buffer.concat(streams.stderr.chunks), truncated.stderr),
-            exitCode,
+            exitCode: exitCode!,
             durationMs: performance.now() - started,
             outputBytes: { stdout: streams.stdout.observed, stderr: streams.stderr.observed },
             timedOut: false,

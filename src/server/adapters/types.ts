@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { CredentialReference, ToolName } from '../store/credential-store.js'
+import type { SensitiveArguments } from '../audit/redact.js'
 
 // The owning server flow must materialize these leaf names in the private call directory with mode 0600.
 // RunnerInput currently supports uploads only; adapter-file materialization is not wired yet.
@@ -24,6 +25,7 @@ export interface Adapter<Credential> {
   timeoutMs: number
   blockedFlags: readonly string[]
   allowedFlagValues: Readonly<Record<string, readonly string[]>>
+  sensitiveArguments(args: readonly string[]): SensitiveArguments
   validateArgs(args: readonly string[]): void
   prepare(args: readonly string[], reference: CredentialReference): Promise<PreparedCall>
 }
