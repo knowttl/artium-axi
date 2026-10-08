@@ -82,12 +82,7 @@
   "format": "TOON",
   "adapterBoundary": {
     "blockedCommands": [
-      "setup",
-      "login",
-      "logout",
-      "config",
-      "profile",
-      "update"
+      "setup"
     ],
     "unsafeOverrides": [
       "config",

@@ -108,7 +108,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
     suggestionFields: ['help'], format: 'TOON',
     ...(tool === 'vectra-axi' ? { adapterBoundary: {
-      blockedCommands: ['setup', 'login', 'logout', 'config', 'profile', 'update'],
+      blockedCommands: ['setup'],
       unsafeOverrides: ['config', 'profile'], inputFileFlags: ['tags-file', 'ids-file', 'note-file'],
       parser: { aliases: {}, shortFlags: {}, repeats: 'refused', equals: true, doubleDash: 'unknown flag' },
       source: { path: 'dist/src/catalogue.js', sha256: createHash('sha256')

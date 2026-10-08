@@ -47,7 +47,7 @@ test('unsafe overrides and local management fail before retrieving a credential'
       await expect(adapter.prepare(['detection', 'list', ...args], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
     }
   }
-  for (const args of [['--', '--config=synthetic'], ['setup', 'hooks'], ['login'], ['config']]) {
+  for (const args of [['--', '--config=synthetic'], ['setup'], ['setup', 'hooks']]) {
     await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   }
   for (const flag of vectraManifest.inputFileFlags) {

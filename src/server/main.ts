@@ -2,7 +2,7 @@ import { dirname, join, resolve } from 'node:path'
 import { createApp } from './app.js'
 import { createFalconAdapter } from './adapters/falcon.js'
 import { createVectraAdapter } from './adapters/vectra.js'
-import { retainNativeWriteLog } from './adapters/native-log.js'
+import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { Audit } from './audit/audit.js'
 import { readDevelopmentToken } from './auth/development.js'
 import { serverDefaults } from './config.js'
@@ -24,6 +24,7 @@ async function main() {
     const audit = new Audit(db)
     const source = new EmbeddedSecretSource(store)
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
+    initializeNativeWriteLog(writeLog)
     const app = createApp({ db, audit, runner, resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source), createVectraAdapter(source, writeLog)] })
     const maintain = () => {
