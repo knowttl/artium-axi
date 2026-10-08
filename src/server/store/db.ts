@@ -9,12 +9,36 @@ import { EnvironmentKeyProvider } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialStore, MutableCredentialStore } from './credential-store.js'
-import { toolSchema } from '../../shared/api.js'
+import { nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
 
 export function createCredentialStore(db: Database.Database, provider: KeyProvider): MutableCredentialStore {
   const key = provider.getKey()
+  db.transaction(() => {
+    const rows = db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]
+    for (const row of rows) {
+      const keys = Object.keys(nativeSettingsSchemas[toolSchema.parse(row.tool)].shape)
+      if (keys.length === 0) continue
+      const plaintext = decryptCredential(row, key)
+      try {
+        let value: Record<string, unknown>
+        try { value = JSON.parse(plaintext.toString('utf8')) } catch { continue }
+        if (!value || typeof value !== 'object') continue
+        const settings = Object.fromEntries(Object.entries(value).filter(([name]) => keys.includes(name)))
+        if (Object.keys(settings).length === 0) continue
+        const current = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(row.tool) as { native_settings: string }
+        db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?')
+          .run(JSON.stringify({ ...settings, ...JSON.parse(current.native_settings) }), row.tool)
+        const credential = Buffer.from(JSON.stringify(Object.fromEntries(Object.entries(value).filter(([name]) => !keys.includes(name)))))
+        try {
+          const encrypted = encryptCredential(row.id, row.tool, credential, key)
+          db.prepare(`UPDATE credentials SET schema_version = @schema_version, key_id = @key_id,
+            nonce = @nonce, ciphertext = @ciphertext, authentication_tag = @authentication_tag WHERE id = @id`).run(encrypted)
+        } finally { credential.fill(0) }
+      } finally { plaintext.fill(0) }
+    }
+  }).immediate()
   return {
     findCredential(tool) {
       return db.prepare('SELECT id, tool, revision FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>

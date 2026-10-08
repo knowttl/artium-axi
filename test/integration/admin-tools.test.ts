@@ -11,7 +11,7 @@ import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
-import { Runner } from '../../src/server/runner/runner.js'
+import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -174,6 +174,36 @@ test('native settings apply to adapter profiles and clearing them removes the pr
   await failure(await request('PATCH', '/vectra-axi', { enabled: true, expectedRevision: 3 }), 'REVISION_CONFLICT')
 })
 test.each([
+  { tool: 'falcon-axi', settings: {}, current: {}, credential: values['falcon-axi'] },
+  { tool: 'vectra-axi', settings: { writes: values['vectra-axi'].writes },
+    current: { writes: { allowWrites: false, operations: ['notes.set'] } },
+    credential: { kind: 'qux', apiVersion: '2.5', origin: 'https://synthetic.invalid', auth: 'token', token: 'CANARY-token' } },
+  { tool: 'az-axi', settings: { subscriptions: ['synthetic-subscription'], allowWrites: true,
+    managementGroup: 'synthetic-group', workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' }, description: 'Synthetic' },
+    current: { subscriptions: ['synthetic-current'] },
+    credential: { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-azure' } },
+] as const)('$tool legacy native settings agree across listing, edits and credential reads', async ({ tool, settings, current, credential }) => {
+  store.replaceCredential(tool, { ...values[tool], ...settings }, 0, actor, Date.now())
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(current), tool)
+  createCredentialStore(db, provider)
+  const effective = { ...settings, ...current }
+  const response = await request('GET', '')
+  expect(await response.json()).toMatchObject({ tools: expect.arrayContaining([
+    expect.objectContaining({ name: tool, nativeSettings: effective, revision: 1 }),
+  ]) })
+  const enabled = await request('PATCH', `/${tool}`, { enabled: true, expectedRevision: 1 })
+  expect(enabled.status).toBe(200)
+  expect(adminToolSchema.parse(await enabled.json())).toMatchObject({ nativeSettings: effective, revision: 2 })
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...values[tool], ...settings, ...current })
+  const cleared = await request('PATCH', `/${tool}`, { nativeSettings: {}, expectedRevision: 2 })
+  expect(cleared.status).toBe(200)
+  expect(adminToolSchema.parse(await cleared.json()).nativeSettings).toEqual({})
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(credential)
+  createCredentialStore(db, provider)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(credential)
+  expect(db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool)).toEqual({ native_settings: '{}' })
+})
+test.each([
   { tool: 'falcon-axi', settings: { executable: '/synthetic' } },
   { tool: 'vectra-axi', settings: { writes: { allowWrites: 'yes', operations: [] } } },
   { tool: 'az-axi', settings: { workspaces: { synthetic: 'invalid' } } },
@@ -234,6 +264,9 @@ test('manual test rejects caller-selected arguments before credential retrieval'
 })
 test('manual tests share the administrator two-call quota and release it after completion', async () => {
   await replace('falcon-axi')
+  expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
+  const health = db.prepare('SELECT * FROM tool_health').all()
+  db.exec('DELETE FROM audit')
   const controller = new AbortController()
   let readyFirst!: () => void
   let readySecond!: () => void
@@ -246,8 +279,32 @@ test('manual tests share the administrator two-call quota and release it after c
     await Promise.all([firstReady, secondReady])
     await failure(await request('POST', '/falcon-axi/test', {}), 'TOO_MANY_CALLS')
     expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-test'").get()).toEqual({ outcome: 'TOO_MANY_CALLS' })
+    expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
+    expect(await (await request('GET', '')).json()).toMatchObject({ tools: expect.arrayContaining([
+      expect.objectContaining({ name: 'falcon-axi', health: expect.objectContaining({ status: 'ok' }) }),
+    ]) })
   } finally { controller.abort(); await completed }
   expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
+})
+test('runner shutdown rejects a manual test without changing cached health', async () => {
+  await replace('falcon-axi')
+  expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
+  const health = db.prepare('SELECT * FROM tool_health').all()
+  await runner.shutdown()
+  await failure(await request('POST', '/falcon-axi/test', {}), 'RUNNER_CLOSED')
+  expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-test' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ outcome: 'RUNNER_CLOSED' })
+})
+test.each(['SECRET_IN_OUTPUT', 'TIMEOUT', 'OUTPUT_LIMIT'] as const)('manual test audit preserves %s runner measurements', async code => {
+  await replace('falcon-axi')
+  const error = new RunnerError(code)
+  error.durationMs = 17.25
+  error.outputBytes = { stdout: 12, stderr: 34 }
+  vi.spyOn(runner, 'run').mockRejectedValueOnce(error)
+  await failure(await request('POST', '/falcon-axi/test', {}), code)
+  expect(db.prepare("SELECT outcome, duration_ms, stdout_bytes, stderr_bytes FROM audit WHERE event = 'run-terminal'").get())
+    .toEqual({ outcome: code, duration_ms: 17, stdout_bytes: 12, stderr_bytes: 34 })
 })
 test('credential test audit failure withholds success and rolls back cached health', async () => {
   await replace('falcon-axi')

@@ -10,6 +10,7 @@ import { azCredentialSchema, azManifest } from '../adapters/az.js'
 import type { Adapter } from '../adapters/types.js'
 import type { Audit } from '../audit/audit.js'
 import type { Runner } from '../runner/runner.js'
+import { RunnerError } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 
 export interface ToolAdminOptions {
@@ -176,13 +177,16 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         if (exitCode !== 0) failure = new ArtiumError('CREDENTIAL_UNAVAILABLE')
       } catch (error) {
         failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
-        durationMs = Date.now() - started
+        const runnerError = error instanceof RunnerError ? error : undefined
+        durationMs = runnerError?.durationMs ?? Date.now() - started
+        outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
       }
       audit.record({ ...context, event: 'run-terminal', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes })
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       audit.change({ ...context, event: 'credential-test', outcome: failure?.code ?? 'success' }, () => {
-        if (credentialStore().findCredential(tool)?.revision === reference.revision) {
+        if (failure?.code !== 'TOO_MANY_CALLS' && failure?.code !== 'RUNNER_CLOSED'
+          && credentialStore().findCredential(tool)?.revision === reference.revision) {
           db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
             status = excluded.status, error_code = excluded.error_code`)
