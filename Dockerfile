@@ -1,0 +1,34 @@
+FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv make g++ git ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
+WORKDIR /opt/artium
+COPY package.json pnpm-lock.yaml ./
+COPY tools /opt/tools
+RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild argon2 better-sqlite3 esbuild && pnpm --dir /opt/tools install --frozen-lockfile
+RUN python3 -m venv /opt/falcon-build && python3 -m venv /opt/falcon-axi
+RUN /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/build-requirements.txt -d /build-wheels && /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/requirements.txt -d /runtime-wheels
+RUN node --input-type=module -e 'import {readFileSync} from "node:fs"; import {execFileSync} from "node:child_process"; const pin=JSON.parse(readFileSync("/opt/tools/falcon-source.json")); for(const args of [["init","/source"],["-C","/source","remote","add","origin",pin.repository],["-C","/source","fetch","--depth=1","origin",pin.commit],["-C","/source","checkout","--detach",pin.commit]]) execFileSync("git",args,{stdio:"inherit"})'
+RUN --network=none /opt/falcon-build/bin/pip install --no-index --find-links=/build-wheels --require-hashes -r /opt/tools/build-requirements.txt
+WORKDIR /source
+RUN --network=none /opt/falcon-build/bin/python -m hatchling build -t wheel
+RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runtime-wheels --require-hashes -r /opt/tools/requirements.txt && /opt/falcon-axi/bin/pip install --no-deps --no-index dist/falcon_axi-0.3.0-py3-none-any.whl && /opt/falcon-axi/bin/pip check
+WORKDIR /opt/artium
+COPY tsconfig.json ./
+COPY src ./src
+COPY scripts/native-smoke.mjs ./scripts/native-smoke.mjs
+COPY scripts/falcon-smoke.mjs ./scripts/falcon-smoke.mjs
+COPY test/fake-service/certificates.mjs ./test/fake-service/certificates.mjs
+RUN --network=none node scripts/native-smoke.mjs
+RUN pnpm exec tsc --rootDir src --outDir dist src/server/config.ts --module NodeNext --target ES2022 --strict --skipLibCheck
+
+FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data
+COPY --from=builder /opt/falcon-axi /opt/falcon-axi
+COPY --from=builder /opt/tools /opt/tools
+COPY --from=builder /opt/artium /opt/artium
+ENV PATH="/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:$PATH"
+WORKDIR /opt/artium
+USER artium
+EXPOSE 8080
+# The API entry point arrives in the server slice.
+CMD ["node", "--version"]

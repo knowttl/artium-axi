@@ -1,0 +1,16 @@
+*
+!package.json
+!pnpm-lock.yaml
+!tsconfig.json
+!Dockerfile
+!tools/
+!tools/**
+tools/node_modules
+!src/
+!src/**
+!scripts/
+!scripts/native-smoke.mjs
+!scripts/falcon-smoke.mjs
+!test/
+!test/fake-service/
+!test/fake-service/certificates.mjs

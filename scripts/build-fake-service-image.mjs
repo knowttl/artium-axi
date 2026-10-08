@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const builder = `artium-test-build-${randomUUID()}`
-const image = 'artium-test-node22'
+const production = process.argv.includes('--production')
+const image = production ? 'artium-axi:local' : 'artium-test-node22'
 const directory = mkdtempSync(join(root, '.tmp-image-'))
 const docker = args => {
   const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 300_000 })
@@ -20,9 +21,9 @@ try {
   // The private BuildKit worker keeps cache on tmpfs. Removing it cannot prune another build.
   attempted = true
   docker(['run', '--detach', '--pull', 'never', '--privileged', '--name', builder,
-    '--cpus', '2', '--memory', '1g', '--tmpfs', '/var/lib/buildkit:rw,size=536870912',
-    '--mount', `type=bind,src=${join(root, 'test/fake-service')},dst=/context,readonly`,
-    'moby/buildkit:buildx-stable-1', '--oci-worker-snapshotter=native'])
+    '--cpus', '2', '--memory', production ? '4g' : '1g', '--tmpfs', `/var/lib/buildkit:rw,exec,size=${production ? 3221225472 : 536870912}`,
+    '--mount', `type=bind,src=${production ? root : join(root, 'test/fake-service')},dst=/context,readonly`,
+    'moby/buildkit:buildx-stable-1', `--oci-worker-snapshotter=${production ? 'overlayfs' : 'native'}`])
   docker(['exec', builder, 'buildctl', '--wait', '--timeout', '60', 'build',
     '--frontend', 'dockerfile.v0', '--local', 'context=/context', '--local', 'dockerfile=/context',
     '--output', `type=docker,name=${image},dest=/tmp/artium-test-image.tar`])
