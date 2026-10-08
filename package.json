@@ -13,6 +13,7 @@
     "test": "node scripts/upstream-inventory.mjs && vitest run",
     "test:fake-services": "node scripts/fake-services.mjs",
     "test:build-image": "node scripts/build-fake-service-image.mjs",
+    "test:runner-container": "pnpm build && node scripts/runner-container-check.mjs",
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
     "lint": "tsc --noEmit",
     "check": "pnpm lint && pnpm test && pnpm build",

@@ -4,3 +4,13 @@ export const toolPaths = {
   'az-axi': '/opt/tools/node_modules/.bin/az-axi',
 } as const
 export const runtimePath = '/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'
+export const runnerLimits = {
+  globalCalls: 8,
+  userCalls: 2,
+  timeoutMs: 60_000,
+  terminationGraceMs: 2_000,
+  outputBytesPerStream: 4 * 1024 * 1024,
+  floodBytes: 64 * 1024 * 1024,
+  nodeHeapMiB: 128,
+  pythonAddressSpaceBytes: 512 * 1024 * 1024,
+} as const

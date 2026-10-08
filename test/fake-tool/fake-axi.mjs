@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { readFile } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const [mode, ...args] = process.argv.slice(2)
 const modes = ['env', 'print', 'sleep', 'stdout', 'stderr', 'memory', 'child',
-  'descendant', 'exit', 'split', 'leak', 'signal', 'upstream']
+  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream']
 const hold = () => setInterval(() => {}, 60_000)
+const ready = async value => {
+  const path = process.env.ARTIUM_TEST_READY_FILE
+  if (path) {
+    await writeFile(`${path}.tmp`, JSON.stringify(value))
+    await rename(`${path}.tmp`, path)
+  }
+}
 const number = (value, fallback) => {
   const result = Number(value ?? fallback)
   if (!Number.isSafeInteger(result) || result < 0) throw new Error('Expected a non-negative integer')
@@ -26,6 +33,8 @@ try {
       process.stdout.write(args.join(' '))
       break
     case 'sleep':
+      if (args[1] === 'ignore-term') process.on('SIGTERM', () => {})
+      await ready({ parent: process.pid })
       await delay(number(args[0], 60_000))
       break
     case 'stdout':
@@ -44,16 +53,20 @@ try {
       // Touch pages and retain buffers: a heap-only allocation misses resident limits.
       const buffers = Array.from({ length: number(args[0], 128) }, () => Buffer.alloc(1024 * 1024, 1))
       console.log(JSON.stringify({ bytes: buffers.reduce((sum, buffer) => sum + buffer.length, 0) }))
+      await ready({ parent: process.pid, bytes: buffers.reduce((sum, buffer) => sum + buffer.length, 0) })
       setInterval(() => buffers[0]?.readUInt8(0), 60_000)
       break
     }
     case 'child':
+    case 'child-exit':
     case 'descendant': {
       const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 60000)'], {
-        detached: mode === 'descendant', stdio: 'ignore', env: process.env,
+        detached: mode === 'descendant', stdio: args[0] === 'pipes' ? ['ignore', 'inherit', 'inherit'] : 'ignore', env: process.env,
       })
       console.log(JSON.stringify({ parent: process.pid, child: child.pid, detached: mode === 'descendant' }))
-      hold()
+      await ready({ parent: process.pid, child: child.pid, detached: mode === 'descendant' })
+      if (mode === 'child-exit') child.unref()
+      else hold()
       break
     }
     case 'exit': {

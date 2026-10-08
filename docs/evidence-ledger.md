@@ -37,6 +37,11 @@ Non-default ports were separately observed to remain refused even with the unkno
 The Compose document passed the real Compose parser.
 The private BuildKit worker, tmpfs cache, image archive and local image were removed, with filtered container and image inventories empty.
 
+The S09/10 review revision based on `d2b36767402fd32ca6629a28560ced064319f6c5` removes the ineffective Node runtime selector and leaves Docker operation deadlines with the image builder so its finalizer can run.
+In the review worktree with these uncommitted fixes, `pnpm install --frozen-lockfile` completed successfully, including the tools install.
+`pnpm exec vitest run src/server/runner/runner.test.ts src/server/runner/lifecycle.test.ts test/fake-service-cleanup.test.ts` passed all 58 tests across three files.
+Renewed frozen install, full lint/tests/check, runner-container and real private hygiene results remain pending with the outer executor for the final committed candidate.
+
 The S08 runner environment contract is documented in [README.md](../README.md).
 Focused verification is described in [verification-s08.md](verification-s08.md).
 Final committed-head frozen install, lint, tests, aggregate check and private hygiene results remain pending with the outer executor for the delivery status and PR body.
@@ -61,7 +66,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Whole-tree hygiene and publication (T1.1) | Synthetic CLI tests and private candidate scan required before delivery | not applicable | unverified: public conversion and release require approval, ordinary private delivery settled |
 | Pinned container image (T1.2) | Digest-pinned Node 22 bookworm image, Python 3.11, UID 10001, fixed tool paths and validated Compose example; native build approval pinned in package.json | Clean builder and read-only non-root runtime execute SQLite open/write/reopen, Argon2id hash/verify and esbuild bundle execution; image is a scaffold until the API entry point lands | not applicable: local image only, registry push excluded |
 | Deterministic fake executable (T1.3) | Executable modes and runner-test descriptor in `test/fake-tool/`; CLI tests in `test/fake-tool.test.ts` | not applicable | not applicable: local build only |
-| Process cleanup and container resource limits (T1.4) | S08 public runner implemented; [README.md](../README.md) owns its contract and deferred enforcement; [verification-s08.md](verification-s08.md) owns local checks; final-head results pending with the outer executor for delivery status and PR body | Synthetic fake executable only, no pinned upstream runner acceptance yet | unverified: verify production host behaviour |
+| Process cleanup and container resource limits (T1.4) | S09/10 lifecycle, admission, flood and runtime limits implemented; [README.md](../README.md) owns the runner contract; [verification-s09-10.md](verification-s09-10.md) owns local checks and escaped-session limitation; final-head results pending with the outer executor for delivery status and PR body | Synthetic fake executable and slice-owned non-root Linux container checks defined in verification-s09-10.md, no pinned upstream runner acceptance yet | unverified: verify production host behaviour and whether pinned tools require escaped-session containment |
 | Falcon adapter boundary (T1.5) | pending | pending | unverified: verify real adapter behaviour |
 | Server readiness, audit and proxy addresses (T1.6) | pending | pending | unverified: verify actual trusted proxy addresses |
 | Bundled CLI on supported operating systems (T1.7) | pending | not applicable | unverified: actual Windows and macOS smoke checks |
