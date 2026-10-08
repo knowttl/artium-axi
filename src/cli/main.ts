@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { resolve, relative, sep } from 'node:path'
+import { resolve, relative, sep, isAbsolute } from 'node:path'
 import { loginResponseSchema, meResponseSchema, runRequestSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
@@ -82,17 +82,19 @@ async function main(args: string[]) {
   if (!home && !listing && !whoami && !parsedInput.success) throw new ArtiumError('INVALID_INPUT')
   const input = home || listing || whoami ? undefined : parsedInput.data
   const client = new Client()
-  const result = await client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input)
+  const homeSession = home ? client.sessions.read() : undefined
+  if (home && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
+  const result = await client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession)
   if (home || whoami) {
     const parsed = meResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
     let output = identityView(parsed.data, client.serverUrl)
     if (home) {
-      const tools = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET'))
+      const tools = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET', undefined, homeSession))
       if (!tools.success) throw new ArtiumError('INVALID_RESPONSE')
       const executable = resolve(process.argv[1])
       const local = relative(homedir(), executable)
-      const bin = local && !local.startsWith(`..${sep}`) && local !== '..' ? `~${sep}${local}` : executable
+      const bin = local && !isAbsolute(local) && !local.startsWith(`..${sep}`) && local !== '..' ? `~${sep}${local}` : executable
       output = `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n${output}${toolsView(tools.data.tools)}`
     }
     process.stdout.write(output)

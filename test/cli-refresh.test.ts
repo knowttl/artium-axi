@@ -14,6 +14,7 @@ let url: string
 let store: SessionStore
 let requests: { path: string, authorization?: string, body: unknown }[]
 let scenario: 'refresh' | 'still-expired' | 'disconnect' | 'invalid' | 'unavailable' | 'completed' | 'bad-refresh' | 'login-replaced' | 'rotated'
+let homeScenario: { changeAt?: string, transition?: 'replace' | 'remove', expiresAt?: string } | undefined
 let original: ReturnType<SessionStore['write']>
 let server: ReturnType<typeof createServer>
 const pair = { status: 'authenticated' as const, accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
@@ -24,10 +25,25 @@ beforeEach(async () => {
   copyFileSync('dist/cli/artium-axi.mjs', join(directory, 'artium-axi.mjs'))
   requests = []
   scenario = 'refresh'
+  homeScenario = undefined
   server = createServer(async (request, reply) => {
     let body = ''
     for await (const chunk of request) body += chunk
     requests.push({ path: request.url!, authorization: request.headers.authorization, body: body ? JSON.parse(body) : undefined })
+    if (homeScenario && request.url !== '/v1/auth/refresh') {
+      if (request.url === homeScenario.changeAt) {
+        await store.locked(async () => {
+          if (homeScenario!.transition === 'remove') store.remove()
+          else store.write({ ...pair, accessToken: 'CANARY-other-user' })
+        })
+      }
+      const expired = request.url === homeScenario.expiresAt && request.headers.authorization === 'Bearer CANARY-old'
+      reply.writeHead(expired ? 401 : 200, { 'content-type': 'application/json' })
+      reply.end(JSON.stringify(expired ? errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-request') :
+        request.url === '/v1/me' ? { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+          roles: [], accessExpiresAt: pair.accessExpiresAt } : { tools: [] }))
+      return
+    }
     if (requests.length === 1 && (scenario === 'login-replaced' || scenario === 'rotated')) {
       await store.locked(async () => {
         store.write({ ...pair, accessToken: 'CANARY-new', refreshToken: 'CANARY-next' },
@@ -117,6 +133,28 @@ test('a concurrent rotation of the same login reuses its token without another r
   scenario = 'rotated'
   expect(await run()).toEqual({ code: 7, stdout: 'TOKEN_EXPIRED upstream text\n', stderr: '' })
   expect(requests.map(request => request.path)).toEqual(['/v1/tools/falcon-axi/run', '/v1/tools/falcon-axi/run'])
+  expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
+})
+
+test.each([
+  { changeAt: '/v1/me', transition: 'replace' as const },
+  { changeAt: '/v1/me', transition: 'remove' as const },
+  { changeAt: '/v1/tools', transition: 'replace' as const },
+  { changeAt: '/v1/tools', transition: 'remove' as const },
+])('home withholds composite output when the session changes during $changeAt: $transition', async change => {
+  homeScenario = change
+  expect(await run([])).toMatchObject({ code: 1, stdout: expect.stringMatching(/^error:\n  code: "SESSION_CHANGED"/), stderr: '' })
+  expect(requests.map(request => request.path)).toEqual(change.changeAt === '/v1/me' ? ['/v1/me'] : ['/v1/me', '/v1/tools'])
+})
+
+test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the original login', async expiresAt => {
+  homeScenario = { expiresAt }
+  const result = await run([])
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('user: "synthetic-user"\n')
+  expect(result.stdout).toContain('tools: 0 available\n')
+  expect(requests.map(request => request.path)).toEqual(expiresAt === '/v1/me' ?
+    ['/v1/me', '/v1/auth/refresh', '/v1/me', '/v1/tools'] : ['/v1/me', '/v1/tools', '/v1/auth/refresh', '/v1/tools'])
   expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
 })
 
