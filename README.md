@@ -477,8 +477,8 @@ See the password and user administration usage above for session revocation on p
 Browser pages escape account data, send a Content Security Policy and prevent response caching.
 See [S38 verification](docs/verification-s38.md) for fake-time expiry, CSRF and browser-flow evidence.
 The Users screen at `/admin` creates local users, enables or disables accounts, clears lockouts, resets temporary passwords and replaces role assignments through the existing administration API.
-Account edits carry the displayed revision, and each account shows its last change actor and UTC time.
-Disable, unlock, reset and assignment actions ask for confirmation.
+Enable/disable and role replacement carry the displayed revision, and each account shows its last change actor and UTC time.
+Enable, disable, unlock, reset and assignment actions ask for confirmation.
 Stale edits and validation failures show the API message and next step without clearing the form.
 See [S39 verification](docs/verification-s39.md) for HTML escaping, pagination and real browser evidence.
 

@@ -4,11 +4,7 @@ The [Users screen](../src/server/admin/users.ts) renders account and role data f
 It uses the [shared escaping helper](../src/server/admin/escape.ts) also used by authentication pages and safe error pages.
 The [browser assets](../src/server/admin/assets.ts) provide the layout and one small script for confirmations and JSON form submission.
 The server renders every account value as escaped text, including usernames, display names, role names, actor names, timestamps and revisions.
-The page lists enabled state, administrator capability, password-change requirement and lockout state.
-Each form uses session-bound CSRF proof and the existing recent-auth contract.
-Enable/disable and role replacement include the displayed optimistic revision.
-Reset and unlock retain their existing API contracts without a revision input.
-The script follows password-confirmation and session-expiry redirects, shows safe API errors as text and reloads account metadata after success.
+See [README browser usage](../README.md) for Users screen actions, confirmation and revision behavior, and browser authentication requirements.
 
 The [browser integration suite](../test/integration/browser-auth.test.ts) verifies rendered HTML usernames and role names, actor/time/revision, bounded account pagination and roles beyond the first API page.
 Existing S33, S34 and S38 suites cover atomic audit, optimistic conflicts, revocation, lockout clearing, CSRF and recent-auth gates through the real API.
