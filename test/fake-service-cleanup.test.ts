@@ -154,6 +154,15 @@ test.each([false, true])('runner build failure cleans only its image with partia
   expect([...docker.images]).toEqual([unrelated])
 })
 
+test('runner builder loads the caller supplied image tag', async () => {
+  const image = 'artium-test-runner-s09-10-synthetic'
+  process.argv = [process.execPath, 'scripts/build-fake-service-image.mjs', '--runner', image]
+  await import(builder)
+  expect(process.exitCode).toBeUndefined()
+  expect([...docker.images]).toEqual([image])
+  expect(docker.resources.size).toBe(0)
+})
+
 test('runner builder loads the caller supplied image tag and retains its task cache', async () => {
   const image = 'artium-test-runner-s09-10-synthetic'
   const cache = 'artium-test-build-00000000-0000-0000-0000-000000000000'
