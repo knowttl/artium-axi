@@ -2,7 +2,7 @@ agent: codex
 no_ci: true
 
 commands:
-  prepare: "pnpm install --frozen-lockfile"
+  prepare: "CI=true pnpm install --frozen-lockfile"
   test: "pnpm test"
   lint: "pnpm lint"
 
