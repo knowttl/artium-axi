@@ -2,7 +2,7 @@
 
 The [AuthProvider contract](../src/server/auth/auth-provider.ts) owns the sign-in identity result.
 The [local provider](../src/server/auth/local.ts) owns canonical username lookup, dummy-hash comparison, shared hashing admission and transactional password replacement.
-Future creation and reset producers must use its `canonicalUsername` and `hashPassword` boundaries.
+See [S33 verification](verification-s33.md) for creation and reset checks using these boundaries.
 
 See [README.md](../README.md) for password rules and own-password change usage, the [shared API contract](../src/shared/api.ts) for request schemas and the [error catalogue](../src/shared/errors.ts) for rejection responses.
 The [versioned common-password list](../src/server/auth/common-passwords.v1.json) owns the exact rejected values.
