@@ -8,18 +8,15 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from './attempts.js'
 import { LocalAuthProvider } from './local.js'
-import { createBrowserSession, readBrowserSession, requireBrowserAdmin } from './sessions.js'
+import { createBrowserSession, readBrowserSession } from './sessions.js'
+import { escape } from '../admin/escape.js'
 
 export const browserCookie = 'artium-session'
 const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
 const pages = ['/login', '/logout', '/password', '/reauth', '/admin', '/account']
 
-function escape(value: string): string {
-  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)
-}
-
 export function browserPage(reply: FastifyReply, title: string, content: string) {
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><body><main><h1>${escape(title)}</h1>${content}</main></body></html>`)
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body><main><h1>${escape(title)}</h1>${content}</main></body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts) {
@@ -29,13 +26,13 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const provider = new LocalAuthProvider(db)
   const context = (request: FastifyRequest) => ({ requestId: request.id, clientAddress: request.ip })
   const session = (request: FastifyRequest) => readBrowserSession(db, request.cookies[browserCookie] ?? '')
-  const isBrowser = (request: FastifyRequest) => pages.includes(request.url.split('?')[0]!) ||
+  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/admin/') || pages.includes(request.url.split('?')[0]!) ||
     Boolean(request.cookies?.[browserCookie] && !request.headers.authorization && request.url.startsWith('/v1/'))
 
   app.addHook('onRequest', async (request, reply) => {
     if (isBrowser(request)) {
       reply.header('cache-control', 'no-store')
-      reply.header('content-security-policy', "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+      reply.header('content-security-policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
     }
   })
   app.addHook('preValidation', (request, reply, done) => {
@@ -110,11 +107,6 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
       db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?').run(Date.now(), current.id)
     })
     return reply.clearCookie(browserCookie, cookieOptions).clearCookie('_csrf', cookieOptions).redirect('/login', 303)
-  })
-  app.get('/admin', async (request, reply) => {
-    const current = session(request)
-    requireBrowserAdmin(db, request.cookies[browserCookie]!, false)
-    return browserPage(reply, 'Administration', `<p>Signed in as ${escape(current.display_name)}.</p><p>Administration screens are under construction.</p><p><a href="/password">Change password</a> | <a href="/reauth">Confirm password</a></p>${form(reply, '/logout', 'Sign out')}`)
   })
   app.get('/account', async (request, reply) => {
     const current = session(request)

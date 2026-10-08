@@ -14,6 +14,8 @@ import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
 import { registerAdmin } from './admin/api.js'
+import { registerUsersPage } from './admin/users.js'
+import { escape } from './admin/escape.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -49,7 +51,8 @@ export function createApp(options: {
         return reply.clearCookie(browserCookie, { path: '/' }).redirect('/login', 303)
       }
       reply.code(errors[failure.code].status)
-      return browserPage(reply, 'Request failed', `<p>${errors[failure.code].message}</p><p><a href="/login">Sign in</a> | <a href="/admin">Administration</a></p>`)
+      if (request.url.startsWith('/v1/')) return reply.send(errorResponse(failure, request.id))
+      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)}</p><p><a href="/login">Sign in</a> | <a href="/admin">Administration</a></p>`)
     }
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })
@@ -141,6 +144,7 @@ export function createApp(options: {
     return reply.code(204).send()
   })
   registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore })
+  registerUsersPage(app, db)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')
