@@ -12,6 +12,19 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ requests, mutations }))
     return
   }
+  if (req.headers.host === 'synthetic.azurecr.io' && ['/oauth2/exchange', '/oauth2/token'].includes(url.pathname)) {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const values = new URLSearchParams(body)
+      requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
+        canaryReceived: values.get('access_token') === 'CANARY-AZURE-ACCESS-TOKEN' || values.get('refresh_token') === 'CANARY-registry-refresh' })
+      res.end(JSON.stringify(url.pathname === '/oauth2/exchange'
+        ? { refresh_token: 'CANARY-registry-refresh' } : { access_token: 'CANARY-registry-access' }))
+    })
+    return
+  }
   if (url.pathname === '/api/v2.5/oauth2/token' || (url.pathname === '/oauth2/token' && req.headers.authorization?.startsWith('Basic '))) {
     requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
       canaryReceived: req.headers.authorization === `Basic ${Buffer.from('synthetic-vectra-id:CANARY-vectra-secret').toString('base64')}` })
@@ -72,6 +85,16 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname === '/api/v2.5/tagging/detection/44') {
     res.writeHead(403)
     res.end(JSON.stringify({ error: 'Synthetic permission denial' }))
+  } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/permission-denied') {
+    res.writeHead(403)
+    res.end(JSON.stringify({ error: { code: 'AuthorizationFailed', message: 'Synthetic permission denial' } }))
+  } else if (req.headers.host === 'api.loganalytics.io' && /\/workspaces\/[^/]+\/query$/.test(url.pathname)) {
+    req.resume()
+    res.end(JSON.stringify({ tables: [{ name: 'PrimaryResult', columns: [{ name: 'synthetic', type: 'string' }], rows: [['metadata']] }] }))
+  } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/single-write' && req.method === 'PATCH') {
+    mutations++
+    req.resume()
+    res.end(JSON.stringify({ tags: { synthetic: 'yes' } }))
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++
     if (url.pathname === '/api/v2.5/tagging/detection/45') req.socket.destroy()
@@ -82,6 +105,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     }
   } else if (url.pathname.startsWith('/api/v2.5/tagging/')) {
     res.end(JSON.stringify({ tags: [] }))
+  } else if (req.headers.host === 'synthetic.blob.core.windows.net' && url.pathname === '/synthetic') {
+    res.setHeader('content-type', 'application/xml')
+    res.end('<EnumerationResults><Blobs><Blob><Name>synthetic-blob</Name><Properties><Content-Length>12</Content-Length><BlobType>BlockBlob</BlobType></Properties></Blob></Blobs><NextMarker></NextMarker></EnumerationResults>')
+  } else if (req.headers.host === 'synthetic.vault.azure.net' && url.pathname === '/secrets') {
+    res.end(JSON.stringify({ value: [{ id: 'https://synthetic.vault.azure.net/secrets/synthetic-secret',
+      attributes: { enabled: true }, contentType: 'text/plain', value: 'CANARY-NEVER-SECRET-VALUE' }] }))
+  } else if (req.headers.host === 'synthetic.azurecr.io' && url.pathname === '/acr/v1/_catalog') {
+    res.end(JSON.stringify({ repositories: ['synthetic-repository'] }))
   } else if (url.pathname === '/page') {
     res.end(JSON.stringify({ value: [{ id: 'synthetic-page-1' }], nextLink: 'https://management.azure.com/page-next?api-version=2022-12-01' }))
   } else if (url.pathname === '/page-next') {

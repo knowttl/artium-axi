@@ -16,11 +16,12 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
   const key = provider.getKey()
   return {
     findCredential(tool) {
-      return db.prepare('SELECT id, tool FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>
+      return db.prepare('SELECT id, tool, revision FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>
     },
     readCredential(reference) {
-      const row = db.prepare('SELECT * FROM credentials WHERE id = ? AND tool = ?').get(reference.id, reference.tool) as EncryptedCredential | undefined
+      const row = db.prepare('SELECT * FROM credentials WHERE id = ? AND tool = ?').get(reference.id, reference.tool) as (EncryptedCredential & { revision: number }) | undefined
       if (!row) return undefined
+      if (reference.revision !== undefined && row.revision !== reference.revision) return undefined
       const plaintext = decryptCredential(row, key)
       try {
         return JSON.parse(plaintext.toString('utf8')) as unknown

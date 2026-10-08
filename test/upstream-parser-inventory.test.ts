@@ -103,7 +103,7 @@ test.each([
   ['registry', 'AZ_AXI_REGISTRY_TOKEN'], ['storage', 'AZ_AXI_STORAGE_TOKEN'], ['vault', 'AZ_AXI_VAULT_TOKEN'],
 ])('Azure %s environment record distinguishes default from profile-selected credentials', async (resource, name) => {
   const { tokenEnvFor } = await load('az-axi', 'lib/config.js')
-  expect(azInventory.environment).toContainEqual({ name, disposition: 'server-owned' })
+  expect(azInventory.environment).toContainEqual({ name, disposition: 'set by server' })
   expect(azInventory.dynamicCredentialEnvironment).toContainEqual({ profileField: `tokenEnv.${resource}`,
     transport: 'token value', defaultEnvironment: name, disposition: 'server-owned' })
   expect(tokenEnvFor({}, resource)).toBe(name)

@@ -37,8 +37,13 @@ See [S20+S21 verification](docs/verification-s20-21.md) for the harness, resourc
 The same harness now exercises pinned Vectra reads, native write gates and durable logs through the production server entry point.
 See [S22+S23 verification](docs/verification-s22-23.md) for Vectra acceptance and output-redaction limits.
 
-Azure secret and certificate token minting and the resource token cache are implemented internally; Azure commands are not yet available through Artium.
-See [S24 verification](docs/verification-s24.md) for authentication and [S25 verification](docs/verification-s25.md) for the cache contract, remaining adapter work and deferred live acceptance.
+Azure secret and certificate token minting, the resource token cache and the [Azure adapter](src/server/adapters/az.ts) are implemented internally.
+Azure commands remain unavailable through the runtime registry because pinned az-axi 0.1.4 retries ambiguous writes.
+See [S24 verification](docs/verification-s24.md) for authentication, [S25 verification](docs/verification-s25.md) for caching and [S26 verification](docs/verification-s26.md) for profile preparation, inputs, native gates and six fixed-origin fake reads.
+The adapter preserves `subscriptions`, `managementGroup`, workspace GUID aliases, `description` and `allowWrites` alongside either Azure authentication form in its validated credential record.
+It writes only the token-mode native settings to a private profile and supplies needed resource tokens in the environment, without `AZ_AXI_READ_ONLY` or an Artium subscription allow-list.
+Resolved credential references carry the persisted revision, and a stale reference cannot read a replacement credential.
+Live authentication, scope forms, reads and permission acceptance remain captain checks.
 
 Before publishing any candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list outside the checkout, then run `pnpm hygiene:check` from the candidate repository root after committing and building.
 The UTF-8 list contains one literal term per line, matched case-insensitively after trimming surrounding whitespace, with blank lines and duplicate terms ignored.
@@ -71,6 +76,7 @@ Regenerate them with `node scripts/upstream-inventory.mjs --write` when delibera
 These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The [Azure inventory](tools/inventories/az-axi.json) also owns reviewed route resource requirements and their pinned source hashes; [S25 verification](docs/verification-s25.md) describes conditional resource selection.
+Its adapter boundary classifies every global flag and `AZ_AXI_*` variable, records reviewed input transports and hashes the pinned parser sources.
 The native write gates remain upstream-owned.
 
 The [Vectra adapter](src/server/adapters/vectra.ts) accepts QUX v2.5 token or OAuth credentials and RUX v3.4 OAuth credentials.
