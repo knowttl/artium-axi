@@ -129,8 +129,50 @@ test('security hygiene redacts restricted file names', () => {
     writeFileSync(join(candidate, 'SYNTHETIC-RESTRICTED.txt'), 'generic')
     const result = check(candidate, list)
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain('[redacted].txt')
+    expect(result.stdout).toContain('"[redacted]"')
     expect(result.stdout).not.toContain('SYNTHETIC-RESTRICTED')
+  })
+})
+
+test.each(['candidate', 'release'])('security hygiene conceals Unicode matches in %s paths', location => {
+  fixture((directory, list, candidate) => {
+    const release = join(directory, 'release')
+    mkdirSync(release)
+    writeFileSync(list, 'İ-SYNTHETIC-TENANT\n')
+    writeFileSync(join(directory, location, 'İ-SYNTHETIC-TENANT.txt'), 'generic')
+    const result = check(candidate, list, [release])
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('match: "[redacted]"')
+    expect(result.stdout).not.toContain('İ-SYNTHETIC-TENANT')
+    expect(result.stdout).not.toContain('i\u0307-synthetic-tenant')
+  })
+})
+
+test.each(['candidate', 'release'])('security hygiene conceals Unicode %s symlink errors', location => {
+  fixture((directory, list, candidate) => {
+    const release = join(directory, 'release')
+    mkdirSync(release)
+    writeFileSync(list, 'İ-SYNTHETIC-TENANT\n')
+    symlinkSync(list, join(directory, location, 'İ-SYNTHETIC-TENANT.txt'))
+    const result = check(candidate, list, [release])
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('symlink requires a regular-file candidate: "[redacted]"')
+    expect(result.stdout).not.toContain('İ-SYNTHETIC-TENANT')
+    expect(result.stdout).not.toContain('i\u0307-synthetic-tenant')
+  })
+})
+
+test.each(['candidate', 'release'])('security hygiene conceals Unicode %s encoding errors', location => {
+  fixture((directory, list, candidate) => {
+    const release = join(directory, 'release')
+    mkdirSync(release)
+    writeFileSync(list, 'İ-SYNTHETIC-TENANT\n')
+    writeFileSync(join(directory, location, 'İ-SYNTHETIC-TENANT.txt'), Buffer.from('\ufeffgeneric', 'utf16le'))
+    const result = check(candidate, list, [release])
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('unsupported text encoding; convert to UTF-8: "[redacted]"')
+    expect(result.stdout).not.toContain('İ-SYNTHETIC-TENANT')
+    expect(result.stdout).not.toContain('i\u0307-synthetic-tenant')
   })
 })
 
