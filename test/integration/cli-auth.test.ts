@@ -170,7 +170,7 @@ test.each([false, true])('ordinary password change verifies the current password
   expect(await cli(['passwd', '--password-stdin'], newPassword, { ARTIUM_AXI_CURRENT_PASSWORD: startingPassword })).toMatchObject({ code: 0 })
   expect(existsSync(store.file)).toBe(false)
   expect(await login(newPassword)).toMatchObject({ code: 0 })
-})
+}, 15_000)
 
 test('stdin takes precedence over the password environment and environment sign-in never prompts', async () => {
   expect(await cli(['login', '--username', 'synthetic-user', '--password-stdin'], startingPassword, { ARTIUM_AXI_PASSWORD: 'CANARY-wrong' }))

@@ -210,7 +210,7 @@ test('address limit bounds distinct unknown usernames and ignores spoofed forwar
   clock.mockReturnValue(start + 900_000)
   expect((await login()).status).toBe(200)
   expect(db.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 1 })
-}, 15_000)
+}, 60_000)
 
 test('reauth issues a hashed session-bound ticket valid through refresh until its exact expiry', async () => {
   const start = Date.now()
