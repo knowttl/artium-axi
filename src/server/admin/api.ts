@@ -9,10 +9,11 @@ import type { AuthAttempts } from '../auth/attempts.js'
 import { readUsername } from '../auth/bootstrap.js'
 import { hashPassword } from '../auth/local.js'
 import { requireRecentAuth, revokeUserSessions, verifyAccessToken } from '../auth/tokens.js'
+import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
 
-export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts): void {
+export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts, tools: ToolAdminOptions): void {
   function authorize(request: FastifyRequest): string {
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
     let userId: string | null = null
@@ -43,6 +44,8 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     return adminUserSchema.parse({ ...fields, enabled: !disabled, administrator: Boolean(row.administrator),
       mustChange: Boolean(row.mustChange), roleIds })
   }
+
+  registerToolAdmin(app, db, audit, authorize, tools)
 
   function change<T>(request: FastifyRequest, action: string, id: string, read: (id: string) => T, mutation: (actor: string, now: number) => void): T {
     const actor = authorize(request)

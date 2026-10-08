@@ -46,7 +46,7 @@ test.each<AuditEvent>([
   { ...context, event: 'lockout', outcome: 'failure' },
   { ...context, event: 'token-reuse', outcome: 'failure' },
   { ...context, event: 'password-change', outcome: 'success' },
-  { ...context, event: 'credential-test', outcome: 'success' },
+  { ...context, event: 'credential-test', outcome: 'success', checkedAt: 1000, credentialRevision: 1, errorCode: null },
   { ...context, event: 'admin-change', outcome: 'success', action: 'disable-user', targetId: 'person' },
   { ...context, userId: null, tool: null, event: 'maintenance', outcome: 'success', cutoff: 100, deletedCount: 7 },
 ])('persists and streams the safe $event record', event => {
@@ -64,7 +64,7 @@ test.each<AuditEvent>([
 })
 
 test('marks unmatched starts interrupted after reopening, once, without replay', () => {
-  audit.record(start)
+  audit.record({ ...start, credentialRevision: 3, checkedAt: now, errorCode: null })
   audit.record({ ...start, requestId: 'completed-request' })
   audit.record({ ...context, requestId: 'completed-request', event: 'run-terminal', outcome: 'completed',
     exitCode: 0, durationMs: 2, outputBytes: { stdout: 3, stderr: 0 } })
@@ -76,7 +76,8 @@ test('marks unmatched starts interrupted after reopening, once, without replay',
   expect(audit.recoverInterrupted()).toBe(0)
   expect(db.prepare("SELECT * FROM audit WHERE outcome = 'interrupted'").all()).toEqual([
     expect.objectContaining({ event: 'run-terminal', request_id: context.requestId, user_id: 'person',
-      tool: 'falcon-axi', client_address: context.clientAddress, exit_code: null, duration_ms: 100 }),
+      tool: 'falcon-axi', client_address: context.clientAddress, exit_code: null, duration_ms: 100,
+      credential_revision: 3, checked_at: null, error_code: null }),
   ])
   expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare('SELECT * FROM audit ORDER BY id').all())
 })
