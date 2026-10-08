@@ -1,15 +1,11 @@
 # S32 authentication limits, lockout and recent-auth evidence
 
-The [attempt boundary](../src/server/auth/attempts.ts) owns canonical-username and verified-address limits for login and reauthentication.
-The [defaults](../src/server/config.ts) set 5 username attempts, 30 address attempts and a 15-minute window, with at most 4096 hashed keys in each counter map.
-Fresh keys are refused at capacity without evicting active counters; expired entries are removed on the next attempt.
-Known-user failed-password counts and lock deadlines are persisted, with the fifth failure and its audit event committed together.
-An account unlock API is part of the later user-administration slice.
+See [README.md](../README.md) for current authentication usage, limits, lockout and ticket behavior.
+The [attempt boundary](../src/server/auth/attempts.ts) owns attempt admission and audited lockout; [server configuration](../src/server/config.ts) owns executable defaults.
+The [counter tests](../src/server/auth/attempts.test.ts) verify canonical keys, exact expiry and capacity refusal without evicting active counters.
 
-The [API](../src/server/app.ts) exposes bearer password confirmation through `POST /v1/auth/reauth`.
-The [ticket verifier](../src/server/auth/tokens.ts) checks the current access token, session family and hashed ticket with an exact 15-minute expiry capped by the family deadline.
-Tickets survive refresh within their own family, replace prior tickets and cannot bypass logout, reuse revocation, password change or user disable.
-Browser forms, cookies, CSRF and browser-session idle expiry remain later work.
+The [HTTP checks](../test/integration/api.test.ts) exercise password confirmation, persisted lockout and audit rollback through the real API.
+The [ticket checks](../src/server/auth/tokens.test.ts) exercise replacement, refresh, family deadlines and revocation through the token module.
 
 Run `pnpm exec vitest run src/server/auth/attempts.test.ts src/server/auth/tokens.test.ts test/integration/api.test.ts` for real local HTTP and SQLite checks with synthetic users, canary passwords and fake time.
 The checks cover wrong-password/unknown-user parity, both limit keys, exact expiry, persisted lockout, successful reset, audit rollback, capped counter admission and session-bound tickets.

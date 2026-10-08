@@ -4,7 +4,8 @@ artium-axi is one container that fronts several agent-ergonomic command-line too
 It adds role-based access to those tools and a command-line client that follows the AXI design principles.
 
 Status: under construction.
-The API supports local sign-in, password change, refresh rotation and logout, while rate limits and CLI sign-in commands arrive in later slices.
+The API supports local sign-in, password change, refresh rotation, logout, rate limits, account lockout and bearer password reauthentication.
+CLI sign-in commands remain later-slice work.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
@@ -151,12 +152,16 @@ Reusing a consumed refresh token before that deadline revokes the entire family,
 Revocation includes every token and browser session in that family, leaving other families unchanged.
 See [S31 verification](docs/verification-s31.md) for concurrent refresh, deadline and logout checks.
 Login and password reauthentication share limits of 5 attempts per canonical username and 30 per verified client address within 15 minutes.
+Successful attempts also consume these limits; each key's fixed window begins with its first admitted attempt.
+The counters are held in memory per server and reset on restart; account lockout persists in the database.
 Each counter map retains at most 4096 hashed keys, refuses fresh keys at capacity and expires entries after 15 minutes.
 Five failed password attempts lock a known account for 15 minutes with an atomic lockout audit event; successful authentication resets its failure count.
 Wrong passwords and unknown usernames both return `SIGN_IN_FAILED`; exhausted limits return `AUTH_RATE_LIMITED` and a persisted lock returns `ACCOUNT_LOCKED` when the attempt limit permits the request.
-`POST /v1/auth/reauth` accepts an access bearer token and strict JSON `{ "password": string }`, returning `{ "ticket": string, "expiresAt": number }` after password confirmation.
+`POST /v1/auth/reauth` accepts an access token in `Authorization: Bearer <token>` and strict JSON `{ "password": string }` with `Content-Type: application/json`, returning HTTP 200 with `{ "ticket": string, "expiresAt": number }` after password confirmation.
+`expiresAt` is a UTC Unix millisecond timestamp; refresh and restricted password-change tokens cannot authenticate this endpoint.
 The server stores only the ticket hash, replaces the previous ticket for that session family and caps its 15-minute deadline at the family deadline.
-Later admin producers use `requireRecentAuth(db, accessToken, ticket)` to enforce session binding, expiry and immediate session revocation.
+Tickets survive refresh within their family and cannot be used with another family or after logout, refresh-token reuse revocation, password change or user disable.
+Administrative routes that require these tickets and an account-unlock API remain later-slice work.
 See [S32 verification](docs/verification-s32.md) for rate-limit, lockout and ticket evidence.
 Only SHA-256 token hashes and metadata are stored.
 A must-change account receives `status: password-change-required`, a 10-minute `passwordChangeToken` and `passwordChangeExpiresAt`, without ordinary access or refresh tokens.
@@ -166,7 +171,7 @@ It changes only the authenticated user's password, clears the must-change flag, 
 The current password is required for a normal access token.
 Restricted password change is single-use and requires a new login after success.
 Sign-in success and failure are audited, and token issuance rolls back if its audit record fails.
-The [server configuration](src/server/config.ts) owns hashing costs, concurrency and token lifetime defaults.
+The [server configuration](src/server/config.ts) owns hashing costs, concurrency, token lifetimes and authentication-limit defaults.
 See [S28 verification](docs/verification-s28.md) and [S30 verification](docs/verification-s30.md) for local evidence checks.
 
 The [authentication schema](src/server/store/migrations/002-authentication.sql) adds local users, roles, tool grants, direct assignments, session families, hashed-token metadata, browser sessions, audit records and a one-time bootstrap marker.
@@ -360,7 +365,7 @@ Tools listing includes enabled, granted adapters without contacting an upstream 
 Until the cached health scheduler lands, configured tools have `unknown` status and missing credentials have `unconfigured` status.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
-Admin routes and browser sessions remain later slices.
+Admin routes, browser sessions, forms, cookies, CSRF and browser-session idle expiry remain later slices.
 
 Public `GET /health/live` returns HTTP 200 with `{ "status": "ok" }`.
 `GET /health/ready` checks that the local migrations table remains readable, returning HTTP 200 with `{ "status": "ok" }` or HTTP 503 with `{ "status": "unavailable" }`.

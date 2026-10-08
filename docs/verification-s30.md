@@ -9,7 +9,7 @@ The existing [AGENTS.md](../AGENTS.md) pointers to package commands and README v
 Use only synthetic accounts, canary passwords, temporary stores and fake upstream services.
 No live service acceptance is claimed.
 See [S31 verification](verification-s31.md) for refresh rotation and logout checks.
-Rate limits and recent reauthentication are S32, and administrative routes remain later slices.
+See [S32 verification](verification-s32.md) for rate-limit, lockout and bearer reauthentication checks, and [README.md](../README.md) for current authentication usage and remaining work.
 The restricted token fails the ordinary access verifier used by tool and future admin callers.
 Unimplemented admin routes return the existing 404 response for all callers.
 

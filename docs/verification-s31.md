@@ -3,7 +3,7 @@
 The [shared API contract](../src/shared/api.ts) owns strict refresh input and the authenticated pair response.
 The [token module](../src/server/auth/tokens.ts) owns transactional consumption, fixed family deadlines and family revocation.
 The existing [AGENTS.md](../AGENTS.md) package and README pointers remain accurate and need no correction.
-Administrative routes and recent-auth flows remain S32-S34.
+See [S32 verification](verification-s32.md) for bearer reauthentication checks, and [README.md](../README.md) for current authentication usage and remaining work.
 All verification uses synthetic identities, canary passwords, temporary stores and fake upstream tools.
 
 1. Run `pnpm exec vitest run test/integration/api.test.ts src/server/auth/tokens.test.ts`.
