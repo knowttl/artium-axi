@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { createAzAdapter } from '/work/dist/src/server/adapters/az.js'
 import { AzureTokenCache } from '/work/dist/src/server/adapters/azure-token-cache.js'
@@ -17,6 +18,7 @@ const writeLog = join(directory, 'tool-logs', 'az-axi', 'writes.log')
 const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(network))
 const runner = await Runner.create(join(directory, 'calls'))
 const binary = '/work/tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js'
+const { decode } = await import(createRequire(binary).resolve('@toon-format/toon'))
 const evidence = async () => (await fetch('https://management.azure.com/__evidence')).json()
 const run = async (args, input = {}, selected = adapter) => {
   const call = await selected.prepare(args, reference, input)
@@ -45,8 +47,18 @@ try {
     assert.ok((await evidence()).requests.some(request => request.host === host && request.path === path && request.canaryReceived))
     if (resource === 'logs') assert.equal((await evidence()).requests.at(-1).body.query, 'Heartbeat')
     assert.doesNotMatch(result.stdout + result.stderr, /CANARY-|blob-content|account-key/)
-    if (resource === 'storage') assert.match(result.stdout, /synthetic-blob/)
-    if (resource === 'vault') assert.match(result.stdout, /synthetic-secret/)
+    if (resource === 'storage') {
+      const [blob] = decode(result.stdout).blobs
+      assert.equal(blob.name, 'synthetic-blob')
+      assert.equal(blob.size, '12')
+      assert.equal(blob.blobType, 'BlockBlob')
+    }
+    if (resource === 'vault') {
+      const [secret] = decode(result.stdout).secrets
+      assert.equal(secret.name, 'synthetic-secret')
+      assert.equal(secret.enabled, true)
+      assert.equal(secret.contentType, 'text/plain')
+    }
   }
   const target = '/subscriptions/synthetic-subscription/resourceGroups/single-write?api-version=2022-12-01'
   const otherSubscription = '44444444-4444-4444-8444-444444444444'
