@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { LoginResponse } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { tokenDefaults } from '../config.js'
+import { authDefaults, tokenDefaults } from '../config.js'
 import type { Audit } from '../audit/audit.js'
 
 type TokenPair = Extract<LoginResponse, { status: 'authenticated' }>
@@ -35,17 +35,35 @@ export function verifyPasswordToken(db: Database.Database, token: string, now = 
 
 function verifyToken(db: Database.Database, token: string, types: readonly string[], now: number) {
   const row = db.prepare(`
-    SELECT tokens.user_id, tokens.type, tokens.expires_at, users.disabled, session_families.expires_at AS family_expires_at FROM tokens
+    SELECT tokens.user_id, tokens.family_id, tokens.type, tokens.expires_at, users.disabled, session_families.expires_at AS family_expires_at FROM tokens
     JOIN session_families ON session_families.id = tokens.family_id
     JOIN users ON users.id = tokens.user_id
     WHERE tokens.hash = ?
       AND tokens.revoked_at IS NULL AND tokens.consumed_at IS NULL
       AND session_families.revoked_at IS NULL
-  `).get(hashToken(token)) as { user_id: string, type: string, expires_at: number, family_expires_at: number, disabled: number } | undefined
+  `).get(hashToken(token)) as { user_id: string, family_id: string, type: string, expires_at: number, family_expires_at: number, disabled: number } | undefined
   if (!row || !types.includes(row.type)) throw new ArtiumError('TOKEN_INVALID')
   if (row.expires_at <= now || row.family_expires_at <= now) throw new ArtiumError('TOKEN_EXPIRED')
   if (row.disabled) throw new ArtiumError('USER_DISABLED')
   return row
+}
+
+export function issueRecentAuthTicket(db: Database.Database, accessToken: string, now = Date.now()) {
+  const row = verifyToken(db, accessToken, ['access'], now)
+  const ticket = randomBytes(32).toString('base64url')
+  const expiresAt = Math.min(now + authDefaults.recentAuthMs, row.family_expires_at)
+  db.prepare(`INSERT INTO recent_auth_tickets (family_id, hash, expires_at) VALUES (?, ?, ?)
+    ON CONFLICT(family_id) DO UPDATE SET hash = excluded.hash, expires_at = excluded.expires_at`)
+    .run(row.family_id, hashToken(ticket), expiresAt)
+  return { ticket, expiresAt }
+}
+
+export function requireRecentAuth(db: Database.Database, accessToken: string, ticket: string, now = Date.now()): string {
+  const row = verifyToken(db, accessToken, ['access'], now)
+  const proof = db.prepare('SELECT expires_at FROM recent_auth_tickets WHERE family_id = ? AND hash = ?')
+    .get(row.family_id, hashToken(ticket)) as { expires_at: number } | undefined
+  if (!proof || proof.expires_at <= now) throw new ArtiumError('REAUTH_REQUIRED')
+  return row.user_id
 }
 
 export function issueLoginTokens(db: Database.Database, userId: string, now = Date.now()): LoginResponse {
