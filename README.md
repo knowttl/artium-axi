@@ -319,10 +319,7 @@ It appends interrupted terminal events for unmatched starts without replaying co
 Call `maintain()` from the server's daily maintenance tick.
 It drains all events strictly older than the captured 90-day cutoff in batches of at most 500 events.
 Each batch commits its deletion, cutoff and count in a separate short transaction, and rolls back that batch if its maintenance event cannot be stored.
-Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
-SQLite remains authoritative if the optional stream fails.
-For export, capture that stream in a protected external collector before retention expires.
-See [the runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for backup, restore, retention and upgrade rollback.
+See [retention and export](docs/runbook.md#retention-and-export) for audit stdout configuration and collector operation, and [backup, restore and upgrade rollback](docs/runbook.md#backup-restore-and-upgrade-rollback) for recovery procedures.
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
 Authentication and admin producers must use metadata only.
