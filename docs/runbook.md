@@ -106,8 +106,13 @@ Azure configuration can be edited but runtime enable and Test remain unavailable
 Check liveness and readiness through the trusted endpoint:
 
 ```sh
-curl --fail --cacert "$ARTIUM_AXI_CA_FILE" "$ARTIUM_AXI_URL/health/live"
-curl --fail --cacert "$ARTIUM_AXI_CA_FILE" "$ARTIUM_AXI_URL/health/ready"
+if [ -n "${ARTIUM_AXI_CA_FILE:-}" ]; then
+  set -- --cacert "$ARTIUM_AXI_CA_FILE"
+else
+  set --
+fi
+curl --fail "$@" "$ARTIUM_AXI_URL/health/live"
+curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 ```
 
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
