@@ -322,7 +322,7 @@ Each batch commits its deletion, cutoff and count in a separate short transactio
 Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
 SQLite remains authoritative if the optional stream fails.
 For export, capture that stream in a protected external collector before retention expires.
-See [the runbook](docs/runbook.md) for database backup requirements and the remaining backup and restore work.
+See [the runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for backup, restore, retention and upgrade rollback.
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
 Authentication and admin producers must use metadata only.
