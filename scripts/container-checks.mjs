@@ -43,6 +43,7 @@ try {
     images.push(image)
     command(process.execPath, ['scripts/build-fake-service-image.mjs', ...(flag ? [flag, image] : [])],
       { ...env, ARTIUM_TEST_IMAGE: image })
+    if (!flag) command(process.execPath, ['scripts/mg-headless-check.mjs'], { ...env, ARTIUM_TEST_IMAGE: image })
     command(process.execPath, ['scripts/fake-services.mjs', ...probe], { ...env, ARTIUM_TEST_IMAGE: image })
     if (flag === '--production') {
       const backupVolume = `${builder}-backup`
