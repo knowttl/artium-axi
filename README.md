@@ -8,7 +8,7 @@ The API supports local sign-in, password change, refresh rotation, logout, rate 
 User administration supports paginated listing, creation, account edits, unlock and temporary password reset with atomic audit and revision checks.
 Tool administration supports fixed native settings, encrypted credential replacement and audited manual health tests with the same local login and reauthentication requirements.
 Administrators can browse and filter records through the [Audit screen and API](#audit-screen-and-api).
-The bundled CLI supports local login, password change, identity, logout, serialized session refresh, home/tool discovery, consistent help and `doctor` diagnostics.
+The bundled CLI supports local login, password change, identity, logout, serialized session refresh, home/tool discovery, consistent help, `doctor` diagnostics and agent setup.
 Browser sign-in, sign-out, password change and password confirmation use server-rendered forms and server-side sessions.
 
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
@@ -89,6 +89,14 @@ Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
 The client preserves argument tokens; output and error handling follow the [generated error reference](docs/errors.md) and CLI guidance above.
 Download/launcher distribution remains later-slice work.
+Run `node /absolute/path/to/artium-axi.mjs setup --host <claude|codex|opencode>` to install the embedded [artium-axi skill](skill/artium-axi/SKILL.md) without npm or sibling source files.
+The skill directs agents to discover their granted tools first and records the current Node/bundle invocation for sessions where `artium-axi` is absent from PATH.
+For Claude Code, add `--hook` to install a `SessionStart` hook that runs `tools` and provides its output as session context.
+Setup always installs the skill; the hook is optional.
+Setup merges settings through an atomic file replacement, preserves unrelated settings and hooks, and repeats without rewriting unchanged files.
+It repairs managed paths when the bundle moves, but refuses to replace an edited or unmanaged skill unless `--force` is explicit.
+Codex and OpenCode support skill installation; requesting their hooks fails with a clear explanation and writes no files.
+See [S45 verification](docs/verification-s45.md) for the verified host paths, hook schema and isolated checks.
 See [S36+S37 verification](docs/verification-s36-37.md) for Linux process and storage evidence and deferred Windows/macOS acceptance.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
