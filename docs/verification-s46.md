@@ -45,5 +45,4 @@ Host skill locations were checked against current documentation on 2026-10-08: [
 The existing [S45 verification](verification-s45.md) owns setup path, merge and hook-schema contracts.
 No new host integration or guessed host path is introduced here.
 Codex and OpenCode hooks remain unsupported by this installer and report why.
-Actual Windows/macOS execution, PowerShell execution, actual agent session loading and live server installation remain unverified captain acceptance.
-The README provides a PowerShell checksum and current-shell launcher example without claiming that host was executed.
+Actual Windows/macOS execution, actual agent session loading and live server installation remain unverified captain acceptance.

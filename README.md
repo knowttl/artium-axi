@@ -126,20 +126,6 @@ Choose a first call from your available tools and its displayed example.
 The executable is the bundle itself with a Node shebang, so launch and setup need no npm install or sibling assets.
 Keep it at the installed path; if it moves, rerun setup to repair its recorded invocation.
 
-PowerShell download and launcher example, requiring Node 22.12 or later on `PATH`:
-
-```powershell
-Invoke-WebRequest "$env:ARTIUM_AXI_URL/cli/artium-axi.mjs" -OutFile artium-axi.mjs
-Invoke-WebRequest "$env:ARTIUM_AXI_URL/cli/artium-axi.mjs.sha256" -OutFile artium-axi.mjs.sha256
-$expected = ((Get-Content artium-axi.mjs.sha256 -Raw).Trim() -split '\s+')[0]
-$actual = (Get-FileHash artium-axi.mjs -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($expected -notmatch '^[a-f0-9]{64}$' -or $actual -ne $expected) { throw 'CLI checksum mismatch; do not launch' }
-$env:ARTIUM_AXI_BUNDLE = (Resolve-Path artium-axi.mjs).Path
-function artium-axi { & node $env:ARTIUM_AXI_BUNDLE @args }
-artium-axi setup --host codex
-```
-
-The PowerShell function is for the current shell; a persistent launcher must retain the absolute bundle path.
 Windows and macOS execution remain unverified, including token storage and actual agent host loading.
 This Linux acceptance does not certify them.
 Unknown setup hosts are refused with the supported host list, and unsupported hooks explain the limitation before writing any files.
