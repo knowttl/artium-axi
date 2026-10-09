@@ -97,20 +97,27 @@ const disposition = name => ['config', 'profile', 'tenant', 'token-env', 'client
   : name.endsWith('-file') || ['file', 'body', 'input', 'out', 'output', 'cursor'].includes(name) ? 'input/output transport review'
   : 'passthrough candidate'
 
+const mgGlobalFlags = [
+  { name: '--help', scope: 'bare or after a command; no -h alias' },
+  ...['--version', '-v', '-V'].map(name => ({ name, scope: 'bare only' })),
+]
+
 for (const [tool, commands] of Object.entries(inventories)) {
   const packageUrl = new URL(`node_modules/@knowttl/${tool}/package.json`, root)
   const pkg = JSON.parse(readFileSync(packageUrl, 'utf8'))
   if (pkg.version !== pins[pkg.name].version) throw new Error(`Pin mismatch for ${tool}`)
   const data = { generatedBy: 'scripts/upstream-inventory.mjs', tool, ...pins[pkg.name],
-    parserEvidence: 'Installed pinned catalogue exports, provisional until adapter acceptance',
+    parserEvidence: tool === 'mg-axi' ? 'Installed pinned catalogue exports'
+      : 'Installed pinned catalogue exports, provisional until adapter acceptance',
     packageManifestSha256: createHash('sha256').update(readFileSync(packageUrl)).digest('hex'),
-    environment: environments[tool].native.map(name => ({ name, disposition: tool === 'az-axi'
+    environment: environments[tool].native.map(name => tool === 'mg-axi' ? { name } : { name, disposition: tool === 'az-axi'
       ? ['AZ_AXI_CONFIG', 'AZ_AXI_WRITE_LOG', ...azResources.map(resource => azConfig.tokenEnvFor({}, resource))].includes(name)
-        ? 'set by server' : 'unsafe override' : 'server-owned' })),
-    dynamicCredentialEnvironment: environments[tool].credentials.map(record => ({ ...record, disposition: 'server-owned' })),
+        ? 'set by server' : 'unsafe override' : 'server-owned' }),
+    dynamicCredentialEnvironment: environments[tool].credentials.map(record => tool === 'mg-axi'
+      ? record : { ...record, disposition: 'server-owned' }),
     environmentSources: environments[tool].sources.map(path => ({ path: `dist/${path}`,
       sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })),
-    nativeWriteSettings: { default: 'disabled', disposition: 'server-owned',
+    nativeWriteSettings: { default: 'disabled', ...(tool === 'mg-axi' ? {} : { disposition: 'server-owned' }),
       profileFields: nativeWriteSettings[tool].profileFields, scope: nativeWriteSettings[tool].scope,
       sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
@@ -144,8 +151,21 @@ for (const [tool, commands] of Object.entries(inventories)) {
       source: { path: 'dist/src/catalogue.js', sha256: createHash('sha256')
         .update(readFileSync(new URL('node_modules/@knowttl/vectra-axi/dist/src/catalogue.js', root))).digest('hex') },
     } } : {}),
+    ...(tool === 'mg-axi' ? { headlessInventory: {
+      activation: 'Inventory only; no adapter. Live Graph application consent remains unverified.',
+      globalFlags: mgGlobalFlags,
+      commonFlags: ['profile', 'api-version'].map(name => ({ name, scope: 'only on leaves declaring it' })),
+      credentialEnvironment: ['MG_AXI_CLIENT_SECRET', 'MG_AXI_PRIVATE_KEY'].map(name => ({ name,
+        scope: 'example names only; profile selects the actual holder name' })),
+      parser: { aliases: {}, shortFlags: {}, repeats: 'refused', equals: true,
+        doubleDash: 'refused', globalFlagsBeforeCommand: 'refused', unknownFlags: 'refused' },
+      schema: 'mg-axi-headless.schema.json',
+      sources: ['catalogue.js', 'cli.js', 'profiles.js', 'msal-app-provider.js', 'mutations.js'].map(path => ({
+        path: `dist/${path}`, sha256: createHash('sha256')
+          .update(readFileSync(new URL(`node_modules/@knowttl/mg-axi/dist/${path}`, root))).digest('hex') })),
+    } } : {}),
     flags: [...new Set(commands.flatMap(command => [...Object.keys(command.flags), ...Object.keys(command.flagAliases ?? {})]))].sort()
-      .map(name => ({ name, disposition: disposition(name) })), commands }
+      .map(name => tool === 'mg-axi' ? { name } : { name, disposition: disposition(name) }), commands }
   const contents = JSON.stringify(data, null, 2) + '\n'
   const destination = new URL(`inventories/${tool}.json`, root)
   if (process.argv[2] === '--write') writeFileSync(destination, contents)

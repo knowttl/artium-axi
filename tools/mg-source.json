@@ -1,0 +1,9 @@
+{
+  "package": "@knowttl/mg-axi",
+  "version": "0.1.4",
+  "integrity": "sha512-k508R4YwELmE7fQLJY2w0Gx/0y9oBbS/nYcYm9FqRugbPGHWC6fOFPpcHE/S+JvxBW9qv48uDN01la1y6lB6ug==",
+  "tarball": "https://registry.npmjs.org/@knowttl/mg-axi/-/mg-axi-0.1.4.tgz",
+  "reconfirmedAt": "2026-10-09T06:38:02Z",
+  "command": "npm view @knowttl/mg-axi version dist.integrity dist.tarball --json",
+  "pinDisposition": "Existing tools/package.json, tools/integrity.json and tools/pnpm-lock.yaml match the fresh npm result; exact pin retained."
+}
