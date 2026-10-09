@@ -20,7 +20,7 @@ Run `pnpm install --frozen-lockfile`, then `pnpm check` for generated error-refe
 See [test-speed verification](docs/verification-test-speed.md) for the controlled-clock stalled-request checks and file-parallelism profiling.
 Compilation is reused only for the same head, Node version, source/toolchain input digest and intact compiled-output digest.
 Run `pnpm test:containers` for the full fake-only container acceptance block after `pnpm check`.
-It completes compilation before probes, runs the runner resource checks, walking skeleton and both fake-service modes, and removes its unique `artium-test-*` images and private tmpfs BuildKit cache.
+It completes compilation before probes, runs the runner resource checks, walking skeleton, Graph headless probe and both fake-service modes, and removes its unique `artium-test-*` images and private tmpfs BuildKit cache.
 The task-owned worker uses two CPUs, a 4 GiB memory bound and an executable 3 GiB tmpfs cache with overlayfs, retaining layers across the block's image builds until final cleanup.
 Image builds verify the task worker's root and ownership token and remove each exported temporary archive; the block owns worker/cache cleanup.
 Standalone image builds instead create and remove their own private worker/cache and exported archive without touching the shared Docker builder.
@@ -178,9 +178,11 @@ The root install runs their frozen installation.
 Root native build approval is limited to `argon2`, `better-sqlite3` and `esbuild` in `package.json`, while upstream tool build scripts remain disabled.
 [`tools/integrity.json`](tools/integrity.json) records the pinned upstream versions and npm SHA-512 values.
 mg-axi is inventoried for phase 8, with no production adapter enabled.
-`pnpm test` checks the generated parser inventories against the installed catalogues before running Vitest.
-Regenerate them with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
-These inventories record provisional flag dispositions, route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
+`pnpm test` checks the generated parser inventories against the installed catalogues and the generated Graph headless schema against its generator before running Vitest.
+Regenerate parser inventories with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
+These inventories record route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
+Azure and Vectra inventories also record provisional flag dispositions; mg-axi records observed parser facts without adapter policy dispositions.
+See [S50 verification](docs/verification-s50.md) for the Graph headless schema generation command, standalone `pnpm test:mg-headless` probe and fake-authentication evidence limits.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The [Azure inventory](tools/inventories/az-axi.json) also owns reviewed route resource requirements and their pinned source hashes; [S25 verification](docs/verification-s25.md) describes conditional resource selection.
 Its adapter boundary classifies every global flag and `AZ_AXI_*` variable, records reviewed input transports and hashes the pinned parser sources.
