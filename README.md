@@ -14,6 +14,7 @@ Browser sign-in, sign-out, password change and password confirmation use server-
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
 On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
+The AXI/distribution checklist in `pnpm check` requires Linux with curl and sha256sum on `PATH`; it refuses other platforms with an unverified-platform explanation.
 Run `pnpm install --frozen-lockfile`, then `pnpm check` for generated error-reference freshness, strict type checking, the Vitest suite, TypeScript compilation into `dist/` and the AXI/distribution checklist.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 See [test-speed verification](docs/verification-test-speed.md) for the controlled-clock stalled-request checks and file-parallelism profiling.
