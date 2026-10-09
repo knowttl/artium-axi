@@ -9,7 +9,7 @@ import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 
-const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'] }
+const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'] }
 
 // Manual tests and background reads share exclusion, runner admission and cache writes.
 export class ToolHealth {

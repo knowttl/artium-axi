@@ -16,7 +16,7 @@ export interface PreparedCall {
   files: TemporaryFile[]
   secrets: string[]
   fileArguments?: readonly number[]
-  limits: { timeoutMs: number, runtime?: 'python' }
+  limits: { timeoutMs: number, runtime?: 'python', nodeHeapMiB?: number }
 }
 
 export interface Adapter<Credential> {

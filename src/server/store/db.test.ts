@@ -51,6 +51,7 @@ it('opens an unconfigured store with every supported tool disabled', () => {
     expect(db.prepare('SELECT name, enabled, pinned_version FROM tools ORDER BY name').all()).toEqual([
       { name: 'az-axi', enabled: 0, pinned_version: '' },
       { name: 'falcon-axi', enabled: 0, pinned_version: '' },
+      { name: 'mg-axi', enabled: 0, pinned_version: '' },
       { name: 'vectra-axi', enabled: 0, pinned_version: '' },
     ])
   } finally { db.close() }

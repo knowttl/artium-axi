@@ -7,6 +7,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { falconCredentialSchema, falconManifest } from '../adapters/falcon.js'
 import { vectraCredentialSchema, vectraManifest } from '../adapters/vectra.js'
 import { azCredentialSchema, azManifest } from '../adapters/az.js'
+import { mgCredentialSchema, mgManifest } from '../adapters/mg.js'
 import type { Adapter } from '../adapters/types.js'
 import type { Audit } from '../audit/audit.js'
 import type { Runner } from '../runner/runner.js'
@@ -20,12 +21,13 @@ export interface ToolAdminOptions {
   health: ToolHealth
 }
 
-const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema }
-const versions = { 'falcon-axi': falconManifest.version, 'vectra-axi': vectraManifest.version, 'az-axi': azManifest.version }
+const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema }
+const versions = { 'falcon-axi': falconManifest.version, 'vectra-axi': vectraManifest.version, 'az-axi': azManifest.version, 'mg-axi': mgManifest.version }
 const publicFields = {
   'falcon-axi': ['region', 'memberCid'],
   'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease'],
   'az-axi': ['tenantId', 'clientId', 'auth', 'thumbprintSha256'],
+  'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 
 export function registerToolAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,

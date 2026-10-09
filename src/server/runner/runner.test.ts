@@ -26,6 +26,13 @@ afterEach(async () => {
 const fake = (args: string[], environment = {}, secrets: string[] = []) =>
   run(fakeTool.executable, [...fakeTool.args, ...args], environment, secrets)
 
+test('trusted adapter heap allowance overrides caller environment options', async () => {
+  const result = await run(process.execPath, ['-e', 'console.log(process.env.NODE_OPTIONS)'],
+    { NODE_OPTIONS: '--max-old-space-size=2048' }, [], { nodeHeapMiB: 512 })
+  expect(result.exitCode).toBe(0)
+  expect(result.stdout).toBe('--max-old-space-size=512\n')
+})
+
 test('public runner preserves fake-tool streams, nonzero exit status and result flags', async () => {
   const result = await fake(['upstream', 'az-axi', 'error'])
   expect(result.stdout).toContain('error:')
