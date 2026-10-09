@@ -50,6 +50,10 @@ test.each([
   expect(rewriteSuggestions(input, 'falcon-axi')).toBe(expected)
   expect(rewriteSuggestions(expected, 'falcon-axi')).toBe(expected)
   expect(rewriteSuggestions(input, 'falcon-axi', true)).toBe(input)
+  const incomplete = encode(`Run ${quote}${prefix}${first}${quote} or ${quote}falcon-axi host show --id 7`)
+  expect(rewriteSuggestions(incomplete, 'falcon-axi')).toBe(incomplete)
+  const incompleteWrapped = encode(`Run ${quote}${prefix}${first}${quote} or ${quote}artium-axi falcon-axi host show --id 7`)
+  expect(rewriteSuggestions(incompleteWrapped, 'falcon-axi')).toBe(incompleteWrapped)
 })
 
 test.each([
