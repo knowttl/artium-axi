@@ -58,7 +58,7 @@ try {
   run('service', ['--detach', '--network', name, '--network-alias', 'api.crowdstrike.com', '--network-alias', 'appliance.test', ...mounts,
     cliImage, 'node', '/work/test/fake-service/server.mjs'])
   await ready(service)
-  for (const mode of ['pinned', 'canary']) {
+  for (const mode of ['distribution', 'pinned', 'canary']) {
     if (mode === 'canary') {
       const output = run('local-env', ['--rm', '--network', 'none', ...mounts,
         '--env', 'FALCON_CLIENT_ID=CANARY-falcon-id', '--env', 'FALCON_CLIENT_SECRET=CANARY-falcon-secret',
@@ -73,16 +73,19 @@ try {
       '--env', `ARTIUM_AXI_MASTER_KEY=${masterKey}`,
       image, 'node', '/work/test/walking-skeleton/setup.mjs'])
     run(`${mode}-ownership`, ['--rm', '--user', '0', '--network', 'none', ...data, image, 'chown', '-R', '10001:10001', '/data'])
-    const trust = mode === 'pinned' ? ['--mount', `type=bind,src=${join(directory, 'ca.crt')},dst=/opt/falcon-axi/lib/python3.11/site-packages/certifi/cacert.pem,readonly`] :
+    const trust = mode !== 'canary' ? ['--mount', `type=bind,src=${join(directory, 'ca.crt')},dst=/opt/falcon-axi/lib/python3.11/site-packages/certifi/cacert.pem,readonly`] :
       ['--mount', `type=bind,src=${join(directory, 'fake-axi')},dst=/opt/falcon-axi/bin/falcon-axi,readonly`]
     run(`${mode}-server`, ['--detach', '--init', '--read-only', '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
       '--network', name, '--network-alias', 'artium-server', ...mounts, ...data, ...trust,
       '--env', `ARTIUM_AXI_MASTER_KEY=${masterKey}`,
       image, 'node', '--import', '/work/test/walking-skeleton/ready.mjs', 'dist/src/server/main.js'])
     await ready(`${name}-${mode}-server`)
-    console.log(run(`${mode}-client`, ['--rm', '--user', '0', '--network', name, ...mounts,
-      '--mount', `type=volume,src=${volume},dst=/test-data,readonly`,
-      mode === 'pinned' ? image : cliImage, 'node', '/work/test/walking-skeleton/probe.mjs', mode]))
+    const clientMounts = mode === 'distribution'
+      ? ['--mount', `type=bind,src=${join(root, 'test/walking-skeleton/probe.mjs')},dst=/probe.mjs,readonly`,
+        '--mount', `type=bind,src=${directory},dst=/certs,readonly`]
+      : [...mounts, '--mount', `type=volume,src=${volume},dst=/test-data,readonly`]
+    console.log(run(`${mode}-client`, ['--rm', '--user', '0', '--network', name, ...clientMounts,
+      mode === 'pinned' ? image : cliImage, 'node', mode === 'distribution' ? '/probe.mjs' : '/work/test/walking-skeleton/probe.mjs', mode]))
     docker('stop', `${name}-${mode}-server`)
   }
 } catch (error) {

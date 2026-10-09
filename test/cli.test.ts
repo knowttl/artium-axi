@@ -126,10 +126,10 @@ async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
-  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version}:\n  falcon-axi,ok,"0.3.0"\nnext[2]:\n  artium-axi tools show falcon-axi\n  artium-axi falcon-axi detection list\n', stderr: '' })
+  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version}:\n  falcon-axi,ok,"0.3.0"\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
   expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
-  expect((await cli(['tools'])).stdout).toBe('tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  artium-axi whoami\n')
+  expect((await cli(['tools'])).stdout).toBe('tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n')
 })
 
 test('passthrough preserves argument tokens, streams and upstream nonzero status', async () => {

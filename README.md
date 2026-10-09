@@ -14,7 +14,7 @@ Browser sign-in, sign-out, password change and password confirmation use server-
 The development scaffold requires Node 22.12 or later and pnpm 10.22.0, pinned in `package.json`.
 The local HTTPS tests also require OpenSSL on `PATH` to create ephemeral test certificates.
 On POSIX, the CLI terminal-input tests require `python3` on `PATH` for their pseudo-terminal driver.
-Run `pnpm install --frozen-lockfile`, then `pnpm check` for generated error-reference freshness, strict type checking, the Vitest suite and TypeScript compilation into `dist/`.
+Run `pnpm install --frozen-lockfile`, then `pnpm check` for generated error-reference freshness, strict type checking, the Vitest suite, TypeScript compilation into `dist/` and the AXI/distribution checklist.
 `pnpm lint` performs only static checking, `pnpm test` runs the full suite, and `pnpm build` compiles the scaffold.
 See [test-speed verification](docs/verification-test-speed.md) for the controlled-clock stalled-request checks and file-parallelism profiling.
 Compilation is reused only for the same head, Node version, source/toolchain input digest and intact compiled-output digest.
@@ -86,9 +86,65 @@ Only an explicit pre-execution `TOKEN_EXPIRED` response permits one serialized r
 A network failure or uncertain command outcome is never retried.
 Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
 Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
-For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
+For the advertised command, use the standalone launcher installation below.
 The client preserves argument tokens; output and error handling follow the [generated error reference](docs/errors.md) and CLI guidance above.
-Download/launcher distribution remains later-slice work.
+The server serves the current bundle at `/cli/artium-axi.mjs` and its SHA-256 file at `/cli/artium-axi.mjs.sha256`, without authentication or CLI version gating.
+The download carries `X-Artium-Cli-Version`, `X-Artium-Cli-Sha256`, a JavaScript content type and an attachment filename.
+The checksum covers the exact downloaded bytes.
+
+### Download and first call
+
+Linux requires Node 22.12 or later on `PATH`, curl and sha256sum.
+Set `ARTIUM_AXI_URL` to your HTTPS server URL and configure your certificate trust before downloading.
+For a private CA, give curl `--cacert /absolute/path/to/ca.crt` on both downloads and set `ARTIUM_AXI_CA_FILE` to that CA file for the CLI.
+The HTTPS endpoint and checksum must come from the trusted server; the checksum detects corruption and mismatched releases.
+
+```sh
+mkdir -p "$HOME/.local/bin"
+cd "$HOME/.local/bin"
+curl --fail --output artium-axi.mjs "$ARTIUM_AXI_URL/cli/artium-axi.mjs" &&
+curl --fail --output artium-axi.mjs.sha256 "$ARTIUM_AXI_URL/cli/artium-axi.mjs.sha256" &&
+sha256sum --check artium-axi.mjs.sha256 &&
+mv artium-axi.mjs artium-axi &&
+chmod 755 artium-axi &&
+rm artium-axi.mjs.sha256
+export PATH="$HOME/.local/bin:$PATH"
+artium-axi setup --host claude --hook
+artium-axi login --username <username> --password-stdin
+# Supply the temporary password on stdin. If PASSWORD_CHANGE_REQUIRED is returned:
+artium-axi passwd --password-stdin
+# Supply the new password on stdin, then sign in again with it:
+artium-axi login --username <username> --password-stdin
+artium-axi tools
+artium-axi tools show falcon-axi
+artium-axi falcon-axi detection list
+```
+
+Stop if either download or checksum verification fails; do not launch the downloaded file.
+Choose `--host codex` or `--host opencode` for their skill installation, without `--hook`.
+Choose a first call from your available tools and its displayed example.
+The executable is the bundle itself with a Node shebang, so launch and setup need no npm install or sibling assets.
+Keep it at the installed path; if it moves, rerun setup to repair its recorded invocation.
+
+PowerShell download and launcher example, requiring Node 22.12 or later on `PATH`:
+
+```powershell
+Invoke-WebRequest "$env:ARTIUM_AXI_URL/cli/artium-axi.mjs" -OutFile artium-axi.mjs
+Invoke-WebRequest "$env:ARTIUM_AXI_URL/cli/artium-axi.mjs.sha256" -OutFile artium-axi.mjs.sha256
+$expected = ((Get-Content artium-axi.mjs.sha256 -Raw).Trim() -split '\s+')[0]
+$actual = (Get-FileHash artium-axi.mjs -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($expected -notmatch '^[a-f0-9]{64}$' -or $actual -ne $expected) { throw 'CLI checksum mismatch; do not launch' }
+$env:ARTIUM_AXI_BUNDLE = (Resolve-Path artium-axi.mjs).Path
+function artium-axi { & node $env:ARTIUM_AXI_BUNDLE @args }
+artium-axi setup --host codex
+```
+
+The PowerShell function is for the current shell; a persistent launcher must retain the absolute bundle path.
+Windows and macOS execution remain unverified, including token storage and actual agent host loading.
+This Linux acceptance does not certify them.
+Unknown setup hosts are refused with the supported host list, and unsupported hooks explain the limitation before writing any files.
+Do not adapt a host by guessing its configuration path or hook schema; verify its current documentation first.
+See [S46 verification](docs/verification-s46.md) for the executable checklist, clean Linux image journey and human review boundary.
 Run `node /absolute/path/to/artium-axi.mjs setup --host <claude|codex|opencode>` to install the embedded [artium-axi skill](skill/artium-axi/SKILL.md) without npm or sibling source files.
 The skill directs agents to discover their granted tools first and records the current Node/bundle invocation for sessions where `artium-axi` is absent from PATH.
 For Claude Code, add `--hook` to install a `SessionStart` hook that runs `tools` and provides its output as session context.
@@ -452,7 +508,7 @@ Doctor does not run platform checks or require administrator access.
 Every CLI request carries `X-Artium-Cli-Version` from `package.json`.
 The server accepts that release and newer versions, returning HTTP 426 `CLI_OUTDATED` with a download command for older or malformed version headers.
 Browser requests, health routes and CLI download paths are exempt, and API clients without a CLI header remain supported.
-The download route and complete installation instructions are later distribution work.
+The public download routes and installation instructions are described above.
 See [S42 verification](docs/verification-s42.md) for fake-time exclusion, stored listing, version exemptions and bundled diagnostics.
 Run responses use the exact shared success or error envelope, preserving upstream nonzero exit codes as HTTP 200.
 Tool requests use the stored access-token verifier, with current database policy applied to every request.
