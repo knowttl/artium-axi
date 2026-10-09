@@ -46,6 +46,10 @@ try {
     if (!flag) command(process.execPath, ['scripts/mg-headless-check.mjs'], { ...env, ARTIUM_TEST_IMAGE: image })
     command(process.execPath, ['scripts/fake-services.mjs', ...probe], { ...env, ARTIUM_TEST_IMAGE: image })
     if (flag === '--production') {
+      const packaged = `${builder}-mg-package`
+      recoveryContainers.push(packaged)
+      command('docker', ['run', '--name', packaged, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/mg-axi', image, '--version'])
       const backupVolume = `${builder}-backup`
       const restoreVolume = `${builder}-restore`
       for (const volume of [backupVolume, restoreVolume]) {

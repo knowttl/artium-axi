@@ -21,14 +21,20 @@ try {
   const result = spawnSync('docker', ['run', '--name', name, '--pull', 'never', '--network', 'none',
     '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--tmpfs', '/tmp:rw,noexec,nosuid,size=16m', '--env', 'HOME=/tmp',
-    '--mount', `type=bind,src=${root}/tools,dst=/work/tools,readonly`,
-    '--mount', `type=bind,src=${root}/test/fake-tool,dst=/work/test/fake-tool,readonly`,
+    '--mount', `type=bind,src=${root},dst=/work,readonly`,
     '--workdir', '/work', image, 'node', '/work/test/fake-tool/mg-headless.mjs'],
   { stdio: 'inherit' })
   if (result.error || result.status !== 0) throw new Error(result.error?.message ?? `Headless probe exited ${result.status}`)
+  const adapter = spawnSync('docker', ['run', '--name', `${name}-adapter`, '--pull', 'never', '--network', 'none',
+    '--user', '10001:10001', '--memory', '768m', '--pids-limit', '192',
+    '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+    '--tmpfs', '/tmp:rw,noexec,nosuid,size=32m', '--env', 'HOME=/tmp',
+    '--mount', `type=bind,src=${root},dst=/work,readonly`, '--workdir', '/work',
+    image, 'node', '/work/test/fake-tool/mg-adapter.mjs'], { stdio: 'inherit' })
+  if (adapter.error || adapter.status !== 0) throw new Error(adapter.error?.message ?? `Adapter probe exited ${adapter.status}`)
   console.log(`mg-headless: passed elapsedMs=${Math.round(performance.now() - started)}`)
 } finally {
-  const result = spawnSync('docker', ['rm', '--force', name], { encoding: 'utf8', timeout: 30_000 })
+  const result = spawnSync('docker', ['rm', '--force', name, `${name}-adapter`], { encoding: 'utf8', timeout: 30_000 })
   if (result.status !== 0 && !result.stderr.includes('No such container')) throw new Error('Headless container cleanup failed')
   if (!process.env.ARTIUM_TEST_IMAGE) {
     const cleanup = spawnSync('docker', ['image', 'rm', image], { encoding: 'utf8', timeout: 30_000 })

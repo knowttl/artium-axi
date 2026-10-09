@@ -152,7 +152,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
         .update(readFileSync(new URL('node_modules/@knowttl/vectra-axi/dist/src/catalogue.js', root))).digest('hex') },
     } } : {}),
     ...(tool === 'mg-axi' ? { headlessInventory: {
-      activation: 'Inventory only; no adapter. Live Graph application consent remains unverified.',
+      activation: 'Internal adapter for fake commissioning; no production registry activation. Live Graph application consent remains unverified.',
       globalFlags: mgGlobalFlags,
       commonFlags: ['profile', 'api-version'].map(name => ({ name, scope: 'only on leaves declaring it' })),
       credentialEnvironment: ['MG_AXI_CLIENT_SECRET', 'MG_AXI_PRIVATE_KEY'].map(name => ({ name,
@@ -163,6 +163,21 @@ for (const [tool, commands] of Object.entries(inventories)) {
       sources: ['catalogue.js', 'cli.js', 'profiles.js', 'msal-app-provider.js', 'mutations.js'].map(path => ({
         path: `dist/${path}`, sha256: createHash('sha256')
           .update(readFileSync(new URL(`node_modules/@knowttl/mg-axi/dist/${path}`, root))).digest('hex') })),
+    } } : {}),
+    ...(tool === 'mg-axi' ? { adapterBoundary: {
+      unsafeOverrides: ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
+        'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint', 'federated-token-file-env'],
+      allowedCommands: ['home', 'doctor', 'entra', 'api get'],
+      inputs: { stdin: 'cursor - only', files: 'unsupported', cursor: 'opaque token or stdin; never a path',
+        api: 'reviewed GET routes only; pinned Graph destination and operation gates retained' },
+      sensitiveFlags: ['cursor', 'filter', 'odata', 'conditions', 'grant-controls', 'session-controls', 'display-name'],
+      knownOutputScanValues: ['clientSecret and trimmed clientSecret', 'privateKey and normalized PEM'],
+      outputScanLimit: 'Upstream-minted Graph tokens and assertions are not available during prepare; live redaction remains unverified.',
+      resources: { nodeHeapMiB: 512, reason: 'Pinned 73 MiB operation inventory exceeds the default 128 MiB heap; fake read/write probes measure the bounded adapter allowance.' },
+      nativeGates: ['configured writes.allowWrites', 'configured writes.operations', 'v1.0 operation scope',
+        '--execute', '--confirm for disruptive writes', 'durable intent before single send', 'durable outcome'],
+      parserSources: ['catalogue.js', 'cli.js'].map(path => ({ path: `dist/${path}`, sha256: createHash('sha256')
+        .update(readFileSync(new URL(`node_modules/@knowttl/mg-axi/dist/${path}`, root))).digest('hex') })),
     } } : {}),
     flags: [...new Set(commands.flatMap(command => [...Object.keys(command.flags), ...Object.keys(command.flagAliases ?? {})]))].sort()
       .map(name => tool === 'mg-axi' ? { name } : { name, disposition: disposition(name) }), commands }

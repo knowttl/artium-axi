@@ -75,7 +75,7 @@
   ],
   "format": "TOON",
   "headlessInventory": {
-    "activation": "Inventory only; no adapter. Live Graph application consent remains unverified.",
+    "activation": "Internal adapter for fake commissioning; no production registry activation. Live Graph application consent remains unverified.",
     "globalFlags": [
       {
         "name": "--help",
@@ -144,6 +144,70 @@
       {
         "path": "dist/mutations.js",
         "sha256": "73bcd9aa9eeb3727acbdf082d9c9fd2aa92b01e252704c87ea3bfbb16a11b83e"
+      }
+    ]
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "tenant",
+      "client",
+      "scopes",
+      "client-secret-env",
+      "client-secret-file",
+      "certificate-key-env",
+      "certificate-key-file",
+      "certificate-thumbprint",
+      "federated-token-file-env"
+    ],
+    "allowedCommands": [
+      "home",
+      "doctor",
+      "entra",
+      "api get"
+    ],
+    "inputs": {
+      "stdin": "cursor - only",
+      "files": "unsupported",
+      "cursor": "opaque token or stdin; never a path",
+      "api": "reviewed GET routes only; pinned Graph destination and operation gates retained"
+    },
+    "sensitiveFlags": [
+      "cursor",
+      "filter",
+      "odata",
+      "conditions",
+      "grant-controls",
+      "session-controls",
+      "display-name"
+    ],
+    "knownOutputScanValues": [
+      "clientSecret and trimmed clientSecret",
+      "privateKey and normalized PEM"
+    ],
+    "outputScanLimit": "Upstream-minted Graph tokens and assertions are not available during prepare; live redaction remains unverified.",
+    "resources": {
+      "nodeHeapMiB": 512,
+      "reason": "Pinned 73 MiB operation inventory exceeds the default 128 MiB heap; fake read/write probes measure the bounded adapter allowance."
+    },
+    "nativeGates": [
+      "configured writes.allowWrites",
+      "configured writes.operations",
+      "v1.0 operation scope",
+      "--execute",
+      "--confirm for disruptive writes",
+      "durable intent before single send",
+      "durable outcome"
+    ],
+    "parserSources": [
+      {
+        "path": "dist/catalogue.js",
+        "sha256": "f9e167ed52df2c6460310ab83a37941485863d96555a81769e577d23b0b4b648"
+      },
+      {
+        "path": "dist/cli.js",
+        "sha256": "f5da1af4f7c4ae8b0f7a6fc0099a19701587061f18fb9bdaaed29453bd2a6577"
       }
     ]
   },
