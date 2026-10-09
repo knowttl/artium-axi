@@ -3,42 +3,35 @@
   "tool": "mg-axi",
   "version": "0.1.4",
   "integrity": "sha512-k508R4YwELmE7fQLJY2w0Gx/0y9oBbS/nYcYm9FqRugbPGHWC6fOFPpcHE/S+JvxBW9qv48uDN01la1y6lB6ug==",
-  "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
+  "parserEvidence": "Installed pinned catalogue exports",
   "packageManifestSha256": "92a1278950f42ec34e64bb5718f9f28c5603a0f77393dd6f082c34147c46402e",
   "environment": [
     {
-      "name": "MG_AXI_CONFIG",
-      "disposition": "server-owned"
+      "name": "MG_AXI_CONFIG"
     },
     {
-      "name": "MG_AXI_READ_ONLY",
-      "disposition": "server-owned"
+      "name": "MG_AXI_READ_ONLY"
     },
     {
-      "name": "MG_AXI_WRITE_LOG",
-      "disposition": "server-owned"
+      "name": "MG_AXI_WRITE_LOG"
     },
     {
-      "name": "AZURE_FEDERATED_TOKEN_FILE",
-      "disposition": "server-owned"
+      "name": "AZURE_FEDERATED_TOKEN_FILE"
     }
   ],
   "dynamicCredentialEnvironment": [
     {
       "profileField": "credentialRef.secretEnv",
-      "transport": "client-secret value",
-      "disposition": "server-owned"
+      "transport": "client-secret value"
     },
     {
       "profileField": "credentialRef.keyEnv",
-      "transport": "private-key value",
-      "disposition": "server-owned"
+      "transport": "private-key value"
     },
     {
       "profileField": "credentialRef.tokenFileEnv",
       "transport": "assertion-file path",
-      "defaultEnvironment": "AZURE_FEDERATED_TOKEN_FILE",
-      "disposition": "server-owned"
+      "defaultEnvironment": "AZURE_FEDERATED_TOKEN_FILE"
     }
   ],
   "environmentSources": [
@@ -57,7 +50,6 @@
   ],
   "nativeWriteSettings": {
     "default": "disabled",
-    "disposition": "server-owned",
     "profileFields": {
       "writes.allowWrites": "boolean",
       "writes.operations": "string[]"
@@ -82,88 +74,44 @@
     "help"
   ],
   "format": "TOON",
-  "headlessBoundary": {
+  "headlessInventory": {
     "activation": "Inventory only; no adapter. Live Graph application consent remains unverified.",
     "globalFlags": [
       {
         "name": "--help",
-        "disposition": "allowed",
         "scope": "bare or after a command; no -h alias"
       },
       {
         "name": "--version",
-        "disposition": "allowed",
         "scope": "bare only"
       },
       {
         "name": "-v",
-        "disposition": "allowed",
         "scope": "bare only"
       },
       {
         "name": "-V",
-        "disposition": "allowed",
         "scope": "bare only"
       }
     ],
     "commonFlags": [
       {
         "name": "profile",
-        "disposition": "set by server",
         "scope": "only on leaves declaring it"
       },
       {
         "name": "api-version",
-        "disposition": "allowed",
         "scope": "only on leaves declaring it"
-      }
-    ],
-    "environment": [
-      {
-        "name": "MG_AXI_CONFIG",
-        "disposition": "set by server"
-      },
-      {
-        "name": "MG_AXI_READ_ONLY",
-        "disposition": "set by server"
-      },
-      {
-        "name": "MG_AXI_WRITE_LOG",
-        "disposition": "set by server"
-      },
-      {
-        "name": "AZURE_FEDERATED_TOKEN_FILE",
-        "disposition": "blocked"
       }
     ],
     "credentialEnvironment": [
       {
         "name": "MG_AXI_CLIENT_SECRET",
-        "disposition": "set by server",
         "scope": "example names only; profile selects the actual holder name"
       },
       {
         "name": "MG_AXI_PRIVATE_KEY",
-        "disposition": "set by server",
         "scope": "example names only; profile selects the actual holder name"
-      }
-    ],
-    "dynamicCredentialEnvironment": [
-      {
-        "profileField": "credentialRef.secretEnv",
-        "transport": "client-secret value",
-        "disposition": "set by server"
-      },
-      {
-        "profileField": "credentialRef.keyEnv",
-        "transport": "private-key value",
-        "disposition": "set by server"
-      },
-      {
-        "profileField": "credentialRef.tokenFileEnv",
-        "transport": "assertion-file path",
-        "defaultEnvironment": "AZURE_FEDERATED_TOKEN_FILE",
-        "disposition": "blocked"
       }
     ],
     "parser": {
@@ -201,268 +149,202 @@
   },
   "flags": [
     {
-      "name": "access-package",
-      "disposition": "passthrough candidate"
+      "name": "access-package"
     },
     {
-      "name": "account-enabled",
-      "disposition": "passthrough candidate"
+      "name": "account-enabled"
     },
     {
-      "name": "acknowledge-lockout-risk",
-      "disposition": "passthrough candidate"
+      "name": "acknowledge-lockout-risk"
     },
     {
-      "name": "administrative-unit",
-      "disposition": "passthrough candidate"
+      "name": "administrative-unit"
     },
     {
-      "name": "agreement",
-      "disposition": "passthrough candidate"
+      "name": "agreement"
     },
     {
-      "name": "all",
-      "disposition": "passthrough candidate"
+      "name": "all"
     },
     {
-      "name": "allow-device-code",
-      "disposition": "passthrough candidate"
+      "name": "allow-device-code"
     },
     {
-      "name": "api-version",
-      "disposition": "passthrough candidate"
+      "name": "api-version"
     },
     {
-      "name": "application",
-      "disposition": "passthrough candidate"
+      "name": "application"
     },
     {
-      "name": "as",
-      "disposition": "passthrough candidate"
+      "name": "as"
     },
     {
-      "name": "assignment-id",
-      "disposition": "passthrough candidate"
+      "name": "assignment-id"
     },
     {
-      "name": "certificate-key-env",
-      "disposition": "server-owned"
+      "name": "certificate-key-env"
     },
     {
-      "name": "certificate-key-file",
-      "disposition": "server-owned"
+      "name": "certificate-key-file"
     },
     {
-      "name": "certificate-thumbprint",
-      "disposition": "server-owned"
+      "name": "certificate-thumbprint"
     },
     {
-      "name": "client",
-      "disposition": "passthrough candidate"
+      "name": "client"
     },
     {
-      "name": "client-secret-env",
-      "disposition": "server-owned"
+      "name": "client-secret-env"
     },
     {
-      "name": "client-secret-file",
-      "disposition": "input/output transport review"
+      "name": "client-secret-file"
     },
     {
-      "name": "cloud",
-      "disposition": "passthrough candidate"
+      "name": "cloud"
     },
     {
-      "name": "commerce-subscription-id",
-      "disposition": "passthrough candidate"
+      "name": "commerce-subscription-id"
     },
     {
-      "name": "conditions",
-      "disposition": "passthrough candidate"
+      "name": "conditions"
     },
     {
-      "name": "confirm",
-      "disposition": "passthrough candidate"
+      "name": "confirm"
     },
     {
-      "name": "cursor",
-      "disposition": "input/output transport review"
+      "name": "cursor"
     },
     {
-      "name": "definition",
-      "disposition": "passthrough candidate"
+      "name": "definition"
     },
     {
-      "name": "detail-id",
-      "disposition": "passthrough candidate"
+      "name": "detail-id"
     },
     {
-      "name": "display-name",
-      "disposition": "passthrough candidate"
+      "name": "display-name"
     },
     {
-      "name": "domain",
-      "disposition": "passthrough candidate"
+      "name": "domain"
     },
     {
-      "name": "domain-name",
-      "disposition": "passthrough candidate"
+      "name": "domain-name"
     },
     {
-      "name": "execute",
-      "disposition": "passthrough candidate"
+      "name": "execute"
     },
     {
-      "name": "federated",
-      "disposition": "passthrough candidate"
+      "name": "federated"
     },
     {
-      "name": "federated-token-file-env",
-      "disposition": "passthrough candidate"
+      "name": "federated-token-file-env"
     },
     {
-      "name": "fields",
-      "disposition": "passthrough candidate"
+      "name": "fields"
     },
     {
-      "name": "filter",
-      "disposition": "passthrough candidate"
+      "name": "filter"
     },
     {
-      "name": "full",
-      "disposition": "passthrough candidate"
+      "name": "full"
     },
     {
-      "name": "grant-controls",
-      "disposition": "passthrough candidate"
+      "name": "grant-controls"
     },
     {
-      "name": "group",
-      "disposition": "passthrough candidate"
+      "name": "group"
     },
     {
-      "name": "help",
-      "disposition": "passthrough candidate"
+      "name": "help"
     },
     {
-      "name": "id",
-      "disposition": "passthrough candidate"
+      "name": "id"
     },
     {
-      "name": "instance",
-      "disposition": "passthrough candidate"
+      "name": "instance"
     },
     {
-      "name": "limit",
-      "disposition": "passthrough candidate"
+      "name": "limit"
     },
     {
-      "name": "member-id",
-      "disposition": "passthrough candidate"
+      "name": "member-id"
     },
     {
-      "name": "method",
-      "disposition": "passthrough candidate"
+      "name": "method"
     },
     {
-      "name": "mode",
-      "disposition": "passthrough candidate"
+      "name": "mode"
     },
     {
-      "name": "name",
-      "disposition": "passthrough candidate"
+      "name": "name"
     },
     {
-      "name": "odata",
-      "disposition": "passthrough candidate"
+      "name": "odata"
     },
     {
-      "name": "operation-id",
-      "disposition": "passthrough candidate"
+      "name": "operation-id"
     },
     {
-      "name": "organization",
-      "disposition": "passthrough candidate"
+      "name": "organization"
     },
     {
-      "name": "pki",
-      "disposition": "passthrough candidate"
+      "name": "pki"
     },
     {
-      "name": "policy",
-      "disposition": "passthrough candidate"
+      "name": "policy"
     },
     {
-      "name": "profile",
-      "disposition": "server-owned"
+      "name": "profile"
     },
     {
-      "name": "report",
-      "disposition": "passthrough candidate"
+      "name": "report"
     },
     {
-      "name": "report-id",
-      "disposition": "passthrough candidate"
+      "name": "report-id"
     },
     {
-      "name": "request-id",
-      "disposition": "passthrough candidate"
+      "name": "request-id"
     },
     {
-      "name": "role",
-      "disposition": "passthrough candidate"
+      "name": "role"
     },
     {
-      "name": "run",
-      "disposition": "passthrough candidate"
+      "name": "run"
     },
     {
-      "name": "scopes",
-      "disposition": "passthrough candidate"
+      "name": "scopes"
     },
     {
-      "name": "select",
-      "disposition": "passthrough candidate"
+      "name": "select"
     },
     {
-      "name": "service-principal",
-      "disposition": "passthrough candidate"
+      "name": "service-principal"
     },
     {
-      "name": "session-controls",
-      "disposition": "passthrough candidate"
+      "name": "session-controls"
     },
     {
-      "name": "since",
-      "disposition": "passthrough candidate"
+      "name": "since"
     },
     {
-      "name": "state",
-      "disposition": "passthrough candidate"
+      "name": "state"
     },
     {
-      "name": "tenant",
-      "disposition": "server-owned"
+      "name": "tenant"
     },
     {
-      "name": "tenant-id",
-      "disposition": "passthrough candidate"
+      "name": "tenant-id"
     },
     {
-      "name": "transitive",
-      "disposition": "passthrough candidate"
+      "name": "transitive"
     },
     {
-      "name": "until",
-      "disposition": "passthrough candidate"
+      "name": "until"
     },
     {
-      "name": "user",
-      "disposition": "passthrough candidate"
+      "name": "user"
     },
     {
-      "name": "workflow",
-      "disposition": "passthrough candidate"
+      "name": "workflow"
     }
   ],
   "commands": [

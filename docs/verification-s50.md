@@ -5,29 +5,25 @@ Fresh npm metadata on 2026-10-09 confirmed version `0.1.4` and integrity `sha512
 [The source record](../tools/mg-source.json) records the exact query and tarball.
 The package is scoped; the unscoped `mg-axi` npm name returns 404.
 
-[The generated parser inventory](../tools/inventories/mg-axi.json) records 275 leaves, their accepted flags and required API positional input, source hashes, native write settings and the provisional `headlessBoundary`.
-The boundary is inventory for later adapter work, with no runtime activation.
+[The generated parser inventory](../tools/inventories/mg-axi.json) records 275 leaves, their accepted flags and required API positional input, source hashes, native write settings and the observed `headlessInventory`.
 The actual parser accepts `--help` after every leaf and as a bare reference command.
 Bare `--version`, `-v` and `-V` print `0.1.4`; they are not leaf flags.
 There is no `-h` alias, flag alias or `--` separator.
 Repeated flags, global flags before a command, unknown flags and SDK-style `--json` are refused.
 Long value flags support both separate tokens and `--name=value`.
 `--profile` and `--api-version` are shared leaf flags, not universal global flags.
-The planned boundary sets profile selection on the server and allows API version only on leaves that declare it.
 
-Every actual global flag is classified as allowed in `headlessBoundary.globalFlags`.
-The complete native `MG_AXI_*` inventory is `MG_AXI_CONFIG`, `MG_AXI_READ_ONLY` and `MG_AXI_WRITE_LOG`, each classified as set by server.
-Configuration selects the private profile file; read-only overrides native writes; the write log selects the server-owned journal path.
+The actual global flags and their parser scope are recorded in `headlessInventory.globalFlags`.
+The complete native `MG_AXI_*` inventory is `MG_AXI_CONFIG`, `MG_AXI_READ_ONLY` and `MG_AXI_WRITE_LOG`.
+Configuration selects the profile file; read-only overrides native writes; the write log selects the journal path.
 `MG_AXI_CLIENT_SECRET` and `MG_AXI_PRIVATE_KEY` are upstream documentation examples, not additional implicit native variables.
-Their actual names come from `credentialRef.secretEnv` and `credentialRef.keyEnv`; those holders are classified as set by server.
-Federated `AZURE_FEDERATED_TOKEN_FILE` and profile-selected `credentialRef.tokenFileEnv` are inventoried and blocked for the planned boundary.
-Caller-provided server-owned selectors and credential holders must be refused by any future adapter.
-This slice implements no adapter policy enforcement.
+Their actual names come from `credentialRef.secretEnv` and `credentialRef.keyEnv`.
+Federated `AZURE_FEDERATED_TOKEN_FILE` and profile-selected `credentialRef.tokenFileEnv` are also inventoried.
 
 [The generated headless JSON schema](../tools/inventories/mg-axi-headless.schema.json) is a local projection of the pinned application-profile validator, produced by `node scripts/mg-headless-schema.mjs --write` and freshness-checked by `pnpm test`.
 The package's `inventory/schema.json` describes Graph operations, not headless profiles, and the pinned CLI has no schema export flag.
 The projection records explicit tenant/client UUIDs, commercial cloud, application mode, device-code refusal, reference-only secret/certificate/federated forms and optional native write settings.
-It includes the upstream keychain and federation forms to preserve the actual validator inventory; these forms remain blocked for the planned server boundary.
+It includes the upstream keychain and federation forms to preserve the actual validator inventory.
 It is a profile schema, not a claim that every valid profile is safe to expose through Artium.
 
 `pnpm test:mg-headless` runs the pinned profile-create interface and acquisition provider in a task-owned Node 22 test image built with the existing digest-pinned fake-service builder, with a read-only filesystem, tmpfs credential files, no network, no host credential mounts and a loader that refuses keychain imports.

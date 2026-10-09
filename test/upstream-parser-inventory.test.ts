@@ -91,10 +91,10 @@ test('Graph native environment defaults exclude profile-selected example names',
   expect(mgInventory.environment.map((entry: { name: string }) => entry.name))
     .toEqual(['MG_AXI_CONFIG', 'MG_AXI_READ_ONLY', 'MG_AXI_WRITE_LOG', 'AZURE_FEDERATED_TOKEN_FILE'])
   expect(mgInventory.dynamicCredentialEnvironment).toEqual([
-    { profileField: 'credentialRef.secretEnv', transport: 'client-secret value', disposition: 'server-owned' },
-    { profileField: 'credentialRef.keyEnv', transport: 'private-key value', disposition: 'server-owned' },
+    { profileField: 'credentialRef.secretEnv', transport: 'client-secret value' },
+    { profileField: 'credentialRef.keyEnv', transport: 'private-key value' },
     { profileField: 'credentialRef.tokenFileEnv', transport: 'assertion-file path',
-      defaultEnvironment: 'AZURE_FEDERATED_TOKEN_FILE', disposition: 'server-owned' },
+      defaultEnvironment: 'AZURE_FEDERATED_TOKEN_FILE' },
   ])
 })
 
