@@ -49,13 +49,13 @@ Fake-service networks were internal, had no default IPv4 route and denied the sy
 Application probes contacted only fake endpoints; pinned image dependency fetches were build inputs.
 
 The non-root production-image rehearsal made an online SQLite backup, revoked its access token afterwards and restored into a separate empty volume using the same synthetic key.
-The restored store retained encrypted credentials, role grants and audit, allowed a fresh login and refused the old access token.
+The restored store retained encrypted credentials, role grants and audit, issued and accepted a fresh session through the token API and refused the old access token.
 The full suite additionally repeated copied-store migration and pre-upgrade rollback; actual deployment image selection, recovery ownership and key escrow remain captain decisions under [S47 verification](verification-s47.md).
 
 ## Container evidence and cleanup
 
 The emitted `container-inputs` and `container-evidence` records identify checked head `732316b739c78e56529953cf4d8a9c856220db19`, input digest `a4237ae1f07f03aa5e63c77b0ed1aad45bbddf8bdf60fe3a65cc183b5e435bb5` and compiled-output digest `0d61cdeba6223b136cf7a61a5a31658ddfbe18e8ed089bbb3f54def28a202f54`.
-The `scripts/build-inputs.mjs` contract excludes documentation and the build receipt from these digests.
+The [build-input contract](../scripts/build-inputs.mjs) excludes `README.md`, `docs/` and `.build-evidence.json` from these digests.
 Delivery must confirm both digests still match the final documentation-only candidate; a relevant source, test, toolchain or image-input change requires renewed checks.
 
 | Image purpose | Image ID | Build elapsed |
