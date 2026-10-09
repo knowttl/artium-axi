@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { copyFileSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { get } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-standalone-'))
-copyFileSync('/work/dist/cli/artium-axi.mjs', join(directory, 'artium-axi.mjs'))
+const install = join(directory, 'bin')
+mkdirSync(install)
 const execute = async (bin, args, env = {}, input) => {
   const child = spawn(bin, args, { cwd: directory, env: { PATH: process.env.PATH, ...env }, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
   let stdout = ''
@@ -17,7 +20,8 @@ const execute = async (bin, args, env = {}, input) => {
   const [code] = await once(child, 'close')
   return { stdout, stderr, code }
 }
-const environment = { ARTIUM_AXI_URL: 'http://artium-server:8080', XDG_CONFIG_HOME: directory, ARTIUM_AXI_TEST_HTTP: '1' }
+const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
+  XDG_CONFIG_HOME: join(directory, 'config') }
 // Parity permits only the wrapper prefix in the recorded root suggestion field.
 const upstreamSuggestions = text => {
   let help = false
@@ -29,7 +33,6 @@ const upstreamSuggestions = text => {
 }
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
 try {
-  assert.deepEqual(readdirSync(directory), ['artium-axi.mjs'])
   const { createServer } = await import('node:https')
   const { readFileSync } = await import('node:fs')
   const proxy = createServer({ key: readFileSync('/certs/server.key'), cert: readFileSync('/certs/server.crt') }, async (req, res) => {
@@ -39,8 +42,8 @@ try {
       const upstream = await fetch(`http://artium-server:8080${req.url}`, { method: req.method,
         headers: { authorization: req.headers.authorization, ...(req.method === 'POST' ? { 'content-type': 'application/json' } : {}) },
         ...(req.method === 'POST' ? { body: Buffer.concat(chunks) } : {}) })
-      res.writeHead(upstream.status, { 'content-type': 'application/json' })
-      res.end(await upstream.text())
+      res.writeHead(upstream.status, Object.fromEntries(upstream.headers))
+      res.end(Buffer.from(await upstream.arrayBuffer()))
     } catch { res.writeHead(502); res.end() }
   })
   proxy.listen(0, '127.0.0.1')
@@ -48,7 +51,33 @@ try {
   environment.ARTIUM_AXI_URL = `https://localhost:${proxy.address().port}`
   environment.ARTIUM_AXI_CA_FILE = '/certs/ca.crt'
   try {
-    const cli = (args, input) => execute(process.execPath, [join(directory, 'artium-axi.mjs'), ...args], environment, input)
+    const download = path => new Promise((resolve, reject) => {
+      const request = get(`${environment.ARTIUM_AXI_URL}/cli/${path}`, { ca: readFileSync('/certs/ca.crt') }, response => {
+        const chunks = []
+        response.on('data', chunk => chunks.push(chunk))
+        response.on('error', reject)
+        response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, bytes: Buffer.concat(chunks) }))
+      })
+      request.on('error', reject)
+    })
+    const bundle = await download('artium-axi.mjs')
+    const checksum = await download('artium-axi.mjs.sha256')
+    assert.equal(bundle.status, 200)
+    assert.equal(checksum.status, 200)
+    const digest = createHash('sha256').update(bundle.bytes).digest('hex')
+    assert.equal(checksum.bytes.toString(), `${digest}  artium-axi.mjs\n`)
+    assert.equal(bundle.headers['x-artium-cli-sha256'], digest)
+    assert.ok(bundle.headers['x-artium-cli-version'])
+    assert.match(bundle.headers['content-type'], /^text\/javascript/)
+    writeFileSync(join(install, 'artium-axi'), bundle.bytes)
+    chmodSync(join(install, 'artium-axi'), 0o755)
+    assert.deepEqual(readdirSync(install), ['artium-axi'])
+    const cli = (args, input) => execute('artium-axi', args, environment, input)
+    for (const host of ['claude', 'codex', 'opencode']) {
+      const setup = await cli(['setup', '--host', host])
+      assert.equal(setup.code, 0, setup.stdout + setup.stderr)
+      assert.match(setup.stdout, /status: installed/)
+    }
     const loginArgs = ['login', '--username', 'synthetic-admin', '--password-stdin']
     const restricted = await cli(loginArgs, 'CANARY-bootstrap-password\n')
     assert.equal(restricted.code, 1, restricted.stdout + restricted.stderr)
@@ -74,7 +103,14 @@ try {
     const detail = await cli(['tools', 'show', 'falcon-axi'])
     assert.equal(detail.code, 0, detail.stdout + detail.stderr)
     assert.match(detail.stdout, /example: artium-axi falcon-axi detection list/)
-    if (process.argv[2] === 'canary') {
+    if (process.argv[2] === 'distribution') {
+      const first = await cli(['falcon-axi', 'detection', 'list'])
+      assert.equal(first.code, 0, first.stdout + first.stderr)
+      assert.match(first.stdout, /synthetic-detection/)
+      assert.equal(process.version, 'v22.12.0')
+      assert.deepEqual(readdirSync(install), ['artium-axi'])
+      console.log(JSON.stringify({ distribution: 'clean Linux Node-only image, HTTPS download, verified SHA-256, executable launcher, all supported setup hosts, password change and first pinned fake call', sha256: digest, runtime: process.version }))
+    } else if (process.argv[2] === 'canary') {
       const result = await cli(['falcon-axi', 'env'])
       assert.equal(result.code, 1)
       assert.match(result.stdout, /SECRET_IN_OUTPUT/)
