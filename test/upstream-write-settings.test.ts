@@ -10,13 +10,14 @@ const load = (tool: string, path: string) => import(new URL(`../tools/node_modul
 afterEach(() => vi.unstubAllEnvs())
 
 test.each([
-  ['az-axi', { allowWrites: 'boolean', subscriptions: 'string[]' }, 'writeSubscriptions'],
-  ['vectra-axi', { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' }, 'scope.operations'],
-  ['mg-axi', { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' }, 'scope.operations'],
-])('%s inventory records native write fields and pinned provenance', (tool, fields, resolvedField) => {
+  ['az-axi', { allowWrites: 'boolean', subscriptions: 'string[]' }, 'writeSubscriptions', 'server-owned'],
+  ['vectra-axi', { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' }, 'scope.operations', 'server-owned'],
+  ['mg-axi', { 'writes.allowWrites': 'boolean', 'writes.operations': 'string[]' }, 'scope.operations', undefined],
+])('%s inventory records native write fields and pinned provenance', (tool, fields, resolvedField, disposition) => {
   const inventory = JSON.parse(readFileSync(join(root, `tools/inventories/${tool}.json`), 'utf8'))
-  expect(inventory.nativeWriteSettings).toMatchObject({ default: 'disabled', disposition: 'server-owned',
+  expect(inventory.nativeWriteSettings).toMatchObject({ default: 'disabled',
     profileFields: fields, scope: { resolvedField } })
+  expect(inventory.nativeWriteSettings.disposition).toBe(disposition)
   expect(inventory.nativeWriteSettings.sources).toHaveLength(2)
   for (const source of inventory.nativeWriteSettings.sources) {
     expect(source.sha256).toBe(createHash('sha256')
