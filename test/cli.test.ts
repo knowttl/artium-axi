@@ -173,6 +173,8 @@ test.each([
   { name: 'mixed TOON help items', output: 'help[2]:\n  - Run `falcon-axi host list`\n  - message: Run `falcon-axi host show`\n' },
   { name: 'bare TOON marker after a command', output: 'help[2]:\n  - Run `falcon-axi host list`\n  -' },
   { name: 'bare TOON marker before a command', output: 'help[2]:\r\n  -\t\r\n  - Run `falcon-axi host list`\r\n' },
+  { name: 'quoted other-command arguments', output: 'help: Run `falcon-axi host show` or `echo \'falcon-axi host list\'`\n' },
+  { name: 'plain other-command arguments', output: JSON.stringify({ help: ['Run echo "falcon-axi host list"', 'falcon-axi host show'] }) },
 ].flatMap(value => ['stdout', 'stderr'].map(stream => ({ ...value, stream }))))(
   'bundle preserves $name in $stream while rewriting the other stream', async ({ output, stream }) => {
     requests = []
