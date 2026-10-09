@@ -16,6 +16,8 @@ Additional cases cover quoted commands, arguments containing quotes, escaped mul
 The bundled test failed against the original passthrough with both prefixes absent and exit 7 preserved.
 The first full-suite run exposed existing timeouts in the 30-attempt address-limit test and the multi-hash password-change flow.
 Their test budgets now accommodate real Argon2 work under concurrent suite load without weakening assertions or production hashing settings.
+Renewed full-suite verification exposed an expected TCP reset during the controlled client-abort test.
+Its server fixture now waits for close despite that reset, rejects other socket errors and waits for every concurrent test client to finish before subsequent tests use the request log.
 `test/walking-skeleton/probe.mjs` compares the pinned Falcon and Vectra tools against the bundled client through the real fake-only container server, permitting the wrapper prefix only in root suggestion fields.
 AGENTS.md's existing README pointer remains factually correct and requires no change.
 
