@@ -45,8 +45,39 @@ const suggestionFormats = [
   { format: 'TOON scalar', encode: (value: string) => `help: ${value}\n` },
   { format: 'TOON quoted scalar', encode: (value: string) => `help: ${JSON.stringify(value)}\n` },
   { format: 'TOON list', encode: (value: string) => `help[1]:\n  ${JSON.stringify(value)}\n` },
+  { format: 'TOON marked list', encode: (value: string) => `help[1]:\n  - ${JSON.stringify(value)}\n` },
   { format: 'TOON inline list', encode: (value: string) => `help[1]: ${JSON.stringify(value)}\n` },
 ]
+
+test.each(suggestionFormats.flatMap(({ format, encode }) => ['`', "'", '"'].flatMap(quote =>
+  ['', ...['`', "'", '"'].filter(outer => outer !== quote)].flatMap(outer =>
+    ['', 'artium-axi '].flatMap(prefix => ['before', 'after', 'between'].map(position =>
+      ({ format, encode, quote, outer, prefix, position })))))))(
+  'preserves ambiguous commands in $format with $quote inside "$outer", prefix "$prefix", $position',
+  ({ encode, quote, outer, prefix, position }) => {
+    const ambiguous = `Run ${outer}echo ${quote}falcon-axi host list${quote}${outer}`
+    const complete = `Run \`${prefix}falcon-axi host show\``
+    const value = position === 'before' ? `${ambiguous} or ${complete}`
+      : position === 'after' ? `${complete} or ${ambiguous}` : `${complete} or ${ambiguous} or ${complete}`
+    const input = encode(value)
+    const actual = rewriteSuggestions(input, 'falcon-axi')
+    expect(actual).toBe(input)
+    expect(rewriteSuggestions(actual, 'falcon-axi')).toBe(input)
+    expect(rewriteSuggestions(input, 'falcon-axi', true)).toBe(input)
+  })
+
+test.each([
+  JSON.stringify({ help: ['falcon-axi host show', "echo 'falcon-axi host list'", 'falcon-axi host show'] }),
+  'help[3]:\n  falcon-axi host show\n  echo \'falcon-axi host list\'\n  falcon-axi host show\n',
+  'help[3]:\r\n  - falcon-axi host show\r\n  - Run `echo \'falcon-axi host list\'`\r\n  - falcon-axi host show\r\n',
+  'help[3]: falcon-axi host show,Run `echo \'falcon-axi host list\'`,falcon-axi host show\n',
+  'help: Run echo with \'falcon-axi host list\'\n',
+  'help: Run `falcon-axi host show` or echo or \'falcon-axi host list\'\n',
+])('preserves every suggestion when a sibling command is ambiguous: %s', input => {
+  const actual = rewriteSuggestions(input, 'falcon-axi')
+  expect(actual).toBe(input)
+  expect(rewriteSuggestions(actual, 'falcon-axi')).toBe(input)
+})
 
 test.each(suggestionFormats.flatMap(({ format, encode }) => ['`', "'", '"'].flatMap(quote => ['', 'artium-axi '].map(prefix =>
   ({ format, encode, quote, prefix })))))('rewrites same-line commands in $format with $quote and prefix "$prefix"', ({ encode, quote, prefix }) => {
