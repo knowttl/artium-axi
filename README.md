@@ -322,7 +322,7 @@ Each batch commits its deletion, cutoff and count in a separate short transactio
 Set `ARTIUM_AXI_AUDIT_STDOUT=1` to stream each committed record as one JSON line on stdout with exactly the persisted fields.
 SQLite remains authoritative if the optional stream fails.
 For export, capture that stream in a protected external collector before retention expires.
-See [the runbook](docs/runbook.md) for database backup requirements and the remaining backup and restore work.
+See [the runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for backup, restore, retention and upgrade rollback.
 
 `audit.record(event)` supplies the record shapes for sign-in, sign-out, lockout, token reuse, password changes, credential tests and administration.
 Authentication and admin producers must use metadata only.
@@ -456,6 +456,8 @@ The checks verify the configured 6 GiB bound and force a resident-memory OOM at 
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 The image's default command starts the API described below.
+The maintenance CLI provides `artium-axi-server backup --out <path>` for consistent online backups and `artium-axi-server restore --from <path>` for stopped restores into an empty new volume.
+See [backup, restore and rollback](docs/runbook.md#backup-restore-and-upgrade-rollback) for matching-key validation, saved-session invalidation, migration rehearsal, retention and the outstanding owner escrow decision.
 The Compose example supplies only the master key; add the [first-start bootstrap settings](docs/runbook.md#first-administrator-and-offline-recovery) for a new store.
 Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.
