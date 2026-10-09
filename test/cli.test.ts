@@ -160,7 +160,27 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
   response.body = { ...response.body as object, truncated: { stdout: true, stderr: false } }
   expect(await cli(['falcon-axi'])).toMatchObject({ code: 7, stdout,
     stderr: 'artium-axi: output truncated (stdout).\n{ "help": ["Run `artium-axi falcon-axi detection list`"], "data": "falcon-axi" }' })
+  response.body = { ...response.body as object, truncated: { stdout: false, stderr: true } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
+    stdout: 'help[1]:\n  Run `artium-axi falcon-axi host list`\n',
+    stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
 })
+
+test.each([
+  { name: 'dangling TOON indentation', output: 'help: falcon-axi host list\n  dangling\n' },
+  { name: 'escaped command delimiters', output: JSON.stringify({ help: 'Run "falcon-axi host list --filter \\"synthetic\\"' }) },
+].flatMap(value => ['stdout', 'stderr'].map(stream => ({ ...value, stream }))))(
+  'bundle preserves $name in $stream while rewriting the other stream', async ({ output, stream }) => {
+    requests = []
+    const complete = 'help: falcon-axi host list\n'
+    const stdout = stream === 'stdout' ? output : complete
+    const stderr = stream === 'stderr' ? output : complete
+    response = { status: 200, body: { source: 'falcon-axi', stdout, stderr, exitCode: 7,
+      durationMs: 1, outputBytes: { stdout: stdout.length, stderr: stderr.length }, truncated: { stdout: false, stderr: false } } }
+    expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
+      stdout: stream === 'stdout' ? output : 'help: artium-axi falcon-axi host list\n',
+      stderr: stream === 'stderr' ? output : 'help: artium-axi falcon-axi host list\n' })
+  })
 
 test.each([301, 302, 303, 307, 308])('authenticated redirect %i is refused without a second request', async status => {
   requests = []
