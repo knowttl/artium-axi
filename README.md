@@ -31,9 +31,9 @@ The executable toolchain tests compile synthetic TypeScript and run its emitted 
 `pnpm test:security` selects tests whose names contain `security`.
 It includes the synthetic hygiene checker and streaming secret-scanner tests.
 
-`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon, Vectra and internal Azure adapters and encrypted credential store, and `src/cli/` contains the bundled client and its discovery views.
+`src/shared/` owns the run schemas and error catalogue, `src/server/` contains the runner, Falcon, Vectra and internal Azure and Graph adapters and encrypted credential store, and `src/cli/` contains the bundled client and its discovery views.
 `test/` holds scaffold, hygiene and synthetic upstream tests.
-The pinned container, development server, bundled CLI and Falcon and Vectra adapters are available, while the remaining adapters arrive in later slices.
+The pinned container, development server, bundled CLI and Falcon and Vectra runtime adapters are available.
 See [`.no-mistakes.yaml`](.no-mistakes.yaml) for the configured pipeline commands.
 All application validation will use fakes and synthetic data, with live acceptance deferred.
 
@@ -177,20 +177,15 @@ The upstream Node packages are pinned separately in [`tools/package.json`](tools
 The root install runs their frozen installation.
 Root native build approval is limited to `argon2`, `better-sqlite3` and `esbuild` in `package.json`, while upstream tool build scripts remain disabled.
 [`tools/integrity.json`](tools/integrity.json) records the pinned upstream versions and npm SHA-512 values.
-The [Graph adapter](src/server/adapters/mg.ts) supports application secret and certificate profiles for local fake commissioning, with no production adapter enabled and live Graph consent unverified.
-It writes a version-1 profile into the runner's private call directory and supplies the secret or key through the environment holder named by that profile.
-Configured `preview` and `writes` settings survive preparation; pinned operation, execution, confirmation and durable journal gates remain upstream requirements.
-Its reviewed boundary permits Entra commands, reviewed `api get` routes, home, doctor and bare help/version; profile/auth/setup changes and identity or credential overrides are refused before credential retrieval.
-Uploaded files are unsupported; stdin is accepted only for `--cursor -`.
-Known preparation secrets and their upstream-normalized values enter the runner's encoded output scan.
-Upstream-minted Graph tokens and assertions are unavailable during preparation, so their live redaction remains unverified.
-The pinned 73 MiB operation inventory needs a trusted 512 MiB Node heap allowance for Graph calls; other adapters retain the 128 MiB default.
+The [Graph adapter](src/server/adapters/mg.ts) supports application secret and certificate profiles for local fake commissioning, with production activation pending and live Graph consent unverified.
+The [generated Graph manifest](tools/inventories/mg-axi.json) owns its reviewed command, input, credential override, output scan and resource boundaries.
 Run `pnpm build` before `pnpm test:mg-headless` to prove fake Graph reads, local permission and override denials, native preview/write gates and audit, and encoded canary rejection in a no-network container.
+See [S51 verification](docs/verification-s51.md) for the adapter evidence and its live acceptance limits.
 `pnpm test` checks the generated parser inventories against the installed catalogues and the generated Graph headless schema against its generator before running Vitest.
 Regenerate parser inventories with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
 These inventories record route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
 Azure and Vectra inventories also record provisional flag dispositions; the Graph inventory records its reviewed adapter boundary alongside observed parser facts.
-See [S50 verification](docs/verification-s50.md) for the Graph headless schema generation command, standalone `pnpm test:mg-headless` probe and fake-authentication evidence limits.
+See [S50 verification](docs/verification-s50.md) for the Graph headless schema generation command and fake-authentication evidence limits.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The [Azure inventory](tools/inventories/az-axi.json) also owns reviewed route resource requirements and their pinned source hashes; [S25 verification](docs/verification-s25.md) describes conditional resource selection.
 Its adapter boundary classifies every global flag and `AZ_AXI_*` variable, records reviewed input transports and hashes the pinned parser sources.
@@ -388,7 +383,8 @@ Normal leader exit also terminates surviving group descendants.
 The development server wires HTTP disconnect and shutdown events to these public interfaces, then closes its store.
 `TEMP_UNAVAILABLE` reports failure to create a call directory, adapter-owned files or uploaded inputs, including full tmpfs, without exposing filesystem diagnostics.
 An upstream tmpfs write failure preserves its ordinary nonzero exit status and still removes the call directory.
-Node children receive a 128 MiB heap limit.
+Node children receive the default heap limit from [config.ts](src/server/config.ts), unless a trusted prepared call supplies `limits.nodeHeapMiB`.
+The [Graph manifest](tools/inventories/mg-axi.json) owns that adapter's heap allowance.
 The fixed Python launcher applies a 512 MiB address-space limit before executing Falcon, preserving its shebang interpreter.
 Other trusted Python descriptors can set `limits.runtime: 'python'`.
 Python is the only explicit runtime selector; Node heap limits apply to every call without a selector.
@@ -442,8 +438,7 @@ The [Dockerfile](Dockerfile) owns the Falcon wheel build and install recipe, usi
 Python build and runtime dependencies have separate SHA-256 locks.
 Python dependency downloads verify those hashes, and Python installation and wheel building run with no package index and no network.
 The runtime contains Python 3.11, the pinned tools and UID 10001 (`artium`).
-mg-axi is installed with an internal adapter for fake commissioning and has no production runtime registry activation.
-`src/server/config.ts` owns the three executable paths.
+`src/server/config.ts` owns the executable paths.
 
 Run `node scripts/build-fake-service-image.mjs --production` to build `artium-axi:local` using the private BuildKit worker.
 This larger build uses overlayfs and an executable 3 GiB tmpfs cache with a 4 GiB memory bound.
@@ -528,21 +523,21 @@ See [S33 verification](docs/verification-s33.md) for real local login, authoriza
 `GET /v1/admin/roles` uses the same `cursor`, `limit` and `nextCursor` pagination as users.
 `POST /v1/admin/roles` accepts `name` and returns 201 with public role metadata.
 `PATCH /v1/admin/roles/{id}` accepts `name` and `expectedRevision`.
-`PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi`, `az-axi` and `mg-axi`.
+`PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only tool identifiers from the [shared API contract](src/shared/api.ts).
 The [shared API contract](src/shared/api.ts) owns the complete role inputs, public metadata and audit actions.
 Role administration follows the same authorization rules as user administration.
 Role and assignment mutations commit with their audit event and return public metadata with the new revision; successful edits return 200.
 Invalid references return 400, unknown targets return 404 and stale revisions return 409 without changes.
 Tool grants never confer administrator capability, and role changes apply to the next tool call using existing tokens.
 See [S34 verification](docs/verification-s34.md) for role, grant and assignment evidence.
-`GET /v1/admin/tools` lists the three fixed tools with pinned versions, enabled state, native settings, revisions, change metadata and cached health without making an upstream call.
+`GET /v1/admin/tools` lists all fixed tools from the [shared API contract](src/shared/api.ts) with pinned versions, enabled state, native settings, revisions, change metadata and cached health without making an upstream call.
 `PATCH /v1/admin/tools/{tool}` accepts `enabled`, `nativeSettings` and `expectedRevision`.
 When supplied, `nativeSettings` replaces the entire settings object; `{}` clears it.
 Falcon has no editable native write settings and accepts only `{}`.
-Vectra accepts `writes: { allowWrites, operations }`; Azure accepts `subscriptions`, `managementGroup`, `workspaces`, `description` and `allowWrites`.
-These shared schemas also validate the adapters' native profile settings.
+The [native settings schemas](src/shared/api.ts) own the accepted fields and constraints for each tool and also validate the adapters' native profile settings.
 No executable path, tool installation or caller-selected health command is accepted.
 Azure configuration remains editable, but its runtime enable and test operations remain disabled until the pinned upstream retry issue is resolved.
+Graph credentials and native settings are editable for fake commissioning, but runtime enable and credential tests remain unavailable; live consent remains unverified.
 `GET /v1/admin/tools/{tool}/credential` returns only allowlisted non-secret metadata, configuration state, revision and last change time/actor.
 `PUT /v1/admin/tools/{tool}/credential` accepts a complete adapter-specific `value`, `expectedRevision` and `expectedToolRevision`, using credential revision `0` for the first credential and the tool revision observed in `GET /v1/admin/tools`.
 Both revisions are checked atomically before either record changes, so a stale credential form cannot overwrite newer native settings even when the tool has no credential yet.
@@ -586,7 +581,7 @@ Tools shows each pinned version, enabled state, cached status, last check and la
 Enable or disable Falcon and Vectra, or edit their native settings as a JSON object using the field guidance beside the editor.
 Settings replace the entire object, and `{}` clears it.
 Malformed JSON stays in the editor with an error, and the existing API validates the tool-specific native policy before saving.
-Azure settings remain editable while runtime enable and Test remain unavailable.
+For Azure and Graph availability, see the tool administration rules above.
 Credentials accepts a complete replacement JSON object, including any native settings to retain.
 Its editor always starts blank and never renders stored credential values.
 The Test credential button runs the API's fixed harmless read within the existing manual-test quota, shows pass or fail and refreshes the cached status, check time and safe error code.
