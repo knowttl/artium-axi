@@ -100,7 +100,7 @@ function toonHelp(output: string): Span[] {
     const count = field[1] ? Number(field[1].slice(1, -1)) : 0
     if (field[1] && !field[2]) {
       for (const line of lines.slice(index + 1, index + count + 1)) {
-        if (!line[0].startsWith('  - ')) continue
+        if (!/^  -(?:[ \t\r\n]|$)/.test(line[0])) continue
         const parsed = decode(`value[1]:\n${line[0]}`) as { value: unknown[] }
         if (typeof parsed.value[0] !== 'string') throw new Error('Unknown suggestion item')
       }
