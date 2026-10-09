@@ -97,13 +97,20 @@ function toonHelp(output: string): Span[] {
     const text = lines[index][0].replace(/\r?\n$/, '')
     const field = /^(?:help|"help")(?:(\[\d+\]))?:[ \t]*(.*)$/.exec(text)
     if (!field) continue
+    const count = field[1] ? Number(field[1].slice(1, -1)) : 0
+    if (field[1] && !field[2]) {
+      for (const line of lines.slice(index + 1, index + count + 1)) {
+        if (!line[0].startsWith('  - ')) continue
+        const parsed = decode(`value[1]:\n${line[0]}`) as { value: unknown[] }
+        if (typeof parsed.value[0] !== 'string') throw new Error('Unknown suggestion item')
+      }
+    }
     helpFields++
     validation[index] = 'help: ""'
     if (!field[1]) {
       scalar(field[2], lines[index].index! + text.length - field[2].length)
       continue
     }
-    const count = Number(field[1].slice(1, -1))
     if (field[2]) {
       const raw = field[2]
       let cursor = 0

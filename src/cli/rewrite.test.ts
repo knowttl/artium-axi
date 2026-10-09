@@ -21,6 +21,7 @@ test.each([
   ['help[2]: "Verify with `falcon-axi host list --id \\"two,words\\"`",Run `vectra-axi host list`\n',
     'help[2]: "Verify with `artium-axi falcon-axi host list --id \\"two,words\\"`",Run `vectra-axi host list`\n'],
   ['help[1]: Run `falcon-axi host list`\n', 'help[1]: Run `artium-axi falcon-axi host list`\n'],
+  ['help[1]:\n  - Run `falcon-axi host list`\n', 'help[1]:\n  - Run `artium-axi falcon-axi host list`\n'],
   ['help[2]:\r\n  Run `falcon-axi host show --id "two words"`\r\n  Run `vectra-axi host list`\r\n',
     'help[2]:\r\n  Run `artium-axi falcon-axi host show --id "two words"`\r\n  Run `vectra-axi host list`\r\n'],
   ['help[1]:\n  - "Run `falcon-axi host list --filter \\"name\\"`\\nRun `falcon-axi host list`"\n',
@@ -76,6 +77,26 @@ test.each(suggestionFormats.flatMap(({ format, encode }) => ['`', "'", '"'].flat
     expect(actual).toBe(input)
     expect(rewriteSuggestions(actual, 'falcon-axi')).toBe(input)
   })
+
+test.each([
+  'message: Run `falcon-axi host list`',
+  '"message": Run `falcon-axi host list`',
+  '[1]: falcon-axi host list',
+  '[0]:',
+  'null',
+  '7',
+  'true',
+  'false',
+].flatMap(item => [
+  `help[1]:\n  - ${item}\n`,
+  `help[2]:\n  - "Run \`falcon-axi host list\`"\n  - ${item}\n`,
+  `help[2]:\n  - ${item}\n  - "Run \`falcon-axi host list\`"\n`,
+  `help[2]:\n  Run \`falcon-axi host list\`\n  - ${item}\n`,
+]))('preserves unsupported marked TOON help items: %s', input => {
+  const actual = rewriteSuggestions(input, 'falcon-axi')
+  expect(actual).toBe(input)
+  expect(rewriteSuggestions(actual, 'falcon-axi')).toBe(input)
+})
 
 test.each([
   'help: falcon-axi host list\n dangling\n',
