@@ -33,7 +33,7 @@ AGENTS.md's existing README pointer remains accurate and unchanged under the pro
 S19 implements the development HTTP endpoints, startup recovery and daily maintenance wiring, with real loopback and local proxy checks in [S19 verification](verification-s19.md).
 See the T4.1, T4.2 and T4.3 entries below for password-change, offline recovery and local login producers.
 See the administrative task row below for current producers and [S41 verification](verification-s41.md) for audit query evidence.
-Executable backup/restore remains assigned to a later slice.
+See the T7.2 entry below for backup and restore evidence.
 
 S16 implements T3.1 step 4 and T3.2: hashed expiring access-token verification, test-only fixture issuance and current database tool policy before credential retrieval.
 Its local verification plan is [verification-s16.md](verification-s16.md).
@@ -153,7 +153,7 @@ Earlier image results above describe the prior candidate; the outer executor mus
 | Supported agent skill and hook installation (T6.6) | S45 implemented; [README.md](../README.md) owns setup usage and [S45 verification](verification-s45.md) owns host paths, schema sources and isolated checks | Synthetic homes and fake-only discovery; current gate evidence belongs in delivery, not the earlier verification note | Deferred host execution and captain acceptance are tracked in S45 verification; installer hook limits are documented in README |
 | AXI checklist and distribution (T6.7) | S46 executable script-visible checks for all ten principles, public bundle/checksum routes and standalone launcher; [S46 verification](verification-s46.md) owns the fake-only checklist and human review boundary | Clean Node-only Linux image downloads and verifies the bundle, installs skills, changes a temporary password and runs one pinned fake first call; final-head evidence belongs in delivery | unverified: human judgments, actual host loading, Windows/macOS and live installation |
 | Host proxy, firewall, egress and endpoint inventory (T7.1) | pending | pending | unverified: authorize and verify production network changes |
-| Backup, restore, rollback and key escrow (T7.2) | pending | not applicable | unverified: choose escrow and backup owner, separately approve real restore/key upload |
+| Backup, restore, rollback and key escrow (T7.2) | [S47 verification](verification-s47.md) owns local backup, restore and rollback evidence; [runbook](runbook.md#backup-restore-and-upgrade-rollback) owns operations and outstanding owner decisions | See S47 verification for synthetic production-image checks; final-head results belong in delivery status | unverified: captain live recovery and rollback acceptance; escrow and backup ownership remain owner decisions; separately approve real restore/key upload |
 | Security review and live findings (T7.3) | pending | pending | unverified: close host and tenant findings before release |
 | Embedded-store policy exception (T7.4) | pending: private checklist only | not applicable | unverified: determine applicability and obtain required approval, draft insufficient |
 | Runbook on actual hosts and clean clients (T7.5) | pending | pending | unverified: exercise actual host and client instructions |

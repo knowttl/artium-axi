@@ -87,7 +87,8 @@ For local disposable-store work after `pnpm build`, run `node bin/artium-axi-ser
 Only key file paths go in arguments, never key bytes.
 
 The server holds `<database>.maintenance` for its entire lifetime, including shutdown of active calls.
-Maintenance holds the same SQLite writer lock until it finishes.
+Offline rotation, administrator recovery and restore hold the same SQLite writer lock until they finish.
+Online backup does not acquire this lock.
 `MAINTENANCE_BUSY` means another server or maintenance process owns the store.
 Never remove or replace the lock database to bypass contention.
 The operating system releases the lock on process exit or crash.
@@ -159,11 +160,11 @@ Exercise recovery periodically on isolated copies and record the image digest, r
 
 ## Upgrading stores without a key binding
 
-Before upgrading, stop the server, back up the database and test the migration on a copy with its matching key.
+Follow the [upgrade precautions](#backup-restore-and-upgrade-rollback), but the backup and restore commands require a key-bound store and cannot process an unbound legacy store.
 Migration 006 creates store metadata, and opening the store records the supplied key ID only when existing credentials or a rotation receipt provide key evidence.
 Every stored credential must authenticate, and the latest rotation receipt must match when present.
 Schema migration and binding commit together; refusal rolls back both.
 A legacy store with no binding, credentials or rotation receipt cannot establish which key is correct and fails with `MASTER_KEY_INVALID`.
 Do not manufacture metadata to bypass that refusal.
 For a disposable development store, start a new database with synthetic settings instead.
-For a retained store, preserve the backup and use the previous image pending a separately approved migration decision.
+For a retained store, preserve the backup and use the previous image on its unchanged pre-upgrade volume pending a separately approved migration decision.
