@@ -2,12 +2,13 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseEnv } from 'node:util'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { decryptCredential, encryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
 import { createCredentialStore, migrate, openStore } from './db.js'
-import { EnvironmentKeyProvider } from './key-provider.js'
+import { EnvironmentKeyProvider, saveMasterKey } from './key-provider.js'
 
 let directory: string
 let file: string
@@ -175,6 +176,47 @@ it('reads raw key files before the environment fallback and hashes the full key'
   const supplied = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY_FILE: keyFile, ARTIUM_AXI_MASTER_KEY: 'invalid' }).getKey()
   expect(supplied.bytes).toEqual(bytes)
   expect(supplied.id).toBe(createHash('sha256').update(bytes).digest('hex'))
+})
+
+it('reopens encrypted credentials using the owner-only key beside the database', () => {
+  seed(Buffer.from('{"synthetic":true}'))
+  saveMasterKey(file, key)
+  expect(statSync(join(directory, '.env')).mode & 0o777).toBe(0o600)
+  const saved = new EnvironmentKeyProvider({ ARTIUM_AXI_DATABASE_FILE: file })
+  const db = openStore(file, saved)
+  try {
+    expect(createCredentialStore(db, saved).readCredential({ id: 'synthetic-id', tool: 'falcon-axi' }))
+      .toEqual({ synthetic: true })
+  } finally { db.close() }
+})
+
+it.each([
+  ['single-line', 'SYNTHETIC_SETTING=retained\n', 'ARTIUM_AXI_MASTER_KEY=obsolete\n'],
+  ['double-quoted', 'SYNTHETIC_NOTE="first\nARTIUM_AXI_MASTER_KEY=keep\nlast"\n', 'ARTIUM_AXI_MASTER_KEY="obsolete\nkey"\n'],
+  ['single-quoted', "SYNTHETIC_NOTE='first\nexport ARTIUM_AXI_MASTER_KEY=keep\nlast'\n", "  export ARTIUM_AXI_MASTER_KEY = 'obsolete\nkey'\nARTIUM_AXI_MASTER_KEY=duplicate\n"],
+  ['backtick-quoted with CRLF', 'SYNTHETIC_NOTE=`first\r\nARTIUM_AXI_MASTER_KEY=keep\r\nlast`\r\n', '\texport ARTIUM_AXI_MASTER_KEY = `obsolete\r\nkey`\r\n'],
+  ['comments and unquoted values', '# SYNTHETIC_NOTE="\nSYNTHETIC_SETTING=retained # "\n# ARTIUM_AXI_MASTER_KEY=keep\n', 'ARTIUM_AXI_MASTER_KEY=obsolete # "\n'],
+])('updates the saved key and permissions while preserving %s environment settings', (_name, unrelated, assignments) => {
+  const envFile = join(directory, '.env')
+  writeFileSync(envFile, `${assignments}${unrelated}`, { mode: 0o644 })
+  saveMasterKey(file, key)
+  expect(readFileSync(envFile, 'utf8')).toBe(`${unrelated}ARTIUM_AXI_MASTER_KEY=${bytes.toString('base64')}\n`)
+  expect(parseEnv(readFileSync(envFile, 'utf8'))).toEqual({ ...parseEnv(unrelated), ARTIUM_AXI_MASTER_KEY: bytes.toString('base64') })
+  expect(statSync(envFile).mode & 0o777).toBe(0o600)
+  expect(new EnvironmentKeyProvider({ ARTIUM_AXI_DATABASE_FILE: file }).getKey().id).toBe(key.id)
+})
+
+it('keeps explicit key settings ahead of the saved key', () => {
+  saveMasterKey(file, key)
+  const explicit = Buffer.alloc(32, 2)
+  expect(new EnvironmentKeyProvider({ ARTIUM_AXI_DATABASE_FILE: file, ARTIUM_AXI_MASTER_KEY: explicit.toString('base64') }).getKey().bytes)
+    .toEqual(explicit)
+})
+
+it('refuses a malformed saved key with the generic key error', () => {
+  writeFileSync(join(directory, '.env'), 'ARTIUM_AXI_MASTER_KEY=invalid\n')
+  expect(() => new EnvironmentKeyProvider({ ARTIUM_AXI_DATABASE_FILE: file }).getKey())
+    .toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
 })
 
 it.each([undefined, '', 'invalid', Buffer.alloc(31).toString('base64'), Buffer.alloc(33).toString('base64')])('refuses a missing or malformed environment key', encoded => {

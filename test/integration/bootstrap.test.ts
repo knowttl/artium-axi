@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'esbuild'
@@ -312,7 +312,9 @@ test('real entry point bootstraps local authentication and repeat starts ignore 
     } finally { child.kill('SIGTERM'); await closed }
   }
   await start(settings())
-  await start({ ARTIUM_AXI_ADMIN_USERNAME: '', ARTIUM_AXI_ADMIN_PASSWORD_FILE: '/missing' })
+  expect(statSync(join(directory, 'data', '.env')).mode & 0o777).toBe(0o600)
+  expect(new EnvironmentKeyProvider({ ARTIUM_AXI_DATABASE_FILE: file }).getKey().id).toBe(provider.getKey().id)
+  await start({ ARTIUM_AXI_MASTER_KEY: undefined, ARTIUM_AXI_ADMIN_USERNAME: '', ARTIUM_AXI_ADMIN_PASSWORD_FILE: '/missing' })
   const db = openStore(file, provider)
   try {
     expect(db.prepare('SELECT username, administrator FROM users ORDER BY username').all()).toEqual([

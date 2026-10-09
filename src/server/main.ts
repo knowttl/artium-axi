@@ -11,7 +11,7 @@ import { SharedIdentityResolver } from './policy/identity-resolver.js'
 import { Runner } from './runner/runner.js'
 import { createCredentialStore, openStore } from './store/db.js'
 import { EmbeddedSecretSource } from './store/secret-source.js'
-import { EnvironmentKeyProvider } from './store/key-provider.js'
+import { EnvironmentKeyProvider, saveMasterKey } from './store/key-provider.js'
 import { acquireMaintenanceLock } from './store/maintenance-lock.js'
 import { ArtiumError, errorResponse } from '../shared/errors.js'
 
@@ -22,10 +22,13 @@ async function main() {
   let db: ReturnType<typeof openStore> | undefined
   let runner: Runner | undefined
   try {
-    db = openStore(database)
+    const key = new EnvironmentKeyProvider().getKey()
+    const provider = { getKey: () => key }
+    db = openStore(database, provider)
+    saveMasterKey(database, key)
     await bootstrapAdministrator(db)
     const connection = db
-    const store = createCredentialStore(db, new EnvironmentKeyProvider())
+    const store = createCredentialStore(db, provider)
     runner = await Runner.create(serverDefaults.temporaryDirectory)
     const audit = new Audit(db)
     const source = new EmbeddedSecretSource(store)
