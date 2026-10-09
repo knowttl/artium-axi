@@ -456,6 +456,8 @@ The checks verify the configured 6 GiB bound and force a resident-memory OOM at 
 They cover ENOSPC during upstream writes and directory creation under a tighter synthetic 1024-inode bound, cleanup and successful admission after storage is freed.
 `docker compose -f compose.example.yaml config --quiet` validates it without creating resources or reading real secrets.
 The image's default command starts the API described below.
+The maintenance CLI provides `artium-axi-server backup --out <path>` for consistent online backups and `artium-axi-server restore --from <path>` for stopped restores into an empty new volume.
+See [backup, restore and rollback](docs/runbook.md#backup-restore-and-upgrade-rollback) for matching-key validation, saved-session invalidation, migration rehearsal, retention and the outstanding owner escrow decision.
 The Compose example supplies only the master key; add the [first-start bootstrap settings](docs/runbook.md#first-administrator-and-offline-recovery) for a new store.
 Compose publishes the internal HTTP listener on host loopback only.
 An external connection requires a trusted HTTPS proxy.

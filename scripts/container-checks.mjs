@@ -9,6 +9,8 @@ process.chdir(root)
 const builder = `artium-test-build-${randomUUID()}`
 const token = randomUUID()
 const images = []
+const recoveryContainers = []
+const recoveryVolumes = []
 const started = performance.now()
 const command = (executable, args, env = process.env) => {
   const started = performance.now()
@@ -42,15 +44,33 @@ try {
     command(process.execPath, ['scripts/build-fake-service-image.mjs', ...(flag ? [flag, image] : [])],
       { ...env, ARTIUM_TEST_IMAGE: image })
     command(process.execPath, ['scripts/fake-services.mjs', ...probe], { ...env, ARTIUM_TEST_IMAGE: image })
+    if (flag === '--production') {
+      const backupVolume = `${builder}-backup`
+      const restoreVolume = `${builder}-restore`
+      for (const volume of [backupVolume, restoreVolume]) {
+        recoveryVolumes.push(volume)
+        command('docker', ['volume', 'create', volume])
+      }
+      for (const mode of ['backup', 'restore']) {
+        const container = `${builder}-${mode}`
+        recoveryContainers.push(container)
+        command('docker', ['run', '--name', container, '--pull', 'never', '--network', 'none', '--read-only', '--tmpfs', '/tmp',
+          '--mount', `type=bind,src=${root},dst=/work,readonly`,
+          '--mount', `type=volume,src=${mode === 'backup' ? backupVolume : restoreVolume},dst=/data`,
+          ...(mode === 'restore' ? ['--mount', `type=volume,src=${backupVolume},dst=/backups,readonly`] : []),
+          image, 'node', '/work/test/fake-service/backup-probe.mjs', mode])
+      }
+    }
   }
   if (JSON.stringify(buildInputs()) !== JSON.stringify(inputs) || digest(['dist/']) !== output) throw new Error('Container inputs changed during checks')
 } catch (error) {
   console.error(`container-checks: unverified: ${error.message}`)
   process.exitCode = 1
 } finally {
-  for (const args of [...images.map(image => ['image', 'rm', image]), ...(attempted ? [['rm', '--force', builder]] : [])]) {
+  for (const args of [...recoveryContainers.map(name => ['rm', '--force', name]), ...recoveryVolumes.map(name => ['volume', 'rm', name]),
+    ...images.map(image => ['image', 'rm', image]), ...(attempted ? [['rm', '--force', builder]] : [])]) {
     const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 30_000 })
-    if (result.error || (result.status !== 0 && !/No such image|No such container/.test(result.stderr))) {
+    if (result.error || (result.status !== 0 && !/No such image|No such container|no such volume/.test(result.stderr))) {
       console.error(`container-checks: cleanup failed: ${args.join(' ')}`)
       cleanupPassed = false
       process.exitCode = 1
