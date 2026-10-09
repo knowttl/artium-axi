@@ -301,9 +301,14 @@ Rollback loses changes made since the pre-upgrade backup; keep the failed-upgrad
 Never run an old image against the upgraded volume.
 Startup refuses migration versions unknown to its image with `STORE_SCHEMA_INVALID`.
 
-The owner still decides the master-key escrow vendor, location, access policy and recovery custody.
+The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE` (default `/data/artium.db`).
+Server startup saves the validated key as canonical base64 in `ARTIUM_AXI_MASTER_KEY`, with file mode 0600.
+If neither explicit master-key setting is supplied, the server and maintenance commands read this saved key.
+An explicit raw key file takes precedence, followed by an explicit base64 environment key.
+No key is generated or uploaded by this mechanism.
+The owner still decides the later vault, access policy and recovery custody.
 Keep escrow separate from database backups and retain every required old key until its last backup expires.
-This implementation selects no escrow destination.
+The local `.env` is an interim location pending that later vault decision.
 The owner must also set the backup schedule, retention window and deletion procedure; database backups retain their captured audit records even after the live store's 90-day audit cleanup.
 Remove expired backups under that policy, and retire a key only after all backups requiring it expire.
 Without its matching key, a backup cannot recover encrypted platform credentials.
