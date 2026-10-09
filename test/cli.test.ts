@@ -38,7 +38,17 @@ beforeAll(async () => {
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined,
       version: request.headers['x-artium-cli-version'] as string | undefined })
     const current = doctorResponses?.[request.url!] ?? response
-    const stalled = () => stalls.emit(request.url!, { socket: request.socket, closed: once(request.socket, 'close') })
+    const stalled = () => {
+      const socket = request.socket
+      const closed = new Promise<void>((resolve, reject) => {
+        socket.once('close', () => resolve())
+        socket.once('error', error => {
+          // Aborting a stalled HTTPS request can reset its peer before close.
+          if ((error as NodeJS.ErrnoException).code !== 'ECONNRESET') reject(error)
+        })
+      })
+      stalls.emit(request.url!, { socket, closed })
+    }
     if (request.url!.startsWith('/stall-headers/')) { stalled(); return }
     reply.writeHead(current.status, { 'content-type': 'application/json', ...(current.location ? { location: current.location } : {}) })
     if (current.stall || request.url!.startsWith('/stall-body/')) {
@@ -138,6 +148,46 @@ test('truncation diagnostic precedes upstream stderr without changing stdout', a
   expect(await cli(['falcon-axi'])).toMatchObject({ code: 0, stdout: 'data', stderr: 'artium-axi: output truncated (stdout).\nupstream' })
 })
 
+test('bundle rewrites only complete suggestion streams and preserves the upstream exit code', async () => {
+  requests = []
+  const stdout = 'help[1]:\n  Run `falcon-axi host list`\n'
+  const stderr = '{ "help": ["Run `falcon-axi detection list`"], "data": "falcon-axi" }'
+  response = { status: 200, body: { source: 'falcon-axi', stdout, stderr, exitCode: 7,
+    durationMs: 1, outputBytes: { stdout: stdout.length, stderr: stderr.length }, truncated: { stdout: false, stderr: false } } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
+    stdout: 'help[1]:\n  Run `artium-axi falcon-axi host list`\n',
+    stderr: '{ "help": ["Run `artium-axi falcon-axi detection list`"], "data": "falcon-axi" }' })
+  response.body = { ...response.body as object, truncated: { stdout: true, stderr: false } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: 7, stdout,
+    stderr: 'artium-axi: output truncated (stdout).\n{ "help": ["Run `artium-axi falcon-axi detection list`"], "data": "falcon-axi" }' })
+  response.body = { ...response.body as object, truncated: { stdout: false, stderr: true } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
+    stdout: 'help[1]:\n  Run `artium-axi falcon-axi host list`\n',
+    stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
+})
+
+test.each([
+  { name: 'dangling TOON indentation', output: 'help: falcon-axi host list\n  dangling\n' },
+  { name: 'escaped command delimiters', output: JSON.stringify({ help: 'Run "falcon-axi host list --filter \\"synthetic\\"' }) },
+  { name: 'object TOON help items', output: 'help[1]:\n  - message: Run `falcon-axi host list`\n' },
+  { name: 'mixed TOON help items', output: 'help[2]:\n  - Run `falcon-axi host list`\n  - message: Run `falcon-axi host show`\n' },
+  { name: 'bare TOON marker after a command', output: 'help[2]:\n  - Run `falcon-axi host list`\n  -' },
+  { name: 'bare TOON marker before a command', output: 'help[2]:\r\n  -\t\r\n  - Run `falcon-axi host list`\r\n' },
+  { name: 'quoted other-command arguments', output: 'help: Run `falcon-axi host show` or `echo \'falcon-axi host list\'`\n' },
+  { name: 'plain other-command arguments', output: JSON.stringify({ help: ['Run echo "falcon-axi host list"', 'falcon-axi host show'] }) },
+].flatMap(value => ['stdout', 'stderr'].map(stream => ({ ...value, stream }))))(
+  'bundle preserves $name in $stream while rewriting the other stream', async ({ output, stream }) => {
+    requests = []
+    const complete = 'help: falcon-axi host list\n'
+    const stdout = stream === 'stdout' ? output : complete
+    const stderr = stream === 'stderr' ? output : complete
+    response = { status: 200, body: { source: 'falcon-axi', stdout, stderr, exitCode: 7,
+      durationMs: 1, outputBytes: { stdout: stdout.length, stderr: stderr.length }, truncated: { stdout: false, stderr: false } } }
+    expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
+      stdout: stream === 'stdout' ? output : 'help: artium-axi falcon-axi host list\n',
+      stderr: stream === 'stderr' ? output : 'help: artium-axi falcon-axi host list\n' })
+  })
+
 test.each([301, 302, 303, 307, 308])('authenticated redirect %i is refused without a second request', async status => {
   requests = []
   response = { status, body: {}, location: `${url}/destination`, stall: true }
@@ -148,14 +198,14 @@ test.each([301, 302, 303, 307, 308])('authenticated redirect %i is refused witho
 test('stalled headers and bodies fail without retrying either command', async () => {
   requests = []
   response = { status: 200, body: {} }
-  const results = await Promise.all([
+  const results = await Promise.allSettled([
     cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, true),
     cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, true),
     cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-body` }, true),
     cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-body` }, true),
   ])
   const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE'), stderr: '' }
-  expect(results).toMatchObject([failure, failure, failure, failure])
+  expect(results).toMatchObject(Array(4).fill({ status: 'fulfilled', value: failure }))
   expect(requests.map(request => request.path).sort()).toEqual([
     '/stall-body/v1/tools', '/stall-body/v1/tools/falcon-axi/run',
     '/stall-headers/v1/tools', '/stall-headers/v1/tools/falcon-axi/run',

@@ -1,0 +1,35 @@
+# S44 suggestion rewriting verification
+
+[README.md](../README.md) owns the user-facing T6.4 suggestion rewriting contract.
+[The implementation](../src/cli/rewrite.ts) maps decoded command offsets to original bytes instead of serialising output again.
+TOON validation checks declared suggestion counts and requires the remaining document to round-trip through the pinned codec after masking suggestion fields.
+Marked list items must decode as primitive strings before header masking, marker stripping or span collection.
+The codec dependency is pinned in [package.json](../package.json).
+
+## Behavioural evidence
+
+`src/cli/rewrite.test.ts` exercises every empty, error and suggestion capture committed in `test/fake-tool/fixtures/upstreams.json`, including the future Graph fixture without enabling Graph in the runtime.
+Exact output assertions prove that only suggestion commands change, followed by a second rewrite proving idempotence.
+Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers and inline arrays, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
+Exact-byte and idempotence assertions cover unconsumed TOON structure, escaped command delimiters, object-only and mixed non-string lists, and bare markers with whitespace or end-of-stream variants in both item orders and LF/CRLF.
+`test/cli.test.ts` exercises the standalone bundle over local trusted HTTPS with synthetic tokens, separate TOON stdout and JSON stderr, upstream exit 7 and stream-specific truncation.
+Its unsupported-format cases exercise both stream consumers while the other stream receives its suggestion prefix.
+The bundled test failed against the original passthrough with both prefixes absent and exit 7 preserved.
+The first full-suite run exposed existing timeouts in the 30-attempt address-limit test and the multi-hash password-change flow.
+Their test budgets now accommodate real Argon2 work under concurrent suite load without weakening assertions or production hashing settings.
+Renewed full-suite verification exposed an expected TCP reset during the controlled client-abort test.
+Its server fixture now waits for close despite that reset, rejects other socket errors and waits for every concurrent test client to finish before subsequent tests use the request log.
+`test/walking-skeleton/probe.mjs` compares the pinned Falcon and Vectra tools against the bundled client through the real fake-only container server, permitting the wrapper prefix only in root suggestion fields.
+AGENTS.md's existing README pointer remains factually correct and requires no change.
+
+## Final candidate verification plan
+
+Run `pnpm install --frozen-lockfile`, then `pnpm check`, then `pnpm test:containers` in sequence against the committed implementation candidate.
+Run `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE=<private absolute path> pnpm hygiene:check` using the task's authorised private deny list, without printing its contents.
+Container acceptance uses only fakes, synthetic identities and canary credentials, with task-owned resources removed by the harness.
+Record final head SHA, command results, timings, container input and compiled-output digests, image identities, cleanup and deny-list revision in the PR body.
+Every pipeline source or test repair requires renewed frozen install, aggregate checks, container checks and real private hygiene on the repaired candidate.
+Run no-mistakes with `--skip ci` and this verification plan, without `--yes`.
+Re-scan the exact published head before delivery and record the no-mistakes per-step timings.
+No hosted CI, real service calls, tenant credentials, deployment or merge are part of this verification.
+Live output parity and any unsupported real capture formats remain deferred captain checks.

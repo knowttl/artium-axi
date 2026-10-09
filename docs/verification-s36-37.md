@@ -23,7 +23,8 @@ No live service, real credential, deployment or hosted CI is involved.
   Refresh retains the persisted `loginGeneration` and reuses concurrent rotations of that same login.
   Password-change checks cover ordinary and restricted sessions on both sides of replacement during password input.
 - Bundled login checks accept `-synthetic-user` and usernames equal to option names while still refusing duplicate options.
-- `test/cli.test.ts` preserves the HTTPS trust, redirect refusal, server request IDs, passthrough, truncation and bounded stalled-response checks using securely stored sessions.
+- `test/cli.test.ts` checks HTTPS trust, redirect refusal, server request IDs and bounded stalled responses using securely stored sessions.
+  [README.md](../README.md) owns current upstream output handling.
 - The walking-skeleton container journey exercises bundled first login, password change and identity before the existing pinned-upstream fake-service comparisons.
 
 ## Final-head validation

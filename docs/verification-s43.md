@@ -1,6 +1,6 @@
 # S43 CLI discovery, errors and help verification
 
-The [CLI](../src/cli/main.ts) owns dispatch, authenticated discovery and preserved upstream streams.
+The [CLI](../src/cli/main.ts) owns dispatch and authenticated discovery; [README.md](../README.md) owns current upstream output handling.
 The [views](../src/cli/views.ts) render home, counted tools and manifest-backed detail.
 The [help catalogue](../src/cli/help.ts) owns the common usage, purpose, flags and example layout for available Artium client commands.
 The pinned manifests in `tools/inventories/` own vetted upstream help, example arguments and available top-level commands.
@@ -30,8 +30,8 @@ Removing the role makes the same signed-in user's home show `tools: 0 available`
 Detail and execution then fail with `TOOL_NOT_GRANTED`.
 
 `test/cli.test.ts` exercises every catalogue error through synthetic HTTPS, checking exact code, source, message, next step, request ID and CLI exit.
-It also checks every client command's help layout without server configuration or network traffic, inaccessible detail, manifest-version mismatch and upstream help passthrough.
-Prefix-help checks distinguish local `--help <tool>` from authenticated `<tool> --help` passthrough.
+It also checks every client command's help layout without server configuration or network traffic, inaccessible detail, manifest-version mismatch and authenticated upstream help.
+Prefix-help checks distinguish local `--help <tool>` from authenticated `<tool> --help` dispatch.
 Doctor checks preserve pass/fail diagnostics and verify the final catalogue envelope and exit code for configuration, certificate, server, token, version, cached tool health and malformed-response failures.
 Existing tests cover upstream nonzero exits, separate streams, truncation diagnostics, malformed responses and usage failures before network traffic.
 `test/integration/api.test.ts` exercises the real server error handler for every catalogue entry and checks the HTTP status and complete envelope.
@@ -40,7 +40,8 @@ Existing tests cover upstream nonzero exits, separate streams, truncation diagno
 `test/walking-skeleton/probe.mjs` exercises authenticated home and tool detail in the standalone Node 22.12.0 container journey.
 Pinned Falcon and Vectra run against isolated fake HTTPS services.
 Their bare home, upstream help, command help and manifest example reads are compared with local pinned output through the adapter boundary.
-The Vectra home comparison validates each generated profile location and normalizes only that call-specific temporary path.
+The Vectra home comparison validates each generated profile location and normalizes that call-specific temporary path.
+S44 adds suggestion-prefix normalization to the pinned output comparisons; [S44 verification](verification-s44.md) owns that evidence.
 The existing read, pagination, empty output, upstream usage-error, native write-gate and redaction checks remain in the container block.
 
 Final validation results are bound to the implementation and published head in the PR body.
