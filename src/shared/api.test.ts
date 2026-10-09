@@ -56,7 +56,7 @@ test('response contract preserves upstream failure and rejects mixed envelopes',
   expect(runResponseSchema.safeParse({ ...success, timedOut: false }).success).toBe(false)
   expect(runResponseSchema.safeParse({ ...success, ...errorResponse(new ArtiumError('TIMEOUT'), 'synthetic-request') }).success).toBe(false)
   expect(toolSchema.safeParse('/synthetic/executable').success).toBe(false)
-  expect(toolSchema.safeParse('mg-axi').success).toBe(false)
+  expect(toolSchema.safeParse('mg-axi').success).toBe(true)
 })
 
 test.each(Object.keys(errors) as (keyof typeof errors)[])('catalogue produces a strict safe envelope for %s', code => {

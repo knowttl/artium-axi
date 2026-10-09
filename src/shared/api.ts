@@ -70,7 +70,7 @@ export const adminUserRoutes = {
     response: adminUserSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'assign-user-roles' },
 } as const
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'])
 // The ceiling excludes inserts after the first page, including backdated events.
 const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$/)
   .refine(value => {
@@ -95,6 +95,8 @@ export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: 
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
   authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const nativeSettingsSchemas = {
+  'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
+    operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
   'falcon-axi': z.strictObject({}),
   'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
@@ -144,7 +146,7 @@ export const adminRoleRoutes = {
 } as const
 export const toolsResponseSchema = z.strictObject({
   tools: z.array(z.strictObject({
-    name: toolSchema.exclude(['az-axi']),
+    name: toolSchema.exclude(['az-axi', 'mg-axi']),
     version: z.string(),
     status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
   })),
