@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const object = (properties, required = Object.keys(properties)) => ({ type: 'object', additionalProperties: false, properties, required })
 const uuid = { type: 'string', pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
 const env = { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*$' }
-const path = { type: 'string', pattern: '\\S' }
+const path = { type: 'string', pattern: /\S/.source }
 const reference = (provider, fields, required) => object({ provider: { const: provider }, key: uuid, ...fields }, ['provider', 'key', ...required])
 const thumbprint = { type: 'string', pattern: '^[0-9a-fA-F]{40}$' }
 const schema = {
