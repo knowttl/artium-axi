@@ -1,20 +1,11 @@
 # S51 local Graph adapter (T8.2)
 
-The [internal adapter](../src/server/adapters/mg.ts) supports the pinned application secret and certificate forms.
-It emits a version-1 profile as a private runner-owned temporary file and places the secret or key in the environment holder named by the profile.
-Configured preview and native write settings survive preparation, including the operation allowlist.
-No Graph adapter enters the production runtime registry.
-The admin/store contract recognizes Graph settings and credentials, while runtime enablement and credential tests remain unavailable.
+The [internal adapter](../src/server/adapters/mg.ts) owns profile preparation; [README](../README.md) owns commissioning status and administration usage, and the [shared API contract](../src/shared/api.ts) owns accepted native settings.
 
 The [generated boundary](../tools/inventories/mg-axi.json) owns allowed command families, unsafe overrides, sensitive arguments, input transports, known output scan values, resource requirements and pinned parser hashes.
-Preparation accepts no uploaded files and accepts stdin only as a cursor transport.
-Client secrets and their trimmed values, or private keys and their normalized PEM values, enter the existing raw/base64/base64url/percent-encoded scanner.
-Upstream-minted tokens and assertions are unavailable during preparation and are not claimed as scanned values.
 
-The pinned package parses a 73 MiB operation inventory for a Graph read.
 The first real runner probe reproduced a process signal at the default 128 MiB heap.
 Host probes using a bounded 512 MiB heap completed a fake user read in 1.14 seconds at 443,736 KiB maximum RSS and a confirmed fake group membership write in 1.15 seconds at 442,544 KiB maximum RSS.
-The adapter alone supplies this trusted heap allowance; the runner still overwrites caller NODE_OPTIONS and other tools retain their default.
 The container adapter probe uses a non-root user, a read-only root filesystem, no network, 768 MiB memory, 192 tasks and a 32 MiB noexec tmpfs.
 
 `pnpm build` followed by `pnpm test:mg-headless` runs the existing fake MSAL secret/key acquisition probe and the additional real-runner adapter probe.

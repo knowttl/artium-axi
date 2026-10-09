@@ -12,7 +12,7 @@ The package's `inventory/schema.json` describes Graph operations, not headless p
 The schema owns the projected field constraints and credential forms, including upstream keychain and federation forms, without adapter policy dispositions.
 It is a profile schema, not a claim that every valid profile is safe to expose through Artium.
 
-`pnpm test:mg-headless` runs the pinned profile-create interface and acquisition provider in a task-owned Node 22 test image built with the existing digest-pinned fake-service builder, with a read-only filesystem, tmpfs credential files, no network, no host credential mounts and a loader that refuses keychain imports.
+The headless portion of `pnpm test:mg-headless` runs the pinned profile-create interface and acquisition provider in a task-owned Node 22 test image built with the existing digest-pinned fake-service builder, with a read-only filesystem, tmpfs credential files, no network, no host credential mounts and a loader that refuses keychain imports.
 The loader replaces only `@azure/msal-node` with a fake confidential client, asserting the secret/key transport, certificate thumbprint and Graph `.default` audience.
 The probe generates an ephemeral synthetic RSA PEM, tests both environment and 0600 file holders for secrets and certificate keys, and verifies session-only token acquisition.
 It verifies application interactive login refusal, missing holders, encrypted key refusal, unsafe file modes, symlinks, inlined secrets, conflicting holders and device-code opt-in refusal.
@@ -24,7 +24,8 @@ The task container and standalone image are removed in `finally`; the probe crea
 These checks prove local validation and transport into a fake MSAL boundary.
 They do not prove real certificate signing, Microsoft authentication, tenant permissions, Graph consent or a live Graph read.
 Live application consent and both real authentication forms remain unverified.
-No application account was requested and T8.2 was not started.
+No application account was requested; T8.2 had not started in this S50 evidence.
+See [S51 verification](verification-s51.md) for the subsequent adapter probe added to the same command.
 Final candidate aggregate checks, container input/output digests, timings and private hygiene evidence belong in delivery status and the PR body.
 
 The worker's local run completed on Linux x64 with host Node `v24.17.0` and container Node `v22.23.3`.
