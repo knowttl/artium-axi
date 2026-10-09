@@ -54,6 +54,14 @@ test.each([
   expect(rewriteSuggestions(incomplete, 'falcon-axi')).toBe(incomplete)
   const incompleteWrapped = encode(`Run ${quote}${prefix}${first}${quote} or ${quote}artium-axi falcon-axi host show --id 7`)
   expect(rewriteSuggestions(incompleteWrapped, 'falcon-axi')).toBe(incompleteWrapped)
+  const prose = encode(`If you're unsure, run ${quote}${prefix}${first}${quote}`)
+  const expectedProse = encode(`If you're unsure, run ${quote}artium-axi ${first}${quote}`)
+  expect(rewriteSuggestions(prose, 'falcon-axi')).toBe(expectedProse)
+  expect(rewriteSuggestions(expectedProse, 'falcon-axi')).toBe(expectedProse)
+  const incompleteProse = encode(`Run ${quote}${prefix}${first}${quote} or, if you're unsure, run ${quote}falcon-axi host show`)
+  expect(rewriteSuggestions(incompleteProse, 'falcon-axi')).toBe(incompleteProse)
+  const incompleteWrappedProse = encode(`Run ${quote}${prefix}${first}${quote} or, if you're unsure, run ${quote}artium-axi falcon-axi host show`)
+  expect(rewriteSuggestions(incompleteWrappedProse, 'falcon-axi')).toBe(incompleteWrappedProse)
 })
 
 test.each([
