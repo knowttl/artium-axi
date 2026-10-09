@@ -35,6 +35,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'mg-axi': { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-graph' },
   'falcon-axi': { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' },
   'vectra-axi': { kind: 'qux', apiVersion: '2.5', origin: 'https://synthetic.invalid', auth: 'token', token: 'CANARY-token',
     writes: { allowWrites: true, operations: ['notes.set'] } },
@@ -161,6 +162,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'falcon-axi', version: '0.3.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.3', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.4', health: { status: 'unconfigured' } },
+    { name: 'mg-axi', version: '0.1.4', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

@@ -438,7 +438,7 @@ test('role listing uses bounded stable pagination', async () => {
   expect(first.roles.map(role => role.id)).toEqual(['a'])
   expect(first.nextCursor).toBe('a')
   const second = adminRolesResponseSchema.parse(await (await roleRequest('GET', '?limit=1&cursor=a')).json())
-  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['az-axi', 'falcon-axi', 'vectra-axi'] })
+  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['az-axi', 'falcon-axi', 'mg-axi', 'vectra-axi'] })
   expect(second.nextCursor).toBeNull()
   await failure(await roleRequest('GET', '?limit=101'), 'INVALID_INPUT')
 })

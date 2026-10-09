@@ -177,11 +177,19 @@ The upstream Node packages are pinned separately in [`tools/package.json`](tools
 The root install runs their frozen installation.
 Root native build approval is limited to `argon2`, `better-sqlite3` and `esbuild` in `package.json`, while upstream tool build scripts remain disabled.
 [`tools/integrity.json`](tools/integrity.json) records the pinned upstream versions and npm SHA-512 values.
-mg-axi is inventoried for phase 8, with no production adapter enabled.
+The [Graph adapter](src/server/adapters/mg.ts) supports application secret and certificate profiles for local fake commissioning, with no production adapter enabled and live Graph consent unverified.
+It writes a version-1 profile into the runner's private call directory and supplies the secret or key through the environment holder named by that profile.
+Configured `preview` and `writes` settings survive preparation; pinned operation, execution, confirmation and durable journal gates remain upstream requirements.
+Its reviewed boundary permits Entra commands, reviewed `api get` routes, home, doctor and bare help/version; profile/auth/setup changes and identity or credential overrides are refused before credential retrieval.
+Uploaded files are unsupported; stdin is accepted only for `--cursor -`.
+Known preparation secrets and their upstream-normalized values enter the runner's encoded output scan.
+Upstream-minted Graph tokens and assertions are unavailable during preparation, so their live redaction remains unverified.
+The pinned 73 MiB operation inventory needs a trusted 512 MiB Node heap allowance for Graph calls; other adapters retain the 128 MiB default.
+Run `pnpm build` before `pnpm test:mg-headless` to prove fake Graph reads, local permission and override denials, native preview/write gates and audit, and encoded canary rejection in a no-network container.
 `pnpm test` checks the generated parser inventories against the installed catalogues and the generated Graph headless schema against its generator before running Vitest.
 Regenerate parser inventories with `node scripts/upstream-inventory.mjs --write` when deliberately changing a pin.
 These inventories record route-specific aliases, accepted short flags, positional inputs, native environment defaults, profile-selected credential variables, native profile write settings and suggestion fields, not a production allow-list.
-Azure and Vectra inventories also record provisional flag dispositions; mg-axi records observed parser facts without adapter policy dispositions.
+Azure and Vectra inventories also record provisional flag dispositions; the Graph inventory records its reviewed adapter boundary alongside observed parser facts.
 See [S50 verification](docs/verification-s50.md) for the Graph headless schema generation command, standalone `pnpm test:mg-headless` probe and fake-authentication evidence limits.
 Native write-setting records include hashes of the pinned configuration and permission-gate sources.
 The [Azure inventory](tools/inventories/az-axi.json) also owns reviewed route resource requirements and their pinned source hashes; [S25 verification](docs/verification-s25.md) describes conditional resource selection.
@@ -434,7 +442,7 @@ The [Dockerfile](Dockerfile) owns the Falcon wheel build and install recipe, usi
 Python build and runtime dependencies have separate SHA-256 locks.
 Python dependency downloads verify those hashes, and Python installation and wheel building run with no package index and no network.
 The runtime contains Python 3.11, the pinned tools and UID 10001 (`artium`).
-mg-axi is installed for inventory checks only and has no production tool path or adapter.
+mg-axi is installed with an internal adapter for fake commissioning and has no production runtime registry activation.
 `src/server/config.ts` owns the three executable paths.
 
 Run `node scripts/build-fake-service-image.mjs --production` to build `artium-axi:local` using the private BuildKit worker.
@@ -520,7 +528,7 @@ See [S33 verification](docs/verification-s33.md) for real local login, authoriza
 `GET /v1/admin/roles` uses the same `cursor`, `limit` and `nextCursor` pagination as users.
 `POST /v1/admin/roles` accepts `name` and returns 201 with public role metadata.
 `PATCH /v1/admin/roles/{id}` accepts `name` and `expectedRevision`.
-`PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi` and `az-axi`.
+`PUT /v1/admin/roles/{id}/tools` replaces `tools` with an `expectedRevision`, accepting only `falcon-axi`, `vectra-axi`, `az-axi` and `mg-axi`.
 The [shared API contract](src/shared/api.ts) owns the complete role inputs, public metadata and audit actions.
 Role administration follows the same authorization rules as user administration.
 Role and assignment mutations commit with their audit event and return public metadata with the new revision; successful edits return 200.

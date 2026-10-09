@@ -14,6 +14,7 @@ export interface RunnerLimits {
   outputBytesPerStream?: number
   timeoutMs?: number
   runtime?: 'python'
+  nodeHeapMiB?: number
   signal?: AbortSignal
 }
 
@@ -152,7 +153,7 @@ async function execute(
           XDG_DATA_HOME: directory,
           XDG_STATE_HOME: directory,
           XDG_RUNTIME_DIR: directory,
-          NODE_OPTIONS: `--max-old-space-size=${runnerLimits.nodeHeapMiB}`,
+          NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}`,
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       })
