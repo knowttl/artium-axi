@@ -1,11 +1,157 @@
 # Operations runbook
 
+## Scope and prerequisites
+
+This runbook covers local operation of the packaged server and client.
+Exercise changes first in disposable Linux stores with synthetic identities, canary credentials and fake upstream services.
+Live host provisioning, proxy deployment, client installation and live adapter acceptance belong to the owner and have not been exercised here.
+The local rehearsal and its limitations are recorded in [S49 verification](verification-s49.md).
+The [README](../README.md), [Dockerfile](../Dockerfile), [Compose example](../compose.example.yaml) and [server configuration](../src/server/config.ts) own installation, packaging and executable defaults.
+
+The Linux deployment host needs Docker with Compose, space for persistent SQLite data and protected backups, and a trusted HTTPS reverse proxy.
+Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
+The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
+The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
+Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
+The raw master key must contain exactly 32 bytes and is mounted read-only, separately from the database.
+The owner decides key creation, custody and escrow; the synthetic key used in rehearsal is not a production provisioning recommendation.
+
+For source-based local rehearsal, use Node >=22.12.0, pnpm 10.22.0, OpenSSL, Python 3, curl and sha256sum on Linux.
+From the repository root, run:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm check
+docker compose -f compose.example.yaml config --quiet
+pnpm test:containers
+```
+
+The Compose validation creates no stack and reads no secret contents.
+Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
+Do not use real adapter credentials or globally prune Docker resources.
+
+## Proxy and certificate trust
+
+The packaged API listens on HTTP port 8080 and the Compose example publishes it only on host loopback.
+Terminate HTTPS at the owner's proxy and prevent clients from reaching the HTTP listener directly.
+Replace incoming forwarding headers, rather than appending to untrusted client values.
+Set `ARTIUM_AXI_TRUSTED_PROXIES` to the verified proxy source IP addresses as seen by the server, separated by commas; the default trusts none.
+Keep the external origin consistent for browser forms and forward the original HTTPS scheme correctly.
+Verify certificate hostname, expiry and full chain before switching traffic.
+Proxy installation, firewall configuration, production forwarding-header verification and certificate renewal remain unexercised owner steps.
+
+Set `ARTIUM_AXI_URL` to the trusted HTTPS base URL without credentials, query or fragment.
+For a private CA, use curl's `--cacert` on both downloads and set `ARTIUM_AXI_CA_FILE` to the readable PEM CA file for the CLI.
+Never bypass certificate verification.
+The checksum comes from the same trusted server and detects corruption or mixed releases; it does not establish trust in an unknown server.
+
+## CLI launchers and password changes
+
+Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.
+Keep Node on PATH and retain the installed launcher path; rerun setup if the bundle moves.
+With that installation and trust configured, the following commands are the local operator checks:
+
+```sh
+artium-axi setup --host claude --hook
+artium-axi setup --host codex
+artium-axi setup --host opencode
+artium-axi login --username synthetic-admin --password-stdin
+artium-axi passwd --password-stdin
+artium-axi login --username synthetic-admin --password-stdin
+artium-axi whoami
+artium-axi tools
+# Requires an enabled Falcon tool granted through a role:
+artium-axi tools show falcon-axi
+artium-axi doctor
+artium-axi logout
+```
+
+Supply passwords through stdin or the hidden terminal prompt, never command arguments.
+The first login with a temporary password intentionally returns `PASSWORD_CHANGE_REQUIRED` and exit 1.
+Change the password, then log in again; a password change revokes existing sessions.
+For an ordinary password change, confirm the current password through the hidden prompt or `ARTIUM_AXI_CURRENT_PASSWORD`, and supply the new password on stdin or at the prompt.
+Clear temporary password environment values after use.
+Browser users sign in at `/login`, change temporary passwords at `/password`, and sign in again.
+Ordinary users can change their password at `/account`.
+The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
+
+Setup writes an embedded skill and, for Claude only, an optional SessionStart hook.
+Local Linux file generation is verified; actual agent loading and hook usefulness, Windows/macOS launchers and live client trust remain unexercised owner acceptance.
+CLI tokens are private local files bound to the server URL; do not export or share the session file.
+After `SESSION_BUSY`, remove the session lock directory only after all CLI processes using it have exited.
+An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.
+
+## Roles, credentials and health
+
+Sign in as an administrator through the HTTPS proxy and use `/admin` to create users with temporary passwords.
+Use `/admin/roles` to create named roles and replace the fixed tool grants, then assign roles through Users.
+Administrator capability is separate from tool grants, and the last enabled administrator cannot be disabled or demoted.
+Grant changes apply on the next call, including calls using existing tokens.
+Users with no enabled granted tools receive an explanatory empty list.
+Review actor, UTC change time and revision before saving; reload stale forms instead of overwriting newer edits.
+After 15 minutes without password confirmation, confirm at `/reauth` and submit the action again.
+
+For credential rotation, obtain the replacement through the owner's approved process, then open `/admin/credentials`.
+Replace the complete adapter-specific JSON, including all native settings to retain; omitted settings are cleared.
+The editor starts blank and never reveals the stored value.
+Test the replacement with the fixed harmless read before enabling the tool at `/admin/tools`.
+Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
+Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
+Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
+Failure to commit the audit event rolls back the local replacement.
+Rotate upstream credentials separately from the offline database master key.
+Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.
+Azure configuration can be edited but runtime enable and Test remain unavailable because of the pinned retry limitation.
+
+Check liveness and readiness through the trusted endpoint:
+
+```sh
+curl --fail --cacert "$ARTIUM_AXI_CA_FILE" "$ARTIUM_AXI_URL/health/live"
+curl --fail --cacert "$ARTIUM_AXI_CA_FILE" "$ARTIUM_AXI_URL/health/ready"
+```
+
+Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
+These checks do not test remote services or reload the key.
+Doctor checks address, certificate, token and CLI version, then reports the available tools' cached health.
+Only `ok` passes; `unknown`, `unconfigured` or `error` require investigation rather than disabling certificate verification.
+Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
+Use Tools' Test for a current check and inspect safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+
+## Retention and export
+
+SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
+Each batch commits its count and cutoff with the deletion.
+Vectra's durable native intent/outcome logs also have daily 90-day retention, preserving paired entries.
+Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
+There is no audit deletion endpoint or general export CLI.
+Use `/admin/audit` for filtered review and the paginated `GET /v1/admin/audit` API for retained records, preserving filters with each continuation cursor.
+Bearer API reads require a session-bound recent-reauthentication ticket; browser reads require administrator capability.
+
+For continuous export, set `ARTIUM_AXI_AUDIT_STDOUT=1` in the server environment and send its committed JSON-line records to the owner's protected collector before retention expires.
+SQLite remains authoritative if the optional stream fails; monitor collector failures and reconcile retained records through the audit API.
+Key-rotation receipts are separate maintenance output, not audit export.
+The owner selects collector storage, access, retention and deletion policy; no external collector is configured by this runbook.
+Backups retain the audit data captured at backup time regardless of later live cleanup.
+
 ## First administrator and offline recovery
 
 Use the first-start settings described in [README.md](../README.md).
 The username is trimmed and lowercased for lookup, must be nonempty without whitespace or control characters, and keeps the entered spelling as its display name.
 The canonical name `synthetic-development-user` remains reserved and cannot be used for bootstrap or recovery.
 Use the local password rules in [README.md](../README.md).
+For a source-based disposable first start after building, prepare the protected synthetic files and empty data directory, then run from the repository root:
+
+```sh
+ARTIUM_AXI_DATABASE_FILE=/absolute/path/copied-data/artium.db \
+ARTIUM_AXI_MASTER_KEY_FILE=/absolute/path/synthetic-key \
+ARTIUM_AXI_ADMIN_USERNAME=synthetic-admin \
+ARTIUM_AXI_ADMIN_PASSWORD_FILE=/absolute/path/bootstrap-password \
+pnpm start
+```
+
+The production listener is fixed at port 8080; use an isolated environment and stop the process with SIGTERM after rehearsal.
+For Compose first start, the owner adds the bootstrap username and a read-only password-file secret and sets `ARTIUM_AXI_ADMIN_PASSWORD_FILE` to its container path before creating the service.
+The master-key secret alone does not bootstrap a fresh store.
 The store must be empty except for migrations and the default tool registry, and must never have been bootstrapped.
 Startup commits the administrator and one-time marker atomically, with must-change set and no tool grants.
 Remove the bootstrap settings after first start.
@@ -57,7 +203,7 @@ Production key rotation requires separate approval.
 1. Stop the server and take a consistent database backup, including retained audit and account data.
    Protect the backup as sensitive data.
    Keep the matching old master key separately from that backup.
-   Use the online backup command below before rotation.
+   The online backup command below can also run before stopping; take the final pre-rotation snapshot after admission has stopped.
 2. Mount the same data volume and both raw 32-byte key files in a one-shot container using the same application image.
    The new key must differ from the old key, and both files must be readable by the container's runtime UID.
    Set `ARTIUM_AXI_MASTER_KEY_FILE` to the old key file.
