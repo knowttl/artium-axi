@@ -89,6 +89,14 @@ Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
 The client preserves argument tokens; output and error handling follow the [generated error reference](docs/errors.md) and CLI guidance above.
 Download/launcher distribution remains later-slice work.
+Run `node /absolute/path/to/artium-axi.mjs setup --host <claude|codex|opencode>` to install the embedded [artium-axi skill](skill/artium-axi/SKILL.md) without npm or sibling source files.
+The skill directs agents to discover their granted tools first and records the current Node/bundle invocation for sessions where `artium-axi` is absent from PATH.
+For Claude Code, add `--hook` to install a `SessionStart` hook that runs `tools` and provides its output as session context.
+The hook and skill are complementary discovery paths; either can be used alone.
+Setup merges settings through an atomic file replacement, preserves unrelated settings and hooks, and repeats without rewriting unchanged files.
+It repairs managed paths when the bundle moves, but refuses to replace an edited or unmanaged skill unless `--force` is explicit.
+Codex and OpenCode support skill installation; requesting their hooks fails with a clear explanation and writes no files.
+See [S45 verification](docs/verification-s45.md) for the verified host paths, hook schema and isolated checks.
 See [S36+S37 verification](docs/verification-s36-37.md) for Linux process and storage evidence and deferred Windows/macOS acceptance.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.

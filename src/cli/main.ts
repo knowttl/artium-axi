@@ -9,6 +9,7 @@ import { doctor } from './doctor.js'
 import { commandHelp, helpCommand } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
 import { rewriteSuggestions } from './rewrite.js'
+import { setup } from './setup.js'
 
 async function main(args: string[]) {
   const prefixHelp = args[0] === '--help'
@@ -17,6 +18,7 @@ async function main(args: string[]) {
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
   if (help) { process.stdout.write(commandHelp(help)); return }
+  if (command === 'setup') { process.stdout.write(setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
     await doctor()
