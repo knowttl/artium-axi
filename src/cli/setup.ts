@@ -6,9 +6,9 @@ import skill from '../../skill/artium-axi/SKILL.md'
 import { ArtiumError } from '../shared/errors.js'
 
 const hosts = {
-  claude: ['.claude', 'skills'],
-  codex: ['.agents', 'skills'],
-  opencode: ['.config', 'opencode', 'skills'],
+  claude: ['.claude'],
+  codex: ['.agents'],
+  opencode: ['.config', 'opencode'],
 } as const
 const hookName = 'artium-axi managed tools'
 const checksum = (content: string) => createHash('sha256').update(content).digest('hex')
@@ -39,7 +39,7 @@ function claudeSettings(path: string, executable: string): string {
   const previous = readOptional(path)
   let settings: unknown
   try { settings = previous === undefined ? {} : JSON.parse(previous) }
-  catch { throw new ArtiumError('INVALID_INPUT', 'Claude settings are invalid JSON; no installation was written.', 'Repair ~/.claude/settings.json, then rerun setup.') }
+  catch { throw new ArtiumError('INVALID_INPUT', 'Claude settings are invalid JSON; no installation was written.', `Repair ${path}, then rerun setup.`) }
   if (!object(settings) || settings.hooks !== undefined && !object(settings.hooks)) {
     throw new ArtiumError('INVALID_INPUT', 'Claude settings and hooks must be objects; no installation was written.')
   }
@@ -80,9 +80,11 @@ export function setup(args: string[]): string {
   const invocation = process.platform === 'win32'
     ? `& '${process.execPath.replaceAll("'", "''")}' '${executable.replaceAll("'", "''")}'`
     : `${quote(process.execPath)} ${quote(executable)}`
-  const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`)
+  const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`)
   const installed = `${content}\n<!-- artium-axi sha256:${checksum(content)} -->\n`
-  const skillPath = join(homedir(), ...hosts[host], 'artium-axi', 'SKILL.md')
+  const hostDirectory = host === 'claude' && process.env.CLAUDE_CONFIG_DIR
+    ? resolve(process.env.CLAUDE_CONFIG_DIR) : join(homedir(), ...hosts[host])
+  const skillPath = join(hostDirectory, 'skills', 'artium-axi', 'SKILL.md')
   const previous = readOptional(skillPath)
   if (previous !== undefined && previous !== installed && !force) {
     const match = previous.match(/^([\s\S]*)\n<!-- artium-axi sha256:([a-f0-9]{64}) -->\n$/)
@@ -90,7 +92,7 @@ export function setup(args: string[]): string {
       throw new ArtiumError('INVALID_INPUT', 'The installed skill was edited or is unmanaged; no installation was written.', `Use artium-axi setup --host ${host}${hook ? ' --hook' : ''} --force to explicitly replace it.`)
     }
   }
-  const settingsPath = join(homedir(), '.claude', 'settings.json')
+  const settingsPath = join(hostDirectory, 'settings.json')
   const settings = hook ? claudeSettings(settingsPath, executable) : undefined
   if (previous !== installed) replaceAtomically(skillPath, installed)
   if (settings !== undefined && readOptional(settingsPath) !== settings) replaceAtomically(settingsPath, settings)

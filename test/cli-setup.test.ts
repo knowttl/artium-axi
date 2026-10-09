@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 
 const execute = promisify(execFile)
-const directory = mkdtempSync(join(tmpdir(), "artium-setup-'$-"))
+const directory = mkdtempSync(join(tmpdir(), "artium-setup-$&-$`-$'-$$-"))
 const bundle = join(directory, 'standalone.mjs')
 beforeAll(() => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
@@ -20,10 +20,10 @@ function write(path: string, content: string) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content)
 }
-async function cli(home: string, args: string[], executable = bundle) {
+async function cli(home: string, args: string[], executable = bundle, claudeConfigDir?: string) {
   try {
     return { ...await execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 10_000,
-      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home } }), code: 0 }
+      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: claudeConfigDir } }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
 
@@ -45,6 +45,51 @@ test.each([
   expect(await cli(target, args)).toMatchObject({ code: 0 })
   expect(statSync(path).mtimeMs).toBe(modified)
   expect(read(path)).toBe(content)
+})
+
+test.each([
+  ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'],
+])('installed %s invocation executes from a replacement-sensitive bundle path', async (host, location) => {
+  const target = home()
+  expect(await cli(target, ['setup', '--host', host])).toMatchObject({ code: 0 })
+  const content = read(join(target, location, 'artium-axi/SKILL.md'))
+  const invocation = content.match(/```sh\n([^\n]+)\n```/)![1]
+  const result = await execute(process.platform === 'win32' ? 'powershell.exe' : 'sh',
+    process.platform === 'win32' ? ['-NoProfile', '-Command', `${invocation} --help`] : ['-c', `${invocation} --help`],
+    { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, HOME: target, USERPROFILE: target } })
+  expect(result.stderr).toBe('')
+  expect(result.stdout).toContain('usage: artium-axi')
+})
+
+test.each([false, true])('Claude setup uses the active configuration directory with hook=%s', async hook => {
+  const target = home()
+  const config = home()
+  const path = join(config, 'settings.json')
+  write(path, JSON.stringify({ custom: { keep: true } }))
+  const args = hook ? ['setup', '--host', 'claude', '--hook'] : ['setup', '--host', 'claude']
+  expect(await cli(target, args, bundle, config)).toMatchObject({ code: 0 })
+  const skillPath = join(config, 'skills/artium-axi/SKILL.md')
+  expect(read(skillPath)).toContain(bundle.replaceAll("'", "'\\''"))
+  expect(readdirSync(target)).toEqual([])
+  const settings = JSON.parse(read(path))
+  expect(settings.custom).toEqual({ keep: true })
+  expect(settings.hooks).toEqual(hook ? { SessionStart: [{ hooks: [{ type: 'command', command: process.execPath,
+    args: [bundle, 'tools'], statusMessage: 'artium-axi managed tools' }] }] } : undefined)
+  const modified = [statSync(skillPath).mtimeMs, statSync(path).mtimeMs]
+  expect(await cli(target, args, bundle, config)).toMatchObject({ code: 0 })
+  expect([statSync(skillPath).mtimeMs, statSync(path).mtimeMs]).toEqual(modified)
+})
+
+test('invalid relocated Claude settings identify the active file without installing a skill', async () => {
+  const target = home()
+  const config = home()
+  const path = join(config, 'settings.json')
+  write(path, 'invalid json')
+  expect(await cli(target, ['setup', '--host', 'claude', '--hook'], bundle, config)).toMatchObject({ code: 2,
+    stdout: expect.stringContaining(`Repair ${path}, then rerun setup.`) })
+  expect(read(path)).toBe('invalid json')
+  expect(readdirSync(config)).toEqual(['settings.json'])
+  expect(readdirSync(target)).toEqual([])
 })
 
 test('setup refuses an edited skill unless replacement is explicit', async () => {
