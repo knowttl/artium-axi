@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseEnv } from 'node:util'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { decryptCredential, encryptCredential } from './crypto.js'
@@ -189,11 +190,18 @@ it('reopens encrypted credentials using the owner-only key beside the database',
   } finally { db.close() }
 })
 
-it('updates the saved key and permissions while preserving unrelated environment settings', () => {
+it.each([
+  ['single-line', 'SYNTHETIC_SETTING=retained\n', 'ARTIUM_AXI_MASTER_KEY=obsolete\n'],
+  ['double-quoted', 'SYNTHETIC_NOTE="first\nARTIUM_AXI_MASTER_KEY=keep\nlast"\n', 'ARTIUM_AXI_MASTER_KEY="obsolete\nkey"\n'],
+  ['single-quoted', "SYNTHETIC_NOTE='first\nexport ARTIUM_AXI_MASTER_KEY=keep\nlast'\n", "  export ARTIUM_AXI_MASTER_KEY = 'obsolete\nkey'\nARTIUM_AXI_MASTER_KEY=duplicate\n"],
+  ['backtick-quoted with CRLF', 'SYNTHETIC_NOTE=`first\r\nARTIUM_AXI_MASTER_KEY=keep\r\nlast`\r\n', '\texport ARTIUM_AXI_MASTER_KEY = `obsolete\r\nkey`\r\n'],
+  ['comments and unquoted values', '# SYNTHETIC_NOTE="\nSYNTHETIC_SETTING=retained # "\n# ARTIUM_AXI_MASTER_KEY=keep\n', 'ARTIUM_AXI_MASTER_KEY=obsolete # "\n'],
+])('updates the saved key and permissions while preserving %s environment settings', (_name, unrelated, assignments) => {
   const envFile = join(directory, '.env')
-  writeFileSync(envFile, 'SYNTHETIC_SETTING=retained\nARTIUM_AXI_MASTER_KEY=obsolete\n', { mode: 0o644 })
+  writeFileSync(envFile, `${assignments}${unrelated}`, { mode: 0o644 })
   saveMasterKey(file, key)
-  expect(readFileSync(envFile, 'utf8')).toBe(`SYNTHETIC_SETTING=retained\nARTIUM_AXI_MASTER_KEY=${bytes.toString('base64')}\n`)
+  expect(readFileSync(envFile, 'utf8')).toBe(`${unrelated}ARTIUM_AXI_MASTER_KEY=${bytes.toString('base64')}\n`)
+  expect(parseEnv(readFileSync(envFile, 'utf8'))).toEqual({ ...parseEnv(unrelated), ARTIUM_AXI_MASTER_KEY: bytes.toString('base64') })
   expect(statSync(envFile).mode & 0o777).toBe(0o600)
   expect(new EnvironmentKeyProvider({ ARTIUM_AXI_DATABASE_FILE: file }).getKey().id).toBe(key.id)
 })
