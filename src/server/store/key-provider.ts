@@ -40,7 +40,8 @@ export function saveMasterKey(database: string, key: MasterKey): void {
     let contents = ''
     try { contents = readFileSync(file, 'utf8') }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
-    const remaining = contents.replace(/^(?:export\s+)?ARTIUM_AXI_MASTER_KEY\s*=.*(?:\r?\n|$)/gm, '')
+    const remaining = contents.replace(/^[ \t]*(?:export[ \t]+)?([^#=\r\n]+?)[ \t]*=[ \t]*(?:"[^"]*"|'[^']*'|`[^`]*`|[^\r\n]*)[^\r\n]*(?:\r?\n|$)/gm,
+      (assignment, name: string) => name.trim() === 'ARTIUM_AXI_MASTER_KEY' ? '' : assignment)
     writeFileSync(temporary, `${remaining}${remaining && !remaining.endsWith('\n') ? '\n' : ''}ARTIUM_AXI_MASTER_KEY=${key.bytes.toString('base64')}\n`,
       { mode: 0o600, flag: 'wx' })
     renameSync(temporary, file)
