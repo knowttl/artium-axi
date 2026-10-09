@@ -1,4 +1,4 @@
-import { decode } from '@toon-format/toon'
+import { decode, encode } from '@toon-format/toon'
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
 
@@ -8,6 +8,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   let spans: Span[]
   try { spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output) }
   catch { return output }
+  if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Set<number>()
   for (const span of spans) {
     const offsets: number[] = []
@@ -83,7 +84,7 @@ function jsonHelp(output: string): Span[] {
 function toonHelp(output: string): Span[] {
   const lines = [...output.matchAll(/[^\r\n]*(?:\r\n|\n|$)/g)].filter(line => line[0])
   const spans: Span[] = []
-  const validation = lines.map(line => line[0])
+  const validation = lines.map(line => line[0].replace(/\r?\n$/, ''))
   let helpFields = 0
   function scalar(raw: string, start: number): void {
     const parsed = decode(`value: ${raw}`) as { value: unknown }
@@ -97,6 +98,7 @@ function toonHelp(output: string): Span[] {
     const field = /^(?:help|"help")(?:(\[\d+\]))?:[ \t]*(.*)$/.exec(text)
     if (!field) continue
     helpFields++
+    validation[index] = 'help: ""'
     if (!field[1]) {
       scalar(field[2], lines[index].index! + text.length - field[2].length)
       continue
@@ -133,11 +135,11 @@ function toonHelp(output: string): Span[] {
       const row = /^  (?:- )?(\S[^\r\n]*)(?:\r?\n)?$/.exec(line[0])
       if (!row) throw new Error('Unknown suggestion item')
       scalar(row[1], line.index! + line[0].indexOf(row[1]))
-      // Pinned tools emit primitive list rows without TOON's list marker.
-      validation[index] = `  - ${row[1]}\n`
+      validation[index] = ''
     }
     if (lines[index + 1]?.[0].startsWith(' ')) throw new Error('Extra suggestion rows')
   }
-  decode(validation.join(''))
+  const document = validation.filter(line => line !== '').join('\n')
+  if (encode(decode(document)) !== document) throw new Error('Unknown document structure')
   return helpFields === 1 ? spans : []
 }
