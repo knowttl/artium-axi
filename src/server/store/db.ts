@@ -13,6 +13,25 @@ import { nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
 
+export function validateSchema(db: Database.Database, directory = migrationsDirectory): void {
+  const files = readdirSync(directory).filter(file => /^\d+-.+\.sql$/.test(file)).sort()
+  const supported = files.map(file => Number(file.split('-')[0]))
+  const applied = db.prepare('SELECT version FROM migrations ORDER BY version').all() as { version: number }[]
+  if (!applied.length || applied.some((row, index) => row.version !== supported[index])) {
+    throw new ArtiumError('STORE_SCHEMA_INVALID')
+  }
+  const expected = new Database(':memory:')
+  try {
+    expected.exec('CREATE TABLE migrations (version INTEGER PRIMARY KEY)')
+    for (const file of files.slice(0, applied.length)) expected.exec(readFileSync(join(directory, file), 'utf8'))
+    const definition = db.prepare('SELECT sql FROM sqlite_master WHERE name = ? AND type = ?')
+    for (const row of expected.prepare('SELECT name, type, sql FROM sqlite_master').all() as { name: string, type: string, sql: string | null }[]) {
+      const actual = definition.get(row.name, row.type) as { sql: string | null } | undefined
+      if (!actual || actual.sql !== row.sql) throw new ArtiumError('STORE_SCHEMA_INVALID')
+    }
+  } finally { expected.close() }
+}
+
 export function createCredentialStore(db: Database.Database, provider: KeyProvider): MutableCredentialStore {
   const key = provider.getKey()
   db.transaction(() => {
@@ -80,7 +99,10 @@ export function migrate(db: Database.Database, directory = migrationsDirectory):
   db.transaction(() => {
     db.exec('CREATE TABLE IF NOT EXISTS migrations (version INTEGER PRIMARY KEY)')
     const applied = new Set(db.prepare('SELECT version FROM migrations').all().map(row => (row as { version: number }).version))
-    for (const file of readdirSync(directory).filter(file => /^\d+-.+\.sql$/.test(file)).sort()) {
+    const files = readdirSync(directory).filter(file => /^\d+-.+\.sql$/.test(file)).sort()
+    const supported = new Set(files.map(file => Number(file.split('-')[0])))
+    if ([...applied].some(version => !supported.has(version))) throw new ArtiumError('STORE_SCHEMA_INVALID')
+    for (const file of files) {
       const version = Number(file.split('-')[0])
       if (applied.has(version)) continue
       db.exec(readFileSync(join(directory, file), 'utf8'))
