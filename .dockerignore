@@ -8,6 +8,8 @@
 tools/node_modules
 !src/
 !src/**
+!skill/
+!skill/**
 !bin/
 !bin/artium-axi-server
 !scripts/
