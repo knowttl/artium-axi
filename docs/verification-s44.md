@@ -1,18 +1,19 @@
 # S44 suggestion rewriting verification
 
-T6.4 rewrites only the root `help` suggestion field recorded in the pinned inventories.
-The parser validates JSON or TOON before inserting `artium-axi ` at command offsets for the invoked tool.
-It preserves the original bytes around each insertion rather than serialising output again.
-The TOON parser recognises the pinned primitive suggestion list variant without list markers, checking declared counts before rewriting.
-Unsupported shapes, malformed formats, incomplete quoted commands and explicitly truncated streams remain unchanged.
-The TOON dependency matches the upstream lockfile pin, version 2.3.1.
+[README.md](../README.md) owns the user-facing T6.4 suggestion rewriting contract.
+[The implementation](../src/cli/rewrite.ts) maps decoded command offsets to original bytes instead of serialising output again.
+TOON validation checks declared suggestion counts and requires the remaining document to round-trip through the pinned codec after masking suggestion fields.
+Marked list items must decode as primitive strings before header masking, marker stripping or span collection.
+The codec dependency is pinned in [package.json](../package.json).
 
 ## Behavioural evidence
 
 `src/cli/rewrite.test.ts` exercises every empty, error and suggestion capture committed in `test/fake-tool/fixtures/upstreams.json`, including the future Graph fixture without enabling Graph in the runtime.
 Exact output assertions prove that only suggestion commands change, followed by a second rewrite proving idempotence.
 Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers and inline arrays, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
+Exact-byte and idempotence assertions cover unconsumed TOON structure, escaped command delimiters, object-only and mixed non-string lists, and bare markers with whitespace or end-of-stream variants in both item orders and LF/CRLF.
 `test/cli.test.ts` exercises the standalone bundle over local trusted HTTPS with synthetic tokens, separate TOON stdout and JSON stderr, upstream exit 7 and stream-specific truncation.
+Its unsupported-format cases exercise both stream consumers while the other stream receives its suggestion prefix.
 The bundled test failed against the original passthrough with both prefixes absent and exit 7 preserved.
 The first full-suite run exposed existing timeouts in the 30-attempt address-limit test and the multi-hash password-change flow.
 Their test budgets now accommodate real Argon2 work under concurrent suite load without weakening assertions or production hashing settings.
