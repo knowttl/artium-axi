@@ -223,9 +223,9 @@ The [credential store](src/server/store/db.ts) exposes `openStore(file, keyProvi
 Use a database file in a dedicated data directory, such as `/data/artium.db`, and close the connection during shutdown.
 The directory and database use modes 0700 and 0600, respectively.
 SQLite uses foreign keys, WAL, FULL synchronous writes and a 5-second busy timeout.
-The default [KeyProvider](src/server/store/key-provider.ts) reads exactly 32 raw bytes from `ARTIUM_AXI_MASTER_KEY_FILE`, or canonical base64 from `ARTIUM_AXI_MASTER_KEY` when no file is configured.
-An unreadable configured file does not fall back to the environment key.
-Its key ID is the full SHA-256 digest.
+Supply the initial master key through `ARTIUM_AXI_MASTER_KEY_FILE` or `ARTIUM_AXI_MASTER_KEY`; later starts can use the key saved beside the database.
+See [the runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for key formats, precedence and interim local custody, and [KeyProvider](src/server/store/key-provider.ts) for the implementation.
+The key ID is the full SHA-256 digest.
 Missing, invalid or mismatched store keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
 Store metadata binds the database to its active key ID even before any credential is configured.
 See [the upgrade runbook](docs/runbook.md#upgrading-stores-without-a-key-binding) for legacy-store binding requirements and refusal handling.
