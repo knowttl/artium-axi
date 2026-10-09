@@ -171,6 +171,8 @@ test.each([
   { name: 'escaped command delimiters', output: JSON.stringify({ help: 'Run "falcon-axi host list --filter \\"synthetic\\"' }) },
   { name: 'object TOON help items', output: 'help[1]:\n  - message: Run `falcon-axi host list`\n' },
   { name: 'mixed TOON help items', output: 'help[2]:\n  - Run `falcon-axi host list`\n  - message: Run `falcon-axi host show`\n' },
+  { name: 'bare TOON marker after a command', output: 'help[2]:\n  - Run `falcon-axi host list`\n  -' },
+  { name: 'bare TOON marker before a command', output: 'help[2]:\r\n  -\t\r\n  - Run `falcon-axi host list`\r\n' },
 ].flatMap(value => ['stdout', 'stderr'].map(stream => ({ ...value, stream }))))(
   'bundle preserves $name in $stream while rewriting the other stream', async ({ output, stream }) => {
     requests = []

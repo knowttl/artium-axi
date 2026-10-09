@@ -22,6 +22,8 @@ test.each([
     'help[2]: "Verify with `artium-axi falcon-axi host list --id \\"two,words\\"`",Run `vectra-axi host list`\n'],
   ['help[1]: Run `falcon-axi host list`\n', 'help[1]: Run `artium-axi falcon-axi host list`\n'],
   ['help[1]:\n  - Run `falcon-axi host list`\n', 'help[1]:\n  - Run `artium-axi falcon-axi host list`\n'],
+  ['help[2]:\n  - "-"\n  - "Run `falcon-axi host list` --filter -"\n',
+    'help[2]:\n  - "-"\n  - "Run `artium-axi falcon-axi host list` --filter -"\n'],
   ['help[2]:\r\n  Run `falcon-axi host show --id "two words"`\r\n  Run `vectra-axi host list`\r\n',
     'help[2]:\r\n  Run `artium-axi falcon-axi host show --id "two words"`\r\n  Run `vectra-axi host list`\r\n'],
   ['help[1]:\n  - "Run `falcon-axi host list --filter \\"name\\"`\\nRun `falcon-axi host list`"\n',
@@ -77,6 +79,18 @@ test.each(suggestionFormats.flatMap(({ format, encode }) => ['`', "'", '"'].flat
     expect(actual).toBe(input)
     expect(rewriteSuggestions(actual, 'falcon-axi')).toBe(input)
   })
+
+test.each(['\n', '\r\n'].flatMap(newline => ['', ' ', '  ', '\t', ' \t'].flatMap(whitespace =>
+  ['', newline].flatMap(ending => [
+    `help[1]:${newline}  -${whitespace}${ending}`,
+    `help[2]:${newline}  - Run \`falcon-axi host list\`${newline}  -${whitespace}${ending}`,
+    `help[2]:${newline}  -${whitespace}${newline}  - Run \`falcon-axi host list\`${ending}`,
+    `help[2]:${newline}  Run \`falcon-axi host list\`${newline}  -${whitespace}${ending}`,
+  ]))))('preserves bare TOON list markers: %s', input => {
+  const actual = rewriteSuggestions(input, 'falcon-axi')
+  expect(actual).toBe(input)
+  expect(rewriteSuggestions(actual, 'falcon-axi')).toBe(input)
+})
 
 test.each([
   'message: Run `falcon-axi host list`',
