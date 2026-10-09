@@ -82,6 +82,123 @@
     "help"
   ],
   "format": "TOON",
+  "headlessBoundary": {
+    "activation": "Inventory only; no adapter. Live Graph application consent remains unverified.",
+    "globalFlags": [
+      {
+        "name": "--help",
+        "disposition": "allowed",
+        "scope": "bare or after a command; no -h alias"
+      },
+      {
+        "name": "--version",
+        "disposition": "allowed",
+        "scope": "bare only"
+      },
+      {
+        "name": "-v",
+        "disposition": "allowed",
+        "scope": "bare only"
+      },
+      {
+        "name": "-V",
+        "disposition": "allowed",
+        "scope": "bare only"
+      }
+    ],
+    "commonFlags": [
+      {
+        "name": "profile",
+        "disposition": "set by server",
+        "scope": "only on leaves declaring it"
+      },
+      {
+        "name": "api-version",
+        "disposition": "allowed",
+        "scope": "only on leaves declaring it"
+      }
+    ],
+    "environment": [
+      {
+        "name": "MG_AXI_CONFIG",
+        "disposition": "set by server"
+      },
+      {
+        "name": "MG_AXI_READ_ONLY",
+        "disposition": "set by server"
+      },
+      {
+        "name": "MG_AXI_WRITE_LOG",
+        "disposition": "set by server"
+      },
+      {
+        "name": "AZURE_FEDERATED_TOKEN_FILE",
+        "disposition": "blocked"
+      }
+    ],
+    "credentialEnvironment": [
+      {
+        "name": "MG_AXI_CLIENT_SECRET",
+        "disposition": "set by server",
+        "scope": "example names only; profile selects the actual holder name"
+      },
+      {
+        "name": "MG_AXI_PRIVATE_KEY",
+        "disposition": "set by server",
+        "scope": "example names only; profile selects the actual holder name"
+      }
+    ],
+    "dynamicCredentialEnvironment": [
+      {
+        "profileField": "credentialRef.secretEnv",
+        "transport": "client-secret value",
+        "disposition": "set by server"
+      },
+      {
+        "profileField": "credentialRef.keyEnv",
+        "transport": "private-key value",
+        "disposition": "set by server"
+      },
+      {
+        "profileField": "credentialRef.tokenFileEnv",
+        "transport": "assertion-file path",
+        "defaultEnvironment": "AZURE_FEDERATED_TOKEN_FILE",
+        "disposition": "blocked"
+      }
+    ],
+    "parser": {
+      "aliases": {},
+      "shortFlags": {},
+      "repeats": "refused",
+      "equals": true,
+      "doubleDash": "refused",
+      "globalFlagsBeforeCommand": "refused",
+      "unknownFlags": "refused"
+    },
+    "schema": "mg-axi-headless.schema.json",
+    "sources": [
+      {
+        "path": "dist/catalogue.js",
+        "sha256": "f9e167ed52df2c6460310ab83a37941485863d96555a81769e577d23b0b4b648"
+      },
+      {
+        "path": "dist/cli.js",
+        "sha256": "f5da1af4f7c4ae8b0f7a6fc0099a19701587061f18fb9bdaaed29453bd2a6577"
+      },
+      {
+        "path": "dist/profiles.js",
+        "sha256": "7a3aeedea304dea9ae269650f20ad7ed45890d4bf40261d057590b92287ba8a3"
+      },
+      {
+        "path": "dist/msal-app-provider.js",
+        "sha256": "5d668174dd35c0f5e1967450f7309cb941cf59fedf5dcb816a5a906b8df37b1b"
+      },
+      {
+        "path": "dist/mutations.js",
+        "sha256": "73bcd9aa9eeb3727acbdf082d9c9fd2aa92b01e252704c87ea3bfbb16a11b83e"
+      }
+    ]
+  },
   "flags": [
     {
       "name": "access-package",
