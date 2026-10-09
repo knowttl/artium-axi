@@ -94,7 +94,7 @@ After 15 minutes without password confirmation, confirm at `/reauth` and submit 
 For credential rotation, obtain the replacement through the owner's approved process, then open `/admin/credentials`.
 Replace the complete adapter-specific JSON, including all native settings to retain; omitted settings are cleared.
 The editor starts blank and never reveals the stored value.
-Test the replacement with the fixed harmless read before enabling the tool at `/admin/tools`.
+Use “Test credential” at `/admin/credentials` to test the replacement with the fixed harmless read before enabling the tool at `/admin/tools`.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
@@ -120,7 +120,7 @@ These checks do not test remote services or reload the key.
 Doctor checks address, certificate, token and CLI version, then reports the available tools' cached health.
 Only `ok` passes; `unknown`, `unconfigured` or `error` require investigation rather than disabling certificate verification.
 Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
-Use Tools' Test for a current check and inspect safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+Use “Test credential” at `/admin/credentials` for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
 ## Retention and export
 
