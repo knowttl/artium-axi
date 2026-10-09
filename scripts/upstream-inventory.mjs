@@ -97,6 +97,11 @@ const disposition = name => ['config', 'profile', 'tenant', 'token-env', 'client
   : name.endsWith('-file') || ['file', 'body', 'input', 'out', 'output', 'cursor'].includes(name) ? 'input/output transport review'
   : 'passthrough candidate'
 
+const mgGlobalFlags = [
+  { name: '--help', disposition: 'allowed', scope: 'bare or after a command; no -h alias' },
+  ...['--version', '-v', '-V'].map(name => ({ name, disposition: 'allowed', scope: 'bare only' })),
+]
+
 for (const [tool, commands] of Object.entries(inventories)) {
   const packageUrl = new URL(`node_modules/@knowttl/${tool}/package.json`, root)
   const pkg = JSON.parse(readFileSync(packageUrl, 'utf8'))
@@ -143,6 +148,24 @@ for (const [tool, commands] of Object.entries(inventories)) {
       parser: { aliases: {}, shortFlags: {}, repeats: 'refused', equals: true, doubleDash: 'unknown flag' },
       source: { path: 'dist/src/catalogue.js', sha256: createHash('sha256')
         .update(readFileSync(new URL('node_modules/@knowttl/vectra-axi/dist/src/catalogue.js', root))).digest('hex') },
+    } } : {}),
+    ...(tool === 'mg-axi' ? { headlessBoundary: {
+      activation: 'Inventory only; no adapter. Live Graph application consent remains unverified.',
+      globalFlags: mgGlobalFlags,
+      commonFlags: ['profile', 'api-version'].map(name => ({ name,
+        disposition: name === 'profile' ? 'set by server' : 'allowed', scope: 'only on leaves declaring it' })),
+      environment: environments[tool].native.map(name => ({ name,
+        disposition: name === 'AZURE_FEDERATED_TOKEN_FILE' ? 'blocked' : 'set by server' })),
+      credentialEnvironment: ['MG_AXI_CLIENT_SECRET', 'MG_AXI_PRIVATE_KEY'].map(name => ({ name,
+        disposition: 'set by server', scope: 'example names only; profile selects the actual holder name' })),
+      dynamicCredentialEnvironment: environments[tool].credentials.map(record => ({ ...record,
+        disposition: record.profileField === 'credentialRef.tokenFileEnv' ? 'blocked' : 'set by server' })),
+      parser: { aliases: {}, shortFlags: {}, repeats: 'refused', equals: true,
+        doubleDash: 'refused', globalFlagsBeforeCommand: 'refused', unknownFlags: 'refused' },
+      schema: 'mg-axi-headless.schema.json',
+      sources: ['catalogue.js', 'cli.js', 'profiles.js', 'msal-app-provider.js', 'mutations.js'].map(path => ({
+        path: `dist/${path}`, sha256: createHash('sha256')
+          .update(readFileSync(new URL(`node_modules/@knowttl/mg-axi/dist/${path}`, root))).digest('hex') })),
     } } : {}),
     flags: [...new Set(commands.flatMap(command => [...Object.keys(command.flags), ...Object.keys(command.flagAliases ?? {})]))].sort()
       .map(name => ({ name, disposition: disposition(name) })), commands }
