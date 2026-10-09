@@ -15,6 +15,7 @@ RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runt
 WORKDIR /opt/artium
 COPY tsconfig.json ./
 COPY src ./src
+COPY skill ./skill
 COPY bin ./bin
 COPY tools/inventories ./tools/inventories
 COPY scripts/build-cli.mjs ./scripts/build-cli.mjs
