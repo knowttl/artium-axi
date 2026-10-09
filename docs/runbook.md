@@ -132,11 +132,11 @@ There is no audit deletion endpoint or general export CLI.
 Use `/admin/audit` for filtered review and the paginated `GET /v1/admin/audit` API for retained records, preserving filters with each continuation cursor.
 Bearer API reads require a session-bound recent-reauthentication ticket; browser reads require administrator capability.
 
-For continuous export, set `ARTIUM_AXI_AUDIT_STDOUT=1` in the server environment and send its committed JSON-line records to the owner's protected collector before retention expires.
+For continuous export, set `ARTIUM_AXI_AUDIT_STDOUT=1` in the server environment and send its committed JSON-line records, containing exactly the persisted fields, to the owner's protected collector before retention expires.
 SQLite remains authoritative if the optional stream fails; monitor collector failures and reconcile retained records through the audit API.
 Key-rotation receipts are separate maintenance output, not audit export.
 The owner selects collector storage, access, retention and deletion policy; no external collector is configured by this runbook.
-Backups retain the audit data captured at backup time regardless of later live cleanup.
+See [backup retention](#backup-restore-and-upgrade-rollback) for audit data retained in snapshots.
 
 ## First administrator and offline recovery
 
