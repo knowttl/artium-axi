@@ -2,7 +2,6 @@
 
 T7.2 adds `artium-axi-server backup --out <path>` and `restore --from <path>`.
 The [runbook](runbook.md#backup-restore-and-upgrade-rollback) owns operational instructions, retention and the outstanding owner decision on separate master-key escrow.
-No escrow vendor or location is selected.
 
 The real SQLite tests in [backup.test.ts](../src/server/store/backup.test.ts) exercise backup while a live maintenance owner commits paired credential and tool revisions.
 The resulting owner-only snapshot passes SQLite integrity and foreign-key checks and preserves consistent revisions and retained audit rows.

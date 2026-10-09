@@ -8,7 +8,7 @@ The substituted review runs through the configured no-mistakes validation pipeli
 The originally requested scope includes authentication, tool authorization, browser sessions and CSRF, credential encryption and key handling, runner isolation, credential-bearing destinations, input and output boundaries, audit, container hardening, backup, restore and native upstream gates.
 The private design and implementation plan remain outside this repository and were not reviewed in this run.
 This run is limited to T7.3; that scope does not restrict future slices through permanent review configuration.
-No master-key escrow vendor or location is selected.
+The [runbook](runbook.md#backup-restore-and-upgrade-rollback) owns current master-key custody.
 Non-high findings requiring an owner decision are escalated without invented owners or dates.
 The embedded-store exception, further runbook work and deployment remain outside T7.3.
 

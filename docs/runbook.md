@@ -13,8 +13,9 @@ Use the pinned image inputs and record the resulting immutable image identity fo
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
-The raw master key must contain exactly 32 bytes and is mounted read-only, separately from the database.
-The owner decides key creation, custody and escrow; the synthetic key used in rehearsal is not a production provisioning recommendation.
+The Compose example mounts the initial master-key file read-only.
+See [master-key custody](#backup-restore-and-upgrade-rollback) for key formats and the saved local copy.
+The owner decides key creation; the synthetic key used in rehearsal is not a production provisioning recommendation.
 
 For source-based local rehearsal, use Node >=22.12.0, pnpm 10.22.0, OpenSSL, Python 3, curl and sha256sum on Linux.
 From the repository root, run:
@@ -216,6 +217,7 @@ Production key rotation requires separate approval.
 3. Run the maintenance command.
    It authenticates existing rows and commits every re-encrypted row, the active store key ID, a key-ID receipt and an audit event in one transaction.
 4. Save the printed key-ID receipt, switch the server's mounted startup key to the new key and restart.
+   Rotation does not update the saved `.env`; restart with the explicit new key so startup replaces the saved old key before relying on it again.
 5. Check every configured adapter before retiring the old key.
    Retain the old key until backups encrypted with it expire.
 
@@ -301,14 +303,18 @@ Rollback loses changes made since the pre-upgrade backup; keep the failed-upgrad
 Never run an old image against the upgraded volume.
 Startup refuses migration versions unknown to its image with `STORE_SCHEMA_INVALID`.
 
-The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE` (default `/data/artium.db`).
-Server startup saves the validated key as canonical base64 in `ARTIUM_AXI_MASTER_KEY`, with file mode 0600.
-If neither explicit master-key setting is supplied, the server and maintenance commands read this saved key.
-An explicit raw key file takes precedence, followed by an explicit base64 environment key.
+The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
+After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.
+This happens even when the key comes from a mounted secret; the data volume therefore contains both the encrypted database and its decryption key.
+Protect access to the whole volume, and do not treat a volume copy as a database-only backup.
+Startup fails with `MASTER_KEY_INVALID` if it cannot read or save the key.
+`ARTIUM_AXI_MASTER_KEY_FILE` takes precedence and must contain exactly 32 raw bytes; an unreadable configured file never falls back to another source.
+Otherwise, `ARTIUM_AXI_MASTER_KEY` must contain canonical base64 for exactly 32 bytes.
+When that environment value is unset, the server and maintenance commands read only `ARTIUM_AXI_MASTER_KEY` from the saved `.env`; other settings in that file are not loaded into the process environment.
+An empty or invalid explicit environment key fails instead of falling back.
 No key is generated or uploaded by this mechanism.
 The owner still decides the later vault, access policy and recovery custody.
 Keep escrow separate from database backups and retain every required old key until its last backup expires.
-The local `.env` is an interim location pending that later vault decision.
 The owner must also set the backup schedule, retention window and deletion procedure; database backups retain their captured audit records even after the live store's 90-day audit cleanup.
 Remove expired backups under that policy, and retire a key only after all backups requiring it expire.
 Without its matching key, a backup cannot recover encrypted platform credentials.
