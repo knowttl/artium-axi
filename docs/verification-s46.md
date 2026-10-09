@@ -41,8 +41,6 @@ Separate volumes keep this journey independent of the existing parity and canary
 The harness removes its task-owned containers, volumes, network and images.
 Final-candidate head, input/output digests, image identities, timings and cleanup evidence belong in the delivery report.
 
-Host skill locations were checked against current documentation on 2026-10-08: [Claude Code personal skills](https://code.claude.com/docs/en/skills#choose-where-skills-load), [Codex local skills](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [OpenCode skills](https://opencode.ai/docs/skills/#place-files).
-The existing [S45 verification](verification-s45.md) owns setup path, merge and hook-schema contracts.
+The existing [S45 verification](verification-s45.md) owns reviewed host sources, setup paths, merge and hook-schema contracts, including unsupported-hook explanations.
 No new host integration or guessed host path is introduced here.
-Codex and OpenCode hooks remain unsupported by this installer and report why.
 Actual Windows/macOS execution, actual agent session loading and live server installation remain unverified captain acceptance.
