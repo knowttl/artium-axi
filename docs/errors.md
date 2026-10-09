@@ -7,6 +7,9 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 
 | Code | Source | HTTP | CLI exit | Message | Next step |
 |---|---|---|---|---|---|
+| STORE_SCHEMA_INVALID | artium-axi | 503 | 1 | The store schema is unsupported by this image. | Use the matching image, or restore the pre-upgrade backup into a new volume with its matching image and key. |
+| BACKUP_FAILED | artium-axi | 500 | 1 | Database backup did not complete. | Check the source store and a writable backup directory; choose a new output file. |
+| RESTORE_FAILED | artium-axi | 500 | 1 | Database restore did not complete. | Stop the destination server and use an empty new data volume, an intact backup and its matching master key. |
 | CLI_OUTDATED | artium-axi | 426 | 1 | The CLI version is too old for this server. | Download the current CLI from /cli/artium-axi.mjs. |
 | CERTIFICATE_INVALID | artium-axi | 503 | 1 | The server certificate could not be verified. | Check certificate trust or set ARTIUM_AXI_CA_FILE to the trusted CA file. |
 | ADMIN_REQUIRED | artium-axi | 403 | 1 | Administrator capability is required. | Ask an administrator to perform this operation. |
