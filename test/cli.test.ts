@@ -38,7 +38,17 @@ beforeAll(async () => {
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined,
       version: request.headers['x-artium-cli-version'] as string | undefined })
     const current = doctorResponses?.[request.url!] ?? response
-    const stalled = () => stalls.emit(request.url!, { socket: request.socket, closed: once(request.socket, 'close') })
+    const stalled = () => {
+      const socket = request.socket
+      const closed = new Promise<void>((resolve, reject) => {
+        socket.once('close', () => resolve())
+        socket.once('error', error => {
+          // Aborting a stalled HTTPS request can reset its peer before close.
+          if ((error as NodeJS.ErrnoException).code !== 'ECONNRESET') reject(error)
+        })
+      })
+      stalls.emit(request.url!, { socket, closed })
+    }
     if (request.url!.startsWith('/stall-headers/')) { stalled(); return }
     reply.writeHead(current.status, { 'content-type': 'application/json', ...(current.location ? { location: current.location } : {}) })
     if (current.stall || request.url!.startsWith('/stall-body/')) {
@@ -162,14 +172,14 @@ test.each([301, 302, 303, 307, 308])('authenticated redirect %i is refused witho
 test('stalled headers and bodies fail without retrying either command', async () => {
   requests = []
   response = { status: 200, body: {} }
-  const results = await Promise.all([
+  const results = await Promise.allSettled([
     cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, true),
     cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-headers` }, true),
     cli(['tools'], { ARTIUM_AXI_URL: `${url}/stall-body` }, true),
     cli(['falcon-axi'], { ARTIUM_AXI_URL: `${url}/stall-body` }, true),
   ])
   const failure = { code: 1, stdout: expect.stringContaining('SERVER_UNAVAILABLE'), stderr: '' }
-  expect(results).toMatchObject([failure, failure, failure, failure])
+  expect(results).toMatchObject(Array(4).fill({ status: 'fulfilled', value: failure }))
   expect(requests.map(request => request.path).sort()).toEqual([
     '/stall-body/v1/tools', '/stall-body/v1/tools/falcon-axi/run',
     '/stall-headers/v1/tools', '/stall-headers/v1/tools/falcon-axi/run',
