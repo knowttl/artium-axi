@@ -169,6 +169,8 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
 test.each([
   { name: 'dangling TOON indentation', output: 'help: falcon-axi host list\n  dangling\n' },
   { name: 'escaped command delimiters', output: JSON.stringify({ help: 'Run "falcon-axi host list --filter \\"synthetic\\"' }) },
+  { name: 'object TOON help items', output: 'help[1]:\n  - message: Run `falcon-axi host list`\n' },
+  { name: 'mixed TOON help items', output: 'help[2]:\n  - Run `falcon-axi host list`\n  - message: Run `falcon-axi host show`\n' },
 ].flatMap(value => ['stdout', 'stderr'].map(stream => ({ ...value, stream }))))(
   'bundle preserves $name in $stream while rewriting the other stream', async ({ output, stream }) => {
     requests = []
