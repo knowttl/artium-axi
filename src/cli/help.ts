@@ -28,7 +28,7 @@ export type HelpCommand = keyof typeof commands
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
   const flags = [command === 'falcon-axi' || command === 'vectra-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags]
-  return `usage: ${entry.usage}\npurpose: ${entry.purpose}\nflags[${flags.length}]:\n${flags.map(flag => `  ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n`
+  return `usage: ${entry.usage}\npurpose: ${entry.purpose}\nflags[${flags.length}]:\n${flags.map(flag => `  - ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n`
 }
 
 export function helpCommand(args: string[], prefixHelp = false): HelpCommand | undefined {
