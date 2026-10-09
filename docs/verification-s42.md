@@ -23,7 +23,7 @@ Replacement during a held check schedules one fresh revision check without stori
 Listing reads a failed cached check without preparing or running a platform call.
 Old CLI headers produce `CLI_OUTDATED` and a download command before authentication or preparation.
 Health endpoints and browser login remain usable with an old header.
-The reserved download path also bypasses the version gate, returning `NOT_FOUND` until the later distribution slice implements it.
+The reserved download path also bypasses the version gate; S42 checked its `NOT_FOUND` response, and S46 now implements the bundle and checksum downloads.
 Bundled diagnostics verify trusted synthetic HTTPS and report each cached tool on its own pass/fail line.
 The real local app's manual credential test uses a wrong canary credential, stores a safe failure and makes the bundled doctor print `fail: falcon-axi (error)`.
 Existing manual-test tests continue to verify audit atomicity, runner quotas, current administrator authorization, stale references, safe errors and output withholding.

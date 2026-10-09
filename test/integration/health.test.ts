@@ -137,7 +137,7 @@ test('an old CLI is refused with the download command before authentication or t
   expect(prepare).not.toHaveBeenCalled()
 })
 
-test.each(['/health/live', '/health/ready', '/cli/artium-axi.mjs', '/login'])('%s is exempt from an old CLI header', async url => {
+test.each(['/health/live', '/health/ready', '/cli/unavailable.mjs', '/login'])('%s is exempt from an old CLI header', async url => {
   const response = await app.inject({ url, headers: { 'x-artium-cli-version': '0.0.0-old' } })
   expect(response.statusCode).toBe(url.startsWith('/cli/') ? 404 : 200)
   expect(response.body).not.toContain('CLI_OUTDATED')

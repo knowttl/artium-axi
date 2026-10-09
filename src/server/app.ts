@@ -25,6 +25,7 @@ import type { Runner } from './runner/runner.js'
 import type { MutableCredentialStore } from './store/credential-store.js'
 import { ToolHealth } from './health/health.js'
 import { acceptsCliVersion } from '../shared/version.js'
+import { registerCliDownload } from './cli-download.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -77,6 +78,7 @@ export function createApp(options: {
     }
   })
   app.get('/health/live', async () => ({ status: 'ok' }))
+  registerCliDownload(app)
   app.get('/health/ready', async (_request, reply) => {
     try { db.prepare('SELECT version FROM migrations').all(); return { status: 'ok' } }
     catch { return reply.code(503).send({ status: 'unavailable' }) }
