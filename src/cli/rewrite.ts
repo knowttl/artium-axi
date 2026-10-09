@@ -33,9 +33,13 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       if (wrapped) continue
       insertions.add(span.start + offsets[start])
     }
-    for (const match of span.value.matchAll(/([`'"])([^\n]*?)\1/g)) {
+    for (const match of span.value.matchAll(/([`'"])([^\n]*?)(\1|(?=\n|$))/g)) {
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
-      if (match[2].startsWith(tool) && /^(?:\s|$)/.test(match[2].slice(tool.length))) {
+      const wrapped = match[2].startsWith(`artium-axi ${tool}`)
+      const executable = wrapped ? `artium-axi ${tool}` : tool
+      if (match[2].startsWith(executable) && /^(?:\s|$)/.test(match[2].slice(executable.length))) {
+        if (!match[3]) return output
+        if (wrapped) continue
         insertions.add(span.start + offsets[match.index! + 1])
       }
     }
