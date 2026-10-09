@@ -224,6 +224,9 @@ Use a database file in a dedicated data directory, such as `/data/artium.db`, an
 The directory and database use modes 0700 and 0600, respectively.
 SQLite uses foreign keys, WAL, FULL synchronous writes and a 5-second busy timeout.
 The default [KeyProvider](src/server/store/key-provider.ts) reads exactly 32 raw bytes from `ARTIUM_AXI_MASTER_KEY_FILE`, or canonical base64 from `ARTIUM_AXI_MASTER_KEY` when no file is configured.
+When neither setting is supplied, it reads `ARTIUM_AXI_MASTER_KEY` from `.env` beside the configured database.
+After validating the database key, server startup saves that key in this `.env` with mode 0600, preserving unrelated settings.
+This is interim local custody pending a later vault decision; see [the runbook](docs/runbook.md#backup-restore-and-upgrade-rollback).
 An unreadable configured file does not fall back to the environment key.
 Its key ID is the full SHA-256 digest.
 Missing, invalid or mismatched store keys fail with `MASTER_KEY_INVALID`, while an unauthenticatable credential fails with `CREDENTIAL_INVALID`.
