@@ -54,10 +54,10 @@ Arguments after a tool name belong to upstream, so `node dist/cli/artium-axi.mjs
 
 The [generated error reference](docs/errors.md) records every catalogue code, source, HTTP status, CLI exit code and next step.
 Artium errors withhold captured output and use TOON on stdout, with exit 2 for usage or client configuration failures and exit 1 for other failures.
-Completed upstream calls preserve stdout, stderr and the upstream exit code, including nonzero exits, with the upstream tool as the HTTP envelope source.
+Completed upstream calls return separate stdout and stderr streams and preserve the upstream exit code, including nonzero exits, with the upstream tool as the HTTP envelope source.
 The CLI prefixes commands for the invoked tool with `artium-axi` only within the recorded root `help` suggestion field in recognised TOON or JSON output.
 Rewriting is idempotent and preserves every unrelated byte, including quoting, escaping and line endings.
-Unknown formats, unsupported suggestion shapes and truncated streams remain unchanged.
+Unknown formats, unsupported suggestion shapes and truncated streams remain unchanged; each stream is handled independently.
 See [S44 verification](docs/verification-s44.md) for synthetic captures and bundled stream checks.
 Truncation diagnostics precede upstream stderr while stdout remains parseable.
 Regenerate the reference with `pnpm errors:generate` after changing [the catalogue](src/shared/errors.ts).
@@ -88,7 +88,7 @@ Only loopback HTTP test traffic may opt in with `ARTIUM_AXI_TEST_HTTP=1`.
 Run `node dist/cli/artium-axi.mjs tools` or `node dist/cli/artium-axi.mjs falcon-axi detection list`.
 For the advertised command in a POSIX shell, define `artium-axi() { node /absolute/path/to/artium-axi.mjs "$@"; }`.
 The client preserves argument tokens; output and error handling follow the [generated error reference](docs/errors.md) and CLI guidance above.
-Suggestion rewriting and download/launcher distribution remain later-slice work.
+Download/launcher distribution remains later-slice work.
 See [S36+S37 verification](docs/verification-s36-37.md) for Linux process and storage evidence and deferred Windows/macOS acceptance.
 
 Run `pnpm test:walking-skeleton` for mandatory fake-only container-to-CLI acceptance.
