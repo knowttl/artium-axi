@@ -17,4 +17,4 @@ All verification uses synthetic identities, canary passwords, temporary stores a
    Record exact candidate SHA, command results and list digest in the PR body.
 3. Drive no-mistakes with `--skip ci` and this fake-only verification plan.
    Any source or test fix reruns frozen install, lint, tests, aggregate check and private hygiene against the final candidate before delivery.
-   Confirm the published head is ready and mergeable, scan that exact head again and report per-step timings to firstmate.
+   Confirm the published head is ready and mergeable, scan that exact head again and record per-step timings in the PR body.

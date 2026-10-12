@@ -28,4 +28,4 @@ See [S33 verification](verification-s33.md) for user administration checks; the 
    Record commands, counts, results, list digest and exact implementation SHA in the PR body.
 4. Start no-mistakes with this local fake-only verification plan and `--skip ci` under `no_ci: true`.
    Any pipeline source or test fix reruns the mandatory install, lint, test, aggregate and real hygiene checks before delivery.
-   Confirm the published PR is ready and mergeable, scan its exact head again, and report step timings to firstmate.
+   Confirm the published PR is ready and mergeable, scan its exact head again, and record step timings in the PR body.
