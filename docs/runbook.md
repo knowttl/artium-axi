@@ -93,7 +93,7 @@ Review actor, UTC change time and revision before saving; reload stale forms ins
 After 15 minutes without password confirmation, confirm at `/reauth` and submit the action again.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open `/admin/credentials`.
-Use the fields generated from the tool's [credential schema](credential-standard.md#9-hosted-contract-artium-axi) when available, or the legacy JSON editor while the pinned tool awaits migration.
+Follow the [credential editor guidance](../README.md#browser-administration) for schema-generated fields and the retained JSON editors.
 Replace the complete credential, including all native settings to retain; omitted settings are cleared.
 The editor starts blank and never reveals the stored value.
 Use “Test credential” at `/admin/credentials` to test the replacement with the fixed harmless read before enabling the tool at `/admin/tools`.
@@ -297,6 +297,8 @@ Do not assume a restored login still works.
 Before every upgrade, stop the server, take a pre-upgrade backup, and record the previous immutable image digest and matching key ID.
 Restore that backup into a separate rehearsal volume using the candidate image and matching key to test its migration before touching the live volume.
 Start the candidate only against the rehearsal volume and verify fresh login, credentials, role permissions and audit reads.
+When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
+Replace any incompatible credential through `/admin/credentials` using the current editor before enabling the tool; stored values remain hidden.
 A successful migration alone is insufficient acceptance for an upgrade.
 Retain the pre-upgrade backup and previous image until the upgrade is accepted and its recovery window expires.
 If migration or acceptance fails, stop the candidate, restore the pre-upgrade backup into another empty volume using the previous image and matching key, verify it, then start that previous image on the restored volume.

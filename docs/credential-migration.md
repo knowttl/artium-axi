@@ -14,7 +14,9 @@ The [credential standard](credential-standard.md) is the canonical contract.
 | azure-axi | Keep ambient credentials; adopt tenant/subscription profiles, AZURE_AXI variables and auth status. |
 | artium-axi | Use one schema-driven profile writer, admin form and validation; retire legacy credential schemas and guide strings as each pinned tool migrates; use ARTIUM_SECRET_<n> holders; keep the az token broker. Addresses I-14 (certificate field alignment) and I-15 (bespoke onboarding). |
 
-The host lands first with the legacy paths intact.
+The host now has the shared schema-driven profile writer, validation and admin fields, with legacy paths retained for pinned packages that do not ship a schema.
+Schema locations are owned by [server configuration](../src/server/config.ts); an absent schema retains legacy handling, while an unreadable or invalid schema fails startup with `CREDENTIAL_INVALID`.
+The az token broker retains its source-identity editor and validates the brokered token profile against the shipped schema when available.
 Each tool switches when its pinned package ships axi-credential.schema.json.
-The same schema then owns validation, form guidance and secret injection.
+For tools using the shared credential editor, that schema owns validation, form guidance and secret injection.
 Vectra and Graph prove the contract first, followed by az, Falcon and AWX; azure-axi follows last.

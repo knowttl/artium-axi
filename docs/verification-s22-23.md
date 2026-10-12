@@ -32,7 +32,7 @@ Read and preview output and missing-confirmation refusal match local execution t
 The confirmed write and protected native journal prove that call cleanup preserves evidence.
 Only newly created `artium-test-*` resources are removed.
 
-The scanner checks every known preparation secret on both raw byte streams in raw UTF-8, canonical base64, base64url and URL-encoded forms.
+The current scanner behavior is documented in [README security boundaries](../README.md#security-and-acceptance-boundaries).
 Existing tests cover short values, every byte split, separate stream overlap and scanning across and beyond the 4 MiB retention cap.
 New bundled CLI tests receive `SECRET_IN_OUTPUT` for every encoding on both streams, with no captured stream returned and safe tool-named terminal audit.
 An empty secret is refused, and no short-value threshold bypasses scanning.

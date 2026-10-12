@@ -193,8 +193,11 @@ Mutations use revision checks and audit commits; reload stale forms rather than 
 After 15 minutes without password confirmation, administration mutations require reauthentication.
 
 Credential editors start blank and never return stored values.
-Tools that ship the [AXI credential standard](docs/credential-standard.md) profile schema use schema-generated fields and validation.
-The host replaces marked secret values with environment references in one private `artium` profile for each call.
+Falcon, Vectra and Graph use schema-generated fields and validation when their pinned packages ship the [AXI credential standard](docs/credential-standard.md) profile schema.
+Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object or array fields as JSON.
+The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
+Azure retains its source-identity JSON editor because the host brokers resource tokens separately.
+See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Pinned tools awaiting migration retain their current credential editor and injection path.
 Replacements must include every native setting to retain: omitted settings are cleared.
 Native settings also replace the entire object; `{}` clears it.
@@ -294,7 +297,7 @@ Audit retention is 90 days, with startup recovery recording interrupted calls wi
 Vectra's durable native write logs complement Artium audit and retain intent/outcome pairs.
 
 The runner uses argument arrays without a shell, a restricted child environment, private per-call directories and bounded concurrency, runtime and output.
-Known injected secrets are scanned in raw, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.
+Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.
 Exact-value scanning cannot identify unknown tokens minted upstream.
 Heap and address-space limits are not complete process isolation: descendants starting a new session escape the runner's process group.
 See [runner verification and limitations](docs/verification-s09-10.md) and [secret-scanner evidence](docs/verification-s07.md).

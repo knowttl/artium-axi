@@ -2,8 +2,7 @@
 
 Status: AGREED.
 The owner approved it on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
-This is a design standard only, and no repo has been changed.
-Implementation needs the owner's separate go-ahead.
+This is the agreed contract; current host rollout and remaining tool migrations are tracked in [credential-migration.md](credential-migration.md).
 Round 2 added the owner's requirement that credential storage work the same on Windows and Linux.
 Round 3 recorded all six board decisions:
 
@@ -230,7 +229,7 @@ A tool that follows sections 1-8 is *hosted-safe* when it also guarantees the fo
 For each call, the host:
 
 1. Provides a private, empty `HOME` and XDG dirs.
-   artium-axi already does this in `src/server/runner/runner.ts:146-155`.
+   The implementation is in [runner.ts](../src/server/runner/runner.ts).
 2. Writes `$XDG_CONFIG_HOME/<tool>/config.json` containing exactly one profile, named `artium`, which is also the `defaultProfile`.
 3. Replaces each `x-secret` field with `{"env": "ARTIUM_SECRET_<n>"}` and passes the values through the environment.
 4. Adds every secret value to its output scanner.
