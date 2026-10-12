@@ -105,12 +105,14 @@ export class CredentialProfile {
   }
 
   metadata(value: unknown): Record<string, unknown> {
-    const parsed = this.parsed(value)
-    for (const path of parsed.paths) {
-      const { parent, key } = this.location(parsed.value, path)
+    const parsed = this.credentialSchema.safeParse(value)
+    if (!parsed.success) return {}
+    const metadata = structuredClone(parsed.data)
+    for (const path of this.secrets) {
+      const { parent, key } = this.location(metadata, path)
       delete parent[key]
     }
-    return parsed.value
+    return metadata
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
