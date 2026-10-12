@@ -11,7 +11,7 @@ Run the private hygiene check with its outside-checkout deny-list path as docume
 Record only the list SHA-256 and result, never the list contents.
 
 Run `pnpm test:build-image`, then `pnpm test:fake-services` separately.
-See [README.md](../README.md) for the image build, combined container block and cache ownership contract.
+See [README.md](../README.md) for the combined container command, [container-checks.mjs](../scripts/container-checks.mjs) for block ownership and [build-fake-service-image.mjs](../scripts/build-fake-service-image.mjs) for standalone image and cache cleanup.
 The network harness must prove fixed-host DNS aliases, trusted test TLS and denied TCP access to a separate synthetic network before issuing pinned az-axi requests.
 Record redirect, pagination and ambiguous-mutation counts from the fake service.
 If the image cannot be built or Docker is unavailable, record explicit unverified container evidence rather than a pass.

@@ -3,7 +3,7 @@
 All verification is local and uses synthetic canaries and the fake executable.
 No live service, real credential, deployment, publication outside the private repository or destructive action is part of this slice.
 
-See [README.md](../README.md) for the scanner's usage contract, limitations and runner integration.
+See [scan.ts](../src/server/runner/scan.ts) for the scanner interface, [runner.ts](../src/server/runner/runner.ts) for integration and [README.md](../README.md) for user-facing limitations.
 
 `pnpm exec vitest run src/server/runner/scan.test.ts` checks raw and encoded values at every byte boundary in both streams, one-byte UTF-8 chunks, independent interleaved stream state, latched matches, overlapping prefixes, near matches, multiple and short values, and empty-value rejection.
 It feeds more than 4 MiB per stream before a canary and tests canaries crossing the cap.

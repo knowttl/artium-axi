@@ -6,7 +6,7 @@ Its private token-mode profile contains no client secret, private key, assertion
 The explicit child environment sets only config, durable write-log path and resource tokens used by the command.
 No read-only variable or Artium subscription/resource permission layer is added.
 The scan set includes the authentication secret or private key, every injected token and every exact MSAL assertion returned by the cache.
-The adapter requires a revision-bound credential reference; [README.md](../README.md) owns the store's reference and read contract.
+The adapter requires a revision-bound credential reference; the [credential-store interface](../src/server/store/credential-store.ts) owns the store's reference and read contract.
 Replacement producers must still evict the cache as described in S25.
 
 The generated [manifest](../tools/inventories/az-axi.json) owns the global flag and environment classifications, reviewed inputs, command resources and pinned parser hashes.
