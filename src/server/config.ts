@@ -4,6 +4,12 @@ export const toolPaths = {
   'az-axi': '/opt/tools/node_modules/.bin/az-axi',
   'mg-axi': '/opt/tools/node_modules/.bin/mg-axi',
 } as const
+export const toolCredentialSchemaPaths = {
+  'falcon-axi': '/opt/falcon-axi/lib/python3.11/site-packages/falcon_axi/axi-credential.schema.json',
+  'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json',
+  'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/axi-credential.schema.json',
+  'mg-axi': '/opt/tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json',
+} as const
 export const runtimePath = '/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'
 export const serverDefaults = { host: '0.0.0.0', port: 8080, database: '/data/artium.db', temporaryDirectory: '/tmp/artium-calls' } as const
 export const passwordDefaults = { memoryCost: 65536, timeCost: 3, parallelism: 1, concurrentHashes: 2 } as const

@@ -6,6 +6,9 @@ import type { FastifyError } from 'fastify'
 import { inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
+import { loadCredentialProfile } from './adapters/credential-profile.js'
+import type { CredentialProfile } from './adapters/credential-profile.js'
+import type { ToolName } from './store/credential-store.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider } from './auth/local.js'
@@ -33,6 +36,12 @@ export function createApp(options: {
   credentialStore?: MutableCredentialStore,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
+  const credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = Object.fromEntries(toolSchema.options.flatMap(tool => {
+    const adapter = adapters.find(adapter => adapter.name === tool)
+    // The az broker edits its source identity separately from the tool's minted-token profile.
+    const profile = adapter ? adapter.credentialProfile : tool === 'az-axi' ? undefined : loadCredentialProfile(tool)
+    return profile ? [[tool, profile]] : []
+  }))
   checkAuthSettings(environment)
   const proxies = (environment.ARTIUM_AXI_TRUSTED_PROXIES ?? '').split(',').map(value => value.trim()).filter(Boolean)
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
@@ -158,9 +167,9 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health })
+  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles })
   registerUsersPage(app, db)
-  registerAdminPages(app, db)
+  registerAdminPages(app, db, credentialProfiles)
   registerAuditPage(app, db)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)

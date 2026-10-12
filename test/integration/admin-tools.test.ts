@@ -7,6 +7,7 @@ import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
+import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -21,6 +22,8 @@ import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
+import { CredentialProfile } from '../../src/server/adapters/credential-profile.js'
+import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
 
 let directory: string
 let db: Database.Database
@@ -100,6 +103,80 @@ afterEach(async () => {
   db.close()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = new CredentialProfile(profileSchema)
+  const adapter = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({
+    ...await prepare(args, reference, input), executable: fakeTool.executable,
+    args: [...fakeTool.args, 'hosted-profile', 'vectra-axi'],
+  }))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const value = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate',
+    privateKey: 'CANARY-hosted-key', thumbprintSha256: 'a'.repeat(64), writes: values['vectra-axi'].writes }
+  const credential = await replace('vectra-axi', value)
+  expect(credential.metadata).toEqual({ mode: value.mode, tenantId: value.tenantId, clientId: value.clientId, auth: value.auth,
+    thumbprintSha256: value.thumbprintSha256, writes: value.writes })
+  const response = await fetch(`${url}/v1/tools/vectra-axi/run`, { method: 'POST', headers,
+    body: JSON.stringify({ args: ['detection', 'list'] }) })
+  expect(response.status).toBe(200)
+  const result = await response.json() as { stdout: string }
+  expect(JSON.parse(result.stdout)).toEqual({ profile: 'artium', auth: 'certificate', thumbprintSha256: value.thumbprintSha256,
+    writes: value.writes, secretResolved: true, privateFiles: true, emptyHome: true })
+  expect(readFileSync(join(directory, 'data', 'artium.db-wal')).includes(Buffer.from(value.privateKey))).toBe(false)
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(value.privateKey)
+  await failure(await request('PUT', '/vectra-axi/credential', { value: { ...value, thumbprintSha256: 'a'.repeat(40) },
+    expectedRevision: 1, expectedToolRevision: 2 }), 'INVALID_INPUT')
+  const edit = await request('PATCH', '/vectra-axi', { nativeSettings: { writes: { allowWrites: false, operations: ['notes.set'] } }, expectedRevision: 2 })
+  expect(edit.status).toBe(200)
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toMatchObject({ writes: { allowWrites: false } })
+})
+
+test.each([
+  values['mg-axi'],
+  { tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate',
+    privateKey: 'CANARY-legacy-key', thumbprint: 'a'.repeat(40) },
+])('schema activation leaves incompatible credentials replaceable: $auth', async value => {
+  store.replaceCredential('mg-axi', value, 0, actor, 123)
+  await app.close()
+  const profile = new CredentialProfile(profileSchema)
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [...adapters, adapter],
+    environment: {}, resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const response = await request('GET', '/mg-axi/credential')
+  expect(response.status).toBe(200)
+  expect(adminCredentialSchema.parse(await response.json())).toEqual({ tool: 'mg-axi', configured: true,
+    metadata: {}, revision: 1, updatedAt: 123, updatedBy: actor })
+  await expect(adapter.prepare(['entra', 'user', 'list'], store.findCredential('mg-axi')!))
+    .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await failure(await request('PUT', '/mg-axi/credential', { value, expectedRevision: 1, expectedToolRevision: 1 }), 'INVALID_INPUT')
+
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const page = await app.inject({ method: 'GET', url: '/admin/credentials',
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).not.toContain('CANARY-')
+  expect(page.body).toContain('action="/v1/admin/tools/mg-axi/credential"')
+  expect(page.body).toContain('action="/v1/admin/tools/falcon-axi/credential"')
+  const replacement = { mode: 'application', tenantId: value.tenantId, clientId: value.clientId,
+    auth: 'client-secret', clientSecret: 'CANARY-replacement' }
+  expect(await replace('mg-axi', replacement, 1)).toMatchObject({ revision: 2,
+    metadata: { mode: 'application', tenantId: value.tenantId, clientId: value.clientId, auth: 'client-secret' } })
+  expect(store.readCredential(store.findCredential('mg-axi')!)).toEqual(replacement)
+  expect((await adapter.prepare(['entra', 'user', 'list'], store.findCredential('mg-axi')!)).secrets)
+    .toEqual([replacement.clientSecret])
 })
 
 test('rendered Tools and Credentials pages never contain stored secret values', async () => {

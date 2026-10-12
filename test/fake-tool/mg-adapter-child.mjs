@@ -22,7 +22,7 @@ const transport = async request => {
   let body
   if (url.pathname === '/v1.0/users') body = { value: [{ id: userId,
     displayName: url.searchParams.get('$filter') === 'encoded-canary'
-      ? Buffer.from(process.env.ARTIUM_MG_SECRET).toString('base64') : 'Synthetic User' }] }
+      ? Buffer.from(process.env.ARTIUM_SECRET_0).toString('base64') : 'Synthetic User' }] }
   else if (url.pathname === `/v1.0/groups/${groupId}`) body = { id: groupId,
     displayName: 'Synthetic Group', isAssignableToRole: false, securityEnabled: true, groupTypes: [], membershipRule: null }
   else if (url.pathname === `/v1.0/users/${userId}`) body = { id: userId }

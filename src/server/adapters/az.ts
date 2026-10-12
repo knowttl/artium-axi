@@ -8,6 +8,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import { azureCredentialSchema } from './azure-tokens.js'
 import { AzureTokenCache, azureCommandResources } from './azure-token-cache.js'
+import { loadCredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 
 const settings = nativeSettingsSchemas['az-axi'].shape
@@ -93,7 +94,8 @@ function azArguments(args: readonly string[], input: RunnerInput = {}) {
   return { args: normalized, fileArguments, resources: azureCommandResources(route.command, flags) }
 }
 
-export function createAzAdapter(source: SecretSource, writeLog: string, cache = new AzureTokenCache()): Adapter<AzCredential> {
+export function createAzAdapter(source: SecretSource, writeLog: string, cache = new AzureTokenCache(),
+  profile = loadCredentialProfile('az-axi')): Adapter<AzCredential> {
   if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
   return {
     name: 'az-axi', executable: toolPaths['az-axi'], credentialSchema: azCredentialSchema,
@@ -115,13 +117,20 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         ? { tenantId, clientId, auth, clientSecret: parsed.data.clientSecret }
         : { tenantId, clientId, auth, privateKey: parsed.data.privateKey, thumbprintSha256: parsed.data.thumbprintSha256 }
       const tokens = await cache.acquire({ id: reference.id, revision: reference.revision, credential }, normalized.resources)
+      const holders = Object.fromEntries(Object.keys(tokens).map((resource, index) => [resource, `ARTIUM_SECRET_${index}`]))
+      const injection = profile ? profile.prepare('az-axi', Object.fromEntries(Object.entries({
+        subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId,
+        ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [`${resource}Token`, token!.accessToken])),
+      }).filter(([, value]) => value !== undefined)), writeLog, false) : {
+        environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
+          ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [holders[resource], token!.accessToken])) },
+        files: [{ name: 'az-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {
+          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenant: tenantId, tokenEnv: holders },
+        } }) }],
+      }
       return {
         executable: toolPaths['az-axi'], args: normalized.args, fileArguments: normalized.fileArguments,
-        environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
-          ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [`AZ_AXI_${resource.toUpperCase()}_TOKEN`, token!.accessToken])) },
-        files: [{ name: 'az-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {
-          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenant: tenantId },
-        } }) }],
+        ...injection,
         secrets: [...new Set([credential.auth === 'secret' ? credential.clientSecret : credential.privateKey,
           ...Object.values(tokens).flatMap(token => token.secrets)])],
         limits: { timeoutMs: runnerLimits.timeoutMs },

@@ -7,6 +7,7 @@ import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
+import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const guid = z.string().regex(/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/)
@@ -54,9 +55,10 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}): string[]
   return [...args]
 }
 
-export function createMgAdapter(source: SecretSource, writeLog: string): Adapter<MgCredential> {
+export function createMgAdapter(source: SecretSource, writeLog: string,
+  profile = loadCredentialProfile('mg-axi')): Adapter<unknown> {
   if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
-  return {
+  return withCredentialProfile({
     name: 'mg-axi', executable: toolPaths['mg-axi'], credentialSchema: mgCredentialSchema,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: mgManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`), positions: [] }),
@@ -69,7 +71,7 @@ export function createMgAdapter(source: SecretSource, writeLog: string): Adapter
       const credential = parsed.data
       const { tenantId, clientId, preview = false, writes } = credential
       const secret = credential.auth === 'secret' ? credential.clientSecret : credential.privateKey
-      const holder = credential.auth === 'secret' ? 'ARTIUM_MG_SECRET' : 'ARTIUM_MG_KEY'
+      const holder = 'ARTIUM_SECRET_0'
       const credentialRef = credential.auth === 'secret'
         ? { provider: 'client-secret', key: clientId, secretEnv: holder }
         : { provider: 'certificate', key: clientId, thumbprint: credential.thumbprint.toLowerCase(), keyEnv: holder }
@@ -86,5 +88,6 @@ export function createMgAdapter(source: SecretSource, writeLog: string): Adapter
         limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
       }
     },
-  }
+  }, source, writeLog, profile, (args, input) => ({ args: mgArguments(args, input) }),
+  { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 })
 }

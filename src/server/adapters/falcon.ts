@@ -5,6 +5,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
+import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 export const falconManifest = inventory
 export const falconCredentialFiles = z.object({
@@ -34,8 +35,9 @@ function prepareCredential(args: readonly string[], credential: FalconCredential
   }
 }
 
-export function createFalconAdapter(source: SecretSource): Adapter<FalconCredential> {
-  return {
+export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool-logs/falcon-axi/writes.log',
+  profile = loadCredentialProfile('falcon-axi')): Adapter<unknown> {
+  return withCredentialProfile({
     name: 'falcon-axi',
     executable: toolPaths['falcon-axi'],
     credentialSchema: falconCredentialSchema,
@@ -51,7 +53,8 @@ export function createFalconAdapter(source: SecretSource): Adapter<FalconCredent
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
       return { ...prepareCredential(args, parsed.data), files: [] }
     },
-  }
+  }, source, writeLog, profile, args => ({ args: [...args] }),
+  { runtime: 'python', timeoutMs: inventory.requirements.timeoutMs })
 }
 
 export function validateFalconArgs(args: readonly string[]): void {

@@ -5,6 +5,8 @@ import { SecretScanner } from '../runner/scan.js'
 import { createAzAdapter, azCredentialSchema } from './az.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import { azureAudiences } from './azure-tokens.js'
+import { CredentialProfile } from './credential-profile.js'
+import profileSchema from '../../../test/fixtures/az-credential.schema.json' with { type: 'json' }
 
 const reference = { id: 'synthetic-azure', tool: 'az-axi' as const, revision: 1 }
 const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
@@ -12,6 +14,28 @@ const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
   subscriptions: ['synthetic-subscription'], allowWrites: true,
   workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' } }
 const writeLog = '/data/tool-logs/az-axi/writes.log'
+
+test.each([
+  [['sub', 'list'], 'armToken'],
+  [['logs', 'query', 'Heartbeat', '-w', 'synthetic'], 'logsToken'],
+  [['api', '/v1.0/users', '--resource=graph'], 'graphToken'],
+  [['storage', 'blob', 'list', '--account-name=synthetic', '--container-name=synthetic'], 'storageToken'],
+  [['keyvault', 'secret', 'list', '--vault-name=synthetic'], 'vaultToken'],
+  [['acr', 'repository', 'list', '--name=synthetic'], 'registryToken'],
+] as const)('migrated az profile uses the brokered %s token through its shipped schema: %s', async (args, field) => {
+  const transport = new FakeTokenTransport()
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog,
+    new AzureTokenCache(transport), new CredentialProfile(profileSchema))
+  const call = await adapter.prepare(args, reference)
+  expect(call.files[0].name).toBe('az-axi/config.json')
+  expect(JSON.parse(String(call.files[0].content))).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
+    artium: { auth: 'token', tenantId: credential.tenantId, subscriptions: credential.subscriptions,
+      allowWrites: true, workspaces: credential.workspaces, [field]: { env: 'ARTIUM_SECRET_0' } },
+  } })
+  expect(call.environment).toEqual({ ARTIUM_SECRET_0: azureTestToken, AZ_AXI_READ_ONLY: 'false', AZ_AXI_WRITE_LOG: writeLog })
+  expect(transport.requests).toHaveLength(1)
+  expect(call.secrets).toEqual(expect.arrayContaining([credential.clientSecret, azureTestToken]))
+})
 
 test.each([
   ['sub list', ['sub', 'list'], 'arm'],
@@ -30,10 +54,10 @@ test.each([
   const call = await adapter.prepare(args, reference)
   expect(transport.requests.map(request => request.form.get('scope'))).toEqual([`${azureAudiences[resource]}/.default`])
   expect(call.environment).toEqual({ AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
-    [`AZ_AXI_${resource.toUpperCase()}_TOKEN`]: azureTestToken })
+    ARTIUM_SECRET_0: azureTestToken })
   expect(JSON.parse(call.files[0].content as string)).toEqual({ defaultProfile: 'artium', profiles: {
     artium: { auth: 'token', tenant: credential.tenantId, subscriptions: credential.subscriptions,
-      allowWrites: true, workspaces: credential.workspaces },
+      allowWrites: true, workspaces: credential.workspaces, tokenEnv: { [resource]: 'ARTIUM_SECRET_0' } },
   } })
   if (_name !== 'leading subscription') expect(call.args).toEqual(args)
   expect(call.secrets).toEqual(expect.arrayContaining([credential.clientSecret, azureTestToken]))

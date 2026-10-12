@@ -7,6 +7,7 @@ import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
+import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const common = {
@@ -57,9 +58,10 @@ function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
   return { args: normalized, fileArguments }
 }
 
-export function createVectraAdapter(source: SecretSource, writeLog: string): Adapter<VectraCredential> {
+export function createVectraAdapter(source: SecretSource, writeLog: string,
+  profile = loadCredentialProfile('vectra-axi')): Adapter<unknown> {
   if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
-  return {
+  return withCredentialProfile({
     name: 'vectra-axi', executable: toolPaths['vectra-axi'], credentialSchema: vectraCredentialSchema,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: vectraManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
@@ -73,12 +75,12 @@ export function createVectraAdapter(source: SecretSource, writeLog: string): Ada
       const { token, ...tokenProfile } = credential.auth === 'token' ? credential : { token: undefined }
       const { clientSecret, ...oauthProfile } = credential.auth === 'oauth' ? credential : { clientSecret: undefined }
       const profile = credential.auth === 'token'
-        ? { ...tokenProfile, tokenEnv: 'ARTIUM_VECTRA_TOKEN' }
-        : { ...oauthProfile, secretEnv: 'ARTIUM_VECTRA_SECRET' }
+        ? { ...tokenProfile, tokenEnv: 'ARTIUM_SECRET_0' }
+        : { ...oauthProfile, secretEnv: 'ARTIUM_SECRET_0' }
       return {
         executable: toolPaths['vectra-axi'], ...normalized,
         environment: { VECTRA_AXI_CONFIG: 'vectra-profile.json', VECTRA_AXI_WRITE_LOG: writeLog,
-          ...(credential.auth === 'token' ? { ARTIUM_VECTRA_TOKEN: token! } : { ARTIUM_VECTRA_SECRET: clientSecret! }) },
+          ARTIUM_SECRET_0: credential.auth === 'token' ? token! : clientSecret! },
         files: [{ name: 'vectra-profile.json', content: JSON.stringify({ defaultProfile: 'artium',
           profiles: { artium: { ...profile, ...(caBundle ? { caBundle: 'vectra-ca.pem' } : {}) } } }) },
         ...(caBundle ? [{ name: 'vectra-ca.pem', content: caBundle }] : [])],
@@ -87,5 +89,5 @@ export function createVectraAdapter(source: SecretSource, writeLog: string): Ada
         limits: { timeoutMs: runnerLimits.timeoutMs },
       }
     },
-  }
+  }, source, writeLog, profile, vectraArguments)
 }

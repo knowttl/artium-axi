@@ -248,7 +248,7 @@ describe.each([
     const rejected = expect(result).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
     await setup
     const [call] = readdirSync(join(directory, 'calls'))
-    expect(readFileSync(join(directory, 'calls', call, 'inputs', 'synthetic-input'), 'utf8')).toBe('CANARY-file')
+    expect(readFileSync(join(directory, 'calls', call, 'tmp', 'inputs', 'synthetic-input'), 'utf8')).toBe('CANARY-file')
     vi.setSystemTime(Date.now() + tokenDefaults.accessMs)
     release()
     await rejected

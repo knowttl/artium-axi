@@ -2,8 +2,9 @@ import type { z } from 'zod'
 import type { CredentialReference, ToolName } from '../store/credential-store.js'
 import type { SensitiveArguments } from '../audit/redact.js'
 import type { RunnerInput } from '../runner/input.js'
+import type { CredentialProfile } from './credential-profile.js'
 
-// The runner materializes adapter-owned leaf names in the private call directory with mode 0600.
+// The runner materializes adapter-owned relative paths privately, including XDG profiles.
 export interface TemporaryFile {
   name: string
   content: string | Uint8Array
@@ -23,6 +24,7 @@ export interface Adapter<Credential> {
   name: ToolName
   executable: string
   credentialSchema: z.ZodType<Credential>
+  credentialProfile?: CredentialProfile
   timeoutMs: number
   blockedFlags: readonly string[]
   allowedFlagValues: Readonly<Record<string, readonly string[]>>

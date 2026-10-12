@@ -166,7 +166,7 @@ try {
         const remote = await cli(['vectra-axi', ...args])
         if (args.length === 0) {
           // Home reports the generated profile location, which belongs to each call's temp directory.
-          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/vectra-profile\.json$/m
+          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/config\/vectra-profile\.json$/m
           assert.match(remote.stdout, privateConfig)
           assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-profile.json')}\n`))
           remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-profile.json')

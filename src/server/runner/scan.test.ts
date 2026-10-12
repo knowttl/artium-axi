@@ -58,6 +58,14 @@ test('scan with no injected secrets accepts output', () => {
   expect(new SecretScanner([]).scan('stdout', Buffer.from('ordinary output'))).toBe(false)
 })
 
+test.each(streams)('security: detects JSON-escaped multiline secrets in %s', stream => {
+  const secret = 'CANARY-key\n"quoted"\\path'
+  const escaped = JSON.stringify(secret).slice(1, -1)
+  const scanner = new SecretScanner([secret])
+  expect(scanner.scan(stream, Buffer.from(escaped.slice(0, 12)))).toBe(false)
+  expect(scanner.scan(stream, Buffer.from(escaped.slice(12)))).toBe(true)
+})
+
 test('security: scans multiple values and recovers overlapping partial matches', () => {
   const scanner = new SecretScanner(['unused-canary', 'ababac', 'ababac'])
   expect(scanner.scan('stdout', Buffer.from('ordinary abababa'))).toBe(false)

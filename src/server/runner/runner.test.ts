@@ -1,6 +1,6 @@
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
 import { runtimePath } from '../config.js'
@@ -52,16 +52,17 @@ test('security shell metacharacters remain literal arguments', async () => {
 test('adapter files are private, readable beside the profile and cleaned after execution', async () => {
   const script = `const fs = require('node:fs'); console.log(JSON.stringify({
     profile: fs.readFileSync('profile.json', 'utf8'), ca: [...fs.readFileSync('ca.pem')],
-    mode: fs.statSync('profile.json').mode & 0o777, cwdMode: fs.statSync('.').mode & 0o777
+    mode: fs.statSync('profile.json').mode & 0o777, cwdMode: fs.statSync('.').mode & 0o777,
+    emptyHome: fs.readdirSync(process.env.HOME).length === 0
   }));`
   const result = await run(process.execPath, ['-e', script], {}, [], {}, {}, [
     { name: 'profile.json', content: '{"synthetic":true}' }, { name: 'ca.pem', content: Uint8Array.of(1, 2, 3) },
   ])
-  expect(JSON.parse(result.stdout)).toEqual({ profile: '{"synthetic":true}', ca: [1, 2, 3], mode: 0o600, cwdMode: 0o700 })
+  expect(JSON.parse(result.stdout)).toEqual({ profile: '{"synthetic":true}', ca: [1, 2, 3], mode: 0o600, cwdMode: 0o700, emptyHome: true })
   expect(await readdir(root)).toEqual([])
 })
 
-test.each(['', '.', '..', '../profile.json', '/data/profile.json', 'inputs/profile.json', 'profile\\file'])
+test.each(['', '.', '..', '../profile.json', '/data/profile.json', 'inputs/../profile.json', 'profile\\file'])
   ('adapter file name %j is refused and cleaned', async name => {
     await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], {}, {}, [{ name, content: 'synthetic' }]))
       .rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
@@ -84,12 +85,12 @@ test.each([
   vi.stubEnv('ARTIUM_PARENT_ONLY', 'CANARY-parent')
   const result = await fake(['env'], { ...adapterPaths, ADAPTER_SETTING: 'synthetic', PATH: '/incorrect', HOME: '/incorrect', TMPDIR: '/incorrect' })
   const environment = JSON.parse(result.stdout)
-  const directory = environment.HOME
+  const directory = dirname(environment.HOME)
   expect(environment).toEqual({
     ...adapterPaths,
-    ADAPTER_SETTING: 'synthetic', PATH: runtimePath, HOME: directory, TMPDIR: directory,
-    XDG_CONFIG_HOME: directory, XDG_CACHE_HOME: directory, XDG_DATA_HOME: directory,
-    XDG_STATE_HOME: directory, XDG_RUNTIME_DIR: directory, NODE_OPTIONS: '--max-old-space-size=128',
+    ADAPTER_SETTING: 'synthetic', PATH: runtimePath, HOME: join(directory, 'home'), TMPDIR: join(directory, 'tmp'),
+    XDG_CONFIG_HOME: join(directory, 'config'), XDG_CACHE_HOME: join(directory, 'cache'), XDG_DATA_HOME: join(directory, 'data'),
+    XDG_STATE_HOME: join(directory, 'state'), XDG_RUNTIME_DIR: join(directory, 'runtime'), NODE_OPTIONS: '--max-old-space-size=128',
   })
   expect(directory.startsWith(join(root, 'artium-call-'))).toBe(true)
   await expect(stat(directory)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -109,7 +110,7 @@ test('security simultaneous calls have private working directories and remove to
   const directories = results.map(result => JSON.parse(result.stdout))
   expect(directories[0].cwd).not.toBe(directories[1].cwd)
   for (const directory of directories) {
-    expect(directory.cwd).toBe(directory.home)
+    expect(directory.cwd).not.toBe(directory.home)
     expect(directory.mode).toBe(0o700)
     expect(directory.files).toEqual(['tool-cache'])
     await expect(stat(directory.cwd)).rejects.toMatchObject({ code: 'ENOENT' })

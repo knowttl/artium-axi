@@ -6,6 +6,9 @@ import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
 import { adminNav, apiForm, changed, revision } from './forms.js'
+import { credentialFields } from './credential-form.js'
+import type { CredentialProfile } from '../adapters/credential-profile.js'
+import type { ToolName } from '../store/credential-store.js'
 
 const settingsGuide = {
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
@@ -20,7 +23,8 @@ const credentialGuide = {
   'az-axi': 'Required: tenantId and clientId (UUIDs), auth (secret or certificate). Secret auth requires clientSecret. Certificate auth requires privateKey and thumbprintSha256 (64 hexadecimal characters). Optional native settings: subscriptions, managementGroup, workspaces, description, allowWrites.',
 }
 
-export function registerAdminPages(app: FastifyInstance, db: Database.Database): void {
+export function registerAdminPages(app: FastifyInstance, db: Database.Database,
+  credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = {}): void {
   for (const screen of ['Tools', 'Credentials', 'Roles'] as const) {
     const path = '/admin/' + screen.toLowerCase()
     app.get(path, async (request, reply) => {
@@ -64,11 +68,12 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database):
           } else {
             const metadata = await app.inject({ method: 'GET', url: api + '/credential', headers })
             const credential = adminToolRoutes.credential.response.parse(metadata.json())
+            const profile = credentialProfiles[tool.name]
             content += `<p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Stored values are never displayed.</p>${changed(db, credential)}
-              <p>${escape(credentialGuide[tool.name])}</p><p>Provide the complete replacement, including any native settings to retain.</p>`
+              ${profile ? '' : `<p>${escape(credentialGuide[tool.name])}</p>`}<p>Provide the complete replacement, including any native settings to retain.</p>`
             content += form(api + '/credential', 'PUT', credential.configured ? 'Replace credential' : 'Set credential', revision(credential.revision) +
               `<input type="hidden" name="expectedToolRevision" data-type="number" value="${escape(tool.revision)}">` +
-              '<label>New credential (JSON object) <textarea name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea></label>', 'Replace the complete credential and its native settings?')
+              (profile ? credentialFields(profile) : '<label>New credential (JSON object) <textarea name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea></label>'), 'Replace the complete credential and its native settings?')
             if (!['az-axi', 'mg-axi'].includes(tool.name)) content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
             content += '<p data-test-result role="status"></p>'
           }
