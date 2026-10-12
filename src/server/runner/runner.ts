@@ -114,16 +114,23 @@ async function execute(
   const directory = await mkdtemp(join(root, 'artium-call-')).catch(() => {
     throw new RunnerError('TEMP_UNAVAILABLE')
   })
+  const directories = {
+    HOME: join(directory, 'home'), TMPDIR: join(directory, 'tmp'),
+    XDG_CONFIG_HOME: join(directory, 'config'), XDG_CACHE_HOME: join(directory, 'cache'),
+    XDG_DATA_HOME: join(directory, 'data'), XDG_STATE_HOME: join(directory, 'state'),
+    XDG_RUNTIME_DIR: join(directory, 'runtime'),
+  }
   try {
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     try {
+      await Promise.all(Object.values(directories).map(path => mkdir(path, { mode: 0o700 })))
       const names = new Set<string>()
       for (const file of files) {
         if (!file.name.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) || names.has(file.name)) {
           throw new Error('Invalid adapter file name')
         }
         names.add(file.name)
-        const target = join(directory, file.name)
+        const target = join(directories.XDG_CONFIG_HOME, file.name)
         await mkdir(dirname(target), { recursive: true, mode: 0o700 })
         await chmod(dirname(target), 0o700)
         const temporary = `${target}.tmp`
@@ -133,7 +140,7 @@ async function execute(
         await rename(temporary, target)
       }
     } catch { throw new RunnerError('TEMP_UNAVAILABLE') }
-    args = await writeInput(directory, args, input)
+    args = await writeInput(directories.TMPDIR, args, input)
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     return await new Promise<RunnerResult>((resolve, reject) => {
       const streams = {
@@ -153,17 +160,11 @@ async function execute(
       const child = spawn(python ? '/usr/bin/python3' : executable, python ? ['-c', launcher, executable, ...args] : [...args], {
         shell: false,
         detached: true,
-        cwd: directory,
+        cwd: directories.XDG_CONFIG_HOME,
         env: {
           ...environment,
           PATH: runtimePath,
-          HOME: directory,
-          TMPDIR: directory,
-          XDG_CONFIG_HOME: directory,
-          XDG_CACHE_HOME: directory,
-          XDG_DATA_HOME: directory,
-          XDG_STATE_HOME: directory,
-          XDG_RUNTIME_DIR: directory,
+          ...directories,
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}`,
         },
         stdio: ['pipe', 'pipe', 'pipe'],

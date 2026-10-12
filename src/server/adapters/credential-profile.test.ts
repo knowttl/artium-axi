@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import schema from '../../../test/fixtures/axi-credential.schema.json' with { type: 'json' }
+import azSchema from '../../../test/fixtures/az-credential.schema.json' with { type: 'json' }
 import { CredentialProfile, loadCredentialProfile } from './credential-profile.js'
 import { createMgAdapter } from './mg.js'
 
@@ -81,4 +82,27 @@ test('validates the materialized SecretRef against the shipped schema', () => {
   invalid.$defs.secret.oneOf[0].properties!.env!.pattern = '^OTHER_'
   expect(() => new CredentialProfile(invalid).prepare('mg-axi', credential, join(directory, 'writes.log'), false))
     .toThrow(expect.objectContaining({ code: 'CREDENTIAL_UNAVAILABLE' }))
+})
+
+test('accepts all approved flat az token fields without translating their names', () => {
+  const profile = new CredentialProfile(azSchema)
+  const value = { auth: 'token', tenantId: identity.tenantId, armToken: 'CANARY-arm', logsToken: 'CANARY-logs',
+    graphToken: 'CANARY-graph', storageToken: 'CANARY-storage', vaultToken: 'CANARY-vault', registryToken: 'CANARY-registry' }
+  const prepared = profile.prepare('az-axi', value, join(directory, 'writes.log'), true)
+  expect(prepared.environment).toEqual({ ARTIUM_SECRET_0: value.armToken, ARTIUM_SECRET_1: value.logsToken,
+    ARTIUM_SECRET_2: value.graphToken, ARTIUM_SECRET_3: value.storageToken, ARTIUM_SECRET_4: value.vaultToken,
+    ARTIUM_SECRET_5: value.registryToken, AZ_AXI_READ_ONLY: 'true', AZ_AXI_WRITE_LOG: join(directory, 'writes.log') })
+  expect(JSON.parse(String(prepared.files[0].content)).profiles.artium).toEqual({ auth: 'token', tenantId: value.tenantId,
+    armToken: { env: 'ARTIUM_SECRET_0' }, logsToken: { env: 'ARTIUM_SECRET_1' }, graphToken: { env: 'ARTIUM_SECRET_2' },
+    storageToken: { env: 'ARTIUM_SECRET_3' }, vaultToken: { env: 'ARTIUM_SECRET_4' }, registryToken: { env: 'ARTIUM_SECRET_5' } })
+  expect(prepared.secrets).toEqual([value.armToken, value.logsToken, value.graphToken, value.storageToken, value.vaultToken, value.registryToken])
+  expect(profile.metadata(value)).toEqual({ auth: 'token', tenantId: value.tenantId })
+})
+
+test('accepts the approved az ambient kind without injecting a secret', () => {
+  const value = { auth: 'az', tenantId: identity.tenantId }
+  const prepared = new CredentialProfile(azSchema).prepare('az-axi', value, join(directory, 'writes.log'), false)
+  expect(JSON.parse(String(prepared.files[0].content)).profiles.artium).toEqual(value)
+  expect(prepared.environment).toEqual({ AZ_AXI_READ_ONLY: 'false', AZ_AXI_WRITE_LOG: join(directory, 'writes.log') })
+  expect(prepared.secrets).toEqual([])
 })

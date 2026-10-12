@@ -38,7 +38,7 @@ export function createApp(options: {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
   const credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = Object.fromEntries(toolSchema.options.flatMap(tool => {
     const adapter = adapters.find(adapter => adapter.name === tool)
-    // The az broker retains its identity editor until its token-profile migration.
+    // The az broker edits its source identity separately from the tool's minted-token profile.
     const profile = adapter ? adapter.credentialProfile : tool === 'az-axi' ? undefined : loadCredentialProfile(tool)
     return profile ? [[tool, profile]] : []
   }))

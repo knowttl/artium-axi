@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -33,6 +33,8 @@ try {
       const content = await readFile(file, 'utf8')
       const config = JSON.parse(content)
       const profile = config.profiles.artium
+      const emptyHome = (await readdir(process.env.HOME)).length === 0
+      if (!emptyHome) throw new Error('Hosted HOME must be empty')
       if (config.version !== 1 || config.defaultProfile !== 'artium' || Object.keys(config.profiles).length !== 1)
         throw new Error('Invalid hosted config')
       if ((await stat(file)).mode % 512 !== 384 || (await stat(join(process.env.XDG_CONFIG_HOME, tool))).mode % 512 !== 448)
@@ -41,7 +43,7 @@ try {
       if (!/^ARTIUM_SECRET_[0-9]+$/.test(secret.env) || !process.env[secret.env] || content.includes(process.env[secret.env]))
         throw new Error('Invalid hosted secret')
       console.log(JSON.stringify({ profile: 'artium', auth: profile.auth, thumbprintSha256: profile.thumbprintSha256,
-        writes: profile.writes, secretResolved: true, privateFiles: true }))
+        writes: profile.writes, secretResolved: true, privateFiles: true, emptyHome }))
       break
     }
     case 'env':

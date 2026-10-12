@@ -250,6 +250,14 @@ The delegated token itself lives in the protected state-directory `credentials.j
 These mg-axi schema details were approved separately during implementation.
 The host derives fields and secret injection from the shipped schema, including `mode`, without translating auth-kind names.
 
+az-axi uses the flat SecretRef fields `armToken`, `logsToken`, `graphToken`, `storageToken`, `vaultToken` and `registryToken`.
+Ambient `az login` works without a config file; `auth: "az"` is the ambient kind.
+`tenantId` replaces `tenant`, with `AZ_AXI_TENANT` retained as a deprecated alias for one release.
+The env profile uses `auth: "az"` when `AZ_AXI_TENANT_ID` is set, or `auth: "token"` when `AZ_AXI_ARM_TOKEN` is set.
+Mixed or partial env sources are rejected.
+Legacy `tokenEnv` keys are accepted for one release with a deprecation warning.
+These az-axi schema details were approved separately during implementation.
+
 ## 10. Migration
 
 The per-tool migration and suggested order are in [credential-migration.md](credential-migration.md), section "Migration path per tool".

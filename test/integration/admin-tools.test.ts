@@ -128,7 +128,7 @@ test('schema-driven replacement reaches the isolated runner and keeps secrets ou
   expect(response.status).toBe(200)
   const result = await response.json() as { stdout: string }
   expect(JSON.parse(result.stdout)).toEqual({ profile: 'artium', auth: 'certificate', thumbprintSha256: value.thumbprintSha256,
-    writes: value.writes, secretResolved: true, privateFiles: true })
+    writes: value.writes, secretResolved: true, privateFiles: true, emptyHome: true })
   expect(readFileSync(join(directory, 'data', 'artium.db-wal')).includes(Buffer.from(value.privateKey))).toBe(false)
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(value.privateKey)
   await failure(await request('PUT', '/vectra-axi/credential', { value: { ...value, thumbprintSha256: 'a'.repeat(40) },
