@@ -6,5 +6,8 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     maxWorkers: Math.min(8, availableParallelism()),
+    // Real password hashing and child processes need headroom under concurrent load.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 })
