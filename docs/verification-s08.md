@@ -19,7 +19,7 @@ Record the exact commit and results in the delivery status and PR body.
 Source or test changes during pipeline review require renewed final-head checks.
 Scan the exact published head again before reporting delivery.
 
-See [README.md](../README.md) for the runner's current contract.
+See [runner.ts](../src/server/runner/runner.ts) for the runner's current contract.
 See [S09/10 verification](verification-s09-10.md) for subsequent lifecycle and resource checks, including the escaped-session limitation.
 See [S11 verification](verification-s11.md) for stdin and uploaded-input checks.
 Existing container checks remain documented in README and the evidence ledger.
