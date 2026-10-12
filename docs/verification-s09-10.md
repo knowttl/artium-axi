@@ -1,6 +1,6 @@
 # S09/10 verification
 
-See [README.md](../README.md) for current runner usage and [runner.ts](../src/server/runner/runner.ts) for its public interface.
+See [runner.ts](../src/server/runner/runner.ts) for the runner interface and [run.ts](../src/server/runner/run.ts) for audited execution.
 [config.ts](../src/server/config.ts) owns runner defaults.
 [compose.example.yaml](../compose.example.yaml) owns final container resource bounds.
 All identities, credentials, tool output and services in these checks are synthetic.
@@ -28,7 +28,7 @@ This proves why the heap limit must not be described as a total resident-memory 
 Python refuses a 600 MiB allocation under its 512 MiB address-space bound.
 
 Run `docker compose -f compose.example.yaml config --quiet` to validate the final container configuration.
-Run `pnpm test:runner-container` for actual Linux cgroup and tmpfs behaviour; [README.md](../README.md) owns image and cache lifecycle for standalone and combined checks.
+Run `pnpm test:runner-container` for actual Linux cgroup and tmpfs behaviour; [build-fake-service-image.mjs](../scripts/build-fake-service-image.mjs) owns standalone image and cache cleanup, and [container-checks.mjs](../scripts/container-checks.mjs) owns combined-block cleanup.
 It checks UID 10001, a 6 GiB memory bound, a 192-task bound and 256 MiB tmpfs.
 An upstream write filling tmpfs returns ENOSPC and its ordinary nonzero status, then its directory is removed.
 A byte-full tmpfs still permits a call that needs only an empty directory and pipes.
