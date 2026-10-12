@@ -93,7 +93,8 @@ Review actor, UTC change time and revision before saving; reload stale forms ins
 After 15 minutes without password confirmation, confirm at `/reauth` and submit the action again.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open `/admin/credentials`.
-Replace the complete adapter-specific JSON, including all native settings to retain; omitted settings are cleared.
+Use the fields generated from the tool's [credential schema](credential-standard.md#9-hosted-contract-artium-axi) when available, or the legacy JSON editor while the pinned tool awaits migration.
+Replace the complete credential, including all native settings to retain; omitted settings are cleared.
 The editor starts blank and never reveals the stored value.
 Use “Test credential” at `/admin/credentials` to test the replacement with the fixed harmless read before enabling the tool at `/admin/tools`.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.

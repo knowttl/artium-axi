@@ -58,11 +58,11 @@ test('all three adapters run with persisted credentials after offline rotation',
       const az = await createAzAdapter(source, join(directory, 'tool-logs', 'az-axi', 'writes.log'), new AzureTokenCache(transport))
         .prepare(['sub', 'list'], await resolver.resolve('synthetic-user', 'az-axi'))
       expect(transport.requests[0].form.get('client_secret')).toBe(credentials['az-axi'].clientSecret)
-      expect(az.environment.AZ_AXI_ARM_TOKEN).toBe(azureTestToken)
+      expect(az.environment.ARTIUM_SECRET_0).toBe(azureTestToken)
       const azResult = await runner.run('synthetic-user', process.execPath, ['-e', `
         const fs = require('node:fs');
         const profile = JSON.parse(fs.readFileSync(process.env.AZ_AXI_CONFIG)).profiles.artium;
-        console.log(process.env.AZ_AXI_ARM_TOKEN === 'CANARY-AZURE-ACCESS-TOKEN' && profile.tenant === '${azureTestTenant}');
+        console.log(process.env[profile.tokenEnv.arm] === 'CANARY-AZURE-ACCESS-TOKEN' && profile.tenant === '${azureTestTenant}');
       `], az.environment, az.secrets, az.limits, {}, az.files)
       expect(azResult).toMatchObject({ stdout: 'true\n', exitCode: 0 })
     } finally { await runner.shutdown(); db.close() }

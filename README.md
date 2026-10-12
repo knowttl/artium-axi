@@ -193,7 +193,10 @@ Mutations use revision checks and audit commits; reload stale forms rather than 
 After 15 minutes without password confirmation, administration mutations require reauthentication.
 
 Credential editors start blank and never return stored values.
-Replacement JSON must include every native setting to retain: omitted settings are cleared.
+Tools that ship the [AXI credential standard](docs/credential-standard.md) profile schema use schema-generated fields and validation.
+The host replaces marked secret values with environment references in one private `artium` profile for each call.
+Pinned tools awaiting migration retain their current credential editor and injection path.
+Replacements must include every native setting to retain: omitted settings are cleared.
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
 Use **Test credential** for a current fixed read before enabling a configured Falcon or Vectra tool.

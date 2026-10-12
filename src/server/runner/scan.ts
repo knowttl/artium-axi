@@ -30,6 +30,7 @@ export class SecretScanner {
       forms.add(bytes.toString('base64'))
       forms.add(bytes.toString('base64url'))
       forms.add(encodeURIComponent(secret))
+      forms.add(JSON.stringify(secret).slice(1, -1))
     }
     this.#patterns = [...forms].map(form => {
       const bytes = Buffer.from(form, 'utf8')

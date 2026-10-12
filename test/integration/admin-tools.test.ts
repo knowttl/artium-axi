@@ -21,6 +21,8 @@ import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
+import { CredentialProfile } from '../../src/server/adapters/credential-profile.js'
+import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
 
 let directory: string
 let db: Database.Database
@@ -100,6 +102,39 @@ afterEach(async () => {
   db.close()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = new CredentialProfile(profileSchema)
+  const adapter = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({
+    ...await prepare(args, reference, input), executable: fakeTool.executable,
+    args: [...fakeTool.args, 'hosted-profile', 'vectra-axi'],
+  }))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const value = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate',
+    privateKey: 'CANARY-hosted-key', thumbprintSha256: 'a'.repeat(64), writes: values['vectra-axi'].writes }
+  const credential = await replace('vectra-axi', value)
+  expect(credential.metadata).toEqual({ mode: value.mode, tenantId: value.tenantId, clientId: value.clientId, auth: value.auth,
+    thumbprintSha256: value.thumbprintSha256, writes: value.writes })
+  const response = await fetch(`${url}/v1/tools/vectra-axi/run`, { method: 'POST', headers,
+    body: JSON.stringify({ args: ['detection', 'list'] }) })
+  expect(response.status).toBe(200)
+  const result = await response.json() as { stdout: string }
+  expect(JSON.parse(result.stdout)).toEqual({ profile: 'artium', auth: 'certificate', thumbprintSha256: value.thumbprintSha256,
+    writes: value.writes, secretResolved: true, privateFiles: true })
+  expect(readFileSync(join(directory, 'data', 'artium.db-wal')).includes(Buffer.from(value.privateKey))).toBe(false)
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(value.privateKey)
+  await failure(await request('PUT', '/vectra-axi/credential', { value: { ...value, thumbprintSha256: 'a'.repeat(40) },
+    expectedRevision: 1, expectedToolRevision: 2 }), 'INVALID_INPUT')
+  const edit = await request('PATCH', '/vectra-axi', { nativeSettings: { writes: { allowWrites: false, operations: ['notes.set'] } }, expectedRevision: 2 })
+  expect(edit.status).toBe(200)
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toMatchObject({ writes: { allowWrites: false } })
 })
 
 test('rendered Tools and Credentials pages never contain stored secret values', async () => {

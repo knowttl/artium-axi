@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
@@ -117,9 +117,20 @@ async function execute(
   try {
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     try {
+      const names = new Set<string>()
       for (const file of files) {
-        if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(file.name)) throw new Error('Invalid adapter file name')
-        await writeFile(join(directory, file.name), file.content, { mode: 0o600, flag: 'wx' })
+        if (!file.name.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) || names.has(file.name)) {
+          throw new Error('Invalid adapter file name')
+        }
+        names.add(file.name)
+        const target = join(directory, file.name)
+        await mkdir(dirname(target), { recursive: true, mode: 0o700 })
+        await chmod(dirname(target), 0o700)
+        const temporary = `${target}.tmp`
+        const handle = await open(temporary, 'wx', 0o600)
+        try { await handle.writeFile(file.content); await handle.sync() }
+        finally { await handle.close() }
+        await rename(temporary, target)
       }
     } catch { throw new RunnerError('TEMP_UNAVAILABLE') }
     args = await writeInput(directory, args, input)

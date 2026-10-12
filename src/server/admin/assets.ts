@@ -5,7 +5,8 @@ nav { display: flex; flex-wrap: wrap; gap: 24px; border-bottom: 2px solid #31577
 a { color: #245781; } h1 { font-size: 32px; } h2 { font-size: 23px; margin-top: 0; }
 section { background: white; padding: 24px; margin: 24px 0; border-left: 4px solid #31577a; }
 form { margin: 16px 0; } label { display: block; margin: 10px 0; }
-input:not([type=checkbox]) { display: block; max-width: 100%; width: 320px; box-sizing: border-box; padding: 8px; }
+input:not([type=checkbox]), select { display: block; max-width: 100%; width: 320px; box-sizing: border-box; padding: 8px; }
+pre { overflow-x: auto; }
 textarea { display: block; width: 100%; box-sizing: border-box; padding: 8px; font: 14px/1.5 monospace; }
 fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
 button { padding: 8px 16px; background: #31577a; color: white; border: 0; cursor: pointer; font: inherit; }
@@ -31,6 +32,16 @@ document.addEventListener('submit', async event => {
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
   try {
+    const profileFields = form.querySelectorAll('[data-profile-field]');
+    if (profileFields.length) {
+      body.value = Object.create(null);
+      for (const input of profileFields) {
+        delete body[input.name];
+        if (input.value === '') continue;
+        try { body.value[input.dataset.profileField] = input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value; }
+        catch { message.textContent = 'Enter valid JSON in ' + input.dataset.profileField + '.'; message.focus(); return; }
+      }
+    }
     for (const input of form.querySelectorAll('[data-type]')) {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
       if (input.dataset.type === 'number') body[input.name] = Number(input.value);

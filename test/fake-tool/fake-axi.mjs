@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const [mode, ...args] = process.argv.slice(2)
 const modes = ['env', 'print', 'sleep', 'stdout', 'stderr', 'memory', 'child',
-  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream']
+  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream', 'hosted-profile']
 const hold = () => setInterval(() => {}, 60_000)
 const ready = async value => {
   const path = process.env.ARTIUM_TEST_READY_FILE
@@ -26,6 +27,23 @@ const write = async (stream, value) => {
 
 try {
   switch (mode) {
+    case 'hosted-profile': {
+      const tool = args[0]
+      const file = join(process.env.XDG_CONFIG_HOME, tool, 'config.json')
+      const content = await readFile(file, 'utf8')
+      const config = JSON.parse(content)
+      const profile = config.profiles.artium
+      if (config.version !== 1 || config.defaultProfile !== 'artium' || Object.keys(config.profiles).length !== 1)
+        throw new Error('Invalid hosted config')
+      if ((await stat(file)).mode % 512 !== 384 || (await stat(join(process.env.XDG_CONFIG_HOME, tool))).mode % 512 !== 448)
+        throw new Error('Invalid hosted permissions')
+      const secret = profile.clientSecret ?? profile.privateKey
+      if (!/^ARTIUM_SECRET_[0-9]+$/.test(secret.env) || !process.env[secret.env] || content.includes(process.env[secret.env]))
+        throw new Error('Invalid hosted secret')
+      console.log(JSON.stringify({ profile: 'artium', auth: profile.auth, thumbprintSha256: profile.thumbprintSha256,
+        writes: profile.writes, secretResolved: true, privateFiles: true }))
+      break
+    }
     case 'env':
       console.log(JSON.stringify(process.env))
       break

@@ -61,7 +61,7 @@ test('adapter files are private, readable beside the profile and cleaned after e
   expect(await readdir(root)).toEqual([])
 })
 
-test.each(['', '.', '..', '../profile.json', '/data/profile.json', 'inputs/profile.json', 'profile\\file'])
+test.each(['', '.', '..', '../profile.json', '/data/profile.json', 'inputs/../profile.json', 'profile\\file'])
   ('adapter file name %j is refused and cleaned', async name => {
     await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], {}, {}, [{ name, content: 'synthetic' }]))
       .rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })

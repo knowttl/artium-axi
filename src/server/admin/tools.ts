@@ -9,6 +9,7 @@ import { vectraCredentialSchema, vectraManifest } from '../adapters/vectra.js'
 import { azCredentialSchema, azManifest } from '../adapters/az.js'
 import { mgCredentialSchema, mgManifest } from '../adapters/mg.js'
 import type { Adapter } from '../adapters/types.js'
+import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit } from '../audit/audit.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
@@ -19,6 +20,7 @@ export interface ToolAdminOptions {
   runner: Runner
   store?: MutableCredentialStore
   health: ToolHealth
+  credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema }
@@ -32,7 +34,8 @@ const publicFields = {
 
 export function registerToolAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, options: ToolAdminOptions): void {
-  const { adapters, store, health } = options
+  const { adapters, store, health, credentialProfiles } = options
+  const schemaFor = (tool: ToolName) => credentialProfiles[tool]?.credentialSchema ?? credentialSchemas[tool]
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const result = schema.safeParse(value)
     if (!result.success) throw new ArtiumError('INVALID_INPUT')
@@ -66,7 +69,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       { revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     const reference = store?.findCredential(tool)
     const value = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
-    const metadata = Object.fromEntries(publicFields[tool].filter(field => value[field] !== undefined).map(field => [field, value[field]]))
+    const metadata = reference && credentialProfiles[tool] ? credentialProfiles[tool].metadata(value)
+      : Object.fromEntries(publicFields[tool].filter(field => value[field] !== undefined).map(field => [field, value[field]]))
     return adminCredentialSchema.parse({ tool, configured: Boolean(row), revision: 0, updatedAt: null, updatedBy: null, ...row, metadata })
   }
   function splitSettings(tool: ToolName, value: Record<string, unknown>) {
@@ -105,7 +109,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         if (reference) {
           const value = credentialStore().readCredential(reference) as Record<string, unknown>
           const credential = splitSettings(tool, value).credential
-          parse(credentialSchemas[tool], { ...credential, ...settings })
+          parse(schemaFor(tool), { ...credential, ...settings })
           replacement = credentialStore().replaceCredential(tool, credential, reference.revision!, actor, now)
         }
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
@@ -122,7 +126,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const actor = authorize(request)
     const tool = toolName(request)
     const input = parse(adminToolRoutes.replace.input, request.body)
-    const value = parse(credentialSchemas[tool], input.value) as Record<string, unknown>
+    const value = parse(schemaFor(tool), input.value) as Record<string, unknown>
     const { credential, settings } = splitSettings(tool, value)
     let replacement: CredentialReference | undefined
     const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,

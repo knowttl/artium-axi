@@ -115,12 +115,13 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         ? { tenantId, clientId, auth, clientSecret: parsed.data.clientSecret }
         : { tenantId, clientId, auth, privateKey: parsed.data.privateKey, thumbprintSha256: parsed.data.thumbprintSha256 }
       const tokens = await cache.acquire({ id: reference.id, revision: reference.revision, credential }, normalized.resources)
+      const holders = Object.fromEntries(Object.keys(tokens).map((resource, index) => [resource, `ARTIUM_SECRET_${index}`]))
       return {
         executable: toolPaths['az-axi'], args: normalized.args, fileArguments: normalized.fileArguments,
         environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
-          ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [`AZ_AXI_${resource.toUpperCase()}_TOKEN`, token!.accessToken])) },
+          ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [holders[resource], token!.accessToken])) },
         files: [{ name: 'az-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {
-          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenant: tenantId },
+          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenant: tenantId, tokenEnv: holders },
         } }) }],
         secrets: [...new Set([credential.auth === 'secret' ? credential.clientSecret : credential.privateKey,
           ...Object.values(tokens).flatMap(token => token.secrets)])],
