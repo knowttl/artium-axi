@@ -148,13 +148,19 @@ artium-axi falcon-axi --help
 ```
 
 The first prints local Artium help without signing in or contacting the server.
-The second forwards `--help` through the authenticated upstream adapter, as does a bare tool invocation.
+The second forwards `--help` through the authenticated upstream adapter.
+A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 The bundled CLI forwards argument tokens; the API additionally supports bounded stdin and named uploads through the [shared API contract](src/shared/api.ts).
 
 Write permission remains subject to the pinned tool's native gates and the configured adapter policy.
 Vectra writes require its configured allowlist and upstream confirmation; Artium does not add a universal confirmation flag.
 Falcon has no editable native write settings.
+
+Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.
+Artium also returns this error when its runner times out, cancels or receives a process signal after starting an executed Azure write; read timeouts remain `TIMEOUT`.
+Before submitting the write again, follow the returned read commands and inspect the changed state.
+For Sentinel incident updates and comment creation, first resolve the incident ID with the suggested `incident show` command, then use that ID in the suggested API GET to inspect all incident fields or the comments collection.
 
 ### TOON output behavior
 
@@ -164,6 +170,7 @@ Details read bundled manifests and stored health without fetching credentials or
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
 Recognized TOON or JSON root `help` suggestions are prefixed with `artium-axi` for the invoked tool; unrelated content, unknown formats and truncated streams remain unchanged.
+Azure plain leaf help and embedded help also use hosted command examples and omit server-owned config, profile and tenant selectors.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
 See the [generated error reference](docs/errors.md) for codes, HTTP status, CLI exit status and recovery steps.
@@ -202,7 +209,7 @@ Pinned tools awaiting migration retain their current credential editor and injec
 Replacements must include every native setting to retain: omitted settings are cleared.
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
-Use **Test credential** for a current fixed read before enabling a configured Falcon or Vectra tool.
+Use **Test credential** for a current fixed read before enabling a configured Falcon, Vectra or Azure tool.
 Graph remains unavailable in the production runtime.
 
 ### Audit screen and API

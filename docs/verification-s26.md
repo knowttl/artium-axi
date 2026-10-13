@@ -31,10 +31,9 @@ The leading-selector probe checks separate and equals forms of `--subscription` 
 Write-enabled credentials with omitted or empty subscriptions prepare ARM and Graph reads without an Artium restriction; pinned az-axi still rejects those profiles through its native write-configuration gate.
 Native write tests show zero mutations during preview, one successful executed canary PATCH, a durable log after call cleanup, default opt-in denial, configured write-scope denial and destructive confirmation errors.
 Uploaded KQL, piped KQL, uploaded JSON bodies and piped JSON bodies execute through the real runner.
-The existing ambiguous-503 test still records two native mutation requests.
-Accordingly this adapter is deliberately absent from the runtime registry until a safe upstream pin is commissioned, as required by the existing capability restriction.
+See [Azure safe-pin verification](verification-azure-safe-pin.md) for subsequent ambiguous-write checks and activation evidence.
 Other write families remain unverified.
-The server's Vectra journal retention format must not be applied to Azure's different native log format when Azure is activated.
+The server's Vectra journal retention format must not be applied to Azure's different native log format.
 
 Final implementation validation requires frozen installation, lint, full tests, aggregate check, walking-skeleton, runner-container, fixed-origin fake-services and the real private hygiene scan.
 The PR body and delivery status bind command results to the exact committed and published heads.
