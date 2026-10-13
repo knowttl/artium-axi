@@ -223,6 +223,32 @@ test.each(['file', 'body-file'])('%s only transports an uploaded leaf and normal
   expect(call.fileArguments).toEqual([call.args.length - 1])
 })
 
+test.each([
+  { command: ['graph', 'query'], flag: 'file' },
+  { command: ['rg', 'query'], flag: 'file' },
+  { command: ['logs', 'query', '-w', 'synthetic'], flag: 'file' },
+  { command: ['monitor', 'log-analytics', 'query', '-w', 'synthetic'], flag: 'file' },
+  { command: ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--api-version=2022-12-01'], flag: 'body-file' },
+].flatMap(route => ['separated', 'equals'].flatMap(syntax => ['input.json', '-input.json'].map(name => ({ ...route, syntax, name })))))(
+  '$command accepts the uploaded $name through $syntax --$flag', async ({ command, flag, syntax, name }) => {
+    const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(new FakeTokenTransport()))
+    const args = [...command, ...(syntax === 'equals' ? [`--${flag}=${name}`] : [`--${flag}`, name]), '--full']
+    const input = { files: [{ name, contentBase64: 'c3ludGhldGlj' }] }
+    adapter.validateArgs(args, input)
+    const call = await adapter.prepare(args, reference, input)
+    expect(call.args).toEqual([...command, `--${flag}`, name, '--full'])
+    expect(call.fileArguments).toEqual([command.length + 1])
+  })
+
+test.each(['file', 'body-file'].flatMap(flag => ['separated', 'equals'].map(syntax => ({ flag, syntax }))))(
+  '--$flag rejects an unmatched dash-prefixed leaf in $syntax form', ({ flag, syntax }) => {
+    const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
+    const command = flag === 'file' ? ['rg', 'query'] : ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic']
+    const args = [...command, ...(syntax === 'equals' ? [`--${flag}=-missing.json`] : [`--${flag}`, '-missing.json'])]
+    expect(() => adapter.validateArgs(args, { files: [{ name: '-input.json', contentBase64: 'c3ludGhldGlj' }] }))
+      .toThrow(expect.objectContaining({ code: syntax === 'equals' ? 'UNSUPPORTED_INPUT' : 'INVALID_INPUT' }))
+  })
+
 test('certificate preparation keeps the key and exact assertion in the scan set', async () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048,
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })

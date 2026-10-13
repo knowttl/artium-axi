@@ -73,7 +73,8 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
     } else {
       const values = inline === undefined ? [] : [inline]
       if (inline === undefined) {
-        while (args[index + 1] !== undefined && (!args[index + 1].startsWith('-') || /^-\d/.test(args[index + 1]))) {
+        while (args[index + 1] !== undefined && (!args[index + 1].startsWith('-') || /^-\d/.test(args[index + 1]) ||
+          (azManifest.inputFileFlags.includes(name) && input.files?.some(file => file.name === args[index + 1])))) {
           values.push(args[++index])
           if (!['list', 'literal-list'].includes(kind) || route.positionalInput) break
         }
