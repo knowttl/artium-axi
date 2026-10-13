@@ -3,8 +3,8 @@
 S26 implements T2.5 steps 5-7 and the local portion of T0.5.
 [az.ts](../src/server/adapters/az.ts) prepares the designated identity with validated native `subscriptions`, `managementGroup`, workspace GUID aliases, `description` and `allowWrites`.
 Its private token-mode profile contains no client secret, private key, assertion or access token.
-The explicit child environment sets only config, durable write-log path and resource tokens used by the command.
-No read-only variable or Artium subscription/resource permission layer is added.
+The current child environment and token profile are prepared by the [shared profile writer](../src/server/adapters/credential-profile.ts) when the pinned schema is available, with the schema-absent fallback owned by [az.ts](../src/server/adapters/az.ts).
+Neither path adds an Artium subscription/resource permission layer.
 The scan set includes the authentication secret or private key, every injected token and every exact MSAL assertion returned by the cache.
 The adapter requires a revision-bound credential reference; the [credential-store interface](../src/server/store/credential-store.ts) owns the store's reference and read contract.
 Replacement producers must still evict the cache as described in S25.
@@ -42,5 +42,5 @@ The harness removes all containers, networks and temporary files it creates.
 The worker removes its created `artium-test-node22` image after verification.
 AGENTS.md's existing README pointer remains factually correct and is unchanged under the project-memory correction rule.
 
-Captain acceptance remains pending for both live auth methods, exact successful audience trailing-slash forms, six live reads, real metadata-only output, designated-account native permissions and separately approved sandbox writes.
+The [evidence ledger](evidence-ledger.md) owns current captain acceptance and the remaining live authentication, audience, read, metadata-only output, native permission and sandbox-write checks.
 No fake result closes these live gates.

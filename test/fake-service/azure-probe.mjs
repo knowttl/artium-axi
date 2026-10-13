@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { createAzAdapter } from '/work/dist/src/server/adapters/az.js'
 import { AzureTokenCache } from '/work/dist/src/server/adapters/azure-token-cache.js'
+import { loadCredentialProfile } from '/work/dist/src/server/adapters/credential-profile.js'
 import { FakeTokenTransport, azureTestTenant } from '/work/dist/test/fixtures/azure-token-transport.js'
 import { Runner } from '/work/dist/src/server/runner/runner.js'
 import { createApp } from '/work/dist/src/server/app.js'
@@ -100,12 +101,19 @@ try {
     [['keyvault', 'secret', 'list', '--vault-name=synthetic', '--full'], 'vault', 'synthetic.vault.azure.net', '/secrets'],
     [['acr', 'repository', 'list', '--name=synthetic'], 'registry', 'synthetic.azurecr.io', '/acr/v1/_catalog'],
   ]
-  for (const [args, resource, host, path] of reads) {
-    const before = network.requests.length
-    const result = await run(args)
+  const schemaNetwork = new FakeTokenTransport()
+  const schemaAdapter = createAzAdapter({ getCredential: async () => credential }, writeLog,
+    new AzureTokenCache(schemaNetwork),
+    loadCredentialProfile('az-axi', '/work/tools/node_modules/@knowttl/az-axi/axi-credential.schema.json'))
+  for (const [args, resource, host, path, preparation, selected, transport] of reads.flatMap(read => [
+    [...read, 'fallback', adapter, network], [...read, 'published schema', schemaAdapter, schemaNetwork],
+  ])) {
+    const before = transport.requests.length
+    const result = await run(args, {}, selected)
     assert.equal(result.exitCode, 0, result.stdout + result.stderr)
-    assert.equal(network.requests.length, before + 1)
-    assert.ok(network.requests.at(-1).form.get('scope').includes(resource === 'arm' ? 'management.azure.com' :
+    assert.doesNotMatch(result.stdout + result.stderr, /deprecated|tokenEnv/i)
+    assert.equal(transport.requests.length, before + 1)
+    assert.ok(transport.requests.at(-1).form.get('scope').includes(resource === 'arm' ? 'management.azure.com' :
       resource === 'logs' ? 'api.loganalytics.io' : resource === 'graph' ? 'graph.microsoft.com' :
         resource === 'registry' ? 'containerregistry.azure.net' : resource === 'vault' ? 'vault.azure.net' : 'storage.azure.com'))
     assert.ok((await evidence()).requests.some(request => request.host === host && request.path === path && request.canaryReceived))
@@ -123,7 +131,8 @@ try {
       assert.equal(secret.enabled, true)
       assert.equal(secret.contentType, 'text/plain')
     }
-    console.log(JSON.stringify({ scenario: 'token-mode metadata read', resource, args, output: result.stdout }))
+    console.log(JSON.stringify({ scenario: 'token-mode metadata read', preparation, resource, args,
+      output: result.stdout, stderr: result.stderr }))
   }
   const target = '/subscriptions/synthetic-subscription/resourceGroups/single-write?api-version=2022-12-01'
   const otherSubscription = '44444444-4444-4444-8444-444444444444'

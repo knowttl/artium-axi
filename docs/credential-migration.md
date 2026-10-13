@@ -19,8 +19,9 @@ Schema locations are owned by [server configuration](../src/server/config.ts); a
 The az token broker retains its source-identity editor and validates the brokered token profile against the shipped schema when available.
 Each tool switches when its pinned package ships axi-credential.schema.json.
 For tools using the shared credential editor, that schema owns validation, form guidance and secret injection.
-The current Vectra and Graph [pins](../tools/package.json) ship the canonical schemas and use the shared writer.
+The current Vectra, Graph and Az [pins](../tools/package.json) ship the canonical schemas and use the shared writer.
+Az's brokered token profile and schema-absent fallback both use the per-resource SecretRefs defined in the [credential standard](credential-standard.md#per-tool-host-facing-schemas).
 See [credential editor guidance](../README.md#browser-administration) for Vectra origin and CA inputs.
 [Published-credential tests](../test/integration/published-credentials.test.ts) exercise artium-written SecretRefs and private per-call configuration: Vectra contacts a fake HTTPS appliance; Graph uses the published CLI and secret resolver with fake credential acquisition and transport.
 See [Graph headless verification](verification-s50.md) for the generated schema and acquisition probe.
-Az, Falcon and AWX follow; azure-axi follows last.
+Falcon and AWX follow; azure-axi follows last.

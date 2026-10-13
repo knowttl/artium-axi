@@ -24,10 +24,10 @@ The test selects the permission flag supported by the running Node version, incl
 
 The `azureAudiences` map in [azure-tokens.ts](../src/server/adapters/azure-tokens.ts) owns the six audience values, derived from the pinned az-axi `dist/lib/auth.js` `RESOURCE_URL`.
 [The authentication tests](../src/server/adapters/azure-tokens.test.ts) inspect actual MSAL token-request scopes and check the exact source-derived candidates, including preserved trailing slashes when appending `/.default`.
-These values have fake transport evidence only.
+This slice provides fake transport evidence only; the [evidence ledger](evidence-ledger.md) owns subsequent live scope acceptance and its limits.
 The certificate fields follow the pinned MSAL public API and [Microsoft's certificate credential documentation](https://learn.microsoft.com/en-us/entra/msal/javascript/node/certificate-credentials).
 No certificate or private key is published as a fixture.
 
-Pending captain checklist: verify harmless live secret authentication, harmless live certificate authentication and all six scope audiences, recording their successful exact trailing-slash forms privately.
-See [S26 verification](verification-s26.md) for the pending live resource, native permission and write-family acceptance.
+Captain checklist: verify harmless live secret authentication, harmless live certificate authentication and all six scope audiences, recording their successful exact trailing-slash forms privately.
+Consult the [evidence ledger](evidence-ledger.md) for which live checklist items remain unverified.
 Do not mark T2.5's live acceptance complete from these tests.

@@ -1,6 +1,7 @@
 # Azure safe-pin verification
 
-The published `@knowttl/az-axi` 0.1.6 artifact replaces 0.1.4 and enables Azure in the production server and CLI discovery.
+The activation candidate used the published `@knowttl/az-axi` 0.1.6 artifact to replace 0.1.4 and enable Azure in the production server and CLI discovery.
+The current pin is owned by [tools/package.json](../tools/package.json).
 The npm registry supplies the SHA-512 integrity recorded in `tools/integrity.json` and the tools lockfile.
 Vectra and Graph pins remain unchanged.
 
