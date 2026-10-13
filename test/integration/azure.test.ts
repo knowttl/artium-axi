@@ -156,6 +156,72 @@ test.each([
   })
 })
 
+test.each([
+  { selectors: ['--ids', ` ${incidentTarget} `], owner: incidentId, expectedOwner: { objectId: incidentId } },
+  { selectors: ['--name', ` ${incidentId} `, '-g', ' runner-timeout-recovery ', '--workspace-name', ' synthetic workspace '], owner: incidentId, expectedOwner: { objectId: incidentId } },
+  { selectors: ['--incident-id', incidentId, '-g', 'runner-timeout-recovery', '--workspace-name', 'synthetic workspace'], owner: incidentId, expectedOwner: { objectId: incidentId } },
+  { selectors: ['--name', '17', '-g', 'runner-timeout-recovery', '--workspace-name', 'synthetic workspace'], owner: incidentId, expectedOwner: { objectId: incidentId } },
+  { selectors: ['--incident-id', incidentId, '--workspace', 'synthetic'], owner: incidentId, expectedOwner: { objectId: incidentId } },
+  { selectors: ['--name', '17', '--workspace', '33333333-3333-4333-8333-333333333333'], owner: incidentId, expectedOwner: { objectId: incidentId } },
+  { selectors: ['--ids', incidentTarget], owner: 'synthetic@example.test', expectedOwner: { email: 'synthetic@example.test', userPrincipalName: 'synthetic@example.test' } },
+  { selectors: ['--ids', incidentTarget], owner: 'Synthetic Analyst', expectedOwner: { assignedTo: 'Synthetic Analyst' } },
+])('incident recovery exposes every changed field for $selectors and $owner', async ({ selectors, owner, expectedOwner }) => {
+  await withAzureGateway(async ({ run, send }) => {
+    const comment = 'synthetic classification '.repeat(160) + 'synthetic tail'
+    const response = await run(['sentinel', 'incident', 'update', '-s', subscription, ...selectors,
+      '--status', 'Closed', '--severity', 'High', '--classification', 'TruePositive',
+      '--classification-reason', 'SuspiciousActivity', '--classification-comment', comment, '--owner', owner, '--execute'])
+    expect(response.statusCode).toBe(504)
+    const error = errorResponseSchema.parse(response.json()).error
+    expect(error.code).toBe('UNKNOWN_OUTCOME')
+    const first = error.next.split('Check current state before trying again: ')[1].split('. Use the returned incident id')[0]
+    const selected = await run(hostedArgs(first))
+    expect(selected.statusCode).toBe(200)
+    const selectedResult = runSuccessSchema.parse(selected.json())
+    expect(selectedResult.exitCode).toBe(0)
+    const incident = decode(selectedResult.stdout) as { id: string }
+    expect(incident.id).toBe(incidentTarget)
+    const second = error.next.split('inspect all incident fields before retrying: ')[1].replace('<incident-ARM-id>', incident.id)
+    const recovered = await run(hostedArgs(second))
+    expect(recovered.statusCode).toBe(200)
+    const result = runSuccessSchema.parse(recovered.json())
+    expect(result.exitCode).toBe(0)
+    expect(decode(result.stdout)).toMatchObject({ properties: { status: 'Closed', severity: 'High',
+      classification: 'TruePositive', classificationReason: 'SuspiciousActivity', classificationComment: comment,
+      owner: expectedOwner } })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+})
+
+test.each([
+  { selectors: ['--ids', `/subscriptions/${subscription}/resourceGroups/runner-timeout-recovery/providers/Microsoft.Network/networkSecurityGroups/synthetic nsg`],
+    sourcePorts: ['1000-2000'], sourceAddresses: ['10.0.0.0/24'], destinationPorts: ['443'], destinationAddresses: ['10.1.0.0/24'],
+    expected: { sourcePortRange: '1000-2000', sourceAddressPrefix: '10.0.0.0/24', destinationPortRange: '443', destinationAddressPrefix: '10.1.0.0/24' } },
+  { selectors: ['--nsg-name', ' synthetic nsg ', '-g', ' runner-timeout-recovery '],
+    sourcePorts: ['1000-2000', '3000'], sourceAddresses: ['10.0.0.0/24', '10.2.0.0/24'], destinationPorts: ['443', '8443'], destinationAddresses: ['10.1.0.0/24', '10.3.0.0/24'],
+    expected: { sourcePortRanges: ['1000-2000', '3000'], sourceAddressPrefixes: ['10.0.0.0/24', '10.2.0.0/24'],
+      destinationPortRanges: ['443', '8443'], destinationAddressPrefixes: ['10.1.0.0/24', '10.3.0.0/24'] } },
+])('rule recovery exposes every changed field for $selectors', async ({ selectors, sourcePorts, sourceAddresses, destinationPorts, destinationAddresses, expected }) => {
+  await withAzureGateway(async ({ run, send }) => {
+    const response = await run(['network', 'nsg', 'rule', 'create', '-s', subscription, ...selectors,
+      '-n', 'synthetic-rule', '--priority', '123', '--direction', 'Outbound', '--access', 'Deny', '--protocol', 'Tcp',
+      '--source-address-prefixes', ...sourceAddresses, '--source-port-ranges', ...sourcePorts,
+      '--destination-address-prefixes', ...destinationAddresses, '--destination-port-ranges', ...destinationPorts,
+      '--description', 'synthetic rule description', '--execute', '--confirm', 'synthetic-rule'])
+    expect(response.statusCode).toBe(504)
+    const error = errorResponseSchema.parse(response.json()).error
+    expect(error.code).toBe('UNKNOWN_OUTCOME')
+    const recovered = await run(hostedArgs(error.next.split('Check current state before trying again: ')[1]))
+    expect(recovered.statusCode).toBe(200)
+    const result = runSuccessSchema.parse(recovered.json())
+    expect(result.exitCode).toBe(0)
+    expect(decode(result.stdout)).toMatchObject({ name: 'synthetic-rule', properties: {
+      description: 'synthetic rule description', protocol: 'Tcp', ...expected,
+      access: 'Deny', priority: 123, direction: 'Outbound' } })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+})
+
 test.each([[[]], [['home']]])('dashboard %j performs authenticated ARM reads', async args => {
   await withFakeService(async ({ directory, port, send }) => {
     const runner = await Runner.create(join(directory, 'calls'))

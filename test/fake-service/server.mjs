@@ -138,7 +138,21 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         res.writeHead(404)
         res.end(JSON.stringify({ error: { code: 'NotFound' } }))
       }
-    } else res.end(JSON.stringify(url.pathname.endsWith('/incidents') ? { value: [state] } : state))
+    } else res.end(JSON.stringify(url.pathname.endsWith('/incidents') ? { value: [resources.get(incident) ?? state] } : resources.get(url.pathname) ?? state))
+  } else if (url.pathname.includes('/resourceGroups/runner-timeout-recovery/') && url.pathname.includes('/providers/Microsoft.Network/networkSecurityGroups/')) {
+    if (req.method === 'PUT') {
+      let body = ''
+      req.setEncoding('utf8')
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        mutations++
+        resources.set(url.pathname, { id: url.pathname, ...JSON.parse(body) })
+      })
+    } else if (resources.has(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname)))
+    else if (url.pathname.includes('/securityRules/')) {
+      res.writeHead(404)
+      res.end(JSON.stringify({ error: { code: 'NotFound' } }))
+    } else res.end(JSON.stringify({ id: url.pathname, properties: { securityRules: [] } }))
   } else if (url.pathname.includes('/resourceGroups/runner-timeout-') && (req.method === 'PATCH' || url.pathname.endsWith('/runner-timeout-read'))) {
     let body = ''
     req.setEncoding('utf8')
