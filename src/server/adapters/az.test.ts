@@ -6,8 +6,7 @@ import { SecretScanner } from '../runner/scan.js'
 import { createAzAdapter, azCredentialSchema } from './az.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import { azureAudiences } from './azure-tokens.js'
-import { CredentialProfile } from './credential-profile.js'
-import profileSchema from '../../../test/fixtures/az-credential.schema.json' with { type: 'json' }
+import { loadCredentialProfile } from './credential-profile.js'
 import { decode, encode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
@@ -20,7 +19,7 @@ const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
 const writeLog = '/data/tool-logs/az-axi/writes.log'
 
 test('hosted discovery advertises only flags accepted by the managed adapter', () => {
-  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.6' })
+  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.7' })
   const help = JSON.parse(view.split('upstreamHelp: ')[1]) as string
   const flags = help.split('\n').find(line => line.startsWith('Flags: '))!.slice(7).split(', ')
   const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
@@ -96,7 +95,7 @@ test.each([
 ] as const)('migrated az profile uses the brokered %s token through its shipped schema: %s', async (args, field) => {
   const transport = new FakeTokenTransport()
   const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog,
-    new AzureTokenCache(transport), new CredentialProfile(profileSchema))
+    new AzureTokenCache(transport), loadCredentialProfile('az-axi', 'tools/node_modules/@knowttl/az-axi/axi-credential.schema.json'))
   const call = await adapter.prepare(args, reference)
   expect(call.files[0].name).toBe('az-axi/config.json')
   expect(JSON.parse(String(call.files[0].content))).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
@@ -130,7 +129,7 @@ test.each([
     ARTIUM_SECRET_0: azureTestToken })
   expect(JSON.parse(call.files[0].content as string)).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
     artium: { auth: 'token', tenantId: credential.tenantId, subscriptions: credential.subscriptions,
-      allowWrites: true, workspaces: credential.workspaces, tokenEnv: { [resource]: 'ARTIUM_SECRET_0' } },
+      allowWrites: true, workspaces: credential.workspaces, [`${resource}Token`]: { env: 'ARTIUM_SECRET_0' } },
   } })
   if (_name !== 'leading subscription') expect(call.args).toEqual(args)
   expect(call.secrets).toEqual(expect.arrayContaining([credential.clientSecret, azureTestToken]))

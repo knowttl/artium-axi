@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.6",
-  "integrity": "sha512-+72Tudi30AE016bGM+c6xyZ7bwSrZQn9jh2YGPd8cvtvc4KqyDFsHc+heRYFBesYuChxELHCyXtXzbT0VUs32A==",
+  "version": "0.1.7",
+  "integrity": "sha512-qN241ZsiNoOZK2HIDXg7t2Tc0v9tQc//Ax0Js0uo+A5c4mPXskFCF7IRyvL0cjXL9zRtzNWA41mSyqjezK/rdQ==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "5c2c67847a551627d1d0a765ef9a553158e80338e97fb5d8d301d528d8eb18e3",
+  "packageManifestSha256": "d63d4ec5f73a6a30402d2608dbfa907d6c3634af14093e884c3ac287db57157d",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -65,37 +65,37 @@
   ],
   "dynamicCredentialEnvironment": [
     {
-      "profileField": "tokenEnv.arm",
+      "profileField": "armToken.env",
       "transport": "token value",
       "defaultEnvironment": "AZ_AXI_ARM_TOKEN",
       "disposition": "server-owned"
     },
     {
-      "profileField": "tokenEnv.graph",
+      "profileField": "graphToken.env",
       "transport": "token value",
       "defaultEnvironment": "AZ_AXI_GRAPH_TOKEN",
       "disposition": "server-owned"
     },
     {
-      "profileField": "tokenEnv.logs",
+      "profileField": "logsToken.env",
       "transport": "token value",
       "defaultEnvironment": "AZ_AXI_LOGS_TOKEN",
       "disposition": "server-owned"
     },
     {
-      "profileField": "tokenEnv.registry",
+      "profileField": "registryToken.env",
       "transport": "token value",
       "defaultEnvironment": "AZ_AXI_REGISTRY_TOKEN",
       "disposition": "server-owned"
     },
     {
-      "profileField": "tokenEnv.storage",
+      "profileField": "storageToken.env",
       "transport": "token value",
       "defaultEnvironment": "AZ_AXI_STORAGE_TOKEN",
       "disposition": "server-owned"
     },
     {
-      "profileField": "tokenEnv.vault",
+      "profileField": "vaultToken.env",
       "transport": "token value",
       "defaultEnvironment": "AZ_AXI_VAULT_TOKEN",
       "disposition": "server-owned"
@@ -104,7 +104,7 @@
   "environmentSources": [
     {
       "path": "dist/lib/config.js",
-      "sha256": "2d9b5ee0f3bff046a74c33262eefa3967de1b560d030f5896c806723908237ea"
+      "sha256": "fda256f786caa717a261b6455a17b88a25c0551de052e6783ba07fddfa341a71"
     },
     {
       "path": "dist/lib/auth.js",
@@ -130,7 +130,7 @@
     "sources": [
       {
         "path": "dist/lib/config.js",
-        "sha256": "2d9b5ee0f3bff046a74c33262eefa3967de1b560d030f5896c806723908237ea"
+        "sha256": "fda256f786caa717a261b6455a17b88a25c0551de052e6783ba07fddfa341a71"
       },
       {
         "path": "dist/lib/gates.js",
@@ -263,7 +263,7 @@
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "7a09e7520dc782788ca9de6cafc38da1b1b713d788923f02393a42c14cf3d810"
+      "sha256": "a3b8b9a8bee299fb73a135af150aaf29a49a522af6fad9494f70af466fe1e7bf"
     },
     {
       "path": "dist/lib/client.js",
@@ -299,7 +299,7 @@
     },
     {
       "path": "dist/commands/api.js",
-      "sha256": "baa18308b4049a6e5dbb924be4a4e1aa6361fa95deef99256e5bad689a2fdd4b"
+      "sha256": "d8654334dccc74a7eb02d76fe20ec685fbe7f10bbafe90d70f9ca3f75950eda5"
     }
   ],
   "flags": [

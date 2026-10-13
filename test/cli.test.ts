@@ -419,13 +419,14 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 })
 
 test('Azure discovery exposes the pinned version and first read', async () => {
-  response = { status: 200, body: { tools: [{ name: 'az-axi', status: 'ok', version: '0.1.6' }] } }
+  requests = []
+  response = { status: 200, body: { tools: [{ name: 'az-axi', status: 'ok', version: '0.1.7' }] } }
   const listing = await cli(['tools'])
   expect(listing).toMatchObject({ code: 0, stderr: '' })
   expect(listing.stdout).toContain('artium-axi az-axi sub list')
   const detail = await cli(['tools', 'show', 'az-axi'])
   expect(detail).toMatchObject({ code: 0, stderr: '' })
-  expect(detail.stdout).toContain('version: "0.1.6"')
+  expect(detail.stdout).toContain('version: "0.1.7"')
   expect(detail.stdout).toContain('example: artium-axi az-axi sub list')
   expect(detail.stdout).toContain('upstreamHelp:')
 })
