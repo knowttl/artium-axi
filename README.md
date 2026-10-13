@@ -160,7 +160,8 @@ Falcon has no editable native write settings.
 Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.
 Artium also returns this error when its runner times out, cancels or receives a process signal after starting an executed Azure write; read timeouts remain `TIMEOUT`.
 Before submitting the write again, follow the returned read commands and inspect the changed state.
-For Sentinel incident updates and comment creation, first resolve the incident ID with the suggested `incident show` command, then use that ID in the suggested API GET to inspect all incident fields or the comments collection.
+Keep `--full` on recovery API GET commands so long changed values are not truncated, including both `Check current state before trying again` and `Verify with` suggestions.
+Runner-generated recovery for Sentinel incident updates and comment creation first resolves the incident ID with the suggested `incident show` command, then uses that ID in the suggested API GET to inspect all incident fields or the comments collection.
 
 ### TOON output behavior
 

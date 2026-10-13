@@ -14,6 +14,7 @@ Vectra and Graph pins remain unchanged.
    Confirm exactly one PATCH and one mutation, upstream exit code 1, and caller-visible `UNKNOWN_OUTCOME` with state-check guidance.
    The public-interface [Azure integration tests](../test/integration/azure.test.ts) also hold API and native write responses past the runner deadline, check a single mutation, and retain `TIMEOUT` for reads.
    They execute emitted recovery reads and assert visible tag, alert, comment, incident and network-rule state, including all updated incident fields and supported selectors.
+   API runner-timeout and native ambiguous gateway-timeout or connection-loss cases verify complete values longer than 4,000 characters; native cases follow every emitted recovery read in JSON and TOON help.
 6. Confirm the existing six-resource reads and native write preview, opt-in, scope, confirmation and durable-log checks still pass.
 7. After committing, run `pnpm hygiene:check` with the private external deny list supplied through `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE`.
    Record its hash and result in delivery evidence without exposing its terms or path.

@@ -29,6 +29,6 @@ Run the real private hygiene scan on that committed and built candidate using th
 Quote the commit, command results and per-step pipeline timings in the PR body and delivery status.
 Any pipeline fix that changes source or tests requires renewed frozen install, lint, test, check and private hygiene validation before delivery.
 
-See [S26 verification](verification-s26.md) for implemented profile preparation, argument validation, local pinned Azure command checks and runtime activation restrictions.
+See [S26 verification](verification-s26.md) for implemented profile preparation, argument validation and local pinned Azure command checks, and [README](../README.md) for current runtime availability.
 Live secret/certificate authentication, audience trailing-slash acceptance, real resource reads and native permissions remain unverified captain checks.
 The fake transport cannot close those gates.

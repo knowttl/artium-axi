@@ -34,7 +34,8 @@ The local hardening regression does not establish completion of a separate full-
 | Graph `0.1.4` | Fake MSAL secret/key headless acquisition; real runner and pinned native session/mutation coordinator; read, role/override denial before credential access, preview, confirmation/allowWrites/operation gates, one confirmed fake send, journal, paired audit and encoded canary refusal; production image version is `0.1.4` | External transport and credential acquisition are fake boundaries; real signing/authentication, application permissions, consent and minted-token redaction remain unverified |
 
 Falcon and Vectra run through the production server and downloaded standalone client.
-Azure and Graph run through their existing internal adapter harnesses; these checks do not claim production activation or a clean-client first call for those deferred adapters.
+Azure and Graph ran through their existing internal adapter harnesses in this slice; these historical checks do not claim production activation or a clean-client first call for those then-deferred adapters.
+See [README](../README.md) for current runtime availability and [Azure safe-pin verification](verification-azure-safe-pin.md) for subsequent Azure evidence.
 The Graph adapter probe uses the non-root read-only, no-network container and bounded resources described in [S51 verification](verification-s51.md).
 
 ## Clean image, hardening and restore
