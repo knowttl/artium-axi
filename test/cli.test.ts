@@ -2,7 +2,7 @@ import { execFile, execFileSync, fork } from 'node:child_process'
 import { promisify } from 'node:util'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
-import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TLSSocket } from 'node:tls'
@@ -67,7 +67,7 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false) {
+async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string) {
   const configuration = mkdtempSync(join(directory, 'config-'))
   new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
     status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
@@ -77,7 +77,9 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
     ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment }
   if (controlled) return controlledCli(args, env)
   try {
-    return { ...await execute(process.execPath, [bundle, ...args], { cwd: directory, timeout: 10_000, env }), code: 0 }
+    const pending = execute(process.execPath, [bundle, ...args], { cwd: directory, timeout: 10_000, env })
+    pending.child.stdin!.end(input)
+    return { ...await pending, code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
 
@@ -164,6 +166,32 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
   expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
     stdout: 'help[1]:\n  Run `artium-axi falcon-axi host list`\n',
     stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
+})
+
+test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bounded %s input through the API', async kind => {
+  requests = []
+  response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+  const query = 'Resources\n| count'
+  const path = join(directory, 'query.kql')
+  writeFileSync(path, query)
+  const args = kind === 'stdin' ? [] : kind === 'file' ? ['--file', path] : [`--file=${path}`]
+  expect(await cli(['az-axi', 'rg', 'query', ...args], {}, false, kind === 'stdin' ? query : undefined))
+    .toMatchObject({ code: 0, stdout: 'synthetic result' })
+  expect(requests[0].body).toEqual(kind === 'stdin' ? { args: ['rg', 'query'], stdin: query }
+    : { args: ['rg', 'query', ...(kind === 'file' ? ['--file', 'query.kql'] : ['--file=query.kql'])],
+      files: [{ name: 'query.kql', contentBase64: Buffer.from(query).toString('base64') }] })
+})
+
+test.each(['stdin', 'file', 'missing-file'] as const)('Azure refuses %s input that cannot be uploaded before sending a request', async kind => {
+  requests = []
+  const path = join(directory, `${kind}.kql`)
+  if (kind === 'file') writeFileSync(path, Buffer.alloc(1024 * 1024 + 1, 'x'))
+  const args = kind === 'stdin' ? [] : ['--file', path]
+  const result = await cli(['az-axi', 'rg', 'query', ...args], {}, false,
+    kind === 'stdin' ? 'x'.repeat(512 * 1024 + 1) : undefined)
+  expect(result).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT') })
+  expect(requests).toEqual([])
 })
 
 test.each([
@@ -285,6 +313,7 @@ test.each([
   try {
     const result = await cli(['doctor'])
     expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining(`fail: ${diagnostic}`) })
+    expect(result.stdout).toContain('pass: certificate\n')
     expect(result.stdout).toContain(`error:\n  code: "${code}"\n  source: "artium-axi"\n`)
     expect(result.stdout).toContain(`  message: ${JSON.stringify(errors[code].message)}\n`)
     expect(result.stdout).toContain(`  next: ${JSON.stringify(errors[code].next)}\n`)

@@ -11,6 +11,7 @@ import profileSchema from '../../../test/fixtures/az-credential.schema.json' wit
 import { decode, encode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
+import { redactArguments } from '../audit/redact.js'
 
 const reference = { id: 'synthetic-azure', tool: 'az-axi' as const, revision: 1 }
 const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
@@ -18,6 +19,33 @@ const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
   subscriptions: ['synthetic-subscription'], allowWrites: true,
   workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' } }
 const writeLog = '/data/tool-logs/az-axi/writes.log'
+
+test.each([
+  { args: ['graph', 'query', 'Resources | count'], safe: ['graph', 'query', '[redacted]'] },
+  { args: ['--full', 'rg', 'query', 'Resources | count'], safe: ['--full', 'rg', 'query', '[redacted]'] },
+  { args: ['monitor', 'log-analytics', 'query', 'Heartbeat | count'], safe: ['monitor', 'log-analytics', 'query', '[redacted]'] },
+])('positional KQL is redacted even when upstream rejects its spelling: $args', ({ args, safe }) => {
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
+  adapter.validateArgs(args)
+  expect(redactArguments(args, adapter.sensitiveArguments(args))).toEqual(safe)
+})
+
+test('unknown Azure flags identify the flag and valid command flags before credential access', () => {
+  const adapter = createAzAdapter({ getCredential: vi.fn() }, writeLog)
+  expect(() => adapter.validateArgs(['rg', 'query', '--graph-query', 'Resources | count']))
+    .toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: 'Unknown flag --graph-query for az-axi rg query.',
+      next: expect.stringContaining('--file') }))
+})
+
+test('Azure query help retains usable input examples with the hosted executable', () => {
+  const upstream = spawnSync(process.execPath, ['tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', 'rg', 'query', '--help'],
+    { encoding: 'utf8' })
+  expect(upstream.status).toBe(0)
+  const hosted = rewriteSuggestions(upstream.stdout, 'az-axi')
+  expect(hosted).toContain('artium-axi az-axi rg query --file query.kql')
+  expect(hosted).toContain('cat query.kql | artium-axi az-axi rg query')
+  expect(rewriteSuggestions(hosted, 'az-axi')).toBe(hosted)
+})
 
 test('hosted discovery advertises only flags accepted by the managed adapter', () => {
   const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.6' })

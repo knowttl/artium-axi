@@ -22,7 +22,7 @@ export async function doctor(): Promise<void> {
   } catch (error) {
     const cause = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE')
     line('server address', cause.code === 'CERTIFICATE_INVALID', cause.code, cause)
-    line('certificate', false, cause.code, cause)
+    line('certificate', cause.code !== 'CERTIFICATE_INVALID', cause.code === 'CERTIFICATE_INVALID' ? cause.code : undefined, cause)
   }
   let versionOk = true
   let versionError: ArtiumError | undefined

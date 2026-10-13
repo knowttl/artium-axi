@@ -104,6 +104,7 @@ function azureHelp(help: string): string {
     .replace(/^Examples:[^\r\n]*/gm, line => line.replace(/'[^']*'|"(?:\\.|[^"\\])*"|(; )az-axi(?=\s|$)/g,
       (match, separator) => separator ? '; artium-axi az-axi' : match))
     .replace(/`az-axi(?=\s|`)([^\r\n`]*`)/g, '`artium-axi az-axi$1')
+    .replace(/^(cat [^\r\n|]+ \| )az-axi(?=\s|$)/gm, '$1artium-axi az-axi')
 }
 
 function jsonHelp(output: string): Help {

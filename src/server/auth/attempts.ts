@@ -25,25 +25,35 @@ export class AuthAttempts {
   async signIn(username: string, password: string, context: Context) {
     const canonical = canonicalUsername(username)
     const now = Date.now()
-    this.limits.admit(canonical, context.clientAddress, now)
-    const account = this.account(canonical)
-    if (account?.locked_until && account.locked_until > now) throw new ArtiumError('ACCOUNT_LOCKED')
     try {
-      const identity = await this.provider.signIn(canonical, password)
+      this.limits.admit(canonical, context.clientAddress, now)
+      const account = this.account(canonical)
+      if (account?.locked_until && account.locked_until > now) throw new ArtiumError('ACCOUNT_LOCKED')
+      let identity: Awaited<ReturnType<LocalAuthProvider['signIn']>>
+      try { identity = await this.provider.signIn(canonical, password) }
+      catch (error) {
+        if (error instanceof ArtiumError && error.code === 'SIGN_IN_FAILED') {
+          this.limits.recordFailure(canonical)
+          if (account) {
+            const current = this.account(canonical)!
+            if (current.locked_until !== null && current.locked_until > Date.now()) throw error
+            const failed = current.locked_until !== null && current.locked_until <= Date.now() ? 1 : current.failed_attempts + 1
+            const update = () => this.db.prepare('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?')
+              .run(failed, failed >= authDefaults.usernameAttempts ? Date.now() + authDefaults.windowMs : null, account.id)
+            if (failed === authDefaults.usernameAttempts) {
+              this.audit.change({ ...context, event: 'lockout', userId: account.id, tool: null, outcome: 'ACCOUNT_LOCKED' }, update)
+            } else update()
+          }
+        }
+        throw error
+      }
       const current = this.account(canonical)
       if (current?.locked_until && current.locked_until > Date.now()) throw new ArtiumError('ACCOUNT_LOCKED')
       this.db.prepare('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?').run(identity.userId)
       return identity
     } catch (error) {
-      if (error instanceof ArtiumError && error.code === 'SIGN_IN_FAILED' && account) {
-        const current = this.account(canonical)!
-        if (current.locked_until !== null && current.locked_until > Date.now()) throw error
-        const failed = current.locked_until !== null && current.locked_until <= Date.now() ? 1 : current.failed_attempts + 1
-        const update = () => this.db.prepare('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?')
-          .run(failed, failed >= authDefaults.usernameAttempts ? Date.now() + authDefaults.windowMs : null, account.id)
-        if (failed === authDefaults.usernameAttempts) {
-          this.audit.change({ ...context, event: 'lockout', userId: account.id, tool: null, outcome: 'ACCOUNT_LOCKED' }, update)
-        } else update()
+      if (error instanceof ArtiumError && error.code === 'AUTH_RATE_LIMITED') {
+        this.audit.record({ ...context, event: 'sign-in', userId: null, tool: null, outcome: error.code })
       }
       throw error
     }
@@ -66,6 +76,14 @@ export class AuthRateLimits {
     this.prune(this.usernames, now)
     this.prune(this.addresses, now)
     this.consume(this.addresses, hashToken(address), authDefaults.addressAttempts, now)
+    const counter = this.usernames.get(hashToken(canonicalUsername(username)))
+    if (counter ? counter.count >= authDefaults.usernameAttempts : this.usernames.size >= authDefaults.counterKeys) {
+      throw new ArtiumError('AUTH_RATE_LIMITED')
+    }
+  }
+
+  recordFailure(username: string, now = Date.now()): void {
+    this.prune(this.usernames, now)
     this.consume(this.usernames, hashToken(canonicalUsername(username)), authDefaults.usernameAttempts, now)
   }
 

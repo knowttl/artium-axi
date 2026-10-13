@@ -6,6 +6,12 @@ services:
     init: true
     mem_limit: 6g
     pids_limit: 192
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health/ready').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     tmpfs:
       - /tmp:rw,nosuid,nodev,size=268435456,mode=1777
     volumes:
@@ -14,10 +20,17 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       ARTIUM_AXI_MASTER_KEY_FILE: /run/secrets/artium_master_key
+      # First start only: uncomment these settings and both password-secret entries below.
+      # Remove them after the administrator has been created.
+      # ARTIUM_AXI_ADMIN_USERNAME: synthetic-admin
+      # ARTIUM_AXI_ADMIN_PASSWORD_FILE: /run/secrets/artium_bootstrap_password
     secrets:
       - artium_master_key
+      # - artium_bootstrap_password
 secrets:
   artium_master_key:
     file: ./private/artium_master_key
+  # artium_bootstrap_password:
+  #   file: ./private/artium_bootstrap_password
 volumes:
   artium-data:

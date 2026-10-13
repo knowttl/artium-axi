@@ -151,7 +151,9 @@ The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-The bundled CLI forwards argument tokens; the API additionally supports bounded stdin and named uploads through the [shared API contract](src/shared/api.ts).
+The bundled CLI forwards argument tokens and, for Azure calls, bounded piped stdin and local files supplied through the reviewed `--file` and `--body-file` flags.
+Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
+The API supports bounded stdin and named uploads through the [shared API contract](src/shared/api.ts).
 
 Write permission remains subject to the pinned tool's native gates and the configured adapter policy.
 Vectra writes require its configured allowlist and upstream confirmation; Artium does not add a universal confirmation flag.
@@ -317,6 +319,7 @@ See [runner verification and limitations](docs/verification-s09-10.md) and [secr
 
 Use Linux with Node **22.12 or later**, **pnpm 10.22.0**, OpenSSL, Python 3, curl and sha256sum.
 Container acceptance additionally requires Docker and the BuildKit prerequisites described in the [container evidence](docs/verification-s20-21.md).
+`pnpm test:containers` starts a private BuildKit worker with `--privileged`; hosts that forbid privileged containers cannot run this check and must record container acceptance as unverified.
 
 ```sh
 pnpm install --frozen-lockfile
