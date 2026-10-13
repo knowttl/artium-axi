@@ -19,4 +19,7 @@ Schema locations are owned by [server configuration](../src/server/config.ts); a
 The az token broker retains its source-identity editor and validates the brokered token profile against the shipped schema when available.
 Each tool switches when its pinned package ships axi-credential.schema.json.
 For tools using the shared credential editor, that schema owns validation, form guidance and secret injection.
-Vectra and Graph prove the contract first, followed by az, Falcon and AWX; azure-axi follows last.
+The published vectra-axi 0.1.5 and mg-axi 0.1.6 pins ship the canonical schemas and use the shared writer.
+Fake-service tests execute both released packages with artium-written SecretRefs, isolated XDG configuration and private files.
+Graph's headless schema is projected from its published credential schema, including SHA-256 certificate thumbprints.
+Az, Falcon and AWX follow; azure-axi follows last.

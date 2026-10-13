@@ -132,7 +132,13 @@ export class CredentialProfile {
     const prefix = tool.toUpperCase().replaceAll('-', '_')
     environment[`${prefix}_READ_ONLY`] = String(readOnly)
     environment[`${prefix}_WRITE_LOG`] = writeLog
-    return { environment, secrets, files: [{ name: `${tool}/config.json`, content: JSON.stringify({
+    // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
+    const files: PreparedCall['files'] = []
+    if (tool === 'vectra-axi' && typeof parsed.value.caBundle === 'string') {
+      files.push({ name: 'vectra-axi/vectra-ca.pem', content: parsed.value.caBundle })
+      parsed.value.caBundle = 'vectra-ca.pem'
+    }
+    return { environment, secrets, files: [...files, { name: `${tool}/config.json`, content: JSON.stringify({
       version: 1, defaultProfile: 'artium', profiles: { artium: parsed.value },
     }) }] }
   }

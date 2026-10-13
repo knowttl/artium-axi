@@ -237,9 +237,9 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.3.0', health: { status: 'unconfigured' } },
-    { name: 'vectra-axi', version: '0.1.3', health: { status: 'unconfigured' } },
+    { name: 'vectra-axi', version: '0.1.5', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.4', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.4', health: { status: 'disabled' } },
+    { name: 'mg-axi', version: '0.1.6', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

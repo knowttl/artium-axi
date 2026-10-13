@@ -1,24 +1,23 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, test } from 'vitest'
+import { Ajv2020 } from 'ajv/dist/2020.js'
+import { expect, test } from 'vitest'
 
-type StringConstraint = { type: 'string'; pattern: string }
-type CredentialForm = { properties: Record<string, StringConstraint> }
 const schema = JSON.parse(readFileSync(
   new URL('../tools/inventories/mg-axi-headless.schema.json', import.meta.url), 'utf8',
-)) as { properties: { credentialRef: { oneOf: CredentialForm[] } } }
+))
+const validate = new Ajv2020({ strict: false }).compile(schema)
+const identity = { mode: 'application', tenantId: '00000000-0000-0000-0000-000000000001',
+  clientId: '00000000-0000-0000-0000-000000000002', auth: 'client-secret' }
 
-describe.each(['secretFile', 'keyFile'])('Generated headless schema %s path constraint', field => {
-  const constraint = schema.properties.credentialRef.oneOf.find(form => Object.hasOwn(form.properties, field))!.properties[field]
-
-  test.each([
-    ['/tmp/credential', true],
-    ['relative-credential', true],
-    ['  credential  ', true],
-    ['', false],
-    ['   ', false],
-    ['\t\n', false],
-  ])('accepts %j: %s', (value, accepted) => {
-    expect(constraint.type).toBe('string')
-    expect(new RegExp(constraint.pattern).test(value)).toBe(accepted)
-  })
+test.each([
+  [{ clientSecret: { env: 'CANARY_SECRET' } }, true],
+  [{ clientSecret: { file: '/tmp/credential' } }, true],
+  [{ clientSecret: { file: 'relative-credential' } }, false],
+  [{ clientSecret: 'CANARY-inline' }, false],
+  [{ clientSecret: { stored: true } }, false],
+  [{ mode: 'delegated', auth: undefined, token: { stored: true } }, false],
+  [{ auth: 'certificate', privateKey: { env: 'CANARY_KEY' }, thumbprintSha256: 'a'.repeat(64) }, true],
+  [{ auth: 'certificate', privateKey: { env: 'CANARY_KEY' }, thumbprintSha256: 'a'.repeat(40) }, false],
+])('headless application schema validates %j: %s', (fields, accepted) => {
+  expect(validate({ ...identity, ...fields })).toBe(accepted)
 })

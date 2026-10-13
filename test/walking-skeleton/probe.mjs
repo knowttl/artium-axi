@@ -5,7 +5,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, write
 import { createHash } from 'node:crypto'
 import { get } from 'node:https'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-standalone-'))
 const install = join(directory, 'bin')
@@ -157,20 +157,23 @@ try {
       }
       const tagArgs = ['detection', 'tag', 'set', '--id', '42', '--tags', 'synthetic']
       const prepared = await adapter.prepare(tagArgs, { id: 'synthetic-vectra', tool: 'vectra-axi' })
-      for (const file of prepared.files) writeFileSync(join(directory, file.name), file.content, { mode: 0o600 })
+      for (const file of prepared.files) {
+        mkdirSync(dirname(join(directory, file.name)), { recursive: true, mode: 0o700 })
+        writeFileSync(join(directory, file.name), file.content, { mode: 0o600 })
+      }
       const vectraDetail = await cli(['tools', 'show', 'vectra-axi'])
       assert.equal(vectraDetail.code, 0, vectraDetail.stdout + vectraDetail.stderr)
       assert.match(vectraDetail.stdout, /example: artium-axi vectra-axi detection list/)
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
-        const local = await execute(prepared.executable, args, prepared.environment)
+        const local = await execute(prepared.executable, args, { ...prepared.environment, XDG_CONFIG_HOME: directory })
         const remote = await cli(['vectra-axi', ...args])
         if (args.length === 0) {
           // Home reports the generated profile location, which belongs to each call's temp directory.
-          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/config\/vectra-profile\.json$/m
+          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/config\/vectra-axi\/config\.json$/m
           assert.match(remote.stdout, privateConfig)
-          assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-profile.json')}\n`))
-          remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-profile.json')
-          local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-profile.json')}`, '  config: <private call>/vectra-profile.json')
+          assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-axi/config.json')}\n`))
+          remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-axi/config.json')
+          local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-axi/config.json')}`, '  config: <private call>/vectra-axi/config.json')
         }
         assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
       }
@@ -181,7 +184,7 @@ try {
       const log = '/test-data/tool-logs/vectra-axi/writes.log'
       assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line).kind), ['intent', 'outcome'])
       assert.equal(statSync(log).mode & 0o777, 0o600)
-      console.log(JSON.stringify({ pinnedVectra: '0.1.3', profile: 'local and Artium parity', dryRun: 'zero mutations',
+      console.log(JSON.stringify({ pinnedVectra: '0.1.5', profile: 'local and Artium parity', dryRun: 'zero mutations',
         execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.3.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
     }

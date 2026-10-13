@@ -37,11 +37,11 @@ test.each([
     const root = fileURLToPath(new URL('../', import.meta.url))
     const config = join(directory, 'profile.json')
     const log = join(directory, 'writes.log')
-    writeFileSync(config, JSON.stringify({ defaultProfile: 'synthetic', profiles: { synthetic: {
+    writeFileSync(config, JSON.stringify({ version: 1, defaultProfile: 'synthetic', profiles: { synthetic: {
       kind: 'qux', origin: `https://localhost:${port}`, apiVersion: '2.5', auth: 'token',
-      tokenEnv: 'CANARY_TOKEN', caBundle: join(directory, 'ca.crt'),
+      token: { env: 'CANARY_TOKEN' }, caBundle: join(directory, 'ca.crt'),
       ...(enabled ? { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } } : {}),
-    } } }))
+    } } }), { mode: 0o600 })
     const result = spawnSync(process.execPath, [join(root, 'tools/node_modules/@knowttl/vectra-axi/bin/vectra-axi.js'),
       'detection', 'tag', 'set', '--config', config, '--id', id, '--tags', 'synthetic', ...execution], {
       encoding: 'utf8', timeout: 3000, env: { HOME: directory, PATH: process.env.PATH,
