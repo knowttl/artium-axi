@@ -226,8 +226,10 @@ describe.each(['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG'])(
       environment: { ...prepared.environment, [variable]: join(directory, 'writes.log') } }
   } }
   test.each([
-    { activity: 'missing', flags: ['--execute'], exitCode: 0, action: 'unknown' },
-    { activity: 'empty', flags: ['--execute'], exitCode: 0, action: 'unknown' },
+    { activity: 'missing', flags: ['--execute'], exitCode: 0, action: 'read' },
+    { activity: 'empty', flags: ['--execute'], exitCode: 0, action: 'read' },
+    { activity: 'missing', flags: ['--execute=false'], exitCode: 0, action: 'read' },
+    { activity: 'missing', flags: ['--execute', 'false'], exitCode: 0, action: 'read' },
     { activity: 'failed', flags: [], exitCode: 1, action: 'unknown' },
     { activity: 'read', flags: [], exitCode: 0, action: 'read' },
   ])('$activity with $flags records $action', async ({ activity, flags, exitCode, action }) => {

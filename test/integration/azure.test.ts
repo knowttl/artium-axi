@@ -67,6 +67,31 @@ async function withAzureGateway(check: (fixture: {
   })
 }
 
+test.each([{ flags: ['--execute=false'] }, { flags: ['--execute', 'false'] }])('Azure preview $flags is audited as a read', async ({ flags }) => {
+  await withAzureGateway(async ({ run, send, db }) => {
+    const response = await run(['api', 'PATCH', apiTarget, '--api-version', '2022-12-01',
+      '--body', '{"tags":{"synthetic":"yes"}}', ...flags])
+    expect(response.statusCode).toBe(200)
+    expect(runSuccessSchema.parse(response.json()).exitCode).toBe(0)
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
+  })
+})
+
+test('an Azure executed no-op is audited as a read', async () => {
+  await withAzureGateway(async ({ run, send, db }) => {
+    const args = ['api', 'PATCH', apiTarget, '--api-version', '2022-12-01',
+      '--body', '{"tags":{"synthetic":"yes"}}', '--execute']
+    expect((await run(args)).statusCode).toBe(504)
+    const response = await run(args)
+    expect(response.statusCode).toBe(200)
+    expect(runSuccessSchema.parse(response.json()).exitCode).toBe(0)
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
+      .toEqual({ action: 'read' })
+  })
+})
+
 test.each([
   { name: 'API PATCH', args: ['api', 'PATCH', apiTarget, '--api-version', '2022-12-01', '--body', '{"tags":{"synthetic":"yes"}}', '--execute'],
     code: 'UNKNOWN_OUTCOME', path: apiTarget, mutations: 1, method: 'PATCH', operation: 'PATCH',

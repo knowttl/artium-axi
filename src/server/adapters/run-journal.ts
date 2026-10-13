@@ -7,7 +7,7 @@ export type RunAction = 'read' | 'write' | 'unknown'
 // Falcon has no verified journal contract and must remain unknown.
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
 
-export async function prepareRunJournal(environment: Record<string, string>, writeCandidate: boolean) {
+export async function prepareRunJournal(environment: Record<string, string>) {
   const variable = journalVariables.find(name => environment[name])
   if (!variable) return { environment, action: async (): Promise<RunAction> => 'unknown' }
   const root = `${environment[variable]}.runs`
@@ -16,7 +16,7 @@ export async function prepareRunJournal(environment: Record<string, string>, wri
   const directory = await mkdtemp(join(root, 'run-'))
   const path = join(directory, 'writes.log')
   return { environment: { ...environment, [variable]: path }, async action(succeeded: boolean): Promise<RunAction> {
-    const absent = succeeded && !writeCandidate ? 'read' : 'unknown'
+    const absent = succeeded ? 'read' : 'unknown'
     try {
       const content = await readFile(path, 'utf8')
       if (!content.trim()) return absent

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from 'vitest'
+import { decode } from '@toon-format/toon'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -95,11 +96,17 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
       expect(db.prepare("SELECT user_id, tool, outcome FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
         .toEqual({ user_id: 'synthetic-development-user', tool: 'vectra-axi', outcome: 'completed' })
       expect(lines.join('')).not.toContain(credential.token)
+      const repeated = await run([...args, '--execute', '--confirm', 'detection 42'])
+      expect(repeated.exitCode).toBe(0)
+      expect((await evidence()).mutations).toBe(1)
+      expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ action: 'read' })
       // The pinned tool reads uploaded file contents or bounded stdin, never caller-selected server paths.
-      expect((await run(['detection', 'tag', 'set', '--id', '42', '--tags-file=tags.txt'], {
+      expect(decode((await run(['detection', 'tag', 'set', '--id', '42', '--tags-file=tags.txt'], {
         files: [{ name: 'tags.txt', contentBase64: Buffer.from('synthetic\n').toString('base64') }],
-      })).stdout).toContain('current:')
-      expect((await run(['detection', 'tag', 'set', '--id', '42', '--tags-file', '-'], { stdin: 'synthetic\n' })).stdout).toContain('current:')
+      })).stdout)).toMatchObject({ current: ['synthetic'], desired: ['synthetic'] })
+      expect(decode((await run(['detection', 'tag', 'set', '--id', '42', '--tags-file', '-'], { stdin: 'synthetic\n' })).stdout))
+        .toMatchObject({ current: ['synthetic'], desired: ['synthetic'] })
       const before = (await evidence()).mutations
       const uncertain = await run(['detection', 'tag', 'set', '--id', '43', '--tags', 'synthetic', '--execute', '--confirm', 'detection 43'])
       expect(uncertain.exitCode).not.toBe(0)

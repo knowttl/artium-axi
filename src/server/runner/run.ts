@@ -48,7 +48,7 @@ export async function runTool<Credential>(
     const reference = await resolver.resolve(userId, adapter.name)
     const prepared = await adapter.prepare(args, reference, input)
     write = prepared.write
-    journal = await prepareRunJournal(prepared.environment, Boolean(write) || prepared.args.some(arg => /^--execute(?:=|$)/.test(arg)))
+    journal = await prepareRunJournal(prepared.environment)
     result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) })

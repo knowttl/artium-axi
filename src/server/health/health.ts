@@ -83,7 +83,7 @@ export class ToolHealth {
         checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
       try {
         const prepared = await adapter.prepare(args, reference)
-        journal = await prepareRunJournal(prepared.environment, false)
+        journal = await prepareRunJournal(prepared.environment)
         // Per-tool accounting leaves background reads governed by the global slots.
         const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
           prepared.limits, {}, prepared.files, () => {
