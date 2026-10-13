@@ -79,7 +79,7 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
   if (controlled) return controlledCli(args, env)
   try {
     const pending = execute(process.execPath, [bundle, ...args], { cwd: directory, timeout: 10_000, env })
-    pending.child.stdin!.end(input)
+    if (input !== undefined) pending.child.stdin!.end(input)
     return { ...await pending, code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
@@ -169,6 +169,29 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
     stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
 })
 
+test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list']].map(args => [args]))(
+  'Azure commands that consume no input complete with stdin left open: %j', async args => {
+    requests = []
+    response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
+      durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+    expect(await cli(['az-axi', ...args])).toMatchObject({ code: 0, stdout: 'synthetic result' })
+    expect(requests[0].body).toEqual({ args })
+  })
+
+test.each([
+  ['graph', 'query'], ['logs', 'query', '-w', 'synthetic'],
+  ['monitor', 'log-analytics', 'query', '-w', 'synthetic'],
+  ['--subscription', 'synthetic', 'rg', 'query'],
+  ['api', 'POST', '/providers/Microsoft.ResourceGraph/resources'],
+].map(args => [args]))('Azure query and body commands retain piped stdin: %j', async args => {
+  requests = []
+  response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+  expect(await cli(['az-axi', ...args], {}, false, 'synthetic input'))
+    .toMatchObject({ code: 0, stdout: 'synthetic result' })
+  expect(requests[0].body).toEqual({ args, stdin: 'synthetic input' })
+})
+
 test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bounded %s input through the API', async kind => {
   requests = []
   response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
@@ -177,7 +200,7 @@ test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bound
   const path = join(directory, 'query.kql')
   writeFileSync(path, query)
   const args = kind === 'stdin' ? [] : kind === 'file' ? ['--file', path] : [`--file=${path}`]
-  expect(await cli(['az-axi', 'rg', 'query', ...args], {}, false, kind === 'stdin' ? query : undefined))
+  expect(await cli(['az-axi', 'rg', 'query', ...args], {}, false, kind === 'stdin' ? query : ''))
     .toMatchObject({ code: 0, stdout: 'synthetic result' })
   expect(requests[0].body).toEqual(kind === 'stdin' ? { args: ['rg', 'query'], stdin: query }
     : { args: ['rg', 'query', ...(kind === 'file' ? ['--file', 'query.kql'] : ['--file=query.kql'])],

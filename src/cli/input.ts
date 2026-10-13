@@ -47,7 +47,17 @@ export async function toolInput(tool: string, original: string[]) {
       input.files.push({ name, contentBase64: content.toString('base64') })
       args[index] = equals < 0 ? name : `${flag}=${name}`
     }
-    if (!process.stdin.isTTY) {
+    let leading = 0
+    while (args[leading]?.startsWith('-')) {
+      const token = args[leading]
+      const name = token.split('=')[0] === '-s' ? 'subscription' : token.slice(2).split('=')[0]
+      if (!az.adapterBoundary.globalFlags.some(flag => flag.name === name) || name === 'help') break
+      leading++
+      if (!token.includes('=') && (name !== 'full' || ['true', 'false'].includes(args[leading]))) leading++
+    }
+    const consumesStdin = az.commands.some(route => ['rg query', 'logs query', 'api'].includes(route.handlerCommand) &&
+      route.command.split(' ').every((word, index) => args[leading + index] === word))
+    if (consumesStdin && !process.stdin.isTTY) {
       const stdin = await readBounded(process.stdin, inputLimits.stdinBytes)
       if (stdin.length) input.stdin = stdin.toString('utf8')
     }
