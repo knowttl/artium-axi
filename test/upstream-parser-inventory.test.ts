@@ -101,12 +101,13 @@ test.each([
   ['arm', 'AZ_AXI_ARM_TOKEN'], ['graph', 'AZ_AXI_GRAPH_TOKEN'], ['logs', 'AZ_AXI_LOGS_TOKEN'],
   ['registry', 'AZ_AXI_REGISTRY_TOKEN'], ['storage', 'AZ_AXI_STORAGE_TOKEN'], ['vault', 'AZ_AXI_VAULT_TOKEN'],
 ])('Azure %s environment record distinguishes default from profile-selected credentials', async (resource, name) => {
-  const { tokenEnvFor } = await load('az-axi', 'lib/config.js')
+  const { secretRefFor } = await load('az-axi', 'lib/config.js')
   expect(azInventory.environment).toContainEqual({ name, disposition: 'set by server' })
-  expect(azInventory.dynamicCredentialEnvironment).toContainEqual({ profileField: `tokenEnv.${resource}`,
+  expect(azInventory.dynamicCredentialEnvironment).toContainEqual({ profileField: `${resource}Token.env`,
     transport: 'token value', defaultEnvironment: name, disposition: 'server-owned' })
-  expect(tokenEnvFor({}, resource)).toBe(name)
-  expect(tokenEnvFor({ tokenEnv: { [resource]: 'CANARY_SELECTED_TOKEN' } }, resource)).toBe('CANARY_SELECTED_TOKEN')
+  expect(secretRefFor({}, resource)).toEqual({ env: name })
+  expect(secretRefFor({ [`${resource}Token`]: { env: 'CANARY_SELECTED_TOKEN' } }, resource))
+    .toEqual({ env: 'CANARY_SELECTED_TOKEN' })
 })
 
 test('Vectra records native selectors separately from profile-selected token and OAuth secrets', () => {

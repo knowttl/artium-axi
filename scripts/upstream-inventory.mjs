@@ -59,7 +59,7 @@ const environments = {
   'az-axi': {
     native: ['AZ_AXI_CONFIG', 'AZ_AXI_PROFILE', 'AZ_AXI_TENANT_ID', 'AZ_AXI_TENANT', 'AZ_AXI_SUBSCRIPTIONS', 'AZ_AXI_SUBSCRIPTION', 'AZ_AXI_READ_ONLY',
       'AZ_AXI_WRITE_LOG', ...azResources.map(resource => azConfig.tokenEnvFor({}, resource))],
-    credentials: azResources.map(resource => ({ profileField: `tokenEnv.${resource}`, transport: 'token value',
+    credentials: azResources.map(resource => ({ profileField: `${resource}Token.env`, transport: 'token value',
       defaultEnvironment: azConfig.tokenEnvFor({}, resource) })),
     sources: ['lib/config.js', 'lib/auth.js', 'lib/writeLog.js'],
   },
