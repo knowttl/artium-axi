@@ -51,6 +51,13 @@ export class CredentialProfile {
   constructor(readonly schema: Schema) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    for (const [auth, field] of [['token', 'token'], ['oauth', 'clientSecret'], ['client-secret', 'clientSecret'],
+      ['certificate', 'privateKey'], ['federated', 'token']]) {
+      if (schema.properties?.[field]?.['x-secret'] !== true) continue
+      this.inputSchema.allOf = [...(this.inputSchema.allOf ?? []), {
+        if: { required: ['auth'], properties: { auth: { const: auth } } }, then: { required: [field] },
+      }]
+    }
     const options = { strict: false, validateFormats: true }
     const create = () => {
       const ajv = String(schema.$schema).includes('2020-12') ? new Ajv2020(options) : new Ajv(options)
@@ -71,21 +78,29 @@ export class CredentialProfile {
     }, 'Invalid credential profile')
   }
 
-  private hostSchema(schema: Schema): Schema {
+  private hostSchema(schema: Schema, secretProperties: Schema = schema?.properties ?? {}): Schema {
     if (typeof schema !== 'object' || schema === null) return schema
     if (schema['x-secret'] === true) return { type: 'string', minLength: 1, pattern: '\\S',
       'x-secret': true, title: schema.title, description: schema.description }
     const result = { ...schema }
     for (const key of ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas', 'dependencies']) {
-      if (schema[key]) result[key] = Object.fromEntries(Object.entries(schema[key]).map(([name, value]) =>
-        [name, Array.isArray(value) ? value : this.hostSchema(value as Schema)]))
+      if (schema[key]) result[key] = Object.fromEntries(Object.entries(schema[key]).map(([name, value]) => {
+        if (Array.isArray(value)) return [name, value]
+        const field = key === 'properties' && secretProperties[name]?.['x-secret'] === true
+          ? { ...(value as Schema), 'x-secret': true } : value as Schema
+        const inherited = ['dependentSchemas', 'dependencies'].includes(key)
+          ? { ...field?.properties, ...secretProperties } : undefined
+        return [name, this.hostSchema(field, inherited)]
+      }))
     }
     for (const key of ['oneOf', 'anyOf', 'allOf', 'prefixItems']) {
-      if (schema[key]) result[key] = schema[key].map((value: Schema) => this.hostSchema(value))
+      if (schema[key]) result[key] = schema[key].map((value: Schema) => this.hostSchema(value,
+        key === 'prefixItems' ? value?.properties ?? {} : { ...value.properties, ...secretProperties }))
     }
     for (const key of ['items', 'additionalProperties', 'additionalItems', 'unevaluatedProperties', 'contains', 'not', 'if', 'then', 'else', 'propertyNames']) {
       if (schema[key] !== undefined) result[key] = Array.isArray(schema[key])
-        ? schema[key].map((value: Schema) => this.hostSchema(value)) : this.hostSchema(schema[key])
+        ? schema[key].map((value: Schema) => this.hostSchema(value)) : this.hostSchema(schema[key],
+          ['not', 'if', 'then', 'else'].includes(key) ? { ...schema[key]?.properties, ...secretProperties } : schema[key]?.properties ?? {})
     }
     return result
   }

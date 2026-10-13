@@ -7,10 +7,14 @@ import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { withFakeService } from '../fake-service/fixture.js'
 
-test('published Vectra reads the canonical credential profile artium writes', async () => {
+test.each([
+  { kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-vectra-token' },
+  { kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic-vectra-id', clientSecret: 'CANARY-vectra-secret' },
+  { kind: 'rux', apiVersion: '3.4', auth: 'oauth', clientId: 'synthetic-vectra-id', clientSecret: 'CANARY-vectra-secret' },
+])('published Vectra reads the $kind $auth credential profile artium writes', async material => {
   await withFakeService(async ({ directory, port, send }) => {
     const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
-    const credential = { kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-vectra-token',
+    const credential = { ...material,
       origin: `https://localhost:${port}`, caBundle: readFileSync(join(directory, 'ca.crt'), 'utf8') }
     const adapter = createVectraAdapter({ getCredential: async () => credential }, join(directory, 'writes.log'), profile)
     const call = await adapter.prepare(['detection', 'list'], { id: 'synthetic-vectra', tool: 'vectra-axi' })
@@ -27,10 +31,14 @@ test('published Vectra reads the canonical credential profile artium writes', as
   })
 })
 
-test('published Graph reads the canonical credential profile artium writes against fake Graph', async () => {
+test.each([
+  { auth: 'client-secret', clientSecret: 'CANARY-graph-secret' },
+  { auth: 'certificate', privateKey: 'CANARY-graph-key', thumbprintSha256: 'a'.repeat(64) },
+  { auth: 'federated', token: 'CANARY-graph-assertion' },
+])('published Graph reads the $auth credential profile artium writes against fake Graph', async material => {
   await withFakeService(async ({ directory }) => {
     const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
-    const credential = { mode: 'application', auth: 'client-secret', clientSecret: 'CANARY-graph-secret',
+    const credential = { mode: 'application', ...material,
       tenantId: '00000000-0000-0000-0000-000000000001', clientId: '00000000-0000-0000-0000-000000000002' }
     const adapter = createMgAdapter({ getCredential: async () => credential }, join(directory, 'writes.log'), profile)
     const call = await adapter.prepare(['entra', 'user', 'list'], { id: 'synthetic-graph', tool: 'mg-axi', revision: 1 })

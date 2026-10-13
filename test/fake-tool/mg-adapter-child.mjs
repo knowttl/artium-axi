@@ -10,7 +10,7 @@ let sends = 0
 const application = { async credential(profile) {
   assert.equal(profile.mode, 'application')
   assert.equal(profile.allowDeviceCode, false)
-  assert.ok(resolveSecret(profile.clientSecret ?? profile.privateKey).startsWith('CANARY-'))
+  assert.ok(resolveSecret(profile.clientSecret ?? profile.privateKey ?? profile.token).startsWith('CANARY-'))
   return { token: 'CANARY-graph-token', tenantId: profile.tenantId, clientId: profile.clientId,
     mode: 'application', cloud: 'commercial' }
 } }
