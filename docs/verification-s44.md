@@ -8,7 +8,8 @@ The codec dependency is pinned in [package.json](../package.json).
 
 ## Behavioural evidence
 
-`src/cli/rewrite.test.ts` exercises every empty, error and suggestion capture committed in `test/fake-tool/fixtures/upstreams.json`, including the future Graph fixture without enabling Graph in the runtime.
+`src/cli/rewrite.test.ts` exercises every empty, error and suggestion capture committed in `test/fake-tool/fixtures/upstreams.json`, including the Graph fixture.
+See [README](../README.md) for current runtime availability.
 Exact output assertions prove that only suggestion commands change, followed by a second rewrite proving idempotence.
 Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers and inline arrays, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
 Exact-byte and idempotence assertions cover unconsumed TOON structure, escaped command delimiters, object-only and mixed non-string lists, and bare markers with whitespace or end-of-stream variants in both item orders and LF/CRLF.

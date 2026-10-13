@@ -58,10 +58,9 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           const api = '/v1/admin/tools/' + tool.name
           content += `<section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
             <p>Last checked: <span data-check-time>${escape(tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toISOString())}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>`
-          if (tool.name === 'mg-axi') content += '<p>Graph runtime enable and credential tests are unavailable; live consent remains unverified.</p>'
           if (screen === 'Tools') {
             content += changed(db, tool)
-            if (tool.name !== 'mg-axi' || tool.enabled) content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool',
+            content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool',
               revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool?' : 'Enable this tool?')
             content += form(api, 'PATCH', 'Save native settings', revision(tool.revision) + `<p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object) <textarea name="nativeSettings" data-type="json" rows="8" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label>`, 'Replace this tool’s native settings?')
           } else {
@@ -73,7 +72,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
             content += form(api + '/credential', 'PUT', credential.configured ? 'Replace credential' : 'Set credential', revision(credential.revision) +
               `<input type="hidden" name="expectedToolRevision" data-type="number" value="${escape(tool.revision)}">` +
               (profile ? credentialFields(profile) : '<label>New credential (JSON object) <textarea name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea></label>'), 'Replace the complete credential and its native settings?')
-            if (tool.name !== 'mg-axi') content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
+            content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
             content += '<p data-test-result role="status"></p>'
           }
           content += '</section>'

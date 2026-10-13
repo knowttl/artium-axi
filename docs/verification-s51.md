@@ -1,6 +1,6 @@
 # S51 local Graph adapter (T8.2)
 
-The [internal adapter](../src/server/adapters/mg.ts) owns profile preparation; [README](../README.md) owns commissioning status and administration usage, and the [shared API contract](../src/shared/api.ts) owns accepted native settings.
+The [Graph adapter](../src/server/adapters/mg.ts) owns profile preparation; [README](../README.md) owns commissioning status and administration usage, and the [shared API contract](../src/shared/api.ts) owns accepted native settings.
 
 The [generated boundary](../tools/inventories/mg-axi.json) owns allowed command families, unsafe overrides, sensitive arguments, input transports, known output scan values, resource requirements and pinned parser hashes.
 

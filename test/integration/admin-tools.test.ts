@@ -236,12 +236,12 @@ test.each([
     .toEqual([replacement.clientSecret])
 })
 
-test.each([false, true])('rendered Azure controls reflect enabled=%s without exposing secrets', async enabled => {
+test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s without exposing secrets', async enabled => {
   for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
     expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0, expectedToolRevision: 1 })).status).toBe(200)
   }
   db.prepare("UPDATE tools SET enabled = ? WHERE name = 'az-axi'").run(Number(enabled))
-  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'mg-axi'")
+  db.prepare("UPDATE tools SET enabled = ? WHERE name = 'mg-axi'").run(Number(enabled))
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -259,7 +259,7 @@ test.each([false, true])('rendered Azure controls reflect enabled=%s without exp
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
     if (path === '/admin/credentials') {
       expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/test"')
-      expect(page.body).not.toContain('action="/v1/admin/tools/mg-axi/test"')
+      expect(page.body).toContain('data-test-tool="mg-axi" action="/v1/admin/tools/mg-axi/test"')
       expect(page.body).toContain('name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea>')
       expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(3)
       expect(page.body).toContain('Last changed by synthetic-user')
@@ -270,7 +270,8 @@ test.each([false, true])('rendered Azure controls reflect enabled=%s without exp
       expect(forms).toEqual(expect.arrayContaining([expect.stringContaining(
         `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
       const graphForms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/mg-axi"[^>]*>[\s\S]*?<\/form>/g)!
-      expect(graphForms.join('')).not.toContain('name="enabled"')
+      expect(graphForms).toEqual(expect.arrayContaining([expect.stringContaining(
+        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
     }
   }
 })
@@ -701,6 +702,40 @@ test('test admission audit failure prevents credential preparation and child cre
   expect(adapters[0].prepare).not.toHaveBeenCalled()
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
 })
+test('Graph canonical credential can be tested while disabled and enabled for audited fake reads', async () => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'mg-writes.log'), profile)
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({
+    ...await prepare(args, reference, input), executable: process.execPath,
+    args: [join(process.cwd(), 'test/fake-tool/mg-adapter-child.mjs'), ...args],
+  }))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'mg-axi'")
+  const credential = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
+    auth: 'client-secret', clientSecret: 'CANARY-graph-secret' }
+  await replace('mg-axi', credential)
+  const tested = await request('POST', '/mg-axi/test', {})
+  expect(tested.status).toBe(200)
+  expect(healthSchema.parse(await tested.json())).toMatchObject({ status: 'ok', credentialRevision: 1, errorCode: null })
+  expect(adapter.prepare).toHaveBeenCalledWith(['entra', 'user', 'list', '--limit', '1'], store.findCredential('mg-axi'))
+  expect((await request('PATCH', '/mg-axi', { enabled: true, expectedRevision: 2 })).status).toBe(200)
+  const response = await fetch(`${url}/v1/tools/mg-axi/run`, { method: 'POST', headers,
+    body: JSON.stringify({ args: ['entra', 'user', 'list'] }) })
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('Synthetic User') })
+  const audit = db.prepare('SELECT event, outcome FROM audit ORDER BY id').all()
+  expect(audit).toContainEqual({ event: 'credential-test', outcome: 'success' })
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE event = 'run-terminal' ORDER BY id").all()).toEqual([
+    { event: 'run-terminal', outcome: 'completed' }, { event: 'run-terminal', outcome: 'completed' },
+  ])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(credential.clientSecret)
+})
+
 test('Azure configuration can enable the runtime and test credentials', async () => {
   await replace('az-axi')
   const settings = await request('PATCH', '/az-axi', { enabled: false, nativeSettings: { allowWrites: false }, expectedRevision: 2 })

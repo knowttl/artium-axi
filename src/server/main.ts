@@ -3,6 +3,7 @@ import { createApp } from './app.js'
 import { createFalconAdapter } from './adapters/falcon.js'
 import { createVectraAdapter } from './adapters/vectra.js'
 import { createAzAdapter } from './adapters/az.js'
+import { createMgAdapter } from './adapters/mg.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
@@ -39,7 +40,8 @@ async function main() {
     const app = createApp({ db, audit, runner, credentialStore: store, resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),
-        createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'))] })
+        createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log')),
+        createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log'))] })
     const maintain = () => {
       try { audit.maintain(); retainNativeWriteLog(writeLog) }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }

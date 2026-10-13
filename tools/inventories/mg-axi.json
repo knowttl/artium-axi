@@ -87,8 +87,22 @@
     "help"
   ],
   "format": "TOON",
+  "discovery": {
+    "commands": [
+      "home",
+      "doctor",
+      "entra",
+      "api get"
+    ],
+    "example": [
+      "entra",
+      "user",
+      "list"
+    ],
+    "help": "mg-axi entra user list\nList users with basic properties (id, displayName, userPrincipalName, mail)\n--api-version <v1.0|beta>: Explicit API version; no fallback (default: v1.0)\n--limit <positive-integer>: Cap returned rows; the remainder is buffered into an opaque cursor, never discarded; incompatible with --all (default: 100)\n--all: Follow pages within request, byte and deadline budgets\n--filter <odata-filter>: OData $filter passed to Graph; unsupported combinations fail before credentials\n--select <comma-separated-properties>: Request server properties; richer properties need User.Read.All, accountEnabled needs User.EnableDisableAccount.All\n--fields <comma-separated-properties>: Project returned rows locally; every field must be fetched via the default or --select set\n--full: Show complete text values without truncation; never lifts redaction or row caps\n--cursor <opaque-cursor>: Resume a capped collection losslessly; repeat the original query flags or omit them\n--help: Show this reference\nmg-axi entra user list"
+  },
   "headlessInventory": {
-    "activation": "Internal adapter for fake commissioning; no production registry activation. Live Graph application consent remains unverified.",
+    "activation": "Wired into the production runtime registry. Live Graph authentication, application permissions, consent and deployment remain unverified; enabling Graph on a running installation requires live results and maintainer approval.",
     "globalFlags": [
       {
         "name": "--help",
