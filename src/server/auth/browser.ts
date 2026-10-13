@@ -139,7 +139,9 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
     await attempts.signIn(current.username, input.data.password, context(request))
     const latest = session(request)
-    db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(Date.now(), latest.id)
+    audit.change({ ...context(request), event: 'reauth', userId: latest.user_id, tool: null, outcome: 'success' }, () => {
+      db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(Date.now(), latest.id)
+    })
   }
   app.post('/reauth', async (request, reply) => {
     await reauthenticate(request)

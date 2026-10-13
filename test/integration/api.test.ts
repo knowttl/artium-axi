@@ -1,6 +1,6 @@
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
@@ -221,6 +221,9 @@ test('reauth issues a hashed session-bound ticket valid through refresh until it
   const response = await fetch(`${url}/v1/auth/reauth`, { method: 'POST', headers, body: JSON.stringify({ password: 'CANARY-local-password' }) })
   expect(response.status).toBe(200)
   const proof = await response.json() as { ticket: string, expiresAt: number }
+  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event = 'reauth'").all()).toEqual([
+    { event: 'reauth', user_id: 'synthetic-development-user', outcome: 'success' },
+  ])
   expect(Buffer.from(proof.ticket, 'base64url')).toHaveLength(32)
   expect(proof.expiresAt).toBe(start + 900_000)
   expect(db.prepare('SELECT hash, expires_at FROM recent_auth_tickets').get()).toEqual({ hash: hashToken(proof.ticket), expires_at: proof.expiresAt })
@@ -720,6 +723,23 @@ test('the real server remains available after startup encounters a damaged nativ
   writeFileSync(journal, damaged, { mode: 0o600 })
   writeFileSync(`${journal}.lock`, '')
   writeFileSync(`${journal}.retention`, 'interrupted compaction')
+  const expiredJournals = ['az-axi', 'mg-axi', 'vectra-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log.runs', 'run-z-expired'))
+  const validRecord = { kind: 'intent', intentKey: 'a'.repeat(64), time: '2026-01-01T00:00:00.000Z',
+    profile: 'synthetic', identity: 'synthetic', class: 'safe-write', method: 'PATCH',
+    url: 'https://synthetic.invalid/resource', outcome: 'success', httpStatus: 200 }
+  for (const path of expiredJournals) {
+    mkdirSync(path, { recursive: true })
+    writeFileSync(join(path, 'writes.log'), `${JSON.stringify(validRecord)}\n`)
+    utimesSync(path, new Date(0), new Date(0))
+  }
+  const malformedJournals = expiredJournals.flatMap(path => [damaged, '{invalid}\n', '{}\n', '[]\n'].map((content, index) => ({
+    path: join(path, '..', `run-a-malformed-${index}`, 'writes.log'), content,
+  })))
+  for (const { path, content } of malformedJournals) {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, content)
+    utimesSync(join(path, '..'), new Date(0), new Date(0))
+  }
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
   cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
   await build({ stdin: { contents: `
@@ -746,6 +766,9 @@ test('the real server remains available after startup encounters a damaged nativ
     const health = await fetch(`${origin}/health/ready`)
     expect(health.status).toBe(200)
     expect(await health.json()).toEqual({ status: 'ok' })
+    expect(expiredJournals.map(existsSync)).toEqual([false, false, false])
+    expect(malformedJournals.map(({ path }) => readFileSync(path, 'utf8')))
+      .toEqual(malformedJournals.map(({ content }) => content))
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
     expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured' })
@@ -766,4 +789,6 @@ test('the real server remains available after startup encounters a damaged nativ
       next: errors.AUDIT_UNAVAILABLE.next, requestId: 'retention' } },
   ]))
   expect(stderr).not.toContain('CANARY-partial')
+  expect(stderr.trim().split('\n').map(line => JSON.parse(line).error.code))
+    .toEqual(Array(5).fill('AUDIT_UNAVAILABLE'))
 }, 10_000)

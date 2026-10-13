@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3'
 import { healthSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter } from '../adapters/types.js'
+import { prepareRunJournal } from '../adapters/run-journal.js'
 import { falconManifest } from '../adapters/falcon.js'
 import type { Audit } from '../audit/audit.js'
 import { healthDefaults } from '../config.js'
@@ -76,13 +77,15 @@ export class ToolHealth {
     let exitCode: number | null = null
     let durationMs = 0
     let outputBytes = { stdout: 0, stderr: 0 }
+    let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
     try {
       audit.record({ ...context, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args),
         checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
       try {
         const prepared = await adapter.prepare(args, reference)
+        journal = await prepareRunJournal(prepared.environment, tool)
         // Per-tool accounting leaves background reads governed by the global slots.
-        const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, prepared.environment, prepared.secrets,
+        const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
           prepared.limits, {}, prepared.files, () => {
             authorize?.()
             if (background && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
@@ -103,7 +106,7 @@ export class ToolHealth {
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
-      audit.record({ ...context, event: 'run-terminal', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })
+      audit.record({ ...context, event: 'run-terminal', action: await journal?.action(!failure) ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })
       audit.change({ ...context, event: background ? 'health-check' : 'credential-test', action: background ? healthDefaults.actor : undefined, outcome: failure?.code ?? 'success', ...evidence }, () => {
         if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
           'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')

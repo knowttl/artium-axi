@@ -192,13 +192,16 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++
     if (url.pathname === '/api/v2.5/tagging/detection/45') req.socket.destroy()
-    else if (url.pathname === '/api/v2.5/tagging/detection/42') res.end(JSON.stringify({ tags: ['synthetic'] }))
+    else if (url.pathname === '/api/v2.5/tagging/detection/42') {
+      resources.set(url.pathname, { tags: ['synthetic'] })
+      res.end(JSON.stringify(resources.get(url.pathname)))
+    }
     else {
       res.writeHead(503, { 'retry-after': '0' })
       res.end(JSON.stringify({ error: { code: 'SyntheticAmbiguousWrite', message: 'Mutation recorded before response failed' } }))
     }
   } else if (url.pathname.startsWith('/api/v2.5/tagging/')) {
-    res.end(JSON.stringify({ tags: [] }))
+    res.end(JSON.stringify(resources.get(url.pathname) ?? { tags: [] }))
   } else if (req.headers.host === 'synthetic.blob.core.windows.net' && url.pathname === '/synthetic') {
     res.setHeader('content-type', 'application/xml')
     res.end('<EnumerationResults><Blobs><Blob><Name>synthetic-blob</Name><Properties><Content-Length>12</Content-Length><BlobType>BlockBlob</BlobType></Properties></Blob></Blobs><NextMarker></NextMarker></EnumerationResults>')

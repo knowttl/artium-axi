@@ -27,6 +27,16 @@ const write = async (stream, value) => {
 
 try {
   switch (mode) {
+    case 'native-journal': {
+      const journal = process.env.AZ_AXI_WRITE_LOG ?? process.env.MG_AXI_WRITE_LOG ?? process.env.VECTRA_AXI_WRITE_LOG
+      if (args[0] === 'signal-before-journal') process.kill(process.pid, 'SIGTERM')
+      if (args[0] === 'missing') break
+      if (args[0] === 'empty') { await writeFile(journal, ''); break }
+      if (args[0] === 'failed') { process.exitCode = 1; break }
+      if (args[0] !== 'read') await writeFile(journal, JSON.stringify({ kind: 'intent', time: new Date().toISOString(), intentKey: 'a'.repeat(64) }) + '\n', { mode: 0o600 })
+      if (args[0] === 'signal') process.kill(process.pid, 'SIGTERM')
+      break
+    }
     case 'hosted-profile': {
       const tool = args[0]
       const file = join(process.env.XDG_CONFIG_HOME, tool, 'config.json')

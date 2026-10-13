@@ -147,7 +147,8 @@ export function createApp(options: {
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
     const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as { username: string }
     await authAttempts.signIn(user.username, input.data.password, { requestId: request.id, clientAddress: request.ip })
-    return issueRecentAuthTicket(db, token)
+    return audit.change({ event: 'reauth', userId, tool: null, outcome: 'success',
+      requestId: request.id, clientAddress: request.ip }, () => issueRecentAuthTicket(db, token)).value
   })
   app.post('/v1/auth/refresh', async request => {
     const input = refreshSchema.safeParse(request.body)

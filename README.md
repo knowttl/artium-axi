@@ -236,6 +236,11 @@ Pagination retains filters; starting a new search includes records inserted afte
 Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
+Successful browser and bearer-token password confirmations emit `reauth` events.
+Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
+This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
+Pinned Falcon runs report `read` from the inventory's read-only declaration, including normal runs and health checks.
+Failures without journal records, malformed or unreadable evidence, and recovered interrupted runs report `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 
 ## Configuration
@@ -316,8 +321,9 @@ Credentials are encrypted with AES-256-GCM and retrieved only after authorizatio
 Version 1 uses one shared service credential per tool; external secret sources and per-user credentials remain deferred.
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
 Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.
-Audit retention is 90 days, with startup recovery recording interrupted calls without replay.
-Vectra's durable native write logs complement Artium audit and retain intent/outcome pairs.
+Startup recovery records interrupted calls without replay.
+Native write journals complement Artium audit and isolate concurrent calls so reads do not inherit another call's write tag.
+See the [retention and export runbook](docs/runbook.md#retention-and-export) for journal locations, formats and cleanup.
 
 The runner uses argument arrays without a shell, a restricted child environment, private per-call directories and bounded concurrency, runtime and output.
 Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.

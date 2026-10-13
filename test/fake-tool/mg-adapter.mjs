@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -75,7 +75,8 @@ try {
   const written = await run([...write, '--execute', '--confirm', group])
   assert.equal(written.exitCode, 0, written.stdout + written.stderr)
   assert.match(written.stdout, /fakeSends: 1/)
-  const journal = readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  const journal = readdirSync(`${log}.runs`).map(name => join(`${log}.runs`, name, 'writes.log')).filter(existsSync)
+    .flatMap(path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line)))
   assert.deepEqual(journal.map(row => row.kind), ['intent', 'outcome'])
   assert.equal(journal[1].outcome, 'SUCCESS')
   await assert.rejects(run(['entra', 'user', 'list', '--filter', 'encoded-canary']), error => error.code === 'SECRET_IN_OUTPUT')

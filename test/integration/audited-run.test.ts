@@ -85,11 +85,32 @@ test('a run persists a start before secret retrieval and a paired terminal befor
   const records = db.prepare('SELECT * FROM audit ORDER BY id').all() as AuditRecord[]
   expect(records).toEqual([
     expect.objectContaining({ event: 'run-start', user_id: 'synthetic-user', tool: 'falcon-axi', request_id: context.requestId, outcome: 'started', client_address: context.clientAddress }),
-    expect.objectContaining({ event: 'run-terminal', request_id: context.requestId, outcome: 'completed', exit_code: 7, stdout_bytes: result.outputBytes.stdout, stderr_bytes: result.outputBytes.stderr }),
+    expect.objectContaining({ event: 'run-terminal', request_id: context.requestId, action: 'read', outcome: 'completed', exit_code: 7, stdout_bytes: result.outputBytes.stdout, stderr_bytes: result.outputBytes.stderr }),
   ])
   expect(lines.map(line => JSON.parse(line))).toEqual(records)
   expect(lines.join('')).not.toMatch(/CANARY-body|CANARY-file|CANARY-secret|CANARY-client/)
   expect(records[1].arguments).toBeNull()
+})
+
+test.each([
+  ['AZ_AXI_WRITE_LOG', 'write', 'write', 'read'],
+  ['MG_AXI_WRITE_LOG', 'write', 'write', 'read'],
+  ['VECTRA_AXI_WRITE_LOG', 'write', 'write', 'read'],
+  ['VECTRA_AXI_WRITE_LOG', 'read', 'read', 'read'],
+  ['FALCON_AXI_WRITE_LOG', 'read', 'read', 'read'],
+])('run action follows its own %s journal for %s activity', async (variable, activity, action, readAction) => {
+  const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    const prepared = await adapter.prepare(...input)
+    return { ...prepared, args: [...fakeTool.args, 'native-journal', input[0][0]],
+      environment: { ...prepared.environment, [variable]: join(directory, 'writes.log') } }
+  } }
+  await Promise.all([
+    runTool(db, audit, runner, token, { args: [activity] }, execution, resolver, context),
+    runTool(db, audit, runner, token, { args: ['read'] }, execution, resolver, { ...context, requestId: 'concurrent-read' }),
+  ])
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' AND request_id = ?").get(context.requestId)).toEqual({ action })
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' AND request_id = 'concurrent-read'").get())
+    .toEqual({ action: readAction })
 })
 
 test.each([
@@ -186,13 +207,41 @@ test('known-secret output produces a safe terminal with observed byte counts', a
 
 test('a classified write ending on a signal records an unknown outcome', async () => {
   const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
-    return { ...await adapter.prepare(...input), write: { operation: 'synthetic-write', target: 'synthetic-target',
+    const prepared = await adapter.prepare(...input)
+    return { ...prepared, args: [...fakeTool.args, 'native-journal', 'signal'],
+      environment: { ...prepared.environment, VECTRA_AXI_WRITE_LOG: join(directory, 'writes.log') },
+      write: { operation: 'synthetic-write', target: 'synthetic-target',
       checkArgs: ['print', 'synthetic-state'] } }
   } }
   await expect(runTool(db, audit, runner, token, { args: ['signal'] }, execution, resolver, context))
     .rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME', message: 'Unknown outcome for synthetic-write synthetic-target.',
       next: expect.stringContaining('artium-axi falcon-axi print synthetic-state') })
-  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME' })
+  expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'write' })
+})
+
+describe.each(['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG'])('%s missing evidence', variable => {
+  const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    const prepared = await adapter.prepare(...input)
+    return { ...prepared, args: [...fakeTool.args, 'native-journal', ...input[0]],
+      environment: { ...prepared.environment, [variable]: join(directory, 'writes.log') } }
+  } }
+  test.each([
+    { activity: 'missing', flags: ['--execute'], exitCode: 0, action: 'read' },
+    { activity: 'empty', flags: ['--execute'], exitCode: 0, action: 'read' },
+    { activity: 'missing', flags: ['--execute=false'], exitCode: 0, action: 'read' },
+    { activity: 'missing', flags: ['--execute', 'false'], exitCode: 0, action: 'read' },
+    { activity: 'failed', flags: [], exitCode: 1, action: 'unknown' },
+    { activity: 'read', flags: [], exitCode: 0, action: 'read' },
+  ])('$activity with $flags records $action', async ({ activity, flags, exitCode, action }) => {
+    await expect(runTool(db, audit, runner, token, { args: [activity, ...flags] }, execution, resolver, context))
+      .resolves.toMatchObject({ exitCode })
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action })
+  })
+  test('termination before journal append cannot establish a read', async () => {
+    await expect(runTool(db, audit, runner, token, { args: ['signal-before-journal', '--execute'] }, execution, resolver, context))
+      .rejects.toMatchObject({ code: 'PROCESS_SIGNAL' })
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'unknown' })
+  })
 })
 
 test('a classified write cancelled before execution retains cancellation', async () => {
