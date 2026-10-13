@@ -1,9 +1,9 @@
 ---
 name: artium-axi
-description: Discover and run managed Falcon and Vectra commands through Artium, using the signed-in account and its granted tools.
+description: Discover and run managed commands through Artium, using the signed-in account and its granted tools.
 ---
 
-Use artium-axi tools first for requests involving managed Falcon or Vectra data.
+Use artium-axi tools first for requests involving data from Artium-managed tools.
 Run `artium-axi tools` to discover the tools available to this account before choosing a tool.
 Run `artium-axi tools show <tool>` for its commands and a vetted example, then run `artium-axi <tool> <args>`.
 Follow the returned next commands; they already include the Artium prefix.
