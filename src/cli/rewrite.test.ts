@@ -57,6 +57,27 @@ test('Falcon managed booleans do not consume the following command flag', () => 
   expect(rewriteSuggestions(input, 'falcon-axi')).toBe(encode({ help: ['Run `artium-axi falcon-axi host list --limit 1`'] }))
 })
 
+test.each(['json', 'toon'].flatMap(format => [false, true].map(multiline => ({ format, multiline }))))(
+  'Graph $format validation headings preserve separate suggestions (multiline: $multiline)', ({ format, multiline }) => {
+    const heading = 'Valid flags for `mg-axi entra user list`: --profile <name>, --scopes <scopes>, --config <path>, --limit <positive-integer>'
+    const suggestion = 'Run `mg-axi entra user list --profile=artium --limit 1`'
+    const expectedHeading = 'Valid flags for `mg-axi entra user list`: --limit <positive-integer>'
+    const expectedSuggestion = 'Run `artium-axi mg-axi entra user list --limit 1`'
+    const serialize = (help: string[]) => format === 'json' ? JSON.stringify({ help }) : encode({ help })
+    const input = serialize(multiline ? [heading + '\n' + suggestion] : [heading, suggestion])
+    const expected = serialize(multiline ? [expectedHeading + '\n' + expectedSuggestion] : [expectedHeading, expectedSuggestion])
+    expect(rewriteSuggestions(input, 'mg-axi')).toBe(expected)
+    expect(rewriteSuggestions(expected, 'mg-axi')).toBe(expected)
+  })
+
+test.each(['plain', 'json', 'toon'])('Falcon %s root help hides managed flags in grouped rows', format => {
+  const input = 'falcon-axi 0.3.0\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n'
+  const expected = 'artium-axi falcon-axi 0.3.0\nGlobal flags:\n  --help\n'
+  const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help }) : encode({ help })
+  expect(rewriteSuggestions(serialize(input), 'falcon-axi')).toBe(serialize(expected))
+  expect(rewriteSuggestions(serialize(expected), 'falcon-axi')).toBe(serialize(expected))
+})
+
 test('Graph doctor suggestions use the hosted command without managed profile flags', () => {
   const input = encode({ help: [
     'Run `npx -y @knowttl/mg-axi entra user list --profile artium --limit 1`',

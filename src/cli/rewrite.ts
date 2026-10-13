@@ -92,6 +92,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
       if (!/^(?:artium-axi |npx -y @knowttl\/)?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       const preceding = span.value.slice(0, match.index!)
+      if (/(?:^|\n)[ \t]*Valid flags for $/.test(preceding) && match[1] === '`' && match[3] === '`') continue
       if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|Check current state before trying again:|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
       const wrapped = match[2].startsWith(`artium-axi ${tool}`)
       if (executable.test(match[2])) {
@@ -123,11 +124,11 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   const selectors = flags.join('|')
-  const filtered = help.replace(new RegExp(`^[ \t]*--(?:${selectors})(?=[\\s=:]|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
-    .replace(/^([ \t]*(?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
-    (_, label: string, listed: string) => {
+  const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|Valid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
+    (_, label: string, listed: string, ending: string) => {
       const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
-      return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '')
+      if (!retained && !label.trim()) return ''
+      return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '') + ending
     })
   if (!commands) return filtered
   return filtered.replace(new RegExp(`^[ \t]*(?:(?:(?:Command|Native operation): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
