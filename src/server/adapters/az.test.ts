@@ -11,6 +11,7 @@ import profileSchema from '../../../test/fixtures/az-credential.schema.json' wit
 import { decode, encode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
+import { redactArguments } from '../audit/redact.js'
 
 const reference = { id: 'synthetic-azure', tool: 'az-axi' as const, revision: 1 }
 const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
@@ -18,6 +19,33 @@ const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
   subscriptions: ['synthetic-subscription'], allowWrites: true,
   workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' } }
 const writeLog = '/data/tool-logs/az-axi/writes.log'
+
+test.each([
+  { args: ['graph', 'query', 'Resources | count'], safe: ['graph', 'query', '[redacted]'] },
+  { args: ['--full', 'rg', 'query', 'Resources | count'], safe: ['--full', 'rg', 'query', '[redacted]'] },
+  { args: ['monitor', 'log-analytics', 'query', 'Heartbeat | count'], safe: ['monitor', 'log-analytics', 'query', '[redacted]'] },
+])('positional KQL is redacted even when upstream rejects its spelling: $args', ({ args, safe }) => {
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
+  adapter.validateArgs(args)
+  expect(redactArguments(args, adapter.sensitiveArguments(args))).toEqual(safe)
+})
+
+test('unknown Azure flags identify the flag and valid command flags before credential access', () => {
+  const adapter = createAzAdapter({ getCredential: vi.fn() }, writeLog)
+  expect(() => adapter.validateArgs(['rg', 'query', '--graph-query', 'Resources | count']))
+    .toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: 'Unknown flag --graph-query for az-axi rg query.',
+      next: expect.stringContaining('--file') }))
+})
+
+test('Azure query help retains usable input examples with the hosted executable', () => {
+  const upstream = spawnSync(process.execPath, ['tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', 'rg', 'query', '--help'],
+    { encoding: 'utf8' })
+  expect(upstream.status).toBe(0)
+  const hosted = rewriteSuggestions(upstream.stdout, 'az-axi')
+  expect(hosted).toContain('artium-axi az-axi rg query --file query.kql')
+  expect(hosted).toContain('cat query.kql | artium-axi az-axi rg query')
+  expect(rewriteSuggestions(hosted, 'az-axi')).toBe(hosted)
+})
 
 test('hosted discovery advertises only flags accepted by the managed adapter', () => {
   const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.6' })
@@ -194,6 +222,32 @@ test.each(['file', 'body-file'])('%s only transports an uploaded leaf and normal
   expect(call.args.slice(-2)).toEqual([`--${flag}`, 'input.json'])
   expect(call.fileArguments).toEqual([call.args.length - 1])
 })
+
+test.each([
+  { command: ['graph', 'query'], flag: 'file' },
+  { command: ['rg', 'query'], flag: 'file' },
+  { command: ['logs', 'query', '-w', 'synthetic'], flag: 'file' },
+  { command: ['monitor', 'log-analytics', 'query', '-w', 'synthetic'], flag: 'file' },
+  { command: ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--api-version=2022-12-01'], flag: 'body-file' },
+].flatMap(route => ['separated', 'equals'].flatMap(syntax => ['input.json', '-input.json'].map(name => ({ ...route, syntax, name })))))(
+  '$command accepts the uploaded $name through $syntax --$flag', async ({ command, flag, syntax, name }) => {
+    const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(new FakeTokenTransport()))
+    const args = [...command, ...(syntax === 'equals' ? [`--${flag}=${name}`] : [`--${flag}`, name]), '--full']
+    const input = { files: [{ name, contentBase64: 'c3ludGhldGlj' }] }
+    adapter.validateArgs(args, input)
+    const call = await adapter.prepare(args, reference, input)
+    expect(call.args).toEqual([...command, `--${flag}`, name, '--full'])
+    expect(call.fileArguments).toEqual([command.length + 1])
+  })
+
+test.each(['file', 'body-file'].flatMap(flag => ['separated', 'equals'].map(syntax => ({ flag, syntax }))))(
+  '--$flag rejects an unmatched dash-prefixed leaf in $syntax form', ({ flag, syntax }) => {
+    const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
+    const command = flag === 'file' ? ['rg', 'query'] : ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic']
+    const args = [...command, ...(syntax === 'equals' ? [`--${flag}=-missing.json`] : [`--${flag}`, '-missing.json'])]
+    expect(() => adapter.validateArgs(args, { files: [{ name: '-input.json', contentBase64: 'c3ludGhldGlj' }] }))
+      .toThrow(expect.objectContaining({ code: syntax === 'equals' ? 'UNSUPPORTED_INPUT' : 'INVALID_INPUT' }))
+  })
 
 test('certificate preparation keeps the key and exact assertion in the scan set', async () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048,

@@ -63,7 +63,8 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
     const name = expanded === undefined ? raw : aliases[expanded] ?? expanded
     if (azManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
     const kind = schema[name]
-    if (!kind) throw new ArtiumError('INVALID_INPUT')
+    if (!kind) throw new ArtiumError('INVALID_INPUT', `Unknown flag ${JSON.stringify(token.split('=')[0]).slice(1, -1)} for az-axi ${route.command}.`,
+      `Valid flags: ${Object.keys(schema).filter(name => !azManifest.unsafeOverrides.includes(name)).map(name => `--${name}`).join(', ')}. Run artium-axi az-axi ${route.command} --help.`)
     const inline = equals === -1 ? undefined : token.slice(equals + 1)
     let value: string
     if (kind === 'boolean') {
@@ -72,7 +73,8 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
     } else {
       const values = inline === undefined ? [] : [inline]
       if (inline === undefined) {
-        while (args[index + 1] !== undefined && (!args[index + 1].startsWith('-') || /^-\d/.test(args[index + 1]))) {
+        while (args[index + 1] !== undefined && (!args[index + 1].startsWith('-') || /^-\d/.test(args[index + 1]) ||
+          (azManifest.inputFileFlags.includes(name) && input.files?.some(file => file.name === args[index + 1])))) {
           values.push(args[++index])
           if (!['list', 'literal-list'].includes(kind) || route.positionalInput) break
         }
@@ -171,8 +173,12 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: azManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: args => ({
       flags: [...azManifest.sensitiveFlags.map(name => `--${name}`), '-q'],
-      positions: ['logs', 'rg'].includes(args[0]) && args[1] === 'query'
-        ? args.map((_, index) => index).slice(2) : [],
+      positions: inventory.commands.filter(route => ['rg query', 'graph query', 'logs query', 'monitor log-analytics query'].includes(route.command))
+        .flatMap(route => {
+          const words = route.command.split(' ')
+          const start = args.findIndex((_, index) => words.every((word, offset) => args[index + offset] === word))
+          return start < 0 ? [] : args.map((_, index) => index).slice(start + words.length)
+        }),
     }),
     validateArgs: (args, input) => { azArguments(args, input) },
     async prepare(args, reference, input) {

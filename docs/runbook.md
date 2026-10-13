@@ -14,6 +14,17 @@ The image runs as UID 10001 with a read-only root filesystem, writable `/data`, 
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.
+Non-swarm Compose file secrets retain host ownership, so mode-0600 files owned by the operator are not readable by the image's UID 10001.
+After preparing the master-key file and exact bootstrap-password file, make both readable by that UID on a standard rootful Docker host:
+
+```sh
+sudo chown 10001:10001 ./private/artium_master_key ./private/artium_bootstrap_password
+sudo chmod 600 ./private/artium_master_key ./private/artium_bootstrap_password
+```
+
+The bootstrap file contains UTF-8 password bytes with no added newline; the master-key file contains exactly 32 raw bytes.
+Keep their host directory protected and retain operator access through the approved privileged account.
+For rootless Docker or user-namespace remapping, use the mapped host UID corresponding to container UID 10001.
 See [master-key custody](#backup-restore-and-upgrade-rollback) for key formats and the saved local copy.
 The owner decides key creation; the synthetic key used in rehearsal is not a production provisioning recommendation.
 
@@ -29,6 +40,7 @@ pnpm test:containers
 
 The Compose validation creates no stack and reads no secret contents.
 Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
+Check the [container-test prerequisites](../README.md#development--testing) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
 Do not use real adapter credentials or globally prune Docker resources.
 
 ## Proxy and certificate trust
@@ -40,6 +52,60 @@ Set `ARTIUM_AXI_TRUSTED_PROXIES` to the verified proxy source IP addresses as se
 Keep the external origin consistent for browser forms and forward the original HTTPS scheme correctly.
 Verify certificate hostname, expiry and full chain before switching traffic.
 Proxy installation, firewall configuration, production forwarding-header verification and certificate renewal remain unexercised owner steps.
+
+For a containerized nginx proxy, an owner-configured override can use this static source IP and wait for the example's readiness healthcheck.
+Select an unused subnet and update both the proxy address and trusted-proxy setting together.
+Use an approved nginx image digest in place of the placeholder and provision the mounted certificate, key and configuration first.
+
+```yaml
+services:
+  artium:
+    environment:
+      ARTIUM_AXI_TRUSTED_PROXIES: 172.30.88.10
+  proxy:
+    image: <approved-nginx-image-digest>
+    ports:
+      - "443:443"
+    depends_on:
+      artium:
+        condition: service_healthy
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./tls:/etc/nginx/tls:ro
+    networks:
+      default:
+        ipv4_address: 172.30.88.10
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.88.0/24
+```
+
+The corresponding `nginx.conf` replaces client forwarding headers with the proxy's own values:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name artium.example.test;
+    ssl_certificate /etc/nginx/tls/server.crt;
+    ssl_certificate_key /etc/nginx/tls/server.key;
+    client_max_body_size 16m;
+    location / {
+        proxy_pass http://artium:8080;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-Port "";
+    }
+}
+```
+
+Replace the synthetic hostname with the certificate's trusted hostname.
+The static proxy IP survives recreates; do not trust the whole Docker subnet.
+The health dependency waits during initial startup and does not promise uninterrupted traffic during later recreates.
 
 Set `ARTIUM_AXI_URL` to the trusted HTTPS base URL without credentials, query or fragment.
 For a private CA, use curl's `--cacert` on both downloads and set `ARTIUM_AXI_CA_FILE` to the readable PEM CA file for the CLI.
@@ -82,6 +148,26 @@ CLI tokens are private local files bound to the server URL; do not export or sha
 After `SESSION_BUSY`, remove the session lock directory only after all CLI processes using it have exited.
 An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.
 
+## Scripted administrator sessions
+
+There is no dedicated administrator CLI.
+Scripts use the JSON API over the same trusted HTTPS origin; see the [shared contracts](../src/shared/api.ts) for route bodies and revision fields.
+Start with `POST /v1/auth/login`, with JSON `{ "username": "synthetic-admin", "password": "<password>" }` supplied from protected stdin or a protected file, never command arguments.
+Require an `authenticated` response; a `password-change-required` response must complete the password-change flow first.
+Keep the returned `accessToken` and `refreshToken` private and out of logs.
+Then send `POST /v1/auth/reauth` with `Authorization: Bearer <accessToken>` and JSON `{ "password": "<password>" }` from the same protected input source.
+The response contains `ticket` and `expiresAt` (Unix milliseconds).
+Send both `Authorization: Bearer <accessToken>` and `x-artium-reauth-ticket: <ticket>` on every `/v1/admin/...` request, including reads such as `GET /v1/admin/users` and `GET /v1/admin/audit`.
+With curl, provide sensitive headers through a protected configuration file or stdin with `--config -`, rather than command arguments.
+Bearer sessions do not use browser CSRF tokens.
+
+The ticket is bound to the login session family and lasts 15 minutes; on `REAUTH_REQUIRED`, obtain a new ticket with that family's access token.
+Access tokens last one hour; `POST /v1/auth/refresh` takes `{ "refreshToken": "<refreshToken>" }` and returns replacement tokens.
+Replace both stored tokens atomically and never reuse a consumed refresh token.
+The ticket remains usable through a refresh of its own family, but cannot authorize another login session.
+At completion, send `POST /v1/auth/logout` with the refresh token as the bearer credential, then discard local tokens, tickets and temporary inputs.
+See [authentication limits](../README.md#security-and-acceptance-boundaries) for how successful authentication and failures affect the attempt budgets.
+
 ## Roles, credentials and health
 
 Sign in as an administrator through the HTTPS proxy and use `/admin` to create users with temporary passwords.
@@ -119,8 +205,7 @@ curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
 These checks do not test remote services or reload the key.
-Doctor checks address, certificate, token and CLI version, then reports the available tools' cached health.
-Only `ok` passes; `unknown`, `unconfigured` or `error` require investigation rather than disabling certificate verification.
+Use doctor for the [CLI diagnostics](../README.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
 Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
 Use “Test credential” at `/admin/credentials` for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
@@ -157,7 +242,8 @@ pnpm start
 ```
 
 The production listener is fixed at port 8080; use an isolated environment and stop the process with SIGTERM after rehearsal.
-For Compose first start, the owner adds the bootstrap username and a read-only password-file secret and sets `ARTIUM_AXI_ADMIN_PASSWORD_FILE` to its container path before creating the service.
+For Compose first start, uncomment the first-start environment block and both bootstrap-password secret entries in [compose.example.yaml](../compose.example.yaml) before creating the service.
+Prepare both secret files with the runtime ownership described above.
 The master-key secret alone does not bootstrap a fresh store.
 The store must be empty except for migrations and the default tool registry, and must never have been bootstrapped.
 Startup commits the administrator and one-time marker atomically, with must-change set and no tool grants.
@@ -258,6 +344,10 @@ The durable audit event uses action `rotate-key`, no user identity for offline m
 Maintenance keeps its receipt output separate from the optional online audit stream.
 
 ## Backup, restore and upgrade rollback
+
+After a task-owned image build is no longer needed, remove its built tag with `docker image rm <task-owned-tag>`.
+On containerd-snapshotter hosts, build-cache cleanup cannot be scoped to one build by cache ID; removing the built image tag is the scoped cleanup step, although shared cached layers may remain.
+Do not use global builder or system prune commands to clean up one build, and retain images still needed for rollback.
 
 After `pnpm build`, run `node bin/artium-axi-server backup --out /absolute/path/protected-backups/pre-upgrade.db` with the source database and matching master-key environment settings.
 The backup directory must already exist and be protected from other users.

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { resolve, relative, sep, isAbsolute } from 'node:path'
-import { loginResponseSchema, meResponseSchema, runRequestSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
+import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
@@ -10,6 +10,7 @@ import { commandHelp, helpCommand } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
 import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
+import { toolInput } from './input.js'
 
 async function main(args: string[]) {
   const prefixHelp = args[0] === '--help'
@@ -84,9 +85,7 @@ async function main(args: string[]) {
   if (!home && (listing || whoami ? !detail && args.length !== 1 : !toolSchema.safeParse(command).success)) {
     throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
   }
-  const parsedInput = runRequestSchema.safeParse({ args: args.slice(1) })
-  if (!home && !listing && !whoami && !parsedInput.success) throw new ArtiumError('INVALID_INPUT')
-  const input = home || listing || whoami ? undefined : parsedInput.data
+  const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
   const client = new Client()
   const homeSession = home ? client.sessions.read() : undefined
   if (home && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')

@@ -155,7 +155,9 @@ test('five wrong passwords lock the account with an audit event until the exact 
   clock.mockReturnValue(start + 899_999)
   const limited = await login()
   expect(limited.status).toBe(429)
-  await expectFailure(limited, 'AUTH_RATE_LIMITED')
+  const limitedRequestId = await expectFailure(limited, 'AUTH_RATE_LIMITED')
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE request_id = ?").get(limitedRequestId))
+    .toEqual({ event: 'sign-in', outcome: 'AUTH_RATE_LIMITED' })
   // The attempt window starts before the fifth failure; the persisted lock still applies after that window.
   await app.close()
   app = createApp(options)
@@ -168,13 +170,13 @@ test('five wrong passwords lock the account with an audit event until the exact 
   expect(db.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 0, locked_until: null })
 })
 
-test('successful logins reset failed-password counts but still consume the username attempt limit', async () => {
+test('successful logins reset failed-password counts without consuming the username failure limit', async () => {
   await expectFailure(await login('CANARY-wrong'), 'SIGN_IN_FAILED')
   expect((await login()).status).toBe(200)
   expect(db.prepare('SELECT failed_attempts FROM users').get()).toEqual({ failed_attempts: 0 })
   expect((await login()).status).toBe(200)
   expect((await login()).status).toBe(200)
-  await expectFailure(await login(undefined, ' Synthetic-USER '), 'AUTH_RATE_LIMITED')
+  expect((await login(undefined, ' Synthetic-USER ')).status).toBe(200)
 })
 
 test('lockout audit failure rolls back the fifth failure and lock deadline', async () => {
@@ -240,7 +242,11 @@ test('reauth shares username limits with login and rejects incorrect passwords w
   expect((await reauth('CANARY-local-password')).status).toBe(200)
   expect((await login()).status).toBe(200)
   expect((await reauth('CANARY-local-password')).status).toBe(200)
-  await expectFailure(await reauth('CANARY-local-password'), 'AUTH_RATE_LIMITED')
+  expect((await reauth('CANARY-local-password')).status).toBe(200)
+  for (let attempt = 0; attempt < 4; attempt++) await expectFailure(await reauth('CANARY-wrong'), 'SIGN_IN_FAILED')
+  const requestId = await expectFailure(await reauth('CANARY-local-password'), 'AUTH_RATE_LIMITED')
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE request_id = ?").get(requestId))
+    .toEqual({ event: 'sign-in', outcome: 'AUTH_RATE_LIMITED' })
 })
 
 test('security: concurrent refresh consumes once and reuse revokes the complete family', async () => {
