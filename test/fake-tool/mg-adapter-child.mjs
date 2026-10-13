@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { executeArgv } from '../../tools/node_modules/@knowttl/mg-axi/dist/cli.js'
+import { resolveSecret } from '../../tools/node_modules/@knowttl/mg-axi/dist/secrets.js'
 
 const { encode } = await import(createRequire(new URL('../../tools/node_modules/@knowttl/mg-axi/package.json', import.meta.url)).resolve('@toon-format/toon'))
 const groupId = '00000000-0000-0000-0000-000000000003'
@@ -9,8 +10,7 @@ let sends = 0
 const application = { async credential(profile) {
   assert.equal(profile.mode, 'application')
   assert.equal(profile.allowDeviceCode, false)
-  const holder = profile.credentialRef.secretEnv ?? profile.credentialRef.keyEnv
-  assert.ok(process.env[holder]?.startsWith('CANARY-'))
+  assert.ok(resolveSecret(profile.clientSecret ?? profile.privateKey ?? profile.token).startsWith('CANARY-'))
   return { token: 'CANARY-graph-token', tenantId: profile.tenantId, clientId: profile.clientId,
     mode: 'application', cloud: 'commercial' }
 } }

@@ -4,11 +4,11 @@
     "integrity": "sha512-+72Tudi30AE016bGM+c6xyZ7bwSrZQn9jh2YGPd8cvtvc4KqyDFsHc+heRYFBesYuChxELHCyXtXzbT0VUs32A=="
   },
   "@knowttl/vectra-axi": {
-    "version": "0.1.3",
-    "integrity": "sha512-vt+KWvHArOm1/neFuQgTELGBp/goQau46SwE5hWcklU/41Ahfx4ws7+Jf6fU1koGXZ23lYze0FndD08r1Mkugg=="
+    "version": "0.1.5",
+    "integrity": "sha512-m+gE4qJm1xBCWqH3QAqkJJFwUcBRmZDUr3UB2TthzkIg+2oHheuCOuV8yGdelggLT74JLtv/wR416UFyFMjy8Q=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.4",
-    "integrity": "sha512-k508R4YwELmE7fQLJY2w0Gx/0y9oBbS/nYcYm9FqRugbPGHWC6fOFPpcHE/S+JvxBW9qv48uDN01la1y6lB6ug=="
+    "version": "0.1.6",
+    "integrity": "sha512-8rcZHLId3kVaLFX0NNXwJ/mBfRplIDBdGFXsddJgZj5FjyMn7KiZcbcOmI9FHO3QQZPri58oFEAaREAlzVuJ+A=="
   }
 }

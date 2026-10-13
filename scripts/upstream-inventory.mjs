@@ -62,15 +62,16 @@ const environments = {
   },
   'vectra-axi': {
     native: ['VECTRA_AXI_CONFIG', 'VECTRA_AXI_PROFILE', vectraWrites.READ_ONLY_ENV, vectraWrites.WRITE_LOG_ENV],
-    credentials: [{ profileField: 'tokenEnv', transport: 'token value' }, { profileField: 'secretEnv', transport: 'client-secret value' }],
-    sources: ['src/profiles.js', 'src/auth.js', 'src/oauth.js', 'src/writes.js'],
+    credentials: [{ profileField: 'token.env', transport: 'token value' }, { profileField: 'clientSecret.env', transport: 'client-secret value' },
+      { profileField: 'tokenEnv', transport: 'deprecated token value' }, { profileField: 'secretEnv', transport: 'deprecated client-secret value' }],
+    sources: ['src/profiles.js', 'src/auth.js', 'src/oauth.js', 'src/writes.js', 'src/private-file.js'],
   },
   'mg-axi': {
-    native: ['MG_AXI_CONFIG', mgWrites.READ_ONLY_ENV, mgWrites.WRITE_LOG_ENV, 'AZURE_FEDERATED_TOKEN_FILE'],
-    credentials: [{ profileField: 'credentialRef.secretEnv', transport: 'client-secret value' },
-      { profileField: 'credentialRef.keyEnv', transport: 'private-key value' },
-      { profileField: 'credentialRef.tokenFileEnv', transport: 'assertion-file path', defaultEnvironment: 'AZURE_FEDERATED_TOKEN_FILE' }],
-    sources: ['profiles.js', 'mutations.js', 'msal-app-provider.js'],
+    native: ['MG_AXI_CONFIG', 'MG_AXI_PROFILE', mgWrites.READ_ONLY_ENV, mgWrites.WRITE_LOG_ENV, 'AZURE_FEDERATED_TOKEN_FILE'],
+    credentials: [{ profileField: 'clientSecret.env', transport: 'client-secret value', defaultEnvironment: 'MG_AXI_CLIENT_SECRET' },
+      { profileField: 'privateKey.env', transport: 'private-key value', defaultEnvironment: 'MG_AXI_PRIVATE_KEY' },
+      { profileField: 'token.env', transport: 'token or assertion value', defaultEnvironment: 'MG_AXI_TOKEN' }],
+    sources: ['profiles.js', 'mutations.js', 'msal-app-provider.js', 'secrets.js', 'private-file.js'],
   },
 }
 const nativeWriteSettings = {
@@ -164,7 +165,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
       globalFlags: mgGlobalFlags,
       commonFlags: ['profile', 'api-version'].map(name => ({ name, scope: 'only on leaves declaring it' })),
       credentialEnvironment: ['MG_AXI_CLIENT_SECRET', 'MG_AXI_PRIVATE_KEY'].map(name => ({ name,
-        scope: 'example names only; profile selects the actual holder name' })),
+        scope: 'default SecretRef holder; a selected profile may name another holder' })),
       parser: { aliases: {}, shortFlags: {}, repeats: 'refused', equals: true,
         doubleDash: 'refused', globalFlagsBeforeCommand: 'refused', unknownFlags: 'refused' },
       schema: 'mg-axi-headless.schema.json',
@@ -174,7 +175,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
     } } : {}),
     ...(tool === 'mg-axi' ? { adapterBoundary: {
       unsafeOverrides: ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
-        'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint', 'federated-token-file-env'],
+        'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint-sha256', 'federated-token-file'],
       allowedCommands: ['home', 'doctor', 'entra', 'api get'],
       inputs: { stdin: 'cursor - only', files: 'unsupported', cursor: 'opaque token or stdin; never a path',
         api: 'reviewed GET routes only; pinned Graph destination and operation gates retained' },

@@ -8,8 +8,8 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 
 test.each([
   ['az-axi', 'dist/bin/az-axi.js', '0.1.6', ['sub', 'list']],
-  ['vectra-axi', 'bin/vectra-axi.js', '0.1.3', ['detection', 'list']],
-  ['mg-axi', 'dist/bin/mg-axi.js', '0.1.4', ['entra', 'user', 'list']],
+  ['vectra-axi', 'bin/vectra-axi.js', '0.1.5', ['detection', 'list']],
+  ['mg-axi', 'dist/bin/mg-axi.js', '0.1.6', ['entra', 'user', 'list']],
 ])('pinned %s exposes its version, help and usage errors without credentials', (tool, bin, version, command) => {
   const home = mkdtempSync(join(root, '.tmp-upstream-'))
   const executable = join(root, 'tools/node_modules/@knowttl', tool, bin)

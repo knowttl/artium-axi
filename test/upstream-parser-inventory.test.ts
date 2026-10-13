@@ -89,12 +89,11 @@ test('Graph inventory records universal help and the required API path', () => {
 
 test('Graph native environment defaults exclude profile-selected example names', () => {
   expect(mgInventory.environment.map((entry: { name: string }) => entry.name))
-    .toEqual(['MG_AXI_CONFIG', 'MG_AXI_READ_ONLY', 'MG_AXI_WRITE_LOG', 'AZURE_FEDERATED_TOKEN_FILE'])
+    .toEqual(['MG_AXI_CONFIG', 'MG_AXI_PROFILE', 'MG_AXI_READ_ONLY', 'MG_AXI_WRITE_LOG', 'AZURE_FEDERATED_TOKEN_FILE'])
   expect(mgInventory.dynamicCredentialEnvironment).toEqual([
-    { profileField: 'credentialRef.secretEnv', transport: 'client-secret value' },
-    { profileField: 'credentialRef.keyEnv', transport: 'private-key value' },
-    { profileField: 'credentialRef.tokenFileEnv', transport: 'assertion-file path',
-      defaultEnvironment: 'AZURE_FEDERATED_TOKEN_FILE' },
+    { profileField: 'clientSecret.env', transport: 'client-secret value', defaultEnvironment: 'MG_AXI_CLIENT_SECRET' },
+    { profileField: 'privateKey.env', transport: 'private-key value', defaultEnvironment: 'MG_AXI_PRIVATE_KEY' },
+    { profileField: 'token.env', transport: 'token or assertion value', defaultEnvironment: 'MG_AXI_TOKEN' },
   ])
 })
 
@@ -115,8 +114,10 @@ test('Vectra records native selectors separately from profile-selected token and
   expect(vectra.environment.map((entry: { name: string }) => entry.name))
     .toEqual(['VECTRA_AXI_CONFIG', 'VECTRA_AXI_PROFILE', 'VECTRA_AXI_READ_ONLY', 'VECTRA_AXI_WRITE_LOG'])
   expect(vectra.dynamicCredentialEnvironment).toEqual([
-    { profileField: 'tokenEnv', transport: 'token value', disposition: 'server-owned' },
-    { profileField: 'secretEnv', transport: 'client-secret value', disposition: 'server-owned' },
+    { profileField: 'token.env', transport: 'token value', disposition: 'server-owned' },
+    { profileField: 'clientSecret.env', transport: 'client-secret value', disposition: 'server-owned' },
+    { profileField: 'tokenEnv', transport: 'deprecated token value', disposition: 'server-owned' },
+    { profileField: 'secretEnv', transport: 'deprecated client-secret value', disposition: 'server-owned' },
   ])
 })
 
@@ -142,14 +143,13 @@ test.each([undefined, 'CANARY_ASSERTION_FILE'])('Graph federated source %s reads
     const provider = new MsalApplicationProvider()
     const profile = { tenantId: '00000000-0000-0000-0000-000000000001',
       clientId: '00000000-0000-0000-0000-000000000002', cloud: 'commercial',
-      credentialRef: { provider: 'federated', key: '00000000-0000-0000-0000-000000000003',
-        ...(process.argv[3] ? { tokenFileEnv: process.argv[3] } : {}) } }
+      auth: 'federated', token: process.argv[3] ? { file: process.argv[2] } : { env: 'MG_AXI_TOKEN' } }
     const first = await provider.acquire(profile, ['https://graph.microsoft.com/.default'])
     writeFileSync(process.argv[2], 'CANARY-rotated\\n')
     const second = await provider.acquire(profile, ['https://graph.microsoft.com/.default'])
     console.log(JSON.stringify([first.token, second.token]))`
   try {
-    writeFileSync(assertionFile, 'CANARY-first\n')
+    writeFileSync(assertionFile, 'CANARY-first\n', { mode: 0o600 })
     const result = spawnSync(process.execPath, ['--input-type=module', '-e', program,
       new URL('../tools/node_modules/@knowttl/mg-axi/dist/msal-app-provider.js', import.meta.url).href,
       assertionFile, tokenFileEnv ?? ''], { encoding: 'utf8', timeout: 3000,

@@ -14,7 +14,7 @@ export class ConfidentialClientApplication {
       throw new Error('Unexpected credential at fake SDK boundary')
     if (auth.clientCertificate && createPrivateKey(auth.clientCertificate.privateKey).asymmetricKeyType !== 'rsa')
       throw new Error('Unexpected private key at fake SDK boundary')
-    if (auth.clientCertificate && auth.clientCertificate.thumbprint !== 'a'.repeat(40))
+    if (auth.clientCertificate && auth.clientCertificate.thumbprintSha256 !== 'a'.repeat(64))
       throw new Error('Unexpected certificate thumbprint')
     if (scopes.join() !== 'https://graph.microsoft.com/.default') throw new Error('Unexpected scopes')
     return { authority: auth.authority + '/', accessToken: 'CANARY-token', expiresOn: new Date('2030-01-01') }
@@ -39,13 +39,13 @@ const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048,
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })
 writeFileSync(secretFile, 'CANARY-secret\n', { mode: 0o600 })
 writeFileSync(keyFile, privateKey, { mode: 0o600 })
-process.env.CANARY_SECRET = ' CANARY-secret '
+process.env.CANARY_SECRET = 'CANARY-secret'
 process.env.CANARY_KEY = privateKey.replace(/\n/g, '\\n')
 const cases = [
   ['secret-env', ['--client-secret-env', 'CANARY_SECRET']],
   ['secret-file', ['--client-secret-file', secretFile]],
-  ['certificate-env', ['--certificate-thumbprint', 'A'.repeat(40), '--certificate-key-env', 'CANARY_KEY']],
-  ['certificate-file', ['--certificate-thumbprint', 'A'.repeat(40), '--certificate-key-file', keyFile]],
+  ['certificate-env', ['--certificate-thumbprint-sha256', 'A'.repeat(64), '--certificate-key-env', 'CANARY_KEY']],
+  ['certificate-file', ['--certificate-thumbprint-sha256', 'A'.repeat(64), '--certificate-key-file', keyFile]],
 ]
 try {
   for (const [name, flags] of cases) {
@@ -56,7 +56,7 @@ try {
     const result = await provider.acquire(profile, [])
     assert.equal(result.token, 'CANARY-token')
     assert.equal(provider.storage, 'session-only')
-    await assert.rejects(executeArgv(['login', '--profile', name, '--scopes', 'https://graph.microsoft.com/User.Read']),
+    await assert.rejects(executeArgv(['auth', 'login', '--profile', name, '--scopes', 'https://graph.microsoft.com/User.Read']),
       error => error.code === 'VALIDATION_ERROR')
     console.log(`headless-case: ${name} acquired through fake SDK; interactive login refused`)
   }
@@ -71,17 +71,17 @@ try {
   for (const [name, file] of [['secret-file', secretFile], ['certificate-file', keyFile]]) {
     const profile = new Profiles().resolve(name).profile
     chmodSync(file, 0o644)
-    await assert.rejects(new MsalApplicationProvider().acquire(profile, []), error => error.code === 'AUTH_REQUIRED')
+    await assert.rejects(new MsalApplicationProvider().acquire(profile, []), error => error.code === 'CONFIG_INSECURE')
     chmodSync(file, 0o600)
     const link = `${file}-link`
     symlinkSync(file, link)
-    const ref = { ...profile.credentialRef, [name === 'secret-file' ? 'secretFile' : 'keyFile']: link }
-    await assert.rejects(new MsalApplicationProvider().acquire({ ...profile, credentialRef: ref }, []),
-      error => error.code === 'AUTH_REQUIRED')
+    await assert.rejects(new MsalApplicationProvider().acquire({ ...profile,
+      [name === 'secret-file' ? 'clientSecret' : 'privateKey']: { file: link } }, []),
+      error => error.code === 'CONFIG_INSECURE')
   }
   assert.throws(() => validateProfile({ ...profile, allowDeviceCode: true }))
-  assert.throws(() => validateProfile({ ...profile, credentialRef: { ...profile.credentialRef, secret: 'CANARY-inline' } }))
-  assert.throws(() => validateProfile({ ...profile, credentialRef: { ...profile.credentialRef, secretFile } }))
+  assert.throws(() => validateProfile({ ...profile, clientSecret: 'CANARY-inline' }))
+  assert.throws(() => validateProfile({ ...profile, clientSecret: { file: 'relative' } }))
   const config = readFileSync(process.env.MG_AXI_CONFIG, 'utf8')
   assert.ok(!config.includes('CANARY-secret') && !config.includes('BEGIN PRIVATE KEY'))
   for (const leaf of LEAVES) assert.equal(resolveCommand([...leaf.path.split(' '), '--help']).flags.help, true)
@@ -91,9 +91,9 @@ try {
     ['entra', 'user', 'list', '--version']]) assert.throws(() => resolveCommand(args))
   assert.equal(resolveCommand(['entra', 'user', 'list', '--profile=synthetic']).flags.profile, 'synthetic')
   for (const flag of ['--version', '-v', '-V']) {
-    const result = spawnSync(process.execPath, ['/work/tools/node_modules/@knowttl/mg-axi/dist/bin/mg-axi.js', flag], { encoding: 'utf8' })
+    const result = spawnSync(process.execPath, [new URL(`${upstream}bin/mg-axi.js`, import.meta.url).pathname, flag], { encoding: 'utf8' })
     assert.equal(result.status, 0)
-    assert.equal(result.stdout.trim(), '0.1.4')
+    assert.equal(result.stdout.trim(), '0.1.6')
   }
   console.log(`headless-case: missing/env, encrypted/key, mode/file, symlink/file and invalid/profile refused; ${LEAVES.length} parser leaves verified`)
 } finally {

@@ -200,8 +200,11 @@ Mutations use revision checks and audit commits; reload stale forms rather than 
 After 15 minutes without password confirmation, administration mutations require reauthentication.
 
 Credential editors start blank and never return stored values.
-Falcon, Vectra and Graph use schema-generated fields and validation when their pinned packages ship the [AXI credential standard](docs/credential-standard.md) profile schema.
+Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
+Falcon uses the same editor when its pinned package ships that schema.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object or array fields as JSON.
+For Vectra, `origin` must be a canonical HTTPS origin, without a path, credentials or an explicit default port.
+Enter PEM contents in `caBundle`, not a server file path; Artium writes a private CA file for each call.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
 Azure retains its source-identity JSON editor because the host brokers resource tokens separately.
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
