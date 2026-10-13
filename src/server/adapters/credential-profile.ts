@@ -14,6 +14,13 @@ import type { Adapter, PreparedCall } from './types.js'
 type Schema = Record<string, any>
 export interface ProfileField { name: string, schema: Schema, required: boolean }
 
+export function isCanonicalHttpsOrigin(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && value === url.origin && !url.username && !url.password
+  } catch { return false }
+}
+
 export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, source: SecretSource,
   writeLog: string, profile: CredentialProfile | undefined,
   argumentsForCall: (args: readonly string[], input?: RunnerInput) => Pick<PreparedCall, 'args' | 'fileArguments'>,
@@ -35,7 +42,7 @@ export function loadCredentialProfile(tool: ToolName, file: string = toolCredent
   let content: string
   try { content = readFileSync(file, 'utf8') }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw new ArtiumError('CREDENTIAL_INVALID') }
-  try { return new CredentialProfile(JSON.parse(content)) }
+  try { return new CredentialProfile(JSON.parse(content), tool) }
   catch { throw new ArtiumError('CREDENTIAL_INVALID') }
 }
 
@@ -48,9 +55,24 @@ export class CredentialProfile {
   private readonly validateInput: (value: unknown) => boolean
   private readonly validateProfile: (value: unknown) => boolean
 
-  constructor(readonly schema: Schema) {
+  constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'vectra-axi' && this.inputSchema.properties?.origin) {
+      const origin = this.inputSchema.properties.origin
+      this.inputSchema.properties.origin = { ...origin,
+        allOf: [...(origin.allOf ?? []), { format: 'canonical-https-origin' }] }
+    }
+    for (const [selector, kind, field] of [['auth', 'token', 'token'], ['auth', 'oauth', 'clientSecret'],
+      ['auth', 'client-secret', 'clientSecret'], ['auth', 'certificate', 'privateKey'],
+      ['auth', 'federated', 'token'], ['mode', 'delegated', 'token']]) {
+      if (schema.properties?.[field]?.['x-secret'] !== true) continue
+      this.inputSchema.allOf = [...(this.inputSchema.allOf ?? []), {
+        if: { required: [selector], properties: { [selector]: { const: kind } } },
+        then: { required: [field], ...(selector === 'auth' && kind === 'token'
+          ? { properties: { [field]: { not: { pattern: '\\s' } } } } : {}) },
+      }]
+    }
     const options = { strict: false, validateFormats: true }
     const create = () => {
       const ajv = String(schema.$schema).includes('2020-12') ? new Ajv2020(options) : new Ajv(options)
@@ -58,6 +80,7 @@ export class CredentialProfile {
       return ajv
     }
     const host = create()
+    host.addFormat('canonical-https-origin', { type: 'string', validate: isCanonicalHttpsOrigin })
     host.addKeyword({ keyword: 'x-secret', schemaType: 'boolean', errors: false,
       validate: (secret: boolean, value: unknown, _schema: unknown, context?: { instancePath: string }) => {
         if (secret && typeof value === 'string' && context) this.secrets.add(context.instancePath)
@@ -71,21 +94,29 @@ export class CredentialProfile {
     }, 'Invalid credential profile')
   }
 
-  private hostSchema(schema: Schema): Schema {
+  private hostSchema(schema: Schema, secretProperties: Schema = schema?.properties ?? {}): Schema {
     if (typeof schema !== 'object' || schema === null) return schema
     if (schema['x-secret'] === true) return { type: 'string', minLength: 1, pattern: '\\S',
       'x-secret': true, title: schema.title, description: schema.description }
     const result = { ...schema }
     for (const key of ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas', 'dependencies']) {
-      if (schema[key]) result[key] = Object.fromEntries(Object.entries(schema[key]).map(([name, value]) =>
-        [name, Array.isArray(value) ? value : this.hostSchema(value as Schema)]))
+      if (schema[key]) result[key] = Object.fromEntries(Object.entries(schema[key]).map(([name, value]) => {
+        if (Array.isArray(value)) return [name, value]
+        const field = key === 'properties' && secretProperties[name]?.['x-secret'] === true
+          ? { ...(value as Schema), 'x-secret': true } : value as Schema
+        const inherited = ['dependentSchemas', 'dependencies'].includes(key)
+          ? { ...field?.properties, ...secretProperties } : undefined
+        return [name, this.hostSchema(field, inherited)]
+      }))
     }
     for (const key of ['oneOf', 'anyOf', 'allOf', 'prefixItems']) {
-      if (schema[key]) result[key] = schema[key].map((value: Schema) => this.hostSchema(value))
+      if (schema[key]) result[key] = schema[key].map((value: Schema) => this.hostSchema(value,
+        key === 'prefixItems' ? value?.properties ?? {} : { ...value.properties, ...secretProperties }))
     }
     for (const key of ['items', 'additionalProperties', 'additionalItems', 'unevaluatedProperties', 'contains', 'not', 'if', 'then', 'else', 'propertyNames']) {
       if (schema[key] !== undefined) result[key] = Array.isArray(schema[key])
-        ? schema[key].map((value: Schema) => this.hostSchema(value)) : this.hostSchema(schema[key])
+        ? schema[key].map((value: Schema) => this.hostSchema(value)) : this.hostSchema(schema[key],
+          ['not', 'if', 'then', 'else'].includes(key) ? { ...schema[key]?.properties, ...secretProperties } : schema[key]?.properties ?? {})
     }
     return result
   }
@@ -132,7 +163,13 @@ export class CredentialProfile {
     const prefix = tool.toUpperCase().replaceAll('-', '_')
     environment[`${prefix}_READ_ONLY`] = String(readOnly)
     environment[`${prefix}_WRITE_LOG`] = writeLog
-    return { environment, secrets, files: [{ name: `${tool}/config.json`, content: JSON.stringify({
+    // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
+    const files: PreparedCall['files'] = []
+    if (tool === 'vectra-axi' && typeof parsed.value.caBundle === 'string') {
+      files.push({ name: 'vectra-axi/vectra-ca.pem', content: parsed.value.caBundle })
+      parsed.value.caBundle = 'vectra-ca.pem'
+    }
+    return { environment, secrets, files: [...files, { name: `${tool}/config.json`, content: JSON.stringify({
       version: 1, defaultProfile: 'artium', profiles: { artium: parsed.value },
     }) }] }
   }

@@ -55,20 +55,20 @@ test('Azure configured write subscriptions cannot be widened by read-scope overr
 })
 
 test.each([
-  [{ kind: 'qux', apiVersion: '2.5', auth: 'token', tokenEnv: 'CANARY_TOKEN' }],
-  [{ kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic', secretEnv: 'CANARY_SECRET' }],
-  [{ kind: 'rux', apiVersion: '3.4', auth: 'oauth', clientId: 'synthetic', secretEnv: 'CANARY_SECRET' }],
+  [{ kind: 'qux', apiVersion: '2.5', auth: 'token', token: { env: 'CANARY_TOKEN' } }],
+  [{ kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic', clientSecret: { env: 'CANARY_SECRET' } }],
+  [{ kind: 'rux', apiVersion: '3.4', auth: 'oauth', clientId: 'synthetic', clientSecret: { env: 'CANARY_SECRET' } }],
 ])('Vectra %j write settings enforce the configured operation scope', async variant => {
-  vi.stubEnv('VECTRA_AXI_READ_ONLY', '')
+  vi.stubEnv('VECTRA_AXI_READ_ONLY', 'false')
   const { loadConfig } = await load('vectra-axi', 'src/profiles.js')
   const { createMutationCoordinator } = await load('vectra-axi', 'src/writes.js')
   const { SecretRedactor } = await load('vectra-axi', 'src/redact.js')
   const directory = mkdtempSync(join(root, '.tmp-write-settings-'))
   const config = join(directory, 'config.json')
   try {
-    writeFileSync(config, JSON.stringify({ profiles: { synthetic: { ...variant, origin: 'https://appliance.test',
+    writeFileSync(config, JSON.stringify({ version: 1, profiles: { synthetic: { ...variant, origin: 'https://appliance.test',
       writes: { allowWrites: true, operations: ['synthetic.allowed'] },
-    } } }))
+    } } }), { mode: 0o600 })
     const profile = { ...loadConfig(config).config.profiles.synthetic, name: 'synthetic' }
     const coordinator = createMutationCoordinator({ profile, configPath: config, redactor: new SecretRedactor(),
       transport: async () => { throw new Error('Unexpected synthetic network request') } })
@@ -87,13 +87,13 @@ test.each([
 })
 
 test.each([
-  ['delegated', { provider: 'os-or-session', key: '00000000-0000-0000-0000-000000000003' }],
-  ['application', { provider: 'client-secret', key: '00000000-0000-0000-0000-000000000003', secretEnv: 'CANARY_SECRET' }],
-])('Graph %s write settings enforce the configured operation scope', async (mode, credentialRef) => {
-  vi.stubEnv('MG_AXI_READ_ONLY', '')
+  ['delegated', { token: { stored: true } }],
+  ['application', { auth: 'client-secret', clientSecret: { env: 'CANARY_SECRET' } }],
+])('Graph %s write settings enforce the configured operation scope', async (mode, credentials) => {
+  vi.stubEnv('MG_AXI_READ_ONLY', 'false')
   const { validateProfile } = await load('mg-axi', 'profiles.js')
   const { createMutationCoordinator } = await load('mg-axi', 'mutations.js')
-  const profile = validateProfile({ mode, credentialRef, tenantId: '00000000-0000-0000-0000-000000000001',
+  const profile = validateProfile({ mode, ...credentials, tenantId: '00000000-0000-0000-0000-000000000001',
     clientId: '00000000-0000-0000-0000-000000000002', cloud: 'commercial', allowDeviceCode: false,
     enabledPacks: ['entra'], sensitiveAreas: [], preview: false,
     writes: { allowWrites: true, operations: ['synthetic.allowed'] } })

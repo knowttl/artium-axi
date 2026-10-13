@@ -1,13 +1,16 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-k508R4YwELmE7fQLJY2w0Gx/0y9oBbS/nYcYm9FqRugbPGHWC6fOFPpcHE/S+JvxBW9qv48uDN01la1y6lB6ug==",
+  "version": "0.1.6",
+  "integrity": "sha512-8rcZHLId3kVaLFX0NNXwJ/mBfRplIDBdGFXsddJgZj5FjyMn7KiZcbcOmI9FHO3QQZPri58oFEAaREAlzVuJ+A==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "92a1278950f42ec34e64bb5718f9f28c5603a0f77393dd6f082c34147c46402e",
+  "packageManifestSha256": "03e49a836f5b31fdaf5072ffa2c3a6db42bfadeff6667a24fff7ae3efcf3a2d5",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
+    },
+    {
+      "name": "MG_AXI_PROFILE"
     },
     {
       "name": "MG_AXI_READ_ONLY"
@@ -21,31 +24,41 @@
   ],
   "dynamicCredentialEnvironment": [
     {
-      "profileField": "credentialRef.secretEnv",
-      "transport": "client-secret value"
+      "profileField": "clientSecret.env",
+      "transport": "client-secret value",
+      "defaultEnvironment": "MG_AXI_CLIENT_SECRET"
     },
     {
-      "profileField": "credentialRef.keyEnv",
-      "transport": "private-key value"
+      "profileField": "privateKey.env",
+      "transport": "private-key value",
+      "defaultEnvironment": "MG_AXI_PRIVATE_KEY"
     },
     {
-      "profileField": "credentialRef.tokenFileEnv",
-      "transport": "assertion-file path",
-      "defaultEnvironment": "AZURE_FEDERATED_TOKEN_FILE"
+      "profileField": "token.env",
+      "transport": "token or assertion value",
+      "defaultEnvironment": "MG_AXI_TOKEN"
     }
   ],
   "environmentSources": [
     {
       "path": "dist/profiles.js",
-      "sha256": "7a3aeedea304dea9ae269650f20ad7ed45890d4bf40261d057590b92287ba8a3"
+      "sha256": "97c12ad60bc54bb4180c12eda9a324411070ad08a2cf4555db12eaade1ef3f30"
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "73bcd9aa9eeb3727acbdf082d9c9fd2aa92b01e252704c87ea3bfbb16a11b83e"
+      "sha256": "3eb2034208df61d76de43d826baa3e191792e9441b0157f278302e31e2cabb08"
     },
     {
       "path": "dist/msal-app-provider.js",
-      "sha256": "5d668174dd35c0f5e1967450f7309cb941cf59fedf5dcb816a5a906b8df37b1b"
+      "sha256": "e5f84abd472fcf1a8229ec003d5d66960e1a39b83547c7feba8c60aea6680e9c"
+    },
+    {
+      "path": "dist/secrets.js",
+      "sha256": "d1180f78b3fda2a3030b0b6ec5cd9b7a9139ed850c3353680a7ed26b625a96f3"
+    },
+    {
+      "path": "dist/private-file.js",
+      "sha256": "78bef9c36850f40561a56705cced4aa1b5a008ede387186467a756e971b22b47"
     }
   ],
   "nativeWriteSettings": {
@@ -62,11 +75,11 @@
     "sources": [
       {
         "path": "dist/profiles.js",
-        "sha256": "7a3aeedea304dea9ae269650f20ad7ed45890d4bf40261d057590b92287ba8a3"
+        "sha256": "97c12ad60bc54bb4180c12eda9a324411070ad08a2cf4555db12eaade1ef3f30"
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "73bcd9aa9eeb3727acbdf082d9c9fd2aa92b01e252704c87ea3bfbb16a11b83e"
+        "sha256": "3eb2034208df61d76de43d826baa3e191792e9441b0157f278302e31e2cabb08"
       }
     ]
   },
@@ -107,11 +120,11 @@
     "credentialEnvironment": [
       {
         "name": "MG_AXI_CLIENT_SECRET",
-        "scope": "example names only; profile selects the actual holder name"
+        "scope": "default SecretRef holder; a selected profile may name another holder"
       },
       {
         "name": "MG_AXI_PRIVATE_KEY",
-        "scope": "example names only; profile selects the actual holder name"
+        "scope": "default SecretRef holder; a selected profile may name another holder"
       }
     ],
     "parser": {
@@ -127,23 +140,23 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "f9e167ed52df2c6460310ab83a37941485863d96555a81769e577d23b0b4b648"
+        "sha256": "7745514fc8d637a7f0bca8c6f48f1721113ad81e55bdf1549272d48a34d0ae30"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "f5da1af4f7c4ae8b0f7a6fc0099a19701587061f18fb9bdaaed29453bd2a6577"
+        "sha256": "e03ae4a4816607c122c4c49907e3a10bb33cff09514d6af04628ee0dbdf833b5"
       },
       {
         "path": "dist/profiles.js",
-        "sha256": "7a3aeedea304dea9ae269650f20ad7ed45890d4bf40261d057590b92287ba8a3"
+        "sha256": "97c12ad60bc54bb4180c12eda9a324411070ad08a2cf4555db12eaade1ef3f30"
       },
       {
         "path": "dist/msal-app-provider.js",
-        "sha256": "5d668174dd35c0f5e1967450f7309cb941cf59fedf5dcb816a5a906b8df37b1b"
+        "sha256": "e5f84abd472fcf1a8229ec003d5d66960e1a39b83547c7feba8c60aea6680e9c"
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "73bcd9aa9eeb3727acbdf082d9c9fd2aa92b01e252704c87ea3bfbb16a11b83e"
+        "sha256": "3eb2034208df61d76de43d826baa3e191792e9441b0157f278302e31e2cabb08"
       }
     ]
   },
@@ -158,8 +171,8 @@
       "client-secret-file",
       "certificate-key-env",
       "certificate-key-file",
-      "certificate-thumbprint",
-      "federated-token-file-env"
+      "certificate-thumbprint-sha256",
+      "federated-token-file"
     ],
     "allowedCommands": [
       "home",
@@ -203,11 +216,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "f9e167ed52df2c6460310ab83a37941485863d96555a81769e577d23b0b4b648"
+        "sha256": "7745514fc8d637a7f0bca8c6f48f1721113ad81e55bdf1549272d48a34d0ae30"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "f5da1af4f7c4ae8b0f7a6fc0099a19701587061f18fb9bdaaed29453bd2a6577"
+        "sha256": "e03ae4a4816607c122c4c49907e3a10bb33cff09514d6af04628ee0dbdf833b5"
       }
     ]
   },
@@ -252,7 +265,7 @@
       "name": "certificate-key-file"
     },
     {
-      "name": "certificate-thumbprint"
+      "name": "certificate-thumbprint-sha256"
     },
     {
       "name": "client"
@@ -271,6 +284,9 @@
     },
     {
       "name": "conditions"
+    },
+    {
+      "name": "config"
     },
     {
       "name": "confirm"
@@ -300,7 +316,7 @@
       "name": "federated"
     },
     {
-      "name": "federated-token-file-env"
+      "name": "federated-token-file"
     },
     {
       "name": "fields"
@@ -416,7 +432,8 @@
       "command": "home",
       "flags": {
         "help": "boolean",
-        "profile": "value"
+        "profile": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -430,20 +447,22 @@
         "cloud": "value",
         "mode": "value",
         "allow-device-code": "boolean",
-        "certificate-thumbprint": "value",
+        "certificate-thumbprint-sha256": "value",
         "certificate-key-file": "value",
         "certificate-key-env": "value",
         "client-secret-env": "value",
         "client-secret-file": "value",
         "federated": "boolean",
-        "federated-token-file-env": "value"
+        "federated-token-file": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
     {
       "command": "profile list",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -451,31 +470,35 @@
       "command": "profile show",
       "flags": {
         "help": "boolean",
-        "profile": "value"
+        "profile": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
     {
-      "command": "login",
+      "command": "auth login",
       "flags": {
         "help": "boolean",
         "profile": "value",
         "method": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
     {
       "command": "setup",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "config": "value"
       },
       "positionalInput": false
     },
     {
       "command": "setup hooks",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -483,7 +506,8 @@
       "command": "doctor",
       "flags": {
         "help": "boolean",
-        "profile": "value"
+        "profile": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -500,7 +524,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -514,7 +539,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -527,7 +553,8 @@
         "user": "value",
         "account-enabled": "value",
         "execute": "boolean",
-        "confirm": "value"
+        "confirm": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -539,7 +566,8 @@
         "api-version": "value",
         "user": "value",
         "execute": "boolean",
-        "confirm": "value"
+        "confirm": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -556,7 +584,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -573,7 +602,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -590,7 +620,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -604,7 +635,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -623,7 +655,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -642,7 +675,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -656,7 +690,8 @@
         "user": "value",
         "execute": "boolean",
         "confirm": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -673,7 +708,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -687,7 +723,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -704,7 +741,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -718,7 +756,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -736,7 +775,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -754,7 +794,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -769,7 +810,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -786,7 +828,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -800,7 +843,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -817,7 +861,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -834,7 +879,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -851,7 +897,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -868,7 +915,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -882,7 +930,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -899,7 +948,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -913,7 +963,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -930,7 +981,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -944,7 +996,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -961,7 +1014,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -975,7 +1029,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -992,7 +1047,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1006,7 +1062,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1023,7 +1080,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1037,7 +1095,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1054,7 +1113,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1068,7 +1128,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1086,7 +1147,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1102,7 +1164,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1116,7 +1179,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1130,7 +1194,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1147,7 +1212,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1162,7 +1228,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1178,7 +1245,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1192,7 +1260,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1210,7 +1279,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1225,7 +1295,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1243,7 +1314,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1258,7 +1330,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1275,7 +1348,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1289,7 +1363,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1306,7 +1381,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1320,7 +1396,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1331,7 +1408,8 @@
         "profile": "value",
         "api-version": "value",
         "filter": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1349,7 +1427,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1364,7 +1443,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1376,7 +1456,8 @@
         "api-version": "value",
         "pki": "value",
         "filter": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1393,7 +1474,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1408,7 +1490,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1418,7 +1501,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1434,7 +1518,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1448,7 +1533,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1465,7 +1551,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1479,7 +1566,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1497,7 +1585,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1512,7 +1601,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1529,7 +1619,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1543,7 +1634,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1559,7 +1651,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1573,7 +1666,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1583,7 +1677,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1600,7 +1695,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1614,7 +1710,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1624,7 +1721,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1638,7 +1736,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1656,7 +1755,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1672,7 +1772,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1684,7 +1785,8 @@
         "api-version": "value",
         "id": "value",
         "as": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1704,7 +1806,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1721,7 +1824,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1734,7 +1838,8 @@
         "id": "value",
         "transitive": "boolean",
         "as": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1751,7 +1856,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1765,7 +1871,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1775,7 +1882,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1791,7 +1899,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1805,7 +1914,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1815,7 +1925,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1831,7 +1942,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1845,7 +1957,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1855,7 +1968,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1872,7 +1986,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1886,7 +2001,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1897,7 +2013,8 @@
         "profile": "value",
         "api-version": "value",
         "filter": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1914,7 +2031,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1929,7 +2047,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1940,7 +2059,8 @@
         "profile": "value",
         "api-version": "value",
         "definition": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1957,7 +2077,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1971,7 +2092,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1981,7 +2103,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -1998,7 +2121,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2012,7 +2136,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2029,7 +2154,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2043,7 +2169,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2061,7 +2188,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2076,7 +2204,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2094,7 +2223,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2109,7 +2239,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2127,7 +2258,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2142,7 +2274,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2158,7 +2291,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2172,7 +2306,8 @@
         "detail-id": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2182,7 +2317,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2193,7 +2329,8 @@
         "profile": "value",
         "api-version": "value",
         "id": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2203,7 +2340,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2214,7 +2352,8 @@
         "profile": "value",
         "api-version": "value",
         "id": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2225,7 +2364,8 @@
         "profile": "value",
         "api-version": "value",
         "id": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2236,7 +2376,8 @@
         "profile": "value",
         "api-version": "value",
         "id": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2249,7 +2390,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2262,7 +2404,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2279,7 +2422,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2289,7 +2433,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2302,7 +2447,8 @@
         "domain-name": "value",
         "tenant-id": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2321,7 +2467,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2335,7 +2482,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2354,7 +2502,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2368,7 +2517,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2387,7 +2537,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2401,7 +2552,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2418,7 +2570,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2432,7 +2585,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2449,7 +2603,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2463,7 +2618,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2481,7 +2637,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2499,7 +2656,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2517,7 +2675,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2535,7 +2694,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2550,7 +2710,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2568,7 +2729,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2583,7 +2745,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2601,7 +2764,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2616,7 +2780,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2634,7 +2799,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2649,7 +2815,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2666,7 +2833,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2680,7 +2848,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2692,7 +2861,8 @@
         "api-version": "value",
         "user": "value",
         "execute": "boolean",
-        "confirm": "value"
+        "confirm": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2711,7 +2881,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2725,7 +2896,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2742,7 +2914,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2756,7 +2929,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2774,7 +2948,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2789,7 +2964,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2808,7 +2984,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2822,7 +2999,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2839,7 +3017,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2853,7 +3032,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2871,7 +3051,8 @@
         "session-controls": "value",
         "execute": "boolean",
         "confirm": "value",
-        "acknowledge-lockout-risk": "boolean"
+        "acknowledge-lockout-risk": "boolean",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2888,7 +3069,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2902,7 +3084,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2919,7 +3102,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2933,7 +3117,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2951,7 +3136,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2966,7 +3152,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2983,7 +3170,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -2997,7 +3185,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3014,7 +3203,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3028,7 +3218,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3045,7 +3236,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3059,7 +3251,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3076,7 +3269,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3090,7 +3284,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3107,7 +3302,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3121,7 +3317,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3138,7 +3335,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3152,7 +3350,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3163,7 +3362,8 @@
         "profile": "value",
         "api-version": "value",
         "filter": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3173,7 +3373,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3190,7 +3391,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3204,7 +3406,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3215,7 +3418,8 @@
         "profile": "value",
         "api-version": "value",
         "filter": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3225,7 +3429,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3241,7 +3446,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3251,7 +3457,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3267,7 +3474,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3277,7 +3485,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3293,7 +3502,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3303,7 +3513,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3319,7 +3530,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3329,7 +3541,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3345,7 +3558,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3355,7 +3569,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3369,7 +3584,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3385,7 +3601,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3399,7 +3616,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3409,7 +3627,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3425,7 +3644,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3439,7 +3659,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3449,7 +3670,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3466,7 +3688,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3480,7 +3703,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3490,7 +3714,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3507,7 +3732,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3521,7 +3747,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3531,7 +3758,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3545,7 +3773,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3562,7 +3791,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3576,7 +3806,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3594,7 +3825,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3609,7 +3841,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3628,7 +3861,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3644,7 +3878,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3663,7 +3898,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3679,7 +3915,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3698,7 +3935,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3714,7 +3952,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3731,7 +3970,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3745,7 +3985,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3755,7 +3996,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3772,7 +4014,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3786,7 +4029,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3796,7 +4040,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3814,7 +4059,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3829,7 +4075,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3840,7 +4087,8 @@
         "profile": "value",
         "api-version": "value",
         "access-package": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3858,7 +4106,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3873,7 +4122,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3884,7 +4134,8 @@
         "profile": "value",
         "api-version": "value",
         "access-package": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3901,7 +4152,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3915,7 +4167,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3925,7 +4178,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3942,7 +4196,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3956,7 +4211,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3966,7 +4222,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3983,7 +4240,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -3997,7 +4255,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4007,7 +4266,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4024,7 +4284,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4037,7 +4298,8 @@
         "id": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4047,7 +4309,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4064,7 +4327,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4078,7 +4342,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4088,7 +4353,8 @@
         "help": "boolean",
         "profile": "value",
         "api-version": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4101,7 +4367,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4119,7 +4386,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4134,7 +4402,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4145,7 +4414,8 @@
         "profile": "value",
         "api-version": "value",
         "workflow": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4163,7 +4433,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4178,7 +4449,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4189,7 +4461,8 @@
         "profile": "value",
         "api-version": "value",
         "workflow": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4206,7 +4479,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4220,7 +4494,8 @@
         "id": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4231,7 +4506,8 @@
         "profile": "value",
         "api-version": "value",
         "workflow": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4249,7 +4525,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4263,7 +4540,8 @@
         "id": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4274,7 +4552,8 @@
         "profile": "value",
         "api-version": "value",
         "workflow": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4288,7 +4567,8 @@
         "report": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4302,7 +4582,8 @@
         "report": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4321,7 +4602,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4337,7 +4619,8 @@
         "select": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4349,7 +4632,8 @@
         "api-version": "value",
         "workflow": "value",
         "run": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4367,7 +4651,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4382,7 +4667,8 @@
         "id": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4394,7 +4680,8 @@
         "api-version": "value",
         "workflow": "value",
         "run": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4413,7 +4700,8 @@
         "fields": "value",
         "full": "boolean",
         "cursor": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4428,7 +4716,8 @@
         "id": "value",
         "fields": "value",
         "full": "boolean",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4440,7 +4729,8 @@
         "api-version": "value",
         "workflow": "value",
         "run": "value",
-        "scopes": "value"
+        "scopes": "value",
+        "config": "value"
       },
       "positionalInput": false
     },
@@ -4455,13 +4745,51 @@
         "scopes": "value",
         "limit": "value",
         "all": "boolean",
-        "full": "boolean"
+        "full": "boolean",
+        "config": "value"
       },
       "positionalInput": {
         "name": "path",
         "description": "Server-relative Graph path, e.g. /users",
         "required": true
       }
+    },
+    {
+      "command": "login",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "method": "value",
+        "scopes": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "config path",
+      "flags": {
+        "help": "boolean",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "auth status",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "auth logout",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      },
+      "positionalInput": false
     }
   ]
 }

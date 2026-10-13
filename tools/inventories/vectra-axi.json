@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-vt+KWvHArOm1/neFuQgTELGBp/goQau46SwE5hWcklU/41Ahfx4ws7+Jf6fU1koGXZ23lYze0FndD08r1Mkugg==",
+  "version": "0.1.5",
+  "integrity": "sha512-m+gE4qJm1xBCWqH3QAqkJJFwUcBRmZDUr3UB2TthzkIg+2oHheuCOuV8yGdelggLT74JLtv/wR416UFyFMjy8Q==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "e9115eb97b47b4e5c8213943f0c4d422cd9d1a7af7cd47bbc57d95367b8dde66",
+  "packageManifestSha256": "e00299251022c577215a6b8f38a583699eafb7bfbf04441135747a363f5b3a03",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -25,32 +25,46 @@
   ],
   "dynamicCredentialEnvironment": [
     {
-      "profileField": "tokenEnv",
+      "profileField": "token.env",
       "transport": "token value",
       "disposition": "server-owned"
     },
     {
-      "profileField": "secretEnv",
+      "profileField": "clientSecret.env",
       "transport": "client-secret value",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "tokenEnv",
+      "transport": "deprecated token value",
+      "disposition": "server-owned"
+    },
+    {
+      "profileField": "secretEnv",
+      "transport": "deprecated client-secret value",
       "disposition": "server-owned"
     }
   ],
   "environmentSources": [
     {
       "path": "dist/src/profiles.js",
-      "sha256": "2e7ced037e4150a414793554970fb8f89011d579aafc4aad7a477db2d05ac403"
+      "sha256": "c4d5c8f8c244322def14be3d4dbd1709e1cbb0880038f58ce8a5a581e7781fde"
     },
     {
       "path": "dist/src/auth.js",
-      "sha256": "b1dff212f4a4f11de2b58bc6975f3bea55ace84fd5f0b2ec5f4e21f94c0e8cce"
+      "sha256": "33cd3c67d7fae620298c4b75fd41ad47f65e7cd442164de54764f9f892ac6b0b"
     },
     {
       "path": "dist/src/oauth.js",
-      "sha256": "efa73d992a919e00ce3bd2d7a76fa6460e444a3f90558be735835801d9775031"
+      "sha256": "3cf32a183179f132bb53db7791fc9d3a0680117db69b78b105660bec710e00d4"
     },
     {
       "path": "dist/src/writes.js",
-      "sha256": "3148132d366beec56e5d1f187d2922037b340d52a5d350ff252187ce28e0f83f"
+      "sha256": "16a5c36adf01ffa3c585e315f03a64a65060009090e83fd97312e5a24b018058"
+    },
+    {
+      "path": "dist/src/private-file.js",
+      "sha256": "2c080e42e06a705a85c5d9ed6eb1d629a1b1ef314bc069175e7643c2c2ee6a2f"
     }
   ],
   "nativeWriteSettings": {
@@ -68,11 +82,11 @@
     "sources": [
       {
         "path": "dist/src/profiles.js",
-        "sha256": "2e7ced037e4150a414793554970fb8f89011d579aafc4aad7a477db2d05ac403"
+        "sha256": "c4d5c8f8c244322def14be3d4dbd1709e1cbb0880038f58ce8a5a581e7781fde"
       },
       {
         "path": "dist/src/writes.js",
-        "sha256": "3148132d366beec56e5d1f187d2922037b340d52a5d350ff252187ce28e0f83f"
+        "sha256": "16a5c36adf01ffa3c585e315f03a64a65060009090e83fd97312e5a24b018058"
       }
     ]
   },
@@ -84,6 +98,9 @@
     "commands": [
       "home",
       "doctor",
+      "auth",
+      "profile",
+      "config",
       "detection",
       "host",
       "account",
@@ -148,7 +165,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "7d35e9ae2276de90e3448f720e6e6993f66d8513b0d031c129a60898ab7a3269"
+      "sha256": "6d7fa927fd2f6942a578def60f9e95ec994ec994fe70f7af6b19e52935b99c40"
     }
   },
   "flags": [
@@ -416,6 +433,30 @@
     },
     {
       "command": "doctor",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "auth status",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "profile list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "config path",
       "flags": {
         "help": "boolean",
         "profile": "value",

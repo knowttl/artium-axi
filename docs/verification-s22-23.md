@@ -11,7 +11,7 @@ Run the real private hygiene scan against the exact committed and built candidat
 Record the final SHA, results and timings in the delivery status and PR body.
 Source or test changes during validation require renewed checks.
 
-The adapter tests execute pinned Vectra 0.1.3 against the fake HTTPS appliance using QUX token, QUX OAuth and RUX OAuth profiles.
+The adapter tests execute the [pinned Vectra package](../tools/package.json) against the fake HTTPS appliance using QUX token, QUX OAuth and RUX OAuth profiles.
 Each variant uses its own generated profile and trusted private CA, with certificate rejection and zero requests when CA trust is removed.
 Unsafe config/profile overrides, delimiter attempts, setup commands and server file paths fail before credential retrieval.
 Retrieved credentials that fail the schema are refused before child execution.

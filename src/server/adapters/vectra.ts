@@ -7,16 +7,11 @@ import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
-import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
+import { isCanonicalHttpsOrigin, loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const common = {
-  origin: z.string().refine(value => {
-    try {
-      const url = new URL(value)
-      return url.protocol === 'https:' && value === url.origin && !url.username && !url.password
-    } catch { return false }
-  }),
+  origin: z.string().refine(isCanonicalHttpsOrigin),
   caBundle: nonempty.optional(),
   writes: nativeSettingsSchemas['vectra-axi'].shape.writes,
 }
@@ -81,7 +76,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
         executable: toolPaths['vectra-axi'], ...normalized,
         environment: { VECTRA_AXI_CONFIG: 'vectra-profile.json', VECTRA_AXI_WRITE_LOG: writeLog,
           ARTIUM_SECRET_0: credential.auth === 'token' ? token! : clientSecret! },
-        files: [{ name: 'vectra-profile.json', content: JSON.stringify({ defaultProfile: 'artium',
+        files: [{ name: 'vectra-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium',
           profiles: { artium: { ...profile, ...(caBundle ? { caBundle: 'vectra-ca.pem' } : {}) } } }) },
         ...(caBundle ? [{ name: 'vectra-ca.pem', content: caBundle }] : [])],
         secrets: credential.auth === 'token' ? [token!] : [clientSecret!, credential.clientId,

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createMgAdapter } from '../../dist/src/server/adapters/mg.js'
+import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
 import { runTool } from '../../dist/src/server/runner/run.js'
 import { Audit } from '../../dist/src/server/audit/audit.js'
@@ -16,12 +17,13 @@ import { issueTestAccessToken } from '../../dist/test/fixtures/tokens.js'
 process.env.NODE_ENV = 'test'
 const directory = mkdtempSync(join(tmpdir(), 'artium-test-mg-adapter-'))
 const reference = { id: 'synthetic-graph', tool: 'mg-axi', revision: 1 }
-let credential = { tenantId: '00000000-0000-0000-0000-000000000001',
-  clientId: '00000000-0000-0000-0000-000000000002', auth: 'secret', clientSecret: 'CANARY-graph-secret',
+let credential = { mode: 'application', tenantId: '00000000-0000-0000-0000-000000000001',
+  clientId: '00000000-0000-0000-0000-000000000002', auth: 'client-secret', clientSecret: 'CANARY-graph-secret',
   writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }
 let credentialReads = 0
 const log = join(directory, 'writes.log')
-const adapter = createMgAdapter({ getCredential: async () => { credentialReads++; return credential } }, log)
+const adapter = createMgAdapter({ getCredential: async () => { credentialReads++; return credential } }, log,
+  loadCredentialProfile('mg-axi', fileURLToPath(new URL('../../tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json', import.meta.url))))
 const prepare = adapter.prepare.bind(adapter)
 adapter.prepare = async (...args) => {
   const call = await prepare(...args)

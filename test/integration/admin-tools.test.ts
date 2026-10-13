@@ -22,7 +22,7 @@ import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
-import { CredentialProfile } from '../../src/server/adapters/credential-profile.js'
+import { CredentialProfile, loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
 
 let directory: string
@@ -139,6 +139,63 @@ test('schema-driven replacement reaches the isolated runner and keeps secrets ou
 })
 
 test.each([
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', tokenEnv: 'UNBOUND_TOKEN' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic', secretEnv: 'UNBOUND_SECRET' } },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic' } },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic', secretEnv: 'UNBOUND_SECRET' } },
+  { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'client-secret' } },
+  { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate', thumbprintSha256: 'a'.repeat(64) } },
+  { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'federated' } },
+  { tool: 'mg-axi', value: { mode: 'delegated', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token\n' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test:443', token: 'CANARY-token' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test:443', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', auth: 'oauth', origin: 'https://appliance.test:443', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
+] as const)('published $tool rejects unusable replacement without overwriting credentials', async ({ tool, value }) => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
+  const source = new EmbeddedSecretSource(store)
+  const adapter = tool === 'mg-axi' ? createMgAdapter(source, join(directory, 'writes.log'), profile)
+    : createVectraAdapter(source, join(directory, 'writes.log'), profile)
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const original = tool === 'mg-axi' ? { mode: 'application', tenantId: azureTestTenant,
+    clientId: values['mg-axi'].clientId, auth: 'client-secret', clientSecret: 'CANARY-original' }
+    : { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-original' }
+  store.replaceCredential(tool, original, 0, actor, 123)
+  const reference = store.findCredential(tool)!
+  await failure(await request('PUT', `/${tool}/credential`, { value, expectedRevision: 1, expectedToolRevision: 1 }), 'INVALID_INPUT')
+  expect(store.findCredential(tool)).toEqual(reference)
+  expect(store.readCredential(reference)).toEqual(original)
+  expect(db.prepare("SELECT revision FROM tools WHERE name = ?").get(tool)).toEqual({ revision: 1 })
+})
+
+test.each([
+  { kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-token', origin: 'https://appliance.test' },
+  { kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic', clientSecret: 'CANARY-secret', origin: 'https://appliance.test:8443' },
+  { kind: 'rux', apiVersion: '3.4', auth: 'oauth', clientId: 'synthetic', clientSecret: 'CANARY-secret', origin: 'https://[::1]:8443' },
+])('published Vectra stores canonical origin $origin for $kind $auth', async value => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const adapter = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({
+    ...await prepare(args, reference, input), executable: fakeTool.executable,
+    args: [...fakeTool.args, 'print', 'synthetic-health-output'],
+  }))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect((await replace('vectra-axi', value)).metadata.origin).toBe(value.origin)
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toEqual(value)
+})
+
+test.each([
   values['mg-axi'],
   { tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate',
     privateKey: 'CANARY-legacy-key', thumbprint: 'a'.repeat(40) },
@@ -237,9 +294,9 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.3.0', health: { status: 'unconfigured' } },
-    { name: 'vectra-axi', version: '0.1.3', health: { status: 'unconfigured' } },
+    { name: 'vectra-axi', version: '0.1.5', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.4', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.4', health: { status: 'disabled' } },
+    { name: 'mg-axi', version: '0.1.6', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])
