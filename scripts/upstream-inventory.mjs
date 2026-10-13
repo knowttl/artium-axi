@@ -17,6 +17,9 @@ const azShortFlags = { h: 'help', s: 'subscription', g: 'resource-group', n: 'na
   l: 'location', w: 'workspace', t: 'timespan', q: 'graph-query' }
 const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
 const azUnsafeOverrides = ['config', 'profile', 'tenant']
+const mgAllowedCommands = ['home', 'doctor', 'entra', 'api get']
+const mgUnsafeOverrides = ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
+  'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint-sha256', 'federated-token-file']
 const inventories = {
   'az-axi': az.COMMAND_LEAVES.flatMap(leaf => [leaf.path, ...leaf.aliases ?? []].map(command => {
     const canonical = command === leaf.path && leaf.handlerPath !== undefined
@@ -137,6 +140,13 @@ for (const [tool, commands] of Object.entries(inventories)) {
         flags: Object.fromEntries(Object.entries(vectra.help('detection list').flags)
           .filter(([flag]) => !/^--(?:config|profile)\b/.test(flag))),
         combinations: [], examples: ['vectra-axi detection list'] } } } : {}),
+    ...(tool === 'mg-axi' ? { discovery: {
+      commands: mgAllowedCommands,
+      example: ['entra', 'user', 'list'],
+      help: mg.leafHelp({ ...mg.LEAVES.find(leaf => leaf.path === 'entra user list'),
+        flags: Object.fromEntries(Object.entries(mg.LEAVES.find(leaf => leaf.path === 'entra user list').flags)
+          .filter(([name]) => !mgUnsafeOverrides.includes(name))), examples: ['mg-axi entra user list'] }),
+    } } : {}),
     ...(tool === 'az-axi' ? { adapterBoundary: {
       unsafeOverrides: azUnsafeOverrides, inputFileFlags: ['file', 'body-file'],
       sensitiveFlags: ['body', 'graph-query', 'analytics-query', 'query', 'note'],
@@ -174,9 +184,8 @@ for (const [tool, commands] of Object.entries(inventories)) {
           .update(readFileSync(new URL(`node_modules/@knowttl/mg-axi/dist/${path}`, root))).digest('hex') })),
     } } : {}),
     ...(tool === 'mg-axi' ? { adapterBoundary: {
-      unsafeOverrides: ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
-        'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint-sha256', 'federated-token-file'],
-      allowedCommands: ['home', 'doctor', 'entra', 'api get'],
+      unsafeOverrides: mgUnsafeOverrides,
+      allowedCommands: mgAllowedCommands,
       inputs: { stdin: 'cursor - only', files: 'unsupported', cursor: 'opaque token or stdin; never a path',
         api: 'reviewed GET routes only; pinned Graph destination and operation gates retained' },
       sensitiveFlags: ['cursor', 'filter', 'odata', 'conditions', 'grant-controls', 'session-controls', 'display-name'],

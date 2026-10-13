@@ -139,6 +139,7 @@ The root package is private; server downloads and source builds are the installa
 | `artium-axi setup --host claude --hook` | Install the embedded skill and optional Claude Code hook. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
 | `artium-axi vectra-axi detection list` | Run a Vectra read through the managed adapter. |
+| `artium-axi mg-axi entra user list --limit 1` | Run a bounded Graph read through the managed adapter. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Tool help has two boundaries:

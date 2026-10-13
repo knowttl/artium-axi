@@ -146,7 +146,7 @@ export const adminRoleRoutes = {
 } as const
 export const toolsResponseSchema = z.strictObject({
   tools: z.array(z.strictObject({
-    name: toolSchema.exclude(['mg-axi']),
+    name: toolSchema,
     version: z.string(),
     status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
   })),

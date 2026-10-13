@@ -14,6 +14,7 @@ Historical slice results below remain historical evidence; S52 owns that slice's
 See [Azure safe-pin verification](verification-azure-safe-pin.md) for the subsequent activation and fake-service evidence, and [README tool usage](../README.md#command-surface-and-subcommands) for current write-outcome guidance.
 Earlier slice results below describe their historical pins and activation boundaries; live Azure acceptance and Graph consent remain unverified.
 Graph is now wired into the production server with enable and credential-test controls in the admin UI, using the canonical credential profile writer.
+The shared tools response and bundled CLI discovery include Graph and its reviewed first-read example.
 Repeated fake-only release results and final candidate digests belong in delivery status and the PR body.
 Live Graph authentication and permissions remain pending live results; enabling Graph on any running installation still requires those results and maintainer approval.
 T7.1, T7.4, T7.6, actual Windows/macOS execution and the captain-run live checklist remain outside this local acceptance.
