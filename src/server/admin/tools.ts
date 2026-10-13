@@ -4,10 +4,11 @@ import type { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
   nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { falconCredentialSchema, falconManifest } from '../adapters/falcon.js'
-import { vectraCredentialSchema, vectraManifest } from '../adapters/vectra.js'
-import { azCredentialSchema, azManifest } from '../adapters/az.js'
-import { mgCredentialSchema, mgManifest } from '../adapters/mg.js'
+import { falconCredentialSchema } from '../adapters/falcon.js'
+import { vectraCredentialSchema } from '../adapters/vectra.js'
+import { azCredentialSchema } from '../adapters/az.js'
+import { mgCredentialSchema } from '../adapters/mg.js'
+import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit } from '../audit/audit.js'
@@ -24,7 +25,6 @@ export interface ToolAdminOptions {
 }
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema }
-const versions = { 'falcon-axi': falconManifest.version, 'vectra-axi': vectraManifest.version, 'az-axi': azManifest.version, 'mg-axi': mgManifest.version }
 const publicFields = {
   'falcon-axi': ['region', 'memberCid'],
   'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease'],
@@ -51,9 +51,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     return store
   }
   function readTool(tool: ToolName): z.infer<typeof adminToolSchema> {
-    const row = db.prepare(`SELECT name, enabled, pinned_version AS version, native_settings AS nativeSettings,
+    const row = db.prepare(`SELECT name, enabled, native_settings AS nativeSettings,
       revision, updated_at AS updatedAt, updated_by AS updatedBy FROM tools WHERE name = ?`).get(tool) as
-      { name: ToolName, enabled: number, version: string, nativeSettings: string, revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
+      { name: ToolName, enabled: number, nativeSettings: string, revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     const credential = db.prepare('SELECT revision FROM credentials WHERE tool = ?').get(tool) as { revision: number } | undefined
     const cached = db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
@@ -61,7 +61,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !credential ? 'unconfigured' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
-    return adminToolSchema.parse({ ...row, version: row.version || versions[tool], enabled: Boolean(row.enabled), nativeSettings: JSON.parse(row.nativeSettings), health })
+    return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled), nativeSettings: JSON.parse(row.nativeSettings), health })
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
     readTool(tool)
@@ -115,7 +115,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
       }
       db.prepare(`UPDATE tools SET enabled = ?, native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
-        .run(Number(input.enabled ?? current.enabled), JSON.stringify(settings ?? current.nativeSettings), versions[tool], now, actor, tool)
+        .run(Number(input.enabled ?? current.enabled), JSON.stringify(settings ?? current.nativeSettings), toolManifests[tool].version, now, actor, tool)
       return readTool(tool)
     }).value
     invalidate(replacement)
@@ -137,7 +137,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const now = Date.now()
       replacement = credentialStore().replaceCredential(tool, credential, input.expectedRevision, actor, now)
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
-        .run(JSON.stringify(settings), versions[tool], now, actor, tool)
+        .run(JSON.stringify(settings), toolManifests[tool].version, now, actor, tool)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
       return readCredential(tool)
     }).value

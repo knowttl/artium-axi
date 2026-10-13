@@ -28,6 +28,7 @@ import type { Runner } from './runner/runner.js'
 import type { MutableCredentialStore } from './store/credential-store.js'
 import { ToolHealth } from './health/health.js'
 import { acceptsCliVersion } from '../shared/version.js'
+import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 
 export function createApp(options: {
@@ -100,12 +101,11 @@ export function createApp(options: {
         if (error instanceof ArtiumError && ['TOOL_DISABLED', 'TOOL_NOT_GRANTED'].includes(error.code)) return []
         throw error
       }
-      const row = db.prepare(`SELECT pinned_version AS version,
-        EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
+      const row = db.prepare(`SELECT EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
         (SELECT status FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
           AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = tools.name) AS health
-        FROM tools WHERE name = ?`).get(adapter.name) as { version: string, configured: number, health: 'ok' | 'error' | null }
-      return [{ name: adapter.name, version: row.version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }]
+        FROM tools WHERE name = ?`).get(adapter.name) as { configured: number, health: 'ok' | 'error' | null }
+      return [{ name: adapter.name, version: toolManifests[adapter.name].version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }]
     })
     return toolsResponseSchema.parse({ tools })
   })
