@@ -97,6 +97,27 @@ test('Azure help prefixes executable examples while retaining literal arguments'
   expect(rewriteSuggestions(expected, 'az-axi')).toBe(expected)
 })
 
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
+  ['plain', 'json', 'toon'].flatMap(format => ['Command', 'Native operation', 'Examples'].flatMap(label =>
+    ['', 'npx -y @knowttl/'].map(prefix => ({ tool, format, label, prefix }))))))(
+  '$tool hosts $label help in $format with prefix "$prefix"', ({ tool, format, label, prefix }) => {
+    const input = `\t${label}: ${prefix}${tool} home --profile artium --limit 1`
+    const expected = `\t${label}: artium-axi ${tool} home --limit 1`
+    const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help: [help], data: input }) : encode({ help: [help], data: input })
+    const output = rewriteSuggestions(serialize(input), tool)
+    expect(output).toBe(serialize(expected))
+    expect(rewriteSuggestions(output, tool)).toBe(output)
+  })
+
+test.each(['json', 'toon'])('Azure structured %s examples host sibling commands while preserving literal arguments', format => {
+  const help = "Flags: --profile, --subscription\nExamples: az-axi sub list --query 'az-axi=literal; az-axi sub list'; az-axi sub list --profile artium --subscription <id>"
+  const expected = "Flags: --subscription\nExamples: artium-axi az-axi sub list --query 'az-axi=literal; az-axi sub list'; artium-axi az-axi sub list --subscription <id>"
+  const serialize = (value: string) => format === 'json' ? JSON.stringify({ help: [value], data: help }) : encode({ help: [value], data: help })
+  const output = rewriteSuggestions(serialize(help), 'az-axi')
+  expect(output).toBe(serialize(expected))
+  expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
+})
+
 const captures = JSON.parse(readFileSync(new URL('../../test/fake-tool/fixtures/upstreams.json', import.meta.url), 'utf8')) as
   Record<string, Record<string, { stdout: string, stderr: string }>>
 

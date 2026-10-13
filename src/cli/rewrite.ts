@@ -31,7 +31,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
-  if (executable.test(output.replace(/^[ \t]*(?:Command: )?/, ''))) return hostedHelp(output, tool, flags, true)
+  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
   try {
@@ -43,7 +43,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   }
   catch { return output }
   for (const span of [...spans].reverse()) {
-    const value = hostedHelp(span.value, tool, flags, span.value.startsWith('Command: '))
+    const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples):/m.test(span.value))
     if (value === span.value) continue
     output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
