@@ -236,6 +236,10 @@ Pagination retains filters; starting a new search includes records inserted afte
 Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
+Successful browser and bearer-token password confirmations emit `reauth` events.
+Each `run-terminal` record uses `action` to report `write` when the native tool journal contains records for that run, or `read` when a supported journal has none.
+This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
+Unsupported journals, unreadable evidence and recovered interrupted runs report `unknown`; pinned Falcon has no verified journal and reports `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 
 ## Configuration
@@ -317,7 +321,9 @@ Version 1 uses one shared service credential per tool; external secret sources a
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
 Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.
 Audit retention is 90 days, with startup recovery recording interrupted calls without replay.
-Vectra's durable native write logs complement Artium audit and retain intent/outcome pairs.
+Azure, Graph and Vectra keep durable native write journals in isolated `writes.log.runs/run-*` directories beside each tool's configured journal path.
+Isolation prevents concurrent reads from inheriting another call's write tag, and daily maintenance removes run journals older than 90 days.
+Graph and Vectra journals retain their native intent/outcome pairs.
 
 The runner uses argument arrays without a shell, a restricted child environment, private per-call directories and bounded concurrency, runtime and output.
 Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.

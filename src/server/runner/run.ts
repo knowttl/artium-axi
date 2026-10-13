@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import { runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter, PreparedCall } from '../adapters/types.js'
+import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit } from '../audit/audit.js'
 import { verifyAccessToken } from '../auth/tokens.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
@@ -42,11 +43,13 @@ export async function runTool<Credential>(
   const started = Date.now()
   let result: RunnerResult
   let write: PreparedCall['write']
+  let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
   try {
     const reference = await resolver.resolve(userId, adapter.name)
     const prepared = await adapter.prepare(args, reference, input)
     write = prepared.write
-    result = await runner.run(userId, prepared.executable, prepared.args, prepared.environment,
+    journal = await prepareRunJournal(prepared.environment)
+    result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) })
   } catch (error) {
@@ -57,13 +60,13 @@ export async function runTool<Credential>(
       error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
         `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`)
     }
-    audit.record({ ...identity, event: 'run-terminal',
+    audit.record({ ...identity, event: 'run-terminal', action: await journal?.action() ?? 'unknown',
       outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
       durationMs: runnerError?.durationMs ?? Date.now() - started,
       outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 } })
     throw error
   }
-  audit.record({ ...identity, event: 'run-terminal', outcome: 'completed', exitCode: result.exitCode,
+  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action() ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
     durationMs: result.durationMs, outputBytes: result.outputBytes })
   return result
 }

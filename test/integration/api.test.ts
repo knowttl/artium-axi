@@ -221,6 +221,9 @@ test('reauth issues a hashed session-bound ticket valid through refresh until it
   const response = await fetch(`${url}/v1/auth/reauth`, { method: 'POST', headers, body: JSON.stringify({ password: 'CANARY-local-password' }) })
   expect(response.status).toBe(200)
   const proof = await response.json() as { ticket: string, expiresAt: number }
+  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event = 'reauth'").all()).toEqual([
+    { event: 'reauth', user_id: 'synthetic-development-user', outcome: 'success' },
+  ])
   expect(Buffer.from(proof.ticket, 'base64url')).toHaveLength(32)
   expect(proof.expiresAt).toBe(start + 900_000)
   expect(db.prepare('SELECT hash, expires_at FROM recent_auth_tickets').get()).toEqual({ hash: hashToken(proof.ticket), expires_at: proof.expiresAt })
