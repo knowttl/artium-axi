@@ -48,6 +48,7 @@ const definitions = {
   SPAWN_FAILED: { status: 500, message: 'The upstream tool could not be started.', next: 'Check the configured executable and environment.' },
   PROCESS_SIGNAL: { status: 500, message: 'The upstream tool ended on a signal.', next: 'Check the tool status before retrying.' },
   TIMEOUT: { status: 504, message: 'The upstream tool exceeded its timeout.', next: 'Check the tool status before retrying.' },
+  UNKNOWN_OUTCOME: { status: 504, message: 'The write may have changed state before the tool stopped.', next: 'Check current state before trying again.' },
   CANCELLED: { status: 500, message: 'The call was cancelled.', next: 'Check the tool status before retrying.' },
   OUTPUT_LIMIT: { status: 500, message: 'The upstream tool exceeded the output limit.', next: 'Use a command that produces less output.' },
   TOO_MANY_CALLS: { status: 429, message: 'The concurrent call limit was reached.', next: 'Wait for an active call to finish.' },

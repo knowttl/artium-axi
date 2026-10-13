@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3'
 import { runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import type { Adapter } from '../adapters/types.js'
+import type { Adapter, PreparedCall } from '../adapters/types.js'
 import type { Audit } from '../audit/audit.js'
 import { verifyAccessToken } from '../auth/tokens.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
@@ -41,14 +41,22 @@ export async function runTool<Credential>(
   audit.record({ ...identity, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args) })
   const started = Date.now()
   let result: RunnerResult
+  let write: PreparedCall['write']
   try {
     const reference = await resolver.resolve(userId, adapter.name)
     const prepared = await adapter.prepare(args, reference, input)
+    write = prepared.write
     result = await runner.run(userId, prepared.executable, prepared.args, prepared.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) })
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
+    if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'].includes(runnerError.code)) {
+      const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
+        /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
+      error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
+        `The operation may have changed state and was not retried. Check current state before trying again: ${command}`)
+    }
     audit.record({ ...identity, event: 'run-terminal',
       outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
       durationMs: runnerError?.durationMs ?? Date.now() - started,

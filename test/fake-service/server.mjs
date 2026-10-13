@@ -105,6 +105,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       recorded.body = JSON.parse(body)
       res.end(JSON.stringify({ tables: [{ name: 'PrimaryResult', columns: [{ name: 'synthetic', type: 'string' }], rows: [['metadata']] }] }))
     })
+  } else if (url.pathname.includes('/resourceGroups/runner-timeout-') && (req.method === 'PATCH' || url.pathname.endsWith('/runner-timeout-read'))) {
+    req.resume()
+    req.on('end', () => { if (req.method === 'PATCH') mutations++ })
   } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/single-write' && req.method === 'PATCH') {
     mutations++
     let body = ''

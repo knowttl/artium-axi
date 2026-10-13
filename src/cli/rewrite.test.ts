@@ -2,6 +2,13 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { rewriteSuggestions } from './rewrite.js'
 
+test('Azure help prefixes executable examples while retaining literal arguments', () => {
+  const input = "Command: az-axi api\nExamples: az-axi api GET /subscriptions --query 'az-axi=literal; az-axi sub list'; az-axi sub list\nSee `az-axi network nsg rule create --help`.\n"
+  const expected = "Command: artium-axi az-axi api\nExamples: artium-axi az-axi api GET /subscriptions --query 'az-axi=literal; az-axi sub list'; artium-axi az-axi sub list\nSee `artium-axi az-axi network nsg rule create --help`.\n"
+  expect(rewriteSuggestions(input, 'az-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'az-axi')).toBe(expected)
+})
+
 const captures = JSON.parse(readFileSync(new URL('../../test/fake-tool/fixtures/upstreams.json', import.meta.url), 'utf8')) as
   Record<string, Record<string, { stdout: string, stderr: string }>>
 

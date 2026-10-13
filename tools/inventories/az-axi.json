@@ -700,7 +700,9 @@
       "command": "home",
       "canonicalCommand": "home",
       "handlerCommand": "home",
-      "tokenResources": [],
+      "tokenResources": [
+        "arm"
+      ],
       "effect": "read",
       "capability": "native",
       "flags": {

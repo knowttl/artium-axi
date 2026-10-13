@@ -88,6 +88,10 @@ function azureHelp(help: string): string {
       return label + retained + (flags.endsWith('.') && !retained.endsWith('.') ? '.' : '')
     }).replace(/^(?:(?:artium-axi )?az-axi\b|Examples:)[^\r\n]*/gm, line => line.replace(
       new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]|\\s+--(?:${selectors})\\s+(?:<[^>]+>|'[^']*'|"(?:\\\\.|[^"\\\\])*"|[^\\s;'\"]+)`, 'g'), ''))
+    .replace(/^(?:(?:Command|Native operation|Examples): )?az-axi(?=\s|$)/gm, command => command.replace('az-axi', 'artium-axi az-axi'))
+    .replace(/^Examples:[^\r\n]*/gm, line => line.replace(/'[^']*'|"(?:\\.|[^"\\])*"|(; )az-axi(?=\s|$)/g,
+      (match, separator) => separator ? '; artium-axi az-axi' : match))
+    .replace(/`az-axi(?=\s|`)([^\r\n`]*`)/g, '`artium-axi az-axi$1')
 }
 
 function jsonHelp(output: string): Span[] {

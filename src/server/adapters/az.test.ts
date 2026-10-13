@@ -43,6 +43,7 @@ test.each([
   expect(hosted).not.toMatch(/--(?:config|profile|tenant)\b/)
   expect(hosted).toContain('--full')
   expect(hosted).toContain('--subscription')
+  expect(hosted).not.toMatch(/(?<!artium-axi )\baz-axi(?=\s|$)/)
   expect(rewriteSuggestions(hosted, 'az-axi')).toBe(hosted)
 })
 
@@ -58,6 +59,7 @@ test.each(['json', 'toon'])('Azure %s invalid-input help filters declarations wi
   expect(parsed.code).toBe('UNKNOWN_FLAG')
   expect(parsed.help.join('\n')).not.toMatch(/--(?:config|profile|tenant)\b/)
   expect(parsed.help.join('\n')).toContain('--subscription')
+  expect(parsed.help.join('\n')).toContain('Examples: artium-axi az-axi sub list; artium-axi az-axi sub list --subscription <id>')
   expect(parsed.data).toEqual(value.data)
   expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
 })
@@ -107,6 +109,8 @@ test.each([
 })
 
 test.each([
+  ['empty dashboard', [], 'arm'],
+  ['explicit dashboard', ['home'], 'arm'],
   ['sub list', ['sub', 'list'], 'arm'],
   ['subscription override', ['group', 'list', '-s', 'other', '--subscription=third'], 'arm'],
   ['leading subscription', ['--subscription=other', 'group', 'list'], 'arm'],
@@ -214,8 +218,49 @@ test('invalid profile or missing revision fails safely', async () => {
     .prepare(['sub', 'list'], { id: reference.id, tool: reference.tool })).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
 })
 
-test.each([[['sub', 'list', '--help']], [['--version']], [[]]])('local call %j does not mint a token', async args => {
+test.each([[['sub', 'list', '--help']], [['home', '--help']], [['--help']], [['--version']]])('local call %j does not mint a token', async args => {
   const transport = new FakeTokenTransport()
   await createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(transport)).prepare(args, reference)
   expect(transport.requests).toEqual([])
+})
+
+test.each([
+  ['api', 'PUT', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute'],
+  ['api', '--execute', 'patch', '/subscriptions/synthetic-subscription/resourceGroups/synthetic'],
+  ['--full', 'api', 'DELETE', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute=true'],
+  ['api', 'POST', '/subscriptions/synthetic-subscription/resourceGroups/synthetic/action', '--execute'],
+  ['tag', 'update', '--subscription=synthetic-subscription', '--resource-id=/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--operation=merge', '--tags=synthetic=yes', '--execute'],
+  ['security', 'alert', 'update', '-s', 'synthetic-subscription', '-l', 'synthetic', '-n', 'synthetic', '--status=resolve', '--execute'],
+  ['defender', 'alerts', 'update', '-s', 'synthetic-subscription', '-l', 'synthetic', '-n', 'synthetic', '--status=resolve', '--execute'],
+  ['sentinel', 'incident', 'update', '-s', 'synthetic-subscription', '-g', 'synthetic', '--workspace-name=synthetic', '-n', 'synthetic', '--status=Closed', '--execute'],
+  ['sentinel', 'incident', 'comment', 'create', '-s', 'synthetic-subscription', '-g', 'synthetic', '--workspace-name=synthetic', '--incident-id=synthetic', '--message=synthetic', '--execute'],
+  ['network', 'nsg', 'rule', 'create', '-s', 'synthetic-subscription', '-g', 'synthetic', '--nsg-name=synthetic', '-n', 'synthetic', '--execute'],
+].map(args => [args]))('executed mutation %j carries accepted read recovery guidance', async args => {
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(new FakeTokenTransport()))
+  const call = await adapter.prepare(args, reference)
+  expect(call.write).toBeDefined()
+  expect(call.write!.operation).toBeTruthy()
+  expect(call.write!.target).toContain('synthetic')
+  adapter.validateArgs(call.write!.checkArgs)
+  const check = await adapter.prepare(call.write!.checkArgs, reference)
+  expect(check.write).toBeUndefined()
+})
+
+test.each([
+  ['api', 'GET', '/subscriptions', '--execute'],
+  ['api', 'HEAD', '/subscriptions', '--execute'],
+  ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic'],
+  ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute=false'],
+  ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute', '--help'],
+  ['api', 'POST', '/providers/Microsoft.ResourceGraph/resources', '--execute'],
+  ['api', 'POST', '/subscriptions/synthetic/providers/Microsoft.Resources/deployments/synthetic/whatIf', '--execute'],
+  ['api', 'POST', '/subscriptions/synthetic/providers/Microsoft.PolicyInsights/policyStates/latest/queryResults', '--execute'],
+  ['api', 'POST', '/subscriptions/synthetic/providers/Microsoft.SecurityInsights/incidents/11111111-1111-4111-8111-111111111111/alerts', '--execute'],
+  ['api', 'POST', '/v1.0/directoryObjects/getByIds', '--resource=graph', '--execute'],
+  ['api', 'POST', '/v1/workspaces/synthetic/query', '--resource=logs', '--execute'],
+  ['tag', 'update', '--resource-id=/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute=false'],
+].map(args => [args]))('read, help or preview %j has no ambiguous-write mapping', async args => {
+  const call = await createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(new FakeTokenTransport()))
+    .prepare(args, reference)
+  expect(call.write).toBeUndefined()
 })

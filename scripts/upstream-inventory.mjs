@@ -37,7 +37,7 @@ const inventories = {
     }
     return { command, canonicalCommand: leaf.path, handlerCommand: leaf.handlerPath ?? leaf.path,
       tokenResources: leaf.capability !== 'native' || /^(config|setup)\b/.test(leaf.path) ? null
-        : leaf.path === 'home' ? [] : leaf.path === 'doctor' ? ['arm', 'logs', 'graph']
+        : leaf.path === 'doctor' ? ['arm', 'logs', 'graph']
         : leaf.path === 'api' ? [] : leaf.path === 'rbac list' ? ['arm', 'graph']
         : leaf.path === 'monitor log-analytics query' ? ['logs']
         : leaf.path.startsWith('storage ') ? ['storage'] : leaf.path.startsWith('keyvault ') ? ['vault']
