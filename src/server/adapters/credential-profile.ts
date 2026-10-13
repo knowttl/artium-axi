@@ -51,11 +51,14 @@ export class CredentialProfile {
   constructor(readonly schema: Schema) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
-    for (const [auth, field] of [['token', 'token'], ['oauth', 'clientSecret'], ['client-secret', 'clientSecret'],
-      ['certificate', 'privateKey'], ['federated', 'token']]) {
+    for (const [selector, kind, field] of [['auth', 'token', 'token'], ['auth', 'oauth', 'clientSecret'],
+      ['auth', 'client-secret', 'clientSecret'], ['auth', 'certificate', 'privateKey'],
+      ['auth', 'federated', 'token'], ['mode', 'delegated', 'token']]) {
       if (schema.properties?.[field]?.['x-secret'] !== true) continue
       this.inputSchema.allOf = [...(this.inputSchema.allOf ?? []), {
-        if: { required: ['auth'], properties: { auth: { const: auth } } }, then: { required: [field] },
+        if: { required: [selector], properties: { [selector]: { const: kind } } },
+        then: { required: [field], ...(selector === 'auth' && kind === 'token'
+          ? { properties: { [field]: { not: { pattern: '\\s' } } } } : {}) },
       }]
     }
     const options = { strict: false, validateFormats: true }
