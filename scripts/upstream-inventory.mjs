@@ -171,7 +171,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
         .update(readFileSync(new URL('node_modules/@knowttl/vectra-axi/dist/src/catalogue.js', root))).digest('hex') },
     } } : {}),
     ...(tool === 'mg-axi' ? { headlessInventory: {
-      activation: 'Internal adapter for fake commissioning; no production registry activation. Live Graph application consent remains unverified.',
+      activation: 'Wired into the production runtime registry. Live Graph authentication, application permissions, consent and deployment remain unverified; enabling Graph on a running installation requires live results and maintainer approval.',
       globalFlags: mgGlobalFlags,
       commonFlags: ['profile', 'api-version'].map(name => ({ name, scope: 'only on leaves declaring it' })),
       credentialEnvironment: ['MG_AXI_CLIENT_SECRET', 'MG_AXI_PRIVATE_KEY'].map(name => ({ name,
