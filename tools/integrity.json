@@ -1,14 +1,14 @@
 {
   "@knowttl/az-axi": {
-    "version": "0.1.7",
-    "integrity": "sha512-qN241ZsiNoOZK2HIDXg7t2Tc0v9tQc//Ax0Js0uo+A5c4mPXskFCF7IRyvL0cjXL9zRtzNWA41mSyqjezK/rdQ=="
+    "version": "0.1.8",
+    "integrity": "sha512-7SKu71YKa7wyszHu4onz+ETSAJ/PAuh2Ov3W7R+pRRhsSIQbemqGsqYAmda5d/8fx5oMohbj1chCQeTXlAOt9A=="
   },
   "@knowttl/vectra-axi": {
     "version": "0.1.5",
     "integrity": "sha512-m+gE4qJm1xBCWqH3QAqkJJFwUcBRmZDUr3UB2TthzkIg+2oHheuCOuV8yGdelggLT74JLtv/wR416UFyFMjy8Q=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.6",
-    "integrity": "sha512-8rcZHLId3kVaLFX0NNXwJ/mBfRplIDBdGFXsddJgZj5FjyMn7KiZcbcOmI9FHO3QQZPri58oFEAaREAlzVuJ+A=="
+    "version": "0.1.7",
+    "integrity": "sha512-ojOqnpnnqA3EiyHD0QNxxW3BZpkOCw3oPuhORNFq+X8O9c2MxE1aqn1frTNY61CQ6qWr6Gn5Q+H8KVIWSC5xgg=="
   }
 }

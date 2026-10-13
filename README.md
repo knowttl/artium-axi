@@ -9,6 +9,7 @@
 Managed command-line tools for agents, behind one local sign-in.
 
 artium-axi packages a server and CLI that give users role-based access to pinned upstream tools.
+The published npm pins are `@knowttl/mg-axi` 0.1.7 and `@knowttl/az-axi` 0.1.8, including their upstream live-test fixes.
 Administrators manage local accounts, roles, encrypted service credentials and audit records through a browser.
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 

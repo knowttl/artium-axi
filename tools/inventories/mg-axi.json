@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.6",
-  "integrity": "sha512-8rcZHLId3kVaLFX0NNXwJ/mBfRplIDBdGFXsddJgZj5FjyMn7KiZcbcOmI9FHO3QQZPri58oFEAaREAlzVuJ+A==",
+  "version": "0.1.7",
+  "integrity": "sha512-ojOqnpnnqA3EiyHD0QNxxW3BZpkOCw3oPuhORNFq+X8O9c2MxE1aqn1frTNY61CQ6qWr6Gn5Q+H8KVIWSC5xgg==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "03e49a836f5b31fdaf5072ffa2c3a6db42bfadeff6667a24fff7ae3efcf3a2d5",
+  "packageManifestSha256": "fac4ecaed23f6f8fbea98b9d08ccb3768d7445944882d8bc997ec8f606554cf5",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -154,7 +154,7 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "7745514fc8d637a7f0bca8c6f48f1721113ad81e55bdf1549272d48a34d0ae30"
+        "sha256": "9b9b521411eee7b5fe8c74fec0f3b96be0ce2e9468ecabe457beb7f0f33ea937"
       },
       {
         "path": "dist/cli.js",
@@ -230,7 +230,7 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "7745514fc8d637a7f0bca8c6f48f1721113ad81e55bdf1549272d48a34d0ae30"
+        "sha256": "9b9b521411eee7b5fe8c74fec0f3b96be0ce2e9468ecabe457beb7f0f33ea937"
       },
       {
         "path": "dist/cli.js",
