@@ -14,14 +14,14 @@ docker compose -f compose.example.yaml config --quiet
 
 Run the private hygiene check with its externally supplied deny-list input after committing and building the candidate.
 The no-mistakes pipeline owns review, aggregate validation and publication.
-Record privileged container acceptance as unverified on hosts that forbid its private BuildKit worker; do not run `pnpm test:containers` there.
+Follow the [container-test prerequisites](../README.md#development--testing) for privileged-worker requirements and unverified acceptance.
 Do not use a live stack, tenant, appliance or real credentials for these checks.
 
 ## Scope and regression evidence
 
 Before the fixes, the focused regression selection failed for all five bugs: successful authentication exhausted the username limit, refusals lacked audit records, doctor failed the certificate diagnostic for a liveness error, Azure input never reached the API, piped help retained a bare executable, positional Graph KQL remained visible, and unknown flags returned HTTP-body guidance.
-Azure's API and adapter already support bounded stdin and reviewed uploads, so the CLI now forwards them instead of removing their help suggestions.
-The CLI checks input bounds and refuses unreadable files before making a request.
+See [CLI input behavior](../README.md#command-surface-and-subcommands) for the supported query/body stdin routes and reviewed file uploads.
+The [CLI regression checks](../test/cli.test.ts) cover bounded input, unreadable files and no-input Azure commands completing with stdin left open.
 Runbook updates cover secret ownership, proxy header replacement and stable addressing, first-start bootstrap, startup health dependencies, privileged test requirements, scripted bearer administration and scoped image cleanup.
 Minor display ergonomics remain outside this change.
 

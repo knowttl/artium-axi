@@ -40,8 +40,7 @@ pnpm test:containers
 
 The Compose validation creates no stack and reads no secret contents.
 Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
-`pnpm test:containers` requires `--privileged` for its private BuildKit worker.
-On hosts that forbid privileged containers, do not run it; record container acceptance as unverified and arrange verification on a permitted host.
+Check the [container-test prerequisites](../README.md#development--testing) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
 Do not use real adapter credentials or globally prune Docker resources.
 
 ## Proxy and certificate trust
@@ -167,7 +166,7 @@ Access tokens last one hour; `POST /v1/auth/refresh` takes `{ "refreshToken": "<
 Replace both stored tokens atomically and never reuse a consumed refresh token.
 The ticket remains usable through a refresh of its own family, but cannot authorize another login session.
 At completion, send `POST /v1/auth/logout` with the refresh token as the bearer credential, then discard local tokens, tickets and temporary inputs.
-Successful login and reauthentication do not consume the per-username failed-attempt budget; every attempt still consumes the per-address budget.
+See [authentication limits](../README.md#security-and-acceptance-boundaries) for how successful authentication and failures affect the attempt budgets.
 
 ## Roles, credentials and health
 
@@ -206,8 +205,7 @@ curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
 These checks do not test remote services or reload the key.
-Doctor checks address, certificate, token and CLI version, then reports the available tools' cached health.
-Only `ok` passes; `unknown`, `unconfigured` or `error` require investigation rather than disabling certificate verification.
+Use doctor for the [CLI diagnostics](../README.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
 Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
 Use “Test credential” at `/admin/credentials` for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 

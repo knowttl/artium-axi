@@ -151,7 +151,10 @@ The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-The bundled CLI forwards argument tokens and, for Azure calls, bounded piped stdin and local files supplied through the reviewed `--file` and `--body-file` flags.
+Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
+The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
+It captures bounded non-terminal stdin only for Azure `rg query` (also `graph query`), `logs query` (also `monitor log-analytics query`) and `api` calls.
+Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](src/shared/api.ts).
 
@@ -179,6 +182,8 @@ Artium failures withhold captured output and return exit 2 for usage or client c
 See the [generated error reference](docs/errors.md) for codes, HTTP status, CLI exit status and recovery steps.
 
 Doctor reads cached tool health rather than running a fresh platform test.
+Its certificate diagnostic reports whether the liveness request verified TLS, independently of the HTTP status or response body.
+If the connection or CA-file read fails before verification, the certificate remains unverified.
 Only `ok` passes; `unknown`, `unconfigured` and `error` require investigation.
 If the client reports `CLI_OUTDATED`, download the current bundle and checksum from the server again.
 
@@ -298,13 +303,15 @@ The server refuses the removed development-authentication settings `ARTIUM_AXI_D
 Local passwords use Argon2id, require 15 to 128 code points and at most 512 UTF-8 bytes, preserve spaces and Unicode, and reject exact matches in the bundled common-password list.
 Access tokens last one hour within a 12-hour family; refresh-token reuse revokes the family.
 Password changes revoke existing CLI tokens and browser sessions.
-Sign-in limits and persistent account lockout are enforced by the [authentication implementation](src/server/auth/local.ts) and [configured defaults](src/server/config.ts).
+Sign-in limits and persistent account lockout are enforced by the [attempt boundary](src/server/auth/attempts.ts) and [configured defaults](src/server/config.ts).
+Successful login and reauthentication do not consume the per-username failed-attempt budget; the per-address budget still counts successful and failed attempts.
+Rate-limit refusals produce a `sign-in` audit record with outcome `AUTH_RATE_LIMITED` and no user identity.
 Browser sessions use Secure, HttpOnly, SameSite=Strict cookies and expire after 30 minutes idle or 12 hours overall; temporary-password sessions last 10 minutes.
 Browser mutations require same-origin requests and CSRF tokens.
 
 Credentials are encrypted with AES-256-GCM and retrieved only after authorization and audited admission.
 Version 1 uses one shared service credential per tool; external secret sources and per-user credentials remain deferred.
-Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams.
+Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
 Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.
 Audit retention is 90 days, with startup recovery recording interrupted calls without replay.
 Vectra's durable native write logs complement Artium audit and retain intent/outcome pairs.
