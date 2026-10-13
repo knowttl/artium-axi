@@ -1,7 +1,95 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
-import { rewriteSuggestions } from './rewrite.js'
+import { rewriteDiscoveryHelp, rewriteSuggestions } from './rewrite.js'
 import { decode, encode } from '@toon-format/toon'
+import { toolView } from './views.js'
+import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
+
+test('Falcon discovery hosts every indented executable example', () => {
+  const output = decode(toolView({ name: 'falcon-axi', status: 'ok', version: falcon.version })) as { upstreamHelp: string }
+  const expected = falcon.discovery.help.replace(/^(\s*)falcon-axi/gm, '$1artium-axi falcon-axi')
+  expect(output.upstreamHelp).toBe(expected)
+  expect(rewriteDiscoveryHelp(output.upstreamHelp, 'falcon-axi')).toBe(expected)
+})
+
+test('Vectra discovery hosts command and examples while preserving other help fields', () => {
+  const output = decode(toolView({ name: 'vectra-axi', status: 'ok', version: vectra.version })) as { upstreamHelp: string }
+  const expected = { ...vectra.discovery.help, command: 'artium-axi vectra-axi detection list', examples: ['artium-axi vectra-axi detection list'] }
+  expect(JSON.parse(output.upstreamHelp)).toEqual(expected)
+  expect(rewriteDiscoveryHelp(expected, 'vectra-axi')).toBe(output.upstreamHelp)
+})
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
+  ['', '  ', '\t'].flatMap(indent => ['', 'artium-axi ', 'npx -y @knowttl/'].map(prefix => ({ tool, indent, prefix })))))(
+  '$tool plain help hosts indented commands with prefix "$prefix"', ({ tool, indent, prefix }) => {
+    const input = `${indent}${prefix}${tool} home\n${indent}--profile <name>: Select a profile\n${indent}${prefix}${tool} home --profile artium --filter "--profile literal"\n`
+    const expected = `${indent}artium-axi ${tool} home\n${indent}artium-axi ${tool} home --filter "--profile literal"\n`
+    expect(rewriteSuggestions(input, tool)).toBe(expected)
+    expect(rewriteSuggestions(expected, tool)).toBe(expected)
+  })
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
+  [JSON.stringify, encode].flatMap(serialize => ['', 'artium-axi ', 'npx -y @knowttl/'].map(prefix => ({ tool, serialize, prefix })))))(
+  '$tool strips managed selectors with prefix "$prefix"', ({ tool, serialize, prefix }) => {
+    const input = serialize({ help: [`Run \`${prefix}${tool} home --profile=artium --help\``], data: '--profile=artium' })
+    const expected = serialize({ help: [`Run \`artium-axi ${tool} home --help\``], data: '--profile=artium' })
+    expect(rewriteSuggestions(input, tool)).toBe(expected)
+    expect(rewriteSuggestions(expected, tool)).toBe(expected)
+  })
+
+test('Graph static tool help hides managed flags and hosts its examples', () => {
+  const output = toolView({ name: 'mg-axi', status: 'ok', version: '0.1.6' })
+  expect(output).not.toMatch(/--(?:profile|config|scopes)\b/)
+  expect(output).toContain('artium-axi mg-axi')
+  expect(output).not.toMatch(/npx -y @knowttl\/mg-axi/)
+})
+
+test('Graph plain help strips managed flags while retaining literal filter text', () => {
+  const input = 'mg-axi entra user list\n--profile <name>: Select a configured profile\n--scopes <scopes>: Graph scopes\n--config <path>: Configuration file override\n--limit <positive-integer>: Cap returned rows\nmg-axi entra user list --profile soc --limit 10\nmg-axi entra user list --profile=artium --filter "--profile artium"\n'
+  const expected = 'artium-axi mg-axi entra user list\n--limit <positive-integer>: Cap returned rows\nartium-axi mg-axi entra user list --limit 10\nartium-axi mg-axi entra user list --filter "--profile artium"\n'
+  expect(rewriteSuggestions(input, 'mg-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'mg-axi')).toBe(expected)
+})
+
+test('Falcon managed booleans do not consume the following command flag', () => {
+  const input = encode({ help: ['Run `falcon-axi host list --no-member-cid --limit 1`'] })
+  expect(rewriteSuggestions(input, 'falcon-axi')).toBe(encode({ help: ['Run `artium-axi falcon-axi host list --limit 1`'] }))
+})
+
+test.each(['json', 'toon'].flatMap(format => [false, true].map(multiline => ({ format, multiline }))))(
+  'Graph $format validation headings preserve separate suggestions (multiline: $multiline)', ({ format, multiline }) => {
+    const heading = 'Valid flags for `mg-axi entra user list`: --profile <name>, --scopes <scopes>, --config <path>, --limit <positive-integer>'
+    const suggestion = 'Run `mg-axi entra user list --profile=artium --limit 1`'
+    const expectedHeading = 'Valid flags for `mg-axi entra user list`: --limit <positive-integer>'
+    const expectedSuggestion = 'Run `artium-axi mg-axi entra user list --limit 1`'
+    const serialize = (help: string[]) => format === 'json' ? JSON.stringify({ help }) : encode({ help })
+    const input = serialize(multiline ? [heading + '\n' + suggestion] : [heading, suggestion])
+    const expected = serialize(multiline ? [expectedHeading + '\n' + expectedSuggestion] : [expectedHeading, expectedSuggestion])
+    expect(rewriteSuggestions(input, 'mg-axi')).toBe(expected)
+    expect(rewriteSuggestions(expected, 'mg-axi')).toBe(expected)
+  })
+
+test.each(['plain', 'json', 'toon'])('Falcon %s root help hides managed flags in grouped rows', format => {
+  const input = 'falcon-axi 0.3.0\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n'
+  const expected = 'artium-axi falcon-axi 0.3.0\nGlobal flags:\n  --help\n'
+  const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help }) : encode({ help })
+  expect(rewriteSuggestions(serialize(input), 'falcon-axi')).toBe(serialize(expected))
+  expect(rewriteSuggestions(serialize(expected), 'falcon-axi')).toBe(serialize(expected))
+})
+
+test('Graph doctor suggestions use the hosted command without managed profile flags', () => {
+  const input = encode({ help: [
+    'Run `npx -y @knowttl/mg-axi entra user list --profile artium --limit 1`',
+    'Run `mg-axi entra user list --profile artium --limit 1`',
+  ] })
+  const expected = encode({ help: [
+    'Run `artium-axi mg-axi entra user list --limit 1`',
+    'Run `artium-axi mg-axi entra user list --limit 1`',
+  ] })
+  expect(rewriteSuggestions(input, 'mg-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'mg-axi')).toBe(expected)
+})
 
 test.each(['json', 'toon'].flatMap(format => [
   { format, code: 'UNKNOWN_OUTCOME', suffix: ' --full' }, { format, code: 'VALIDATION_ERROR', suffix: '' },
@@ -28,6 +116,27 @@ test('Azure help prefixes executable examples while retaining literal arguments'
   const expected = "Command: artium-axi az-axi api\nExamples: artium-axi az-axi api GET /subscriptions --query 'az-axi=literal; az-axi sub list'; artium-axi az-axi sub list\nSee `artium-axi az-axi network nsg rule create --help`.\n"
   expect(rewriteSuggestions(input, 'az-axi')).toBe(expected)
   expect(rewriteSuggestions(expected, 'az-axi')).toBe(expected)
+})
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
+  ['plain', 'json', 'toon'].flatMap(format => ['Command', 'Native operation', 'Examples'].flatMap(label =>
+    ['', 'npx -y @knowttl/'].map(prefix => ({ tool, format, label, prefix }))))))(
+  '$tool hosts $label help in $format with prefix "$prefix"', ({ tool, format, label, prefix }) => {
+    const input = `\t${label}: ${prefix}${tool} home --profile artium --limit 1`
+    const expected = `\t${label}: artium-axi ${tool} home --limit 1`
+    const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help: [help], data: input }) : encode({ help: [help], data: input })
+    const output = rewriteSuggestions(serialize(input), tool)
+    expect(output).toBe(serialize(expected))
+    expect(rewriteSuggestions(output, tool)).toBe(output)
+  })
+
+test.each(['json', 'toon'])('Azure structured %s examples host sibling commands while preserving literal arguments', format => {
+  const help = "Flags: --profile, --subscription\nExamples: az-axi sub list --query 'az-axi=literal; az-axi sub list'; az-axi sub list --profile artium --subscription <id>"
+  const expected = "Flags: --subscription\nExamples: artium-axi az-axi sub list --query 'az-axi=literal; az-axi sub list'; artium-axi az-axi sub list --subscription <id>"
+  const serialize = (value: string) => format === 'json' ? JSON.stringify({ help: [value], data: help }) : encode({ help: [value], data: help })
+  const output = rewriteSuggestions(serialize(help), 'az-axi')
+  expect(output).toBe(serialize(expected))
+  expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
 })
 
 const captures = JSON.parse(readFileSync(new URL('../../test/fake-tool/fixtures/upstreams.json', import.meta.url), 'utf8')) as

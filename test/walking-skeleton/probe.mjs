@@ -22,13 +22,19 @@ const execute = async (bin, args, env = {}, input) => {
 }
 const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
   XDG_CONFIG_HOME: join(directory, 'config') }
-// Parity permits only the wrapper prefix in the recorded root suggestion field.
-const upstreamSuggestions = text => {
+// Parity permits the wrapper prefix and removal of managed flags from upstream help.
+const upstreamSuggestions = (text, removeRegion = false) => {
+  if (/^(?:artium-axi )?(?:falcon|vectra)-axi(?:\s|$)/.test(text)) {
+    const unwrapped = text.replace(/^([ \t]*)artium-axi ((?:falcon|vectra)-axi)/gm, '$1$2')
+    return removeRegion ? unwrapped.replace(/^  --help, --region <name\|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid$/gm, '  --help') : unwrapped
+  }
   let help = false
   return text.split('\n').map(line => {
     if (/^help(?:\[\d+\])?:/.test(line)) help = true
     else if (line && !line.startsWith(' ')) help = false
-    return help ? line.replaceAll('artium-axi falcon-axi', 'falcon-axi').replaceAll('artium-axi vectra-axi', 'vectra-axi') : line
+    if (!help) return line
+    const unwrapped = line.replaceAll('artium-axi falcon-axi', 'falcon-axi').replaceAll('artium-axi vectra-axi', 'vectra-axi')
+    return removeRegion ? unwrapped.replace(/ --region us-1(?=`)/g, '') : unwrapped
   }).join('\n')
 }
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
@@ -127,7 +133,7 @@ try {
         })
         const remote = await cli(['falcon-axi', ...args])
         assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
-          { ...local, stdout: clean(local.stdout), stderr: clean(local.stderr) })
+          { ...local, stdout: clean(upstreamSuggestions(local.stdout, true)), stderr: clean(upstreamSuggestions(local.stderr, true)) })
         if (!args.includes('--unknown') && !args.includes('--filter') && !args.includes('--help')) assert.match(remote.stdout, /synthetic-detection/)
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
       }

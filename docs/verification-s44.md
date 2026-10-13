@@ -1,7 +1,7 @@
 # S44 suggestion rewriting verification
 
 [README.md](../README.md) owns the user-facing T6.4 suggestion rewriting contract.
-[The implementation](../src/cli/rewrite.ts) maps decoded command offsets to original bytes instead of serialising output again.
+[The implementation](../src/cli/rewrite.ts) maps decoded suggestion command offsets to original bytes; rewritten embedded help strings are serialised within their original fields.
 TOON validation checks declared suggestion counts and requires the remaining document to round-trip through the pinned codec after masking suggestion fields.
 Marked list items must decode as primitive strings before header masking, marker stripping or span collection.
 The codec dependency is pinned in [package.json](../package.json).
@@ -10,7 +10,9 @@ The codec dependency is pinned in [package.json](../package.json).
 
 `src/cli/rewrite.test.ts` exercises every empty, error and suggestion capture committed in `test/fake-tool/fixtures/upstreams.json`, including the Graph fixture.
 See [README](../README.md) for current runtime availability.
-Exact output assertions prove that only suggestion commands change, followed by a second rewrite proving idempotence.
+Exact output assertions check the [README output contract](../README.md#toon-output-behavior), followed by a second rewrite checking idempotence.
+The Graph doctor regression uses the observed `npx -y @knowttl/mg-axi entra user list --profile artium --limit 1` suggestion.
+Additional assertions cover all four tools' plain and structured help, Graph validation flag headings and bundled discovery help, Falcon managed boolean flags, and preservation of literal arguments and unrelated data.
 Additional cases cover quoted commands, arguments containing quotes, escaped multiline strings, TOON list markers and inline arrays, CRLF, JSON Unicode escapes, nested unrelated help fields, wrong tools, duplicate fields, unknown suggestion shapes and malformed or truncated output.
 Exact-byte and idempotence assertions cover unconsumed TOON structure, escaped command delimiters, object-only and mixed non-string lists, and bare markers with whitespace or end-of-stream variants in both item orders and LF/CRLF.
 `test/cli.test.ts` exercises the standalone bundle over local trusted HTTPS with synthetic tokens, separate TOON stdout and JSON stderr, upstream exit 7 and stream-specific truncation.
@@ -20,7 +22,7 @@ The first full-suite run exposed existing timeouts in the 30-attempt address-lim
 Their test budgets now accommodate real Argon2 work under concurrent suite load without weakening assertions or production hashing settings.
 Renewed full-suite verification exposed an expected TCP reset during the controlled client-abort test.
 Its server fixture now waits for close despite that reset, rejects other socket errors and waits for every concurrent test client to finish before subsequent tests use the request log.
-`test/walking-skeleton/probe.mjs` compares the pinned Falcon and Vectra tools against the bundled client through the real fake-only container server, permitting the wrapper prefix only in root suggestion fields.
+`test/walking-skeleton/probe.mjs` compares the pinned Falcon and Vectra tools against the bundled client through the real fake-only container server, normalizing hosted command prefixes in plain help and root suggestions, Falcon's managed global flag row and its hosted region argument.
 AGENTS.md's existing README pointer remains factually correct and requires no change.
 
 ## Final candidate verification plan

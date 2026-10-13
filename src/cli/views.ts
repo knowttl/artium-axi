@@ -5,6 +5,7 @@ import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import type { z } from 'zod'
 import { meResponseSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
+import { rewriteDiscoveryHelp } from './rewrite.js'
 
 const manifests = { 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg }
 type Tools = z.infer<typeof toolsResponseSchema>['tools']
@@ -22,6 +23,6 @@ export function toolView(tool: Tools[number]): string {
   const manifest = manifests[tool.name]
   if (tool.version !== manifest.version) throw new ArtiumError('INVALID_RESPONSE', 'The server tool version differs from the bundled manifest.', 'Download the current CLI from /cli/artium-axi.mjs.')
   const commands = manifest.discovery.commands
-  const help = typeof manifest.discovery.help === 'string' ? manifest.discovery.help : JSON.stringify(manifest.discovery.help)
-  return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\ncommands[${commands.length}]: ${commands.join(',')}\nexample: artium-axi ${tool.name} ${manifest.discovery.example.join(' ')}\nupstreamHelp: ${JSON.stringify(help.replaceAll(tool.name, `artium-axi ${tool.name}`))}\n`
+  const help = rewriteDiscoveryHelp(manifest.discovery.help, tool.name)
+  return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\ncommands[${commands.length}]: ${commands.join(',')}\nexample: artium-axi ${tool.name} ${manifest.discovery.example.join(' ')}\nupstreamHelp: ${JSON.stringify(help)}\n`
 }
