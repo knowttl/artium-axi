@@ -1,8 +1,33 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
-import { rewriteSuggestions } from './rewrite.js'
+import { rewriteDiscoveryHelp, rewriteSuggestions } from './rewrite.js'
 import { decode, encode } from '@toon-format/toon'
 import { toolView } from './views.js'
+import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
+
+test('Falcon discovery hosts every indented executable example', () => {
+  const output = decode(toolView({ name: 'falcon-axi', status: 'ok', version: falcon.version })) as { upstreamHelp: string }
+  const expected = falcon.discovery.help.replace(/^(\s*)falcon-axi/gm, '$1artium-axi falcon-axi')
+  expect(output.upstreamHelp).toBe(expected)
+  expect(rewriteDiscoveryHelp(output.upstreamHelp, 'falcon-axi')).toBe(expected)
+})
+
+test('Vectra discovery hosts command and examples while preserving other help fields', () => {
+  const output = decode(toolView({ name: 'vectra-axi', status: 'ok', version: vectra.version })) as { upstreamHelp: string }
+  const expected = { ...vectra.discovery.help, command: 'artium-axi vectra-axi detection list', examples: ['artium-axi vectra-axi detection list'] }
+  expect(JSON.parse(output.upstreamHelp)).toEqual(expected)
+  expect(rewriteDiscoveryHelp(expected, 'vectra-axi')).toBe(output.upstreamHelp)
+})
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
+  ['', '  ', '\t'].flatMap(indent => ['', 'artium-axi ', 'npx -y @knowttl/'].map(prefix => ({ tool, indent, prefix })))))(
+  '$tool plain help hosts indented commands with prefix "$prefix"', ({ tool, indent, prefix }) => {
+    const input = `${indent}${prefix}${tool} home\n${indent}--profile <name>: Select a profile\n${indent}${prefix}${tool} home --profile artium --filter "--profile literal"\n`
+    const expected = `${indent}artium-axi ${tool} home\n${indent}artium-axi ${tool} home --filter "--profile literal"\n`
+    expect(rewriteSuggestions(input, tool)).toBe(expected)
+    expect(rewriteSuggestions(expected, tool)).toBe(expected)
+  })
 
 test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
   [JSON.stringify, encode].flatMap(serialize => ['', 'artium-axi ', 'npx -y @knowttl/'].map(prefix => ({ tool, serialize, prefix })))))(

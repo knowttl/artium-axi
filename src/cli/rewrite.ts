@@ -14,13 +14,24 @@ const managedFlags: Record<string, string[]> = {
 type Span = { start: number, raw: string, value: string, quoted: boolean }
 type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
 
+export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help, tool: string): string {
+  const flags = managedFlags[tool]
+  if (typeof help === 'string') return hostedHelp(help, tool, flags, true)
+  return JSON.stringify({
+    ...help,
+    command: hostedHelp(help.command, tool, flags, true),
+    flags: Object.fromEntries(Object.entries(help.flags).filter(([flag]) => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? ''))),
+    examples: help.examples.map(example => hostedHelp(example, tool, flags, true)),
+  })
+}
+
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
-  if (executable.test(output.replace(/^Command: /, ''))) return hostedHelp(output, tool, flags, true)
+  if (executable.test(output.replace(/^[ \t]*(?:Command: )?/, ''))) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
   try {
@@ -112,23 +123,23 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   const selectors = flags.join('|')
-  const filtered = help.replace(new RegExp(`^--(?:${selectors})(?=[\\s=:]|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
-    .replace(/^((?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
+  const filtered = help.replace(new RegExp(`^[ \t]*--(?:${selectors})(?=[\\s=:]|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
+    .replace(/^([ \t]*(?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
     (_, label: string, listed: string) => {
       const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
       return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '')
     })
   if (!commands) return filtered
-  return filtered.replace(new RegExp(`^(?:(?:(?:Command|Native operation): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
+  return filtered.replace(new RegExp(`^[ \t]*(?:(?:(?:Command|Native operation): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
       line = line.replace(new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]`, 'g'), '')
       for (const [from, to] of managedFlagRanges(line, tool).reverse()) line = line.slice(0, from) + line.slice(to)
       return line
     })
-    .replace(new RegExp(`^((?:(?:Command|Native operation|Examples): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
-    .replace(/^Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
+    .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(/^[ \t]*Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
       (match, separator) => separator ? `; artium-axi ${tool}` : match))
     .replace(new RegExp('`(?:npx -y @knowttl/)?' + tool + '(?=\\s|`)([^\\r\\n`]*`)', 'g'), '`artium-axi ' + tool + '$1')
-    .replace(new RegExp(`^(cat [^\\r\\n|]+ \\| )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`^([ \t]*cat [^\\r\\n|]+ \\| )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
 }
 
 function jsonHelp(output: string): Help {
