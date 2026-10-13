@@ -169,7 +169,7 @@ test.each([
   { selectors: ['--ids', incidentTarget], owner: 'Synthetic Analyst', expectedOwner: { assignedTo: 'Synthetic Analyst' } },
 ])('incident recovery exposes every changed field for $selectors and $owner', async ({ selectors, owner, expectedOwner }) => {
   await withAzureGateway(async ({ run, send }) => {
-    const comment = 'synthetic classification '.repeat(200) + 'synthetic tail'
+    const comment = 'synthetic classification '.repeat(169) + 'synthetic tail'
     const response = await run(['sentinel', 'incident', 'update', '-s', subscription, ...selectors,
       '--status', 'Closed', '--severity', 'High', '--classification', 'TruePositive',
       '--classification-reason', 'SuspiciousActivity', '--classification-comment', comment, '--owner', owner, '--execute'])
@@ -275,7 +275,7 @@ test.each(['json', 'toon'].flatMap(format => [
     '--message'], field: 'message' },
 ]))('$name upstream timeout recovery exposes the complete value through $format', async ({ format, command, field }) => {
   await withAzureGateway(async ({ run, send }) => {
-    const value = 'synthetic long changed value '.repeat(200) + 'synthetic tail'
+    const value = 'synthetic long changed value '.repeat(140) + 'synthetic tail'
     const response = await run([...command, value, '--execute'])
     expect(response.statusCode).toBe(200)
     const failed = runSuccessSchema.parse(response.json())

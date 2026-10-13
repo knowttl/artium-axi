@@ -236,10 +236,12 @@ test.each([
     .toEqual([replacement.clientSecret])
 })
 
-test('rendered Tools and Credentials pages never contain stored secret values', async () => {
+test.each([false, true])('rendered Azure controls reflect enabled=%s without exposing secrets', async enabled => {
   for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
     expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0, expectedToolRevision: 1 })).status).toBe(200)
   }
+  db.prepare("UPDATE tools SET enabled = ? WHERE name = 'az-axi'").run(Number(enabled))
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'mg-axi'")
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -256,11 +258,20 @@ test('rendered Tools and Credentials pages never contain stored secret values', 
     expect(page.body).not.toContain(values['vectra-axi'].token)
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
     if (path === '/admin/credentials') {
+      expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/test"')
+      expect(page.body).not.toContain('action="/v1/admin/tools/mg-axi/test"')
       expect(page.body).toContain('name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea>')
       expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(3)
       expect(page.body).toContain('Last changed by synthetic-user')
     }
-    if (path === '/admin/tools') expect(page.body).toContain('&quot;operations&quot;')
+    if (path === '/admin/tools') {
+      expect(page.body).toContain('&quot;operations&quot;')
+      const forms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/az-axi"[^>]*>[\s\S]*?<\/form>/g)!
+      expect(forms).toEqual(expect.arrayContaining([expect.stringContaining(
+        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
+      const graphForms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/mg-axi"[^>]*>[\s\S]*?<\/form>/g)!
+      expect(graphForms.join('')).not.toContain('name="enabled"')
+    }
   }
 })
 async function replace(tool: ToolName, value: unknown = values[tool], expectedRevision = 0) {

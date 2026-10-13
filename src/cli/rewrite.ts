@@ -2,6 +2,7 @@ import { decode, encode } from '@toon-format/toon'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
+type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
 
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
@@ -10,10 +11,10 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   let spans: Span[]
   let unknownOutcome = false
   try {
-    spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    const { spans: suggestions, document } = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    spans = suggestions
     if (tool === 'az-axi') {
-      const parsed = (output.trimStart().startsWith('{') ? JSON.parse(output) : decode(output)) as { code?: unknown, error?: { code?: unknown } }
-      unknownOutcome = parsed?.code === 'UNKNOWN_OUTCOME' || parsed?.error?.code === 'UNKNOWN_OUTCOME'
+      unknownOutcome = document?.code === 'UNKNOWN_OUTCOME' || document?.error?.code === 'UNKNOWN_OUTCOME'
     }
   }
   catch { return output }
@@ -23,7 +24,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       if (value === span.value) continue
       output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
     }
-    spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   }
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Map<number, string>()
@@ -105,9 +106,9 @@ function azureHelp(help: string): string {
     .replace(/`az-axi(?=\s|`)([^\r\n`]*`)/g, '`artium-axi az-axi$1')
 }
 
-function jsonHelp(output: string): Span[] {
+function jsonHelp(output: string): Help {
   const parsed = JSON.parse(output)
-  if (typeof parsed.help !== 'string' && !(Array.isArray(parsed.help) && parsed.help.every((item: unknown) => typeof item === 'string'))) return []
+  if (typeof parsed.help !== 'string' && !(Array.isArray(parsed.help) && parsed.help.every((item: unknown) => typeof item === 'string'))) return { spans: [], document: parsed }
   const tokens = [...output.matchAll(/"(?:\\[\s\S]|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null|[{}\[\]:,]/g)]
   const spans: Span[] = []
   let index = 0
@@ -134,10 +135,10 @@ function jsonHelp(output: string): Span[] {
     }
   }
   value(false, true)
-  return helpFields === 1 ? spans : []
+  return { spans: helpFields === 1 ? spans : [], document: parsed }
 }
 
-function toonHelp(output: string): Span[] {
+function toonHelp(output: string): Help {
   const lines = [...output.matchAll(/[^\r\n]*(?:\r\n|\n|$)/g)].filter(line => line[0])
   const spans: Span[] = []
   const validation = lines.map(line => line[0].replace(/\r?\n$/, ''))
@@ -203,6 +204,7 @@ function toonHelp(output: string): Span[] {
     if (lines[index + 1]?.[0].startsWith(' ')) throw new Error('Extra suggestion rows')
   }
   const document = validation.filter(line => line !== '').join('\n')
-  if (encode(decode(document)) !== document) throw new Error('Unknown document structure')
-  return helpFields === 1 ? spans : []
+  const parsed = decode(document) as Help['document']
+  if (encode(parsed) !== document) throw new Error('Unknown document structure')
+  return { spans: helpFields === 1 ? spans : [], document: parsed }
 }

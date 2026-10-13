@@ -61,7 +61,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           if (tool.name === 'mg-axi') content += '<p>Graph runtime enable and credential tests are unavailable; live consent remains unverified.</p>'
           if (screen === 'Tools') {
             content += changed(db, tool)
-            if (!['az-axi', 'mg-axi'].includes(tool.name) || tool.enabled) content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool',
+            if (tool.name !== 'mg-axi' || tool.enabled) content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool',
               revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool?' : 'Enable this tool?')
             content += form(api, 'PATCH', 'Save native settings', revision(tool.revision) + `<p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object) <textarea name="nativeSettings" data-type="json" rows="8" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label>`, 'Replace this tool’s native settings?')
           } else {
@@ -73,7 +73,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
             content += form(api + '/credential', 'PUT', credential.configured ? 'Replace credential' : 'Set credential', revision(credential.revision) +
               `<input type="hidden" name="expectedToolRevision" data-type="number" value="${escape(tool.revision)}">` +
               (profile ? credentialFields(profile) : '<label>New credential (JSON object) <textarea name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea></label>'), 'Replace the complete credential and its native settings?')
-            if (!['az-axi', 'mg-axi'].includes(tool.name)) content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
+            if (tool.name !== 'mg-axi') content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
             content += '<p data-test-result role="status"></p>'
           }
           content += '</section>'
