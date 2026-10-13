@@ -13,8 +13,9 @@ Administrators manage local accounts, roles, encrypted service credentials and a
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
-Falcon, Vectra and Azure are wired into the production server entry point.
-Graph has local fake-service evidence but is not registered there; live authentication, permissions and deployment remain unverified.
+Falcon, Vectra, Azure and Graph are wired into the production server entry point.
+Graph has local fake-service evidence; live authentication, permissions and deployment remain unverified.
+Enabling Graph on a running installation waits for live Graph results and maintainer approval.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -213,8 +214,9 @@ Pinned tools awaiting migration retain their current credential editor and injec
 Replacements must include every native setting to retain: omitted settings are cleared.
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
-Use **Test credential** for a current fixed read before enabling a configured Falcon, Vectra or Azure tool.
-Graph remains unavailable in the production runtime.
+Use **Test credential** for a current fixed read before enabling a configured tool.
+Graph tests read at most one user through `entra user list --limit 1`.
+Graph is wired into the production runtime; enabling it on a running installation waits for live authentication and permission results and maintainer approval.
 
 ### Audit screen and API
 
