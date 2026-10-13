@@ -12,6 +12,7 @@ import { Audit } from '/work/dist/src/server/audit/audit.js'
 import { openStore } from '/work/dist/src/server/store/db.js'
 import { EnvironmentKeyProvider } from '/work/dist/src/server/store/key-provider.js'
 import { seedToolUser } from '/work/dist/test/fixtures/tokens.js'
+import { rewriteSuggestions } from '/work/dist/src/cli/rewrite.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-test-azure-'))
 const reference = { id: 'synthetic-azure', tool: 'az-axi', revision: 1 }
@@ -76,6 +77,16 @@ try {
     const after = await evidence()
     assert.equal(after.mutations, before + 1)
     assert.equal(after.requests.filter(request => request.path === path && request.method === 'PATCH').length, 1)
+    const hosted = decode(rewriteSuggestions(write.stdout, 'az-axi'))
+    const suggestion = hosted.help.find(line => line.startsWith('Check current state before trying again:'))
+    const recovery = /^Check current state before trying again: `artium-axi az-axi api GET '([^']+)'`$/.exec(suggestion)
+    assert.ok(recovery, suggestion)
+    const checked = await request(['api', 'GET', recovery[1]])
+    assert.equal(checked.exitCode, 0, checked.stdout + checked.stderr)
+    const recovered = await evidence()
+    assert.equal(recovered.mutations, after.mutations)
+    assert.equal(recovered.requests.at(-1).method, 'GET')
+    assert.equal(recovered.requests.at(-1).path, path)
     console.log(JSON.stringify({ scenario: 'public API gateway timeout after mutation', output: write.stdout, mutationRequests: 1 }))
   } finally {
     await app.close()

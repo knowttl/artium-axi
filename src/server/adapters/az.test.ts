@@ -7,6 +7,9 @@ import { AzureTokenCache } from './azure-token-cache.js'
 import { azureAudiences } from './azure-tokens.js'
 import { CredentialProfile } from './credential-profile.js'
 import profileSchema from '../../../test/fixtures/az-credential.schema.json' with { type: 'json' }
+import { decode, encode } from '@toon-format/toon'
+import { rewriteSuggestions } from '../../cli/rewrite.js'
+import { toolView } from '../../cli/views.js'
 
 const reference = { id: 'synthetic-azure', tool: 'az-axi' as const, revision: 1 }
 const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
@@ -14,6 +17,39 @@ const credential = { auth: 'secret' as const, tenantId: azureTestTenant,
   subscriptions: ['synthetic-subscription'], allowWrites: true,
   workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' } }
 const writeLog = '/data/tool-logs/az-axi/writes.log'
+
+test('hosted discovery advertises only flags accepted by the managed adapter', () => {
+  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.6' })
+  const help = JSON.parse(view.split('upstreamHelp: ')[1]) as string
+  const flags = help.split('\n').find(line => line.startsWith('Flags: '))!.slice(7).split(', ')
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
+  expect(flags).not.toEqual(expect.arrayContaining(['--config', '--profile', '--tenant']))
+  for (const flag of flags) {
+    adapter.validateArgs(['sub', 'list', flag, ...(['--help', '--full'].includes(flag) ? [] : ['1'])])
+  }
+})
+
+test.each(['json', 'toon'].flatMap(format => ['Run', 'Check current state before trying again:'].flatMap(prose =>
+  ['', 'artium-axi '].flatMap(prefix => [
+    '--config /tmp/call/az-profile.json --profile artium --tenant synthetic',
+    "--config='/tmp/call with spaces/az-profile.json' --profile=artium --tenant=synthetic",
+  ].map(selectors => ({ format, prose, prefix, selectors }))))))(
+  'hosted $format $prose recovery retains its read target with prefix "$prefix" and $selectors',
+  async ({ format, prose, prefix, selectors }) => {
+    const target = 'https://management.azure.com/subscriptions/synthetic-subscription/resourceGroups/synthetic?api-version=2022-12-01'
+    const command = `az-axi api GET '${target}' --full`
+    const value = { error: { code: 'UNKNOWN_OUTCOME' }, help: [`${prose} \`${prefix}${command} ${selectors}\``] }
+    const input = format === 'json' ? JSON.stringify(value) : encode(value)
+    const output = rewriteSuggestions(input, 'az-axi')
+    const parsed = (format === 'json' ? JSON.parse(output) : decode(output)) as typeof value
+    expect(parsed).toEqual({ ...value, help: [`${prose} \`artium-axi ${command}\``] })
+    expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
+    const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog,
+      new AzureTokenCache(new FakeTokenTransport()))
+    const call = await adapter.prepare(['api', 'GET', target, '--full'], reference)
+    expect(call.args).toEqual(['api', 'GET', target, '--full'])
+    expect(call.environment.ARTIUM_SECRET_0).toBe(azureTestToken)
+  })
 
 test.each([
   [['sub', 'list'], 'armToken'],

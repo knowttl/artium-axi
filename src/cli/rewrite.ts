@@ -1,4 +1,5 @@
 import { decode, encode } from '@toon-format/toon'
+import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
 
@@ -10,12 +11,30 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   catch { return output }
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Set<number>()
+  const removals = new Map<number, number>()
   for (const span of spans) {
     const offsets: number[] = []
     let rawIndex = span.quoted ? 1 : 0
     for (let index = 0; index < span.value.length; index++) {
       offsets.push(rawIndex)
       rawIndex += span.quoted && span.raw[rawIndex] === '\\' ? (span.raw[rawIndex + 1] === 'u' ? 6 : 2) : 1
+    }
+    offsets.push(rawIndex)
+    function commandEdit(start: number, end: number, wrapped: boolean): void {
+      if (!wrapped) insertions.add(span.start + offsets[start])
+      if (tool !== 'az-axi') return
+      const command = span.value.slice(start, end)
+      const tokens = [...command.matchAll(/(?:[^\s'"]+|'[^']*'|"(?:\\.|[^"\\])*")+/g)]
+      for (let index = 1; index < tokens.length; index++) {
+        const token = tokens[index]
+        if (token[0] === '--') break
+        if (!token[0].startsWith('--') || !az.adapterBoundary.unsafeOverrides.includes(token[0].split('=')[0].slice(2))) continue
+        const last = token[0].includes('=') ? token : tokens[++index]
+        if (!last) continue
+        const from = start + token.index! - 1
+        const to = start + last.index! + last[0].length
+        removals.set(span.start + offsets[from], span.start + offsets[to])
+      }
     }
     // A command starts a suggestion line or a complete quoted command.
     const commands = /(?:^|\n)[ \t]*(?:Run |Use )?([`'"]?)([^\n]*)/g
@@ -31,24 +50,24 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       if (quote && !command.includes(quote)) return output
       const start = match.index! + match[0].length - command.length
       commandRanges.push([match.index!, quote ? start + command.indexOf(quote) + 1 : match.index! + match[0].length])
-      if (wrapped) continue
-      insertions.add(span.start + offsets[start])
+      commandEdit(start, quote ? start + command.indexOf(quote) : start + command.length, wrapped)
     }
     for (const match of span.value.matchAll(/(?<![^\s(])([`'"])([^\n]*?)(\1|(?=\n|$))/g)) {
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
       if (!/^(?:artium-axi )?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       const preceding = span.value.slice(0, match.index!)
-      if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
+      if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|Check current state before trying again:|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
       const wrapped = match[2].startsWith(`artium-axi ${tool}`)
       const executable = wrapped ? `artium-axi ${tool}` : tool
       if (match[2].startsWith(executable) && /^(?:\s|$)/.test(match[2].slice(executable.length))) {
         if (!match[3]) return output
-        if (wrapped) continue
-        insertions.add(span.start + offsets[match.index! + 1])
+        commandEdit(match.index! + 1, match.index! + 1 + match[2].length, wrapped)
       }
     }
   }
-  for (const offset of [...insertions].sort((a, b) => b - a)) output = output.slice(0, offset) + 'artium-axi ' + output.slice(offset)
+  for (const offset of [...new Set([...insertions, ...removals.keys()])].sort((a, b) => b - a)) {
+    output = output.slice(0, offset) + (insertions.has(offset) ? 'artium-axi ' : '') + output.slice(removals.get(offset) ?? offset)
+  }
   return output
 }
 

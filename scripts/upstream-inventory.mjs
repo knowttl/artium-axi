@@ -16,6 +16,7 @@ const mgWrites = await load('mg-axi', 'mutations.js')
 const azShortFlags = { h: 'help', s: 'subscription', g: 'resource-group', n: 'name',
   l: 'location', w: 'workspace', t: 'timespan', q: 'graph-query' }
 const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
+const azUnsafeOverrides = ['config', 'profile', 'tenant']
 const inventories = {
   'az-axi': az.COMMAND_LEAVES.flatMap(leaf => [leaf.path, ...leaf.aliases ?? []].map(command => {
     const canonical = command === leaf.path && leaf.handlerPath !== undefined
@@ -125,7 +126,9 @@ for (const [tool, commands] of Object.entries(inventories)) {
     ...(tool === 'az-axi' ? { discovery: {
       commands: [...new Set(commands.filter(entry => entry.tokenResources !== null).map(entry => entry.command.split(' ')[0]))],
       example: ['sub', 'list'],
-      help: az.leafHelp(az.COMMAND_LEAVES.find(leaf => leaf.path === 'account list'), 'sub list'),
+      help: az.leafHelp(az.COMMAND_LEAVES.find(leaf => leaf.path === 'account list'), 'sub list')
+        .replace(/^Flags: (.*)$/m, (_, flags) => `Flags: ${flags.split(', ')
+          .filter(flag => !azUnsafeOverrides.includes(flag.slice(2))).join(', ')}`),
     } } : {}),
     ...(tool === 'vectra-axi' ? { discovery: { commands: [...new Set(commands.map(entry => entry.command.split(' ')[0]))].filter(command => command !== 'setup'),
       example: ['detection', 'list'],
@@ -134,10 +137,10 @@ for (const [tool, commands] of Object.entries(inventories)) {
           .filter(([flag]) => !/^--(?:config|profile)\b/.test(flag))),
         combinations: [], examples: ['vectra-axi detection list'] } } } : {}),
     ...(tool === 'az-axi' ? { adapterBoundary: {
-      unsafeOverrides: ['config', 'profile', 'tenant'], inputFileFlags: ['file', 'body-file'],
+      unsafeOverrides: azUnsafeOverrides, inputFileFlags: ['file', 'body-file'],
       sensitiveFlags: ['body', 'graph-query', 'analytics-query', 'query', 'note'],
       globalFlags: Object.keys(azArgs.GLOBAL_FLAG_SCHEMA).map(name => ({ name,
-        disposition: ['config', 'profile', 'tenant'].includes(name) ? 'unsafe override' : 'passthrough' })),
+        disposition: azUnsafeOverrides.includes(name) ? 'unsafe override' : 'passthrough' })),
       inputs: { stdin: 'input transport', file: 'uploaded leaf only', 'body-file': 'uploaded leaf only',
         api: 'fixed ARM, Logs or Graph origin enforced by pinned client',
         metadata: 'account/vault/registry names and opaque markers enforced by pinned clients' },
