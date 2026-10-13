@@ -130,6 +130,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         mutations++
         recorded.body = JSON.parse(body)
         resources.set(url.pathname, { id: url.pathname, ...recorded.body })
+        if (req.headers['x-artium-test-outcome'] === 'drop') req.socket.destroy()
         if (req.headers['x-artium-test-outcome'] === '504') {
           res.writeHead(504)
           res.end(JSON.stringify({ error: { code: 'GatewayTimeout' } }))

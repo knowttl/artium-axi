@@ -32,7 +32,7 @@ async function withAzureGateway(check: (fixture: {
   run: (args: string[], input?: { stdin: string }) => Promise<{ statusCode: number, json(): unknown }>
   send: (path: string) => Promise<string>
   db: ReturnType<typeof openStore>
-}) => Promise<void>, upstreamTimeout = false) {
+}) => Promise<void>, outcome: 'hold' | '504' | 'drop' = 'hold') {
   await withFakeService(async ({ directory, port, send }) => {
     const db = openStore(join(directory, 'artium.db'),
       new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
@@ -49,7 +49,7 @@ async function withAzureGateway(check: (fixture: {
           fileURLToPath(new URL('../../tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', import.meta.url)), ...call.args],
         fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 1500 },
         environment: { ...call.environment, NODE_EXTRA_CA_CERTS: join(directory, 'ca.crt'),
-          ARTIUM_TEST_AZURE_OUTCOME: upstreamTimeout ? '504' : 'hold',
+          ARTIUM_TEST_AZURE_OUTCOME: outcome,
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
     } }
     const app = createApp({ db, audit: new Audit(db), runner, adapters: [hosted],
@@ -169,7 +169,7 @@ test.each([
   { selectors: ['--ids', incidentTarget], owner: 'Synthetic Analyst', expectedOwner: { assignedTo: 'Synthetic Analyst' } },
 ])('incident recovery exposes every changed field for $selectors and $owner', async ({ selectors, owner, expectedOwner }) => {
   await withAzureGateway(async ({ run, send }) => {
-    const comment = 'synthetic classification '.repeat(169) + 'synthetic tail'
+    const comment = 'synthetic classification '.repeat(160) + 'synthetic tail'
     const response = await run(['sentinel', 'incident', 'update', '-s', subscription, ...selectors,
       '--status', 'Closed', '--severity', 'High', '--classification', 'TruePositive',
       '--classification-reason', 'SuspiciousActivity', '--classification-comment', comment, '--owner', owner, '--execute'])
@@ -268,12 +268,12 @@ test('API runner timeout recovery exposes the complete long changed value', asyn
   })
 })
 
-test.each(['json', 'toon'].flatMap(format => [
-  { format, name: 'incident update', command: ['sentinel', 'incident', 'update', '-s', subscription, '--ids', incidentTarget,
+test.each(['504', 'drop'].flatMap(outcome => ['json', 'toon'].flatMap(format => [
+  { outcome: outcome as '504' | 'drop', format, name: 'incident update', command: ['sentinel', 'incident', 'update', '-s', subscription, '--ids', incidentTarget,
     '--classification', 'TruePositive', '--classification-reason', 'SuspiciousActivity', '--classification-comment'], field: 'classificationComment' },
-  { format, name: 'comment creation', command: ['sentinel', 'incident', 'comment', 'create', '-s', subscription, '--ids', incidentTarget,
+  { outcome: outcome as '504' | 'drop', format, name: 'comment creation', command: ['sentinel', 'incident', 'comment', 'create', '-s', subscription, '--ids', incidentTarget,
     '--message'], field: 'message' },
-]))('$name upstream timeout recovery exposes the complete value through $format', async ({ format, command, field }) => {
+])))('$name upstream $outcome recovery exposes the complete value through $format', async ({ outcome, format, command, field }) => {
   await withAzureGateway(async ({ run, send }) => {
     const value = 'synthetic long changed value '.repeat(140) + 'synthetic tail'
     const response = await run([...command, value, '--execute'])
@@ -296,6 +296,8 @@ test.each(['json', 'toon'].flatMap(format => [
       expect(decode(result.stdout)).toMatchObject({ properties: { [field]: value } })
     }
     expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
-    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
-  }, true)
+    const evidence = JSON.parse(await send('/__evidence'))
+    expect(evidence.mutations).toBe(1)
+    expect(evidence.requests.filter((request: { method: string }) => request.method === 'PUT')).toHaveLength(1)
+  }, outcome)
 })
