@@ -108,6 +108,7 @@ test('admin mutation after 15 minutes challenges for the password and succeeds a
   expect((await request('GET', '/reauth')).body).toContain('Confirm password')
   expect(db.prepare("SELECT COUNT(*) AS count FROM roles WHERE name = 'Synthetic Browser Role'").get()).toEqual({ count: 0 })
   expect((await request('POST', '/v1/auth/reauth', { _csrf: csrf, password })).statusCode).toBe(204)
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'reauth'").all()).toEqual([{ outcome: 'success' }])
   expect((await request('POST', '/v1/admin/roles', action)).statusCode).toBe(201)
 })
 
@@ -301,6 +302,7 @@ test('ordinary password change accepts recent browser confirmation and requires 
   expect((await request('POST', '/password', { _csrf: csrf, newPassword })).statusCode).toBe(401)
   expect((await request('POST', '/password', { _csrf: csrf, currentPassword: 'CANARY-wrong-password', newPassword })).statusCode).toBe(401)
   expect((await request('POST', '/reauth', { _csrf: csrf, password })).headers.location).toBe('/admin')
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'reauth'").all()).toEqual([{ outcome: 'success' }])
   expect((await request('POST', '/password', { _csrf: csrf, newPassword })).headers.location).toBe('/login')
   expect((await signIn(newPassword)).headers.location).toBe('/admin')
 })

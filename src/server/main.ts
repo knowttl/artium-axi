@@ -5,6 +5,7 @@ import { createVectraAdapter } from './adapters/vectra.js'
 import { createAzAdapter } from './adapters/az.js'
 import { createMgAdapter } from './adapters/mg.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
+import { retainRunJournals } from './adapters/run-journal.js'
 import { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { bootstrapAdministrator } from './auth/bootstrap.js'
@@ -42,12 +43,17 @@ async function main() {
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log')),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log'))] })
-    const maintain = () => {
-      try { audit.maintain(); retainNativeWriteLog(writeLog) }
+    const maintain = async () => {
+      try {
+        audit.maintain(); retainNativeWriteLog(writeLog)
+        for (const tool of ['az-axi', 'mg-axi', 'vectra-axi']) {
+          await retainRunJournals(join(dirname(database), 'tool-logs', tool, 'writes.log'))
+        }
+      }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
     }
-    maintain()
-    const retention = setInterval(maintain, 24 * 60 * 60 * 1000)
+    await maintain()
+    const retention = setInterval(() => { void maintain() }, 24 * 60 * 60 * 1000)
     retention.unref()
     app.addHook('onClose', async () => { clearInterval(retention); connection.close(); release() })
     await app.listen({ host: serverDefaults.host, port: serverDefaults.port })
