@@ -12,7 +12,7 @@ export const azureCredentialSchema = z.discriminatedUnion('auth', [
 ])
 export type AzureCredential = z.infer<typeof azureCredentialSchema>
 
-// az-axi 0.1.6 dist/lib/auth.js RESOURCE_URL. Live scope acceptance remains pending.
+// az-axi 0.1.7 dist/lib/auth.js RESOURCE_URL. F4 live scope acceptance is recorded in docs/evidence-ledger.md.
 export const azureAudiences = Object.freeze({
   arm: 'https://management.azure.com/',
   logs: 'https://api.loganalytics.io',

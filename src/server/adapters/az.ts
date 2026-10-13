@@ -199,7 +199,8 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
           ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [holders[resource], token!.accessToken])) },
         files: [{ name: 'az-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
-          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId, tokenEnv: holders },
+          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId,
+            ...Object.fromEntries(Object.keys(tokens).map(resource => [`${resource}Token`, { env: holders[resource] }])) },
         } }) }],
       }
       return {
