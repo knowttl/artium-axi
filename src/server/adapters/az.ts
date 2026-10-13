@@ -120,6 +120,7 @@ function azWrite(route: typeof inventory.commands[number], flags: Record<string,
     if (method === 'POST') url.pathname = url.pathname.replace(/\/[^/]+\/?$/, '')
     const checkArgs = ['api', 'GET', target.startsWith('/') ? url.pathname + url.search : url.toString()]
     for (const name of ['api-version', 'query']) if (flags[name]) checkArgs.push(`--${name}`, flags[name])
+    checkArgs.push('--full')
     return { operation: method, target: JSON.stringify(target), checkArgs }
   }
   if (!['write', 'destructive'].includes(route.effect)) return
@@ -128,7 +129,7 @@ function azWrite(route: typeof inventory.commands[number], flags: Record<string,
   if (route.handlerCommand === 'tag update') {
     const target = (flags['resource-id'] ?? '').replace(/\/+$/, '')
     return { operation: route.handlerCommand, target: JSON.stringify(target),
-      checkArgs: ['api', 'GET', `${target}/providers/Microsoft.Resources/tags/default`, '--api-version', '2021-04-01'] }
+      checkArgs: ['api', 'GET', `${target}/providers/Microsoft.Resources/tags/default`, '--api-version', '2021-04-01', '--full'] }
   }
   if (route.handlerCommand === 'security alert update') {
     const group = flags['resource-group'] === undefined ? '' : `/resourceGroups/${encodeURIComponent(flags['resource-group'])}`

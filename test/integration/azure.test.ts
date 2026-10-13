@@ -9,7 +9,8 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { errorResponseSchema, runSuccessSchema } from '../../src/shared/api.js'
-import { decode } from '@toon-format/toon'
+import { decode, encode } from '@toon-format/toon'
+import { rewriteSuggestions } from '../../src/cli/rewrite.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
@@ -28,10 +29,10 @@ function hostedArgs(command: string): string[] {
 }
 
 async function withAzureGateway(check: (fixture: {
-  run: (args: string[]) => Promise<{ statusCode: number, json(): unknown }>
+  run: (args: string[], input?: { stdin: string }) => Promise<{ statusCode: number, json(): unknown }>
   send: (path: string) => Promise<string>
   db: ReturnType<typeof openStore>
-}) => Promise<void>) {
+}) => Promise<void>, upstreamTimeout = false) {
   await withFakeService(async ({ directory, port, send }) => {
     const db = openStore(join(directory, 'artium.db'),
       new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
@@ -48,6 +49,7 @@ async function withAzureGateway(check: (fixture: {
           fileURLToPath(new URL('../../tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', import.meta.url)), ...call.args],
         fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 1500 },
         environment: { ...call.environment, NODE_EXTRA_CA_CERTS: join(directory, 'ca.crt'),
+          ARTIUM_TEST_AZURE_OUTCOME: upstreamTimeout ? '504' : 'hold',
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
     } }
     const app = createApp({ db, audit: new Audit(db), runner, adapters: [hosted],
@@ -56,8 +58,8 @@ async function withAzureGateway(check: (fixture: {
       await seedToolUser(db)
       db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
       const token = issueTestAccessToken(db, 'synthetic-development-user')
-      await check({ db, send, run: async args => app.inject({ method: 'POST', url: '/v1/tools/az-axi/run',
-        headers: { authorization: `Bearer ${token}` }, payload: { args } }) })
+      await check({ db, send, run: async (args, input) => app.inject({ method: 'POST', url: '/v1/tools/az-axi/run',
+        headers: { authorization: `Bearer ${token}` }, payload: { args, ...input } }) })
     } finally {
       await app.close()
       db.close()
@@ -69,7 +71,7 @@ test.each([
   { name: 'API PATCH', args: ['api', 'PATCH', apiTarget, '--api-version', '2022-12-01', '--body', '{"tags":{"synthetic":"yes"}}', '--execute'],
     code: 'UNKNOWN_OUTCOME', path: apiTarget, mutations: 1, method: 'PATCH', operation: 'PATCH',
     guidance: `Check current state before trying again: artium-axi az-axi api GET ${apiTarget}`,
-    check: ['api', 'GET', apiTarget, '--api-version', '2022-12-01'] },
+    check: ['api', 'GET', apiTarget, '--api-version', '2022-12-01', '--full'] },
   { name: 'native tag PATCH', args: ['tag', 'update', '--subscription', subscription, '--resource-id', nativeTarget,
     '--operation', 'merge', '--tags', 'synthetic=yes', '--execute'],
     code: 'UNKNOWN_OUTCOME', path: `${nativeTarget}/providers/Microsoft.Resources/tags/default`, mutations: 1, method: 'PATCH', operation: 'tag update',
@@ -167,7 +169,7 @@ test.each([
   { selectors: ['--ids', incidentTarget], owner: 'Synthetic Analyst', expectedOwner: { assignedTo: 'Synthetic Analyst' } },
 ])('incident recovery exposes every changed field for $selectors and $owner', async ({ selectors, owner, expectedOwner }) => {
   await withAzureGateway(async ({ run, send }) => {
-    const comment = 'synthetic classification '.repeat(160) + 'synthetic tail'
+    const comment = 'synthetic classification '.repeat(200) + 'synthetic tail'
     const response = await run(['sentinel', 'incident', 'update', '-s', subscription, ...selectors,
       '--status', 'Closed', '--severity', 'High', '--classification', 'TruePositive',
       '--classification-reason', 'SuspiciousActivity', '--classification-comment', comment, '--owner', owner, '--execute'])
@@ -247,4 +249,53 @@ test.each([[[]], [['home']]])('dashboard %j performs authenticated ARM reads', a
       ]))
     } finally { await runner.shutdown() }
   })
+})
+
+test('API runner timeout recovery exposes the complete long changed value', async () => {
+  await withAzureGateway(async ({ run, send }) => {
+    const value = 'synthetic classification '.repeat(200)
+    const response = await run(['api', 'PUT', incidentTarget, '--api-version', '2025-09-01', '--execute'],
+      { stdin: JSON.stringify({ properties: { classificationComment: value } }) })
+    expect(response.statusCode).toBe(504)
+    const error = errorResponseSchema.parse(response.json()).error
+    expect(error.code).toBe('UNKNOWN_OUTCOME')
+    const recovered = await run(hostedArgs(error.next.split('Check current state before trying again: ')[1]))
+    expect(recovered.statusCode).toBe(200)
+    const result = runSuccessSchema.parse(recovered.json())
+    expect(result.exitCode).toBe(0)
+    expect(decode(result.stdout)).toMatchObject({ properties: { classificationComment: value } })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+})
+
+test.each(['json', 'toon'].flatMap(format => [
+  { format, name: 'incident update', command: ['sentinel', 'incident', 'update', '-s', subscription, '--ids', incidentTarget,
+    '--classification', 'TruePositive', '--classification-reason', 'SuspiciousActivity', '--classification-comment'], field: 'classificationComment' },
+  { format, name: 'comment creation', command: ['sentinel', 'incident', 'comment', 'create', '-s', subscription, '--ids', incidentTarget,
+    '--message'], field: 'message' },
+]))('$name upstream timeout recovery exposes the complete value through $format', async ({ format, command, field }) => {
+  await withAzureGateway(async ({ run, send }) => {
+    const value = 'synthetic long changed value '.repeat(200) + 'synthetic tail'
+    const response = await run([...command, value, '--execute'])
+    expect(response.statusCode).toBe(200)
+    const failed = runSuccessSchema.parse(response.json())
+    expect(failed.exitCode).toBe(1)
+    const upstream = decode(failed.stdout) as { code: string, help: string[] }
+    expect(upstream.code).toBe('UNKNOWN_OUTCOME')
+    const serialized = format === 'json' ? JSON.stringify(upstream) : encode(upstream)
+    const output = rewriteSuggestions(serialized, 'az-axi')
+    const hosted = (format === 'json' ? JSON.parse(output) : decode(output)) as typeof upstream
+    const suggestions = hosted.help.filter(line => /^(?:Check current state before trying again:|Verify with) /.test(line))
+    expect(suggestions).toHaveLength(2)
+    for (const suggestion of suggestions) {
+      const emitted = suggestion.slice(suggestion.indexOf('`') + 1, -1)
+      const recovered = await run(hostedArgs(emitted))
+      expect(recovered.statusCode).toBe(200)
+      const result = runSuccessSchema.parse(recovered.json())
+      expect(result.exitCode).toBe(0)
+      expect(decode(result.stdout)).toMatchObject({ properties: { [field]: value } })
+    }
+    expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  }, true)
 })

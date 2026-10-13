@@ -128,7 +128,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       req.on('data', chunk => { body += chunk })
       req.on('end', () => {
         mutations++
-        resources.set(url.pathname, { id: url.pathname, ...JSON.parse(body) })
+        recorded.body = JSON.parse(body)
+        resources.set(url.pathname, { id: url.pathname, ...recorded.body })
+        if (req.headers['x-artium-test-outcome'] === '504') {
+          res.writeHead(504)
+          res.end(JSON.stringify({ error: { code: 'GatewayTimeout' } }))
+        }
       })
     } else if (url.pathname.endsWith('/comments')) {
       res.end(JSON.stringify({ value: [...resources.values()].filter(resource => resource.id.startsWith(url.pathname + '/')) }))

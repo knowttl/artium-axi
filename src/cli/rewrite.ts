@@ -8,7 +8,14 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (truncated) return output
   if (tool === 'az-axi' && /^(?:Command: )?(?:artium-axi )?az-axi(?:\s|$)/.test(output)) return azureHelp(output)
   let spans: Span[]
-  try { spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output) }
+  let unknownOutcome = false
+  try {
+    spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    if (tool === 'az-axi') {
+      const parsed = (output.trimStart().startsWith('{') ? JSON.parse(output) : decode(output)) as { code?: unknown, error?: { code?: unknown } }
+      unknownOutcome = parsed?.code === 'UNKNOWN_OUTCOME' || parsed?.error?.code === 'UNKNOWN_OUTCOME'
+    }
+  }
   catch { return output }
   if (tool === 'az-axi') {
     for (const span of [...spans].reverse()) {
@@ -19,7 +26,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
   }
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
-  const insertions = new Set<number>()
+  const insertions = new Map<number, string>()
   const removals = new Map<number, number>()
   for (const span of spans) {
     const offsets: number[] = []
@@ -30,10 +37,14 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     offsets.push(rawIndex)
     function commandEdit(start: number, end: number, wrapped: boolean): void {
-      if (!wrapped) insertions.add(span.start + offsets[start])
+      if (!wrapped) insertions.set(span.start + offsets[start], 'artium-axi ')
       if (tool !== 'az-axi') return
       const command = span.value.slice(start, end)
       const tokens = [...command.matchAll(/(?:[^\s'"]+|'[^']*'|"(?:\\.|[^"\\])*")+/g)]
+      if (unknownOutcome && /(?:Check current state before trying again:|Verify with)\s+[`'"]?$/.test(span.value.slice(0, start)) &&
+        /^(?:artium-axi )?az-axi api GET\s/.test(command) && !tokens.some(token => /^--full(?:=|$)/.test(token[0]))) {
+        insertions.set(span.start + offsets[end], ' --full')
+      }
       for (let index = 1; index < tokens.length; index++) {
         const token = tokens[index]
         if (token[0] === '--') break
@@ -74,8 +85,8 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       }
     }
   }
-  for (const offset of [...new Set([...insertions, ...removals.keys()])].sort((a, b) => b - a)) {
-    output = output.slice(0, offset) + (insertions.has(offset) ? 'artium-axi ' : '') + output.slice(removals.get(offset) ?? offset)
+  for (const offset of [...new Set([...insertions.keys(), ...removals.keys()])].sort((a, b) => b - a)) {
+    output = output.slice(0, offset) + (insertions.get(offset) ?? '') + output.slice(removals.get(offset) ?? offset)
   }
   return output
 }
