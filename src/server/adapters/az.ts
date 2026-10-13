@@ -123,13 +123,20 @@ function azWrite(route: typeof inventory.commands[number], flags: Record<string,
     return { operation: method, target: JSON.stringify(target), checkArgs }
   }
   if (!['write', 'destructive'].includes(route.effect)) return
+  flags = Object.fromEntries(Object.entries(flags).map(([name, value]) => [name, value.trim()]))
+  flags.subscription = (flags.subscription ?? '').split(',').map(value => value.trim()).filter(Boolean).join(',')
   if (route.handlerCommand === 'tag update') {
-    const target = flags['resource-id'] ?? ''
+    const target = (flags['resource-id'] ?? '').replace(/\/+$/, '')
     return { operation: route.handlerCommand, target: JSON.stringify(target),
-      checkArgs: ['api', 'GET', `${target.replace(/\/$/, '')}/providers/Microsoft.Resources/tags/default`, '--api-version', '2021-04-01'] }
+      checkArgs: ['api', 'GET', `${target}/providers/Microsoft.Resources/tags/default`, '--api-version', '2021-04-01'] }
+  }
+  if (route.handlerCommand === 'security alert update') {
+    const group = flags['resource-group'] === undefined ? '' : `/resourceGroups/${encodeURIComponent(flags['resource-group'])}`
+    const target = `/subscriptions/${flags.subscription}${group}/providers/Microsoft.Security/locations/${encodeURIComponent(flags.location)}/alerts/${encodeURIComponent(flags.name)}`
+    return { operation: route.handlerCommand, target: JSON.stringify(target),
+      checkArgs: ['api', 'GET', target, '--api-version', '2022-01-01', '--full'] }
   }
   const reads: Record<string, { command: string[], selectors: string[] }> = {
-    'security alert update': { command: ['security', 'alert', 'list'], selectors: ['subscription'] },
     'sentinel incident update': { command: ['sentinel', 'incident', 'show'], selectors: ['subscription', 'resource-group', 'workspace-name', 'workspace', 'name', 'incident-id', 'ids'] },
     'sentinel incident comment create': { command: ['sentinel', 'incident', 'show'], selectors: ['subscription', 'resource-group', 'workspace-name', 'workspace', 'incident-id', 'ids'] },
     'network nsg rule create': { command: ['network', 'nsg', 'show'], selectors: ['subscription', 'resource-group', 'ids'] },
@@ -142,7 +149,10 @@ function azWrite(route: typeof inventory.commands[number], flags: Record<string,
   checkArgs.push('--full')
   const target = Object.fromEntries(['subscription', 'resource-group', 'workspace-name', 'workspace', 'name', 'incident-id', 'ids', 'nsg-name', 'location']
     .filter(name => flags[name] !== undefined).map(name => [name, flags[name]]))
-  return { operation: route.handlerCommand, target: JSON.stringify(target), checkArgs }
+  return { operation: route.handlerCommand, target: JSON.stringify(target), checkArgs,
+    ...(route.handlerCommand === 'sentinel incident comment create' ? {
+      afterCheck: "Use the returned incident id as <incident-ARM-id>, then inspect the comments before retrying: artium-axi az-axi api GET '<incident-ARM-id>/comments' --api-version 2025-09-01 --all --full",
+    } : {}) }
 }
 
 export function createAzAdapter(source: SecretSource, writeLog: string, cache = new AzureTokenCache(),

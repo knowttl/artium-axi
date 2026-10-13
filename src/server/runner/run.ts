@@ -55,7 +55,7 @@ export async function runTool<Credential>(
       const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
         /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
       error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
-        `The operation may have changed state and was not retried. Check current state before trying again: ${command}`)
+        `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`)
     }
     audit.record({ ...identity, event: 'run-terminal',
       outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
