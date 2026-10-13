@@ -1,8 +1,7 @@
 # Build and live evidence ledger
 
 Local implementation and pinned-upstream fake-service evidence are independent of captain live acceptance.
-Current published npm pins are `@knowttl/mg-axi` 0.1.7 and `@knowttl/az-axi` 0.1.8, with registry artifact integrity and regenerated inventories.
-The re-pin carries upstream live-test fixes; it makes no new live acceptance claim.
+See [Graph and Azure re-pin verification](verification-mg-az-repin.md) for artifact and local evidence; current pins belong to [tools/package.json](../tools/package.json).
 Each completed slice records its exact commit, commands, result and evidence path in the relevant cells.
 `pending` means the build evidence has not been collected.
 `unverified` means no live acceptance is claimed.

@@ -1,7 +1,7 @@
 # Published Graph and Azure re-pin
 
 The previous Graph and Azure pins omit the upstream live-test repairs.
-Use the published `@knowttl/mg-axi` 0.1.7 and `@knowttl/az-axi` 0.1.8 artifacts so packaged Artium users receive those repairs.
+The published Graph and Azure artifacts in [tools/package.json](../tools/package.json) carry those repairs to packaged Artium users.
 This change updates package pins, registry integrity, the tools lockfile, generated inventories and schema, current version documentation and existing version expectations.
 
 ## Verification plan
@@ -19,7 +19,7 @@ Do not deploy, contact live services or alter the running live-test stack.
 ## Artifact evidence
 
 Both registry tarballs matched their npm registry SHA-512 values and the committed integrity pins.
-Generated inventories contain 124 Azure commands and 279 Graph commands.
+The generated [Azure](../tools/inventories/az-axi.json) and [Graph](../tools/inventories/mg-axi.json) inventories own the pinned command boundaries.
 These checks make no new live acceptance claim.
 
 ## Local results before handoff
