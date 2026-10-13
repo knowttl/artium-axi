@@ -6,9 +6,18 @@ type Span = { start: number, raw: string, value: string, quoted: boolean }
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
+  if (tool === 'az-axi' && /^(?:Command: )?(?:artium-axi )?az-axi(?:\s|$)/.test(output)) return azureHelp(output)
   let spans: Span[]
   try { spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output) }
   catch { return output }
+  if (tool === 'az-axi') {
+    for (const span of [...spans].reverse()) {
+      const value = azureHelp(span.value)
+      if (value === span.value) continue
+      output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    }
+    spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+  }
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Set<number>()
   const removals = new Map<number, number>()
@@ -69,6 +78,16 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     output = output.slice(0, offset) + (insertions.has(offset) ? 'artium-axi ' : '') + output.slice(removals.get(offset) ?? offset)
   }
   return output
+}
+
+function azureHelp(help: string): string {
+  const selectors = az.adapterBoundary.unsafeOverrides.join('|')
+  return help.replace(/^((?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
+    (_, label: string, flags: string) => {
+      const retained = flags.split(', ').filter(flag => !az.adapterBoundary.unsafeOverrides.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
+      return label + retained + (flags.endsWith('.') && !retained.endsWith('.') ? '.' : '')
+    }).replace(/^(?:(?:artium-axi )?az-axi\b|Examples:)[^\r\n]*/gm, line => line.replace(
+      new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]|\\s+--(?:${selectors})\\s+(?:<[^>]+>|'[^']*'|"(?:\\\\.|[^"\\\\])*"|[^\\s;'\"]+)`, 'g'), ''))
 }
 
 function jsonHelp(output: string): Span[] {

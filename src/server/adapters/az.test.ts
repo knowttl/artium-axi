@@ -1,4 +1,5 @@
 import { generateKeyPairSync } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import { expect, test, vi } from 'vitest'
 import { FakeTokenTransport, azureTestTenant, azureTestToken } from '../../../test/fixtures/azure-token-transport.js'
 import { SecretScanner } from '../runner/scan.js'
@@ -27,6 +28,38 @@ test('hosted discovery advertises only flags accepted by the managed adapter', (
   for (const flag of flags) {
     adapter.validateArgs(['sub', 'list', flag, ...(['--help', '--full'].includes(flag) ? [] : ['1'])])
   }
+})
+
+test.each([
+  [], ['sub', 'list'], ['account', 'list'], ['doctor'], ['auth', 'status'],
+  ['storage', 'blob', 'list'], ['keyvault', 'secret', 'list'], ['acr', 'repository', 'list'],
+  ['monitor', 'metrics', 'list'], ['vm', 'list'], ['network', 'nsg', 'list'],
+  ['policy', 'assignment', 'list'], ['role', 'definition', 'list'], ['security', 'pricing', 'list'],
+].map(args => [args]))('forwarded Azure help omits managed selectors: %j', args => {
+  const upstream = spawnSync(process.execPath, ['tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', ...args, '--help'],
+    { encoding: 'utf8' })
+  expect(upstream.status).toBe(0)
+  const hosted = rewriteSuggestions(upstream.stdout, 'az-axi')
+  expect(hosted).not.toMatch(/--(?:config|profile|tenant)\b/)
+  expect(hosted).toContain('--full')
+  expect(hosted).toContain('--subscription')
+  expect(rewriteSuggestions(hosted, 'az-axi')).toBe(hosted)
+})
+
+test.each(['json', 'toon'])('Azure %s invalid-input help filters declarations without changing data', format => {
+  const upstream = spawnSync(process.execPath, ['tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', 'sub', 'list', '--invalid'],
+    { encoding: 'utf8' })
+  expect(upstream.status).toBe(2)
+  const error = decode(upstream.stdout) as { code: string, help: string[] }
+  const value = { ...error, data: { help: 'Flags: --config, --profile, --tenant', name: '--profile' } }
+  const input = format === 'json' ? JSON.stringify(value) : encode(value)
+  const output = rewriteSuggestions(input, 'az-axi')
+  const parsed = (format === 'json' ? JSON.parse(output) : decode(output)) as typeof value
+  expect(parsed.code).toBe('UNKNOWN_FLAG')
+  expect(parsed.help.join('\n')).not.toMatch(/--(?:config|profile|tenant)\b/)
+  expect(parsed.help.join('\n')).toContain('--subscription')
+  expect(parsed.data).toEqual(value.data)
+  expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
 })
 
 test.each(['json', 'toon'].flatMap(format => ['Run', 'Check current state before trying again:'].flatMap(prose =>
