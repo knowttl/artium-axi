@@ -69,6 +69,7 @@ test('scheduled checks never overlap a pending check and manual tests share that
   expect(db.prepare("SELECT action, checked_at, credential_revision FROM audit WHERE event = 'health-check'").get())
     .toEqual({ action: healthDefaults.actor, checked_at: expect.any(Number), credential_revision: 1 })
   expect(run.mock.calls[0][0]).toBe(`${healthDefaults.actor}:falcon-axi`)
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
 })
 
 test('each enabled configured tool is checked every fifteen minutes and stopping cancels the schedule', async () => {
@@ -100,6 +101,7 @@ test.each(['disabled', 'unconfigured'] as const)('scheduled checks skip %s tools
 test('listing reads a failed stored check without preparing or running a platform call', async () => {
   const run = vi.spyOn(runner, 'run').mockResolvedValue({ ...result, exitCode: 1 })
   await health.refresh('falcon-axi')
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
   run.mockClear()
   const prepare = vi.spyOn(adapter, 'prepare')
   const response = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${token}` } })
@@ -124,6 +126,8 @@ test('replacement during a check queues one fresh check and never caches the old
   release(result)
   await pending
   await health.stop()
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' AND request_id = 'manual'").get())
+    .toEqual({ action: 'read' })
   expect(run).toHaveBeenCalledTimes(2)
   expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
 })

@@ -1,15 +1,21 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import falconInventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import type { ToolName } from '../store/credential-store.js'
 
 export type RunAction = 'read' | 'write' | 'unknown'
 
 // These pinned tools journal mutations after their native write gates.
-// Falcon has no verified journal contract and must remain unknown.
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
 
-export async function prepareRunJournal(environment: Record<string, string>) {
+export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName) {
   const variable = journalVariables.find(name => environment[name])
-  if (!variable) return { environment, action: async (): Promise<RunAction> => 'unknown' }
+  if (!variable) {
+    if (tool === 'falcon-axi' && falconInventory.requirements.nativeWrites === 'read-only upstream design') {
+      return { environment, action: async (): Promise<RunAction> => 'read' }
+    }
+    throw new TypeError('Missing native write journal contract')
+  }
   const root = `${environment[variable]}.runs`
   await mkdir(root, { recursive: true, mode: 0o700 })
   // Keep the native evidence durable and isolate concurrent runs, including health reads.

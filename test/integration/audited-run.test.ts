@@ -85,7 +85,7 @@ test('a run persists a start before secret retrieval and a paired terminal befor
   const records = db.prepare('SELECT * FROM audit ORDER BY id').all() as AuditRecord[]
   expect(records).toEqual([
     expect.objectContaining({ event: 'run-start', user_id: 'synthetic-user', tool: 'falcon-axi', request_id: context.requestId, outcome: 'started', client_address: context.clientAddress }),
-    expect.objectContaining({ event: 'run-terminal', request_id: context.requestId, outcome: 'completed', exit_code: 7, stdout_bytes: result.outputBytes.stdout, stderr_bytes: result.outputBytes.stderr }),
+    expect.objectContaining({ event: 'run-terminal', request_id: context.requestId, action: 'read', outcome: 'completed', exit_code: 7, stdout_bytes: result.outputBytes.stdout, stderr_bytes: result.outputBytes.stderr }),
   ])
   expect(lines.map(line => JSON.parse(line))).toEqual(records)
   expect(lines.join('')).not.toMatch(/CANARY-body|CANARY-file|CANARY-secret|CANARY-client/)
@@ -97,7 +97,7 @@ test.each([
   ['MG_AXI_WRITE_LOG', 'write', 'write', 'read'],
   ['VECTRA_AXI_WRITE_LOG', 'write', 'write', 'read'],
   ['VECTRA_AXI_WRITE_LOG', 'read', 'read', 'read'],
-  ['FALCON_AXI_WRITE_LOG', 'read', 'unknown', 'unknown'],
+  ['FALCON_AXI_WRITE_LOG', 'read', 'read', 'read'],
 ])('run action follows its own %s journal for %s activity', async (variable, activity, action, readAction) => {
   const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
     const prepared = await adapter.prepare(...input)

@@ -239,7 +239,8 @@ There is no audit mutation or deletion route.
 Successful browser and bearer-token password confirmations emit `reauth` events.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains records for that run, or `read` when a supported journal has none.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
-Unsupported journals, unreadable evidence and recovered interrupted runs report `unknown`; pinned Falcon has no verified journal and reports `unknown`.
+Pinned Falcon runs report `read` from the inventory's read-only declaration, including normal runs and health checks.
+Unreadable evidence and recovered interrupted runs report `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 
 ## Configuration
