@@ -41,7 +41,7 @@ Existing tests cover upstream nonzero exits, separate streams, truncation diagno
 Pinned Falcon and Vectra run against isolated fake HTTPS services.
 Their bare home, upstream help, command help and manifest example reads are compared with local pinned output through the adapter boundary.
 The Vectra home comparison validates each generated profile location and normalizes that call-specific temporary path.
-S44 adds suggestion-prefix normalization to the pinned output comparisons; [S44 verification](verification-s44.md) owns that evidence.
+[S44 verification](verification-s44.md) owns the hosted-help normalization evidence for the pinned output comparisons.
 The existing read, pagination, empty output, upstream usage-error, native write-gate and redaction checks remain in the container block.
 
 Final validation results are bound to the implementation and published head in the PR body.

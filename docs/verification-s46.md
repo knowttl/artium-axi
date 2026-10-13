@@ -18,7 +18,7 @@ The ten script-visible checks are:
 
 | Principle | Executed check |
 | --- | --- |
-| 1. Token-efficient output | Strict decoding with the pinned TOON decoder, plus upstream stdout preservation except the documented suggestion prefix |
+| 1. Token-efficient output | Strict decoding with the pinned TOON decoder, plus upstream stdout checks under the [README output contract](../README.md#toon-output-behavior) |
 | 2. Minimal default schemas | Three-field tools rows and a separate command/detail/help view |
 | 3. Content truncation | `--full` reaches the adapter unchanged; both actual runner streams exceed 4 MiB and expose their truncation diagnostic |
 | 4. Pre-computed aggregates | Counted home/tools arrays and all doctor pass lines through real HTTPS |

@@ -177,8 +177,9 @@ Tool listings include their count in the array header; an empty list returns `to
 Details read bundled manifests and stored health without fetching credentials or executing upstream help.
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
-Recognized TOON or JSON root `help` suggestions are prefixed with `artium-axi` for the invoked tool; unrelated content, unknown formats and truncated streams remain unchanged.
-Azure plain leaf help and embedded help also use hosted command examples and omit server-owned config, profile and tenant selectors.
+For Falcon, Vectra, Azure and Graph, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
+Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
 See the [generated error reference](docs/errors.md) for codes, HTTP status, CLI exit status and recovery steps.

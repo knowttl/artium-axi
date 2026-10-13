@@ -22,10 +22,11 @@ const execute = async (bin, args, env = {}, input) => {
 }
 const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
   XDG_CONFIG_HOME: join(directory, 'config') }
-// Parity permits the wrapper prefix and removal of the hosted region in root suggestions.
+// Parity permits the wrapper prefix and removal of managed flags from upstream help.
 const upstreamSuggestions = (text, removeRegion = false) => {
   if (/^(?:artium-axi )?(?:falcon|vectra)-axi(?:\s|$)/.test(text)) {
-    return text.replace(/^([ \t]*)artium-axi ((?:falcon|vectra)-axi)/gm, '$1$2')
+    const unwrapped = text.replace(/^([ \t]*)artium-axi ((?:falcon|vectra)-axi)/gm, '$1$2')
+    return removeRegion ? unwrapped.replace(/^  --help, --region <name\|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid$/gm, '  --help') : unwrapped
   }
   let help = false
   return text.split('\n').map(line => {
