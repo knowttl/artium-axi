@@ -7,7 +7,7 @@ export type RunAction = 'read' | 'write' | 'unknown'
 // Falcon has no verified journal contract and must remain unknown.
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
 
-export async function prepareRunJournal(environment: Record<string, string>) {
+export async function prepareRunJournal(environment: Record<string, string>, writeCandidate: boolean) {
   const variable = journalVariables.find(name => environment[name])
   if (!variable) return { environment, action: async (): Promise<RunAction> => 'unknown' }
   const root = `${environment[variable]}.runs`
@@ -15,15 +15,16 @@ export async function prepareRunJournal(environment: Record<string, string>) {
   // Keep the native evidence durable and isolate concurrent runs, including health reads.
   const directory = await mkdtemp(join(root, 'run-'))
   const path = join(directory, 'writes.log')
-  return { environment: { ...environment, [variable]: path }, async action(): Promise<RunAction> {
+  return { environment: { ...environment, [variable]: path }, async action(succeeded: boolean): Promise<RunAction> {
+    const absent = succeeded && !writeCandidate ? 'read' : 'unknown'
     try {
       const content = await readFile(path, 'utf8')
-      if (!content.trim()) return 'read'
+      if (!content.trim()) return absent
       if (!content.endsWith('\n')) return 'unknown'
       const records = content.trim().split('\n').map(line => JSON.parse(line))
       return records.every(record => record && typeof record === 'object' && !Array.isArray(record)) ? 'write' : 'unknown'
     } catch (error) {
-      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'read' : 'unknown'
+      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? absent : 'unknown'
     }
   } }
 }

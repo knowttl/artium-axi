@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from 'vitest'
@@ -52,6 +52,8 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
         return reply.json() as { stdout: string, stderr: string, exitCode: number }
       }
       const evidence = async () => JSON.parse(await send('/__evidence')) as { mutations: number, requests: { method: string, path: string }[] }
+      const journals = () => readdirSync(`${writeLog}.runs`).map(name => join(`${writeLog}.runs`, name, 'writes.log')).filter(existsSync)
+      const journalRecords = () => journals().flatMap(path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line)))
       const args = ['detection', 'tag', 'set', '--id', '42', '--tags', 'synthetic']
       const local = join(directory, 'local')
       mkdirSync(local, { mode: 0o700 })
@@ -80,10 +82,15 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
       expect(written.stdout).toContain('audit:')
       expect((await evidence()).mutations).toBe(1)
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
-      const records = readFileSync(writeLog, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+      const records = journals().map(path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line)))
+        .find(records => records.some(record => record.outcome === 'SUCCESS'))!
       expect(records.map(record => record.kind)).toEqual(['intent', 'outcome'])
       expect(records[1]).toMatchObject({ outcome: 'SUCCESS', operation: 'qux.detection.tag.set' })
-      expect(statSync(writeLog).mode & 0o777).toBe(0o600)
+      for (const path of journals()) {
+        expect(statSync(path).mode & 0o777).toBe(0o600)
+        expect(statSync(join(path, '..')).mode & 0o777).toBe(0o700)
+      }
+      expect(statSync(`${writeLog}.runs`).mode & 0o777).toBe(0o700)
       expect(statSync(join(directory, 'tool-logs', 'vectra-axi')).mode & 0o777).toBe(0o700)
       expect(db.prepare("SELECT user_id, tool, outcome FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
         .toEqual({ user_id: 'synthetic-development-user', tool: 'vectra-axi', outcome: 'completed' })
@@ -102,8 +109,7 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
       expect(lostResponse.exitCode).not.toBe(0)
       expect(lostResponse.stdout).toContain('may or may not have been applied')
       expect((await evidence()).mutations).toBe(before + 2)
-      const journal = readFileSync(writeLog, 'utf8').trim().split('\n').map(line => JSON.parse(line))
-      expect(journal.at(-1)).toMatchObject({ outcome: 'OUTCOME_UNKNOWN', httpStatus: 0 })
+      expect(journalRecords()).toContainEqual(expect.objectContaining({ outcome: 'OUTCOME_UNKNOWN', httpStatus: 0 }))
     } finally { await app.close(); db.close() }
   })
 }, 30_000)

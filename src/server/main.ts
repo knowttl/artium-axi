@@ -44,13 +44,14 @@ async function main() {
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log')),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log'))] })
     const maintain = async () => {
-      try {
-        audit.maintain(); retainNativeWriteLog(writeLog)
-        for (const tool of ['az-axi', 'mg-axi', 'vectra-axi']) {
-          await retainRunJournals(join(dirname(database), 'tool-logs', tool, 'writes.log'))
-        }
-      }
+      try { audit.maintain() }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+      try { retainNativeWriteLog(writeLog) }
+      catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+      for (const tool of ['az-axi', 'mg-axi', 'vectra-axi']) {
+        try { await retainRunJournals(join(dirname(database), 'tool-logs', tool, 'writes.log')) }
+        catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+      }
     }
     await maintain()
     const retention = setInterval(() => { void maintain() }, 24 * 60 * 60 * 1000)

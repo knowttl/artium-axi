@@ -83,7 +83,7 @@ export class ToolHealth {
         checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
       try {
         const prepared = await adapter.prepare(args, reference)
-        journal = await prepareRunJournal(prepared.environment)
+        journal = await prepareRunJournal(prepared.environment, false)
         // Per-tool accounting leaves background reads governed by the global slots.
         const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
           prepared.limits, {}, prepared.files, () => {
@@ -106,7 +106,7 @@ export class ToolHealth {
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
-      audit.record({ ...context, event: 'run-terminal', action: await journal?.action() ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })
+      audit.record({ ...context, event: 'run-terminal', action: await journal?.action(!failure) ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })
       audit.change({ ...context, event: background ? 'health-check' : 'credential-test', action: background ? healthDefaults.actor : undefined, outcome: failure?.code ?? 'success', ...evidence }, () => {
         if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
           'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')

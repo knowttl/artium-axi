@@ -92,7 +92,8 @@ test.each([
       expect(evidence.mutations).toBe(mutations)
       expect(evidence.requests.filter((request: { path: string, method: string }) => request.path === path &&
         request.method === method)).toHaveLength(1)
-      expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: code })
+      expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
+        .toEqual({ outcome: code, action: 'unknown' })
       const recovered = await run(check)
       expect(recovered.statusCode).toBe(200)
       expect(runSuccessSchema.parse(recovered.json()).exitCode).toBe(0)

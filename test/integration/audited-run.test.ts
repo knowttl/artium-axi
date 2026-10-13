@@ -219,6 +219,29 @@ test('a classified write ending on a signal records an unknown outcome', async (
   expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'write' })
 })
 
+describe.each(['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG'])('%s missing evidence', variable => {
+  const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    const prepared = await adapter.prepare(...input)
+    return { ...prepared, args: [...fakeTool.args, 'native-journal', ...input[0]],
+      environment: { ...prepared.environment, [variable]: join(directory, 'writes.log') } }
+  } }
+  test.each([
+    { activity: 'missing', flags: ['--execute'], exitCode: 0, action: 'unknown' },
+    { activity: 'empty', flags: ['--execute'], exitCode: 0, action: 'unknown' },
+    { activity: 'failed', flags: [], exitCode: 1, action: 'unknown' },
+    { activity: 'read', flags: [], exitCode: 0, action: 'read' },
+  ])('$activity with $flags records $action', async ({ activity, flags, exitCode, action }) => {
+    await expect(runTool(db, audit, runner, token, { args: [activity, ...flags] }, execution, resolver, context))
+      .resolves.toMatchObject({ exitCode })
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action })
+  })
+  test('termination before journal append cannot establish a read', async () => {
+    await expect(runTool(db, audit, runner, token, { args: ['signal-before-journal', '--execute'] }, execution, resolver, context))
+      .rejects.toMatchObject({ code: 'PROCESS_SIGNAL' })
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'unknown' })
+  })
+})
+
 test('a classified write cancelled before execution retains cancellation', async () => {
   const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
     return { ...await adapter.prepare(...input), write: { operation: 'synthetic-write', target: 'synthetic-target',

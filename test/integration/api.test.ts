@@ -1,6 +1,6 @@
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
@@ -723,6 +723,15 @@ test('the real server remains available after startup encounters a damaged nativ
   writeFileSync(journal, damaged, { mode: 0o600 })
   writeFileSync(`${journal}.lock`, '')
   writeFileSync(`${journal}.retention`, 'interrupted compaction')
+  const expiredJournals = ['mg-axi', 'vectra-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log.runs', 'run-expired'))
+  for (const path of expiredJournals) {
+    mkdirSync(path, { recursive: true })
+    writeFileSync(join(path, 'writes.log'), '{}\n')
+    utimesSync(path, new Date(0), new Date(0))
+  }
+  const failedRetention = join(directory, 'data', 'tool-logs', 'az-axi', 'writes.log.runs')
+  mkdirSync(join(failedRetention, '..'), { recursive: true })
+  writeFileSync(failedRetention, 'not a directory')
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
   cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
   await build({ stdin: { contents: `
@@ -749,6 +758,8 @@ test('the real server remains available after startup encounters a damaged nativ
     const health = await fetch(`${origin}/health/ready`)
     expect(health.status).toBe(200)
     expect(await health.json()).toEqual({ status: 'ok' })
+    expect(expiredJournals.map(existsSync)).toEqual([false, false])
+    expect(readFileSync(failedRetention, 'utf8')).toBe('not a directory')
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
     expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured' })

@@ -48,7 +48,7 @@ export async function runTool<Credential>(
     const reference = await resolver.resolve(userId, adapter.name)
     const prepared = await adapter.prepare(args, reference, input)
     write = prepared.write
-    journal = await prepareRunJournal(prepared.environment)
+    journal = await prepareRunJournal(prepared.environment, Boolean(write) || prepared.args.some(arg => /^--execute(?:=|$)/.test(arg)))
     result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) })
@@ -60,13 +60,13 @@ export async function runTool<Credential>(
       error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
         `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`)
     }
-    audit.record({ ...identity, event: 'run-terminal', action: await journal?.action() ?? 'unknown',
+    audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
       outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
       durationMs: runnerError?.durationMs ?? Date.now() - started,
       outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 } })
     throw error
   }
-  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action() ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
+  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0) ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
     durationMs: result.durationMs, outputBytes: result.outputBytes })
   return result
 }
