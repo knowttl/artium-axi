@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { rootCertificates } from 'node:tls'
+import type { TLSSocket } from 'node:tls'
 import { errorResponseSchema, loginResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { cliVersion } from '../shared/version.js'
@@ -13,6 +14,7 @@ export const DEFAULT_REQUEST_DEADLINE_MS = 90_000
 export class Client {
   readonly serverUrl: string
   readonly sessions: SessionStore
+  certificateVerified = false
   constructor(private readonly environment = process.env) {
     try {
       const url = new URL(environment.ARTIUM_AXI_URL!)
@@ -25,6 +27,7 @@ export class Client {
   }
 
   async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string): Promise<unknown> {
+    this.certificateVerified = false
     let ca: string[] | undefined
     try { if (this.environment.ARTIUM_AXI_CA_FILE) ca = [...rootCertificates, readFileSync(this.environment.ARTIUM_AXI_CA_FILE, 'utf8')] }
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
@@ -49,6 +52,11 @@ export class Client {
           try { resolve({ status: response.statusCode!, body: response.statusCode === 204 ? undefined : JSON.parse(Buffer.concat(chunks).toString('utf8')) }) }
           catch { reject(new ArtiumError('INVALID_RESPONSE')) }
         })
+      })
+      if (url.protocol === 'https:') request.on('socket', socket => {
+        const tlsSocket = socket as TLSSocket
+        this.certificateVerified = tlsSocket.authorized
+        if (!tlsSocket.authorized) tlsSocket.once('secureConnect', () => { this.certificateVerified = tlsSocket.authorized })
       })
       request.on('error', error => reject(new ArtiumError(
         ['CERT_HAS_EXPIRED', 'CERT_NOT_YET_VALID', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',

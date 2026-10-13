@@ -2,6 +2,7 @@ import { execFile, execFileSync, fork } from 'node:child_process'
 import { promisify } from 'node:util'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
+import { createServer as createHttpServer } from 'node:http'
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -295,6 +296,38 @@ test('doctor retains the certificate error after continuing its prerequisite che
   expect(result.stdout).toContain('error:\n  code: "CERTIFICATE_INVALID"\n  source: "artium-axi"\n')
   expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.CERTIFICATE_INVALID.message)}\n`)
   expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.CERTIFICATE_INVALID.next)}\n`)
+})
+
+test('doctor reports an unverified certificate when the HTTPS connection is refused', async () => {
+  const unavailable = createServer()
+  unavailable.listen(0, '127.0.0.1')
+  await once(unavailable, 'listening')
+  const port = (unavailable.address() as { port: number }).port
+  await new Promise<void>((resolve, reject) => unavailable.close(error => error ? reject(error) : resolve()))
+  const result = await cli(['doctor'], { ARTIUM_AXI_URL: `https://127.0.0.1:${port}` })
+  expect(result).toMatchObject({ code: 1, stdout: expect.stringContaining('fail: certificate (SERVER_UNAVAILABLE)\n') })
+})
+
+test('doctor reports an unverified certificate when the CA file cannot be read', async () => {
+  requests = []
+  const result = await cli(['doctor'], { ARTIUM_AXI_CA_FILE: join(directory, 'missing-ca.crt') })
+  expect(result).toMatchObject({ code: 2, stdout: expect.stringContaining('fail: certificate (CLIENT_CONFIG_INVALID)\n') })
+  expect(requests).toEqual([])
+})
+
+test('doctor does not report certificate success for a plain HTTP liveness error', async () => {
+  const plain = createHttpServer((_request, reply) => {
+    reply.writeHead(503, { 'content-type': 'application/json' })
+    reply.end(JSON.stringify(errorResponse(new ArtiumError('SERVER_UNAVAILABLE'), 'synthetic-http')))
+  })
+  plain.listen(0, '127.0.0.1')
+  await once(plain, 'listening')
+  try {
+    const result = await cli(['doctor'], { ARTIUM_AXI_URL: `http://127.0.0.1:${(plain.address() as { port: number }).port}`, ARTIUM_AXI_TEST_HTTP: '1' })
+    expect(result).toMatchObject({ code: 1, stdout: expect.stringContaining('fail: certificate (SERVER_UNAVAILABLE)\n') })
+  } finally {
+    await new Promise<void>((resolve, reject) => plain.close(error => error ? reject(error) : resolve()))
+  }
 })
 
 test.each([

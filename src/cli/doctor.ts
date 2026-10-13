@@ -18,11 +18,11 @@ export async function doctor(): Promise<void> {
     const live = await client.request('/health/live', 'GET')
     const ok = !!live && typeof live === 'object' && 'status' in live && live.status === 'ok'
     line('server address', ok)
-    line('certificate', client.serverUrl.startsWith('https:'), client.serverUrl.startsWith('https:') ? undefined : 'test HTTP', new ArtiumError('CLIENT_CONFIG_INVALID'))
+    line('certificate', client.certificateVerified, client.certificateVerified ? undefined : 'test HTTP', new ArtiumError('CLIENT_CONFIG_INVALID'))
   } catch (error) {
     const cause = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE')
     line('server address', cause.code === 'CERTIFICATE_INVALID', cause.code, cause)
-    line('certificate', cause.code !== 'CERTIFICATE_INVALID', cause.code === 'CERTIFICATE_INVALID' ? cause.code : undefined, cause)
+    line('certificate', client.certificateVerified, client.certificateVerified ? undefined : cause.code, cause)
   }
   let versionOk = true
   let versionError: ArtiumError | undefined
