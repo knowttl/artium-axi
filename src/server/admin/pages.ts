@@ -58,7 +58,6 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           const api = '/v1/admin/tools/' + tool.name
           content += `<section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
             <p>Last checked: <span data-check-time>${escape(tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toISOString())}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>`
-          if (tool.name === 'az-axi') content += '<p>Azure runtime enable and credential tests are unavailable until a safe upstream release.</p>'
           if (tool.name === 'mg-axi') content += '<p>Graph runtime enable and credential tests are unavailable; live consent remains unverified.</p>'
           if (screen === 'Tools') {
             content += changed(db, tool)

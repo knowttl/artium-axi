@@ -53,7 +53,7 @@ const inventories = {
 }
 const environments = {
   'az-axi': {
-    native: ['AZ_AXI_CONFIG', 'AZ_AXI_PROFILE', 'AZ_AXI_TENANT', 'AZ_AXI_SUBSCRIPTION', 'AZ_AXI_READ_ONLY',
+    native: ['AZ_AXI_CONFIG', 'AZ_AXI_PROFILE', 'AZ_AXI_TENANT_ID', 'AZ_AXI_TENANT', 'AZ_AXI_SUBSCRIPTIONS', 'AZ_AXI_SUBSCRIPTION', 'AZ_AXI_READ_ONLY',
       'AZ_AXI_WRITE_LOG', ...azResources.map(resource => azConfig.tokenEnvFor({}, resource))],
     credentials: azResources.map(resource => ({ profileField: `tokenEnv.${resource}`, transport: 'token value',
       defaultEnvironment: azConfig.tokenEnvFor({}, resource) })),
@@ -122,6 +122,11 @@ for (const [tool, commands] of Object.entries(inventories)) {
       sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },
     suggestionFields: ['help'], format: 'TOON',
+    ...(tool === 'az-axi' ? { discovery: {
+      commands: [...new Set(commands.filter(entry => entry.tokenResources !== null).map(entry => entry.command.split(' ')[0]))],
+      example: ['sub', 'list'],
+      help: az.leafHelp(az.COMMAND_LEAVES.find(leaf => leaf.path === 'account list'), 'sub list'),
+    } } : {}),
     ...(tool === 'vectra-axi' ? { discovery: { commands: [...new Set(commands.map(entry => entry.command.split(' ')[0]))].filter(command => command !== 'setup'),
       example: ['detection', 'list'],
       help: { ...vectra.help('detection list'),
@@ -136,7 +141,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
       inputs: { stdin: 'input transport', file: 'uploaded leaf only', 'body-file': 'uploaded leaf only',
         api: 'fixed ARM, Logs or Graph origin enforced by pinned client',
         metadata: 'account/vault/registry names and opaque markers enforced by pinned clients' },
-      activation: 'Unavailable in runtime registry: pinned client retries ambiguous writes. Native settings and gates preserved for local commissioning.',
+      activation: 'Enabled in runtime registry. Unknown write outcomes are not retried; native settings and gates remain enforced.',
       parserSources: ['lib/args.js', 'lib/argv.js', 'lib/router.js'].map(path => ({ path: `dist/${path}`,
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/az-axi/dist/${path}`, root))).digest('hex') })),
     } } : {}),

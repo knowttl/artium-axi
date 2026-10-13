@@ -11,7 +11,9 @@ Public conversion and release, deployment, real writes and destructive maintenan
 S52 repeats the local acceptance gates for Falcon, Vectra, Azure and Graph without reconciling live probes or changing approved decisions.
 [S52 verification](verification-s52.md) records the current local candidate, command results, adapter coverage, clean-image/bundle flow, hardening, restore regression, image identities, digests and cleanup.
 Historical slice results below remain historical evidence; S52 owns the repeated local gate results and their candidate-binding requirements.
-Azure runtime activation remains deferred for the pinned ambiguous-write retry, and Graph consent remains unverified.
+Azure is now registered with the published az-axi 0.1.6 pin, which does not retry unknown write outcomes.
+The fake-service public API probe checks a write timeout after send, one recorded mutation, and the caller's `UNKNOWN_OUTCOME` output with state-check guidance.
+Earlier slice results below describe their historical pins and activation boundaries; live Azure acceptance and Graph consent remain unverified.
 T7.1, T7.4, T7.6, actual Windows/macOS execution and the captain-run live checklist remain outside this local acceptance.
 
 The Phase 2 checkpoint validates Falcon and Vectra through the production server entry point and standalone bundled CLI, and Azure through the internal adapter/fake-service harness under its existing runtime deferral.

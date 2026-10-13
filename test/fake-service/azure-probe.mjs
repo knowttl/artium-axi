@@ -7,6 +7,11 @@ import { createAzAdapter } from '/work/dist/src/server/adapters/az.js'
 import { AzureTokenCache } from '/work/dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport, azureTestTenant } from '/work/dist/test/fixtures/azure-token-transport.js'
 import { Runner } from '/work/dist/src/server/runner/runner.js'
+import { createApp } from '/work/dist/src/server/app.js'
+import { Audit } from '/work/dist/src/server/audit/audit.js'
+import { openStore } from '/work/dist/src/server/store/db.js'
+import { EnvironmentKeyProvider } from '/work/dist/src/server/store/key-provider.js'
+import { seedToolUser } from '/work/dist/test/fixtures/tokens.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-test-azure-'))
 const reference = { id: 'synthetic-azure', tool: 'az-axi', revision: 1 }
@@ -28,6 +33,54 @@ const run = async (args, input = {}, selected = adapter) => {
     { ...input, fileArguments: call.fileArguments?.map(index => index + 1) }, call.files)
 }
 try {
+  const db = openStore(join(directory, 'data', 'artium.db'),
+    new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  await seedToolUser(db)
+  db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
+  const apiRunner = await Runner.create(join(directory, 'api-calls'))
+  const nativeApiAdapter = createAzAdapter({ getCredential: async () => credential }, writeLog,
+    new AzureTokenCache(new FakeTokenTransport()))
+  const apiAdapter = { ...nativeApiAdapter, async prepare(...args) {
+    const call = await nativeApiAdapter.prepare(...args)
+    return { ...call, executable: process.execPath, args: [binary, ...call.args],
+      environment: { ...call.environment, NODE_EXTRA_CA_CERTS: '/test-ca.crt' } }
+  } }
+  const app = createApp({ db, audit: new Audit(db), runner: apiRunner, adapters: [apiAdapter],
+    resolver: { resolve: async () => reference }, environment: {} })
+  try {
+    const origin = await app.listen({ host: '127.0.0.1', port: 0 })
+    const login = await fetch(`${origin}/v1/auth/login`, { method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'synthetic-user', password: 'CANARY-local-password' }) })
+    assert.equal(login.status, 200)
+    const { accessToken } = await login.json()
+    const request = async args => {
+      const response = await fetch(`${origin}/v1/tools/az-axi/run`, { method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ args }) })
+      assert.equal(response.status, 200)
+      return response.json()
+    }
+    const read = await request(['sub', 'list'])
+    assert.equal(read.source, 'az-axi')
+    assert.equal(read.exitCode, 0, read.stdout + read.stderr)
+    assert.ok((await evidence()).requests.some(request => request.path === '/subscriptions' && request.canaryReceived))
+    const before = (await evidence()).mutations
+    const path = '/subscriptions/synthetic-subscription/resourceGroups/timeout-write'
+    const write = await request(['api', 'PATCH', `${path}?api-version=2022-12-01`,
+      '--body', '{"tags":{"synthetic":"yes"}}', '--execute'])
+    assert.equal(write.source, 'az-axi')
+    assert.equal(write.exitCode, 1, write.stdout + write.stderr)
+    assert.match(write.stdout, /UNKNOWN_OUTCOME/)
+    assert.match(write.stdout, /[Cc]heck.*state/)
+    const after = await evidence()
+    assert.equal(after.mutations, before + 1)
+    assert.equal(after.requests.filter(request => request.path === path && request.method === 'PATCH').length, 1)
+    console.log(JSON.stringify({ scenario: 'public API gateway timeout after mutation', output: write.stdout, mutationRequests: 1 }))
+  } finally {
+    await app.close()
+    db.close()
+  }
   const reads = [
     [['sub', 'list'], 'arm', 'management.azure.com', '/subscriptions'],
     [['logs', 'query', 'Heartbeat', '-w', '33333333-3333-4333-8333-333333333333'], 'logs', 'api.loganalytics.io', '/v1/workspaces/33333333-3333-4333-8333-333333333333/query'],
@@ -71,7 +124,7 @@ try {
       assert.equal(profile.allowWrites, true)
       assert.deepEqual(profile.subscriptions, subscriptions)
       const result = await run(args, {}, unscoped)
-      assert.match(result.stdout, /VALIDATION_ERROR/)
+      assert.match(result.stdout, /CONFIG_INVALID/)
       assert.match(result.stdout, /invalid write configuration/)
       console.log(JSON.stringify({ scenario: 'unscoped read prepares; native configuration gate retained', profile, args, output: result.stdout }))
     }
@@ -147,7 +200,7 @@ try {
     assert.equal(after.requests.at(-1).body.query, 'Heartbeat')
     console.log(JSON.stringify({ scenario: 'uploaded or piped query', queryArgs, request: after.requests.at(-1), output: result.stdout }))
   }
-  console.log('azure-probe: six token-mode resources, metadata-only listings, ARM-only mint, uploaded/stdin query, native preview/write/scope/confirmation gates and durable log passed; activation deferred for pinned ambiguous retry')
+  console.log('azure-probe: six token-mode resources, metadata-only listings, ARM-only mint, uploaded/stdin query, native preview/write/scope/confirmation gates and durable log passed')
 } finally {
   await runner.shutdown()
   rmSync(directory, { recursive: true, force: true })

@@ -13,8 +13,8 @@ Administrators manage local accounts, roles, encrypted service credentials and a
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
-Falcon and Vectra are wired into the production server entry point.
-Azure and Graph have local fake-service evidence but are not registered there; live authentication, permissions and deployment remain unverified.
+Falcon, Vectra and Azure are wired into the production server entry point.
+Graph has local fake-service evidence but is not registered there; live authentication, permissions and deployment remain unverified.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -203,7 +203,7 @@ Replacements must include every native setting to retain: omitted settings are c
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
 Use **Test credential** for a current fixed read before enabling a configured Falcon or Vectra tool.
-Azure and Graph remain unavailable in the production runtime.
+Graph remains unavailable in the production runtime.
 
 ### Audit screen and API
 

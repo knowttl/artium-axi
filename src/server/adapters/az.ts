@@ -124,8 +124,8 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
       }).filter(([, value]) => value !== undefined)), writeLog, false) : {
         environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
           ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [holders[resource], token!.accessToken])) },
-        files: [{ name: 'az-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {
-          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenant: tenantId, tokenEnv: holders },
+        files: [{ name: 'az-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
+          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId, tokenEnv: holders },
         } }) }],
       }
       return {

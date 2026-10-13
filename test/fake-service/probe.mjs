@@ -44,7 +44,7 @@ for (const [host, path, canaryReceived] of [
   assert.deepEqual(evidence.requests.filter(req => req.host === host && req.path === path),
     [{ method: 'GET', host, path, canaryReceived }])
 }
-assert.equal(evidence.mutations, 2, 'Pinned az-axi retries an uncertain write; write capability remains unavailable')
+assert.equal(evidence.mutations, 1, 'Pinned az-axi must send a write only once')
 console.log(JSON.stringify({ tls: 'trusted', dns: 'routed', outbound: 'denied',
   mutationRequests: evidence.mutations, requests: evidence.requests }))
 await import('./azure-probe.mjs')

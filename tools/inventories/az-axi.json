@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-aeamlHBaMTbm+fqPjrnBqZIrRxzWPn0XYQdp9en9gOlv7r0xdUcOst8BNobIis0i/4WAza0By306nNmxcm7W9g==",
+  "version": "0.1.6",
+  "integrity": "sha512-+72Tudi30AE016bGM+c6xyZ7bwSrZQn9jh2YGPd8cvtvc4KqyDFsHc+heRYFBesYuChxELHCyXtXzbT0VUs32A==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "4768e4d45bd68a1ddf6d0448625724fc02f101defc11702d6baa46aa8288bb60",
+  "packageManifestSha256": "5c2c67847a551627d1d0a765ef9a553158e80338e97fb5d8d301d528d8eb18e3",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -15,7 +15,15 @@
       "disposition": "unsafe override"
     },
     {
+      "name": "AZ_AXI_TENANT_ID",
+      "disposition": "unsafe override"
+    },
+    {
       "name": "AZ_AXI_TENANT",
+      "disposition": "unsafe override"
+    },
+    {
+      "name": "AZ_AXI_SUBSCRIPTIONS",
       "disposition": "unsafe override"
     },
     {
@@ -96,15 +104,15 @@
   "environmentSources": [
     {
       "path": "dist/lib/config.js",
-      "sha256": "df929b416ff42b456d33455027e84f0ade2d59483eed34f2ca81ea7e99e16648"
+      "sha256": "2d9b5ee0f3bff046a74c33262eefa3967de1b560d030f5896c806723908237ea"
     },
     {
       "path": "dist/lib/auth.js",
-      "sha256": "9ac7b53c42c1622404e8df871b2248c73593c00c365f85713552465dc6bf8362"
+      "sha256": "f98f65921eb79fb1847e9af62717aa144cd92877eb1b043bde2c007b43b3cebe"
     },
     {
       "path": "dist/lib/writeLog.js",
-      "sha256": "e8657b8cf9e92a56ec1ee84b69c69201c65a02fcafbb78a818a82b8869c8ad83"
+      "sha256": "7a7314a6daee5f7dde290268c142cd91a9c6b415c7eb5d73d48e592cd213ccd0"
     }
   ],
   "nativeWriteSettings": {
@@ -122,7 +130,7 @@
     "sources": [
       {
         "path": "dist/lib/config.js",
-        "sha256": "df929b416ff42b456d33455027e84f0ade2d59483eed34f2ca81ea7e99e16648"
+        "sha256": "2d9b5ee0f3bff046a74c33262eefa3967de1b560d030f5896c806723908237ea"
       },
       {
         "path": "dist/lib/gates.js",
@@ -134,6 +142,46 @@
     "help"
   ],
   "format": "TOON",
+  "discovery": {
+    "commands": [
+      "auth",
+      "home",
+      "doctor",
+      "sub",
+      "account",
+      "monitor",
+      "group",
+      "resource",
+      "tag",
+      "graph",
+      "rg",
+      "rbac",
+      "role",
+      "activity",
+      "defender",
+      "security",
+      "sentinel",
+      "exposure",
+      "logs",
+      "api",
+      "op",
+      "storage",
+      "keyvault",
+      "acr",
+      "network",
+      "policy",
+      "lock",
+      "deny-assignment",
+      "vm",
+      "vmss",
+      "disk"
+    ],
+    "example": [
+      "sub",
+      "list"
+    ],
+    "help": "Command: az-axi sub list\nNative operation: az-axi account list; existing scope, defaults and TOON output apply.\nFlags: --profile, --tenant, --subscription, --management-group, --config, --help, --full, --fields, --limit\nShort flags where accepted: -h help, -s subscription, -g resource-group, -n name, -w workspace, -t timespan.\nLists accept comma-separated, space-separated and repeated values after the leaf path.\nBooleans accept bare flags or true/false. Conflicting scalar values are refused.\n\nLists live ARM subscriptions in selected scope (flags, environment, profile, else all accessible), resolving unambiguous names to IDs. This is not Azure CLI's cached account list. Legacy sub list still lists all visible subscriptions with inScope markers.\nDefault: name, id (subscription GUID), state, tenantId. --full adds ARM metadata and shows all fetched rows; --fields selects metadata. --limit defaults to 50. Paging stops at 100 pages with lower-bound counts. Management-group scope is unsupported.\nExamples: az-axi account list; az-axi account list -s <subscription> --full"
+  },
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",
@@ -196,7 +244,7 @@
       "api": "fixed ARM, Logs or Graph origin enforced by pinned client",
       "metadata": "account/vault/registry names and opaque markers enforced by pinned clients"
     },
-    "activation": "Unavailable in runtime registry: pinned client retries ambiguous writes. Native settings and gates preserved for local commissioning.",
+    "activation": "Enabled in runtime registry. Unknown write outcomes are not retried; native settings and gates remain enforced.",
     "parserSources": [
       {
         "path": "dist/lib/args.js",
@@ -215,11 +263,11 @@
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "94d7c5f4a3f4ab9d58fc745d877d42d8f94da7ccdbd39e68840054d2486616e3"
+      "sha256": "7a09e7520dc782788ca9de6cafc38da1b1b713d788923f02393a42c14cf3d810"
     },
     {
       "path": "dist/lib/client.js",
-      "sha256": "b9b584b6d4962dbe6d907f3a5f452ae814be0905911838dcc91425e87d6a0f81"
+      "sha256": "00a152682681b7bd414678c1de989081962de38cafc4ae55239d2f6114101900"
     },
     {
       "path": "dist/lib/principals.js",
@@ -235,11 +283,11 @@
     },
     {
       "path": "dist/lib/acrMetadata.js",
-      "sha256": "fff1249baa3a3f7407385e54fed69261da5bb7c4474b6d2a7a57d6410914d711"
+      "sha256": "c10565d7023cfefa71564411eec3ae97ea00c72e8c191e490d007ec65aa2a5dc"
     },
     {
       "path": "dist/commands/rbac.js",
-      "sha256": "e1a94bf4c74a516b0e4052399f5e73a5a0e21456589ec672269656aab32d9cfc"
+      "sha256": "140ee55e6e9c139de95c13198c9b24557dd7b3c510b33d2560e52acf55978eb0"
     },
     {
       "path": "dist/commands/logs.js",
@@ -247,7 +295,7 @@
     },
     {
       "path": "dist/commands/doctor.js",
-      "sha256": "50b37a3767713bd308a5ab0e39a54104cc6b620f771d315aeffeb6c02d218300"
+      "sha256": "3a1a24485171ad91d8a61f46d7539e96edeca82cf259881e5011c1a3fc6e9467"
     },
     {
       "path": "dist/commands/api.js",
@@ -622,6 +670,33 @@
   ],
   "commands": [
     {
+      "command": "auth status",
+      "canonicalCommand": "auth status",
+      "handlerCommand": "auth status",
+      "tokenResources": [
+        "arm"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
+      "positionalInput": false
+    },
+    {
       "command": "home",
       "canonicalCommand": "home",
       "handlerCommand": "home",
@@ -734,6 +809,31 @@
     },
     {
       "command": "config list",
+      "canonicalCommand": "config list",
+      "handlerCommand": "config list",
+      "tokenResources": null,
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "profile list",
       "canonicalCommand": "config list",
       "handlerCommand": "config list",
       "tokenResources": null,

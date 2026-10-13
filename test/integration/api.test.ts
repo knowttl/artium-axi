@@ -743,6 +743,9 @@ test('the real server remains available after startup encounters a damaged nativ
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
     expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured' })
+    db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
+    const azureListing = await fetch(`${origin}/v1/tools`, { headers })
+    expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.6', status: 'unconfigured' })
     expect(readFileSync(journal, 'utf8')).toBe(damaged)
   } finally {
     child.kill('SIGTERM')

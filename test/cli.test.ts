@@ -349,7 +349,7 @@ test('Artium errors preserve the server request ID and withhold streams', async 
   expect(result.stdout).toContain('requestId: "synthetic-request"')
 })
 
-test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name: 'az-axi', status: 'ok', version: '0.1.4' }] }])('malformed response does not print unvalidated data', async body => {
+test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.4' }] }])('malformed response does not print unvalidated data', async body => {
   requests = []
   response = { status: 200, body }
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
@@ -416,6 +416,18 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
   response = { status: 200, body: { tools: [] } }
   expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 1,
     stdout: expect.stringContaining('TOOL_NOT_GRANTED'), stderr: '' })
+})
+
+test('Azure discovery exposes the pinned version and first read', async () => {
+  response = { status: 200, body: { tools: [{ name: 'az-axi', status: 'ok', version: '0.1.6' }] } }
+  const listing = await cli(['tools'])
+  expect(listing).toMatchObject({ code: 0, stderr: '' })
+  expect(listing.stdout).toContain('artium-axi az-axi sub list')
+  const detail = await cli(['tools', 'show', 'az-axi'])
+  expect(detail).toMatchObject({ code: 0, stderr: '' })
+  expect(detail.stdout).toContain('version: "0.1.6"')
+  expect(detail.stdout).toContain('example: artium-axi az-axi sub list')
+  expect(detail.stdout).toContain('upstreamHelp:')
 })
 
 test('tool detail refuses a mismatched pinned version', async () => {

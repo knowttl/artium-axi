@@ -103,7 +103,7 @@ Credential replacement advances credential and tool revisions, clears health, an
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
 Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.
-See [README tool administration](../README.md) for native-settings guidance and Azure and Graph runtime restrictions.
+See [README tool administration](../README.md) for native-settings guidance and Graph runtime restrictions.
 
 Check liveness and readiness through the trusted endpoint:
 

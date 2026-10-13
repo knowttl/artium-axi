@@ -114,6 +114,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       recorded.body = JSON.parse(body)
       res.end(JSON.stringify({ tags: { synthetic: 'yes' } }))
     })
+  } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/timeout-write' && req.method === 'PATCH') {
+    req.resume()
+    req.on('end', () => {
+      mutations++
+      // A gateway timeout after the service applied the request leaves its outcome unknown.
+      res.writeHead(504, { 'retry-after': '0' })
+      res.end(JSON.stringify({ error: { code: 'GatewayTimeout', message: 'Mutation recorded before gateway timed out' } }))
+    })
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++
     if (url.pathname === '/api/v2.5/tagging/detection/45') req.socket.destroy()

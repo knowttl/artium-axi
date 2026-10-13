@@ -55,8 +55,8 @@ test.each([
   expect(transport.requests.map(request => request.form.get('scope'))).toEqual([`${azureAudiences[resource]}/.default`])
   expect(call.environment).toEqual({ AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
     ARTIUM_SECRET_0: azureTestToken })
-  expect(JSON.parse(call.files[0].content as string)).toEqual({ defaultProfile: 'artium', profiles: {
-    artium: { auth: 'token', tenant: credential.tenantId, subscriptions: credential.subscriptions,
+  expect(JSON.parse(call.files[0].content as string)).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
+    artium: { auth: 'token', tenantId: credential.tenantId, subscriptions: credential.subscriptions,
       allowWrites: true, workspaces: credential.workspaces, tokenEnv: { [resource]: 'ARTIUM_SECRET_0' } },
   } })
   if (_name !== 'leading subscription') expect(call.args).toEqual(args)

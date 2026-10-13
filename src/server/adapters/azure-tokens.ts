@@ -12,7 +12,7 @@ export const azureCredentialSchema = z.discriminatedUnion('auth', [
 ])
 export type AzureCredential = z.infer<typeof azureCredentialSchema>
 
-// az-axi 0.1.4 dist/lib/auth.js RESOURCE_URL. Live scope acceptance remains pending.
+// az-axi 0.1.6 dist/lib/auth.js RESOURCE_URL. Live scope acceptance remains pending.
 export const azureAudiences = Object.freeze({
   arm: 'https://management.azure.com/',
   logs: 'https://api.loganalytics.io',

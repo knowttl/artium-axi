@@ -238,7 +238,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.3.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.3', health: { status: 'unconfigured' } },
-    { name: 'az-axi', version: '0.1.4', health: { status: 'unconfigured' } },
+    { name: 'az-axi', version: '0.1.6', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.4', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
@@ -633,20 +633,13 @@ test('test admission audit failure prevents credential preparation and child cre
   expect(adapters[0].prepare).not.toHaveBeenCalled()
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
 })
-test('Azure configuration remains editable while runtime enable and tests stay disabled', async () => {
+test('Azure configuration can enable the runtime and test credentials', async () => {
   await replace('az-axi')
-  network.requests.length = 0
-  await app.close()
-  runner = await Runner.create(join(directory, 'calls'))
-  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: adapters.slice(0, 2),
-    resolver: new SharedIdentityResolver(store) })
-  url = await app.listen({ host: '127.0.0.1', port: 0 })
   const settings = await request('PATCH', '/az-axi', { enabled: false, nativeSettings: { allowWrites: false }, expectedRevision: 2 })
   expect(settings.status).toBe(200)
   expect(adminToolSchema.parse(await settings.json())).toMatchObject({ nativeSettings: { allowWrites: false }, health: { status: 'disabled' } })
-  await failure(await request('PATCH', '/az-axi', { enabled: true, expectedRevision: 3 }), 'TOOL_DISABLED')
-  await failure(await request('POST', '/az-axi/test', {}), 'TOOL_DISABLED')
+  expect((await request('PATCH', '/az-axi', { enabled: true, expectedRevision: 3 })).status).toBe(200)
+  expect((await request('POST', '/az-axi/test', {})).status).toBe(200)
   expect(db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE event = 'credential-test'").get())
-    .toEqual({ checked_at: expect.any(Number), credential_revision: 2, error_code: 'TOOL_DISABLED' })
-  expect(network.requests).toEqual([])
+    .toEqual({ checked_at: expect.any(Number), credential_revision: 2, error_code: null })
 })
