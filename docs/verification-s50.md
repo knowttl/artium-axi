@@ -1,21 +1,20 @@
 # S50 local Graph headless inventory (T8.1)
 
-The local portion of T8.1 retains the exact scoped package pin already present in `tools/package.json`, `tools/integrity.json` and `tools/pnpm-lock.yaml`.
-[The source record](../tools/mg-source.json) owns the fresh npm reconfirmation timestamp, version, integrity, exact query and tarball.
+The current scoped package pin and integrity are owned by [tools/package.json](../tools/package.json) and [tools/integrity.json](../tools/integrity.json).
+[The source record](../tools/mg-source.json) records the original S50 npm reconfirmation, not the current pin.
 The package is scoped; the unscoped `mg-axi` npm name returns 404.
 
 [The generated parser inventory](../tools/inventories/mg-axi.json) owns accepted leaf flags, API positional input, source hashes, native write settings and the observed `headlessInventory`.
-Its `headlessInventory` records global and common flag scope, parser behavior and example credential environment names; `environment` and `dynamicCredentialEnvironment` distinguish native defaults from profile-selected holders.
+Its `headlessInventory` records global and common flag scope, parser behavior and default credential environment holders; `environment` and `dynamicCredentialEnvironment` distinguish native defaults from profile-selected holders.
 
-[The generated headless JSON schema](../tools/inventories/mg-axi-headless.schema.json) is a local projection of the pinned application-profile validator, produced by `node scripts/mg-headless-schema.mjs --write` and freshness-checked by `pnpm test`.
-The package's `inventory/schema.json` describes Graph operations, not headless profiles, and the pinned CLI has no schema export flag.
-The schema owns the projected field constraints and credential forms, including upstream keychain and federation forms, without adapter policy dispositions.
+[The generated headless JSON schema](../tools/inventories/mg-axi-headless.schema.json) projects the published `axi-credential.schema.json` with an application-mode constraint, produced by `node scripts/mg-headless-schema.mjs --write` and freshness-checked by `pnpm test`.
+The published credential schema owns field constraints and SecretRef forms; the generated projection adds no adapter policy dispositions.
 It is a profile schema, not a claim that every valid profile is safe to expose through Artium.
 
 The headless portion of `pnpm test:mg-headless` runs the pinned profile-create interface and acquisition provider in a task-owned Node 22 test image built with the existing digest-pinned fake-service builder, with a read-only filesystem, tmpfs credential files, no network, no host credential mounts and a loader that refuses keychain imports.
 The loader replaces only `@azure/msal-node` with a fake confidential client, asserting the secret/key transport, certificate thumbprint and Graph `.default` audience.
 The probe generates an ephemeral synthetic RSA PEM, tests both environment and 0600 file holders for secrets and certificate keys, and verifies session-only token acquisition.
-It verifies application interactive login refusal, missing holders, encrypted key refusal, unsafe file modes, symlinks, inlined secrets, conflicting holders and device-code opt-in refusal.
+It verifies application interactive login refusal, missing holders, encrypted key refusal, unsafe file modes, symlinks, inlined secrets, relative file references and device-code opt-in refusal.
 Stored profiles contain references, never secret or PEM material.
 It executes help resolution for all inventoried leaves and bare version flags, plus parser rejection and equals-syntax cases.
 The task container and standalone image are removed in `finally`; the probe creates no volume, network or development stack.
