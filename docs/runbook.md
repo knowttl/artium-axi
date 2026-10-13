@@ -390,6 +390,7 @@ Do not assume a restored login still works.
 Before every upgrade, stop the server, take a pre-upgrade backup, and record the previous immutable image digest and matching key ID.
 Restore that backup into a separate rehearsal volume using the candidate image and matching key to test its migration before touching the live volume.
 Start the candidate only against the rehearsal volume and verify fresh login, credentials, role permissions and audit reads.
+The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
 When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
 Replace any incompatible credential through `/admin/credentials` using the current editor before enabling the tool; stored values remain hidden.
 A successful migration alone is insufficient acceptance for an upgrade.

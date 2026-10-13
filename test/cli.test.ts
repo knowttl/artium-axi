@@ -504,8 +504,8 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 })
 
 test.each([
-  { tool: 'az-axi', example: 'sub list', version: '0.1.7' },
-  { tool: 'mg-axi', example: 'entra user list', version: '0.1.6' },
+  { tool: 'az-axi', example: 'sub list', version: '0.1.8' },
+  { tool: 'mg-axi', example: 'entra user list', version: '0.1.7' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])

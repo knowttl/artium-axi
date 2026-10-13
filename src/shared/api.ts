@@ -106,6 +106,8 @@ export const nativeSettingsSchemas = {
 } as const
 export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
+// Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
+// independent of a retained store's pinned_version value.
 export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),
   nativeSettings: z.record(z.string(), z.unknown()), revision: z.number().int().positive(),
   updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema })

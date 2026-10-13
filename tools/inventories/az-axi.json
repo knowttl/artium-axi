@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.7",
-  "integrity": "sha512-qN241ZsiNoOZK2HIDXg7t2Tc0v9tQc//Ax0Js0uo+A5c4mPXskFCF7IRyvL0cjXL9zRtzNWA41mSyqjezK/rdQ==",
+  "version": "0.1.8",
+  "integrity": "sha512-7SKu71YKa7wyszHu4onz+ETSAJ/PAuh2Ov3W7R+pRRhsSIQbemqGsqYAmda5d/8fx5oMohbj1chCQeTXlAOt9A==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "d63d4ec5f73a6a30402d2608dbfa907d6c3634af14093e884c3ac287db57157d",
+  "packageManifestSha256": "091080afe20091aa16fcafd8b760891c14d37bccf5e8cd94044c4d43664fcd52",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -134,7 +134,7 @@
       },
       {
         "path": "dist/lib/gates.js",
-        "sha256": "c7631668079e44a7dc6666192e9cc6bbfa7f3776fa4e6f8adef12e419a9f143f"
+        "sha256": "d8766ccbbe3761826309885e08c23d50eb25e1ecf07c0cc8cd1154626b68bc7f"
       }
     ]
   },
@@ -263,11 +263,11 @@
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "a3b8b9a8bee299fb73a135af150aaf29a49a522af6fad9494f70af466fe1e7bf"
+      "sha256": "bbac5a48899feab50be43ff3de937648277417fcc743f8995a640b31b54d7899"
     },
     {
       "path": "dist/lib/client.js",
-      "sha256": "00a152682681b7bd414678c1de989081962de38cafc4ae55239d2f6114101900"
+      "sha256": "35610f62a7c26df3e1f40bc731cdbf29a81cae366f057c94e3482d49f2a55f91"
     },
     {
       "path": "dist/lib/principals.js",
@@ -275,7 +275,7 @@
     },
     {
       "path": "dist/lib/storageMetadata.js",
-      "sha256": "85864d2850358818f202fd888e3c98735247040a4674b46c5b32015bca45651d"
+      "sha256": "a978c8327b4a19eec8ba8e5ded67618cb0b264d8f609604c5d197740421547a6"
     },
     {
       "path": "dist/lib/keyvaultMetadata.js",

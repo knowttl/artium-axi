@@ -9,6 +9,7 @@
 Managed command-line tools for agents, behind one local sign-in.
 
 artium-axi packages a server and CLI that give users role-based access to pinned upstream tools.
+The published Graph and Azure releases in [the upstream pins](tools/package.json) include their upstream live-test fixes.
 Administrators manage local accounts, roles, encrypted service credentials and audit records through a browser.
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
@@ -175,6 +176,7 @@ Runner-generated recovery for Sentinel incident updates and comment creation fir
 Discovery and Artium errors use TOON.
 Tool listings include their count in the array header; an empty list returns `tools: 0 available` with a reason and next step.
 Details read bundled manifests and stored health without fetching credentials or executing upstream help.
+Discovery and administration show the server's bundled tool versions, as defined by the [API contract](src/shared/api.ts).
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
 For Falcon, Vectra, Azure and Graph, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.

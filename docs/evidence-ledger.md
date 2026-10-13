@@ -1,6 +1,7 @@
 # Build and live evidence ledger
 
 Local implementation and pinned-upstream fake-service evidence are independent of captain live acceptance.
+See [Graph and Azure re-pin verification](verification-mg-az-repin.md) for artifact and local evidence; current pins belong to [tools/package.json](../tools/package.json).
 Each completed slice records its exact commit, commands, result and evidence path in the relevant cells.
 `pending` means the build evidence has not been collected.
 `unverified` means no live acceptance is claimed.

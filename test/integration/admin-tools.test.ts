@@ -17,7 +17,8 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import type { MutableCredentialStore, ToolName } from '../../src/server/store/credential-store.js'
-import { adminCredentialSchema, adminToolSchema, healthSchema, loginResponseSchema } from '../../src/shared/api.js'
+import { adminCredentialSchema, adminToolSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
+import { toolView } from '../../src/cli/views.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 import { seedToolUser } from '../fixtures/tokens.js'
@@ -307,12 +308,46 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.3.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.5', health: { status: 'unconfigured' } },
-    { name: 'az-axi', version: '0.1.7', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.6', health: { status: 'disabled' } },
+    { name: 'az-axi', version: '0.1.8', health: { status: 'unconfigured' } },
+    { name: 'mg-axi', version: '0.1.7', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])
   await failure(await request('POST', '', { executable: '/synthetic' }), 'NOT_FOUND')
+})
+test.each([
+  { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.8' },
+  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.7' },
+] as const)('$tool upgrade reports the bundled version while retaining configuration', async ({ tool, previousVersion, version }) => {
+  const { tenantId, clientId, auth, clientSecret } = values[tool]
+  const credential = { tenantId, clientId, auth, clientSecret }
+  store.replaceCredential(tool, credential, 0, actor, 123)
+  db.prepare('UPDATE tools SET pinned_version = ?, revision = 3, updated_at = 123, updated_by = ? WHERE name = ?')
+    .run(previousVersion, actor, tool)
+  const configuration = db.prepare('SELECT * FROM tools WHERE name = ?').get(tool)
+  await app.close()
+  db.close()
+  db = openStore(join(directory, 'data', 'artium.db'), provider)
+  store = createCredentialStore(db, provider)
+  const source = new EmbeddedSecretSource(store)
+  const adapter = tool === 'az-axi' ? createAzAdapter(source, join(directory, 'az-writes.log'), cache)
+    : createMgAdapter(source, join(directory, 'mg-writes.log'))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  headers = await adminHeaders()
+
+  const discovery = await fetch(`${url}/v1/tools`, { headers })
+  expect(discovery.status).toBe(200)
+  const { tools } = toolsResponseSchema.parse(await discovery.json())
+  expect(tools).toEqual([{ name: tool, version, status: 'unknown' }])
+  expect(toolView(tools[0]!)).toContain(`version: "${version}"`)
+  const admin = await request('GET', '')
+  expect(admin.status).toBe(200)
+  expect((await admin.json() as { tools: unknown[] }).tools).toContainEqual(expect.objectContaining({ name: tool, version, revision: 3 }))
+  expect(db.prepare('SELECT * FROM tools WHERE name = ?').get(tool)).toEqual(configuration)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(credential)
+  expect(network.requests).toEqual([])
 })
 test.each(['falcon-axi', 'vectra-axi', 'az-axi'] as const)('%s replacement and reads expose only safe metadata, revision and actor', async tool => {
   const absent = await request('GET', `/${tool}/credential`)
