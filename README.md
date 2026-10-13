@@ -15,7 +15,7 @@ The client follows AXI (Agent eXperience Interface) conventions for discovery, h
 **Status: under construction.**
 Falcon, Vectra, Azure and Graph are wired into the production server entry point.
 Graph has local fake-service evidence; live authentication, permissions and deployment remain unverified.
-Enabling Graph on a running installation waits for live Graph results and maintainer approval.
+See [browser administration](#browser-administration) for Graph activation requirements.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
