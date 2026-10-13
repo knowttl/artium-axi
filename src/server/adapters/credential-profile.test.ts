@@ -82,6 +82,28 @@ test('published Vectra retains whitespace in OAuth secret material', () => {
     .toBe(value.clientSecret)
 })
 
+test.each([
+  { kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-token', origin: 'https://appliance.test' },
+  { kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic', clientSecret: 'CANARY-secret', origin: 'https://appliance.test:8443' },
+  { kind: 'rux', apiVersion: '3.4', auth: 'oauth', clientId: 'synthetic', clientSecret: 'CANARY-secret', origin: 'https://[::1]:8443' },
+])('published Vectra prepares canonical origin $origin for $kind $auth', value => {
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const prepared = profile.prepare('vectra-axi', value, join(directory, 'writes.log'), false)
+  expect(JSON.parse(String(prepared.files[0].content)).profiles.artium.origin).toBe(value.origin)
+  expect(profile.metadata(value).origin).toBe(value.origin)
+})
+
+test.each(['https://appliance.test:443', 'https://APPLIANCE.test', 'https://appliance.test:08443',
+  'https://appliance.test/', 'https://appliance.test/path', 'https://appliance.test?query',
+  'https://appliance.test#fragment', 'https://user:password@appliance.test', 'http://appliance.test',
+  'https://appliance.test\n', 'invalid'])('published Vectra refuses noncanonical origin %j before preparation', origin => {
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const value = { kind: 'qux', apiVersion: '2.5', auth: 'token', origin, token: 'CANARY-token' }
+  expect(profile.credentialSchema.safeParse(value).success).toBe(false)
+  expect(() => profile.prepare('vectra-axi', value, join(directory, 'writes.log'), false))
+    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_UNAVAILABLE' }))
+})
+
 test('uses SHA-256 certificate fields in the migrated adapter while retaining argument policy', async () => {
   const value = { ...identity, auth: 'certificate', privateKey: 'CANARY-private-key', thumbprintSha256: 'a'.repeat(64) }
   const profile = new CredentialProfile(schema)

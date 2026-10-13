@@ -14,6 +14,13 @@ import type { Adapter, PreparedCall } from './types.js'
 type Schema = Record<string, any>
 export interface ProfileField { name: string, schema: Schema, required: boolean }
 
+export function isCanonicalHttpsOrigin(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && value === url.origin && !url.username && !url.password
+  } catch { return false }
+}
+
 export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, source: SecretSource,
   writeLog: string, profile: CredentialProfile | undefined,
   argumentsForCall: (args: readonly string[], input?: RunnerInput) => Pick<PreparedCall, 'args' | 'fileArguments'>,
@@ -35,7 +42,7 @@ export function loadCredentialProfile(tool: ToolName, file: string = toolCredent
   let content: string
   try { content = readFileSync(file, 'utf8') }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw new ArtiumError('CREDENTIAL_INVALID') }
-  try { return new CredentialProfile(JSON.parse(content)) }
+  try { return new CredentialProfile(JSON.parse(content), tool) }
   catch { throw new ArtiumError('CREDENTIAL_INVALID') }
 }
 
@@ -48,9 +55,14 @@ export class CredentialProfile {
   private readonly validateInput: (value: unknown) => boolean
   private readonly validateProfile: (value: unknown) => boolean
 
-  constructor(readonly schema: Schema) {
+  constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'vectra-axi' && this.inputSchema.properties?.origin) {
+      const origin = this.inputSchema.properties.origin
+      this.inputSchema.properties.origin = { ...origin,
+        allOf: [...(origin.allOf ?? []), { format: 'canonical-https-origin' }] }
+    }
     for (const [selector, kind, field] of [['auth', 'token', 'token'], ['auth', 'oauth', 'clientSecret'],
       ['auth', 'client-secret', 'clientSecret'], ['auth', 'certificate', 'privateKey'],
       ['auth', 'federated', 'token'], ['mode', 'delegated', 'token']]) {
@@ -68,6 +80,7 @@ export class CredentialProfile {
       return ajv
     }
     const host = create()
+    host.addFormat('canonical-https-origin', { type: 'string', validate: isCanonicalHttpsOrigin })
     host.addKeyword({ keyword: 'x-secret', schemaType: 'boolean', errors: false,
       validate: (secret: boolean, value: unknown, _schema: unknown, context?: { instancePath: string }) => {
         if (secret && typeof value === 'string' && context) this.secrets.add(context.instancePath)

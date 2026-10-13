@@ -150,6 +150,9 @@ test.each([
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'federated' } },
   { tool: 'mg-axi', value: { mode: 'delegated', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token\n' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test:443', token: 'CANARY-token' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test:443', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', auth: 'oauth', origin: 'https://appliance.test:443', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
 ] as const)('published $tool rejects unusable replacement without overwriting credentials', async ({ tool, value }) => {
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
@@ -169,6 +172,27 @@ test.each([
   expect(store.findCredential(tool)).toEqual(reference)
   expect(store.readCredential(reference)).toEqual(original)
   expect(db.prepare("SELECT revision FROM tools WHERE name = ?").get(tool)).toEqual({ revision: 1 })
+})
+
+test.each([
+  { kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-token', origin: 'https://appliance.test' },
+  { kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic', clientSecret: 'CANARY-secret', origin: 'https://appliance.test:8443' },
+  { kind: 'rux', apiVersion: '3.4', auth: 'oauth', clientId: 'synthetic', clientSecret: 'CANARY-secret', origin: 'https://[::1]:8443' },
+])('published Vectra stores canonical origin $origin for $kind $auth', async value => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const adapter = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({
+    ...await prepare(args, reference, input), executable: fakeTool.executable,
+    args: [...fakeTool.args, 'print', 'synthetic-health-output'],
+  }))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect((await replace('vectra-axi', value)).metadata.origin).toBe(value.origin)
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toEqual(value)
 })
 
 test.each([
