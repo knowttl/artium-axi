@@ -2,6 +2,48 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { rewriteSuggestions } from './rewrite.js'
 import { decode, encode } from '@toon-format/toon'
+import { toolView } from './views.js'
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
+  [JSON.stringify, encode].flatMap(serialize => ['', 'artium-axi ', 'npx -y @knowttl/'].map(prefix => ({ tool, serialize, prefix })))))(
+  '$tool strips managed selectors with prefix "$prefix"', ({ tool, serialize, prefix }) => {
+    const input = serialize({ help: [`Run \`${prefix}${tool} home --profile=artium --help\``], data: '--profile=artium' })
+    const expected = serialize({ help: [`Run \`artium-axi ${tool} home --help\``], data: '--profile=artium' })
+    expect(rewriteSuggestions(input, tool)).toBe(expected)
+    expect(rewriteSuggestions(expected, tool)).toBe(expected)
+  })
+
+test('Graph static tool help hides managed flags and hosts its examples', () => {
+  const output = toolView({ name: 'mg-axi', status: 'ok', version: '0.1.6' })
+  expect(output).not.toMatch(/--(?:profile|config|scopes)\b/)
+  expect(output).toContain('artium-axi mg-axi')
+  expect(output).not.toMatch(/npx -y @knowttl\/mg-axi/)
+})
+
+test('Graph plain help strips managed flags while retaining literal filter text', () => {
+  const input = 'mg-axi entra user list\n--profile <name>: Select a configured profile\n--scopes <scopes>: Graph scopes\n--config <path>: Configuration file override\n--limit <positive-integer>: Cap returned rows\nmg-axi entra user list --profile soc --limit 10\nmg-axi entra user list --profile=artium --filter "--profile artium"\n'
+  const expected = 'artium-axi mg-axi entra user list\n--limit <positive-integer>: Cap returned rows\nartium-axi mg-axi entra user list --limit 10\nartium-axi mg-axi entra user list --filter "--profile artium"\n'
+  expect(rewriteSuggestions(input, 'mg-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'mg-axi')).toBe(expected)
+})
+
+test('Falcon managed booleans do not consume the following command flag', () => {
+  const input = encode({ help: ['Run `falcon-axi host list --no-member-cid --limit 1`'] })
+  expect(rewriteSuggestions(input, 'falcon-axi')).toBe(encode({ help: ['Run `artium-axi falcon-axi host list --limit 1`'] }))
+})
+
+test('Graph doctor suggestions use the hosted command without managed profile flags', () => {
+  const input = encode({ help: [
+    'Run `npx -y @knowttl/mg-axi entra user list --profile artium --limit 1`',
+    'Run `mg-axi entra user list --profile artium --limit 1`',
+  ] })
+  const expected = encode({ help: [
+    'Run `artium-axi mg-axi entra user list --limit 1`',
+    'Run `artium-axi mg-axi entra user list --limit 1`',
+  ] })
+  expect(rewriteSuggestions(input, 'mg-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'mg-axi')).toBe(expected)
+})
 
 test.each(['json', 'toon'].flatMap(format => [
   { format, code: 'UNKNOWN_OUTCOME', suffix: ' --full' }, { format, code: 'VALIDATION_ERROR', suffix: '' },

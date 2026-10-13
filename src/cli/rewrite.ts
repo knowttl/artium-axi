@@ -1,5 +1,15 @@
 import { decode, encode } from '@toon-format/toon'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
+import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
+import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
+
+const managedFlags: Record<string, string[]> = {
+  'falcon-axi': falcon.unsafeOverrides,
+  'vectra-axi': vectra.adapterBoundary.unsafeOverrides,
+  'az-axi': az.adapterBoundary.unsafeOverrides,
+  'mg-axi': mg.adapterBoundary.unsafeOverrides,
+}
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
 type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
@@ -7,7 +17,10 @@ type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknow
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
-  if (tool === 'az-axi' && /^(?:Command: )?(?:artium-axi )?az-axi(?:\s|$)/.test(output)) return azureHelp(output)
+  const flags = managedFlags[tool]
+  if (!flags) return output
+  const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
+  if (executable.test(output.replace(/^Command: /, ''))) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
   try {
@@ -18,14 +31,12 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
   }
   catch { return output }
-  if (tool === 'az-axi') {
-    for (const span of [...spans].reverse()) {
-      const value = azureHelp(span.value)
-      if (value === span.value) continue
-      output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
-    }
-    spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
+  for (const span of [...spans].reverse()) {
+    const value = hostedHelp(span.value, tool, flags, span.value.startsWith('Command: '))
+    if (value === span.value) continue
+    output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
+  spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Map<number, string>()
   const removals = new Map<number, number>()
@@ -38,23 +49,18 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     offsets.push(rawIndex)
     function commandEdit(start: number, end: number, wrapped: boolean): void {
-      if (!wrapped) insertions.set(span.start + offsets[start], 'artium-axi ')
-      if (tool !== 'az-axi') return
       const command = span.value.slice(start, end)
+      if (!wrapped) {
+        insertions.set(span.start + offsets[start], 'artium-axi ')
+        if (command.startsWith('npx -y @knowttl/')) removals.set(span.start + offsets[start], span.start + offsets[start + 'npx -y @knowttl/'.length])
+      }
       const tokens = [...command.matchAll(/(?:[^\s'"]+|'[^']*'|"(?:\\.|[^"\\])*")+/g)]
       if (unknownOutcome && /(?:Check current state before trying again:|Verify with)\s+[`'"]?$/.test(span.value.slice(0, start)) &&
         /^(?:artium-axi )?az-axi api GET\s/.test(command) && !tokens.some(token => /^--full(?:=|$)/.test(token[0]))) {
         insertions.set(span.start + offsets[end], ' --full')
       }
-      for (let index = 1; index < tokens.length; index++) {
-        const token = tokens[index]
-        if (token[0] === '--') break
-        if (!token[0].startsWith('--') || !az.adapterBoundary.unsafeOverrides.includes(token[0].split('=')[0].slice(2))) continue
-        const last = token[0].includes('=') ? token : tokens[++index]
-        if (!last) continue
-        const from = start + token.index! - 1
-        const to = start + last.index! + last[0].length
-        removals.set(span.start + offsets[from], span.start + offsets[to])
+      for (const [from, to] of managedFlagRanges(command, tool)) {
+        removals.set(span.start + offsets[start + from], span.start + offsets[start + to])
       }
     }
     // A command starts a suggestion line or a complete quoted command.
@@ -63,11 +69,9 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     for (const match of span.value.matchAll(commands)) {
       const quote = match[1]
       const command = match[2]
-      if (!quote && /^(?:artium-axi )?\S+-axi(?:\s|$)/.test(command)) commandRanges.push([match.index!, match.index! + match[0].length])
+      if (!quote && /^(?:artium-axi |npx -y @knowttl\/)?\S+-axi(?:\s|$)/.test(command)) commandRanges.push([match.index!, match.index! + match[0].length])
       const wrapped = command.startsWith(`artium-axi ${tool}`)
-      const executable = wrapped ? `artium-axi ${tool}` : tool
-      const remainder = command.slice(executable.length)
-      if (!command.startsWith(executable) || !(remainder === '' || /^\s/.test(remainder) || (quote && remainder.startsWith(quote)))) continue
+      if (!executable.test(quote ? command.split(quote)[0] : command)) continue
       if (quote && !command.includes(quote)) return output
       const start = match.index! + match[0].length - command.length
       commandRanges.push([match.index!, quote ? start + command.indexOf(quote) + 1 : match.index! + match[0].length])
@@ -75,12 +79,11 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     for (const match of span.value.matchAll(/(?<![^\s(])([`'"])([^\n]*?)(\1|(?=\n|$))/g)) {
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
-      if (!/^(?:artium-axi )?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
+      if (!/^(?:artium-axi |npx -y @knowttl\/)?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       const preceding = span.value.slice(0, match.index!)
       if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|Check current state before trying again:|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
       const wrapped = match[2].startsWith(`artium-axi ${tool}`)
-      const executable = wrapped ? `artium-axi ${tool}` : tool
-      if (match[2].startsWith(executable) && /^(?:\s|$)/.test(match[2].slice(executable.length))) {
+      if (executable.test(match[2])) {
         if (!match[3]) return output
         commandEdit(match.index! + 1, match.index! + 1 + match[2].length, wrapped)
       }
@@ -92,19 +95,40 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   return output
 }
 
-function azureHelp(help: string): string {
-  const selectors = az.adapterBoundary.unsafeOverrides.join('|')
-  return help.replace(/^((?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
-    (_, label: string, flags: string) => {
-      const retained = flags.split(', ').filter(flag => !az.adapterBoundary.unsafeOverrides.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
-      return label + retained + (flags.endsWith('.') && !retained.endsWith('.') ? '.' : '')
-    }).replace(/^(?:(?:artium-axi )?az-axi\b|Examples:)[^\r\n]*/gm, line => line.replace(
-      new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]|\\s+--(?:${selectors})\\s+(?:<[^>]+>|'[^']*'|"(?:\\\\.|[^"\\\\])*"|[^\\s;'\"]+)`, 'g'), ''))
-    .replace(/^(?:(?:Command|Native operation|Examples): )?az-axi(?=\s|$)/gm, command => command.replace('az-axi', 'artium-axi az-axi'))
-    .replace(/^Examples:[^\r\n]*/gm, line => line.replace(/'[^']*'|"(?:\\.|[^"\\])*"|(; )az-axi(?=\s|$)/g,
-      (match, separator) => separator ? '; artium-axi az-axi' : match))
-    .replace(/`az-axi(?=\s|`)([^\r\n`]*`)/g, '`artium-axi az-axi$1')
-    .replace(/^(cat [^\r\n|]+ \| )az-axi(?=\s|$)/gm, '$1artium-axi az-axi')
+function managedFlagRanges(command: string, tool: string): [number, number][] {
+  const tokens = [...command.matchAll(/(?:[^\s;'"`]+|'[^']*'|"(?:\\.|[^"\\])*")+|;/g)]
+  const ranges: [number, number][] = []
+  for (let index = 1; index < tokens.length; index++) {
+    const token = tokens[index]
+    if (token[0] === '--') break
+    const name = token[0].split('=')[0].slice(2)
+    if (!token[0].startsWith('--') || !managedFlags[tool].includes(name)) continue
+    const boolean = tool === 'falcon-axi' && falcon.commands.some(command => (command.flags as Record<string, string | undefined>)[name] === 'boolean')
+    const last = token[0].includes('=') || boolean ? token : tokens[++index]
+    if (last) ranges.push([token.index! - 1, last.index! + last[0].length])
+  }
+  return ranges
+}
+
+function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  const selectors = flags.join('|')
+  const filtered = help.replace(new RegExp(`^--(?:${selectors})(?=[\\s=:]|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
+    .replace(/^((?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
+    (_, label: string, listed: string) => {
+      const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
+      return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '')
+    })
+  if (!commands) return filtered
+  return filtered.replace(new RegExp(`^(?:(?:(?:Command|Native operation): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
+      line = line.replace(new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]`, 'g'), '')
+      for (const [from, to] of managedFlagRanges(line, tool).reverse()) line = line.slice(0, from) + line.slice(to)
+      return line
+    })
+    .replace(new RegExp(`^((?:(?:Command|Native operation|Examples): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(/^Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
+      (match, separator) => separator ? `; artium-axi ${tool}` : match))
+    .replace(new RegExp('`(?:npx -y @knowttl/)?' + tool + '(?=\\s|`)([^\\r\\n`]*`)', 'g'), '`artium-axi ' + tool + '$1')
+    .replace(new RegExp(`^(cat [^\\r\\n|]+ \\| )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
 }
 
 function jsonHelp(output: string): Help {
