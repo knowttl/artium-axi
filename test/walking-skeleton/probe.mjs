@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { get } from 'node:https'
 import { tmpdir } from 'node:os'
@@ -181,9 +181,14 @@ try {
       const write = await cli(['vectra-axi', ...tagArgs, '--execute', '--confirm', 'detection 42'])
       assert.equal(write.code, 0, write.stdout + write.stderr)
       assert.equal((await requests()).mutations, 1)
-      const log = '/test-data/tool-logs/vectra-axi/writes.log'
-      assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line).kind), ['intent', 'outcome'])
-      assert.equal(statSync(log).mode & 0o777, 0o600)
+      const logs = '/test-data/tool-logs/vectra-axi/writes.log.runs'
+      const journals = readdirSync(logs).map(name => join(logs, name, 'writes.log')).filter(existsSync)
+      assert.deepEqual(journals.flatMap(log => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line).kind)), ['intent', 'outcome'])
+      for (const log of journals) {
+        assert.equal(statSync(log).mode & 0o777, 0o600)
+        assert.equal(statSync(dirname(log)).mode & 0o777, 0o700)
+      }
+      assert.equal(statSync(logs).mode & 0o777, 0o700)
       console.log(JSON.stringify({ pinnedVectra: '0.1.5', profile: 'local and Artium parity', dryRun: 'zero mutations',
         execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.3.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))

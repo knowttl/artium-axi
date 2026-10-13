@@ -213,9 +213,11 @@ Use “Test credential” at `/admin/credentials` for a current check and inspec
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
-Azure, Graph and Vectra use isolated native journals under each configured `writes.log.runs/run-*` directory, with daily removal of run journals older than 90 days.
+Azure, Graph and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
+At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
+Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
 There is no audit deletion endpoint or general export CLI.
 Use `/admin/audit` for filtered review and the paginated `GET /v1/admin/audit` API for retained records, preserving filters with each continuation cursor.
 Bearer API reads require a session-bound recent-reauthentication ticket; browser reads require administrator capability.
