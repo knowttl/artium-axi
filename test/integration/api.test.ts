@@ -723,15 +723,23 @@ test('the real server remains available after startup encounters a damaged nativ
   writeFileSync(journal, damaged, { mode: 0o600 })
   writeFileSync(`${journal}.lock`, '')
   writeFileSync(`${journal}.retention`, 'interrupted compaction')
-  const expiredJournals = ['mg-axi', 'vectra-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log.runs', 'run-expired'))
+  const expiredJournals = ['az-axi', 'mg-axi', 'vectra-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log.runs', 'run-z-expired'))
+  const validRecord = { kind: 'intent', intentKey: 'a'.repeat(64), time: '2026-01-01T00:00:00.000Z',
+    profile: 'synthetic', identity: 'synthetic', class: 'safe-write', method: 'PATCH',
+    url: 'https://synthetic.invalid/resource', outcome: 'success', httpStatus: 200 }
   for (const path of expiredJournals) {
     mkdirSync(path, { recursive: true })
-    writeFileSync(join(path, 'writes.log'), '{}\n')
+    writeFileSync(join(path, 'writes.log'), `${JSON.stringify(validRecord)}\n`)
     utimesSync(path, new Date(0), new Date(0))
   }
-  const failedRetention = join(directory, 'data', 'tool-logs', 'az-axi', 'writes.log.runs')
-  mkdirSync(join(failedRetention, '..'), { recursive: true })
-  writeFileSync(failedRetention, 'not a directory')
+  const malformedJournals = expiredJournals.flatMap(path => [damaged, '{invalid}\n', '{}\n', '[]\n'].map((content, index) => ({
+    path: join(path, '..', `run-a-malformed-${index}`, 'writes.log'), content,
+  })))
+  for (const { path, content } of malformedJournals) {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, content)
+    utimesSync(join(path, '..'), new Date(0), new Date(0))
+  }
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
   cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
   await build({ stdin: { contents: `
@@ -758,8 +766,9 @@ test('the real server remains available after startup encounters a damaged nativ
     const health = await fetch(`${origin}/health/ready`)
     expect(health.status).toBe(200)
     expect(await health.json()).toEqual({ status: 'ok' })
-    expect(expiredJournals.map(existsSync)).toEqual([false, false])
-    expect(readFileSync(failedRetention, 'utf8')).toBe('not a directory')
+    expect(expiredJournals.map(existsSync)).toEqual([false, false, false])
+    expect(malformedJournals.map(({ path }) => readFileSync(path, 'utf8')))
+      .toEqual(malformedJournals.map(({ content }) => content))
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
     expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured' })
@@ -780,4 +789,6 @@ test('the real server remains available after startup encounters a damaged nativ
       next: errors.AUDIT_UNAVAILABLE.next, requestId: 'retention' } },
   ]))
   expect(stderr).not.toContain('CANARY-partial')
+  expect(stderr.trim().split('\n').map(line => JSON.parse(line).error.code))
+    .toEqual(Array(5).fill('AUDIT_UNAVAILABLE'))
 }, 10_000)

@@ -35,7 +35,7 @@ export async function prepareRunJournal(environment: Record<string, string>, too
   } }
 }
 
-export async function retainRunJournals(writeLog: string, now = Date.now()): Promise<void> {
+export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName, 'falcon-axi'>, now = Date.now()): Promise<void> {
   const root = `${writeLog}.runs`
   let entries
   try { entries = await readdir(root, { withFileTypes: true }) }
@@ -43,9 +43,32 @@ export async function retainRunJournals(writeLog: string, now = Date.now()): Pro
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
     throw error
   }
+  let failure: unknown
   for (const entry of entries) {
     if (!entry.isDirectory() || !entry.name.startsWith('run-')) continue
     const path = join(root, entry.name)
-    if ((await stat(path)).mtimeMs < now - 90 * 24 * 60 * 60 * 1000) await rm(path, { recursive: true })
+    try {
+      if ((await stat(path)).mtimeMs >= now - 90 * 24 * 60 * 60 * 1000) continue
+      let content = ''
+      try { content = await readFile(join(path, 'writes.log'), 'utf8') }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+      if (content && !content.endsWith('\n')) throw new Error('Incomplete native write journal')
+      for (const line of content.split('\n').filter(Boolean)) {
+        const record = JSON.parse(line)
+        if (!record || typeof record !== 'object' || Array.isArray(record)
+          || typeof record.time !== 'string' || !Number.isFinite(Date.parse(record.time))) {
+          throw new Error('Invalid native write journal')
+        }
+        if (tool === 'az-axi') {
+          if (!['profile', 'identity', 'class', 'method', 'url', 'outcome'].every(field => typeof record[field] === 'string')
+            || !Number.isInteger(record.httpStatus)) throw new Error('Invalid native write journal')
+        } else if (!['intent', 'outcome'].includes(record.kind) || typeof record.intentKey !== 'string'
+          || !/^[a-f0-9]{64}$/.test(record.intentKey)) throw new Error('Invalid native write journal')
+      }
+      await rm(path, { recursive: true })
+    } catch (error) { failure ??= error }
   }
+  if (failure) throw failure
 }
