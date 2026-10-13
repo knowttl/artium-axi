@@ -184,6 +184,45 @@ test('known-secret output produces a safe terminal with observed byte counts', a
   expect(lines.join('')).not.toContain('CANARY-secret')
 })
 
+test('a classified write ending on a signal records an unknown outcome', async () => {
+  const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    return { ...await adapter.prepare(...input), write: { operation: 'synthetic-write', target: 'synthetic-target',
+      checkArgs: ['print', 'synthetic-state'] } }
+  } }
+  await expect(runTool(db, audit, runner, token, { args: ['signal'] }, execution, resolver, context))
+    .rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME', message: 'Unknown outcome for synthetic-write synthetic-target.',
+      next: expect.stringContaining('artium-axi falcon-axi print synthetic-state') })
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME' })
+})
+
+test('a classified write cancelled before execution retains cancellation', async () => {
+  const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    return { ...await adapter.prepare(...input), write: { operation: 'synthetic-write', target: 'synthetic-target',
+      checkArgs: ['print', 'synthetic-state'] } }
+  } }
+  const controller = new AbortController()
+  controller.abort()
+  await expect(runTool(db, audit, runner, token, { args: ['print'] }, execution, resolver, { ...context, signal: controller.signal }))
+    .rejects.toMatchObject({ code: 'CANCELLED' })
+})
+
+test('a classified write cancelled after child start records an unknown outcome', async () => {
+  const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    return { ...await adapter.prepare(...input), write: { operation: 'synthetic-write', target: 'synthetic-target',
+      checkArgs: ['print', 'synthetic-state'] } }
+  } }
+  const controller = new AbortController()
+  const actual = await vi.importActual<typeof childProcess>('node:child_process')
+  vi.spyOn(childProcess, 'spawn').mockImplementation((...args: Parameters<typeof childProcess.spawn>) => {
+    const child = actual.spawn(...args)
+    child.once('spawn', () => controller.abort())
+    return child
+  })
+  await expect(runTool(db, audit, runner, token, { args: ['sleep'] }, execution, resolver, { ...context, signal: controller.signal }))
+    .rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME' })
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME' })
+})
+
 test('credential preparation failure completes its start with a safe code', async () => {
   getCredential.mockRejectedValueOnce(new Error('CANARY-private-diagnostic'))
   await expect(runTool(db, audit, runner, token, { args: ['print'] }, adapter, resolver, context)).rejects.toThrow('CANARY-private-diagnostic')

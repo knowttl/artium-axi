@@ -1,21 +1,61 @@
 import { decode, encode } from '@toon-format/toon'
+import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
+type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
 
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
+  if (tool === 'az-axi' && /^(?:Command: )?(?:artium-axi )?az-axi(?:\s|$)/.test(output)) return azureHelp(output)
   let spans: Span[]
-  try { spans = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output) }
+  let unknownOutcome = false
+  try {
+    const { spans: suggestions, document } = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    spans = suggestions
+    if (tool === 'az-axi') {
+      unknownOutcome = document?.code === 'UNKNOWN_OUTCOME' || document?.error?.code === 'UNKNOWN_OUTCOME'
+    }
+  }
   catch { return output }
+  if (tool === 'az-axi') {
+    for (const span of [...spans].reverse()) {
+      const value = azureHelp(span.value)
+      if (value === span.value) continue
+      output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    }
+    spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
+  }
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
-  const insertions = new Set<number>()
+  const insertions = new Map<number, string>()
+  const removals = new Map<number, number>()
   for (const span of spans) {
     const offsets: number[] = []
     let rawIndex = span.quoted ? 1 : 0
     for (let index = 0; index < span.value.length; index++) {
       offsets.push(rawIndex)
       rawIndex += span.quoted && span.raw[rawIndex] === '\\' ? (span.raw[rawIndex + 1] === 'u' ? 6 : 2) : 1
+    }
+    offsets.push(rawIndex)
+    function commandEdit(start: number, end: number, wrapped: boolean): void {
+      if (!wrapped) insertions.set(span.start + offsets[start], 'artium-axi ')
+      if (tool !== 'az-axi') return
+      const command = span.value.slice(start, end)
+      const tokens = [...command.matchAll(/(?:[^\s'"]+|'[^']*'|"(?:\\.|[^"\\])*")+/g)]
+      if (unknownOutcome && /(?:Check current state before trying again:|Verify with)\s+[`'"]?$/.test(span.value.slice(0, start)) &&
+        /^(?:artium-axi )?az-axi api GET\s/.test(command) && !tokens.some(token => /^--full(?:=|$)/.test(token[0]))) {
+        insertions.set(span.start + offsets[end], ' --full')
+      }
+      for (let index = 1; index < tokens.length; index++) {
+        const token = tokens[index]
+        if (token[0] === '--') break
+        if (!token[0].startsWith('--') || !az.adapterBoundary.unsafeOverrides.includes(token[0].split('=')[0].slice(2))) continue
+        const last = token[0].includes('=') ? token : tokens[++index]
+        if (!last) continue
+        const from = start + token.index! - 1
+        const to = start + last.index! + last[0].length
+        removals.set(span.start + offsets[from], span.start + offsets[to])
+      }
     }
     // A command starts a suggestion line or a complete quoted command.
     const commands = /(?:^|\n)[ \t]*(?:Run |Use )?([`'"]?)([^\n]*)/g
@@ -31,30 +71,44 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       if (quote && !command.includes(quote)) return output
       const start = match.index! + match[0].length - command.length
       commandRanges.push([match.index!, quote ? start + command.indexOf(quote) + 1 : match.index! + match[0].length])
-      if (wrapped) continue
-      insertions.add(span.start + offsets[start])
+      commandEdit(start, quote ? start + command.indexOf(quote) : start + command.length, wrapped)
     }
     for (const match of span.value.matchAll(/(?<![^\s(])([`'"])([^\n]*?)(\1|(?=\n|$))/g)) {
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
       if (!/^(?:artium-axi )?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       const preceding = span.value.slice(0, match.index!)
-      if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
+      if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|Check current state before trying again:|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
       const wrapped = match[2].startsWith(`artium-axi ${tool}`)
       const executable = wrapped ? `artium-axi ${tool}` : tool
       if (match[2].startsWith(executable) && /^(?:\s|$)/.test(match[2].slice(executable.length))) {
         if (!match[3]) return output
-        if (wrapped) continue
-        insertions.add(span.start + offsets[match.index! + 1])
+        commandEdit(match.index! + 1, match.index! + 1 + match[2].length, wrapped)
       }
     }
   }
-  for (const offset of [...insertions].sort((a, b) => b - a)) output = output.slice(0, offset) + 'artium-axi ' + output.slice(offset)
+  for (const offset of [...new Set([...insertions.keys(), ...removals.keys()])].sort((a, b) => b - a)) {
+    output = output.slice(0, offset) + (insertions.get(offset) ?? '') + output.slice(removals.get(offset) ?? offset)
+  }
   return output
 }
 
-function jsonHelp(output: string): Span[] {
+function azureHelp(help: string): string {
+  const selectors = az.adapterBoundary.unsafeOverrides.join('|')
+  return help.replace(/^((?:Flags|Globals|Selector flags on every command|Valid flags for `[^`]+`): )([^\r\n]*)/gm,
+    (_, label: string, flags: string) => {
+      const retained = flags.split(', ').filter(flag => !az.adapterBoundary.unsafeOverrides.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
+      return label + retained + (flags.endsWith('.') && !retained.endsWith('.') ? '.' : '')
+    }).replace(/^(?:(?:artium-axi )?az-axi\b|Examples:)[^\r\n]*/gm, line => line.replace(
+      new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]|\\s+--(?:${selectors})\\s+(?:<[^>]+>|'[^']*'|"(?:\\\\.|[^"\\\\])*"|[^\\s;'\"]+)`, 'g'), ''))
+    .replace(/^(?:(?:Command|Native operation|Examples): )?az-axi(?=\s|$)/gm, command => command.replace('az-axi', 'artium-axi az-axi'))
+    .replace(/^Examples:[^\r\n]*/gm, line => line.replace(/'[^']*'|"(?:\\.|[^"\\])*"|(; )az-axi(?=\s|$)/g,
+      (match, separator) => separator ? '; artium-axi az-axi' : match))
+    .replace(/`az-axi(?=\s|`)([^\r\n`]*`)/g, '`artium-axi az-axi$1')
+}
+
+function jsonHelp(output: string): Help {
   const parsed = JSON.parse(output)
-  if (typeof parsed.help !== 'string' && !(Array.isArray(parsed.help) && parsed.help.every((item: unknown) => typeof item === 'string'))) return []
+  if (typeof parsed.help !== 'string' && !(Array.isArray(parsed.help) && parsed.help.every((item: unknown) => typeof item === 'string'))) return { spans: [], document: parsed }
   const tokens = [...output.matchAll(/"(?:\\[\s\S]|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null|[{}\[\]:,]/g)]
   const spans: Span[] = []
   let index = 0
@@ -81,10 +135,10 @@ function jsonHelp(output: string): Span[] {
     }
   }
   value(false, true)
-  return helpFields === 1 ? spans : []
+  return { spans: helpFields === 1 ? spans : [], document: parsed }
 }
 
-function toonHelp(output: string): Span[] {
+function toonHelp(output: string): Help {
   const lines = [...output.matchAll(/[^\r\n]*(?:\r\n|\n|$)/g)].filter(line => line[0])
   const spans: Span[] = []
   const validation = lines.map(line => line[0].replace(/\r?\n$/, ''))
@@ -150,6 +204,7 @@ function toonHelp(output: string): Span[] {
     if (lines[index + 1]?.[0].startsWith(' ')) throw new Error('Extra suggestion rows')
   }
   const document = validation.filter(line => line !== '').join('\n')
-  if (encode(decode(document)) !== document) throw new Error('Unknown document structure')
-  return helpFields === 1 ? spans : []
+  const parsed = decode(document) as Help['document']
+  if (encode(parsed) !== document) throw new Error('Unknown document structure')
+  return { spans: helpFields === 1 ? spans : [], document: parsed }
 }

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@knowttl/az-axi':
-        specifier: 0.1.4
-        version: 0.1.4
+        specifier: 0.1.6
+        version: 0.1.6
       '@knowttl/mg-axi':
         specifier: 0.1.6
         version: 0.1.6
@@ -28,8 +28,8 @@ packages:
     resolution: {integrity: sha512-mrHLCwXird58rdk7LjvlUn5YybvVb3qXwlw3tvSWqHllmatFeQYuFhX/cJ7CoGgpdAOmNzm6Un4KDu+v/O3Tcw==}
     engines: {node: '>=20'}
 
-  '@knowttl/az-axi@0.1.4':
-    resolution: {integrity: sha512-aeamlHBaMTbm+fqPjrnBqZIrRxzWPn0XYQdp9en9gOlv7r0xdUcOst8BNobIis0i/4WAza0By306nNmxcm7W9g==}
+  '@knowttl/az-axi@0.1.6':
+    resolution: {integrity: sha512-+72Tudi30AE016bGM+c6xyZ7bwSrZQn9jh2YGPd8cvtvc4KqyDFsHc+heRYFBesYuChxELHCyXtXzbT0VUs32A==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -184,7 +184,7 @@ snapshots:
       '@azure/msal-common': 16.14.2
       jsonwebtoken: 9.0.3
 
-  '@knowttl/az-axi@0.1.4':
+  '@knowttl/az-axi@0.1.6':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

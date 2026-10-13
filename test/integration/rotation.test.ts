@@ -62,7 +62,7 @@ test('all three adapters run with persisted credentials after offline rotation',
       const azResult = await runner.run('synthetic-user', process.execPath, ['-e', `
         const fs = require('node:fs');
         const profile = JSON.parse(fs.readFileSync(process.env.AZ_AXI_CONFIG)).profiles.artium;
-        console.log(process.env[profile.tokenEnv.arm] === 'CANARY-AZURE-ACCESS-TOKEN' && profile.tenant === '${azureTestTenant}');
+        console.log(process.env[profile.tokenEnv.arm] === 'CANARY-AZURE-ACCESS-TOKEN' && profile.tenantId === '${azureTestTenant}');
       `], az.environment, az.secrets, az.limits, {}, az.files)
       expect(azResult).toMatchObject({ stdout: 'true\n', exitCode: 0 })
     } finally { await runner.shutdown(); db.close() }

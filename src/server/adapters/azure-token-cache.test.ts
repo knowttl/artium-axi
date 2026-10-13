@@ -66,10 +66,10 @@ describe('Azure resource token cache', () => {
     expect(azureCommandResources('rbac list', { principal: 'synthetic@example.invalid', 'show-query': 'true' })).toEqual({ required: ['graph'], optional: [] })
   })
 
-  it('does not mint tokens for local home or help', async () => {
+  it('does not mint tokens for command help', async () => {
     const network = new FakeTokenTransport()
     const cache = new AzureTokenCache(network)
-    expect(await cache.acquire(identity, azureCommandResources('home'))).toEqual({})
+    expect(await cache.acquire(identity, azureCommandResources('home', { help: 'true' }))).toEqual({})
     expect(await cache.acquire(identity, azureCommandResources('group list', { help: 'true' }))).toEqual({})
     expect(network.requests).toHaveLength(0)
   })

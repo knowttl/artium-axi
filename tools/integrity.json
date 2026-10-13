@@ -1,7 +1,7 @@
 {
   "@knowttl/az-axi": {
-    "version": "0.1.4",
-    "integrity": "sha512-aeamlHBaMTbm+fqPjrnBqZIrRxzWPn0XYQdp9en9gOlv7r0xdUcOst8BNobIis0i/4WAza0By306nNmxcm7W9g=="
+    "version": "0.1.6",
+    "integrity": "sha512-+72Tudi30AE016bGM+c6xyZ7bwSrZQn9jh2YGPd8cvtvc4KqyDFsHc+heRYFBesYuChxELHCyXtXzbT0VUs32A=="
   },
   "@knowttl/vectra-axi": {
     "version": "0.1.5",

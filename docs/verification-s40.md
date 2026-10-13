@@ -4,7 +4,7 @@ The [administration screens](../src/server/admin/pages.ts) reuse the server-rend
 The [form helpers](../src/server/admin/forms.ts) provide navigation, CSRF-bearing API forms, optimistic revisions and safe actor/time metadata.
 The [browser script](../src/server/admin/assets.ts) parses JSON editors, submits complete replacements, preserves invalid form input and shows credential test results with refreshed cached status, check time and safe error code.
 The API continues to own authentication, CSRF, recent reauthentication, settings and credential validation, audit transactions and test quotas.
-Azure runtime enable and Test remain unavailable.
+See [README](../README.md) for current runtime availability.
 
 The [tool administration integration suite](../test/integration/admin-tools.test.ts) requests the actual rendered Users, Tools, Credentials and Roles pages after storing canary credentials.
 It verifies that stored Falcon client ID/secret, Vectra token and Azure secret are absent, credential editors are blank, responses prohibit caching and change actors appear.

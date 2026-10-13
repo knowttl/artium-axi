@@ -31,6 +31,7 @@ export interface RunnerResult {
 export class RunnerError extends ArtiumError {
   durationMs?: number
   outputBytes?: { stdout: number, stderr: number }
+  processStarted = false
 }
 
 // A byte cap must not introduce a replacement character from an incomplete UTF-8 suffix.
@@ -149,6 +150,7 @@ async function execute(
       }
       let secretDetected = false
       let spawnFailed = false
+      let processStarted = false
       let failure: RunnerError | undefined
       let killTimer: NodeJS.Timeout | undefined
       let cleanupDone = false
@@ -220,6 +222,7 @@ async function execute(
         })
       }
       child.on('error', () => { spawnFailed = true })
+      child.on('spawn', () => { processStarted = true })
       child.on('exit', () => {
         clearTimeout(timeout)
         terminate()
@@ -237,6 +240,7 @@ async function execute(
           failure = new RunnerError('PROCESS_SIGNAL')
         }
         if (failure) {
+          failure.processStarted = processStarted
           failure.durationMs = performance.now() - started
           failure.outputBytes = { stdout: streams.stdout.observed, stderr: streams.stderr.observed }
           reject(failure)

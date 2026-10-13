@@ -1,6 +1,34 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { rewriteSuggestions } from './rewrite.js'
+import { decode, encode } from '@toon-format/toon'
+
+test.each(['json', 'toon'].flatMap(format => [
+  { format, code: 'UNKNOWN_OUTCOME', suffix: ' --full' }, { format, code: 'VALIDATION_ERROR', suffix: '' },
+]))(
+  '$format recovery adds full output only for $code', ({ format, code, suffix }) => {
+    const recovery = 'Check current state before trying again: `az-axi api GET /subscriptions/synthetic --config /tmp/synthetic --profile artium --tenant synthetic`'
+    const verify = 'Verify with `az-axi api GET /subscriptions/synthetic --config /tmp/synthetic --profile artium --tenant synthetic`'
+    const normal = 'Run `az-axi api GET /subscriptions/synthetic`'
+    const input = { code, help: [recovery, verify, normal], data: { help: recovery } }
+    const serialized = format === 'json' ? JSON.stringify(input) : encode(input)
+    const output = rewriteSuggestions(serialized, 'az-axi')
+    const parsed = (format === 'json' ? JSON.parse(output) : decode(output)) as typeof input
+    expect(parsed.help).toEqual([
+      `Check current state before trying again: \`artium-axi az-axi api GET /subscriptions/synthetic${suffix}\``,
+      `Verify with \`artium-axi az-axi api GET /subscriptions/synthetic${suffix}\``,
+      'Run `artium-axi az-axi api GET /subscriptions/synthetic`',
+    ])
+    expect(parsed.data).toEqual(input.data)
+    expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
+  })
+
+test('Azure help prefixes executable examples while retaining literal arguments', () => {
+  const input = "Command: az-axi api\nExamples: az-axi api GET /subscriptions --query 'az-axi=literal; az-axi sub list'; az-axi sub list\nSee `az-axi network nsg rule create --help`.\n"
+  const expected = "Command: artium-axi az-axi api\nExamples: artium-axi az-axi api GET /subscriptions --query 'az-axi=literal; az-axi sub list'; artium-axi az-axi sub list\nSee `artium-axi az-axi network nsg rule create --help`.\n"
+  expect(rewriteSuggestions(input, 'az-axi')).toBe(expected)
+  expect(rewriteSuggestions(expected, 'az-axi')).toBe(expected)
+})
 
 const captures = JSON.parse(readFileSync(new URL('../../test/fake-tool/fixtures/upstreams.json', import.meta.url), 'utf8')) as
   Record<string, Record<string, { stdout: string, stderr: string }>>
@@ -48,6 +76,17 @@ const suggestionFormats = [
   { format: 'TOON marked list', encode: (value: string) => `help[1]:\n  - ${JSON.stringify(value)}\n` },
   { format: 'TOON inline list', encode: (value: string) => `help[1]: ${JSON.stringify(value)}\n` },
 ]
+
+test.each(suggestionFormats.flatMap(({ format, encode }) => ['Check current state before trying again:', 'Verify with'].map(prefix => ({ format, encode, prefix }))))(
+  'unknown-outcome $prefix recovery uses full output in $format', ({ encode, prefix }) => {
+    const value = `${prefix} \`az-axi api GET /subscriptions/synthetic\``
+    const input = encode(value)
+    const expected = encode(`${prefix} \`artium-axi az-axi api GET /subscriptions/synthetic --full\``)
+    const document = input.startsWith('{') ? JSON.stringify({ ...JSON.parse(input), code: 'UNKNOWN_OUTCOME' }) : `code: UNKNOWN_OUTCOME\n${input}`
+    const output = expected.startsWith('{') ? JSON.stringify({ ...JSON.parse(expected), code: 'UNKNOWN_OUTCOME' }) : `code: UNKNOWN_OUTCOME\n${expected}`
+    expect(rewriteSuggestions(document, 'az-axi')).toBe(output)
+    expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
+  })
 
 test.each(suggestionFormats.flatMap(({ format, encode }) => ['`', "'", '"'].flatMap(quote =>
   ['', ...['`', "'", '"'].filter(outer => outer !== quote)].flatMap(outer =>

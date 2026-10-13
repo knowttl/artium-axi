@@ -1,10 +1,11 @@
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
+import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 import type { z } from 'zod'
 import { meResponseSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 
-const manifests = { 'falcon-axi': falcon, 'vectra-axi': vectra }
+const manifests = { 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az }
 type Tools = z.infer<typeof toolsResponseSchema>['tools']
 
 export function identityView(user: z.infer<typeof meResponseSchema>, server: string): string {

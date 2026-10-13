@@ -22,5 +22,5 @@ The focused checks are `pnpm exec vitest run src/server/store/rotate-key.test.ts
 
 Falcon and Azure checks here prove rotation and injection, not additional pinned-service or live platform acceptance.
 The existing pinned-upstream suites remain part of local validation.
-Azure runtime activation remains deferred as recorded in S26.
+See [README](../README.md) for current runtime availability.
 See [the runbook](runbook.md) for the one-shot container command and both recovery boundaries.

@@ -236,10 +236,12 @@ test.each([
     .toEqual([replacement.clientSecret])
 })
 
-test('rendered Tools and Credentials pages never contain stored secret values', async () => {
+test.each([false, true])('rendered Azure controls reflect enabled=%s without exposing secrets', async enabled => {
   for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
     expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0, expectedToolRevision: 1 })).status).toBe(200)
   }
+  db.prepare("UPDATE tools SET enabled = ? WHERE name = 'az-axi'").run(Number(enabled))
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'mg-axi'")
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -256,11 +258,20 @@ test('rendered Tools and Credentials pages never contain stored secret values', 
     expect(page.body).not.toContain(values['vectra-axi'].token)
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
     if (path === '/admin/credentials') {
+      expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/test"')
+      expect(page.body).not.toContain('action="/v1/admin/tools/mg-axi/test"')
       expect(page.body).toContain('name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea>')
       expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(3)
       expect(page.body).toContain('Last changed by synthetic-user')
     }
-    if (path === '/admin/tools') expect(page.body).toContain('&quot;operations&quot;')
+    if (path === '/admin/tools') {
+      expect(page.body).toContain('&quot;operations&quot;')
+      const forms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/az-axi"[^>]*>[\s\S]*?<\/form>/g)!
+      expect(forms).toEqual(expect.arrayContaining([expect.stringContaining(
+        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
+      const graphForms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/mg-axi"[^>]*>[\s\S]*?<\/form>/g)!
+      expect(graphForms.join('')).not.toContain('name="enabled"')
+    }
   }
 })
 async function replace(tool: ToolName, value: unknown = values[tool], expectedRevision = 0) {
@@ -295,7 +306,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.3.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.5', health: { status: 'unconfigured' } },
-    { name: 'az-axi', version: '0.1.4', health: { status: 'unconfigured' } },
+    { name: 'az-axi', version: '0.1.6', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.6', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
@@ -690,20 +701,13 @@ test('test admission audit failure prevents credential preparation and child cre
   expect(adapters[0].prepare).not.toHaveBeenCalled()
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)
 })
-test('Azure configuration remains editable while runtime enable and tests stay disabled', async () => {
+test('Azure configuration can enable the runtime and test credentials', async () => {
   await replace('az-axi')
-  network.requests.length = 0
-  await app.close()
-  runner = await Runner.create(join(directory, 'calls'))
-  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: adapters.slice(0, 2),
-    resolver: new SharedIdentityResolver(store) })
-  url = await app.listen({ host: '127.0.0.1', port: 0 })
   const settings = await request('PATCH', '/az-axi', { enabled: false, nativeSettings: { allowWrites: false }, expectedRevision: 2 })
   expect(settings.status).toBe(200)
   expect(adminToolSchema.parse(await settings.json())).toMatchObject({ nativeSettings: { allowWrites: false }, health: { status: 'disabled' } })
-  await failure(await request('PATCH', '/az-axi', { enabled: true, expectedRevision: 3 }), 'TOOL_DISABLED')
-  await failure(await request('POST', '/az-axi/test', {}), 'TOOL_DISABLED')
+  expect((await request('PATCH', '/az-axi', { enabled: true, expectedRevision: 3 })).status).toBe(200)
+  expect((await request('POST', '/az-axi/test', {})).status).toBe(200)
   expect(db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE event = 'credential-test'").get())
-    .toEqual({ checked_at: expect.any(Number), credential_revision: 2, error_code: 'TOOL_DISABLED' })
-  expect(network.requests).toEqual([])
+    .toEqual({ checked_at: expect.any(Number), credential_revision: 2, error_code: null })
 })

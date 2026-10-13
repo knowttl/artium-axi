@@ -8,8 +8,9 @@ import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import { azureCredentialSchema } from './azure-tokens.js'
 import { AzureTokenCache, azureCommandResources } from './azure-token-cache.js'
+import type { AzureResourcePlan } from './azure-token-cache.js'
 import { loadCredentialProfile } from './credential-profile.js'
-import type { Adapter } from './types.js'
+import type { Adapter, PreparedCall } from './types.js'
 
 const settings = nativeSettingsSchemas['az-axi'].shape
 export const azCredentialSchema = z.discriminatedUnion('auth', [
@@ -19,7 +20,9 @@ export type AzCredential = z.infer<typeof azCredentialSchema>
 export const azManifest = { ...inventory, ...inventory.adapterBoundary }
 
 // Follow the pinned leaf parser while retaining caller spelling for upstream execution.
-function azArguments(args: readonly string[], input: RunnerInput = {}) {
+function azArguments(args: readonly string[], input: RunnerInput = {}): {
+  args: string[], fileArguments: number[], resources: AzureResourcePlan, write?: PreparedCall['write']
+} {
   if (args.length === 1 && ['--help', '-h', '--version', '-v', '-V'].includes(args[0])) {
     return { args: [...args], fileArguments: [], resources: { required: [], optional: [] } }
   }
@@ -46,13 +49,14 @@ function azArguments(args: readonly string[], input: RunnerInput = {}) {
   const flags: Record<string, string> = Object.create(null)
   const normalized = [...args]
   const fileArguments: number[] = []
+  const positionals: string[] = []
   const schema: Record<string, string | undefined> = route.flags
   const aliases = route.flagAliases as Record<string, string>
   const shorts: Record<string, string | undefined> = route.shortFlags
   for (let index = args.length === 0 ? 0 : route.command.split(' ').length; index < args.length; index++) {
     const token = args[index]
-    if (token === '--') break
-    if (!token.startsWith('-') || token === '-') continue
+    if (token === '--') { positionals.push(...args.slice(index + 1)); break }
+    if (!token.startsWith('-') || token === '-') { positionals.push(token); continue }
     const equals = token.indexOf('=')
     const raw = token.slice(token.startsWith('--') ? 2 : 1, equals === -1 ? undefined : equals)
     const expanded = token.startsWith('--') ? raw : shorts[raw]
@@ -91,7 +95,71 @@ function azArguments(args: readonly string[], input: RunnerInput = {}) {
     }
     flags[name] = value
   }
-  return { args: normalized, fileArguments, resources: azureCommandResources(route.command, flags) }
+  return { args: normalized, fileArguments, resources: azureCommandResources(route.command, flags),
+    write: azWrite(route, flags, positionals) }
+}
+
+function azWrite(route: typeof inventory.commands[number], flags: Record<string, string>, positionals: string[]): PreparedCall['write'] {
+  if (flags.execute !== 'true' || flags.help === 'true') return
+  if (route.handlerCommand === 'api') {
+    const method = positionals[0]?.toUpperCase()
+    if (!['PUT', 'PATCH', 'POST', 'DELETE'].includes(method) || (flags.resource ?? 'arm') !== 'arm') return
+    const target = positionals[1]
+    if (!target) return
+    let url: URL
+    try { url = new URL(target, 'https://management.azure.com') } catch { return }
+    const path = url.pathname.split('/').filter(Boolean).map(segment => {
+      try { return decodeURIComponent(segment).toLowerCase() } catch { return segment.toLowerCase() }
+    }).join('/')
+    if (method === 'POST' && (
+      path === 'providers/microsoft.resourcegraph/resources' ||
+      /^subscriptions\/[^/]+\/(?:resourcegroups\/[^/]+\/)?providers\/microsoft.resources\/deployments\/[^/]+\/whatif$/.test(path) ||
+      /microsoft.policyinsights\/.*policystates\/latest\/queryresults$/.test(path) ||
+      /microsoft.securityinsights\/.*incidents\/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\/(?:alerts|entities)$/.test(path)
+    )) return
+    if (method === 'POST') url.pathname = url.pathname.replace(/\/[^/]+\/?$/, '')
+    const checkArgs = ['api', 'GET', target.startsWith('/') ? url.pathname + url.search : url.toString()]
+    for (const name of ['api-version', 'query']) if (flags[name]) checkArgs.push(`--${name}`, flags[name])
+    checkArgs.push('--full')
+    return { operation: method, target: JSON.stringify(target), checkArgs }
+  }
+  if (!['write', 'destructive'].includes(route.effect)) return
+  flags = Object.fromEntries(Object.entries(flags).map(([name, value]) => [name, value.trim()]))
+  flags.subscription = (flags.subscription ?? '').split(',').map(value => value.trim()).filter(Boolean).join(',')
+  if (route.handlerCommand === 'tag update') {
+    const target = (flags['resource-id'] ?? '').replace(/\/+$/, '')
+    return { operation: route.handlerCommand, target: JSON.stringify(target),
+      checkArgs: ['api', 'GET', `${target}/providers/Microsoft.Resources/tags/default`, '--api-version', '2021-04-01', '--full'] }
+  }
+  if (route.handlerCommand === 'security alert update') {
+    const group = flags['resource-group'] === undefined ? '' : `/resourceGroups/${encodeURIComponent(flags['resource-group'])}`
+    const target = `/subscriptions/${flags.subscription}${group}/providers/Microsoft.Security/locations/${encodeURIComponent(flags.location)}/alerts/${encodeURIComponent(flags.name)}`
+    return { operation: route.handlerCommand, target: JSON.stringify(target),
+      checkArgs: ['api', 'GET', target, '--api-version', '2022-01-01', '--full'] }
+  }
+  if (route.handlerCommand === 'network nsg rule create') {
+    const nsg = flags.ids ?? `/subscriptions/${flags.subscription}/resourceGroups/${encodeURIComponent(flags['resource-group'])}/providers/Microsoft.Network/networkSecurityGroups/${encodeURIComponent(flags['nsg-name'])}`
+    const target = `${nsg}/securityRules/${encodeURIComponent(flags.name)}`
+    return { operation: route.handlerCommand, target: JSON.stringify(target),
+      checkArgs: ['api', 'GET', target, '--api-version', '2024-05-01', '--full'] }
+  }
+  const reads: Record<string, { command: string[], selectors: string[] }> = {
+    'sentinel incident update': { command: ['sentinel', 'incident', 'show'], selectors: ['subscription', 'resource-group', 'workspace-name', 'workspace', 'name', 'incident-id', 'ids'] },
+    'sentinel incident comment create': { command: ['sentinel', 'incident', 'show'], selectors: ['subscription', 'resource-group', 'workspace-name', 'workspace', 'incident-id', 'ids'] },
+  }
+  const read = reads[route.handlerCommand]
+  if (!read) throw new ArtiumError('INVALID_INPUT')
+  const checkArgs = [...read.command]
+  for (const name of read.selectors) if (flags[name]) checkArgs.push(`--${name}`, flags[name])
+  checkArgs.push('--full')
+  const target = Object.fromEntries(['subscription', 'resource-group', 'workspace-name', 'workspace', 'name', 'incident-id', 'ids', 'nsg-name', 'location']
+    .filter(name => flags[name] !== undefined).map(name => [name, flags[name]]))
+  return { operation: route.handlerCommand, target: JSON.stringify(target), checkArgs,
+    ...(route.handlerCommand === 'sentinel incident comment create' ? {
+      afterCheck: "Use the returned incident id as <incident-ARM-id>, then inspect the comments before retrying: artium-axi az-axi api GET '<incident-ARM-id>/comments' --api-version 2025-09-01 --all --full",
+    } : {
+      afterCheck: "Use the returned incident id as <incident-ARM-id>, then inspect all incident fields before retrying: artium-axi az-axi api GET '<incident-ARM-id>' --api-version 2025-09-01 --full",
+    }) }
 }
 
 export function createAzAdapter(source: SecretSource, writeLog: string, cache = new AzureTokenCache(),
@@ -124,12 +192,13 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
       }).filter(([, value]) => value !== undefined)), writeLog, false) : {
         environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
           ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [holders[resource], token!.accessToken])) },
-        files: [{ name: 'az-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {
-          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenant: tenantId, tokenEnv: holders },
+        files: [{ name: 'az-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
+          artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId, tokenEnv: holders },
         } }) }],
       }
       return {
         executable: toolPaths['az-axi'], args: normalized.args, fileArguments: normalized.fileArguments,
+        write: normalized.write,
         ...injection,
         secrets: [...new Set([credential.auth === 'secret' ? credential.clientSecret : credential.privateKey,
           ...Object.values(tokens).flatMap(token => token.secrets)])],

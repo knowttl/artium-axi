@@ -56,6 +56,7 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | SPAWN_FAILED | artium-axi | 500 | 1 | The upstream tool could not be started. | Check the configured executable and environment. |
 | PROCESS_SIGNAL | artium-axi | 500 | 1 | The upstream tool ended on a signal. | Check the tool status before retrying. |
 | TIMEOUT | artium-axi | 504 | 1 | The upstream tool exceeded its timeout. | Check the tool status before retrying. |
+| UNKNOWN_OUTCOME | artium-axi | 504 | 1 | The write may have changed state before the tool stopped. | Check current state before trying again. |
 | CANCELLED | artium-axi | 500 | 1 | The call was cancelled. | Check the tool status before retrying. |
 | OUTPUT_LIMIT | artium-axi | 500 | 1 | The upstream tool exceeded the output limit. | Use a command that produces less output. |
 | TOO_MANY_CALLS | artium-axi | 429 | 1 | The concurrent call limit was reached. | Wait for an active call to finish. |

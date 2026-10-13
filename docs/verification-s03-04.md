@@ -20,5 +20,5 @@ Confirm every harness-created container, network and temporary directory was rem
 Remove the freshly built slice-owned test image after collecting the network evidence.
 
 The [probe](../test/fake-service/probe.mjs) owns the expected ambiguous-mutation request count.
-See [the evidence ledger](evidence-ledger.md) for the observed retry behaviour and Azure write-capability restriction.
+See [the evidence ledger](evidence-ledger.md) for historical retry observations and subsequent verification.
 Live scopes, authentication, permissions, output parity and production host behaviour remain on the captain checklist.

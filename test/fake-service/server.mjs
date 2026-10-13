@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const requests = []
+const resources = new Map()
 let mutations = 0
 const certs = process.argv[2] ?? '/certs'
 const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
@@ -105,6 +106,72 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       recorded.body = JSON.parse(body)
       res.end(JSON.stringify({ tables: [{ name: 'PrimaryResult', columns: [{ name: 'synthetic', type: 'string' }], rows: [['metadata']] }] }))
     })
+  } else if (url.pathname.includes('/alerts/runner-timeout-alert')) {
+    const target = url.pathname.replace(/\/(?:resolve|dismiss|activate)$/, '')
+    if (req.method === 'POST') {
+      req.resume()
+      req.on('end', () => {
+        mutations++
+        resources.set(target, { id: target, properties: { status: 'Resolved' } })
+      })
+    } else res.end(JSON.stringify(resources.get(target) ?? { id: target, properties: { status: 'Active' } }))
+  } else if (url.pathname.endsWith('/providers/Microsoft.OperationalInsights/workspaces') && url.pathname.includes('44444444-4444-4444-8444-444444444444')) {
+    res.end(JSON.stringify({ value: [{ name: 'synthetic workspace',
+      id: '/subscriptions/44444444-4444-4444-8444-444444444444/resourceGroups/runner-timeout-recovery/providers/Microsoft.OperationalInsights/workspaces/synthetic workspace',
+      properties: { customerId: '33333333-3333-4333-8333-333333333333' } }] }))
+  } else if (url.pathname.includes('/resourceGroups/runner-timeout-recovery/') && url.pathname.includes('/providers/Microsoft.SecurityInsights/incidents')) {
+    const incident = '/subscriptions/44444444-4444-4444-8444-444444444444/resourceGroups/runner-timeout-recovery/providers/Microsoft.OperationalInsights/workspaces/synthetic%20workspace/providers/Microsoft.SecurityInsights/incidents/11111111-1111-4111-8111-111111111111'
+    const state = { id: decodeURI(incident), name: '11111111-1111-4111-8111-111111111111', properties: { incidentNumber: 17, status: 'Active' } }
+    if (req.method === 'PUT') {
+      let body = ''
+      req.setEncoding('utf8')
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        mutations++
+        recorded.body = JSON.parse(body)
+        resources.set(url.pathname, { id: url.pathname, ...recorded.body })
+        if (req.headers['x-artium-test-outcome'] === 'drop') req.socket.destroy()
+        if (req.headers['x-artium-test-outcome'] === '504') {
+          res.writeHead(504)
+          res.end(JSON.stringify({ error: { code: 'GatewayTimeout' } }))
+        }
+      })
+    } else if (url.pathname.endsWith('/comments')) {
+      res.end(JSON.stringify({ value: [...resources.values()].filter(resource => resource.id.startsWith(url.pathname + '/')) }))
+    } else if (/\/comments\/[^/]+$/.test(url.pathname)) {
+      if (resources.has(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname)))
+      else {
+        res.writeHead(404)
+        res.end(JSON.stringify({ error: { code: 'NotFound' } }))
+      }
+    } else res.end(JSON.stringify(url.pathname.endsWith('/incidents') ? { value: [resources.get(incident) ?? state] } : resources.get(url.pathname) ?? state))
+  } else if (url.pathname.includes('/resourceGroups/runner-timeout-recovery/') && url.pathname.includes('/providers/Microsoft.Network/networkSecurityGroups/')) {
+    if (req.method === 'PUT') {
+      let body = ''
+      req.setEncoding('utf8')
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        mutations++
+        resources.set(url.pathname, { id: url.pathname, ...JSON.parse(body) })
+      })
+    } else if (resources.has(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname)))
+    else if (url.pathname.includes('/securityRules/')) {
+      res.writeHead(404)
+      res.end(JSON.stringify({ error: { code: 'NotFound' } }))
+    } else res.end(JSON.stringify({ id: url.pathname, properties: { securityRules: [] } }))
+  } else if (url.pathname.includes('/resourceGroups/runner-timeout-') && (req.method === 'PATCH' || url.pathname.endsWith('/runner-timeout-read'))) {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      if (req.method === 'PATCH') {
+        mutations++
+        const value = JSON.parse(body)
+        resources.set(url.pathname, value.properties?.tags ? { properties: { tags: value.properties.tags } } : value)
+      }
+    })
+  } else if (resources.has(url.pathname)) {
+    res.end(JSON.stringify(resources.get(url.pathname)))
   } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/single-write' && req.method === 'PATCH') {
     mutations++
     let body = ''
@@ -113,6 +180,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     req.on('end', () => {
       recorded.body = JSON.parse(body)
       res.end(JSON.stringify({ tags: { synthetic: 'yes' } }))
+    })
+  } else if (url.pathname === '/subscriptions/synthetic-subscription/resourceGroups/timeout-write' && req.method === 'PATCH') {
+    req.resume()
+    req.on('end', () => {
+      mutations++
+      // A gateway timeout after the service applied the request leaves its outcome unknown.
+      res.writeHead(504, { 'retry-after': '0' })
+      res.end(JSON.stringify({ error: { code: 'GatewayTimeout', message: 'Mutation recorded before gateway timed out' } }))
     })
   } else if (req.method !== 'GET' && req.method !== 'HEAD') {
     mutations++

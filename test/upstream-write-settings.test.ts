@@ -27,19 +27,19 @@ test.each([
 
 test('Azure configured write subscriptions cannot be widened by read-scope overrides', async () => {
   vi.stubEnv('AZ_AXI_PROFILE', '')
-  vi.stubEnv('AZ_AXI_READ_ONLY', '')
+  vi.stubEnv('AZ_AXI_READ_ONLY', '0')
   vi.stubEnv('AZ_AXI_SUBSCRIPTION', 'synthetic-env-subscription')
   const { resolveProfile } = await load('az-axi', 'lib/config.js')
   const { enforceGates } = await load('az-axi', 'lib/gates.js')
   const directory = mkdtempSync(join(root, '.tmp-write-settings-'))
   const config = join(directory, 'config.json')
   try {
-    writeFileSync(config, JSON.stringify({ defaultProfile: 'synthetic', profiles: { synthetic: {
+    writeFileSync(config, JSON.stringify({ version: 1, defaultProfile: 'synthetic', profiles: { synthetic: {
       auth: 'token', allowWrites: true, subscriptions: ['synthetic-config-subscription'],
-    } } }))
-    const fromEnv = resolveProfile({ config })
-    const fromFlag = resolveProfile({ config, subscriptions: ['synthetic-flag-subscription'] })
-    expect(fromEnv.subscriptions).toEqual(['synthetic-env-subscription'])
+    } } }), { mode: 0o600 })
+    const fromEnv = resolveProfile({ config, profile: 'synthetic' })
+    const fromFlag = resolveProfile({ config, profile: 'synthetic', subscriptions: ['synthetic-flag-subscription'] })
+    expect(fromEnv.subscriptions).toEqual(['synthetic-config-subscription'])
     expect(fromFlag.subscriptions).toEqual(['synthetic-flag-subscription'])
     expect(fromEnv.writeSubscriptions).toEqual(['synthetic-config-subscription'])
     expect(fromFlag.writeSubscriptions).toEqual(['synthetic-config-subscription'])
