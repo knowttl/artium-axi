@@ -30,7 +30,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 
 For a new server, follow [Set up a host](#set-up-a-host) first.
 For an existing server, obtain its trusted HTTPS URL and a local account from its administrator, then continue below.
-The Linux client requires Node **22.12 or later**, curl and sha256sum on `PATH`.
+The Linux client requires Node **24.11 or later**, curl and sha256sum on `PATH`.
 Windows and macOS execution, token storage and actual agent host loading remain unverified.
 
 ### Download and first call
@@ -113,7 +113,7 @@ Upstream accounts are shared server-side service identities; users sign in to Ar
 
 1. **Prepare the host.**
    Install Git and Docker with Compose and reserve HTTPS port 443 for the reverse proxy.
-   The image supplies Node, Python and the pinned tools; a source build additionally requires Node >=22.12.0 and pnpm 10.22.0.
+   The image supplies Node, Python and the pinned tools; a source build additionally requires Node >=24.11.0 and pnpm 10.22.0.
    Allow package and image downloads during the build and runtime access to the enabled tools' upstream APIs and identity endpoints.
    See [runbook prerequisites](docs/runbook.md#scope-and-prerequisites) for the runtime limits, writable data directory and UID 10001 ownership, including rootless UID mapping.
 
@@ -300,7 +300,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captai
 
 ### Build from source
 
-The source toolchain requires Node **22.12 or later** and **pnpm 10.22.0**.
+The source toolchain requires Node **24.11 or later** and **pnpm 10.22.0**.
 From the repository root:
 
 ```sh
@@ -534,7 +534,7 @@ See [runner verification and limitations](docs/verification-s09-10.md) and [secr
 
 ## Development & Testing
 
-Use Linux with Node **22.12 or later**, **pnpm 10.22.0**, OpenSSL, Python 3, curl and sha256sum.
+Use Linux with Node **24.11 or later**, **pnpm 10.22.0**, OpenSSL, Python 3, curl and sha256sum.
 Container acceptance additionally requires Docker and the BuildKit prerequisites described in the [container evidence](docs/verification-s20-21.md).
 `pnpm test:containers` starts a private BuildKit worker with `--privileged`; hosts that forbid privileged containers cannot run this check and must record container acceptance as unverified.
 

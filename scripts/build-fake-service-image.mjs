@@ -13,7 +13,7 @@ const runner = process.argv.includes('--runner')
 const cli = process.argv.includes('--cli')
 const large = production || runner
 const productionTag = process.argv[process.argv.indexOf('--production') + 1]
-const image = cli ? process.argv[process.argv.indexOf('--cli') + 1] : runner ? process.argv[process.argv.indexOf('--runner') + 1] : production ? productionTag ?? 'artium-axi:local' : process.env.ARTIUM_TEST_IMAGE ?? 'artium-test-node22'
+const image = cli ? process.argv[process.argv.indexOf('--cli') + 1] : runner ? process.argv[process.argv.indexOf('--runner') + 1] : production ? productionTag ?? 'artium-axi:local' : process.env.ARTIUM_TEST_IMAGE ?? 'artium-test-node24'
 if (runner && (!image || image.startsWith('--'))) throw new Error('--runner requires an image tag')
 const directory = mkdtempSync(join(root, '.tmp-image-'))
 const docker = args => {

@@ -7,7 +7,7 @@ import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const falcon = process.argv.includes('--falcon')
-const image = process.env.ARTIUM_TEST_IMAGE ?? (falcon ? 'artium-axi:local' : 'artium-test-node22')
+const image = process.env.ARTIUM_TEST_IMAGE ?? (falcon ? 'artium-axi:local' : 'artium-test-node24')
 const hosts = falcon ? ['api.crowdstrike.com', 'api.us-2.crowdstrike.com', 'redirect.crowdstrike.com', 'api-redirect.crowdstrike.com', 'appliance.test'] : ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
   'synthetic.blob.core.windows.net', 'synthetic.vault.azure.net', 'synthetic.azurecr.io', 'appliance.test']
 const name = `artium-test-${randomUUID()}`
@@ -48,7 +48,7 @@ try {
   const versionContainer = `${name}-version`
   containers.push(versionContainer)
   const version = docker('run', '--rm', '--pull', 'never', '--network', 'none', '--name', versionContainer, image, 'node', '--version')
-  if (Number(version.slice(1).split('.')[0]) < 22) throw new Error('Harness image requires Node 22 or later')
+  if (Number(version.slice(1).split('.')[0]) < 24) throw new Error('Harness image requires Node 24 or later')
   createTestCertificates(certs, hosts)
   for (const suffix of ['inside', 'outside']) {
     const network = `${name}-${suffix}`
