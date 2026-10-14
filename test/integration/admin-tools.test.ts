@@ -41,7 +41,7 @@ const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.allo
 const values = {
   'ldap-axi': { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' },
   'mg-axi': { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-graph' },
-  'falcon-axi': { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' },
+  'falcon-axi': { clientId: 'synthetic-client', clientSecret: 'CANARY-secret', region: 'us-2' },
   'vectra-axi': { kind: 'qux', apiVersion: '2.5', origin: 'https://synthetic.invalid', auth: 'token', token: 'CANARY-token',
     writes: { allowWrites: true, operations: ['notes.set'] } },
   'az-axi': { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-azure',
@@ -223,12 +223,11 @@ test.each([
     cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
-  const page = await app.inject({ method: 'GET', url: '/admin/credentials',
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/mg-axi',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
   expect(page.body).not.toContain('CANARY-')
   expect(page.body).toContain('action="/v1/admin/tools/mg-axi/credential"')
-  expect(page.body).toContain('action="/v1/admin/tools/falcon-axi/credential"')
   const replacement = { mode: 'application', tenantId: value.tenantId, clientId: value.clientId,
     auth: 'client-secret', clientSecret: 'CANARY-replacement' }
   expect(await replace('mg-axi', replacement, 1)).toMatchObject({ revision: 2,
@@ -251,7 +250,7 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
   const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-  for (const path of ['/admin', '/admin/tools', '/admin/credentials', '/admin/roles']) {
+  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/roles']) {
     const page = await app.inject({ method: 'GET', url: path, headers: { cookie } })
     expect(page.statusCode).toBe(200)
     expect(page.headers['cache-control']).toBe('no-store')
@@ -259,18 +258,18 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
     expect(page.body).not.toContain(values['falcon-axi'].clientSecret)
     expect(page.body).not.toContain(values['vectra-axi'].token)
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
-    if (path === '/admin/credentials') {
+    if (path === '/admin/tools/az-axi') {
       expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/test"')
-      expect(page.body).toContain('data-test-tool="mg-axi" action="/v1/admin/tools/mg-axi/test"')
-      expect(page.body).toContain('name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea>')
-      expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(3)
+      expect(page.body).toContain('data-profile-field="tenantId"')
+      expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(1)
       expect(page.body).toContain('Last changed by synthetic-user')
     }
-    if (path === '/admin/tools') {
-      expect(page.body).toContain('&quot;operations&quot;')
+    if (path === '/admin/tools/az-axi') {
       const forms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/az-axi"[^>]*>[\s\S]*?<\/form>/g)!
       expect(forms).toEqual(expect.arrayContaining([expect.stringContaining(
         `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
+    }
+    if (path === '/admin/tools/mg-axi') {
       const graphForms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/mg-axi"[^>]*>[\s\S]*?<\/form>/g)!
       expect(graphForms).toEqual(expect.arrayContaining([expect.stringContaining(
         `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))

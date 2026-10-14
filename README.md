@@ -171,7 +171,7 @@ Recovery, rotation, backups, retention and upgrades remain in the [operations ru
 ### Tool credentials
 
 Configure only the tools you intend to use.
-At `/admin/credentials`, select the tool and save a complete replacement credential, then use **Test credential** and follow the [activation requirements](#browser-administration) before enabling it at `/admin/tools`.
+At `/admin/tools`, open the tool, save its credential, then use **Test credential** and follow the [activation requirements](#browser-administration) before enabling it.
 Forms start blank and never reveal saved secrets; enter secret values themselves, leave unused fields blank, and enter arrays or objects as JSON.
 The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](#browser-administration) explains replacement and health behavior.
 
@@ -187,8 +187,7 @@ The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-a
 
 In the Falcon console, open **Support and resources > API clients and keys** and create a dedicated API client.
 Copy its client ID and secret and record its cloud region: `us-1`, `us-2`, `eu-1` or `us-gov-1`.
-At `/admin/credentials`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
-The pinned release uses the JSON credential editor; enter an object with those keys.
+At `/admin/tools/falcon-axi`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
 Grant `Alerts:read` for detection reads, including the first-call example.
 Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.3.0/README.md#api-client-permissions) and its offline `scopes` command.
 For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
@@ -239,7 +238,9 @@ Check the registry's **Settings > Properties > Role assignment permissions mode*
 On ABAC-enabled registries, ARM `Reader` and `Contributor` grant control-plane access only, so assign the catalogue and repository roles above for the reads you need.
 Access-policy-mode vaults require corresponding vault access policies instead of the RBAC-mode role.
 
-At `/admin/credentials`, use Azure's JSON editor with this shape, replacing every placeholder:
+At `/admin/tools/az-axi`, choose authentication and enter the source identity in the guided credential fields.
+Save subscriptions and write settings separately in Native settings.
+The equivalent complete replacement API input has this shape, replacing every placeholder:
 
 ```json
 {
@@ -308,13 +309,11 @@ This keeps the directory identity explicit and its password rotation within the 
 The native Kerberos provider and its installation script are unnecessary for this authentication mode and remain disabled.
 
 Obtain a dedicated directory identity with read access only, its bind DN and password, and a directory URL whose certificate can be verified.
-At `/admin/credentials`, select `ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn` and the password value in `bindPassword`.
+At `/admin/tools/ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn` and the password value in `bindPassword`.
 Use `ldaps://<directory-host>:636`, or `ldap://<directory-host>:389` with `startTls=true`.
 Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
 If a private CA is required, supply its PEM contents in `caFile`, not a server file path.
-The current web credential editor renders `caFile` as a one-line field and drops newlines from pasted multiline PEM.
-Until the credential editor supports multiline CA contents, save the complete replacement through `PUT /v1/admin/tools/ldap-axi/credential`, using a JSON string with escaped newlines for `value.caFile` and the current credential and tool revisions.
-The API preserves those newlines, and Artium materializes the CA privately for each call.
+The multi-line `caFile` editor preserves newlines through saving and private CA file materialization for each call.
 Artium's CLI has no credential-save command.
 Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
 Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
@@ -425,8 +424,9 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin` | Search and filter the users table by source, status or role; create local users. |
 | `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset passwords and archive. |
 | `/account` | Review your roles and tools, download and set up the CLI, change your password and revoke your sessions. |
-| `/admin/tools` | Review pinned versions and cached health; enable supported tools and edit native settings. |
-| `/admin/credentials` | Replace credentials and run a fixed harmless credential test. |
+| `/admin/tools` | Review installed tools, pinned versions and cached health. |
+| `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
+| `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an empty role. |
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
@@ -461,18 +461,22 @@ Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
-Credential editors start blank and never return stored values.
+Credential editors pre-fill non-secret values and never return stored secrets.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
 Falcon uses the same editor when its pinned package ships that schema.
-Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object or array fields as JSON.
+Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 For Vectra, `origin` must be a canonical HTTPS origin, without a path, credentials or an explicit default port.
 Enter PEM contents in `caBundle`, not a server file path; Artium writes a private CA file for each call.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
-Azure retains its source-identity JSON editor because the host brokers resource tokens separately.
+Azure uses guided source-identity fields because the host brokers resource tokens separately.
+Azure and Graph certificate editors accept a combined PEM certificate and matching private key and calculate the fingerprint automatically.
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
-Pinned tools awaiting migration retain their current credential editor and injection path.
-Browser replacements must include every native setting to retain: omitted settings are cleared.
-API clients can save credentials while retaining stored secrets and native settings; see [credential rotation](docs/runbook.md#roles-credentials-and-health).
+Falcon has guided fields even when its pinned package has no credential schema; its injection path stays unchanged.
+Browser saves keep native settings and retain blank stored secrets for the same identity.
+Changing mode, kind, authentication, tenant, client or origin requires new secrets.
+Select **Test after saving** to save and report a harmless credential check inline.
+API clients can use the same retaining save operation; complete replacement still clears omitted settings.
+See [credential rotation](docs/runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
 Use **Test credential** for a current fixed read before enabling a configured tool.

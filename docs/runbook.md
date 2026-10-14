@@ -176,18 +176,19 @@ Users with no enabled granted tools receive an explanatory empty list.
 Review actor, change time and revision before saving; reload stale forms instead of overwriting newer edits.
 See [browser administration](../README.md#browser-administration) for timestamp display and inline password confirmation.
 
-For credential rotation, obtain the replacement through the owner's approved process, then open `/admin/credentials`.
-Follow the [credential editor guidance](../README.md#browser-administration) for schema-generated fields and the retained JSON editors.
-Replace the complete credential, including all native settings to retain; omitted settings are cleared.
-The editor starts blank and never reveals the stored value.
-Use “Test credential” at `/admin/credentials` to test the replacement with the fixed harmless read before enabling the tool at `/admin/tools`.
+For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
+Follow the [credential editor guidance](../README.md#browser-administration) for guided fields and combined certificate PEM uploads.
+Enter replacement secrets, leaving stored secrets blank to keep them for the same identity.
+Native settings save separately and remain unchanged by credential saves.
+The editor pre-fills non-secret values and never reveals stored secrets.
+Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
 API clients can instead use the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) to retain stored secrets and native settings.
 That contract owns the request fields, identity-change restrictions and revision requirements.
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
-The existing browser editor continues to use complete replacement until the guided editor is available.
+The browser editor uses this retaining save operation; API complete replacement remains available for callers that intend to clear omitted settings.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
 Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.
@@ -209,7 +210,7 @@ Both return `status: ok` when healthy; readiness returns HTTP 503 when local mig
 These checks do not test remote services or reload the key.
 Use doctor for the [CLI diagnostics](../README.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
 Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
-Use “Test credential” at `/admin/credentials` for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
 ## Retention and export
 
