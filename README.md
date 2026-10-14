@@ -301,7 +301,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captai
 
 #### LDAP
 
-Artium pins `@knowttl/ldap-axi` to npm version `0.1.4` and uses stored simple-bind credentials, encrypted by the same credential store as the other tools.
+Artium uses the [pinned npm release](tools/package.json) of `@knowttl/ldap-axi` with stored simple-bind credentials, encrypted by the same credential store as the other tools.
 The user's ambient Kerberos ticket belongs to their local login and is unavailable inside Artium's server-side isolated runner.
 Artium therefore requires `auth=simple`; it does not accept a keytab or manage Kerberos ticket acquisition and renewal.
 This keeps the directory identity explicit and its password rotation within the existing credential replacement flow.
@@ -319,11 +319,11 @@ Artium's CLI has no credential-save command.
 Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
 Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
 
-Artium follows the package's shipped AXI credential contract: one version 1 `artium` profile under private XDG configuration, with `bindPassword` replaced by an environment SecretRef for the child process.
 Enter the password itself in the form, never a SecretRef or password-file path.
 Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
 **Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
-LDAP 0.1.4 is read-only by design and has no editable native write settings.
+LDAP is read-only by design and has no editable native write settings.
+The [LDAP inventory](tools/inventories/ldap-axi.json) owns the supported commands, blocked overrides and resource requirements.
 Local fake-directory and offline profile checks do not establish live directory acceptance.
 
 ### Build from source
@@ -360,6 +360,7 @@ The root package is private; server downloads and source builds are the installa
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
 | `artium-axi vectra-axi detection list` | Run a Vectra read through the managed adapter. |
 | `artium-axi mg-axi entra user list --limit 1` | Run a bounded Graph read through the managed adapter. |
+| `artium-axi ldap-axi user list --limit 1` | Run a bounded directory read through the managed adapter. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Tool help has two boundaries:
@@ -372,6 +373,7 @@ artium-axi falcon-axi --help
 The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
+A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
@@ -398,8 +400,9 @@ Details read bundled manifests and stored health without fetching credentials or
 Discovery and administration show the server's bundled tool versions, as defined by the [API contract](src/shared/api.ts).
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
-For Falcon, Vectra, Azure and Graph, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+For Falcon, Vectra, Azure, Graph and LDAP, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
+LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](#ldap).
 Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
@@ -477,8 +480,8 @@ There is no audit mutation or deletion route.
 Successful browser and bearer-token password confirmations emit `reauth` events.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
-Pinned Falcon runs report `read` from the inventory's read-only declaration, including normal runs and health checks.
-Failures without journal records, malformed or unreadable evidence, and recovered interrupted runs report `unknown`.
+Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
+For tools with native journals, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs also report `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 
 ## Configuration

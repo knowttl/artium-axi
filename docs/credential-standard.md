@@ -236,8 +236,8 @@ For each call, the host:
 5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
    LDAP is read-only by design and needs neither setting nor a write journal.
 
-Under this contract the host's per-tool code is limited to argument policy.
-That covers the inventory, blocked commands and blocked flags, and no credential code remains.
+The shared profile writer owns schema validation and secret injection.
+Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
 
 ### Per-tool host-facing schemas
 
@@ -258,11 +258,8 @@ Mixed or partial env sources are rejected.
 Legacy `tokenEnv` keys are accepted for one release with a deprecation warning.
 These az-axi schema details were approved separately during implementation.
 
-ldap-axi 0.1.4 ships a profile schema with `bindPassword` marked `x-secret`.
-Artium restricts that schema to `auth: "simple"` with a required `bindDn` and password value, and verified LDAPS or StartTLS.
-The caller's ambient Kerberos ticket is unavailable in the isolated server runner; keytabs and ticket renewal are outside this adapter's scope.
-Artium accepts CA PEM contents in `caFile` and materializes them privately rather than accepting a host file path.
-The pinned package's native Kerberos installer remains disabled because simple bind needs no native provider.
+The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the shipped credential schema; [credential-profile.ts](../src/server/adapters/credential-profile.ts) owns its hosted input restrictions and CA materialization.
+See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and private CA editor workaround.
 
 ## 10. Migration
 

@@ -15,11 +15,12 @@ The [credential standard](credential-standard.md) is the canonical contract.
 | artium-axi | Use one schema-driven profile writer, admin form and validation; retire legacy credential schemas and guide strings as each pinned tool migrates; use ARTIUM_SECRET_<n> holders; keep the az token broker. Addresses I-14 (certificate field alignment) and I-15 (bespoke onboarding). |
 
 The host now has the shared schema-driven profile writer, validation and admin fields, with legacy paths retained for pinned packages that do not ship a schema.
-Schema locations are owned by [server configuration](../src/server/config.ts); an absent schema retains legacy handling, while an unreadable or invalid schema fails startup with `CREDENTIAL_INVALID`.
+Schema locations are owned by [server configuration](../src/server/config.ts); an absent schema retains legacy handling for older adapters, while LDAP falls back to its bundled schema.
+An unreadable or invalid schema fails startup with `CREDENTIAL_INVALID`.
 The az token broker retains its source-identity editor and validates the brokered token profile against the shipped schema when available.
 Each tool switches when its pinned package ships axi-credential.schema.json.
-For tools using the shared credential editor, that schema owns validation, form guidance and secret injection.
-The current Vectra, Graph and Az [pins](../tools/package.json) ship the canonical schemas and use the shared writer.
+For tools using the shared credential editor, the shipped schema supplies validation, form guidance and secret injection, subject to [hosted input restrictions](credential-standard.md#per-tool-host-facing-schemas).
+The current Vectra, Graph, Az and LDAP [pins](../tools/package.json) ship the canonical schemas and use the shared writer.
 Az's brokered token profile and schema-absent fallback both use the per-resource SecretRefs defined in the [credential standard](credential-standard.md#per-tool-host-facing-schemas).
 See [credential editor guidance](../README.md#browser-administration) for Vectra origin and CA inputs.
 [Published-credential tests](../test/integration/published-credentials.test.ts) exercise artium-written SecretRefs and private per-call configuration: Vectra contacts a fake HTTPS appliance; Graph uses the published CLI and secret resolver with fake credential acquisition and transport.
