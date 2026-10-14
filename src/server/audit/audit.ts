@@ -90,7 +90,7 @@ export class Audit {
       values.time = cursor[1]!
       values.id = cursor[2]!
     }
-    for (const [filter, column] of [['user', 'user_id'], ['tool', 'tool'], ['outcome', 'outcome']] as const) {
+    for (const [filter, column] of [['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome']] as const) {
       if (input[filter] !== undefined) {
         clauses.push(`${column} = @${filter}`)
         values[filter] = input[filter]!

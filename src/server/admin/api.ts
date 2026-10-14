@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { Readable } from 'node:stream'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
-import { adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema, sessionParamsSchema } from '../../shared/api.js'
+import { adminAuditExportRoute, adminAuditRecordSchema, adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema, sessionParamsSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from '../auth/attempts.js'
@@ -58,6 +59,29 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   app.route({ method: adminAuditRoute.method, url: adminAuditRoute.path, handler: async request => {
     authorize(request)
     return adminAuditRoute.response.parse(audit.query(parse(adminAuditRoute.input, request.query)))
+  } })
+  app.route({ method: adminAuditExportRoute.method, url: adminAuditExportRoute.path, handler: async (request, reply) => {
+    authorize(request)
+    const { format, ...filters } = parse(adminAuditExportRoute.input, request.query)
+    const columns = Object.keys(adminAuditRecordSchema.shape) as (keyof z.infer<typeof adminAuditRecordSchema>)[]
+    const csv = (value: unknown) => value === null ? '' : `"${String(value).replaceAll('"', '""')}"`
+    // Query the first page now to bind every continuation to the same insertion ceiling.
+    const first = audit.query({ ...filters, limit: 100 })
+    function* download() {
+      if (format === 'csv') yield columns.join(',') + '\r\n'
+      let page = first
+      while (true) {
+        for (const row of page.records) {
+          const record = adminAuditRecordSchema.parse(row)
+          yield format === 'jsonl' ? JSON.stringify(record) + '\n' : columns.map(key => csv(record[key])).join(',') + '\r\n'
+        }
+        if (!page.nextCursor) return
+        page = audit.query({ ...filters, limit: 100, cursor: page.nextCursor })
+      }
+    }
+    return reply.type(format === 'csv' ? 'text/csv; charset=utf-8' : 'application/x-ndjson; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="artium-audit.${format}"`)
+      .header('Cache-Control', 'no-store').send(Readable.from(download()))
   } })
 
   function change<T>(request: FastifyRequest, action: string, id: string, read: (id: string) => T, mutation: (actor: string, now: number) => void): T {

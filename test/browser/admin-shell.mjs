@@ -79,6 +79,58 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('audit event filter, pagination and expanded details retain the selected search', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/audit');
+    await page.eval(() => { const event = document.querySelector('[name=event]'); event.value = 'run-start'; event.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.fill('[name=limit]', '1');
+    await page.click('form[action="/admin/audit"] button');
+    await page.wait('tbody tr');
+    check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').textContent.includes('run-start')), 'Event filter failed');
+    check(await page.eval(() => [...document.querySelectorAll('thead th')].slice(3).every(cell => cell.getBoundingClientRect().width >= 100)), 'Tool and Outcome columns are too narrow to read');
+    await page.click('tbody summary');
+    check(await page.eval(() => document.querySelector('tbody details').open && document.querySelector('tbody dd').textContent), 'Record details did not open');
+    check(await page.eval(() => document.querySelector('tbody dl').textContent.includes('synthetic-run-102') && document.querySelector('tbody dl').textContent.includes('[redacted]')), 'Safe details missing');
+    check(await page.eval(() => document.querySelector('tbody dl').getBoundingClientRect().width >= 320), 'Expanded audit fields are too narrow to read');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Expanded audit record overflows the narrow screen');
+    await page.click('a[href*="cursor="]');
+    await page.wait('tbody tr');
+    check(await page.eval(() => document.querySelector('[name=event]').value === 'run-start' && document.querySelector('tbody dl').textContent.includes('synthetic-run-101')), 'Next page lost the filter');
+    await page.click('a[href*="event=run-start"]:not([href*="cursor="]):not([download])');
+    await page.wait('tbody tr');
+    check(await page.eval(() => document.querySelector('tbody dl').textContent.includes('synthetic-run-102')), 'First page did not restart the search');
+    await page.click('a[href="/admin/audit"]');
+    await page.wait('[name=event]');
+    check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
+  `)
+})
+
+test('audit downloads export every filtered page with safe fields and explain their scope', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
+  browser(`
+    await page.open(base + '/admin/audit?event=run-start&user=synthetic-ordinary&tool=falcon-axi&outcome=started&from=2026-01-01T00:00:00Z&to=2026-01-01T00:00:00Z&limit=1');
+    await page.click('a[href*="cursor="]');
+    await page.wait('tbody tr');
+    await page.click('.page-help summary');
+    check(await page.eval(() => document.querySelector('.page-help').textContent.includes('across every page')), 'Missing export help');
+    const result = await page.eval(async () => {
+      const downloads = [];
+      for (const link of document.querySelectorAll('a[download]')) {
+        const response = await fetch(link.href);
+        downloads.push({ text: await response.text(), status: response.status, disposition: response.headers.get('content-disposition') });
+      }
+      return downloads;
+    });
+    check(result.length === 2 && result.every(file => file.status === 200 && file.disposition.startsWith('attachment;')), 'Missing download response');
+    check(result.every(file => !file.text.includes('CANARY-audit-secret') && file.text.includes('[redacted]')), 'Secret leaked in export');
+    const records = result[1].text.trimEnd().split('\\n').map(line => JSON.parse(line));
+    check(records.length === 103 && records.every(record => record.event === 'run-start' && record.user_id === 'synthetic-ordinary'), 'JSON-lines download was paginated or unfiltered');
+    check(result[0].text.split('\\r\\n').length === 105 && result[0].text.startsWith('id,occurred_at,event,'), 'CSV download was paginated');
+  `)
+})
+
 test('navigation exposes contextual help and one sign-out on every admin screen at desktop and narrow widths', () => {
   for (const width of [1280, 420]) {
     chrome(['resize', String(width), '900'])
