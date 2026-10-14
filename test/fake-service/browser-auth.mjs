@@ -65,6 +65,13 @@ server.post('/test/clock', async request => {
   offset += advanceMs
   return { now: Date.now() }
 })
+server.post('/test/audit', async () => {
+  const audit = new Audit(db, () => Date.UTC(2026, 0, 1))
+  for (let id = 0; id < 103; id++) audit.record({ event: 'run-start', outcome: 'started',
+    userId: 'synthetic-ordinary', tool: 'falcon-axi', requestId: 'synthetic-run-' + id, clientAddress: '192.0.2.1',
+    args: ['read', '--password=CANARY-audit-secret'], sensitive: { flags: ['--password'], positions: [] } })
+  return { seeded: 103 }
+})
 server.get('/test/tools/:tool', async request => {
   const reference = store.findCredential(request.params.tool)
   return { stored: reference ? store.readCredential(reference) : null,

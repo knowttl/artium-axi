@@ -483,12 +483,19 @@ For a new installation, follow [Graph credential setup](#microsoft-graph) and ob
 
 ### Audit screen and API
 
-Audit supports user, tool, exact outcome and inclusive UTC From/To filters.
+Audit supports user, tool, exact event, exact outcome and inclusive UTC From/To filters.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
+Open an event in the table to inspect every persisted field.
 Pagination retains filters; starting a new search includes records inserted after the previous search began.
 
-`GET /v1/admin/audit` exposes the same records with `user`, `tool`, `outcome`, `from`, `to`, `limit` and `cursor` parameters.
+`GET /v1/admin/audit` exposes the same records with `user`, `tool`, `event`, `outcome`, `from`, `to`, `limit` and `cursor` parameters.
 Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
+Apply filters, then use **Download CSV** or **Download JSON lines** to export every matching retained record, across all pages.
+`GET /v1/admin/audit/export?format=csv` (or `format=jsonl`) accepts the same filters, excluding `limit` and `cursor`.
+Exports are newest first and exclude records inserted after the download begins.
+Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
+CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
+An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
 Successful browser and bearer-token password confirmations emit `reauth` events.

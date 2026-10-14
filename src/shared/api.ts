@@ -122,11 +122,18 @@ const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$
     const [ceiling, time, id] = value.split(':').map(Number) as [number, number, number]
     return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
   })
-export const adminAuditQuerySchema = z.strictObject({
-  cursor: auditCursorSchema.optional(), limit: z.coerce.number().int().min(1).max(100).default(50),
+const auditFiltersSchema = z.strictObject({
   user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(),
+  event: z.string().min(1).max(100).optional(),
   outcome: z.string().min(1).max(100).optional(), from: z.iso.datetime().optional(), to: z.iso.datetime().optional(),
-}).refine(input => !input.from || !input.to || Date.parse(input.from) <= Date.parse(input.to))
+})
+const orderedAuditRange = (input: { from?: string, to?: string }) => !input.from || !input.to || Date.parse(input.from) <= Date.parse(input.to)
+export const adminAuditQuerySchema = auditFiltersSchema.extend({
+  cursor: auditCursorSchema.optional(), limit: z.coerce.number().int().min(1).max(100).default(50),
+}).refine(orderedAuditRange)
+export const adminAuditExportRoute = { method: 'GET', path: '/v1/admin/audit/export',
+  input: auditFiltersSchema.extend({ format: z.enum(['csv', 'jsonl']) }).refine(orderedAuditRange),
+  response: z.string(), authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const adminAuditRecordSchema = z.strictObject({
   id: z.number().int().positive(), occurred_at: z.number().int(), event: z.string(), user_id: z.string().nullable(),
   tool: toolSchema.nullable(), arguments: z.string().nullable(), request_id: z.string(),

@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminRolesResponseSchema, adminUserRoutes, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
+import { adminAuditExportRoute, adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminRolesResponseSchema, adminUserRoutes, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -22,6 +22,7 @@ let url: string
 let headers: Record<string, string>
 const password = 'CANARY-local-password'
 const administrator = 'synthetic-development-user'
+const auditCsvHeader = 'id,occurred_at,event,user_id,tool,arguments,request_id,exit_code,duration_ms,stdout_bytes,stderr_bytes,client_address,outcome,action,target_id,cutoff,deleted_count,checked_at,credential_revision,error_code\r\n'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const createInput = { username: ' Synthetic-New ', displayName: 'Synthetic New', temporaryPassword: 'CANARY-temporary-password',
   administrator: false, roleIds: ['synthetic-role'] }
@@ -120,6 +121,8 @@ test('audit pages stay newest first with time ties and exclude newer and backdat
 test.each([
   { query: 'user=synthetic-development-user', requests: ['third', 'first'] },
   { query: 'tool=falcon-axi', requests: ['second'] },
+  { query: 'event=credential-test', requests: ['second'] },
+  { query: 'event=unknown', requests: [] },
   { query: 'outcome=TOOL_NOT_GRANTED', requests: ['third'] },
   { query: 'from=2026-01-02T00:00:00Z', requests: ['third'] },
   { query: 'to=2026-01-01T00:00:00Z', requests: ['second', 'first'] },
@@ -148,6 +151,55 @@ test('audit query caps default and maximum pages', async () => {
   const last = adminAuditRoute.response.parse(await (await auditRequest('limit=100&cursor=' + first.nextCursor)).json())
   expect(last.records.map(record => record.request_id)).toEqual(['0'])
   expect(last.nextCursor).toBeNull()
+})
+
+test('JSON-lines export includes all filtered pages and only safe persisted fields', async () => {
+  const audit = new Audit(db, () => Date.parse('2026-01-01T00:00:00Z'))
+  const records = Array.from({ length: 103 }, (_, id) => audit.record({ event: 'run-start', userId: administrator,
+    tool: 'falcon-axi', outcome: 'started', requestId: String(id), clientAddress: null,
+    args: ['read', '--password=CANARY-secret'], sensitive: { flags: ['--password'], positions: [] } }))
+  seedAudit()
+  const response = await fetch(url + adminAuditExportRoute.path + '?format=jsonl&event=run-start&user=' + administrator
+    + '&tool=falcon-axi&outcome=started&from=2026-01-01T00:00:00Z&to=2026-01-01T00:00:00Z', { headers })
+  expect(response.status).toBe(200)
+  expect(response.headers.get('content-type')).toBe('application/x-ndjson; charset=utf-8')
+  expect(response.headers.get('content-disposition')).toBe('attachment; filename="artium-audit.jsonl"')
+  expect(response.headers.get('cache-control')).toBe('no-store')
+  const text = await response.text()
+  expect(text).not.toContain('CANARY-secret')
+  expect(text.trimEnd().split('\n').map(line => JSON.parse(line))).toEqual(records.reverse())
+})
+
+test('CSV export quotes commas, quotes and newlines without changing field values', async () => {
+  const record = new Audit(db, () => 0).record({ event: 'admin-change', userId: administrator, tool: null, outcome: 'success',
+    requestId: 'request,"quoted"\nnext', clientAddress: null, action: 'create-user', targetId: 'synthetic-new' })
+  const response = await fetch(url + adminAuditExportRoute.path + '?format=csv', { headers })
+  expect(response.status).toBe(200)
+  expect(response.headers.get('content-type')).toBe('text/csv; charset=utf-8')
+  expect(response.headers.get('content-disposition')).toBe('attachment; filename="artium-audit.csv"')
+  expect(await response.text()).toBe(auditCsvHeader
+    + `"${record.id}","0","admin-change","${administrator}",,,"request,""quoted""\nnext",,,,,,"success","create-user","synthetic-new",,,,,\r\n`)
+})
+
+test.each([{ format: 'csv', expected: auditCsvHeader }, { format: 'jsonl', expected: '' }])('empty $format export has no records', async ({ format, expected }) => {
+  const response = await fetch(url + adminAuditExportRoute.path + '?format=' + format, { headers })
+  expect(response.status).toBe(200)
+  expect(await response.text()).toBe(expected)
+})
+
+test.each(['', '?format=xml', '?format=csv&limit=1', '?format=jsonl&cursor=1:0:1', '?format=csv&event=',
+  '?format=csv&from=2026-01-02T00:00:00Z&to=2026-01-01T00:00:00Z'])('audit export rejects invalid query %s', async query => {
+  await failure(await fetch(url + adminAuditExportRoute.path + query, { headers }), 'INVALID_INPUT')
+})
+
+test('audit export requires administrator capability', async () => {
+  const ordinary = await adminHeaders('synthetic-ordinary')
+  await failure(await fetch(url + adminAuditExportRoute.path + '?format=jsonl', { headers: ordinary }), 'ADMIN_REQUIRED')
+})
+
+test('bearer audit export requires a recent-auth ticket', async () => {
+  const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+  await failure(await fetch(url + adminAuditExportRoute.path + '?format=csv', { headers: missing }), 'REAUTH_REQUIRED')
 })
 
 test.each(['limit=0', 'limit=101', 'limit=1.5', 'cursor=x', 'cursor=1:0:2', 'cursor=0:0:0',
