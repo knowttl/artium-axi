@@ -6,7 +6,7 @@ import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
 import { escape } from './escape.js'
-import { adminNav, apiForm, changed, revision } from './forms.js'
+import { apiForm, changed, revision, timestamp } from './forms.js'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
   app.get('/admin/assets/confirm.js', async (_request, reply) => reply.type('application/javascript').send(adminScript))
@@ -36,24 +36,21 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const form = (action: string, method: string, label: string, fields: string, confirmation = '') =>
       apiForm(csrf, action, method, label, fields, confirmation)
     const temporaryPassword = '<label>Temporary password <input type="password" name="temporaryPassword" autocomplete="new-password" required></label>'
-    const content = `${adminNav('Users')}
-      <p>Signed in as ${escape(current.display_name)}.</p><p id="message" role="alert" tabindex="-1"></p>
-      <section><h2>Create user</h2>${form('/v1/admin/users', 'POST', 'Create user',
+    const content = `<section><h2>Create user</h2>${form('/v1/admin/users', 'POST', 'Create user',
         '<label>Username <input name="username" autocomplete="off" required></label><label>Display name <input name="displayName" required></label>' +
         temporaryPassword + '<label><input type="checkbox" name="administrator" data-type="boolean"> Administrator</label>' + roleFields([]))}</section>
       ${users.users.map(user => {
         const path = '/v1/admin/users/' + encodeURIComponent(user.id)
         return `<section><h2>${escape(user.username)}</h2><p>${escape(user.displayName)} | ${user.enabled ? 'Enabled' : 'Disabled'}${user.administrator ? ' | Administrator' : ''}</p>
-          <p>${user.mustChange ? 'Password change required. ' : ''}Failed sign-ins: ${escape(user.failedAttempts)}. Locked until: ${escape(user.lockedUntil === null ? 'Not locked' : new Date(user.lockedUntil).toISOString())}</p>
+          <p>${user.mustChange ? 'Password change required. ' : ''}Failed sign-ins: ${escape(user.failedAttempts)}. Locked until: ${timestamp(user.lockedUntil, 'Not locked')}</p>
           ${changed(db, user)}
-          ${form(path, 'PATCH', user.enabled ? 'Disable user' : 'Enable user', revision(user.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${escape(!user.enabled)}">`, user.enabled ? 'Disable this user and revoke their sessions?' : 'Enable this user?')}
-          ${form(path + '/unlock', 'POST', 'Unlock user', '', 'Clear this user’s sign-in lockout?')}
+          ${form(path, 'PATCH', user.enabled ? 'Disable user' : 'Enable user', revision(user.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${escape(!user.enabled)}">`, user.enabled ? `Disable ${user.username}? Sign-in is blocked and all their browser and CLI sessions are revoked immediately.` : `Enable ${user.username}? They can sign in again; revoked sessions stay signed out.`)}
+          ${form(path + '/unlock', 'POST', 'Unlock user', '', `Clear ${user.username}’s failed sign-in attempts and lockout? Their password and sessions stay unchanged.`)}
           <details><summary>Reset password and assign roles</summary>
-          ${form(path + '/password-reset', 'POST', 'Reset password', temporaryPassword, 'Reset this password and revoke all user sessions?')}
-          ${form(path + '/roles', 'PUT', 'Assign roles', revision(user.revision) + roleFields(user.roleIds), 'Replace this user’s roles?')}</details></section>`
+          ${form(path + '/password-reset', 'POST', 'Reset password', temporaryPassword, `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`)}
+          ${form(path + '/roles', 'PUT', 'Assign roles', revision(user.revision) + roleFields(user.roleIds), `Replace ${user.username}’s roles with this selection? Tool access changes on the next call.`)}</details></section>`
       }).join('')}
-      <p><a href="/admin">First page</a>${users.nextCursor ? ` | <a href="/admin?cursor=${escape(encodeURIComponent(users.nextCursor))}&amp;limit=${escape(query.data.limit)}">Next page</a>` : ''}</p>
-      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}"><button>Sign out</button></form>`
-    return browserPage(reply, 'Users', content)
+      <p><a href="/admin">First page</a>${users.nextCursor ? ` | <a href="/admin?cursor=${escape(encodeURIComponent(users.nextCursor))}&amp;limit=${escape(query.data.limit)}">Next page</a>` : ''}</p>`
+    return browserPage(reply, 'Users', content, current)
   })
 }

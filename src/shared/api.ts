@@ -22,6 +22,9 @@ export const refreshSchema = z.strictObject({ refreshToken: z.string().min(1) })
 export const reauthSchema = z.strictObject({ password: z.string() })
 // Bearer callers receive a session-family ticket; cookie callers require same-origin CSRF
 // proof and receive 204 after updating their browser session's password-confirmation time.
+// Cookie responses include x-artium-reauth-until as Unix milliseconds for the browser header.
+// Browser API calls requesting application/json receive REAUTH_REQUIRED as JSON;
+// ordinary page/form requests retain the /reauth redirect.
 export const reauthResponseSchema = z.strictObject({ ticket: z.string(), expiresAt: z.number().int() })
 export const loginResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('authenticated'), accessToken: z.string(), refreshToken: z.string(),

@@ -15,6 +15,7 @@
     "prepare": "pnpm --dir tools install --frozen-lockfile",
     "build": "node scripts/build.mjs",
     "test:containers": "node scripts/container-checks.mjs",
+    "test:browser": "pnpm build && node --test test/browser/*.mjs",
     "test:axi": "node scripts/axi-check.mjs",
     "test:walking-skeleton": "pnpm build && node scripts/walking-skeleton.mjs",
     "test": "node scripts/upstream-inventory.mjs && node scripts/mg-headless-schema.mjs && vitest run",

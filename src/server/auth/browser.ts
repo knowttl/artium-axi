@@ -8,15 +8,27 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from './attempts.js'
 import { LocalAuthProvider } from './local.js'
-import { createBrowserSession, readBrowserSession } from './sessions.js'
+import { createBrowserSession, readBrowserSession, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
+import { adminNav, pageHelp } from '../admin/forms.js'
+import { authDefaults } from '../config.js'
 
 export const browserCookie = 'artium-session'
 const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
 const pages = ['/login', '/logout', '/password', '/reauth', '/admin', '/account']
 
-export function browserPage(reply: FastifyReply, title: string, content: string) {
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body><main><h1>${escape(title)}</h1>${content}</main></body></html>`)
+export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession) {
+  const until = current?.reauthenticated_at === null || current?.reauthenticated_at === undefined ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs
+  const remaining = Math.max(0, Math.ceil((until - Date.now()) / 60_000))
+  const csrf = current ? reply.generateCsrf() : ''
+  const header = current ? `<header class="site-header"><a class="brand" href="${current.administrator && !current.must_change ? '/admin' : '/account'}">artium-axi</a>
+    <div><p>Signed in as ${escape(current.display_name)}.</p><small>Local password sign-in</small></div>
+    ${current.administrator && !current.must_change ? `<p data-reauth-until="${until}">${remaining ? `Changes allowed for ${remaining} min` : 'Password confirmation required for changes'}</p>` : ''}
+    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}"><button>Sign out</button></form></header>` : ''
+  const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : '<nav aria-label="Account"><a href="/account">Account</a><a href="/password">Change password</a></nav>'}</aside>` : ''
+  const dialogs = current ? `<dialog id="confirmation" aria-labelledby="confirmation-title"><form method="dialog"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button value="confirmed">Confirm change</button></div></form></dialog>
+    ${current.administrator && !current.must_change ? `<dialog id="reauth-dialog" aria-labelledby="reauth-title"><h2 id="reauth-title">Confirm password</h2><p>Confirm your password to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p><form data-reauth><label>Password <input name="password" type="password" autocomplete="current-password" required></label><p data-reauth-error role="alert"></p><div class="dialog-actions"><button type="button" data-reauth-cancel>Cancel</button><button>Confirm and continue</button></div></form></dialog>` : ''}` : ''
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ' class="signed-in"' : ''}>${header}<div class="page-layout">${navigation}<main id="main"><h1>${escape(title)}</h1>${pageHelp(title)}<p id="message" role="alert" tabindex="-1"></p>${content}</main></div>${dialogs}</body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts) {
@@ -111,12 +123,12 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   app.get('/account', async (request, reply) => {
     const current = session(request)
     if (current.must_change) return reply.redirect('/password')
-    return browserPage(reply, 'Account', `<p>Signed in as ${escape(current.display_name)}.</p><p><a href="/password">Change password</a>${current.administrator ? ' | <a href="/admin">Administration</a>' : ''}</p>${form(reply, '/logout', 'Sign out')}`)
+    return browserPage(reply, 'Account', '<p><a href="/password">Change password</a></p>', current)
   })
   app.get('/password', async (request, reply) => {
     const current = session(request)
     return browserPage(reply, 'Change password', `${current.must_change ? '<p>You must change your temporary password before continuing.</p>' : ''}${form(reply, '/password', 'Change password',
-      (current.must_change ? '' : passwordField('currentPassword', 'Current password', 'current-password')) + passwordField('newPassword', 'New password', 'new-password'))}${form(reply, '/logout', 'Sign out')}`)
+      (current.must_change ? '' : passwordField('currentPassword', 'Current password', 'current-password')) + passwordField('newPassword', 'New password', 'new-password'))}`, current)
   })
   app.post('/password', async (request, reply) => {
     const current = session(request)
@@ -130,7 +142,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     const current = session(request)
     if (current.must_change) return reply.redirect('/password')
     return browserPage(reply, 'Confirm password', '<p>Confirm your password, then submit your administration action again.</p>' +
-      form(reply, '/reauth', 'Confirm password', passwordField('password', 'Password', 'current-password')))
+      form(reply, '/reauth', 'Confirm password', passwordField('password', 'Password', 'current-password')), current)
   })
   async function reauthenticate(request: FastifyRequest) {
     const current = session(request)
@@ -139,9 +151,11 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
     await attempts.signIn(current.username, input.data.password, context(request))
     const latest = session(request)
+    const now = Date.now()
     audit.change({ ...context(request), event: 'reauth', userId: latest.user_id, tool: null, outcome: 'success' }, () => {
-      db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(Date.now(), latest.id)
+      db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(now, latest.id)
     })
+    return now + authDefaults.recentAuthMs
   }
   app.post('/reauth', async (request, reply) => {
     await reauthenticate(request)
