@@ -50,7 +50,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database): 
     if (page.nextCursor) params.set('cursor', page.nextCursor)
     const content = `${filters}
       <p>${downloads}</p><p>Downloads include all retained records matching the applied filters, across every page.</p>
-      ${records ? `<div class="table-scroll"><table><caption>Audit records</caption><thead><tr><th scope="col">Time</th><th scope="col">Event and details</th><th scope="col">User</th><th scope="col">Tool</th><th scope="col">Outcome</th></tr></thead><tbody>${records}</tbody></table></div>` : '<p>No audit records match these filters.</p>'}
+      ${records ? `<div class="table-scroll"><table class="audit-table"><caption>Audit records</caption><thead><tr><th scope="col">Time</th><th scope="col">Event and details</th><th scope="col">User</th><th scope="col">Tool</th><th scope="col">Outcome</th></tr></thead><tbody>${records}</tbody></table></div>` : '<p>No audit records match these filters.</p>'}
       <p><a href="${escape(first)}">First page</a>${page.nextCursor ? ` | <a href="${escape('/admin/audit?' + params)}">Next page</a>` : ''}</p>`
     return browserPage(reply, 'Audit', content, current)
   })

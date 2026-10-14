@@ -27,6 +27,9 @@ fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 .session-table { min-width: 1000px; }
 .session-table time, .session-table button { white-space: nowrap; }
+.audit-table { min-width: 1000px; }
+.audit-table td:nth-child(2) { min-width: 320px; }
+.audit-table th:nth-child(n+4), .audit-table td:nth-child(n+4) { min-width: 100px; }
 caption { text-align: left; font-weight: 600; margin-bottom: 12px; }
 th, td { padding: 12px; border-bottom: 1px solid #a5b4c3; overflow-wrap: anywhere; }
 thead { background: #edf2f7; }

@@ -89,9 +89,11 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.click('form[action="/admin/audit"] button');
     await page.wait('tbody tr');
     check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').textContent.includes('run-start')), 'Event filter failed');
+    check(await page.eval(() => [...document.querySelectorAll('thead th')].slice(3).every(cell => cell.getBoundingClientRect().width >= 100)), 'Tool and Outcome columns are too narrow to read');
     await page.click('tbody summary');
     check(await page.eval(() => document.querySelector('tbody details').open && document.querySelector('tbody dd').textContent), 'Record details did not open');
     check(await page.eval(() => document.querySelector('tbody dl').textContent.includes('synthetic-run-102') && document.querySelector('tbody dl').textContent.includes('[redacted]')), 'Safe details missing');
+    check(await page.eval(() => document.querySelector('tbody dl').getBoundingClientRect().width >= 320), 'Expanded audit fields are too narrow to read');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Expanded audit record overflows the narrow screen');
     await page.click('a[href*="cursor="]');
     await page.wait('tbody tr');
