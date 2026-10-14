@@ -613,7 +613,7 @@ test('a known-secret child output returns only the safe failure envelope', async
 test('bundled CLI runs through the real API and withholds environment-mode canary output', async () => {
   const { build } = await import('esbuild')
   const bundle = join(directory, 'artium-axi.mjs')
-  await build({ entryPoints: ['src/cli/main.ts'], outfile: bundle, bundle: true, platform: 'node', format: 'esm', target: 'node22.12', loader: { '.md': 'text' } })
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: bundle, bundle: true, platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' } })
   const execute = promisify(execFile)
   const settings = { cwd: directory, timeout: 10_000,
     env: { PATH: process.env.PATH, ...environment, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } }
@@ -628,7 +628,7 @@ test('bundled CLI runs through the real API and withholds environment-mode canar
 test.each(['stdout', 'stderr'])('security: bundled CLI withholds every encoded canary in %s and records only safe metadata', async stream => {
   const { build } = await import('esbuild')
   const bundle = join(directory, 'artium-axi.mjs')
-  await build({ entryPoints: ['src/cli/main.ts'], outfile: bundle, bundle: true, platform: 'node', format: 'esm', target: 'node22.12', loader: { '.md': 'text' } })
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: bundle, bundle: true, platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' } })
   const execute = promisify(execFile)
   const canary = 'CANARY-☃ÿ?/+='
   for (const form of ['raw', 'base64', 'base64url', 'url']) {

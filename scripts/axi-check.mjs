@@ -15,7 +15,7 @@ import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 const root = fileURLToPath(new URL('../', import.meta.url))
 process.chdir(root)
 if (process.platform !== 'linux') {
-  console.error(`axi-check: unverified on ${process.platform}; clean-install acceptance requires Linux, curl, sha256sum and Node >=22.12. Windows/macOS execution needs separate host verification.`)
+  console.error(`axi-check: unverified on ${process.platform}; clean-install acceptance requires Linux, curl, sha256sum and Node >=24.11. Windows/macOS execution needs separate host verification.`)
   process.exit(1)
 }
 execFileSync(process.execPath, ['scripts/build.mjs'], { stdio: 'inherit' })

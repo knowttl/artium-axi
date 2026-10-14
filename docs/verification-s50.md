@@ -11,7 +11,7 @@ Its `headlessInventory` records global and common flag scope, parser behavior an
 The published credential schema owns field constraints and SecretRef forms; the generated projection adds no adapter policy dispositions.
 It is a profile schema, not a claim that every valid profile is safe to expose through Artium.
 
-The headless portion of `pnpm test:mg-headless` runs the pinned profile-create interface and acquisition provider in a task-owned Node 22 test image built with the existing digest-pinned fake-service builder, with a read-only filesystem, tmpfs credential files, no network, no host credential mounts and a loader that refuses keychain imports.
+The headless portion of `pnpm test:mg-headless` runs the pinned profile-create interface and acquisition provider in a task-owned test image built with the existing fake-service builder and runtime pinned in the [fake-service Dockerfile](../test/fake-service/Dockerfile), with a read-only filesystem, tmpfs credential files, no network, no host credential mounts and a loader that refuses keychain imports.
 The loader replaces only `@azure/msal-node` with a fake confidential client, asserting the secret/key transport, certificate thumbprint and Graph `.default` audience.
 The probe generates an ephemeral synthetic RSA PEM, tests both environment and 0600 file holders for secrets and certificate keys, and verifies session-only token acquisition.
 It verifies application interactive login refusal, missing holders, encrypted key refusal, unsafe file modes, symlinks, inlined secrets, relative file references and device-code opt-in refusal.

@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS builder
+FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv make g++ git ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
 WORKDIR /opt/artium
@@ -25,7 +25,7 @@ COPY test/fake-service/certificates.mjs ./test/fake-service/certificates.mjs
 RUN --network=none node scripts/native-smoke.mjs
 RUN pnpm exec tsc src/server/main.ts src/server/maintenance.ts --rootDir . --outDir dist --module NodeNext --target ES2022 --strict --resolveJsonModule --esModuleInterop --skipLibCheck && cp -R src/server/store/migrations dist/src/server/store/ && node scripts/build-cli.mjs && chmod +x bin/artium-axi-server
 
-FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data
 COPY --from=builder /opt/falcon-axi /opt/falcon-axi
 COPY --from=builder /opt/tools /opt/tools

@@ -28,7 +28,7 @@ Both the CLI and local pinned Falcon binary execute inside that isolated network
 Detection reads, pagination, empty results and usage-error output match across stdout, stderr and exit codes, apart from recognized timing fields.
 For canary verification, the same server entry point runs with its executable path bound to a Python environment-mode fake, matching Falcon's Python memory limit.
 The fake's local environment output confirms it emits the canary, and the CLI receives only `SECRET_IN_OUTPUT`.
-The canary CLI runs on actual Linux Node 22.12.0 from a pinned test image.
+The canary CLI runs on Linux using the runtime pinned in the [standalone client Dockerfile](../test/walking-skeleton/Dockerfile).
 See [S46 verification](verification-s46.md) for the downloaded, digest-verified executable and isolated installation directory now used by the container probes.
 All Docker names begin with `artium-test-`; the harness removes only resources it created.
 

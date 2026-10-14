@@ -42,7 +42,7 @@ vi.mock('node:child_process', async importOriginal => ({
       }
       docker.resources.add(resource)
       if (args.includes('--rm')) docker.resources.delete(resource)
-      result.stdout = args.includes('--version') ? 'v22.0.0' : 'synthetic-container'
+      result.stdout = args.includes('--version') ? 'v24.0.0' : 'synthetic-container'
     } else if (args[0] === 'rm' || (args[0] === 'network' && args[1] === 'rm')) {
       const kind = args[0] === 'rm' ? 'container' : 'network'
       const resource = `${kind}:${args.at(-1)}`

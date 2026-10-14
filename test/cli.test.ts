@@ -30,7 +30,7 @@ beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
   copyFileSync('dist/cli/artium-axi.mjs', bundle)
   await build({ entryPoints: ['src/cli/main.ts'], outfile: clockBundle, bundle: true,
-    platform: 'node', format: 'esm', target: 'node22.12', loader: { '.md': 'text' }, inject: ['test/cli-clock.ts'] })
+    platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' }, inject: ['test/cli-clock.ts'] })
   createTestCertificates(directory, ['localhost'])
   server.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) })
   server.on('request', async (request, reply) => {

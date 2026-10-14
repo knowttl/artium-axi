@@ -28,7 +28,7 @@ For rootless Docker or user-namespace remapping, use the mapped host UID corresp
 See [master-key custody](#backup-restore-and-upgrade-rollback) for key formats and the saved local copy.
 The owner decides key creation; the synthetic key used in rehearsal is not a production provisioning recommendation.
 
-For source-based local rehearsal, use Node >=22.12.0, pnpm 10.22.0, OpenSSL, Python 3, curl and sha256sum on Linux.
+For source-based local rehearsal, use the [development prerequisites](../README.md#development--testing).
 From the repository root, run:
 
 ```sh

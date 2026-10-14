@@ -113,7 +113,7 @@ try {
       const first = await cli(['falcon-axi', 'detection', 'list'])
       assert.equal(first.code, 0, first.stdout + first.stderr)
       assert.match(first.stdout, /synthetic-detection/)
-      assert.equal(process.version, 'v22.12.0')
+      assert.equal(process.version, 'v24.21.0')
       assert.deepEqual(readdirSync(install), ['artium-axi'])
       console.log(JSON.stringify({ distribution: 'clean Linux Node-only image, HTTPS download, verified SHA-256, executable launcher, all supported setup hosts, password change and first pinned fake call', sha256: digest, runtime: process.version }))
     } else if (process.argv[2] === 'canary') {
@@ -122,7 +122,7 @@ try {
       assert.match(result.stdout, /SECRET_IN_OUTPUT/)
       assert.doesNotMatch(result.stdout, /CANARY-falcon|FALCON_CLIENT|stdout:|stderr:/)
       assert.equal(result.stderr, '')
-      assert.equal(process.version, 'v22.12.0')
+      assert.equal(process.version, 'v24.21.0')
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', canary: 'fake env emits injected secret; CLI receives SECRET_IN_OUTPUT without either stream' }))
     } else {
       const clean = text => text.replace(/^(?:duration_ms|elapsed_ms|durationMs):.*\n/gm, '')

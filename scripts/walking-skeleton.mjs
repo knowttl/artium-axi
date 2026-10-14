@@ -9,7 +9,7 @@ import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const name = `artium-test-s20-21-${randomUUID()}`
 const image = `${name}-server`
-const cliImage = `${name}-node22-12`
+const cliImage = `${name}-node24`
 const directory = mkdtempSync(join(root, '.tmp-walking-'))
 const containers = []
 const images = []

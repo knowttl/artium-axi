@@ -37,7 +37,7 @@ Existing tests cover upstream nonzero exits, separate streams, truncation diagno
 `test/integration/api.test.ts` exercises the real server error handler for every catalogue entry and checks the HTTP status and complete envelope.
 `test/errors-reference.test.ts` executes the generator, compares its generated public reference with the committed reference, then proves the actual `pnpm check` command rejects a stale copy.
 
-`test/walking-skeleton/probe.mjs` exercises authenticated home and tool detail in the standalone Node 22.12.0 container journey.
+`test/walking-skeleton/probe.mjs` exercises authenticated home and tool detail in the standalone container journey described in [S20+S21 verification](verification-s20-21.md).
 Pinned Falcon and Vectra run against isolated fake HTTPS services.
 Their bare home, upstream help, command help and manifest example reads are compared with local pinned output through the adapter boundary.
 The Vectra home comparison validates each generated profile location and normalizes that call-specific temporary path.

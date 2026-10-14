@@ -1,6 +1,6 @@
 # S46 AXI checklist and distribution
 
-Run `node scripts/axi-check.mjs` or `pnpm test:axi` on Linux with Node 22.12 or later, curl, sha256sum and OpenSSL.
+Run `node scripts/axi-check.mjs` or `pnpm test:axi` with the [development prerequisites](../README.md#development--testing).
 The script completes compilation before importing the test server.
 It uses the real Fastify app, SQLite authentication, password-change flow, policy, runner and bundled CLI, with the existing synthetic user fixture and fake executable at the adapter boundary.
 An ephemeral HTTPS listener and test CA provide certificate-verified loopback transport.
@@ -35,7 +35,7 @@ No script can certify those judgments from a synthetic fixture.
 The emitted local help and next-command arrays now include TOON list markers, so strict decoding succeeds.
 
 `pnpm test:containers` also runs a distribution journey through the production container server on the existing private fake-only network.
-Its client uses the pinned Node 22.12 Linux image with only the probe and certificates mounted, without the repository, application packages or upstream tools.
+Its client uses the runtime pinned in the [standalone client Dockerfile](../test/walking-skeleton/Dockerfile) with only the probe and certificates mounted, without the repository, application packages or upstream tools.
 It downloads through certificate-verified HTTPS, verifies the exact digest, launches the downloaded shebang executable with no sibling assets, installs all supported skills, changes the temporary password, signs in and completes one pinned Falcon read against the fake service.
 Separate volumes keep this journey independent of the existing parity and canary probes.
 The harness removes its task-owned containers, volumes, network and images.
