@@ -1,7 +1,8 @@
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn, execFile, execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, rmSync, watch } from 'node:fs'
+import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
@@ -85,6 +86,23 @@ async function run(args = ['falcon-axi', 'detection', 'list']) {
   const [code] = await once(child, 'close')
   return { stdout, stderr, code }
 }
+
+test('a bundle copied during publication remains executable', async () => {
+  const watcher = watch('dist/cli')
+  try {
+    const copied = new Promise<void>((resolve, reject) => {
+      watcher.on('error', reject)
+      watcher.on('change', (_event, filename) => {
+        if (filename !== 'artium-axi.mjs') return
+        try { copyFileSync('dist/cli/artium-axi.mjs', join(directory, 'artium-axi.mjs')); resolve() }
+        catch (error) { reject(error) }
+        watcher.close()
+      })
+    })
+    await Promise.all([copied, promisify(execFile)(process.execPath, ['scripts/build-cli.mjs'])])
+    expect(await run(['--help'])).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('usage: artium-axi') })
+  } finally { watcher.close() }
+})
 
 test('only a pre-execution expiry permits one refresh and one retry of the same arguments', async () => {
   expect(await run()).toEqual({ code: 7, stdout: 'TOKEN_EXPIRED upstream text\n', stderr: '' })
