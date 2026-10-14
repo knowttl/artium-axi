@@ -217,12 +217,7 @@ Graph and Vectra keep each run's native intent/outcome entries together; the leg
 Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
 There is no audit deletion endpoint or general export CLI.
-Use `/admin/audit` for filtered review and the paginated `GET /v1/admin/audit` API for retained records, preserving filters with each continuation cursor.
-The audit page downloads CSV and JSON lines for all retained records matching the applied user, tool, event, outcome and inclusive UTC time filters.
-For API downloads, use `GET /v1/admin/audit/export?format=csv` or `format=jsonl` with those filters and no pagination parameters.
-Downloads contain the same safe persisted fields as the audit stream, newest first, excluding records inserted after the download begins.
-CSV includes a header even when empty; an empty JSON-lines export contains no lines.
-Bearer API reads require a session-bound recent-reauthentication ticket; browser reads require administrator capability.
+See [Audit screen and API usage](../README.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
 
 For continuous export, set `ARTIUM_AXI_AUDIT_STDOUT=1` in the server environment and send its committed JSON-line records, containing exactly the persisted fields, to the owner's protected collector before retention expires.
 SQLite remains authoritative if the optional stream fails; monitor collector failures and reconcile retained records through the audit API.
