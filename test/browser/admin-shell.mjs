@@ -2,12 +2,22 @@ import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
-import { after, afterEach, beforeEach, test } from 'node:test'
+import { createServer } from 'node:net'
+import { after, afterEach, before, beforeEach, test } from 'node:test'
 
 const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-shell-${process.pid}`,
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
 let server
 let fixture
+
+before(async () => {
+  // Session-name hashes can collide with other browser workers on this host.
+  const reservation = createServer()
+  reservation.listen(0, '127.0.0.1')
+  await once(reservation, 'listening')
+  environment.CHROME_DEVTOOLS_AXI_PORT = String(reservation.address().port)
+  await new Promise((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+})
 
 function chrome(args, input) {
   const result = spawnSync('chrome-devtools-axi', args, { env: environment, input, encoding: 'utf8', timeout: 90_000 })
@@ -63,7 +73,7 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
   for (const width of [1280, 420]) {
     chrome(['resize', String(width), '900'])
     browser(`
-    for (const path of ['/admin', '/admin/roles', '/admin/tools', '/admin/credentials', '/admin/audit', '/account', '/password', '/reauth']) {
+    for (const path of ['/admin', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/tools', '/admin/credentials', '/admin/audit', '/account', '/password', '/reauth']) {
       await page.open(base + path);
       await page.click('.page-help summary');
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
@@ -93,8 +103,8 @@ test('expired confirmation resumes the populated action exactly once after a wro
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Draft was lost');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('input[name=name][value="Synthetic resumed role"]');
-    check(await page.eval(() => [...document.querySelectorAll('section h2')].some(title => title.textContent === 'Synthetic resumed role')), 'Pending role was not created');
+    await page.wait('tbody a');
+    check(await page.eval(() => [...document.querySelectorAll('tbody a')].some(link => link.textContent === 'Synthetic resumed role')), 'Pending role was not created');
     check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes allowed for')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
@@ -122,28 +132,28 @@ test('cancelled reauth preserves the draft and does not create a role', async ()
 
 test('confirmation names the affected user and cancellation leaves the account enabled', () => {
   browser(`
-    const selector = 'form[action="/v1/admin/users/synthetic-ordinary"]';
+    await page.click('a[href="/admin/users/synthetic-ordinary"]');
+    const selector = 'form[action="/v1/admin/users/synthetic-ordinary"]:has([name=enabled])';
     await page.click(selector + ' button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('synthetic-ordinary')), 'Missing confirmation target');
     check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('all their browser and CLI sessions')), 'Missing consequence');
     await page.click('#confirmation button[value=cancel]');
     await page.wait('#confirmation:not([open])');
-    await page.open(base + '/admin');
-    check(await page.eval(() => document.querySelector('form[action="/v1/admin/users/synthetic-ordinary"] button').textContent === 'Disable user'), 'Cancel changed enabled state');
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) button').textContent === 'Disable user'), 'Cancel changed enabled state');
   `)
 })
 
 test('confirmed changes use the same action and stale drafts offer a reload recovery', () => {
   browser(`
-    await page.open(base + '/admin/roles');
+    await page.open(base + '/admin/roles/synthetic-role');
     const selector = 'form[action="/v1/admin/roles/synthetic-role"]';
     await page.fill(selector + ' [name=name]', 'Synthetic confirmed role');
     await page.click(selector + ' button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('input[name=name][value="Synthetic confirmed role"]');
-    check(await page.eval(() => document.querySelector('section h2').textContent === 'Create role'), 'Page did not reload');
     check(await page.eval(() => [...document.querySelectorAll('section h2')].some(title => title.textContent === 'Synthetic confirmed role')), 'Confirmation did not rename role');
     await page.eval(async () => {
       const form = document.querySelector('form[action="/v1/admin/roles/synthetic-role"]');
@@ -186,5 +196,147 @@ test('ordinary accounts have account help and no administration navigation', () 
     check(await page.eval(() => !document.querySelector('nav[aria-label=Administration]')), 'Ordinary account has admin navigation');
     await page.click('.page-help summary');
     check(await page.eval(() => document.querySelector('.page-help').open), 'Missing account help');
+  `)
+})
+
+test('user search combines filters, retains them through pagination and explains empty results', () => {
+  browser(`
+    await page.open(base + '/admin?limit=1');
+    await page.fill('[name=q]', 'synthetic');
+    await page.fill('[name=source]', 'local');
+    await page.fill('[name=status]', 'enabled');
+    await page.fill('[name=role]', 'synthetic-role');
+    await page.click('form[data-filters] button');
+    await page.wait('a[href*="cursor="]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('1 shown of 2 matching users')), 'Missing filtered count');
+    await page.click('a[href*="cursor="]');
+    await page.wait('a[href="/admin/users/synthetic-ordinary"]');
+    check(await page.eval(() => ['q', 'source', 'status', 'role'].every(name => new URLSearchParams(location.search).has(name))), 'Pagination lost filters');
+    await page.fill('[name=q]', 'no-matching-person');
+    await page.click('form[data-filters] button');
+    await page.wait('form[data-filters]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('No matching users')), 'Missing empty-state guidance');
+    check(await page.eval(() => !new URLSearchParams(location.search).has('cursor')), 'Search retained old cursor');
+  `)
+})
+
+test('a local user can be created from the table and its profile edited from detail', () => {
+  browser(`
+    const create = 'form[action="/v1/admin/users"]';
+    await page.fill(create + ' [name=username]', 'synthetic-new');
+    await page.fill(create + ' [name=displayName]', 'New analyst');
+    await page.fill(create + ' [name=temporaryPassword]', 'CANARY-temporary-password');
+    await page.click(create + ' button');
+    await page.wait('tbody a');
+    const href = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'synthetic-new').getAttribute('href'));
+    await page.click('a[href="' + href + '"]');
+    await page.wait('[name=displayName]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'New user did not require password change');
+    await page.fill('[name=displayName]', 'Updated analyst');
+    await page.click('[name=administrator]');
+    await page.click('form:has([name=displayName]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=displayName][value="Updated analyst"]');
+    check(await page.eval(() => document.querySelector('[name=administrator]').checked), 'Administrator edit was not saved');
+    await page.click('a[href="/admin"]');
+    await page.wait('tbody');
+    check(await page.eval(() => [...document.querySelectorAll('tbody tr')].some(row => row.innerText.includes('Updated analyst') && row.innerText.includes('Yes'))), 'Table did not reflect profile');
+  `)
+})
+
+test('user detail can disable and re-enable sign-in', () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=true]');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) button').textContent === 'Enable user'), 'Disable was not saved');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) button').textContent === 'Disable user'), 'Enable was not saved');
+  `)
+})
+
+test('user detail unlock clears a lockout caused by failed sign-ins', async () => {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const response = await fetch(fixture.clock.replace('/test/clock', '/v1/auth/login'), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'synthetic-ordinary', password: 'CANARY-wrong-password' }),
+    })
+    assert.equal(response.status, 401)
+  }
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Failed sign-ins: 5')), 'Lockout was not shown');
+    await page.click('form[action$="/unlock"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/unlock"] button:not(:disabled)');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Failed sign-ins: 0')), 'Unlock did not clear attempts');
+  `)
+})
+
+test('user detail resets a password and the person must change it at sign-in', () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('details:has(form[action$="/password-reset"]) summary');
+    await page.fill('[name=temporaryPassword]', 'CANARY-reset-password');
+    await page.click('form[action$="/password-reset"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/password-reset"] button:not(:disabled)');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'Reset did not require password change');
+    await page.click('header form[action="/logout"] button');
+    await page.wait('[name=username]');
+    await page.fill('[name=username]', 'synthetic-ordinary');
+    await page.fill('[name=password]', 'CANARY-reset-password');
+    await page.click('button');
+    await page.wait('[name=newPassword]');
+    check(await page.eval(() => location.pathname === '/password'), 'Reset password did not open forced change');
+  `)
+})
+
+test('role tool grants and membership explain effective tools and an empty role can be deleted', () => {
+  browser(`
+    await page.open(base + '/admin/roles');
+    await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic readers');
+    await page.click('form[action="/v1/admin/roles"] button');
+    await page.wait('tbody a');
+    const roleHref = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'Synthetic readers').getAttribute('href'));
+    await page.click('a[href="' + roleHref + '"]');
+    await page.wait('[name=tools]');
+    await page.click('[name=tools][value="falcon-axi"]');
+    await page.click('form:has([name=tools]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has([name=tools]) button:not(:disabled)');
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    const roleId = roleHref.split('/').pop();
+    await page.click('[name=roleIds][value="' + roleId + '"]');
+    await page.click('form:has([name=roleIds]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('td a[href="' + roleHref + '"]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Direct')), 'Missing grant origin');
+    await page.click('td a[href="' + roleHref + '"]');
+    await page.wait('tbody a[href="/admin/users/synthetic-ordinary"]');
+    check(await page.eval(() => !document.querySelector('form[data-method=DELETE]')), 'Nonempty role offered deletion');
+    await page.click('tbody a[href="/admin/users/synthetic-ordinary"]');
+    await page.wait('[name=roleIds]');
+    await page.click('[name=roleIds][value="' + roleId + '"]');
+    await page.click('form:has([name=roleIds]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has([name=roleIds]) button:not(:disabled)');
+    await page.open(base + roleHref);
+    await page.click('form[data-method=DELETE] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action="/v1/admin/roles"]');
+    check(await page.eval(() => !document.querySelector('main').innerText.includes('Synthetic readers')), 'Deleted role remains in table');
   `)
 })

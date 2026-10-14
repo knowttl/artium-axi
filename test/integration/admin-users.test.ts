@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { adminAuditRoute, adminRoleSchema, adminRolesResponseSchema, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
+import { adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminRolesResponseSchema, adminUserRoutes, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -178,6 +178,7 @@ test.each(['POST', 'PATCH', 'DELETE'])('audit has no %s mutation route', async m
 
 const routes = [
   { method: 'GET', path: '', body: undefined },
+  { method: 'GET', path: '/synthetic-ordinary', body: undefined },
   { method: 'POST', path: '', body: createInput },
   { method: 'PATCH', path: '/synthetic-ordinary', body: { enabled: false, expectedRevision: 1 } },
   { method: 'POST', path: '/synthetic-ordinary/unlock', body: {} },
@@ -397,6 +398,9 @@ function roleRequest(method: string, path: string, body?: unknown, proof = heade
 
 const roleRoutes = [
   { method: 'GET', path: '', body: undefined },
+  { method: 'GET', path: '/synthetic-role', body: undefined },
+  { method: 'GET', path: '/synthetic-role/members', body: undefined },
+  { method: 'DELETE', path: '/synthetic-role', body: { expectedRevision: 1 } },
   { method: 'POST', path: '', body: { name: 'New Role' } },
   { method: 'PATCH', path: '/synthetic-role', body: { name: 'Renamed', expectedRevision: 1 } },
   { method: 'PUT', path: '/synthetic-role/tools', body: { tools: [], expectedRevision: 1 } },
@@ -443,7 +447,7 @@ test('role listing uses bounded stable pagination', async () => {
   await failure(await roleRequest('GET', '?limit=101'), 'INVALID_INPUT')
 })
 
-test.each(roleRoutes.filter(route => route.method !== 'GET'))('$method roles$path audit failure rolls back role and grants', async route => {
+test.each(roleRoutes.filter(route => !['GET', 'DELETE'].includes(route.method)))('$method roles$path audit failure rolls back role and grants', async route => {
   const before = db.prepare('SELECT * FROM roles ORDER BY id').all()
   const grants = db.prepare('SELECT * FROM role_tools ORDER BY role_id, tool').all()
   db.exec("CREATE TRIGGER fail_admin BEFORE INSERT ON audit WHEN NEW.event = 'admin-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
@@ -499,4 +503,73 @@ test('role rename and grant edits share a revision and reject concurrent stale c
   await failure(results.find(result => result.status === 409)!, 'REVISION_CONFLICT')
   await failure(await roleRequest('PATCH', '/synthetic-role', { name: 'Stale', expectedRevision: 1 }), 'REVISION_CONFLICT')
   expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
+})
+
+test('user filters combine literal search, source, status and role with matching counts across pages', async () => {
+  db.exec("UPDATE users SET display_name = 'Shared % analyst' WHERE id IN ('synthetic-ordinary', 'synthetic-development-user')")
+  const filters = '?q=%25&source=local&status=enabled&role=synthetic-role&limit=1'
+  const first = adminUsersResponseSchema.parse(await (await request('GET', filters)).json())
+  expect(first).toMatchObject({ totalCount: 2, nextCursor: administrator })
+  expect(first.users.map(user => user.id)).toEqual([administrator])
+  const next = adminUsersResponseSchema.parse(await (await request('GET', filters + '&cursor=' + first.nextCursor)).json())
+  expect(next).toMatchObject({ totalCount: 2, nextCursor: null })
+  expect(next.users.map(user => user.id)).toEqual(['synthetic-ordinary'])
+  db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-ordinary'")
+  const disabled = adminUsersResponseSchema.parse(await (await request('GET', '?q=SHARED&status=disabled&role=synthetic-role')).json())
+  expect(disabled.users.map(user => user.id)).toEqual(['synthetic-ordinary'])
+  expect(disabled.totalCount).toBe(1)
+  expect(adminUsersResponseSchema.parse(await (await request('GET', '?role=missing')).json()).totalCount).toBe(0)
+})
+
+test('user detail combines overlapping role grants and reports disabled access without granting admin tools', async () => {
+  db.exec(`INSERT INTO roles (id, name) VALUES ('extra', 'Extra');
+    INSERT INTO role_tools VALUES ('extra', 'falcon-axi');
+    INSERT INTO user_roles VALUES ('synthetic-ordinary', 'extra');
+    UPDATE tools SET enabled = CASE WHEN name = 'falcon-axi' THEN 1 ELSE 0 END;`)
+  const detail = adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())
+  expect(detail.effectiveTools).toEqual([
+    { name: 'az-axi', enabled: false, roleIds: ['synthetic-role'] },
+    { name: 'falcon-axi', enabled: true, roleIds: ['extra', 'synthetic-role'] },
+    { name: 'mg-axi', enabled: false, roleIds: ['synthetic-role'] },
+    { name: 'vectra-axi', enabled: false, roleIds: ['synthetic-role'] },
+  ])
+  db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-ordinary'; DELETE FROM user_roles WHERE user_id = 'synthetic-second'")
+  const disabled = adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())
+  expect(disabled.effectiveTools.every(tool => !tool.enabled)).toBe(true)
+  expect(adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-second')).json()).effectiveTools).toEqual([])
+  await failure(await request('GET', '/missing'), 'NOT_FOUND')
+})
+
+test('role members include disabled users and page independently of the role list', async () => {
+  db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-ordinary'")
+  const first = adminRoleRoutes.members.response.parse(await (await roleRequest('GET', '/synthetic-role/members?limit=1')).json())
+  expect(first).toMatchObject({ totalCount: 2, nextCursor: administrator })
+  expect(first.users.map(user => user.id)).toEqual([administrator])
+  const last = adminRoleRoutes.members.response.parse(await (await roleRequest('GET', '/synthetic-role/members?limit=1&cursor=' + first.nextCursor)).json())
+  expect(last).toMatchObject({ totalCount: 2, nextCursor: null })
+  expect(last.users[0]).toMatchObject({ id: 'synthetic-ordinary', enabled: false })
+  await failure(await roleRequest('GET', '/missing/members'), 'NOT_FOUND')
+})
+
+test('role deletion refuses members and stale revisions then removes an empty role and its grants with audit', async () => {
+  await failure(await roleRequest('DELETE', '/synthetic-role', { expectedRevision: 1 }), 'INVALID_INPUT')
+  db.exec("DELETE FROM user_roles WHERE role_id = 'synthetic-role'")
+  await failure(await roleRequest('DELETE', '/synthetic-role', { expectedRevision: 2 }), 'REVISION_CONFLICT')
+  const deleted = await roleRequest('DELETE', '/synthetic-role', { expectedRevision: 1 })
+  expect(deleted.status).toBe(200)
+  expect(adminRoleRoutes.delete.response.parse(await deleted.json())).toEqual({ id: 'synthetic-role', deleted: true })
+  expect(db.prepare("SELECT * FROM role_tools WHERE role_id = 'synthetic-role'").all()).toEqual([])
+  await failure(await roleRequest('GET', '/synthetic-role'), 'NOT_FOUND')
+  expect(db.prepare("SELECT action, target_id FROM audit WHERE event = 'admin-change'").all())
+    .toEqual([{ action: 'delete-role', target_id: 'synthetic-role' }])
+})
+
+test('role deletion rolls back the role and grants when audit cannot be saved', async () => {
+  db.exec("DELETE FROM user_roles WHERE role_id = 'synthetic-role'")
+  const role = db.prepare("SELECT * FROM roles WHERE id = 'synthetic-role'").get()
+  const grants = db.prepare("SELECT * FROM role_tools WHERE role_id = 'synthetic-role' ORDER BY tool").all()
+  db.exec("CREATE TRIGGER fail_admin BEFORE INSERT ON audit WHEN NEW.event = 'admin-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await failure(await roleRequest('DELETE', '/synthetic-role', { expectedRevision: 1 }), 'AUDIT_UNAVAILABLE')
+  expect(db.prepare("SELECT * FROM roles WHERE id = 'synthetic-role'").get()).toEqual(role)
+  expect(db.prepare("SELECT * FROM role_tools WHERE role_id = 'synthetic-role' ORDER BY tool").all()).toEqual(grants)
 })

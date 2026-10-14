@@ -391,14 +391,23 @@ Administrators land on `/admin`; ordinary users land on `/account` for password 
 
 | Screen | Purpose |
 | --- | --- |
-| `/admin` | Create users, change roles, enable or disable accounts, unlock accounts and reset temporary passwords. |
+| `/admin` | Search and filter the users table by source, status or role; create local users. |
+| `/admin/users/:id` | Edit display name and administrator capability, assign roles, review effective tools, enable or disable, unlock and reset passwords. |
 | `/admin/tools` | Review pinned versions and cached health; enable supported tools and edit native settings. |
 | `/admin/credentials` | Replace credentials and run a fixed harmless credential test. |
-| `/admin/roles` | Create or rename roles and replace their tool grants. |
+| `/admin/roles` | List roles and create a role. |
+| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an empty role. |
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
+User detail combines grants from every assigned role and links each tool to its granting roles.
+Direct assignments are made by an administrator; administrator capability does not itself grant tools.
+Disabled users remain listed as role members and must have that role removed before it can be deleted.
+Deleting an empty role removes its tool grants and records an audit event.
+The user list API accepts literal username/display-name search in `q`, `source=local`, `status=enabled|disabled`, `role`, `limit` and `cursor`, returning `totalCount` for the current filters.
+`GET /v1/admin/users/:id` returns the profile and effective tool grants; `GET /v1/admin/roles/:id/members` returns paged members with a matching count.
+`DELETE /v1/admin/roles/:id` requires `expectedRevision` and refuses a role with members.
 The last enabled administrator cannot be disabled or demoted.
 Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
 After 15 minutes without password confirmation, administration mutations require reauthentication.

@@ -36,6 +36,7 @@ export type LoginResponse = z.infer<typeof loginResponseSchema>
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'])
 export const adminUserSchema = z.strictObject({
   id: accountId, username: z.string(), displayName: z.string(), source: z.literal('local'),
   enabled: z.boolean(), administrator: z.boolean(), mustChange: z.boolean(),
@@ -43,8 +44,18 @@ export const adminUserSchema = z.strictObject({
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(),
   roleIds: z.array(accountId),
 })
-export const adminUsersQuerySchema = z.strictObject({ cursor: accountId.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) })
-export const adminUsersResponseSchema = z.strictObject({ users: z.array(adminUserSchema), nextCursor: accountId.nullable() })
+const adminPageQuerySchema = z.strictObject({ cursor: accountId.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) })
+export const adminUsersQuerySchema = adminPageQuerySchema.extend({
+  q: z.string().min(1).max(256).optional(), source: z.literal('local').optional(),
+  status: z.enum(['enabled', 'disabled']).optional(), role: accountId.optional(),
+})
+// totalCount counts all matching users, independent of cursor; pagination keeps the same filters.
+export const adminUsersResponseSchema = z.strictObject({ users: z.array(adminUserSchema), nextCursor: accountId.nullable(),
+  totalCount: z.number().int().nonnegative() })
+// Grants are deduplicated by tool; enabled requires both an enabled user and enabled tool.
+export const adminUserDetailSchema = adminUserSchema.extend({ effectiveTools: z.array(z.strictObject({
+  name: toolSchema, enabled: z.boolean(), roleIds: z.array(accountId),
+})) })
 export const adminUserCreateSchema = z.strictObject({ username: z.string().min(1), displayName: z.string().min(1),
   temporaryPassword: z.string(), administrator: z.boolean(), roleIds: z.array(accountId).refine(ids => new Set(ids).size === ids.length) })
 export const adminUserPatchSchema = z.strictObject({ displayName: z.string().min(1).optional(), enabled: z.boolean().optional(),
@@ -60,6 +71,8 @@ export const adminUserParamsSchema = z.strictObject({ id: accountId })
 export const adminUserRoutes = {
   list: { method: 'GET', path: '/v1/admin/users', input: adminUsersQuerySchema, response: adminUsersResponseSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: null },
+  get: { method: 'GET', path: '/v1/admin/users/:id', input: z.strictObject({}), response: adminUserDetailSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: null },
   create: { method: 'POST', path: '/v1/admin/users', input: adminUserCreateSchema, response: adminUserSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'create-user' },
   patch: { method: 'PATCH', path: '/v1/admin/users/:id', input: adminUserPatchSchema, response: adminUserSchema,
@@ -73,7 +86,6 @@ export const adminUserRoutes = {
     response: adminUserSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'assign-user-roles' },
 } as const
 const text = z.string().refine(value => !value.includes('\0'), 'NUL is not allowed')
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'])
 // The ceiling excludes inserts after the first page, including backdated events.
 const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$/)
   .refine(value => {
@@ -138,8 +150,16 @@ export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })
 export const adminRoleRoutes = {
-  list: { method: 'GET', path: '/v1/admin/roles', input: adminUsersQuerySchema, response: adminRolesResponseSchema,
+  list: { method: 'GET', path: '/v1/admin/roles', input: adminPageQuerySchema, response: adminRolesResponseSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: null },
+  get: { method: 'GET', path: '/v1/admin/roles/:id', input: z.strictObject({}), response: adminRoleSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: null },
+  members: { method: 'GET', path: '/v1/admin/roles/:id/members', input: adminPageQuerySchema,
+    response: adminUsersResponseSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
+  delete: { method: 'DELETE', path: '/v1/admin/roles/:id',
+    input: z.strictObject({ expectedRevision: z.number().int().positive() }),
+    response: z.strictObject({ id: accountId, deleted: z.literal(true) }),
+    authorization: 'administrator-and-recent-auth', auditEvent: 'delete-role' },
   create: { method: 'POST', path: '/v1/admin/roles', input: z.strictObject({ name: z.string().min(1) }), response: adminRoleSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'create-role' },
   patch: { method: 'PATCH', path: '/v1/admin/roles/:id',

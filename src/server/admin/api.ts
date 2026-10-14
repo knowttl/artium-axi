@@ -83,11 +83,33 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
 
   app.route({ method: adminUserRoutes.list.method, url: adminUserRoutes.list.path, handler: async request => {
     authorize(request)
-    const { cursor, limit } = parse(adminUserRoutes.list.input, request.query)
-    const rows = db.prepare('SELECT id FROM users WHERE id > ? ORDER BY id LIMIT ?').all(cursor ?? '', limit + 1) as { id: string }[]
+    const { cursor, limit, q, source, status, role } = parse(adminUserRoutes.list.input, request.query)
+    // instr treats wildcard characters as literal search text.
+    const where = `(? IS NULL OR instr(lower(username), lower(?)) > 0 OR instr(lower(display_name), lower(?)) > 0)
+      AND (? IS NULL OR source = ?) AND (? IS NULL OR disabled = ?)
+      AND (? IS NULL OR EXISTS(SELECT 1 FROM user_roles WHERE user_id = users.id AND role_id = ?))`
+    const filters = [q ?? null, q ?? null, q ?? null, source ?? null, source ?? null,
+      status ?? null, Number(status === 'disabled'), role ?? null, role ?? null]
+    const rows = db.prepare(`SELECT id FROM users WHERE ${where} AND id > ? ORDER BY id LIMIT ?`)
+      .all(...filters, cursor ?? '', limit + 1) as { id: string }[]
+    const { totalCount } = db.prepare(`SELECT COUNT(*) AS totalCount FROM users WHERE ${where}`).get(...filters) as { totalCount: number }
     const page = rows.slice(0, limit)
     return adminUserRoutes.list.response.parse({ users: page.map(row => readUser(row.id)),
-      nextCursor: rows.length > limit ? page.at(-1)!.id : null })
+      nextCursor: rows.length > limit ? page.at(-1)!.id : null, totalCount })
+  } })
+  app.route({ method: adminUserRoutes.get.method, url: adminUserRoutes.get.path, handler: async request => {
+    authorize(request)
+    const { id } = parse(adminUserParamsSchema, request.params)
+    const user = readUser(id)
+    const grants = db.prepare(`SELECT role_tools.tool AS name, tools.enabled, user_roles.role_id AS roleId
+      FROM user_roles JOIN role_tools ON role_tools.role_id = user_roles.role_id
+      JOIN tools ON tools.name = role_tools.tool WHERE user_roles.user_id = ? ORDER BY role_tools.tool, user_roles.role_id`)
+      .all(id) as { name: string, enabled: number, roleId: string }[]
+    const names = [...new Set(grants.map(grant => grant.name))]
+    return adminUserRoutes.get.response.parse({ ...user, effectiveTools: names.map(name => ({ name,
+      enabled: user.enabled && Boolean(grants.find(grant => grant.name === name)!.enabled),
+      roleIds: grants.filter(grant => grant.name === name).map(grant => grant.roleId),
+    })) })
   } })
   app.route({ method: adminUserRoutes.create.method, url: adminUserRoutes.create.path, handler: async (request, reply) => {
     authorize(request)
@@ -164,6 +186,36 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const tools = (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(id) as { tool: string }[]).map(row => row.tool)
     return adminRoleSchema.parse({ ...row, tools })
   }
+
+  app.route({ method: adminRoleRoutes.get.method, url: adminRoleRoutes.get.path, handler: async request => {
+    authorize(request)
+    return readRole(parse(adminUserParamsSchema, request.params).id)
+  } })
+  app.route({ method: adminRoleRoutes.members.method, url: adminRoleRoutes.members.path, handler: async request => {
+    authorize(request)
+    const { id } = parse(adminUserParamsSchema, request.params)
+    readRole(id)
+    const { cursor, limit } = parse(adminRoleRoutes.members.input, request.query)
+    const rows = db.prepare('SELECT user_id AS id FROM user_roles WHERE role_id = ? AND user_id > ? ORDER BY user_id LIMIT ?')
+      .all(id, cursor ?? '', limit + 1) as { id: string }[]
+    const { totalCount } = db.prepare('SELECT COUNT(*) AS totalCount FROM user_roles WHERE role_id = ?').get(id) as { totalCount: number }
+    const page = rows.slice(0, limit)
+    return adminRoleRoutes.members.response.parse({ users: page.map(row => readUser(row.id)), totalCount,
+      nextCursor: rows.length > limit ? page.at(-1)!.id : null })
+  } })
+  app.route({ method: adminRoleRoutes.delete.method, url: adminRoleRoutes.delete.path, handler: async request => {
+    authorize(request)
+    const { id } = parse(adminUserParamsSchema, request.params)
+    const { expectedRevision } = parse(adminRoleRoutes.delete.input, request.body)
+    return change(request, adminRoleRoutes.delete.auditEvent, id, () => ({ id, deleted: true as const }), () => {
+      if (readRole(id).revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if (db.prepare('SELECT 1 FROM user_roles WHERE role_id = ? LIMIT 1').get(id)) {
+        throw new ArtiumError('INVALID_INPUT', 'This role still has members.', 'Remove this role from every member before deleting it.')
+      }
+      db.prepare('DELETE FROM role_tools WHERE role_id = ?').run(id)
+      db.prepare('DELETE FROM roles WHERE id = ?').run(id)
+    })
+  } })
 
   app.route({ method: adminRoleRoutes.list.method, url: adminRoleRoutes.list.path, handler: async request => {
     authorize(request)
