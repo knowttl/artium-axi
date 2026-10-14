@@ -402,12 +402,12 @@ Administrators land on `/admin`; ordinary users land on `/account` for password 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
-Direct assignments are made by an administrator; administrator capability does not itself grant tools.
+Direct assignments are made by an administrator.
 Disabled users remain listed as role members and must have that role removed before it can be deleted.
 Deleting an empty role removes its tool grants and records an audit event.
-The user list API accepts literal username/display-name search in `q`, `source=local`, `status=enabled|disabled`, `role`, `limit` and `cursor`, returning `totalCount` for the current filters.
-`GET /v1/admin/users/:id` returns the profile and effective tool grants; `GET /v1/admin/roles/:id/members` returns paged members with a matching count.
-`DELETE /v1/admin/roles/:id` requires `expectedRevision` and refuses a role with members.
+User search matches literal text anywhere in a username or display name, ignoring case.
+The users and role members tables show matching totals; Next page retains the current filters.
+See the [shared API contracts](src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
 The last enabled administrator cannot be disabled or demoted.
 Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
 After 15 minutes without password confirmation, administration mutations require reauthentication.
