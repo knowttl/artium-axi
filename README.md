@@ -15,8 +15,6 @@ The client follows AXI (Agent eXperience Interface) conventions for discovery, h
 
 **Status: under construction.**
 Falcon, Vectra, Azure and Graph are wired into the production server entry point.
-Graph has local fake-service evidence; live authentication, permissions and deployment remain unverified.
-See [browser administration](#browser-administration) for Graph activation requirements.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -30,8 +28,8 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 
 ## Quick Start
 
-Use an existing Artium server and a local account supplied by its administrator.
-For server provisioning, start with the [operations runbook](docs/runbook.md).
+For a new server, follow [Set up a host](#set-up-a-host) first.
+For an existing server, obtain its trusted HTTPS URL and a local account from its administrator, then continue below.
 The Linux client requires Node **22.12 or later**, curl and sha256sum on `PATH`.
 Windows and macOS execution, token storage and actual agent host loading remain unverified.
 
@@ -106,6 +104,199 @@ Keep the bundle at its installed path; rerun setup if it moves so recorded invoc
 Actual host loading and hook usefulness require separate acceptance.
 
 ## Other ways to install
+
+### Set up a host
+
+Give the setup agent the Linux host access, intended HTTPS hostname, DNS and certificate provisioning method, private CA bundle if applicable, and the protected data and backup locations.
+Also supply the first administrator's username and temporary password through protected input, a master-key custody decision, and credentials for each tool you want enabled from [Tool credentials](#tool-credentials).
+Upstream accounts are shared server-side service identities; users sign in to Artium with separate local accounts.
+
+1. **Prepare the host.**
+   Install Git and Docker with Compose and reserve HTTPS port 443 for the reverse proxy.
+   The image supplies Node, Python and the pinned tools; a source build additionally requires Node >=22.12.0 and pnpm 10.22.0.
+   Allow package and image downloads during the build and runtime access to the enabled tools' upstream APIs and identity endpoints.
+   See [runbook prerequisites](docs/runbook.md#scope-and-prerequisites) for the runtime limits, writable data directory and UID 10001 ownership, including rootless UID mapping.
+
+2. **Obtain the source and build the image.**
+   Run from the checkout root:
+
+   ```sh
+   git clone https://github.com/knowttl/artium-axi.git
+   cd artium-axi
+   docker compose -f compose.example.yaml build
+   ```
+
+   Record the resulting immutable image identity for backups and rollback as described in the [runbook](docs/runbook.md#backup-restore-and-upgrade-rollback).
+
+3. **Prepare the master key and bootstrap administrator before starting.**
+   Place an owner-generated cryptographically random key containing exactly 32 raw bytes at `private/artium_master_key` and the temporary administrator password at `private/artium_bootstrap_password`, with no added newline.
+   Use the [password rules](#security-and-acceptance-boundaries) and [key custody guidance](docs/runbook.md#backup-restore-and-upgrade-rollback).
+   Follow the [secret ownership instructions](docs/runbook.md#scope-and-prerequisites) so both files are readable by container UID 10001 and protected from other users.
+   In [compose.example.yaml](compose.example.yaml), uncomment both first-start environment settings and both bootstrap-password secret entries, replacing `synthetic-admin` with your chosen username.
+   The master key alone cannot bootstrap a new store.
+   See [first-administrator setup](docs/runbook.md#first-administrator-and-offline-recovery) for the empty-store requirement and startup refusals.
+
+4. **Configure HTTPS.**
+   Follow the [runbook proxy example](docs/runbook.md#proxy-and-certificate-trust), including its static proxy IP, matching `ARTIUM_AXI_TRUSTED_PROXIES`, TLS mounts and forwarding-header replacement.
+   Save your Compose override as `compose.proxy.yaml` and provision its nginx configuration and certificates before starting.
+   Keep the HTTP listener inaccessible to clients and select an unused proxy subnet.
+
+5. **Start and check the server.**
+   With that override prepared, run:
+
+   ```sh
+   docker compose -f compose.example.yaml -f compose.proxy.yaml config --quiet
+   docker compose -f compose.example.yaml -f compose.proxy.yaml up -d
+   docker compose -f compose.example.yaml -f compose.proxy.yaml ps
+   ```
+
+   Require a healthy Artium service, then set `ARTIUM_AXI_URL` to the trusted HTTPS origin and run the [HTTPS liveness and readiness checks](docs/runbook.md#roles-credentials-and-health).
+   Both checks must return `status: ok`; they check the local server, not upstream credentials.
+   If startup fails, inspect service logs and resolve the reported configuration or store error before continuing.
+
+6. **Complete the first login.**
+   Open `https://<your-artium-host>/login`, enter the bootstrap account, change its temporary password at `/password`, and sign in again.
+   Remove the first-start environment settings and bootstrap-password secret entries from Compose after the administrator is created, remove the bootstrap-password file from its provisioning location, and recreate the service with the same `up -d` command.
+   Keep the master-key file and persistent data volume for subsequent starts.
+   Startup also saves the key beside the database, so protect the entire data volume as explained in [server custody](#server-settings-and-custody).
+
+7. **Configure tools and user access.**
+   Follow [Tool credentials](#tool-credentials) to save and test each credential, then follow the [activation requirements](#browser-administration) before enabling the tool at `/admin/tools`.
+   Create a role at `/admin/roles`, grant it the enabled tools, create local users at `/admin`, and assign that role to them.
+   Assign a tool role to your administrator too if that account will run CLI calls; administrator capability alone grants no tool access.
+   Finish with [Download and first call](#download-and-first-call) and [Skill installation](#skill-installation) on each agent host.
+
+Recovery, rotation, backups, retention and upgrades remain in the [operations runbook](docs/runbook.md).
+
+### Tool credentials
+
+Configure only the tools you intend to use.
+At `/admin/credentials`, select the tool and save a complete replacement credential, then use **Test credential** and follow the [activation requirements](#browser-administration) before enabling it at `/admin/tools`.
+Forms start blank and never reveal saved secrets; enter secret values themselves, leave unused fields blank, and enter arrays or objects as JSON.
+The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](#browser-administration) explains replacement and health behavior.
+
+| Tool | Information to obtain | Fixed Artium credential test |
+| --- | --- | --- |
+| Falcon (`falcon-axi`) | Falcon API client ID, client secret, cloud region, optional Flight Control member CID. | `auth status`, followed by a permitted detection read to confirm API access. |
+| Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
+| Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
+| Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
+
+#### Falcon
+
+In the Falcon console, open **Support and resources > API clients and keys** and create a dedicated API client.
+Copy its client ID and secret and record its cloud region: `us-1`, `us-2`, `eu-1` or `us-gov-1`.
+At `/admin/credentials`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
+The pinned release uses the JSON credential editor; enter an object with those keys.
+Grant `Alerts:read` for detection reads, including the first-call example.
+Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.3.0/README.md#api-client-permissions) and its offline `scopes` command.
+For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
+NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
+These are optional domain requirements and do not justify granting other write or response scopes.
+Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
+
+#### Vectra
+
+Obtain the deployment's canonical HTTPS origin, without a path or trailing slash.
+For QUX, select `kind=qux`, `apiVersion=2.5` and either `auth=token` with `token`, or `auth=oauth` with `clientId` and `clientSecret`.
+QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optional release metadata.
+For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
+Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
+Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
+See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.5#configuration) for deployment-specific requirements.
+If the deployment uses a private CA, paste its PEM contents into `caBundle`; enter no server file path.
+Leave `writes` blank for read-only use; optional writes need the native operation allowlist and upstream permissions.
+Save, run **Test credential**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
+
+#### Entra application registration for Azure and Graph
+
+In the [Entra admin center](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app), open **App registrations > New registration** and register an application in your organization directory.
+Record the **Directory (tenant) ID** as `tenantId` and **Application (client) ID** as `clientId` from Overview.
+Under **Certificates & secrets**, create a client secret and copy its **Value**, not its secret ID, before leaving the page.
+Alternatively upload a public certificate and retain its matching PEM private key and 64-hex-digit SHA-256 certificate thumbprint.
+No interactive user login or redirect URI is needed for these hosted application credentials.
+Azure RBAC roles and Graph API application permissions are separate grants; configuring one does not grant the other.
+You can use separate app registrations for the two tools or enter the same approved application identity separately in each editor.
+
+#### Azure
+
+In the Azure portal, select each subscription or narrower resource scope, open **Access control (IAM) > Add role assignment**, select the role, and assign it to the registered application's service principal.
+Have an administrator authorized to assign roles perform this step.
+
+| Role | Use |
+| --- | --- |
+| `Reader` | ARM inventory and metadata at the intended subscription/resource scope. |
+| `Log Analytics Reader` | Workspace query access when granting workspace-specific log reads. |
+| `Storage Blob Data Reader` | Blob data-plane reads; ARM `Reader` and `Contributor` alone do not supply these. |
+| `Key Vault Reader` | Secret, key and certificate metadata on RBAC-mode vaults, without secret values. |
+| `AcrPull` | Registry pull/catalogue access on RBAC-only registries. Not honored on ABAC-enabled registries. |
+| `Container Registry Repository Catalog Lister` | Catalogue listing on ABAC-enabled registries; lists all repositories and does not support ABAC conditions. |
+| `Container Registry Repository Reader` | Image, tag and metadata reads on ABAC-enabled registries; optional ABAC conditions restrict repositories. Does not grant catalogue listing. |
+| `Contributor` | Optional ARM writes at the intended scope, only when writes are wanted; this does not assign roles or grant blob/vault data-plane writes. |
+
+Check the registry's **Settings > Properties > Role assignment permissions mode** before choosing registry roles; see [Microsoft's registry permission guidance](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-abac-repository-permissions).
+On ABAC-enabled registries, ARM `Reader` and `Contributor` grant control-plane access only, so assign the catalogue and repository roles above for the reads you need.
+Access-policy-mode vaults require corresponding vault access policies instead of the RBAC-mode role.
+
+At `/admin/credentials`, use Azure's JSON editor with this shape, replacing every placeholder:
+
+```json
+{
+  "auth": "secret",
+  "tenantId": "<directory-tenant-UUID>",
+  "clientId": "<application-client-UUID>",
+  "clientSecret": "<client-secret-value>",
+  "subscriptions": ["<subscription-UUID>"],
+  "allowWrites": false
+}
+```
+
+For certificate authentication, set `auth` to `certificate` and replace `clientSecret` with `privateKey` and `thumbprintSha256`.
+Optionally add `workspaces` as a JSON object mapping friendly names to Log Analytics workspace customer-ID UUIDs, obtained from the workspace Overview page; these are not ARM resource IDs.
+Artium mints and injects resource-specific tokens, so supply the source identity rather than an access token or upstream token-profile JSON.
+Save, run **Test credential**, enable and grant the tool, then run `artium-axi az-axi account list`.
+Test each needed data-plane read separately using the enabled tool's help; a successful subscription list proves no blob, vault or registry access.
+For registry catalogue access, run `artium-axi az-axi acr repository list --name <registry>`; test any needed image, tag or metadata reads separately because catalogue listing does not grant repository reads on ABAC-enabled registries.
+Keep `allowWrites` false unless writes are wanted and the corresponding Azure roles are approved.
+
+#### Microsoft Graph
+
+On the app registration, open **API permissions > Add a permission > Microsoft Graph > Application permissions**.
+Add `User.Read.All` for Artium's credential test and first user read, then have an authorized administrator [grant tenant-wide admin consent](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/grant-admin-consent).
+Add only the application permissions for the additional command families you intend to use, and grant admin consent again after changes.
+Delegated permissions and interactive `User.Read` consent do not authorize this application flow.
+
+| Optional read area | Graph application permissions |
+| --- | --- |
+| Groups and memberships | `GroupMember.Read.All`; `Group.Read.All` for richer group properties, `Member.Read.Hidden` for hidden memberships. |
+| Applications, service principals and application consent | `Application.Read.All` |
+| Devices | `Device.Read.All` |
+| Organization metadata | `Organization.Read.All` |
+| Directory roles | `RoleManagement.Read.Directory` |
+| Conditional Access and policy reads | `Policy.Read.All` |
+| Sign-ins, directory audits and authentication registration reports | `AuditLog.Read.All`; provisioning logs also need `Directory.Read.All`. |
+| Risky users and service principals | `IdentityRiskyUser.Read.All`, `IdentityRiskyServicePrincipal.Read.All`, according to the command. |
+| Entitlement management | `EntitlementManagement.Read.All` |
+| User authentication methods | `UserAuthenticationMethod.Read.All` |
+| Access reviews | `AccessReview.Read.All` |
+| Directory role eligibility and assignment schedules | `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.Read.Directory` |
+| Privileged group eligibility | `PrivilegedEligibilitySchedule.Read.AzureADGroup` |
+| Cross-tenant information | `CrossTenantInformation.ReadBasic.All` |
+| Certificate authentication PKI | `PublicKeyInfrastructure.Read.All` |
+| Multitenant organization | `MultiTenantOrganization.ReadBasic.All` or `MultiTenantOrganization.Read.All`, according to the operation |
+| Identity providers | `IdentityProvider.Read.All` |
+| Lifecycle workflows | `LifecycleWorkflows.Read.All` |
+
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.7/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
+Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
+
+In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
+For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
+Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
+Save, run **Test credential**, follow the [activation requirements](#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
+Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
+See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captain live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
 
 ### Build from source
 
@@ -227,7 +418,7 @@ Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
 Use **Test credential** for a current fixed read before enabling a configured tool.
 Graph tests read at most one user through `entra user list --limit 1`.
-Graph is wired into the production runtime; enabling it on a running installation waits for live authentication and permission results and maintainer approval.
+For a new installation, follow [Graph credential setup](#microsoft-graph) and obtain the required permission results and maintainer approval before enabling Graph on a running installation.
 
 ### Audit screen and API
 
