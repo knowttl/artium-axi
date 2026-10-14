@@ -184,6 +184,10 @@ Use “Test credential” at `/admin/credentials` to test the replacement with t
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
+API clients can instead use the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) to retain stored secrets and native settings.
+That contract owns the request fields, identity-change restrictions and revision requirements.
+This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
+The existing browser editor continues to use complete replacement until the guided editor is available.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
 Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.

@@ -285,11 +285,157 @@ async function replace(tool: ToolName, value: unknown = values[tool], expectedRe
   expect(response.status).toBe(200)
   return adminCredentialSchema.parse(await response.json())
 }
+async function save(tool: ToolName, value: Record<string, unknown>, expectedRevision: number) {
+  const { tools } = await (await request('GET', '')).json() as { tools: Array<{ name: ToolName, revision: number }> }
+  return request('PATCH', `/${tool}/credential`, { value, expectedRevision,
+    expectedToolRevision: tools.find(item => item.name === tool)!.revision })
+}
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'] as const)('%s save retains omitted secrets and native settings', async tool => {
+  await replace(tool)
+  const current = store.readCredential(store.findCredential(tool)!) as Record<string, unknown>
+  const { clientSecret: _secret, token: _token, writes: _writes, subscriptions: _subscriptions, allowWrites: _allowWrites, ...value } = current
+  const response = await save(tool, value, 1)
+  expect(response.status).toBe(200)
+  expect(adminCredentialSchema.parse(await response.json())).toMatchObject({ revision: 2, updatedBy: actor })
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(current)
+  expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ action: 'replace-credential', user_id: actor })
+})
+
+test('save can configure credentials without repeating separately saved settings', async () => {
+  expect((await request('PATCH', '/az-axi', { nativeSettings: { subscriptions: ['synthetic-current'], allowWrites: false }, expectedRevision: 1 })).status).toBe(200)
+  const { subscriptions: _subscriptions, allowWrites: _allowWrites, ...value } = values['az-axi']
+  expect((await save('az-axi', value, 0)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('az-axi')!)).toEqual({ ...value, subscriptions: ['synthetic-current'], allowWrites: false })
+})
+
+test('save replaces supplied secrets and evicts old Azure tokens', async () => {
+  await replace('az-axi')
+  const old = store.findCredential('az-axi')!
+  await adapters[2].prepare(['account', 'list'], old)
+  const { subscriptions: _subscriptions, allowWrites: _allowWrites, ...value } = values['az-axi']
+  expect((await save('az-axi', { ...value, clientSecret: 'CANARY-rotated' }, 1)).status).toBe(200)
+  await expect(adapters[2].prepare(['account', 'list'], old)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await adapters[2].prepare(['account', 'list'], store.findCredential('az-axi')!)
+  expect(network.requests.map(entry => entry.form.get('client_secret'))).toEqual(['CANARY-azure', 'CANARY-rotated'])
+  expect(store.readCredential(store.findCredential('az-axi')!)).toEqual({ ...values['az-axi'], clientSecret: 'CANARY-rotated' })
+})
+
+test('save removes omitted optional non-secret fields', async () => {
+  await replace('falcon-axi', { ...values['falcon-axi'], memberCid: 'synthetic-member' })
+  expect((await save('falcon-axi', { clientId: values['falcon-axi'].clientId, region: 'us-2' }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('falcon-axi')!)).toEqual(values['falcon-axi'])
+})
+
+test.each([
+  { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
+    auth: 'certificate', privateKey: '-----BEGIN PRIVATE KEY-----\nCANARY-key-line-1\nCANARY-key-line-2\n-----END PRIVATE KEY-----\n',
+    thumbprintSha256: 'a'.repeat(64) }, secret: 'privateKey', changed: { tenantId: '33333333-3333-4333-8333-333333333333' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', origin: values['vectra-axi'].origin,
+    auth: 'oauth', clientId: 'synthetic-client', clientSecret: 'CANARY-oauth' }, secret: 'clientSecret',
+    changed: { kind: 'rux', apiVersion: '3.4' } },
+  { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
+    auth: 'federated', token: 'CANARY-federated' }, secret: 'token', changed: { mode: 'delegated', auth: undefined } },
+] as const)('published $tool save retains $secret only for an unchanged identity ($changed)', async ({ tool, value, secret, changed }) => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
+  const source = new EmbeddedSecretSource(store)
+  const adapter = tool === 'mg-axi' ? createMgAdapter(source, join(directory, 'writes.log'), profile)
+    : createVectraAdapter(source, join(directory, 'writes.log'), profile)
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  // Disabled tools do not run health checks after saving.
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  await replace(tool, value)
+  const { [secret]: _secret, ...nonSecrets } = value
+  const response = await save(tool, nonSecrets, 1)
+  expect(response.status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(value)
+  expect(JSON.stringify(await response.json())).not.toContain(value[secret])
+  await failure(await save(tool, { ...nonSecrets, ...changed }, 2), 'INVALID_INPUT')
+  expect(store.findCredential(tool)!.revision).toBe(2)
+})
+
+test.each([
+  { tool: 'falcon-axi', value: { clientId: 'CANARY-other-client', region: 'us-2' } },
+  { tool: 'az-axi', value: { tenantId: '33333333-3333-4333-8333-333333333333', clientId: values['az-axi'].clientId, auth: 'secret' } },
+  { tool: 'az-axi', value: { tenantId: azureTestTenant, clientId: '33333333-3333-4333-8333-333333333333', auth: 'secret' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', origin: 'https://other.invalid', auth: 'token' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', origin: values['vectra-axi'].origin, auth: 'oauth', clientId: 'synthetic-client' } },
+] as const)('$tool save requires new secrets after changing identity to $value', async ({ tool, value }) => {
+  await replace(tool)
+  const credentials = db.prepare('SELECT * FROM credentials').all()
+  const tools = db.prepare('SELECT * FROM tools').all()
+  await failure(await save(tool, value, 1), 'INVALID_INPUT')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual(credentials)
+  expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 1 })
+})
+
+test('save changes authentication kind with a new secret and discards the previous kind secret', async () => {
+  await replace('vectra-axi')
+  const value = { kind: 'rux', apiVersion: '3.4', origin: values['vectra-axi'].origin, auth: 'oauth',
+    clientId: 'synthetic-client', clientSecret: 'CANARY-new-oauth' }
+  expect((await save('vectra-axi', value, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toEqual({ ...value, writes: values['vectra-axi'].writes })
+})
+
+test.each([
+  { expectedRevision: 0, expectedToolRevision: 2 },
+  { expectedRevision: 1, expectedToolRevision: 1 },
+])('save rejects stale credential or settings revisions: $expectedRevision/$expectedToolRevision', async revisions => {
+  await replace('vectra-axi')
+  const credentials = db.prepare('SELECT * FROM credentials').all()
+  const tools = db.prepare('SELECT * FROM tools').all()
+  await failure(await request('PATCH', '/vectra-axi/credential', { value: { ...values['vectra-axi'], writes: undefined }, ...revisions }), 'REVISION_CONFLICT')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual(credentials)
+  expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
+})
+
+test('save rejects native settings instead of silently changing or ignoring them', async () => {
+  await replace('vectra-axi')
+  await failure(await save('vectra-axi', values['vectra-axi'], 1), 'INVALID_INPUT')
+  expect(store.findCredential('vectra-axi')!.revision).toBe(1)
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toEqual(values['vectra-axi'])
+})
+
+test('save audit failure rolls back the credential and tool revisions', async () => {
+  await replace('falcon-axi')
+  const credentials = db.prepare('SELECT * FROM credentials').all()
+  const tools = db.prepare('SELECT * FROM tools').all()
+  db.exec("CREATE TRIGGER fail_save BEFORE INSERT ON audit WHEN NEW.event = 'admin-change' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await failure(await save('falcon-axi', values['falcon-axi'], 1), 'AUDIT_UNAVAILABLE')
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual(credentials)
+  expect(db.prepare('SELECT * FROM tools').all()).toEqual(tools)
+})
+
+test.each(['', null])('save rejects an explicit invalid secret (%s) without retaining the old one', async clientSecret => {
+  await replace('falcon-axi')
+  await failure(await save('falcon-axi', { ...values['falcon-axi'], clientSecret }, 1), 'INVALID_INPUT')
+  expect(store.readCredential(store.findCredential('falcon-axi')!)).toEqual(values['falcon-axi'])
+  expect(store.findCredential('falcon-axi')!.revision).toBe(1)
+})
+
+test('concurrent saves retain one secret revision and reject the competing edit', async () => {
+  await replace('falcon-axi')
+  const responses = await Promise.all([
+    request('PATCH', '/falcon-axi/credential', { value: { clientId: values['falcon-axi'].clientId, region: 'us-1' }, expectedRevision: 1, expectedToolRevision: 2 }),
+    request('PATCH', '/falcon-axi/credential', { value: { clientId: values['falcon-axi'].clientId, region: 'us-2' }, expectedRevision: 1, expectedToolRevision: 2 }),
+  ])
+  expect(responses.map(response => response.status).sort()).toEqual([200, 409])
+  expect(store.readCredential(store.findCredential('falcon-axi')!)).toMatchObject({ clientSecret: values['falcon-axi'].clientSecret })
+  expect(store.findCredential('falcon-axi')!.revision).toBe(2)
+})
+
 const routes = [
   { method: 'GET', path: '', body: undefined },
   { method: 'PATCH', path: '/falcon-axi', body: { enabled: false, expectedRevision: 1 } },
   { method: 'GET', path: '/falcon-axi/credential', body: undefined },
   { method: 'PUT', path: '/falcon-axi/credential', body: { value: values['falcon-axi'], expectedRevision: 0, expectedToolRevision: 1 } },
+  { method: 'PATCH', path: '/falcon-axi/credential', body: { value: values['falcon-axi'], expectedRevision: 0, expectedToolRevision: 1 } },
   { method: 'POST', path: '/falcon-axi/test', body: {} },
 ]
 test.each(routes)('$method $path requires admin capability despite tool grants', async route => {
