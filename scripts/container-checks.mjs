@@ -50,6 +50,10 @@ try {
       recoveryContainers.push(packaged)
       command('docker', ['run', '--name', packaged, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/mg-axi', image, '--version'])
+      const ldapPackage = `${builder}-ldap-package`
+      recoveryContainers.push(ldapPackage)
+      command('docker', ['run', '--name', ldapPackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/ldap-axi', image, 'user', 'list', '--help'])
       const backupVolume = `${builder}-backup`
       const restoreVolume = `${builder}-restore`
       for (const volume of [backupVolume, restoreVolume]) {

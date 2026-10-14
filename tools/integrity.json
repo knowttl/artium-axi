@@ -7,6 +7,10 @@
     "version": "0.1.5",
     "integrity": "sha512-m+gE4qJm1xBCWqH3QAqkJJFwUcBRmZDUr3UB2TthzkIg+2oHheuCOuV8yGdelggLT74JLtv/wR416UFyFMjy8Q=="
   },
+  "@knowttl/ldap-axi": {
+    "version": "0.1.4",
+    "integrity": "sha512-tHbXyEFQe+sRYbasVbuFUK93D8JTcp+zuxREbmW8wwqu7cG6Jz7gQRMIyCwjoBQLw2jhWwalJA5eQKlJszm/2A=="
+  },
   "@knowttl/mg-axi": {
     "version": "0.1.7",
     "integrity": "sha512-ojOqnpnnqA3EiyHD0QNxxW3BZpkOCw3oPuhORNFq+X8O9c2MxE1aqn1frTNY61CQ6qWr6Gn5Q+H8KVIWSC5xgg=="

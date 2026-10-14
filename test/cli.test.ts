@@ -468,7 +468,7 @@ test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['
   })
 
 test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'],
-  ['falcon-axi'], ['vectra-axi']].map(command => ({ command })))(
+  ['falcon-axi'], ['vectra-axi'], ['ldap-axi']].map(command => ({ command })))(
   'prefix help uses the local layout without configuration or network: $command', async ({ command }) => {
     requests = []
     const result = await cli(['--help', ...command], { ARTIUM_AXI_URL: undefined })
@@ -506,6 +506,7 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.8' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.7' },
+  { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.1.4' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])
@@ -524,7 +525,7 @@ test('tool detail refuses a mismatched pinned version', async () => {
     stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
 })
 
-test.each(['falcon-axi', 'vectra-axi'] as const)('%s upstream help remains an authenticated passthrough', async tool => {
+test.each(['falcon-axi', 'vectra-axi', 'ldap-axi'] as const)('%s upstream help remains an authenticated passthrough', async tool => {
   requests = []
   response = { status: 200, body: { source: tool, stdout: 'upstream help\n', stderr: '', exitCode: 0,
     durationMs: 1, outputBytes: { stdout: 14, stderr: 0 }, truncated: { stdout: false, stderr: false } } }

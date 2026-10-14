@@ -8,6 +8,7 @@ import { falconCredentialSchema } from '../adapters/falcon.js'
 import { vectraCredentialSchema } from '../adapters/vectra.js'
 import { azCredentialSchema } from '../adapters/az.js'
 import { mgCredentialSchema } from '../adapters/mg.js'
+import { ldapCredentialSchema } from '../adapters/ldap.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -24,8 +25,9 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema }
+const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema }
 const publicFields = {
+  'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'flavor', 'tlsMaxVersion'],
   'falcon-axi': ['region', 'memberCid'],
   'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease'],
   'az-axi': ['tenantId', 'clientId', 'auth', 'thumbprintSha256'],

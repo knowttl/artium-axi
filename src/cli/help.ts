@@ -1,6 +1,7 @@
 import { toolSchema } from '../shared/api.js'
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
+import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const commands = {
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: [], example: 'artium-axi' },
@@ -21,13 +22,15 @@ const commands = {
     flags: ['Arguments after falcon-axi are forwarded upstream, including --help.'], example: `artium-axi falcon-axi ${falcon.discovery.example.join(' ')}` },
   'vectra-axi': { usage: 'artium-axi vectra-axi [<args>]', purpose: 'Run Vectra commands with your managed credentials.',
     flags: ['Arguments after vectra-axi are forwarded upstream, including --help.'], example: `artium-axi vectra-axi ${vectra.discovery.example.join(' ')}` },
+  'ldap-axi': { usage: 'artium-axi ldap-axi [<args>]', purpose: 'Read directory data with the managed LDAP bind identity.',
+    flags: ['Arguments after ldap-axi are forwarded upstream, including --help.'], example: `artium-axi ldap-axi ${ldap.discovery.example.join(' ')}` },
 } as const
 
 export type HelpCommand = keyof typeof commands
 
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
-  const flags = [command === 'falcon-axi' || command === 'vectra-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags]
+  const flags = [command === 'falcon-axi' || command === 'vectra-axi' || command === 'ldap-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags]
   return `usage: ${entry.usage}\npurpose: ${entry.purpose}\nflags[${flags.length}]:\n${flags.map(flag => `  - ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n`
 }
 
@@ -40,7 +43,7 @@ export function helpCommand(args: string[], prefixHelp = false): HelpCommand | u
     }
     return 'setup'
   }
-  if (args[0] === 'falcon-axi' || args[0] === 'vectra-axi') return prefixHelp && args.length === 2 ? args[0] : undefined
+  if (args[0] === 'falcon-axi' || args[0] === 'vectra-axi' || args[0] === 'ldap-axi') return prefixHelp && args.length === 2 ? args[0] : undefined
   if (args[0] === 'login' || args[0] === 'passwd') {
     let requested = false
     let username = false

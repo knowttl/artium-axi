@@ -14,7 +14,7 @@ Administrators manage local accounts, roles, encrypted service credentials and a
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
-Falcon, Vectra, Azure and Graph are wired into the production server entry point.
+Falcon, Vectra, Azure, Graph and LDAP are wired into the production server entry point.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -181,6 +181,7 @@ The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-a
 | Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
+| LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 
 #### Falcon
 
@@ -297,6 +298,33 @@ Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defau
 Save, run **Test credential**, follow the [activation requirements](#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
 Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
 See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captain live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
+
+#### LDAP
+
+Artium pins `@knowttl/ldap-axi` to npm version `0.1.4` and uses stored simple-bind credentials, encrypted by the same credential store as the other tools.
+The user's ambient Kerberos ticket belongs to their local login and is unavailable inside Artium's server-side isolated runner.
+Artium therefore requires `auth=simple`; it does not accept a keytab or manage Kerberos ticket acquisition and renewal.
+This keeps the directory identity explicit and its password rotation within the existing credential replacement flow.
+The native Kerberos provider and its installation script are unnecessary for this authentication mode and remain disabled.
+
+Obtain a dedicated directory identity with read access only, its bind DN and password, and a directory URL whose certificate can be verified.
+At `/admin/credentials`, select `ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn` and the password value in `bindPassword`.
+Use `ldaps://<directory-host>:636`, or `ldap://<directory-host>:389` with `startTls=true`.
+Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
+If a private CA is required, supply its PEM contents in `caFile`, not a server file path.
+The current web credential editor renders `caFile` as a one-line field and drops newlines from pasted multiline PEM.
+Until the credential editor supports multiline CA contents, save the complete replacement through `PUT /v1/admin/tools/ldap-axi/credential`, using a JSON string with escaped newlines for `value.caFile` and the current credential and tool revisions.
+The API preserves those newlines, and Artium materializes the CA privately for each call.
+Artium's CLI has no credential-save command.
+Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
+Optional `pageSize` is an integer from 1 to 1000, `flavor` is `ad`, `adlds` or `ldapv3`, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
+
+Artium follows the package's shipped AXI credential contract: one version 1 `artium` profile under private XDG configuration, with `bindPassword` replaced by an environment SecretRef for the child process.
+Enter the password itself in the form, never a SecretRef or password-file path.
+Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
+**Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
+LDAP 0.1.4 is read-only by design and has no editable native write settings.
+Local fake-directory and offline profile checks do not establish live directory acceptance.
 
 ### Build from source
 

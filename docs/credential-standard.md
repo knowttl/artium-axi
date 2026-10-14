@@ -233,7 +233,8 @@ For each call, the host:
 2. Writes `$XDG_CONFIG_HOME/<tool>/config.json` containing exactly one profile, named `artium`, which is also the `defaultProfile`.
 3. Replaces each `x-secret` field with `{"env": "ARTIUM_SECRET_<n>"}` and passes the values through the environment.
 4. Adds every secret value to its output scanner.
-5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy.
+5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
+   LDAP is read-only by design and needs neither setting nor a write journal.
 
 Under this contract the host's per-tool code is limited to argument policy.
 That covers the inventory, blocked commands and blocked flags, and no credential code remains.
@@ -256,6 +257,12 @@ The env profile uses `auth: "az"` when `AZ_AXI_TENANT_ID` is set, or `auth: "tok
 Mixed or partial env sources are rejected.
 Legacy `tokenEnv` keys are accepted for one release with a deprecation warning.
 These az-axi schema details were approved separately during implementation.
+
+ldap-axi 0.1.4 ships a profile schema with `bindPassword` marked `x-secret`.
+Artium restricts that schema to `auth: "simple"` with a required `bindDn` and password value, and verified LDAPS or StartTLS.
+The caller's ambient Kerberos ticket is unavailable in the isolated server runner; keytabs and ticket renewal are outside this adapter's scope.
+Artium accepts CA PEM contents in `caFile` and materializes them privately rather than accepting a host file path.
+The pinned package's native Kerberos installer remains disabled because simple bind needs no native provider.
 
 ## 10. Migration
 

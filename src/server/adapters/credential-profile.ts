@@ -58,6 +58,18 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'ldap-axi') {
+      this.inputSchema.required = [...new Set([...this.inputSchema.required ?? [], 'auth', 'bindDn', 'bindPassword'])]
+      this.inputSchema.properties.auth = { const: 'simple', title: 'Authentication' }
+      this.inputSchema.properties.url = { ...this.inputSchema.properties.url, format: 'ldap-url' }
+      this.inputSchema.properties.caFile = { type: 'string', minLength: 1, description: 'Trusted CA PEM contents, not a server file path' }
+      delete this.inputSchema.properties.gssapiService
+      delete this.inputSchema.properties.gssapiProtection
+      this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
+        if: { properties: { url: { pattern: '^ldap://' } } },
+        then: { required: ['startTls'], properties: { startTls: { const: true } } },
+      }]
+    }
     if (tool === 'vectra-axi' && this.inputSchema.properties?.origin) {
       const origin = this.inputSchema.properties.origin
       this.inputSchema.properties.origin = { ...origin,
@@ -81,6 +93,13 @@ export class CredentialProfile {
     }
     const host = create()
     host.addFormat('canonical-https-origin', { type: 'string', validate: isCanonicalHttpsOrigin })
+    host.addFormat('ldap-url', { type: 'string', validate: (value: string) => {
+      try {
+        const url = new URL(value)
+        return ['ldap:', 'ldaps:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password
+          && !url.search && !url.hash && ['', '/'].includes(url.pathname)
+      } catch { return false }
+    } })
     host.addKeyword({ keyword: 'x-secret', schemaType: 'boolean', errors: false,
       validate: (secret: boolean, value: unknown, _schema: unknown, context?: { instancePath: string }) => {
         if (secret && typeof value === 'string' && context) this.secrets.add(context.instancePath)
@@ -146,8 +165,8 @@ export class CredentialProfile {
     return metadata
   }
 
-  prepare(tool: ToolName, value: unknown, writeLog: string, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
+  prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
+    if (tool !== 'ldap-axi' && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     const environment: Record<string, string> = {}
     const secrets: string[] = []
@@ -160,14 +179,20 @@ export class CredentialProfile {
       parent[key] = { env: name }
     }
     if (!this.validateProfile(parsed.value)) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
-    const prefix = tool.toUpperCase().replaceAll('-', '_')
-    environment[`${prefix}_READ_ONLY`] = String(readOnly)
-    environment[`${prefix}_WRITE_LOG`] = writeLog
+    if (tool !== 'ldap-axi') {
+      const prefix = tool.toUpperCase().replaceAll('-', '_')
+      environment[`${prefix}_READ_ONLY`] = String(readOnly)
+      environment[`${prefix}_WRITE_LOG`] = writeLog!
+    }
     // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
     const files: PreparedCall['files'] = []
     if (tool === 'vectra-axi' && typeof parsed.value.caBundle === 'string') {
       files.push({ name: 'vectra-axi/vectra-ca.pem', content: parsed.value.caBundle })
       parsed.value.caBundle = 'vectra-ca.pem'
+    }
+    if (tool === 'ldap-axi' && typeof parsed.value.caFile === 'string') {
+      files.push({ name: 'ldap-axi/ldap-ca.pem', content: parsed.value.caFile })
+      parsed.value.caFile = 'ldap-axi/ldap-ca.pem'
     }
     return { environment, secrets, files: [...files, { name: `${tool}/config.json`, content: JSON.stringify({
       version: 1, defaultProfile: 'artium', profiles: { artium: parsed.value },

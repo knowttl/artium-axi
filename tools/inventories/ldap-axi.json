@@ -1,0 +1,459 @@
+{
+  "generatedBy": "scripts/ldap-inventory.mjs",
+  "tool": "ldap-axi",
+  "version": "0.1.4",
+  "integrity": "sha512-tHbXyEFQe+sRYbasVbuFUK93D8JTcp+zuxREbmW8wwqu7cG6Jz7gQRMIyCwjoBQLw2jhWwalJA5eQKlJszm/2A==",
+  "parserEvidence": "Installed pinned command schemas and reviewed CLI globals and entry routes",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "6e5ba775618ee8b5280afa7295c72dbe962a607aa1c9dc700ee49d529779dce8"
+    },
+    {
+      "path": "README.md",
+      "sha256": "6f6f7af1b1c67ff26b2d8a6c305a3377bb47885357a46b7d6e62824e3d9bf68b"
+    },
+    {
+      "path": "axi-credential.schema.json",
+      "sha256": "76b9f5f449d844dcd4365b966ed907515582f72fc920b936dae825ebf1b7cc53"
+    },
+    {
+      "path": "dist/src/cli.js",
+      "sha256": "bd3d3c47cd1fbb490c6588a8888b5ae6fc1d5a117927500e3cd0f87bb1940e98"
+    },
+    {
+      "path": "dist/src/schema.js",
+      "sha256": "c7a397387ee24f8284c363408424278809dd9a6f75add0db7f8354d978b59ba6"
+    },
+    {
+      "path": "dist/src/config.js",
+      "sha256": "cbc48584b6ff2a2a70375e9e8e6242a87543a3e6e6f7e1c055a2d29c42b677f9"
+    },
+    {
+      "path": "dist/src/secrets.js",
+      "sha256": "9f2ccf86515cec1dd65f2dd5850188232374535f7fe56a788fdc7b94d91c8532"
+    },
+    {
+      "path": "dist/src/directory/auth.js",
+      "sha256": "d2b3a61cb9e63744462e3a6a2841fcddb2b48e7823c307841028288cfe9d688b"
+    },
+    {
+      "path": "dist/src/directory/policy.js",
+      "sha256": "a697dd78990493f7f1c19d22278ebb922c997e9cf88a51b12adfaca30fa8a01d"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "ldap-axi profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "url"
+    ],
+    "properties": {
+      "url": {
+        "type": "string",
+        "pattern": "^ldaps?://",
+        "description": "LDAP URL without userinfo; use the server FQDN for ambient authentication"
+      },
+      "auth": {
+        "enum": [
+          "auto",
+          "gssapi",
+          "simple"
+        ],
+        "default": "auto"
+      },
+      "bindDn": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Simple-bind identity, required for simple authentication"
+      },
+      "bindPassword": {
+        "x-secret": true,
+        "description": "Simple-bind password reference; defaults to env LDAP_AXI_BIND_PASSWORD. No stored secrets.",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])",
+                "description": "Absolute local path to a private UTF-8 password file; UNC/device paths are forbidden on Windows"
+              }
+            }
+          }
+        ]
+      },
+      "base": {
+        "type": "string"
+      },
+      "pageSize": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "caFile": {
+        "type": "string",
+        "minLength": 1
+      },
+      "startTls": {
+        "type": "boolean",
+        "default": false
+      },
+      "tlsMaxVersion": {
+        "const": "1.2"
+      },
+      "flavor": {
+        "enum": [
+          "ad",
+          "adlds",
+          "ldapv3"
+        ]
+      },
+      "gssapiService": {
+        "type": "string",
+        "minLength": 1
+      },
+      "gssapiProtection": {
+        "enum": [
+          "none",
+          "confidentiality"
+        ]
+      }
+    }
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "url",
+      "start-tls",
+      "ca-file",
+      "ca-only",
+      "tls-no-verify",
+      "tls-max-version",
+      "insecure-plaintext",
+      "anonymous",
+      "profile",
+      "auth",
+      "gssapi-service",
+      "gssapi-protection"
+    ],
+    "blockedCommands": [
+      "config",
+      "profile"
+    ],
+    "sensitiveFlags": [
+      "base",
+      "filter",
+      "name",
+      "sam",
+      "upn",
+      "uid"
+    ],
+    "authentication": "Stored simple-bind identity over verified LDAPS or StartTLS; no ambient ticket or keytab",
+    "inputs": {
+      "stdin": "unsupported",
+      "files": "unsupported",
+      "caFile": "stored PEM materialized privately by host"
+    },
+    "resources": {
+      "nodeHeapMiB": 128
+    },
+    "nativeWrites": "read-only upstream design"
+  },
+  "discovery": {
+    "commands": [
+      "entry",
+      "user",
+      "group",
+      "auth status"
+    ],
+    "example": [
+      "user",
+      "list",
+      "--limit",
+      "1"
+    ],
+    "help": "List user accounts.\nLDAPv3 users are inetOrgPerson or posixAccount entries; use ldap-axi entry search for account + simpleSecurityObject service accounts.\nUsage: ldap-axi user list [flags]\nFlags:\n  --help  show this help\n  --base  <dn> search base\n  --disabled  include disabled accounts (LDAPv3: permanent ppolicy locks)\n  --enabled  include enabled accounts (LDAPv3: exclude permanent ppolicy locks)\n  --locked  include current AD locks or recorded LDAPv3 ppolicy lock candidates\n  --all  read all pages up to --max-rows or --limit\n  --name  <pattern> match cn\n  --sam  <pattern> AD only: match sAMAccountName\n  --upn  <pattern> AD only: match userPrincipalName\n  --uid  <pattern> LDAPv3 only: match uid\n  --filter  <RFC4515> add a raw LDAP filter\n  --scope  <base|one|sub> search scope\n  --max-rows  <n> maximum output rows\n  --page-size  <1..1000> LDAP page size\n  --limit  <n> alias for bounded list output\n  --fields  <name,...> select output fields\n  --attributes  <name,...> request and emit raw attributes\nActive Directory fields: sam, upn, name, dn, enabled, locked, last_logon, object_sid, when_created\nActive Directory defaults: sam, name, enabled, last_logon\nLDAPv3 fields: uid, name, mail, enabled, locked, account_state, dn, entry_uuid, when_created\nLDAPv3 defaults: uid, name, mail, enabled, locked, account_state\nExamples:\n  ldap-axi user list --help\n  ldap-axi user list"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "home",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "auth status",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "offline": "boolean"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "entry search",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "filter": "value",
+        "scope": "value",
+        "attributes": "value",
+        "page-size": "value",
+        "max-rows": "value",
+        "all": "boolean"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "entry show",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "attributes": "value",
+        "page-size": "value"
+      },
+      "positionalInput": true
+    },
+    {
+      "command": "user list",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "disabled": "boolean",
+        "enabled": "boolean",
+        "locked": "boolean",
+        "all": "boolean",
+        "name": "value",
+        "sam": "value",
+        "upn": "value",
+        "uid": "value",
+        "filter": "value",
+        "scope": "value",
+        "max-rows": "value",
+        "page-size": "value",
+        "limit": "value",
+        "fields": "value",
+        "attributes": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "user show",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "fields": "value",
+        "attributes": "value"
+      },
+      "positionalInput": true
+    },
+    {
+      "command": "user groups",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "nested": "boolean",
+        "max-rows": "value",
+        "page-size": "value",
+        "fields": "value"
+      },
+      "positionalInput": true
+    },
+    {
+      "command": "group list",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "all": "boolean",
+        "name": "value",
+        "sam": "value",
+        "filter": "value",
+        "scope": "value",
+        "max-rows": "value",
+        "page-size": "value",
+        "limit": "value",
+        "fields": "value",
+        "attributes": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "group show",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "fields": "value",
+        "attributes": "value"
+      },
+      "positionalInput": true
+    },
+    {
+      "command": "group members",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "nested": "boolean",
+        "max-rows": "value",
+        "page-size": "value",
+        "fields": "value"
+      },
+      "positionalInput": true
+    }
+  ]
+}

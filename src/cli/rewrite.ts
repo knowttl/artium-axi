@@ -3,12 +3,14 @@ import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
+import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
   'falcon-axi': falcon.unsafeOverrides,
   'vectra-axi': vectra.adapterBoundary.unsafeOverrides,
   'az-axi': az.adapterBoundary.unsafeOverrides,
   'mg-axi': mg.adapterBoundary.unsafeOverrides,
+  'ldap-axi': ldap.adapterBoundary.unsafeOverrides,
 }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
@@ -31,7 +33,8 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
-  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))) return hostedHelp(output, tool, flags, true)
+  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))
+    || tool === 'ldap-axi' && /^Usage: ldap-axi /m.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
   try {
@@ -116,6 +119,7 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
     const name = token[0].split('=')[0].slice(2)
     if (!token[0].startsWith('--') || !managedFlags[tool].includes(name)) continue
     const boolean = tool === 'falcon-axi' && falcon.commands.some(command => (command.flags as Record<string, string | undefined>)[name] === 'boolean')
+      || tool === 'ldap-axi' && ldap.commands.some(command => (command.flags as Record<string, string | undefined>)[name] === 'boolean')
     const last = token[0].includes('=') || boolean ? token : tokens[++index]
     if (last) ranges.push([token.index! - 1, last.index! + last[0].length])
   }
@@ -131,16 +135,17 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '') + ending
     })
   if (!commands) return filtered
-  return filtered.replace(new RegExp(`^[ \t]*(?:(?:(?:Command|Native operation): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
+  return filtered.replace(new RegExp(`^[ \t]*(?:(?:(?:Command|Native operation|Usage): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
       line = line.replace(new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]`, 'g'), '')
       for (const [from, to] of managedFlagRanges(line, tool).reverse()) line = line.slice(0, from) + line.slice(to)
       return line
     })
-    .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples|Usage): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
     .replace(/^[ \t]*Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
       (match, separator) => separator ? `; artium-axi ${tool}` : match))
     .replace(new RegExp('`(?:npx -y @knowttl/)?' + tool + '(?=\\s|`)([^\\r\\n`]*`)', 'g'), '`artium-axi ' + tool + '$1')
     .replace(new RegExp(`^([ \t]*cat [^\\r\\n|]+ \\| )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`\\buse ${tool} entry search\\b`, 'g'), `use artium-axi ${tool} entry search`)
 }
 
 function jsonHelp(output: string): Help {
