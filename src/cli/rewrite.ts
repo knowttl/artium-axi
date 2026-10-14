@@ -61,7 +61,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   for (const span of [...spans].reverse()) {
     const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples):/m.test(span.value))
     if (value === span.value) continue
-    output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    output = output.slice(0, span.start) + (span.quoted || tool === 'ldap-axi' && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
@@ -140,6 +140,11 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  const selectors = flags.join('|')
+  if (tool === 'ldap-axi' && !commands && !/^(?:Run|Use) [`'"]?(?:artium-axi )?ldap-axi\b/.test(help)) {
+    help = help.replace(new RegExp(`^(?:Use |Pass |Set |Or use |The search base may)[^\\r\\n]*(?:--(?:${selectors})\\b|\\b(?:NODE_EXTRA_CA_CERTS|LDAP_AXI_[A-Z_]+)\\b)[^\\r\\n]*$`, 'gm'),
+      'Ask an Artium administrator to update the stored LDAP credentials: use verified LDAPS or LDAP with startTls=true, and supply trusted CA PEM contents in caFile when required.')
+  }
   if (tool === 'ldap-axi' && commands && ldapHelp.test(help)) {
     help = help.replace(/^(?:Authentication defaults to auto|Use --auth simple|Select configuration with|The URL scheme selects the GSSAPI transport|Use --tls-max-version)[^\r\n]*(?:\r?\n|$)/gm, '')
       .replace(/^Commands: [^\r\n]*/m, `Commands: ${ldapCommands.join(', ')}`)
@@ -147,7 +152,6 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       .replace(/^Example: /gm, 'Examples: ')
     if (!help.includes(ldapCredentialGuidance)) help = help.trimEnd() + '\n' + ldapCredentialGuidance + '\n'
   }
-  const selectors = flags.join('|')
   const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|Valid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
     (_, label: string, listed: string, ending: string) => {
       const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')

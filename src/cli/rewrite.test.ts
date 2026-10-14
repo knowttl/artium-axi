@@ -346,3 +346,34 @@ test.each([
 test.each(['help: falcon-axi host list\n', '{"help":"falcon-axi host list"}'])('preserves explicitly truncated streams: %s', input => {
   expect(rewriteSuggestions(input, 'falcon-axi', true)).toBe(input)
 })
+
+test.each([
+  { code: 'TLS_UNTRUSTED', hint: 'Use --ca-file <pem> to append a corporate CA, or NODE_EXTRA_CA_CERTS; Node does not use the system trust store' },
+  { code: 'TLS_UNTRUSTED', hint: 'Set NODE_EXTRA_CA_CERTS to trust a private CA' },
+  { code: 'VALIDATION_ERROR', hint: 'Use ldaps:// alone, or ldap:// with --start-tls' },
+  { code: 'VALIDATION_ERROR', hint: 'Pass --ca-file <readable-pem> or correct the configured caFile path and permissions' },
+  { code: 'TLS_REQUIRED', hint: 'Use ldaps:// or --start-tls' },
+  { code: 'TLS_REQUIRED', hint: 'Use ldaps:// or --start-tls instead' },
+  { code: 'TLS_REQUIRED', hint: 'Use ldaps:// or --start-tls without --tls-no-verify' },
+  { code: 'TLS_REQUIRED', hint: 'Or use ldap:// without --start-tls for the sealed GSSAPI transport' },
+  { code: 'AUTH_REQUIRED', hint: 'Set LDAP_AXI_BIND_DN and LDAP_AXI_BIND_PASSWORD, or select a profile with bindDn and a bindPassword SecretRef' },
+  { code: 'NOT_FOUND', hint: 'The search base may be absent or hidden by access control; if using --anonymous, try an authenticated bind with read access' },
+].flatMap(value => [JSON.stringify, encode].map(serialize => ({ ...value, serialize }))))(
+  'LDAP $code recovery hosts credential changes without changing unrelated output', ({ code, hint, serialize }) => {
+    const document = { code, error: 'Synthetic connection failure', data: { hint },
+      help: [hint, 'Run `ldap-axi entry search --help` for filter syntax', 'Check directory read permissions'] }
+    const input = serialize(document)
+    const output = rewriteSuggestions(input, 'ldap-axi')
+    expect(output).toBe(serialize({ ...document, help: [
+      'Ask an Artium administrator to update the stored LDAP credentials: use verified LDAPS or LDAP with startTls=true, and supply trusted CA PEM contents in caFile when required.',
+      'Run `artium-axi ldap-axi entry search --help` for filter syntax', 'Check directory read permissions',
+    ] }))
+    expect(rewriteSuggestions(output, 'ldap-axi')).toBe(output)
+    expect(rewriteSuggestions(input, 'ldap-axi', true)).toBe(input)
+  })
+
+test.each([JSON.stringify, encode])('LDAP recovery preserves literal arguments in supported command suggestions', serialize => {
+  const input = serialize({ code: 'VALIDATION_ERROR', help: ['Use `ldap-axi user list --name "--ca-file NODE_EXTRA_CA_CERTS"`'] })
+  const expected = serialize({ code: 'VALIDATION_ERROR', help: ['Use `artium-axi ldap-axi user list --name "--ca-file NODE_EXTRA_CA_CERTS"`'] })
+  expect(rewriteSuggestions(input, 'ldap-axi')).toBe(expected)
+})
