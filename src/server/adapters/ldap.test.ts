@@ -37,10 +37,16 @@ test.each([
   { ...credential, url: 'ldaps://reader:password@directory.test:636' },
   { ...credential, url: 'ldaps://' }, { ...credential, url: 'ldaps://directory.test/base' },
   { ...credential, gssapiService: 'ldap@directory.test' }, { ...credential, keytab: '/private/keytab' },
+  ...['ad', 'adlds', 'ldapv3'].map(flavor => ({ ...credential, flavor })),
 ])('refuses unusable hosted bind credentials: %j', async value => {
   expect(ldapCredentialSchema.safeParse(value).success).toBe(false)
   await expect(createLdapAdapter({ getCredential: async () => value }).prepare([], reference))
     .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+})
+
+test('hosted LDAP credential fields exclude the ignored flavor selector', () => {
+  const profile = createLdapAdapter({ getCredential: vi.fn() }).credentialProfile!
+  expect(profile.fields().map(field => field.name)).not.toContain('flavor')
 })
 
 test.each([

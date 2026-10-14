@@ -317,7 +317,7 @@ Until the credential editor supports multiline CA contents, save the complete re
 The API preserves those newlines, and Artium materializes the CA privately for each call.
 Artium's CLI has no credential-save command.
 Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
-Optional `pageSize` is an integer from 1 to 1000, `flavor` is `ad`, `adlds` or `ldapv3`, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
+Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
 
 Artium follows the package's shipped AXI credential contract: one version 1 `artium` profile under private XDG configuration, with `bindPassword` replaced by an environment SecretRef for the child process.
 Enter the password itself in the form, never a SecretRef or password-file path.

@@ -27,7 +27,7 @@ export interface ToolAdminOptions {
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema }
 const publicFields = {
-  'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'flavor', 'tlsMaxVersion'],
+  'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion'],
   'falcon-axi': ['region', 'memberCid'],
   'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease'],
   'az-axi': ['tenantId', 'clientId', 'auth', 'thumbprintSha256'],

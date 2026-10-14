@@ -65,6 +65,7 @@ export class CredentialProfile {
       this.inputSchema.properties.caFile = { type: 'string', minLength: 1, description: 'Trusted CA PEM contents, not a server file path' }
       delete this.inputSchema.properties.gssapiService
       delete this.inputSchema.properties.gssapiProtection
+      delete this.inputSchema.properties.flavor
       this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
         if: { properties: { url: { pattern: '^ldap://' } } },
         then: { required: ['startTls'], properties: { startTls: { const: true } } },
