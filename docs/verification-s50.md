@@ -22,7 +22,7 @@ The task container and standalone image are removed in `finally`; the probe crea
 
 These checks prove local validation and transport into a fake MSAL boundary.
 They do not prove real certificate signing, Microsoft authentication, tenant permissions, Graph consent or a live Graph read.
-Live application consent and both real authentication forms remain unverified.
+See the [evidence ledger](evidence-ledger.md) for subsequent live authentication and consent results and their remaining limits.
 No application account was requested; T8.2 had not started in this S50 evidence.
 See [S51 verification](verification-s51.md) for the subsequent adapter probe added to the same command.
 Final candidate aggregate checks, container input/output digests, timings and private hygiene evidence belong in delivery status and the PR body.

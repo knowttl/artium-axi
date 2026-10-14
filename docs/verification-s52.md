@@ -4,7 +4,7 @@ All four adapters have repeated local evidence using fakes, synthetic identities
 The [evidence ledger](evidence-ledger.md) records local status separately from captain live acceptance.
 No approved design decision, adapter pin or runtime activation policy changed.
 No application account was requested, live probe reconciled, production deployment started or captain-run live checklist executed.
-Live Graph consent remains unverified.
+See the [evidence ledger](evidence-ledger.md) for subsequent live Graph consent results and remaining acceptance limits.
 
 ## Candidate and commands
 
