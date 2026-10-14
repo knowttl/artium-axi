@@ -106,6 +106,60 @@ const toolCredentials = [
   { tool: 'ldap-axi', fields: { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-ldap-password' }, secret: 'bindPassword', settings: {} },
 ]
 
+for (const action of ['save', 'test']) {
+  for (const outcome of ['redirect', 'html', 'invalid-health', 'ok']) {
+    test(action + ' credential test validates ' + outcome + ' response', () => {
+      browser(`
+        await page.open(base + '/admin/tools/falcon-axi');
+        await page.wait('[data-credential-editor]');
+        await page.eval(() => {
+          const original = window.fetch.bind(window);
+          window.fetch = async (url, options) => {
+            if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
+            const outcome = ${JSON.stringify(outcome)};
+            if (outcome === 'redirect') {
+              await original('/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _csrf: document.querySelector('form[data-test-tool] [name=_csrf]').value }) });
+              return original(url, options);
+            }
+            if (outcome === 'html') return new Response('<html>Sign in</html>', { headers: { 'Content-Type': 'text/html' } });
+            return Response.json(outcome === 'ok'
+              ? { status: 'ok', checkedAt: Date.now(), credentialRevision: 1, errorCode: null }
+              : { status: 'unknown', checkedAt: null, credentialRevision: null, errorCode: null });
+          };
+        });
+        if (${JSON.stringify(action)} === 'save') {
+          await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
+          await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
+          await page.fill('[data-profile-field="region"]', 'us-1');
+          await page.click('[data-save-and-test]');
+          await page.click('form[data-save-tool] button');
+          await page.wait('#confirmation[open]');
+          await page.click('#confirmation button[value=confirmed]');
+        } else {
+          await page.click('form[data-test-tool] button');
+          await page.wait('#confirmation[open]');
+          await page.click('#confirmation button[value=confirmed]');
+        }
+        if (${JSON.stringify(outcome)} === 'redirect') {
+          await page.wait('form[action="/login"]');
+          check(await page.eval(() => sessionStorage.getItem('credential-test:/admin/tools/falcon-axi') === null), 'Redirect retained a success result');
+        } else if (${JSON.stringify(action)} === 'save') {
+          await page.wait('[data-test-result]:not(:empty)');
+          const expected = ${JSON.stringify(outcome === 'ok' ? 'Saved. Test passed.' : 'Saved. Test could not complete. Run Test credential again.')};
+          check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === expected, 'Incorrect save-and-test result');
+        } else if (${JSON.stringify(outcome)} === 'ok') {
+          await page.wait('[data-test-result]:not(:empty)');
+          check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Valid health was rejected');
+        } else {
+          await page.wait('#message:not(:empty)');
+          check(await page.eval(() => document.querySelector('[data-test-result]').textContent === ''), 'Invalid health reported success');
+        }
+      `);
+    });
+  }
+}
+
 for (const entry of toolCredentials) test(entry.tool + ' guided credential save keeps secrets and native settings and tests inline', async () => {
   browser(`
     await page.open(base + '/admin/tools');

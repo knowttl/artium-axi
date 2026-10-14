@@ -191,6 +191,12 @@ function reauthenticate(csrf) {
   });
 }
 
+async function confirmTestResponse(response) {
+  const health = await response.json();
+  if (health.status !== 'ok' || !Number.isInteger(health.checkedAt) ||
+      !Number.isInteger(health.credentialRevision) || health.errorCode !== null) throw new Error();
+}
+
 let pendingAction = false;
 document.addEventListener('submit', async event => {
   const form = event.target;
@@ -254,6 +260,8 @@ document.addEventListener('submit', async event => {
       try {
         const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/test', { method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
+        if (tested.redirected) { location.assign(tested.url); return; }
+        if (tested.ok) await confirmTestResponse(tested);
         result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
         if (!tested.ok) { const { error } = await tested.json(); result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
       } catch { /* The credential is saved even when its test cannot complete. */ }
@@ -261,7 +269,10 @@ document.addEventListener('submit', async event => {
       location.reload();
       return;
     }
-    if (testResult) testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+    if (testResult) {
+      if (response.ok) await confirmTestResponse(response);
+      testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+    }
     if (!response.ok) {
       const result = await response.json();
       showError(message, result.error);
