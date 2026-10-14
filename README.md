@@ -402,7 +402,9 @@ Role changes apply on the next call, including calls using existing tokens.
 The last enabled administrator cannot be disabled or demoted.
 Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
 After 15 minutes without password confirmation, administration mutations require reauthentication.
-The shared header shows the remaining confirmation window and offers sign-out on every signed-in screen.
+Administration and account screens share a navigation menu.
+Signed-in screens have a header showing identity, sign-in source and sign-out.
+On administration screens, the header also shows the remaining password-confirmation window.
 Admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
 Cancel keeps the entered values without submitting the change.
 Confirmation dialogs explain consequences before changes; each screen also has expandable help.

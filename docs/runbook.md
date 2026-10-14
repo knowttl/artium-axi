@@ -175,8 +175,8 @@ Use `/admin/roles` to create named roles and replace the fixed tool grants, then
 Administrator capability is separate from tool grants, and the last enabled administrator cannot be disabled or demoted.
 Grant changes apply on the next call, including calls using existing tokens.
 Users with no enabled granted tools receive an explanatory empty list.
-Review actor, UTC change time and revision before saving; reload stale forms instead of overwriting newer edits.
-After 15 minutes without password confirmation, confirm at `/reauth` and submit the action again.
+Review actor, change time and revision before saving; reload stale forms instead of overwriting newer edits.
+See [browser administration](../README.md#browser-administration) for timestamp display and inline password confirmation.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open `/admin/credentials`.
 Follow the [credential editor guidance](../README.md#browser-administration) for schema-generated fields and the retained JSON editors.
