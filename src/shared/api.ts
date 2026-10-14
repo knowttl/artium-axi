@@ -173,6 +173,14 @@ export const adminToolRoutes = {
     input: z.strictObject({ value: z.unknown(), expectedRevision: z.number().int().nonnegative(),
       expectedToolRevision: z.number().int().positive() }),
     response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-credential' },
+  // Save replaces non-secret fields and retains omitted secrets only for the same identity.
+  // Changing mode, kind, auth, tenantId, clientId or origin requires new secrets.
+  // Native settings belong to patch above and are rejected inside value here.
+  // PUT remains a complete replacement of credentials and native settings.
+  save: { method: 'PATCH', path: '/v1/admin/tools/:tool/credential',
+    input: z.strictObject({ value: z.record(z.string(), z.unknown()), expectedRevision: z.number().int().nonnegative(),
+      expectedToolRevision: z.number().int().positive() }),
+    response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-credential' },
   test: { method: 'POST', path: '/v1/admin/tools/:tool/test', input: z.strictObject({}), response: healthSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'credential-test' },
 } as const

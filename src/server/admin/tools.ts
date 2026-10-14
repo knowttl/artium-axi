@@ -31,6 +31,12 @@ const publicFields = {
   'az-axi': ['tenantId', 'clientId', 'auth', 'thumbprintSha256'],
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
+const legacySecretFields = {
+  'falcon-axi': ['clientSecret'],
+  'vectra-axi': ['token', 'clientSecret'],
+  'az-axi': ['clientSecret', 'privateKey'],
+  'mg-axi': ['clientSecret', 'privateKey'],
+}
 
 export function registerToolAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, options: ToolAdminOptions): void {
@@ -122,18 +128,32 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     if (replacement) await health.refresh(tool, true)
     return result
   } })
-  app.route({ method: adminToolRoutes.replace.method, url: adminToolRoutes.replace.path, handler: async request => {
+  for (const route of [adminToolRoutes.replace, adminToolRoutes.save]) app.route({ method: route.method, url: route.path, handler: async request => {
     const actor = authorize(request)
     const tool = toolName(request)
-    const input = parse(adminToolRoutes.replace.input, request.body)
-    const value = parse(schemaFor(tool), input.value) as Record<string, unknown>
-    const { credential, settings } = splitSettings(tool, value)
+    const input = parse(route.input, request.body)
+    const saving = route === adminToolRoutes.save
+    const value = saving ? parse(adminToolRoutes.save.input, request.body).value
+      : parse(schemaFor(tool), input.value) as Record<string, unknown>
+    if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
     let replacement: CredentialReference | undefined
     const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const reference = credentialStore().findCredential(tool)
+      if (saving && (reference?.revision ?? 0) !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      let next = value
+      if (saving) {
+        const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
+        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin'].every(key => stored[key] === value[key])
+        const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret']).map(field => field.name)
+          ?? legacySecretFields[tool]
+        const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}
+        next = parse(schemaFor(tool), { ...retained, ...value, ...current.nativeSettings }) as Record<string, unknown>
+      }
+      const { credential, settings } = splitSettings(tool, next)
       const now = Date.now()
       replacement = credentialStore().replaceCredential(tool, credential, input.expectedRevision, actor, now)
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
