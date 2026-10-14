@@ -15,8 +15,6 @@ The client follows AXI (Agent eXperience Interface) conventions for discovery, h
 
 **Status: under construction.**
 Falcon, Vectra, Azure and Graph are wired into the production server entry point.
-Azure and Graph client-secret authentication and selected operations have been exercised live; see [credential setup](#tool-credentials) for permission and evidence limits.
-Falcon and Vectra have local fake-service evidence only.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -163,7 +161,7 @@ Upstream accounts are shared server-side service identities; users sign in to Ar
    Startup also saves the key beside the database, so protect the entire data volume as explained in [server custody](#server-settings-and-custody).
 
 7. **Configure tools and user access.**
-   Follow [Tool credentials](#tool-credentials) to save and test each credential, then enable the tool at `/admin/tools`.
+   Follow [Tool credentials](#tool-credentials) to save and test each credential, then follow the [activation requirements](#browser-administration) before enabling the tool at `/admin/tools`.
    Create a role at `/admin/roles`, grant it the enabled tools, create local users at `/admin`, and assign that role to them.
    Assign a tool role to your administrator too if that account will run CLI calls; administrator capability alone grants no tool access.
    Finish with [Download and first call](#download-and-first-call) and [Skill installation](#skill-installation) on each agent host.
@@ -173,7 +171,7 @@ Recovery, rotation, backups, retention and upgrades remain in the [operations ru
 ### Tool credentials
 
 Configure only the tools you intend to use.
-At `/admin/credentials`, select the tool and save a complete replacement credential, then use **Test credential** before enabling it at `/admin/tools`.
+At `/admin/credentials`, select the tool and save a complete replacement credential, then use **Test credential** and follow the [activation requirements](#browser-administration) before enabling it at `/admin/tools`.
 Forms start blank and never reveal saved secrets; enter secret values themselves, leave unused fields blank, and enter arrays or objects as JSON.
 The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](#browser-administration) explains replacement and health behavior.
 
@@ -196,7 +194,6 @@ For example, account reads need `Assets:read`, while CVE reads need `Vulnerabili
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
-Falcon credentials and permissions have not been verified live for Artium.
 
 #### Vectra
 
@@ -210,7 +207,6 @@ See [Vectra's credential issuance guidance](https://github.com/vectranetworks/ve
 If the deployment uses a private CA, paste its PEM contents into `caBundle`; enter no server file path.
 Leave `writes` blank for read-only use; optional writes need the native operation allowlist and upstream permissions.
 Save, run **Test credential**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
-Vectra credential issuance, deployment permissions and live calls have not been verified for Artium.
 
 #### Entra application registration for Azure and Graph
 
@@ -240,9 +236,6 @@ Have an administrator authorized to assign roles perform this step.
 
 Check the registry's **Settings > Properties > Role assignment permissions mode** before choosing registry roles; see [Microsoft's registry permission guidance](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-abac-repository-permissions).
 On ABAC-enabled registries, ARM `Reader` and `Contributor` grant control-plane access only, so assign the catalogue and repository roles above for the reads you need.
-The live tests confirmed ARM reads, Log Analytics queries and registry catalogue reads with the tested Reader/Contributor assignments, then blob and RBAC-vault metadata reads after adding the two data-plane reader roles.
-Those registry results apply only to the tested registry and assignments; its permission mode is not recorded here and the results do not establish access on ABAC-enabled registries.
-`Log Analytics Reader`, `AcrPull` and the ABAC-enabled registry roles were not independently verified as minimal grants in those tests.
 Access-policy-mode vaults require corresponding vault access policies instead of the RBAC-mode role.
 
 At `/admin/credentials`, use Azure's JSON editor with this shape, replacing every placeholder:
@@ -294,8 +287,6 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-The six permissions listed from user authentication methods through cross-tenant information were present in the second live round's application token; user authentication-method and access-review reads passed after their grants were added.
-The last four areas remained ungranted and unverified live.
 For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.7/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
@@ -303,9 +294,9 @@ Do not add `User.Export.All` just to make a read-only setup pass; data-policy ex
 In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
-Save, run **Test credential**, enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
+Save, run **Test credential**, follow the [activation requirements](#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
 Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
-Live evidence covers client-secret authentication and selected reads on earlier upstream releases, plus Azure hosted calls; certificate authentication, every Graph domain and a new host deployment remain separate acceptance steps.
+See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captain live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
 
 ### Build from source
 
