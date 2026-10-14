@@ -16,6 +16,7 @@ import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
 type PublicUser = z.infer<typeof adminUserSchema>
 
 export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts, tools: ToolAdminOptions): void {
+  db.function('unicode_lower', { deterministic: true }, (value: string | null) => value === null ? null : value.toLowerCase())
   function authorize(request: FastifyRequest): string {
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
     let userId: string | null = null
@@ -85,7 +86,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     authorize(request)
     const { cursor, limit, q, source, status, role } = parse(adminUserRoutes.list.input, request.query)
     // instr treats wildcard characters as literal search text.
-    const where = `(? IS NULL OR instr(lower(username), lower(?)) > 0 OR instr(lower(display_name), lower(?)) > 0)
+    const where = `(? IS NULL OR instr(unicode_lower(username), unicode_lower(?)) > 0 OR instr(unicode_lower(display_name), unicode_lower(?)) > 0)
       AND (? IS NULL OR source = ?) AND (? IS NULL OR disabled = ?)
       AND (? IS NULL OR EXISTS(SELECT 1 FROM user_roles WHERE user_id = users.id AND role_id = ?))`
     const filters = [q ?? null, q ?? null, q ?? null, source ?? null, source ?? null,

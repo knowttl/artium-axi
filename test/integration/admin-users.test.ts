@@ -521,6 +521,18 @@ test('user filters combine literal search, source, status and role with matching
   expect(adminUsersResponseSchema.parse(await (await request('GET', '?role=missing')).json()).totalCount).toBe(0)
 })
 
+test.each(['ÉMILIE', 'émilie'])('user search folds Unicode consistently for both fields and paginated counts: %s', async q => {
+  db.exec(`UPDATE users SET username = 'émilie', display_name = 'Analyst' WHERE id = 'synthetic-ordinary';
+    UPDATE users SET display_name = 'Émilie' WHERE id = 'synthetic-development-user'`)
+  const filters = '?q=' + encodeURIComponent(q) + '&source=local&status=enabled&role=synthetic-role&limit=1'
+  const first = adminUsersResponseSchema.parse(await (await request('GET', filters)).json())
+  expect(first).toMatchObject({ totalCount: 2, nextCursor: administrator })
+  expect(first.users.map(user => user.id)).toEqual([administrator])
+  const next = adminUsersResponseSchema.parse(await (await request('GET', filters + '&cursor=' + first.nextCursor)).json())
+  expect(next).toMatchObject({ totalCount: 2, nextCursor: null })
+  expect(next.users.map(user => user.id)).toEqual(['synthetic-ordinary'])
+})
+
 test('user detail combines overlapping role grants and reports disabled access without granting admin tools', async () => {
   db.exec(`INSERT INTO roles (id, name) VALUES ('extra', 'Extra');
     INSERT INTO role_tools VALUES ('extra', 'falcon-axi');

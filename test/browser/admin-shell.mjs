@@ -103,7 +103,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Draft was lost');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('tbody a');
+    await page.wait('tbody a:not([href="/admin/roles/synthetic-role"])');
     check(await page.eval(() => [...document.querySelectorAll('tbody a')].some(link => link.textContent === 'Synthetic resumed role')), 'Pending role was not created');
     check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes allowed for')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
@@ -207,14 +207,14 @@ test('user search combines filters, retains them through pagination and explains
     await page.fill('[name=status]', 'enabled');
     await page.fill('[name=role]', 'synthetic-role');
     await page.click('form[data-filters] button');
-    await page.wait('a[href*="cursor="]');
+    await page.wait('[name=q][value="synthetic"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('1 shown of 2 matching users')), 'Missing filtered count');
     await page.click('a[href*="cursor="]');
     await page.wait('a[href="/admin/users/synthetic-ordinary"]');
     check(await page.eval(() => ['q', 'source', 'status', 'role'].every(name => new URLSearchParams(location.search).has(name))), 'Pagination lost filters');
     await page.fill('[name=q]', 'no-matching-person');
     await page.click('form[data-filters] button');
-    await page.wait('form[data-filters]');
+    await page.wait('[name=q][value="no-matching-person"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('No matching users')), 'Missing empty-state guidance');
     check(await page.eval(() => !new URLSearchParams(location.search).has('cursor')), 'Search retained old cursor');
   `)
@@ -227,10 +227,10 @@ test('a local user can be created from the table and its profile edited from det
     await page.fill(create + ' [name=displayName]', 'New analyst');
     await page.fill(create + ' [name=temporaryPassword]', 'CANARY-temporary-password');
     await page.click(create + ' button');
-    await page.wait('tbody a');
+    await page.wait('tbody a:not([href="/admin/users/synthetic-development-user"]):not([href="/admin/users/synthetic-ordinary"])');
     const href = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'synthetic-new').getAttribute('href'));
     await page.click('a[href="' + href + '"]');
-    await page.wait('[name=displayName]');
+    await page.wait('form[action="' + href.replace('/admin/', '/v1/admin/') + '"] [name=displayName]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'New user did not require password change');
     await page.fill('[name=displayName]', 'Updated analyst');
     await page.click('[name=administrator]');
@@ -275,7 +275,7 @@ test('user detail unlock clears a lockout caused by failed sign-ins', async () =
     await page.click('form[action$="/unlock"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[action$="/unlock"] button:not(:disabled)');
+    await page.wait('[name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Failed sign-ins: 0')), 'Unlock did not clear attempts');
   `)
 })
@@ -288,7 +288,7 @@ test('user detail resets a password and the person must change it at sign-in', (
     await page.click('form[action$="/password-reset"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[action$="/password-reset"] button:not(:disabled)');
+    await page.wait('[name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'Reset did not require password change');
     await page.click('header form[action="/logout"] button');
     await page.wait('[name=username]');
@@ -305,7 +305,7 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.open(base + '/admin/roles');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic readers');
     await page.click('form[action="/v1/admin/roles"] button');
-    await page.wait('tbody a');
+    await page.wait('tbody a:not([href="/admin/roles/synthetic-role"])');
     const roleHref = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'Synthetic readers').getAttribute('href'));
     await page.click('a[href="' + roleHref + '"]');
     await page.wait('[name=tools]');
@@ -313,7 +313,7 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.click('form:has([name=tools]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form:has([name=tools]) button:not(:disabled)');
+    await page.wait('form:has([name=tools]) [name=expectedRevision][value="2"]');
     await page.open(base + '/admin/users/synthetic-ordinary');
     const roleId = roleHref.split('/').pop();
     await page.click('[name=roleIds][value="' + roleId + '"]');
@@ -331,7 +331,7 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.click('form:has([name=roleIds]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form:has([name=roleIds]) button:not(:disabled)');
+    await page.wait('form:has([name=roleIds]) [name=expectedRevision][value="3"]');
     await page.open(base + roleHref);
     await page.click('form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
