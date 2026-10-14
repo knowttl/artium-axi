@@ -440,7 +440,8 @@ The form exposes the schema's full requirements, including conditional requireme
 Azure retains its source-identity JSON editor because the host brokers resource tokens separately.
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Pinned tools awaiting migration retain their current credential editor and injection path.
-Replacements must include every native setting to retain: omitted settings are cleared.
+Browser replacements must include every native setting to retain: omitted settings are cleared.
+API clients can save credentials while retaining stored secrets and native settings; see [credential rotation](docs/runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
 Use **Test credential** for a current fixed read before enabling a configured tool.

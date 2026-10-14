@@ -184,12 +184,8 @@ Use “Test credential” at `/admin/credentials` to test the replacement with t
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
-API clients can instead save credentials with `PATCH /v1/admin/tools/:tool/credential`, sending `value`, `expectedRevision` and `expectedToolRevision`.
-Send all non-secret credential fields to retain; omitted optional non-secret fields are removed.
-Omit a secret to retain its stored value, or supply its replacement explicitly; empty strings and null are invalid replacements.
-Changing `mode`, `kind`, `auth`, `tenantId`, `clientId` or `origin` prevents reuse of stored secrets and requires the secrets for the new identity.
-Native settings are retained independently and must be edited through `PATCH /v1/admin/tools/:tool`; supplying them in the credential save is rejected.
-Both revisions are checked before saving, and a stale edit returns `REVISION_CONFLICT` without a mutation.
+API clients can instead use the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) to retain stored secrets and native settings.
+That contract owns the request fields, identity-change restrictions and revision requirements.
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
 The existing browser editor continues to use complete replacement until the guided editor is available.
 Failure to commit the audit event rolls back the local replacement.
