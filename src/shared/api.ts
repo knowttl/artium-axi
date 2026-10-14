@@ -50,6 +50,7 @@ export const adminUsersQuerySchema = adminPageQuerySchema.extend({
   q: z.string().min(1).max(256).optional(), source: z.literal('local').optional(),
   status: z.enum(['enabled', 'disabled']).optional(), role: accountId.optional(),
 })
+// Archived users are excluded from list results and totalCount, but remain readable by id.
 // totalCount counts all matching users, independent of cursor; pagination keeps the same filters.
 export const adminUsersResponseSchema = z.strictObject({ users: z.array(adminUserSchema), nextCursor: accountId.nullable(),
   totalCount: z.number().int().nonnegative() })
@@ -67,7 +68,8 @@ export const adminUserResetSchema = z.strictObject({ temporaryPassword: z.string
 export const adminUserParamsSchema = z.strictObject({ id: accountId })
 
 // Session ids identify families, never cookies or bearer tokens. Only active families
-// are listed; browser expiry includes the idle limit. Revocation ends the whole family.
+// are listed; browser expiry includes the idle limit, and CLI expiry is capped by the
+// latest unconsumed, unrevoked token and the family deadline. Revocation ends the whole family.
 export const userSessionsSchema = z.strictObject({ sessions: z.array(z.strictObject({
   id: accountId, kind: z.enum(['browser', 'cli']), createdAt: z.number().int(),
   lastSeenAt: z.number().int().nullable(), expiresAt: z.number().int(), current: z.boolean(),
@@ -108,6 +110,7 @@ export const adminUserRoutes = {
     authorization: 'administrator-and-recent-auth', auditEvent: 'unlock-user' },
   reset: { method: 'POST', path: '/v1/admin/users/:id/password-reset', input: adminUserResetSchema, response: adminUserSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'reset-user-password' },
+  // Archived users may retain or remove current memberships, never add or restore them.
   roles: { method: 'PUT', path: '/v1/admin/users/:id/roles',
     input: z.strictObject({ roleIds: z.array(accountId).refine(ids => new Set(ids).size === ids.length), expectedRevision: z.number().int().positive() }),
     response: adminUserSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'assign-user-roles' },

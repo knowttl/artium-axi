@@ -405,13 +405,14 @@ Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
 Direct assignments are made by an administrator.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
-Archived user detail allows retained role assignments to be removed without restoring sign-in.
+Archived user detail allows retained role assignments to be removed without restoring sign-in; the UI and API refuse new memberships, including reassigning a removed role.
 Deleting an empty role removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
 The users and role members tables show matching totals; Next page retains the current filters.
 See the [shared API contracts](src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
 The last enabled administrator cannot be disabled, demoted or archived.
-Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
+Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
+Session revocation and administration changes commit with their audit records.
 After 15 minutes without password confirmation, administration mutations require reauthentication.
 Administration and account screens share a navigation menu.
 Signed-in screens have a header showing identity, sign-in source and sign-out.
@@ -420,6 +421,14 @@ Admin forms open a password dialog when confirmation expires, then resume the pe
 Cancel keeps the entered values without submitting the change.
 Confirmation dialogs explain consequences before changes; each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
+
+User detail and Account list active browser sessions and CLI token families.
+Revoke ends one whole family, including its access and refresh tokens; Sign out everywhere ends all sessions while allowing a new sign-in.
+Revoking your current browser session signs you out immediately.
+Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or recent password confirmation.
+Users with temporary passwords must change them first.
+Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
+Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
 Credential editors start blank and never return stored values.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
@@ -523,10 +532,7 @@ The server refuses the removed development-authentication settings `ARTIUM_AXI_D
 Local passwords use Argon2id, require 15 to 128 code points and at most 512 UTF-8 bytes, preserve spaces and Unicode, and reject exact matches in the bundled common-password list.
 Access tokens last one hour within a 12-hour family; refresh-token reuse revokes the family.
 Password changes revoke existing CLI tokens and browser sessions.
-User detail lists active browser sessions and CLI token families, with individual revocation and Sign out everywhere.
-Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
-Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
-The account page shows role grants, CLI download and sign-in instructions, and lets any signed-in user revoke their own sessions.
+See [browser administration](#browser-administration) for session management and user archival.
 Sign-in limits and persistent account lockout are enforced by the [attempt boundary](src/server/auth/attempts.ts) and [configured defaults](src/server/config.ts).
 Successful login and reauthentication do not consume the per-username failed-attempt budget; the per-address budget still counts successful and failed attempts.
 Rate-limit refusals produce a `sign-in` audit record with outcome `AUTH_RATE_LIMITED` and no user identity.
