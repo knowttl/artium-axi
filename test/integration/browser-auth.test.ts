@@ -6,6 +6,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
+import { createBrowserSession } from '../../src/server/auth/sessions.js'
+import { accountSessionRoutes } from '../../src/shared/api.js'
 import { hashToken, issueLoginTokens, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { browserDefaults, authDefaults, tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -82,7 +84,7 @@ test('browser sign-in creates an opaque secure server session and sign-out revok
     .toEqual([{ event: 'sign-in' }, { event: 'sign-out' }])
 })
 
-test.each(['/login', '/logout', '/password', '/reauth', '/v1/auth/reauth', '/v1/admin/users', '/v1/admin/tools/falcon-axi/test'])
+test.each(['/login', '/logout', '/password', '/reauth', '/v1/auth/reauth', '/v1/admin/users', '/v1/admin/tools/falcon-axi/test', '/v1/account/sessions/revoke', '/v1/account/sessions/other/revoke'])
   ('security form mutation %s rejects a missing CSRF token', async path => {
     await signIn()
     const response = await request('POST', path, {})
@@ -91,6 +93,64 @@ test.each(['/login', '/logout', '/password', '/reauth', '/v1/auth/reauth', '/v1/
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event IN ('admin-change', 'password-change', 'sign-out', 'credential-test')").get())
       .toEqual({ count: 0 })
   })
+
+test('ordinary account sessions exclude expired families and refuse revoking another person before self revocation', async () => {
+  db.exec('UPDATE users SET administrator = 0 WHERE id = \'synthetic-development-user\'')
+  await signIn()
+  const csrf = await token('/account')
+  const other = issueLoginTokens(db, 'synthetic-second')
+  expect(other.status).toBe('authenticated')
+  const otherFamily = db.prepare("SELECT id FROM session_families WHERE user_id = 'synthetic-second'").get() as { id: string }
+  const refused = await request('POST', '/v1/account/sessions/' + otherFamily.id + '/revoke', { _csrf: csrf })
+  expect(refused.statusCode).toBe(404)
+  now += browserDefaults.idleMs - 1
+  const listed = accountSessionRoutes.list.response.parse((await request('GET', '/v1/account/sessions')).json())
+  expect(listed.sessions).toHaveLength(1)
+  expect(listed.sessions[0]).toMatchObject({ kind: 'browser', current: true, expiresAt: expect.any(Number) })
+  expect((await request('POST', '/v1/account/sessions/' + listed.sessions[0]!.id + '/revoke', { _csrf: csrf })).statusCode).toBe(200)
+  expect((await request('GET', '/account')).headers.location).toBe('/login')
+  expect(db.prepare("SELECT action, target_id FROM audit WHERE event = 'sign-out'").get())
+    .toEqual({ action: 'revoke-session', target_id: listed.sessions[0]!.id })
+})
+
+test.each(['/v1/account/sessions', '/v1/admin/users/synthetic-development-user/sessions'])('session listing at %s projects current browser renewal only', async path => {
+  await signIn()
+  const start = now
+  createBrowserSession(db, userId, 'CANARY-other-csrf', now)
+  now += browserDefaults.idleMs - 1
+  db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now)
+  const response = await request('GET', path)
+  expect(response.statusCode).toBe(200)
+  const listed = accountSessionRoutes.list.response.parse(response.json())
+  expect(listed.sessions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ current: true, lastSeenAt: now, expiresAt: now + browserDefaults.idleMs }),
+    expect.objectContaining({ current: false, lastSeenAt: start, expiresAt: start + browserDefaults.idleMs }),
+  ]))
+})
+
+test.each(['/account', '/admin/users/synthetic-development-user'])('session table at %s displays the renewed idle deadline', async path => {
+  await signIn()
+  now += browserDefaults.idleMs - 1
+  db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now)
+  const response = await request('GET', path)
+  expect(response.statusCode).toBe(200)
+  expect(response.body).toContain(`<time datetime="${new Date(now + browserDefaults.idleMs).toISOString()}"`)
+})
+
+test.each([
+  { bound: 'family', sessionRemaining: 60_000, familyRemaining: 30_000 },
+  { bound: 'session', sessionRemaining: 30_000, familyRemaining: 60_000 },
+])('current browser renewal keeps the $bound expiry bound', async ({ sessionRemaining, familyRemaining }) => {
+  await signIn()
+  const deadline = now + browserDefaults.idleMs + 30_000
+  const sessionExpiry = now + browserDefaults.idleMs + sessionRemaining
+  const familyExpiry = now + browserDefaults.idleMs + familyRemaining
+  db.prepare('UPDATE sessions SET expires_at = ?').run(sessionExpiry)
+  db.prepare('UPDATE session_families SET expires_at = ?').run(familyExpiry)
+  now += browserDefaults.idleMs - 1
+  const listed = accountSessionRoutes.list.response.parse((await request('GET', '/v1/account/sessions')).json())
+  expect(listed.sessions).toEqual([expect.objectContaining({ current: true, expiresAt: deadline })])
+})
 
 test('security sign-in requires a same-origin CSRF-protected form', async () => {
   const csrf = await token('/login')

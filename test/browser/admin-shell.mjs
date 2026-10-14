@@ -340,3 +340,120 @@ test('role tool grants and membership explain effective tools and an empty role 
     check(await page.eval(() => !document.querySelector('main').innerText.includes('Synthetic readers')), 'Deleted role remains in table');
   `)
 })
+
+async function cliSession(username = 'synthetic-ordinary', password = 'CANARY-local-password') {
+  const response = await fetch(fixture.clock.replace('/test/clock', '/v1/auth/login'), {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }),
+  })
+  assert.equal(response.status, 200)
+  return response.json()
+}
+
+test('user detail revokes the selected CLI session while another session stays usable', async () => {
+  const session = await cliSession()
+  const second = await cliSession()
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('section:has(h2):has(table caption) form[action$="/revoke"] button');
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('access and refresh tokens')), 'Missing revoke consequence');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('section:has(form[action$="/sessions/revoke"]) tbody tr:only-child');
+  `)
+  const responses = await Promise.all([session, second].map(tokens => fetch(fixture.clock.replace('/test/clock', '/v1/me'), {
+    headers: { authorization: 'Bearer ' + tokens.accessToken },
+  })))
+  assert.deepEqual(responses.map(response => response.status).sort(), [200, 401])
+})
+
+test('sign out everywhere on user detail ends the current browser and CLI sessions', async () => {
+  const session = await cliSession('synthetic-user', 'CANARY-browser-password')
+  browser(`
+    await page.open(base + '/admin/users/synthetic-development-user');
+    await page.click('form[action$="/sessions/revoke"] button');
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('this browser')), 'Missing self sign-out consequence');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=username]');
+    check(await page.eval(() => location.pathname === '/login'), 'Current browser was not signed out');
+  `)
+  const refresh = await fetch(fixture.clock.replace('/test/clock', '/v1/auth/refresh'), {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ refreshToken: session.refreshToken }),
+  })
+  assert.equal(refresh.status, 401)
+})
+
+test('archiving from detail hides the user and shows retained history when reopened', () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    check(await page.eval(async () => {
+      const _csrf = document.querySelector('form[action$="/archive"] [name=_csrf]').value;
+      const response = await fetch('/v1/admin/roles', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ _csrf, name: 'Synthetic unassigned role' }) });
+      return response.ok;
+    }), 'Could not create unassigned role');
+    await page.click('form[action$="/archive"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=cancel]');
+    check(await page.eval(() => !!document.querySelector('form[action$="/archive"]')), 'Cancel changed the user');
+    await page.click('form[action$="/archive"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action="/v1/admin/users"]');
+    check(await page.eval(() => !document.querySelector('tbody a[href="/admin/users/synthetic-ordinary"]')), 'Archived user remains in table');
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('history is retained')), 'Archived state is missing');
+    check(await page.eval(() => !document.querySelector('form:has([name=enabled])')), 'Archived detail offers enable');
+    check(await page.eval(() => [...document.querySelectorAll('[name=roleIds][type=checkbox]')].every(input => input.value === 'synthetic-role')), 'Archived detail offers a new role');
+    check(await page.eval(async () => {
+      const { roles } = await (await fetch('/v1/admin/roles')).json();
+      const id = roles.find(role => role.name === 'Synthetic unassigned role').id;
+      const form = document.querySelector('form[action$="/roles"]');
+      const fields = new FormData(form);
+      const response = await fetch(form.action, { method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ _csrf: fields.get('_csrf'), roleIds: [id], expectedRevision: Number(fields.get('expectedRevision')) }) });
+      return response.status === 400 && (await response.json()).error.code === 'INVALID_INPUT';
+    }), 'Archived role API accepted a new membership');
+    await page.click('[name=roleIds][value="synthetic-role"]');
+    await page.click('form[action$="/roles"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=expectedRevision][value="3"]');
+    check(await page.eval(() => !document.querySelector('[name=roleIds][value="synthetic-role"]')), 'Removed membership is still offered');
+    check(await page.eval(async () => {
+      const response = await fetch('/v1/admin/users/synthetic-ordinary');
+      return (await response.json()).roleIds.length === 0;
+    }), 'Retained membership could not be removed');
+  `)
+})
+
+test('ordinary account shows role tools and usable CLI guidance and can revoke its current browser', () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.click('header form[action="/logout"] button');
+    await page.wait('[name=username]');
+    await page.fill('[name=username]', 'synthetic-ordinary');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('button');
+    await page.wait('a[href="/cli/artium-axi.mjs"]');
+    check(await page.eval(() => location.pathname === '/account'), 'Ordinary user did not reach account');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('falcon-axi')), 'Granted tools are missing');
+    check(await page.eval(() => document.querySelector('pre').textContent.includes(location.origin)), 'CLI uses wrong server');
+    check(await page.eval(() => document.querySelector('main').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');
+    check(await page.eval(() => {
+      const table = document.querySelector('section:has(form[action="/v1/account/sessions/revoke"]) table');
+      const controls = [...table.querySelectorAll('time, button')];
+      return controls.every(control => {
+        const range = document.createRange();
+        range.selectNodeContents(control);
+        return range.getClientRects().length === 1;
+      });
+    }), 'Session dates or revoke controls wrap into fragments at 420px');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Session table overflows the page');
+    await page.click('form[action^="/v1/account/sessions/"]:not([action="/v1/account/sessions/revoke"]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=username]');
+    check(await page.eval(() => location.pathname === '/login'), 'Revoked browser retained access');
+  `)
+})

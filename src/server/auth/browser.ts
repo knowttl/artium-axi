@@ -3,7 +3,7 @@ import csrf from '@fastify/csrf-protection'
 import formbody from '@fastify/formbody'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { loginSchema, passwordChangeSchema, reauthSchema } from '../../shared/api.js'
+import { accountSessionRoutes, loginSchema, passwordChangeSchema, reauthSchema, sessionParamsSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from './attempts.js'
@@ -12,6 +12,9 @@ import { createBrowserSession, readBrowserSession, type BrowserSession } from '.
 import { escape } from '../admin/escape.js'
 import { adminNav, pageHelp } from '../admin/forms.js'
 import { authDefaults } from '../config.js'
+import { listUserSessions, revokeUserSession } from './user-sessions.js'
+import { revokeUserSessions } from './tokens.js'
+import { accountContent } from '../admin/account.js'
 
 export const browserCookie = 'artium-session'
 const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
@@ -38,7 +41,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const provider = new LocalAuthProvider(db)
   const context = (request: FastifyRequest) => ({ requestId: request.id, clientAddress: request.ip })
   const session = (request: FastifyRequest) => readBrowserSession(db, request.cookies[browserCookie] ?? '')
-  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/admin/') || pages.includes(request.url.split('?')[0]!) ||
+  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/admin/') || request.url.startsWith('/v1/account/') || pages.includes(request.url.split('?')[0]!) ||
     Boolean(request.cookies?.[browserCookie] && !request.headers.authorization && request.url.startsWith('/v1/'))
 
   app.addHook('onRequest', async (request, reply) => {
@@ -123,8 +126,30 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   app.get('/account', async (request, reply) => {
     const current = session(request)
     if (current.must_change) return reply.redirect('/password')
-    return browserPage(reply, 'Account', '<p><a href="/password">Change password</a></p>', current)
+    return browserPage(reply, 'Account', accountContent(db, current, reply.generateCsrf(), `${request.protocol}://${request.host}`), current)
   })
+  app.route({ method: accountSessionRoutes.list.method, url: accountSessionRoutes.list.path, handler: async request => {
+    const current = session(request)
+    if (current.must_change) throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+    if (!accountSessionRoutes.list.input.safeParse(request.query).success) throw new ArtiumError('INVALID_INPUT')
+    return listUserSessions(db, current.user_id, current.family_id)
+  } })
+  for (const route of [accountSessionRoutes.revoke, accountSessionRoutes.revokeAll]) {
+    app.route({ method: route.method, url: route.path, handler: async request => {
+      const current = session(request)
+      if (current.must_change) throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+      if (!route.input.safeParse(request.body ?? {}).success) throw new ArtiumError('INVALID_INPUT')
+      const params = sessionParamsSchema.omit({ id: true }).safeParse(request.params)
+      if (route === accountSessionRoutes.revoke && !params.success) throw new ArtiumError('INVALID_INPUT')
+      const familyId = params.success ? params.data.sessionId : null
+      audit.change({ ...context(request), event: 'sign-out', action: familyId ? 'revoke-session' : 'revoke-sessions',
+        targetId: familyId ?? current.user_id, userId: current.user_id, tool: null, outcome: 'success' }, () => {
+        if (familyId) revokeUserSession(db, current.user_id, familyId, Date.now())
+        else revokeUserSessions(db, current.user_id, Date.now())
+      })
+      return { revoked: true }
+    } })
+  }
   app.get('/password', async (request, reply) => {
     const current = session(request)
     return browserPage(reply, 'Change password', `${current.must_change ? '<p>You must change your temporary password before continuing.</p>' : ''}${form(reply, '/password', 'Change password',

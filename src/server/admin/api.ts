@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
-import { adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema } from '../../shared/api.js'
+import { adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema, sessionParamsSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from '../auth/attempts.js'
@@ -12,6 +12,7 @@ import { requireRecentAuth, revokeUserSessions, verifyAccessToken } from '../aut
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
+import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
 
@@ -41,7 +42,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   function readUser(id: string): PublicUser {
     const row = db.prepare(`SELECT id, username, display_name AS displayName, source, disabled, administrator,
       must_change AS mustChange, failed_attempts AS failedAttempts, locked_until AS lockedUntil,
-      revision, updated_at AS updatedAt, updated_by AS updatedBy FROM users WHERE id = ?`).get(id) as
+      revision, updated_at AS updatedAt, updated_by AS updatedBy, archived_at AS archivedAt FROM users WHERE id = ?`).get(id) as
       (Omit<PublicUser, 'enabled' | 'administrator' | 'mustChange' | 'roleIds'> &
         { disabled: number, administrator: number, mustChange: number }) | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
@@ -86,7 +87,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     authorize(request)
     const { cursor, limit, q, source, status, role } = parse(adminUserRoutes.list.input, request.query)
     // instr treats wildcard characters as literal search text.
-    const where = `(? IS NULL OR instr(unicode_lower(username), unicode_lower(?)) > 0 OR instr(unicode_lower(display_name), unicode_lower(?)) > 0)
+    const where = `archived_at IS NULL AND (? IS NULL OR instr(unicode_lower(username), unicode_lower(?)) > 0 OR instr(unicode_lower(display_name), unicode_lower(?)) > 0)
       AND (? IS NULL OR source = ?) AND (? IS NULL OR disabled = ?)
       AND (? IS NULL OR EXISTS(SELECT 1 FROM user_roles WHERE user_id = users.id AND role_id = ?))`
     const filters = [q ?? null, q ?? null, q ?? null, source ?? null, source ?? null,
@@ -97,6 +98,46 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const page = rows.slice(0, limit)
     return adminUserRoutes.list.response.parse({ users: page.map(row => readUser(row.id)),
       nextCursor: rows.length > limit ? page.at(-1)!.id : null, totalCount })
+  } })
+  app.route({ method: adminUserRoutes.sessions.method, url: adminUserRoutes.sessions.path, handler: async request => {
+    authorize(request)
+    const { id } = parse(adminUserParamsSchema, request.params)
+    parse(adminUserRoutes.sessions.input, request.query)
+    readUser(id)
+    const currentFamily = !request.headers.authorization && request.cookies[browserCookie]
+      ? readBrowserSession(db, request.cookies[browserCookie]!).family_id : null
+    return listUserSessions(db, id, currentFamily)
+  } })
+  app.route({ method: adminUserRoutes.revokeSession.method, url: adminUserRoutes.revokeSession.path, handler: async request => {
+    authorize(request)
+    const { id, sessionId } = parse(sessionParamsSchema, request.params)
+    parse(adminUserRoutes.revokeSession.input, request.body ?? {})
+    return change(request, adminUserRoutes.revokeSession.auditEvent, sessionId, () => ({ revoked: true as const }), (_actor, now) => {
+      readUser(id)
+      revokeUserSession(db, id, sessionId, now)
+    })
+  } })
+  app.route({ method: adminUserRoutes.revokeSessions.method, url: adminUserRoutes.revokeSessions.path, handler: async request => {
+    authorize(request)
+    const { id } = parse(adminUserParamsSchema, request.params)
+    parse(adminUserRoutes.revokeSessions.input, request.body ?? {})
+    return change(request, adminUserRoutes.revokeSessions.auditEvent, id, () => ({ revoked: true as const }), (_actor, now) => {
+      readUser(id)
+      revokeUserSessions(db, id, now)
+    })
+  } })
+  app.route({ method: adminUserRoutes.archive.method, url: adminUserRoutes.archive.path, handler: async request => {
+    authorize(request)
+    const { id } = parse(adminUserParamsSchema, request.params)
+    const { expectedRevision } = parse(adminUserRoutes.archive.input, request.body)
+    return change(request, adminUserRoutes.archive.auditEvent, id, readUser, (actor, now) => {
+      const user = readUser(id)
+      if (user.revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if (user.archivedAt !== null) return
+      db.prepare(`UPDATE users SET disabled = 1, archived_at = ?, revision = revision + 1,
+        updated_at = ?, updated_by = ? WHERE id = ?`).run(now, now, actor, id)
+      revokeUserSessions(db, id, now)
+    })
   } })
   app.route({ method: adminUserRoutes.get.method, url: adminUserRoutes.get.path, handler: async request => {
     authorize(request)
@@ -134,6 +175,9 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       const current = readUser(id)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const enabled = input.enabled ?? current.enabled
+      if (enabled && current.archivedAt !== null) {
+        throw new ArtiumError('INVALID_INPUT', 'Archived users cannot be enabled.', 'Create a new user if access is needed again.')
+      }
       db.prepare(`UPDATE users SET display_name = ?, disabled = ?, administrator = ?, revision = revision + 1,
         updated_at = ?, updated_by = ? WHERE id = ? AND revision = ?`).run(input.displayName ?? current.displayName,
         Number(!enabled), Number(input.administrator ?? current.administrator), now, actor, id, input.expectedRevision)
@@ -173,7 +217,11 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const { id } = parse(adminUserParamsSchema, request.params)
     const input = parse(adminUserRoutes.roles.input, request.body)
     return change(request, adminUserRoutes.roles.auditEvent, id, readUser, (actor, now) => {
-      if (readUser(id).revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const current = readUser(id)
+      if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if (current.archivedAt !== null && input.roleIds.some(roleId => !current.roleIds.includes(roleId))) {
+        throw new ArtiumError('INVALID_INPUT', 'Archived users cannot gain role memberships.', 'Remove retained roles only.')
+      }
       db.prepare('DELETE FROM user_roles WHERE user_id = ?').run(id)
       const assign = db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)')
       for (const roleId of input.roleIds) assign.run(id, roleId)

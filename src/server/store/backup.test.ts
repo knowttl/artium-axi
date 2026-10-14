@@ -135,27 +135,30 @@ test('restore refuses a running destination and an existing data volume', async 
 })
 
 test('migration rehearsal changes only a copy and rollback restores the pre-upgrade schema', async () => {
+  const source = openStore(file, provider)
+  const { version } = source.prepare('SELECT max(version) AS version FROM migrations').get() as { version: number }
+  source.close()
   await backupStore(file, output, provider)
   restoreStore(output, restored, provider)
   const migrations = join(directory, 'candidate-migrations')
   cpSync('src/server/store/migrations', migrations, { recursive: true })
-  writeFileSync(join(migrations, '012-synthetic-upgrade.sql'), 'ALTER TABLE roles ADD COLUMN synthetic_upgrade TEXT;')
+  writeFileSync(join(migrations, `${String(version + 1).padStart(3, '0')}-synthetic-upgrade.sql`), 'ALTER TABLE roles ADD COLUMN synthetic_upgrade TEXT;')
   const candidate = new Database(restored)
   migrate(candidate, migrations)
-  expect(candidate.prepare('SELECT max(version) AS version FROM migrations').get()).toEqual({ version: 12 })
+  expect(candidate.prepare('SELECT max(version) AS version FROM migrations').get()).toEqual({ version: version + 1 })
   candidate.close()
   expect(() => openStore(restored, provider)).toThrow(expect.objectContaining({ code: 'STORE_SCHEMA_INVALID' }))
   const rollback = join(directory, 'rollback-volume', 'artium.db')
   restoreStore(output, rollback, provider)
   const old = openStore(rollback, provider)
   try {
-    expect(old.prepare('SELECT max(version) AS version FROM migrations').get()).toEqual({ version: 11 })
+    expect(old.prepare('SELECT max(version) AS version FROM migrations').get()).toEqual({ version })
     expect(() => old.prepare('SELECT synthetic_upgrade FROM roles')).toThrow()
     expect(old.prepare('SELECT name FROM roles').all()).toEqual([{ name: 'Synthetic Role' }])
   } finally { old.close() }
-  const source = openStore(file, provider)
-  try { expect(source.prepare('SELECT max(version) AS version FROM migrations').get()).toEqual({ version: 11 }) }
-  finally { source.close() }
+  const unchanged = openStore(file, provider)
+  try { expect(unchanged.prepare('SELECT max(version) AS version FROM migrations').get()).toEqual({ version }) }
+  finally { unchanged.close() }
 })
 
 test('public maintenance CLI backs up and restores with safe receipts and rejects unknown flags', async () => {

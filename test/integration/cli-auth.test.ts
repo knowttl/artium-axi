@@ -67,6 +67,24 @@ async function cli(args: string[], input?: string, environment: NodeJS.ProcessEn
 }
 const login = (password = startingPassword) => cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)
 
+test.each(['session', 'all', 'archive'])('administrator %s revocation ends a bundled CLI session and refresh cannot restore it', async action => {
+  await login()
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator, must_change)
+    SELECT 'synthetic-admin', 'synthetic-admin', 'Administrator', password_hash, 1, 0 FROM users LIMIT 1`)
+  const admin = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-admin', password: startingPassword } })
+  const headers = { authorization: 'Bearer ' + admin.json().accessToken }
+  const proof = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: startingPassword } })
+  const authorization = { ...headers, 'x-artium-reauth-ticket': proof.json().ticket }
+  const listing = await app.inject({ method: 'GET', url: '/v1/admin/users/synthetic-development-user/sessions', headers: authorization })
+  expect(listing.json().sessions).toHaveLength(1)
+  expect(listing.json().sessions[0].kind).toBe('cli')
+  const path = action === 'archive' ? '/archive' : action === 'all' ? '/sessions/revoke' : '/sessions/' + listing.json().sessions[0].id + '/revoke'
+  const response = await app.inject({ method: 'POST', url: '/v1/admin/users/synthetic-development-user' + path,
+    headers: authorization, payload: action === 'archive' ? { expectedRevision: 1 } : {} })
+  expect(response.statusCode).toBe(200)
+  expect(await cli(['whoami'])).toMatchObject({ code: 1, stdout: expect.stringContaining('TOKEN_INVALID') })
+})
+
 test('first call discovers tools and preserves fake output, then no access explains the empty state', async () => {
   await app.close()
   db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'")

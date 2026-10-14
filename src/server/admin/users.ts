@@ -7,6 +7,7 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
 import { escape } from './escape.js'
 import { adminRead, apiForm, changed, revision, timestamp } from './forms.js'
+import { sessionTable } from './session-table.js'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
   app.get('/admin/assets/confirm.js', async (_request, reply) => reply.type('application/javascript').send(adminScript))
@@ -70,6 +71,10 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const path = '/v1/admin/users/' + encodeURIComponent(params.data.id)
     const user = await adminRead(app, request, path, adminUserRoutes.get.response)
     const roles = await allRoles(request)
+    if (user.archivedAt !== null) return browserPage(reply, 'Users', `<p><a href="/admin">Back to users</a></p><section><h2>${escape(user.username)}</h2><p>Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained.</p>${changed(db, user)}</section>
+      <section><h2>Roles</h2><p>Membership is retained. Remove roles here when they are no longer needed, including before deleting a role. Changing roles does not restore sign-in.</p>
+      ${apiForm(reply.generateCsrf(), path + '/roles', 'PUT', 'Remove roles', revision(user.revision) + (user.roleIds.length ? roleFields(roles.filter(role => user.roleIds.includes(role.id)), user.roleIds) : '<input type="hidden" name="roleIds" disabled><p>No retained roles remain.</p>'), `Remove unchecked roles from ${user.username}? This account stays archived.`)}</section>`, current)
+    const sessions = await adminRead(app, request, path + '/sessions', adminUserRoutes.sessions.response)
     const csrf = reply.generateCsrf()
     const form = (action: string, method: string, label: string, fields: string, confirmation: string) =>
       apiForm(csrf, action, method, label, fields, confirmation)
@@ -84,7 +89,10 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       <section><h2>Sign-in controls</h2><p>${user.mustChange ? 'Password change required. ' : ''}Failed sign-ins: ${user.failedAttempts}. Locked until: ${timestamp(user.lockedUntil, 'Not locked')}</p>
       ${form(path, 'PATCH', user.enabled ? 'Disable user' : 'Enable user', revision(user.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!user.enabled}">`, user.enabled ? `Disable ${user.username}? Sign-in is blocked and all their browser and CLI sessions are revoked immediately.` : `Enable ${user.username}? They can sign in again; revoked sessions stay signed out.`)}
       ${form(path + '/unlock', 'POST', 'Unlock user', '', `Clear ${user.username}’s failed sign-in attempts and lockout? Their password and sessions stay unchanged.`)}
-      <details><summary>Reset password</summary>${form(path + '/password-reset', 'POST', 'Reset password', temporaryPassword, `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`)}</details></section>`
+      <details><summary>Reset password</summary>${form(path + '/password-reset', 'POST', 'Reset password', temporaryPassword, `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`)}</details></section>
+      ${sessionTable(csrf, path + '/sessions', sessions.sessions)}
+      <section><h2>Archive user</h2><p>Archive removes this user from the users table, blocks sign-in and revokes all sessions. Their identity, role assignments and audit history are kept. Archiving cannot be undone here; use Disable for temporary loss of access.</p>
+      ${apiForm(csrf, path + '/archive', 'POST', 'Archive user', revision(user.revision), `Archive ${user.username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained.`, 'data-success-url="/admin"')}</section>`
     return browserPage(reply, 'Users', content, current)
   })
 }

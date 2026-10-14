@@ -139,7 +139,7 @@ Change the password, then log in again; a password change revokes existing sessi
 For an ordinary password change, confirm the current password through the hidden prompt or `ARTIUM_AXI_CURRENT_PASSWORD`, and supply the new password on stdin or at the prompt.
 Clear temporary password environment values after use.
 Browser users sign in at `/login`, change temporary passwords at `/password`, and sign in again.
-Ordinary users can change their password at `/account`.
+See [browser administration](../README.md#browser-administration) for `/account` usage and session management.
 The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
 
 Setup writes an embedded skill and, for Claude only, an optional SessionStart hook.
@@ -171,7 +171,6 @@ See [authentication limits](../README.md#security-and-acceptance-boundaries) for
 ## Roles, credentials and health
 
 Follow [browser administration](../README.md#browser-administration) to create local users, edit role grants and assign roles through the user detail pages.
-Administrator capability is separate from tool grants, and the last enabled administrator cannot be disabled or demoted.
 Grant changes apply on the next call, including calls using existing tokens.
 Users with no enabled granted tools receive an explanatory empty list.
 Review actor, change time and revision before saving; reload stale forms instead of overwriting newer edits.
@@ -256,7 +255,7 @@ Restore a consistent bootstrapped store and matching key.
 Do not delete data or manufacture a marker to bypass the startup refusal.
 
 The database prevents disabling, demoting or deleting the last enabled administrator.
-Offline recovery can restore an existing local account's administrator capability and access, reset its password and clear its lockout.
+Offline recovery can restore an existing, non-archived local account's administrator capability and access, reset its password and clear its lockout.
 It sets must-change, revokes every existing CLI token and browser session for the account, and commits a durable audit event in the same transaction.
 The event has action `recover-admin`, the account's internal ID as target and no online actor or password data.
 The command does not create an account or bootstrap an inconsistent store.
