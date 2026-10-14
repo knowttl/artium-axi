@@ -217,7 +217,11 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const { id } = parse(adminUserParamsSchema, request.params)
     const input = parse(adminUserRoutes.roles.input, request.body)
     return change(request, adminUserRoutes.roles.auditEvent, id, readUser, (actor, now) => {
-      if (readUser(id).revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const current = readUser(id)
+      if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if (current.archivedAt !== null && input.roleIds.some(roleId => !current.roleIds.includes(roleId))) {
+        throw new ArtiumError('INVALID_INPUT', 'Archived users cannot gain role memberships.', 'Remove retained roles only.')
+      }
       db.prepare('DELETE FROM user_roles WHERE user_id = ?').run(id)
       const assign = db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)')
       for (const roleId of input.roleIds) assign.run(id, roleId)

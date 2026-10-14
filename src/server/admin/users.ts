@@ -73,7 +73,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const roles = await allRoles(request)
     if (user.archivedAt !== null) return browserPage(reply, 'Users', `<p><a href="/admin">Back to users</a></p><section><h2>${escape(user.username)}</h2><p>Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained.</p>${changed(db, user)}</section>
       <section><h2>Roles</h2><p>Membership is retained. Remove roles here when they are no longer needed, including before deleting a role. Changing roles does not restore sign-in.</p>
-      ${apiForm(reply.generateCsrf(), path + '/roles', 'PUT', 'Assign roles', revision(user.revision) + roleFields(roles, user.roleIds), `Replace ${user.username}’s retained roles? This account stays archived.`)}</section>`, current)
+      ${apiForm(reply.generateCsrf(), path + '/roles', 'PUT', 'Remove roles', revision(user.revision) + (user.roleIds.length ? roleFields(roles.filter(role => user.roleIds.includes(role.id)), user.roleIds) : '<input type="hidden" name="roleIds" disabled><p>No retained roles remain.</p>'), `Remove unchecked roles from ${user.username}? This account stays archived.`)}</section>`, current)
     const sessions = await adminRead(app, request, path + '/sessions', adminUserRoutes.sessions.response)
     const csrf = reply.generateCsrf()
     const form = (action: string, method: string, label: string, fields: string, confirmation: string) =>

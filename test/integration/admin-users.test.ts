@@ -499,6 +499,26 @@ test('assignment replaces roles and shares the account revision with other edits
   expect(db.prepare("SELECT action FROM audit WHERE event = 'admin-change'").all()).toEqual([{ action: 'assign-user-roles' }])
 })
 
+test('archived role assignment refuses new memberships without changing revision or retained roles', async () => {
+  db.exec("INSERT INTO roles (id, name) VALUES ('synthetic-other-role', 'Other Role')")
+  await request('POST', '/synthetic-ordinary/archive', { expectedRevision: 1 })
+  await failure(await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['synthetic-other-role'], expectedRevision: 2 }), 'INVALID_INPUT')
+  expect(adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json()))
+    .toMatchObject({ revision: 2, roleIds: ['synthetic-role'] })
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE action = 'assign-user-roles'").get()).toEqual({ count: 0 })
+})
+
+test('archived roles can be retained or removed but cannot be reassigned after removal', async () => {
+  await request('POST', '/synthetic-ordinary/archive', { expectedRevision: 1 })
+  expect(adminUserSchema.parse(await (await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['synthetic-role'], expectedRevision: 2 })).json()))
+    .toMatchObject({ revision: 3, roleIds: ['synthetic-role'] })
+  expect(adminUserSchema.parse(await (await request('PUT', '/synthetic-ordinary/roles', { roleIds: [], expectedRevision: 3 })).json()))
+    .toMatchObject({ revision: 4, roleIds: [] })
+  await failure(await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['synthetic-role'], expectedRevision: 3 }), 'REVISION_CONFLICT')
+  await failure(await request('PUT', '/synthetic-ordinary/roles', { roleIds: ['synthetic-role'], expectedRevision: 4 }), 'INVALID_INPUT')
+  expect(adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())).toMatchObject({ revision: 4, roleIds: [] })
+})
+
 test('role rename and grant edits share a revision and reject concurrent stale changes', async () => {
   const results = await Promise.all([
     roleRequest('PATCH', '/synthetic-role', { name: 'Changed', expectedRevision: 1 }),

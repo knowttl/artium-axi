@@ -386,6 +386,12 @@ test('sign out everywhere on user detail ends the current browser and CLI sessio
 test('archiving from detail hides the user and shows retained history when reopened', () => {
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
+    check(await page.eval(async () => {
+      const _csrf = document.querySelector('form[action$="/archive"] [name=_csrf]').value;
+      const response = await fetch('/v1/admin/roles', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ _csrf, name: 'Synthetic unassigned role' }) });
+      return response.ok;
+    }), 'Could not create unassigned role');
     await page.click('form[action$="/archive"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=cancel]');
@@ -398,12 +404,26 @@ test('archiving from detail hides the user and shows retained history when reope
     await page.open(base + '/admin/users/synthetic-ordinary');
     check(await page.eval(() => document.querySelector('main').innerText.includes('history is retained')), 'Archived state is missing');
     check(await page.eval(() => !document.querySelector('form:has([name=enabled])')), 'Archived detail offers enable');
+    check(await page.eval(() => [...document.querySelectorAll('[name=roleIds][type=checkbox]')].every(input => input.value === 'synthetic-role')), 'Archived detail offers a new role');
+    check(await page.eval(async () => {
+      const { roles } = await (await fetch('/v1/admin/roles')).json();
+      const id = roles.find(role => role.name === 'Synthetic unassigned role').id;
+      const form = document.querySelector('form[action$="/roles"]');
+      const fields = new FormData(form);
+      const response = await fetch(form.action, { method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ _csrf: fields.get('_csrf'), roleIds: [id], expectedRevision: Number(fields.get('expectedRevision')) }) });
+      return response.status === 400 && (await response.json()).error.code === 'INVALID_INPUT';
+    }), 'Archived role API accepted a new membership');
     await page.click('[name=roleIds][value="synthetic-role"]');
     await page.click('form[action$="/roles"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="3"]');
-    check(await page.eval(() => !document.querySelector('[name=roleIds][value="synthetic-role"]').checked), 'Retained membership could not be removed');
+    check(await page.eval(() => !document.querySelector('[name=roleIds][value="synthetic-role"]')), 'Removed membership is still offered');
+    check(await page.eval(async () => {
+      const response = await fetch('/v1/admin/users/synthetic-ordinary');
+      return (await response.json()).roleIds.length === 0;
+    }), 'Retained membership could not be removed');
   `)
 })
 
