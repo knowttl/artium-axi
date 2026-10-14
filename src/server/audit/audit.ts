@@ -23,7 +23,8 @@ export type AuditEvent = Context & (
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
   | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } } & Partial<CredentialTestEvidence>)
   | { event: 'denial', outcome: ErrorCode }
-  | { event: 'sign-in' | 'sign-out' | 'reauth' | 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
+  | { event: 'sign-in' | 'reauth' | 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
+  | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
   | { event: 'maintenance', outcome: 'success', cutoff: number, deletedCount: number }
@@ -165,7 +166,7 @@ export class Audit {
 
   private insert(event: AuditEvent): AuditRecord {
     const terminal = event.event === 'run-terminal' ? event : undefined
-    const admin = event.event === 'admin-change' ? event : undefined
+    const admin = event.event === 'admin-change' || event.event === 'sign-out' ? event : undefined
     const maintenance = event.event === 'maintenance' ? event : undefined
     const test = event.event === 'health-check' || event.event === 'credential-test' || event.event === 'run-start' || event.event === 'run-terminal'
       ? event : undefined

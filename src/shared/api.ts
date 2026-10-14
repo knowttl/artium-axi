@@ -43,6 +43,7 @@ export const adminUserSchema = z.strictObject({
   failedAttempts: z.number().int().nonnegative(), lockedUntil: z.number().int().nullable(),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(),
   roleIds: z.array(accountId),
+  archivedAt: z.number().int().nullable(),
 })
 const adminPageQuerySchema = z.strictObject({ cursor: accountId.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) })
 export const adminUsersQuerySchema = adminPageQuerySchema.extend({
@@ -65,10 +66,36 @@ export const adminUserUnlockSchema = z.strictObject({})
 export const adminUserResetSchema = z.strictObject({ temporaryPassword: z.string() })
 export const adminUserParamsSchema = z.strictObject({ id: accountId })
 
+// Session ids identify families, never cookies or bearer tokens. Only active families
+// are listed; browser expiry includes the idle limit. Revocation ends the whole family.
+export const userSessionsSchema = z.strictObject({ sessions: z.array(z.strictObject({
+  id: accountId, kind: z.enum(['browser', 'cli']), createdAt: z.number().int(),
+  lastSeenAt: z.number().int().nullable(), expiresAt: z.number().int(), current: z.boolean(),
+})) })
+export const sessionParamsSchema = z.strictObject({ id: accountId, sessionId: accountId })
+const emptyInputSchema = z.strictObject({})
+const revokedSchema = z.strictObject({ revoked: z.literal(true) })
+// Personal session routes use a browser cookie and same-origin CSRF on mutations;
+// administrator capability and recent password confirmation are not required.
+export const accountSessionRoutes = {
+  list: { method: 'GET', path: '/v1/account/sessions', input: emptyInputSchema, response: userSessionsSchema },
+  revoke: { method: 'POST', path: '/v1/account/sessions/:sessionId/revoke', input: emptyInputSchema, response: revokedSchema },
+  revokeAll: { method: 'POST', path: '/v1/account/sessions/revoke', input: emptyInputSchema, response: revokedSchema },
+} as const
+
 // Bearer administration requires both the current capability and a session-bound password ticket.
 // Cookie administration requires the current capability, with recent password confirmation
 // and same-origin CSRF proof on mutations; GET and HEAD do not require recent confirmation.
 export const adminUserRoutes = {
+  sessions: { method: 'GET', path: '/v1/admin/users/:id/sessions', input: emptyInputSchema,
+    response: userSessionsSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
+  revokeSession: { method: 'POST', path: '/v1/admin/users/:id/sessions/:sessionId/revoke', input: emptyInputSchema,
+    response: revokedSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'revoke-user-session' },
+  revokeSessions: { method: 'POST', path: '/v1/admin/users/:id/sessions/revoke', input: emptyInputSchema,
+    response: revokedSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'revoke-user-sessions' },
+  archive: { method: 'POST', path: '/v1/admin/users/:id/archive',
+    input: z.strictObject({ expectedRevision: z.number().int().positive() }), response: adminUserSchema,
+    authorization: 'administrator-and-recent-auth', auditEvent: 'archive-user' },
   list: { method: 'GET', path: '/v1/admin/users', input: adminUsersQuerySchema, response: adminUsersResponseSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: null },
   get: { method: 'GET', path: '/v1/admin/users/:id', input: z.strictObject({}), response: adminUserDetailSchema,

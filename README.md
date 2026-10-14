@@ -387,12 +387,13 @@ If the client reports `CLI_OUTDATED`, download the current bundle and checksum f
 
 Open `/login` through the trusted HTTPS proxy.
 Temporary passwords open `/password` and require a new login after changing them.
-Administrators land on `/admin`; ordinary users land on `/account` for password change and sign-out.
+Administrators land on `/admin`; ordinary users land on `/account` for tool access, CLI setup, password change and session management.
 
 | Screen | Purpose |
 | --- | --- |
 | `/admin` | Search and filter the users table by source, status or role; create local users. |
-| `/admin/users/:id` | Edit display name and administrator capability, assign roles, review effective tools, enable or disable, unlock and reset passwords. |
+| `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset passwords and archive. |
+| `/account` | Review your roles and tools, download and set up the CLI, change your password and revoke your sessions. |
 | `/admin/tools` | Review pinned versions and cached health; enable supported tools and edit native settings. |
 | `/admin/credentials` | Replace credentials and run a fixed harmless credential test. |
 | `/admin/roles` | List roles and create a role. |
@@ -403,12 +404,13 @@ Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
 Direct assignments are made by an administrator.
-Disabled users remain listed as role members and must have that role removed before it can be deleted.
+Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
+Archived user detail allows retained role assignments to be removed without restoring sign-in.
 Deleting an empty role removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
 The users and role members tables show matching totals; Next page retains the current filters.
 See the [shared API contracts](src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
-The last enabled administrator cannot be disabled or demoted.
+The last enabled administrator cannot be disabled, demoted or archived.
 Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
 After 15 minutes without password confirmation, administration mutations require reauthentication.
 Administration and account screens share a navigation menu.
@@ -521,6 +523,10 @@ The server refuses the removed development-authentication settings `ARTIUM_AXI_D
 Local passwords use Argon2id, require 15 to 128 code points and at most 512 UTF-8 bytes, preserve spaces and Unicode, and reject exact matches in the bundled common-password list.
 Access tokens last one hour within a 12-hour family; refresh-token reuse revokes the family.
 Password changes revoke existing CLI tokens and browser sessions.
+User detail lists active browser sessions and CLI token families, with individual revocation and Sign out everywhere.
+Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
+Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
+The account page shows role grants, CLI download and sign-in instructions, and lets any signed-in user revoke their own sessions.
 Sign-in limits and persistent account lockout are enforced by the [attempt boundary](src/server/auth/attempts.ts) and [configured defaults](src/server/config.ts).
 Successful login and reauthentication do not consume the per-username failed-attempt budget; the per-address budget still counts successful and failed attempts.
 Rate-limit refusals produce a `sign-in` audit record with outcome `AUTH_RATE_LIMITED` and no user identity.

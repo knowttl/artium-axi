@@ -179,6 +179,9 @@ test.each(['POST', 'PATCH', 'DELETE'])('audit has no %s mutation route', async m
 const routes = [
   { method: 'GET', path: '', body: undefined },
   { method: 'GET', path: '/synthetic-ordinary', body: undefined },
+  { method: 'GET', path: '/synthetic-ordinary/sessions', body: undefined },
+  { method: 'POST', path: '/synthetic-ordinary/sessions/revoke', body: {} },
+  { method: 'POST', path: '/synthetic-ordinary/archive', body: { expectedRevision: 1 } },
   { method: 'POST', path: '', body: createInput },
   { method: 'PATCH', path: '/synthetic-ordinary', body: { enabled: false, expectedRevision: 1 } },
   { method: 'POST', path: '/synthetic-ordinary/unlock', body: {} },
@@ -186,7 +189,9 @@ const routes = [
   { method: 'PUT', path: '/synthetic-ordinary/roles', body: { roleIds: [], expectedRevision: 1 } },
 ]
 
-test.each(routes)('$method $path requires administrator capability even with tool grants and reauth', async route => {
+const authorizationRoutes = [...routes, { method: 'POST', path: '/synthetic-ordinary/sessions/missing/revoke', body: {} }]
+
+test.each(authorizationRoutes)('$method $path requires administrator capability even with tool grants and reauth', async route => {
   const ordinary = await adminHeaders('synthetic-ordinary')
   await failure(await request(route.method, route.path, route.body, ordinary), 'ADMIN_REQUIRED')
   expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 0 })
@@ -194,7 +199,7 @@ test.each(routes)('$method $path requires administrator capability even with too
     .toEqual({ user_id: 'synthetic-ordinary', outcome: 'ADMIN_REQUIRED' })
 })
 
-test.each(routes)('$method $path rejects missing recent-auth ticket', async route => {
+test.each(authorizationRoutes)('$method $path rejects missing recent-auth ticket', async route => {
   const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
   await failure(await request(route.method, route.path, route.body, missing), 'REAUTH_REQUIRED')
 })
@@ -584,4 +589,78 @@ test('role deletion rolls back the role and grants when audit cannot be saved', 
   await failure(await roleRequest('DELETE', '/synthetic-role', { expectedRevision: 1 }), 'AUDIT_UNAVAILABLE')
   expect(db.prepare("SELECT * FROM roles WHERE id = 'synthetic-role'").get()).toEqual(role)
   expect(db.prepare("SELECT * FROM role_tools WHERE role_id = 'synthetic-role' ORDER BY tool").all()).toEqual(grants)
+})
+
+test('session listing exposes active browser and CLI families and revocation is scoped to the requested user', async () => {
+  const session = await signIn('synthetic-ordinary')
+  browserSession(session.accessToken, 'synthetic-browser')
+  const listing = await request('GET', '/synthetic-ordinary/sessions')
+  const { sessions } = adminUserRoutes.sessions.response.parse(await listing.json())
+  expect(sessions).toHaveLength(1)
+  expect(sessions[0]).toMatchObject({ kind: 'browser', current: false, lastSeenAt: expect.any(Number) })
+  expect(JSON.stringify(sessions)).not.toContain(session.accessToken)
+  const other = await signIn('synthetic-second')
+  const family = db.prepare('SELECT family_id FROM tokens WHERE hash = ?').get(hashToken(other.accessToken)) as { family_id: string }
+  await failure(await request('POST', '/synthetic-ordinary/sessions/' + family.family_id + '/revoke', {}), 'NOT_FOUND')
+  expect(verifyAccessToken(db, other.accessToken)).toBe('synthetic-second')
+  expect((await request('POST', '/synthetic-ordinary/sessions/' + sessions[0]!.id + '/revoke', {})).status).toBe(200)
+  expect(() => verifyAccessToken(db, session.accessToken)).toThrowError('token is invalid')
+  const refresh = await app.inject({ method: 'POST', url: '/v1/auth/refresh', payload: { refreshToken: session.refreshToken } })
+  expect(refresh.json()).toMatchObject({ error: { code: 'TOKEN_INVALID' } })
+  expect(adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json()).sessions).toEqual([])
+  expect(db.prepare("SELECT action, target_id FROM audit WHERE action = 'revoke-user-session'").get())
+    .toEqual({ action: 'revoke-user-session', target_id: sessions[0]!.id })
+})
+
+test('archive persists, retains membership and history, hides list results and prevents enabling the user', async () => {
+  const session = await signIn('synthetic-ordinary')
+  await failure(await request('POST', '/synthetic-ordinary/archive', { expectedRevision: 2 }), 'REVISION_CONFLICT')
+  const archived = adminUserSchema.parse(await (await request('POST', '/synthetic-ordinary/archive', { expectedRevision: 1 })).json())
+  expect(archived).toMatchObject({ enabled: false, archivedAt: expect.any(Number), revision: 2, roleIds: ['synthetic-role'] })
+  expect(() => verifyAccessToken(db, session.accessToken)).toThrow()
+  await failure(await request('PATCH', '/synthetic-ordinary', { enabled: true, expectedRevision: 2 }), 'INVALID_INPUT')
+  expect(adminUsersResponseSchema.parse(await (await request('GET', '?q=synthetic-ordinary&status=disabled')).json()))
+    .toMatchObject({ users: [], totalCount: 0 })
+  await app.close()
+  db.close()
+  db = openStore(join(directory, 'data', 'artium.db'), provider)
+  const started = await start(db)
+  app = started.server
+  url = started.address
+  expect(adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json()).archivedAt).toBe(archived.archivedAt)
+  expect(db.prepare("SELECT action, target_id FROM audit WHERE action = 'archive-user'").get())
+    .toEqual({ action: 'archive-user', target_id: 'synthetic-ordinary' })
+  const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-ordinary', password } })
+  expect(login.json()).toMatchObject({ error: { code: 'SIGN_IN_FAILED' } })
+})
+
+test('archive refuses the last enabled administrator without changing its revision or sessions', async () => {
+  db.exec("UPDATE users SET administrator = 0 WHERE id = 'synthetic-second'")
+  await failure(await request('POST', '/' + administrator + '/archive', { expectedRevision: 1 }), 'LAST_ADMINISTRATOR')
+  expect(adminUserRoutes.get.response.parse(await (await request('GET', '/' + administrator)).json())).toMatchObject({ enabled: true, archivedAt: null, revision: 1 })
+})
+
+test('session list excludes idle browsers and expired or revoked CLI families', async () => {
+  const browser = await signIn('synthetic-ordinary')
+  browserSession(browser.accessToken, 'synthetic-idle-browser')
+  db.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ?').run(Date.now() - 1_800_000, 'synthetic-idle-browser')
+  const expired = await signIn('synthetic-ordinary')
+  db.prepare('UPDATE session_families SET expires_at = ? WHERE id = (SELECT family_id FROM tokens WHERE hash = ?)')
+    .run(Date.now(), hashToken(expired.accessToken))
+  const revoked = await signIn('synthetic-ordinary')
+  db.prepare('UPDATE session_families SET revoked_at = ? WHERE id = (SELECT family_id FROM tokens WHERE hash = ?)')
+    .run(Date.now(), hashToken(revoked.accessToken))
+  const active = await signIn('synthetic-ordinary')
+  const family = db.prepare('SELECT family_id FROM tokens WHERE hash = ?').get(hashToken(active.accessToken)) as { family_id: string }
+  const listed = adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json())
+  expect(listed.sessions).toEqual([{ id: family.family_id, kind: 'cli', createdAt: expect.any(Number),
+    lastSeenAt: null, expiresAt: active.familyExpiresAt, current: false }])
+})
+
+test('single-session revocation rolls back when its audit cannot be persisted', async () => {
+  const session = await signIn('synthetic-ordinary')
+  const { sessions } = adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json())
+  db.exec("CREATE TRIGGER fail_revoke BEFORE INSERT ON audit WHEN NEW.action = 'revoke-user-session' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  await failure(await request('POST', '/synthetic-ordinary/sessions/' + sessions[0]!.id + '/revoke', {}), 'AUDIT_UNAVAILABLE')
+  expect(verifyAccessToken(db, session.accessToken)).toBe('synthetic-ordinary')
 })

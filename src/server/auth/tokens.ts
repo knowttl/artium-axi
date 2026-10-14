@@ -98,7 +98,7 @@ function findSessionToken(db: Database.Database, token: string, types: readonly 
   return row
 }
 
-function revokeFamily(db: Database.Database, familyId: string, now: number): void {
+export function revokeFamily(db: Database.Database, familyId: string, now: number): void {
   db.prepare('UPDATE session_families SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(now, familyId)
   db.prepare('UPDATE tokens SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL').run(now, familyId)
   db.prepare('UPDATE sessions SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL').run(now, familyId)

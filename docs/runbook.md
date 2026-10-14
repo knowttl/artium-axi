@@ -139,7 +139,7 @@ Change the password, then log in again; a password change revokes existing sessi
 For an ordinary password change, confirm the current password through the hidden prompt or `ARTIUM_AXI_CURRENT_PASSWORD`, and supply the new password on stdin or at the prompt.
 Clear temporary password environment values after use.
 Browser users sign in at `/login`, change temporary passwords at `/password`, and sign in again.
-Ordinary users can change their password at `/account`.
+Ordinary users can review tool grants, follow CLI setup instructions, change their password and revoke their sessions at `/account`.
 The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
 
 Setup writes an embedded skill and, for Claude only, an optional SessionStart hook.
