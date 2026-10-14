@@ -402,6 +402,13 @@ Role changes apply on the next call, including calls using existing tokens.
 The last enabled administrator cannot be disabled or demoted.
 Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
 After 15 minutes without password confirmation, administration mutations require reauthentication.
+Administration and account screens share a navigation menu.
+Signed-in screens have a header showing identity, sign-in source and sign-out.
+On administration screens, the header also shows the remaining password-confirmation window.
+Admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
+Cancel keeps the entered values without submitting the change.
+Confirmation dialogs explain consequences before changes; each screen also has expandable help.
+Timestamps display in the browser's local time, with their UTC value available on hover.
 
 Credential editors start blank and never return stored values.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
@@ -548,6 +555,7 @@ It refuses unverified host platforms.
 | `pnpm build` | Server compilation and standalone client bundle. |
 | `pnpm test:security` | Tests whose names contain `security`. |
 | `pnpm test:containers` | Mandatory fake-only runner, walking-skeleton, Graph headless and fake-service container acceptance. |
+| `pnpm test:browser` | Real admin pages in an isolated Chrome session through `chrome-devtools-axi`, against the local fake browser harness. |
 | `pnpm test:containers --measure-cache` | The container block plus an identical-input warm runner build measurement. |
 | `pnpm errors:generate` | Regenerate the error reference after changing the catalogue. |
 

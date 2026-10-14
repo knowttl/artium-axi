@@ -16,6 +16,7 @@ import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshToke
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
+import { readBrowserSession, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
 import { registerUsersPage } from './admin/users.js'
 import { registerAdminPages } from './admin/pages.js'
@@ -62,14 +63,19 @@ export function createApp(options: {
       : error.code?.startsWith('FST_CSRF_') ? new ArtiumError('CSRF_INVALID')
       : new ArtiumError(error.statusCode && error.statusCode >= 400 && error.statusCode < 500 ? 'INVALID_INPUT' : 'INTERNAL_ERROR')
     if (browser.isBrowser(request)) {
-      if (failure.code === 'REAUTH_REQUIRED') return reply.redirect('/reauth', 303)
+      if (failure.code === 'REAUTH_REQUIRED' && !(request.url.startsWith('/v1/') && request.headers.accept === 'application/json')) return reply.redirect('/reauth', 303)
       if (failure.code === 'PASSWORD_CHANGE_REQUIRED') return reply.redirect('/password', 303)
       if (['TOKEN_INVALID', 'TOKEN_EXPIRED', 'USER_DISABLED'].includes(failure.code)) {
         return reply.clearCookie(browserCookie, { path: '/' }).redirect('/login', 303)
       }
       reply.code(errors[failure.code].status)
       if (request.url.startsWith('/v1/')) return reply.send(errorResponse(failure, request.id))
-      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)}</p><p><a href="/login">Sign in</a> | <a href="/admin">Administration</a></p>`)
+      let current: BrowserSession | undefined
+      if (request.cookies[browserCookie]) {
+        try { current = readBrowserSession(db, request.cookies[browserCookie]!) }
+        catch (error) { if (!(error instanceof ArtiumError)) throw error }
+      }
+      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)}</p><p>${escape(errors[failure.code].next)}</p><p><small>${escape(failure.code)}</small></p><p><a href="/login">Sign in</a> | <a href="/account">Account</a></p>`, current)
     }
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })
@@ -138,8 +144,8 @@ export function createApp(options: {
   })
   app.post('/v1/auth/reauth', async (request, reply) => {
     if (!request.headers.authorization && request.cookies[browserCookie]) {
-      await browser.reauthenticate(request)
-      return reply.code(204).send()
+      const until = await browser.reauthenticate(request)
+      return reply.header('x-artium-reauth-until', until).code(204).send()
     }
     const token = bearer(request.headers.authorization)
     const userId = authenticate(db, token)

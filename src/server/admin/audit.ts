@@ -5,7 +5,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
-import { adminNav } from './forms.js'
+import { timestamp } from './forms.js'
 
 export function registerAuditPage(app: FastifyInstance, db: Database.Database): void {
   app.get('/admin/audit', async (request, reply) => {
@@ -32,20 +32,19 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database): 
       <button>Apply filters</button> <a href="/admin/audit">Clear filters</a></form>`
     const names = new Map(users.map(user => [user.id, user.username]))
     const records = page.records.map(record => `<section><h2>${escape(record.event)} | ${escape(record.outcome)}</h2>
-      <p>UTC: ${escape(new Date(record.occurred_at).toISOString())} | Record: ${escape(record.id)}</p>
+      <p>Time: ${timestamp(record.occurred_at)} | Record: ${escape(record.id)}</p>
       <p>User: ${escape(record.user_id === null ? 'System' : names.get(record.user_id) ?? record.user_id)} | User ID: ${escape(record.user_id ?? '')} | Tool: ${escape(record.tool ?? 'None')}</p>
       <p>Action: ${escape(record.action ?? '')} | Target: ${escape(record.target_id ?? '')} | Request: ${escape(record.request_id)}</p>
       <p>Arguments: ${escape(record.arguments ?? '')}</p>
       <p>Exit: ${escape(record.exit_code ?? '')} | Duration (ms): ${escape(record.duration_ms ?? '')} | Output bytes: stdout ${escape(record.stdout_bytes ?? '')}, stderr ${escape(record.stderr_bytes ?? '')} | Client address: ${escape(record.client_address ?? '')}</p>
-      ${record.checked_at !== null || record.credential_revision !== null ? `<p>Credential revision: ${escape(record.credential_revision ?? '')} | Checked (UTC): ${escape(record.checked_at === null ? '' : new Date(record.checked_at).toISOString())} | Error: ${escape(record.error_code ?? '')}</p>` : ''}
-      ${record.cutoff !== null ? `<p>Retention cutoff (UTC): ${escape(new Date(record.cutoff).toISOString())} | Deleted: ${escape(record.deleted_count ?? '')}</p>` : ''}</section>`).join('')
+      ${record.checked_at !== null || record.credential_revision !== null ? `<p>Credential revision: ${escape(record.credential_revision ?? '')} | Checked: ${timestamp(record.checked_at)} | Error: ${escape(record.error_code ?? '')}</p>` : ''}
+      ${record.cutoff !== null ? `<p>Retention cutoff: ${timestamp(record.cutoff)} | Deleted: ${escape(record.deleted_count ?? '')}</p>` : ''}</section>`).join('')
     params.delete('cursor')
     const first = '/admin/audit?' + params
     if (page.nextCursor) params.set('cursor', page.nextCursor)
-    const content = `${adminNav('Audit')}<p>Signed in as ${escape(current.display_name)}.</p>${filters}
+    const content = `${filters}
       ${records || '<p>No audit records match these filters.</p>'}
-      <p><a href="${escape(first)}">First page</a>${page.nextCursor ? ` | <a href="${escape('/admin/audit?' + params)}">Next page</a>` : ''}</p>
-      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(reply.generateCsrf())}"><button>Sign out</button></form>`
-    return browserPage(reply, 'Audit', content)
+      <p><a href="${escape(first)}">First page</a>${page.nextCursor ? ` | <a href="${escape('/admin/audit?' + params)}">Next page</a>` : ''}</p>`
+    return browserPage(reply, 'Audit', content, current)
   })
 }

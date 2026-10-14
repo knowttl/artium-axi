@@ -5,7 +5,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
-import { adminNav, apiForm, changed, revision } from './forms.js'
+import { apiForm, changed, revision, timestamp } from './forms.js'
 import { credentialFields } from './credential-form.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
@@ -34,7 +34,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const csrf = reply.generateCsrf()
       const form = (action: string, method: string, label: string, fields: string, confirmation = '', attributes = '') =>
         apiForm(csrf, action, method, label, fields, confirmation, attributes)
-      let content = adminNav(screen) + `<p>Signed in as ${escape(current.display_name)}.</p><p id="message" role="alert" tabindex="-1"></p>`
+      let content = ''
       if (screen === 'Roles') {
         const query = adminRoleRoutes.list.input.safeParse(request.query)
         if (!query.success) throw new ArtiumError('INVALID_INPUT')
@@ -57,8 +57,16 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         for (const tool of tools) {
           const api = '/v1/admin/tools/' + tool.name
           content += `<section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
-            <p>Last checked: <span data-check-time>${escape(tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toISOString())}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>`
+            <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>`
           if (screen === 'Tools') {
+            const setup = db.prepare(`SELECT EXISTS(SELECT 1 FROM credentials WHERE tool = ?) AS configured,
+              EXISTS(SELECT 1 FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
+                AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = ? AND status = 'ok') AS tested,
+              EXISTS(SELECT 1 FROM role_tools WHERE tool = ?) AS granted`).get(tool.name, tool.name, tool.name) as { configured: number, tested: number, granted: number }
+            content += `<details><summary>Setup checklist</summary><ol>${[
+              [setup.configured, 'Save a credential on Credentials'], [setup.tested, 'Pass Test credential on Credentials'],
+              [tool.enabled, 'Enable this tool'], [setup.granted, 'Grant this tool to a role on Roles'],
+            ].map(([done, label]) => `<li>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>`
             content += changed(db, tool)
             content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool',
               revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool?' : 'Enable this tool?')
@@ -78,8 +86,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           content += '</section>'
         }
       }
-      content += `<form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}"><button>Sign out</button></form>`
-      return browserPage(reply, screen, content)
+      return browserPage(reply, screen, content, current)
     })
   }
 }

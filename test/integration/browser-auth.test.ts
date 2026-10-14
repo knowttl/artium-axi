@@ -235,7 +235,8 @@ test('Users screen escapes HTML usernames, role names and change actors as text'
   expect(response.body).not.toContain('<b>synthetic</b>')
   expect(response.body).toContain('&lt;img src=x onerror=alert(1)&gt;')
   expect(response.body).not.toContain('<img')
-  expect(response.body).toContain(`Last changed by &lt;b&gt;synthetic&lt;/b&gt; at ${new Date(now).toISOString()}. Revision 7.`)
+  expect(response.body).toContain(`Last changed by &lt;b&gt;synthetic&lt;/b&gt; at <time datetime="${new Date(now).toISOString()}"`)
+  expect(response.body).toContain('Revision 7.')
 })
 
 test('Users screen paginates accounts and retains role choices from later API pages', async () => {
