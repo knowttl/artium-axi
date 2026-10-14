@@ -428,6 +428,7 @@ test('archiving from detail hides the user and shows retained history when reope
 })
 
 test('ordinary account shows role tools and usable CLI guidance and can revoke its current browser', () => {
+  chrome(['resize', '420', '900'])
   browser(`
     await page.click('header form[action="/logout"] button');
     await page.wait('[name=username]');
@@ -439,6 +440,16 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
     check(await page.eval(() => document.querySelector('main').innerText.includes('falcon-axi')), 'Granted tools are missing');
     check(await page.eval(() => document.querySelector('pre').textContent.includes(location.origin)), 'CLI uses wrong server');
     check(await page.eval(() => document.querySelector('main').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');
+    check(await page.eval(() => {
+      const table = document.querySelector('section:has(form[action="/v1/account/sessions/revoke"]) table');
+      const controls = [...table.querySelectorAll('time, button')];
+      return controls.every(control => {
+        const range = document.createRange();
+        range.selectNodeContents(control);
+        return range.getClientRects().length === 1;
+      });
+    }), 'Session dates or revoke controls wrap into fragments at 420px');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Session table overflows the page');
     await page.click('form[action^="/v1/account/sessions/"]:not([action="/v1/account/sessions/revoke"]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');

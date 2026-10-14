@@ -25,6 +25,8 @@ textarea { display: block; width: 100%; box-sizing: border-box; padding: 8px; fo
 fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
 .table-scroll { max-width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
+.session-table { min-width: 1000px; }
+.session-table time, .session-table button { white-space: nowrap; }
 caption { text-align: left; font-weight: 600; margin-bottom: 12px; }
 th, td { padding: 12px; border-bottom: 1px solid #a5b4c3; overflow-wrap: anywhere; }
 thead { background: #edf2f7; }
