@@ -1,23 +1,83 @@
-import type { CredentialProfile } from '../adapters/credential-profile.js'
+import { CredentialProfile } from '../adapters/credential-profile.js'
+import { nativeSettingsSchemas } from '../../shared/api.js'
+import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
 
-export function credentialFields(profile: CredentialProfile): string {
-  const fields = profile.fields().map(({ name, schema, required }) => {
-    const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required ? ' required' : ''} autocomplete="off"`
-    const label = escape(schema.title ?? name) + (schema['x-secret'] ? ' (secret)' : '')
+// Legacy adapters need a host editor even when no published profile is available.
+export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
+  if (profile && tool !== 'az-axi') return profile
+  const text = { type: 'string' }
+  const secret = { ...text, 'x-secret': true }
+  const certificate = (fingerprint: string) => ({ type: 'object', required: ['tenantId', 'clientId', 'auth'],
+    properties: { tenantId: text, clientId: text, auth: { enum: ['secret', 'certificate'] },
+      clientSecret: secret, privateKey: secret, [fingerprint]: text },
+    oneOf: [
+      { properties: { auth: { const: 'secret' } }, required: ['clientSecret'], not: { anyOf: [{ required: ['privateKey'] }, { required: [fingerprint] }] } },
+      { properties: { auth: { const: 'certificate' } }, required: ['privateKey', fingerprint], not: { required: ['clientSecret'] } },
+    ] })
+  const schemas = {
+    'falcon-axi': { type: 'object', required: ['clientId', 'clientSecret', 'region'], properties: { clientId: text, clientSecret: secret, region: text, memberCid: text } },
+    'az-axi': certificate('thumbprintSha256'), 'mg-axi': certificate('thumbprint'),
+    'ldap-axi': { type: 'object', required: ['url', 'auth', 'bindDn', 'bindPassword'], properties: {
+      url: text, auth: { const: 'simple' }, bindDn: text, bindPassword: secret, base: text,
+      pageSize: { type: 'integer' }, startTls: { type: 'boolean' }, tlsMaxVersion: { const: '1.2' }, caFile: text } },
+    'vectra-axi': { type: 'object', required: ['kind', 'apiVersion', 'origin', 'auth'], properties: {
+      kind: { enum: ['qux', 'rux'] }, apiVersion: { enum: ['2.5', '3.4'] }, origin: text,
+      auth: { enum: ['token', 'oauth'] }, clientId: text, token: secret, clientSecret: secret, caBundle: text, applianceRelease: text },
+      oneOf: [
+        { properties: { auth: { const: 'token' } }, required: ['token'], not: { anyOf: [{ required: ['clientId'] }, { required: ['clientSecret'] }] } },
+        { properties: { auth: { const: 'oauth' } }, required: ['clientId', 'clientSecret'], not: { required: ['token'] } },
+      ] },
+  }
+  return new CredentialProfile(schemas[tool])
+}
+
+const fieldHelp: Record<string, string> = {
+  tenantId: 'Directory tenant ID (UUID). Changing it requires new secrets.',
+  clientId: 'Application client ID. Changing it requires new secrets.',
+  origin: 'HTTPS origin only, for example https://appliance.example. Changing it requires new secrets.',
+  region: 'Falcon API region, for example us-1.', memberCid: 'Optional member account ID.',
+  url: 'Directory URL, for example ldaps://directory.example. LDAP requires Start TLS.',
+  bindDn: 'Directory bind identity, for example cn=reader,dc=example.', base: 'Optional search base, for example dc=example.',
+  caFile: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
+  caBundle: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
+  privateKey: 'Paste the PEM private key. Line breaks are preserved.',
+  thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
+  thumbprint: 'SHA-1 certificate fingerprint (40 hexadecimal characters). A combined PEM upload calculates it.',
+  auth: 'Choose authentication first. Changing it requires new secrets.',
+  mode: 'Application uses a service identity; delegated uses a supplied user token.',
+  kind: 'Qux supports token or OAuth; Rux requires OAuth. Qux uses API 2.5 and Rux uses 3.4.',
+  apiVersion: 'Use 2.5 for Qux or 3.4 for Rux.', pageSize: 'Optional number of directory entries per page.',
+  startTls: 'Required for ldap:// URLs; LDAPS is already encrypted.', tlsMaxVersion: 'Optional TLS maximum version.',
+  applianceRelease: 'Optional release label for Qux appliances.',
+}
+
+export function credentialFields(tool: ToolName, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
+  const excluded = new Set([...Object.keys(nativeSettingsSchemas[tool].shape), 'tokenEnv', 'secretEnv'])
+  const fields = profile.fields().filter(field => !excluded.has(field.name))
+    .sort((a, b) => Number(['mode', 'auth', 'kind'].includes(b.name)) - Number(['mode', 'auth', 'kind'].includes(a.name)))
+    .map(({ name, schema, required }) => {
+    const secret = schema['x-secret'] === true
+    const value = secret ? undefined : metadata[name]
+    const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
+    const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
     let input: string
     if (schema.enum) {
-      input = `<select ${attributes} data-profile-type="json"><option value="">Choose a value</option>${schema.enum.map((value: unknown) =>
-        `<option value="${escape(JSON.stringify(value))}">${escape(String(value))}</option>`).join('')}</select>`
+      input = `<select ${attributes} data-profile-type="json"><option value="">Choose a value</option>${schema.enum.map((choice: unknown) =>
+        `<option value="${escape(JSON.stringify(choice))}"${choice === value ? ' selected' : ''}>${escape(String(choice))}</option>`).join('')}</select>`
     } else if (schema.type === 'boolean') {
-      input = `<select ${attributes} data-profile-type="json"><option value="">Use the default</option><option value="true">True</option><option value="false">False</option></select>`
-    } else if (schema['x-secret'] || !['string', 'number', 'integer'].includes(schema.type)) {
-      input = `<textarea ${attributes} data-profile-type="${schema['x-secret'] ? 'string' : 'json'}" rows="3" spellcheck="false"></textarea>`
+      input = `<select ${attributes} data-profile-type="json"><option value="">Use the default</option><option value="true"${value === true ? ' selected' : ''}>True</option><option value="false"${value === false ? ' selected' : ''}>False</option></select>`
+    } else if (schema.type === 'array' && (schema.items?.type === 'string' || schema.items?.const)) {
+      input = `<textarea ${attributes} data-profile-type="list" rows="3">${escape(Array.isArray(value) ? value.join('\n') : '')}</textarea><p>One value per line.</p>`
+    } else if (secret || ['caFile', 'caBundle'].includes(name) || !['string', 'number', 'integer'].includes(schema.type)) {
+      const type = secret || schema.type === 'string' ? 'string' : 'json'
+      input = `<textarea ${attributes} data-profile-type="${type}" rows="6" spellcheck="false">${escape(value === undefined ? '' : type === 'json' ? JSON.stringify(value) : String(value))}</textarea>`
     } else {
-      input = `<input ${attributes} data-profile-type="${schema.type === 'string' ? 'string' : 'json'}" type="${schema.type === 'string' ? 'text' : 'number'}"${schema.type === 'number' ? ' step="any"' : ''}>`
+      input = `<input ${attributes} data-profile-type="${schema.type === 'string' ? 'string' : 'json'}" type="${schema.type === 'string' ? 'text' : 'number'}" value="${escape(value ?? '')}"${schema.type === 'number' ? ' step="any"' : ''}>`
     }
-    return `<label>${label}${input}</label>${schema.description ? `<p>${escape(schema.description)}</p>` : ''}`
+    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}><label>${label}${input}</label><p>${escape(fieldHelp[name] ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
-  return '<p>Enter a complete replacement. Leave unused fields blank. Secret fields accept the value itself; stored values are never filled in.</p>' + fields +
-    `<details><summary>Profile schema and requirements</summary><pre>${escape(JSON.stringify(profile.inputSchema, null, 2))}</pre></details>`
+  return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client or origin requires new secrets. Saving keeps native settings and clears cached health.</p>${fields}
+    <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
+    <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(profile.inputSchema, null, 2))}</pre></details></div>`
 }

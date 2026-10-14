@@ -175,6 +175,8 @@ export const adminToolRoutes = {
       expectedToolRevision: z.number().int().positive() }),
     response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-credential' },
   // Save replaces non-secret fields and retains omitted secrets only for the same identity.
+  // Certificate auth for Azure/Graph also accepts value.certificatePem containing one
+  // certificate and matching unencrypted private key; the host derives the fingerprint.
   // Omitted optional non-secret fields are removed; explicit empty or null secrets are invalid.
   // Changing mode, kind, auth, tenantId, clientId or origin requires new secrets.
   // Native settings are retained; edits belong to patch above and are rejected inside value here.

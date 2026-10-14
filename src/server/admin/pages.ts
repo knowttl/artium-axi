@@ -1,11 +1,12 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
-import { adminToolRoutes } from '../../shared/api.js'
+import { adminToolRoutes, toolSchema } from '../../shared/api.js'
+import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
-import { apiForm, changed, revision, timestamp } from './forms.js'
-import { credentialFields } from './credential-form.js'
+import { adminRead, apiForm, changed, revision, timestamp } from './forms.js'
+import { credentialFields, editorProfile } from './credential-form.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 
@@ -16,60 +17,55 @@ const settingsGuide = {
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean). Use {} to clear settings.',
 }
-const credentialGuide = {
-  'ldap-axi': 'Required: url (verified LDAPS or LDAP with startTls=true), auth=simple, bindDn and bindPassword. Optional: base, pageSize, tlsMaxVersion=1.2 and caFile (CA PEM contents, not a path). Ambient Kerberos and keytabs are unsupported.',
-  'mg-axi': 'Required: tenantId and clientId (UUIDs), auth (secret or certificate). Secret auth requires clientSecret. Certificate auth requires privateKey and thumbprint (40 hexadecimal characters). Live Graph consent remains unverified.',
-  'falcon-axi': 'Required: clientId, clientSecret, region. Optional: memberCid.',
-  'vectra-axi': 'Required: origin (HTTPS origin), kind (qux or rux), apiVersion (2.5 for qux, 3.4 for rux), auth (token or oauth). Token auth requires token and qux. OAuth requires clientId and clientSecret. Optional: caBundle, applianceRelease (qux), writes (native settings).',
-  'az-axi': 'Required: tenantId and clientId (UUIDs), auth (secret or certificate). Secret auth requires clientSecret. Certificate auth requires privateKey and thumbprintSha256 (64 hexadecimal characters). Optional native settings: subscriptions, managementGroup, workspaces, description, allowWrites.',
+const testGuide = {
+  'falcon-axi': 'Falcon auth status', 'vectra-axi': 'Vectra health list', 'az-axi': 'Azure account list',
+  'mg-axi': 'Graph entra user list --limit 1', 'ldap-axi': 'LDAP auth status',
 }
 
 export function registerAdminPages(app: FastifyInstance, db: Database.Database,
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = {}): void {
-  for (const screen of ['Tools', 'Credentials'] as const) {
-    const path = '/admin/' + screen.toLowerCase()
-    app.get(path, async (request, reply) => {
-      requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
-      const current = readBrowserSession(db, request.cookies[browserCookie]!)
-      const headers = { cookie: request.headers.cookie ?? '' }
-      const csrf = reply.generateCsrf()
-      const form = (action: string, method: string, label: string, fields: string, confirmation = '', attributes = '') =>
-        apiForm(csrf, action, method, label, fields, confirmation, attributes)
-      let content = ''
-      const response = await app.inject({ method: 'GET', url: '/v1/admin/tools', headers })
-      const { tools } = adminToolRoutes.list.response.parse(response.json())
-      for (const tool of tools) {
-        const api = '/v1/admin/tools/' + tool.name
-        content += `<section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
-          <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>`
-        if (screen === 'Tools') {
-          const setup = db.prepare(`SELECT EXISTS(SELECT 1 FROM credentials WHERE tool = ?) AS configured,
-            EXISTS(SELECT 1 FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
-              AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = ? AND status = 'ok') AS tested,
-            EXISTS(SELECT 1 FROM role_tools WHERE tool = ?) AS granted`).get(tool.name, tool.name, tool.name) as { configured: number, tested: number, granted: number }
-          content += `<details><summary>Setup checklist</summary><ol>${[
-            [setup.configured, 'Save a credential on Credentials'], [setup.tested, 'Pass Test credential on Credentials'],
-            [tool.enabled, 'Enable this tool'], [setup.granted, 'Grant this tool to a role on Roles'],
-          ].map(([done, label]) => `<li>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>`
-          content += changed(db, tool)
-          content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool',
-            revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool?' : 'Enable this tool?')
-          content += form(api, 'PATCH', 'Save native settings', revision(tool.revision) + `<p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object) <textarea name="nativeSettings" data-type="json" rows="8" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label>`, 'Replace this tool’s native settings?')
-        } else {
-          const metadata = await app.inject({ method: 'GET', url: api + '/credential', headers })
-          const credential = adminToolRoutes.credential.response.parse(metadata.json())
-          const profile = credentialProfiles[tool.name]
-          content += `<p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Stored values are never displayed.</p>${changed(db, credential)}
-            ${profile ? '' : `<p>${escape(credentialGuide[tool.name])}</p>`}<p>Provide the complete replacement, including any native settings to retain.</p>`
-          content += form(api + '/credential', 'PUT', credential.configured ? 'Replace credential' : 'Set credential', revision(credential.revision) +
-            `<input type="hidden" name="expectedToolRevision" data-type="number" value="${escape(tool.revision)}">` +
-            (profile ? credentialFields(profile) : '<label>New credential (JSON object) <textarea name="value" data-type="json" rows="8" required autocomplete="off" spellcheck="false"></textarea></label>'), 'Replace the complete credential and its native settings?')
-          content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
-          content += '<p data-test-result role="status"></p>'
-        }
-        content += '</section>'
-      }
-      return browserPage(reply, screen, content, current)
-    })
-  }
+  app.get('/admin/credentials', async (request, reply) => {
+    requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
+    return reply.redirect('/admin/tools')
+  })
+  for (const path of ['/admin/tools', '/admin/tools/:tool']) app.get(path, async (request, reply) => {
+    requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
+    const current = readBrowserSession(db, request.cookies[browserCookie]!)
+    const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
+    const name = (request.params as { tool?: string }).tool
+    if (!name) {
+      const rows = tools.map(tool => `<tr><td><a href="/admin/tools/${tool.name}">${escape(tool.name)}</a></td><td>${escape(tool.version)}</td><td>${tool.enabled ? 'Enabled' : 'Disabled'}</td><td>${escape(tool.health.status)}</td><td>${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
+      return browserPage(reply, 'Tools', `<section><h2>Tools</h2><p>Open a tool to configure credentials, settings and access.</p><div class="table-scroll"><table><caption>Installed tools</caption><thead><tr><th>Tool</th><th>Version</th><th>Status</th><th>Health</th><th>Last checked</th></tr></thead><tbody>${rows}</tbody></table></div></section>`, current)
+    }
+    const parsed = toolSchema.safeParse(name)
+    if (!parsed.success) throw new ArtiumError('NOT_FOUND')
+    const tool = tools.find(tool => tool.name === parsed.data)!
+    const api = '/v1/admin/tools/' + tool.name
+    const credential = await adminRead(app, request, api + '/credential', adminToolRoutes.credential.response)
+    const csrf = reply.generateCsrf()
+    const form = (action: string, method: string, label: string, fields: string, confirmation: string, attributes = '') =>
+      apiForm(csrf, action, method, label, fields, confirmation, attributes)
+    const roles = db.prepare(`SELECT roles.id, roles.name FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as Array<{ id: string, name: string }>
+    const tested = db.prepare(`SELECT 1 FROM tool_health WHERE tool = ? AND credential_revision = ? AND status = 'ok'`).get(tool.name, credential.revision)
+    let content = `<p><a href="/admin/tools">All tools</a></p><section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
+      <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>
+      <details open><summary>Setup checklist</summary><ol>${[
+        [credential.configured, 'Save a credential below'], [Boolean(tested), 'Pass Test credential below', 'data-test-checklist'],
+        [tool.enabled, 'Enable this tool'], [roles.length > 0, 'Grant this tool to a role on Roles'],
+      ].map(([done, label, attribute]) => `<li${attribute ? ' ' + attribute : ''}>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>${changed(db, tool)}`
+    content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool', revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?')
+    content += `<h3>Credential</h3><p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Secrets are never displayed.</p>${changed(db, credential)}`
+    content += form(api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
+      `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">` +
+      credentialFields(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), credential.metadata, credential.configured) +
+      '<label><input type="checkbox" data-save-and-test> Test after saving</label>',
+      'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?', `data-save-tool="${tool.name}"`)
+    content += `<p>Test runs one harmless read: ${escape(testGuide[tool.name])}. It does not enable the tool or grant access.</p>`
+    content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
+    content += '<p data-test-result role="status"></p></section>'
+    content += `<section><h2>Native settings</h2><p>Saving settings keeps the credential. This replaces the settings object and clears cached health; {} clears settings. Write settings control what the tool may change.</p>` +
+      form(api, 'PATCH', 'Save native settings', revision(tool.revision) + `<p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" rows="8" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label>`, 'Replace native settings while keeping the credential?') + '</section>'
+    content += `<section><h2>Access</h2><p>Roles granting this tool:</p>${roles.length ? `<ul>${roles.map(role => `<li><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a></li>`).join('')}</ul>` : '<p>No roles grant this tool. Open a role and select this tool to give its members access.</p>'}<p><a href="/admin/roles">Manage role grants</a>. Assign roles on Users. Enabling alone does not grant access.</p></section>`
+    return browserPage(reply, 'Tools', content, current)
+  })
 }

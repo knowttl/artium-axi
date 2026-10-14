@@ -259,7 +259,7 @@ Legacy `tokenEnv` keys are accepted for one release with a deprecation warning.
 These az-axi schema details were approved separately during implementation.
 
 The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the shipped credential schema; [credential-profile.ts](../src/server/adapters/credential-profile.ts) owns its hosted input restrictions and CA materialization.
-See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and private CA editor workaround.
+See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
 
 ## 10. Migration
 

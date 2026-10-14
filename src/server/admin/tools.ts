@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3'
+import { createPrivateKey, createPublicKey, X509Certificate } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
@@ -27,13 +28,14 @@ export interface ToolAdminOptions {
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema }
 const publicFields = {
-  'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion'],
-  'falcon-axi': ['region', 'memberCid'],
-  'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease'],
+  'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion', 'caFile'],
+  'falcon-axi': ['clientId', 'region', 'memberCid'],
+  'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease', 'caBundle'],
   'az-axi': ['tenantId', 'clientId', 'auth', 'thumbprintSha256'],
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'ldap-axi': ['bindPassword'],
   'falcon-axi': ['clientSecret'],
   'vectra-axi': ['token', 'clientSecret'],
   'az-axi': ['clientSecret', 'privateKey'],
@@ -135,8 +137,24 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const tool = toolName(request)
     const input = parse(route.input, request.body)
     const saving = route === adminToolRoutes.save
-    const value = saving ? parse(adminToolRoutes.save.input, request.body).value
+    let value = saving ? parse(adminToolRoutes.save.input, request.body).value
       : parse(schemaFor(tool), input.value) as Record<string, unknown>
+    if (saving && Object.hasOwn(value, 'certificatePem')) {
+      try {
+        if (value.auth !== 'certificate' || !['az-axi', 'mg-axi'].includes(tool) || typeof value.certificatePem !== 'string') throw new Error('Invalid certificate input')
+        const pem = value.certificatePem
+        const certificates = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g)
+        const keys = pem.match(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/g)
+        if (certificates?.length !== 1 || keys?.length !== 1) throw new Error('Expected one certificate and key')
+        const certificate = new X509Certificate(certificates[0])
+        const key = createPrivateKey(keys[0])
+        if (!certificate.publicKey.export({ type: 'spki', format: 'der' }).equals(createPublicKey(key).export({ type: 'spki', format: 'der' }))) throw new Error('Key mismatch')
+        const { certificatePem: _, ...fields } = value
+        const sha256 = tool === 'az-axi' || Boolean(credentialProfiles[tool]?.fields().some(field => field.name === 'thumbprintSha256'))
+        value = { ...fields, privateKey: keys[0] + '\n',
+          [sha256 ? 'thumbprintSha256' : 'thumbprint']: (sha256 ? certificate.fingerprint256 : certificate.fingerprint).replaceAll(':', '').toLowerCase() }
+      } catch { throw new ArtiumError('INVALID_INPUT', 'The PEM must contain one certificate and its matching unencrypted private key.', 'Choose a matching certificate and key, then save again.') }
+    }
     if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
     let replacement: CredentialReference | undefined
     const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,

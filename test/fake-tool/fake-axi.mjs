@@ -27,6 +27,13 @@ const write = async (stream, value) => {
 
 try {
   switch (mode) {
+    case 'ldap-delivery': {
+      const config = JSON.parse(await readFile(join(process.env.XDG_CONFIG_HOME, 'ldap-axi/config.json'), 'utf8'))
+      const profile = config.profiles.artium
+      await ready({ caFile: profile.caFile ? await readFile(join(process.env.XDG_CONFIG_HOME, profile.caFile), 'utf8') : null,
+        bindPassword: process.env[profile.bindPassword.env] })
+      break
+    }
     case 'native-journal': {
       const journal = process.env.AZ_AXI_WRITE_LOG ?? process.env.MG_AXI_WRITE_LOG ?? process.env.VECTRA_AXI_WRITE_LOG
       if (args[0] === 'signal-before-journal') process.kill(process.pid, 'SIGTERM')

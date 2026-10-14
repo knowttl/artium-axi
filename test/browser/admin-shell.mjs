@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { X509Certificate } from 'node:crypto'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
@@ -29,6 +30,15 @@ function chrome(args, input) {
 function browser(script) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
+    const wait = page.wait.bind(page);
+    page.wait = async (...args) => {
+      try { await wait(...args); }
+      catch (error) {
+        if (!error.message.includes('Execution context was destroyed')) throw error;
+        // A form reload destroys the old document's observer. Re-query the new document.
+        await wait(...args);
+      }
+    };
     ${script}`)
 }
 
@@ -73,7 +83,7 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
   for (const width of [1280, 420]) {
     chrome(['resize', String(width), '900'])
     browser(`
-    for (const path of ['/admin', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/tools', '/admin/credentials', '/admin/audit', '/account', '/password', '/reauth']) {
+    for (const path of ['/admin', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/tools', '/admin/credentials', '/admin/tools/falcon-axi', '/admin/tools/vectra-axi', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/ldap-axi', '/admin/audit', '/account', '/password', '/reauth']) {
       await page.open(base + path);
       await page.click('.page-help summary');
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
@@ -86,6 +96,231 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
     check(await page.eval(() => location.pathname === '/account'), 'Account navigation failed');
     `)
   }
+})
+
+const toolCredentials = [
+  { tool: 'falcon-axi', fields: { clientId: 'synthetic-client', clientSecret: 'CANARY-falcon-secret', region: 'us-1' }, secret: 'clientSecret', settings: {} },
+  { tool: 'vectra-axi', fields: { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.example', auth: 'token', token: 'CANARY-vectra-token' }, secret: 'token', settings: { writes: { allowWrites: true, operations: ['notes.set'] } } },
+  { tool: 'az-axi', fields: { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-azure-secret' }, secret: 'clientSecret', settings: { description: 'Synthetic settings' } },
+  { tool: 'mg-axi', fields: { mode: 'application', tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222', auth: 'client-secret', clientSecret: 'CANARY-graph-secret' }, secret: 'clientSecret', settings: { preview: true } },
+  { tool: 'ldap-axi', fields: { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-ldap-password' }, secret: 'bindPassword', settings: {} },
+]
+
+for (const action of ['save', 'test']) {
+  for (const outcome of ['redirect', 'html', 'invalid-health', 'ok']) {
+    test(action + ' credential test validates ' + outcome + ' response', () => {
+      browser(`
+        await page.open(base + '/admin/tools/falcon-axi');
+        await page.wait('[data-credential-editor]');
+        await page.eval(() => {
+          const original = window.fetch.bind(window);
+          window.fetch = async (url, options) => {
+            if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
+            const outcome = ${JSON.stringify(outcome)};
+            if (outcome === 'redirect') {
+              // Revoke without clearing cookies so the test request receives a browser redirect.
+              const revoked = await original('/v1/account/sessions/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _csrf: document.querySelector('form[data-test-tool] [name=_csrf]').value }) });
+              if (!revoked.ok) throw new Error('Could not revoke the browser session');
+              const response = await original(url, options);
+              if (!response.redirected) throw new Error('Expected a browser sign-in redirect');
+              return response;
+            }
+            if (outcome === 'html') return new Response('<html>Sign in</html>', { headers: { 'Content-Type': 'text/html' } });
+            return Response.json(outcome === 'ok'
+              ? { status: 'ok', checkedAt: Date.now(), credentialRevision: 1, errorCode: null }
+              : { status: 'unknown', checkedAt: null, credentialRevision: null, errorCode: null });
+          };
+        });
+        if (${JSON.stringify(action)} === 'save') {
+          await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
+          await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
+          await page.fill('[data-profile-field="region"]', 'us-1');
+          await page.click('[data-save-and-test]');
+          await page.click('form[data-save-tool] button');
+          await page.wait('#confirmation[open]');
+          await page.click('#confirmation button[value=confirmed]');
+        } else {
+          await page.click('form[data-test-tool] button');
+          await page.wait('#confirmation[open]');
+          await page.click('#confirmation button[value=confirmed]');
+        }
+        if (${JSON.stringify(outcome)} === 'redirect') {
+          await page.wait('form[action="/login"]');
+          check(await page.eval(() => sessionStorage.getItem('credential-test:/admin/tools/falcon-axi') === null), 'Redirect retained a success result');
+        } else if (${JSON.stringify(action)} === 'save') {
+          await page.wait('[data-test-result]:not(:empty)');
+          const expected = ${JSON.stringify(outcome === 'ok' ? 'Saved. Test passed.' : 'Saved. Test could not complete. Run Test credential again.')};
+          check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === expected, 'Incorrect save-and-test result');
+        } else if (${JSON.stringify(outcome)} === 'ok') {
+          await page.wait('[data-test-result]:not(:empty)');
+          check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Valid health was rejected');
+        } else {
+          await page.wait('#message:not(:empty)');
+          check(await page.eval(() => document.querySelector('[data-test-result]').textContent === ''), 'Invalid health reported success');
+        }
+      `);
+    });
+  }
+}
+
+test('Graph federated authentication hides incompatible fields before entering a token', () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi');
+    await page.eval(() => {
+      for (const [name, value] of [['mode', 'delegated'], ['mode', 'application'], ['auth', 'federated']]) {
+        const input = document.querySelector('[data-profile-field=' + name + ']');
+        input.value = JSON.stringify(value);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    check(await page.eval(() => {
+      const token = document.querySelector('[data-profile-field=token]');
+      return token.value === '' && !token.disabled && token.required && !token.closest('[data-credential-field]').hidden;
+    }), 'Federated token must be available and required while blank');
+    for (const name of ['privateKey', 'clientSecret', 'thumbprintSha256']) {
+      check(await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field=' + name + ']') + '); return input.disabled && input.closest("[data-credential-field]").hidden; })()'), name + ' remained visible or enabled');
+    }
+  `)
+})
+
+for (const entry of toolCredentials) test(entry.tool + ' guided credential save keeps secrets and native settings and tests inline', async () => {
+  browser(`
+    await page.open(base + '/admin/tools');
+    await page.click('tbody a[href="/admin/tools/${entry.tool}"]');
+    await page.wait('[data-credential-editor]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Native settings') && document.querySelector('main').innerText.includes('Access')), 'Merged tool sections missing');
+    await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
+    await page.click('form:has([name=nativeSettings]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedToolRevision][value="2"]');
+    const fields = ${JSON.stringify(entry.fields)};
+    for (const [name, value] of Object.entries(fields)) {
+      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = input.tagName === "SELECT" ? ' + JSON.stringify(JSON.stringify(value)) + ' : ' + JSON.stringify(value) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    }
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'Save and test failed');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Stored secret was displayed');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Retained secret was displayed');
+    await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
+    await page.click('form:has([name=nativeSettings]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedToolRevision][value="5"]');
+  `)
+  const response = await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + entry.tool))
+  const { stored } = await response.json()
+  assert.equal(stored[entry.secret], entry.fields[entry.secret])
+  browser(`check(await page.eval(() => JSON.stringify(JSON.parse(document.querySelector('[name=nativeSettings]').value))) === ${JSON.stringify(JSON.stringify(entry.settings))}, 'Credential save changed native settings');`)
+})
+
+test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stored credential and delivered files', async () => {
+  const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
+  const password = 'CANARY-first-line\nCANARY-second-line\n'
+  browser(`
+    await page.open(base + '/admin/tools/ldap-axi');
+    await page.fill('[data-profile-field=url]', 'ldaps://directory.example');
+    await page.eval(() => { const auth = document.querySelector('[data-profile-field=auth]'); auth.value = '"simple"'; auth.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.fill('[data-profile-field=bindDn]', 'cn=reader,dc=example');
+    await page.fill('textarea[data-profile-field=bindPassword]', ${JSON.stringify(password)});
+    await page.fill('textarea[data-profile-field=caFile]', ${JSON.stringify(pem)});
+    await page.click('[data-save-and-test]'); await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'LDAP test failed: ' + await page.eval(() => document.querySelector('[data-test-result]').textContent));
+    check(await page.eval(() => document.querySelector('[data-profile-field=caFile]').value) === ${JSON.stringify(pem)}, 'PEM was not pre-filled exactly');
+  `)
+  const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json()
+  assert.equal(stored.caFile, pem)
+  assert.equal(stored.bindPassword, password)
+  assert.equal(delivered.caFile, pem)
+  assert.equal(delivered.bindPassword, password)
+})
+
+for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculates the fingerprint and saves the matching key', async () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}');
+    ${tool === 'mg-axi' ? `await page.eval(() => { const input = document.querySelector('[data-profile-field=mode]'); input.value = '"application"'; input.dispatchEvent(new Event('change', { bubbles: true })); });` : ''}
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').disabled), 'Client secret remained active');
+    await page.fill('[data-profile-field=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
+    await page.eval('(() => { const transfer = new DataTransfer(); transfer.items.add(new File([' + ${JSON.stringify(JSON.stringify(fixture.certificatePem))} + '], "synthetic-identity.pem", { type: "application/x-pem-file" })); const input = document.querySelector("[data-certificate-file]"); input.files = transfer.files; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    await page.wait('[data-profile-field=privateKey]:not([required])');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === ''), 'Private key exposed');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json()
+  const certificate = new X509Certificate(fixture.certificatePem)
+  assert.equal(stored.thumbprintSha256, certificate.fingerprint256.replaceAll(':', '').toLowerCase())
+  assert.equal(stored.privateKey, fixture.certificatePem.match(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/)[0] + '\n')
+})
+
+test('malformed certificate PEM keeps the draft and leaves the credential unconfigured', async () => {
+  browser(`
+    await page.open(base + '/admin/tools/az-axi');
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.fill('[data-profile-field=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
+    await page.fill('[data-certificate-pem]', 'CANARY-invalid-pem');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#message:not(:empty)');
+    check(await page.eval(() => document.querySelector('#message').textContent.includes('INVALID_INPUT')), 'Missing PEM error');
+    check(await page.eval(() => document.querySelector('[data-certificate-pem]').value === 'CANARY-invalid-pem'), 'PEM draft lost');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/az-axi'))).json()
+  assert.equal(stored, null)
+})
+
+test('tool detail enablement and granting roles lead to the role access editor', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=true]');
+    await page.click('a[href="/admin/roles/synthetic-role"]');
+    await page.wait('[name=tools][value="falcon-axi"]');
+    check(await page.eval(() => document.querySelector('[name=tools][value="falcon-axi"]').checked), 'Role did not grant the tool');
+  `)
+})
+
+test('changing Vectra authentication requires new secrets and saves only the selected method', async () => {
+  browser(`
+    await page.open(base + '/admin/tools/vectra-axi');
+    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
+      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    }
+    await page.fill('[data-profile-field=origin]', 'https://appliance.example');
+    await page.fill('[data-profile-field=token]', 'CANARY-original-token');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"oauth"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    check(await page.eval(() => document.querySelector('[data-profile-field=token]').disabled), 'Old token remains active');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').required), 'New secret is not required');
+    await page.click('form[data-save-tool] button');
+    check(await page.eval(() => !document.querySelector('#confirmation').open), 'Empty new secret passed validation');
+    await page.fill('[data-profile-field=clientId]', 'synthetic-oauth-client');
+    await page.fill('[data-profile-field=clientSecret]', 'CANARY-new-oauth-secret');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/vectra-axi'))).json()
+  assert.equal(stored.auth, 'oauth')
+  assert.equal(stored.clientSecret, 'CANARY-new-oauth-secret')
+  assert.equal(Object.hasOwn(stored, 'token'), false)
 })
 
 test('expired confirmation resumes the populated action exactly once after a wrong password is corrected', async () => {

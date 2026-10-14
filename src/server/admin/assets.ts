@@ -33,6 +33,7 @@ thead { background: #edf2f7; }
 button { padding: 8px 16px; background: #31577a; color: white; border: 0; cursor: pointer; font: inherit; }
 :focus-visible { outline: 3px solid #ab6500; outline-offset: 3px; }
 details { border-top: 1px solid #a5b4c3; padding-top: 12px; } summary { cursor: pointer; }
+[hidden] { display: none !important; }
 [role=alert] { color: #9b2525; } small { overflow-wrap: anywhere; }
 @media (max-width: 760px) { main { padding: 16px; } section { padding: 16px; } .site-header { position: static; padding: 16px; gap: 12px; } .page-layout { display: block; } aside { border-right: 0; border-bottom: 1px solid #a5b4c3; } nav { flex-direction: row; flex-wrap: wrap; padding: 8px; gap: 4px; } }
 `
@@ -49,6 +50,75 @@ function updateReauthState() {
 }
 updateReauthState();
 if (reauthState) setInterval(updateReauthState, 30000);
+
+for (const editor of document.querySelectorAll('[data-credential-editor]')) {
+  const schema = JSON.parse(editor.dataset.schema);
+  const identity = JSON.parse(editor.dataset.identity);
+  const inputs = [...editor.querySelectorAll('[data-profile-field]')];
+  const selectors = ['mode', 'kind', 'auth', 'apiVersion'];
+  function values() {
+    return Object.fromEntries(inputs.map(input => {
+      let value = input.value || null;
+      if (input.dataset.profileType === 'json' && value) { try { value = JSON.parse(value); } catch { value = null; } }
+      return [input.dataset.profileField, value];
+    }));
+  }
+  function matches(condition, current) {
+    return (condition.required || []).every(key => current[key] !== null && current[key] !== undefined) &&
+      Object.entries(condition.properties || {}).every(([key, rule]) => {
+        if (rule.pattern && !rule['x-secret']) return typeof current[key] === 'string' && new RegExp(rule.pattern).test(current[key]);
+        if (!selectors.includes(key)) return true;
+        return (!Object.hasOwn(rule, 'const') || current[key] === rule.const) && (!rule.enum || rule.enum.includes(current[key]));
+      });
+  }
+  function update() {
+    const current = values();
+    const branches = (schema.oneOf || []).filter(branch => matches({ properties: branch.properties }, current));
+    const required = new Set(schema.required || []);
+    const forbidden = new Set();
+    for (const branch of branches) {
+      for (const key of branch.required || []) required.add(key);
+      for (const rule of branch.not ? branch.not.anyOf || [branch.not] : []) {
+        if (rule.required?.length === 1) forbidden.add(rule.required[0]);
+      }
+    }
+    for (const branch of schema.allOf || []) {
+      if (branch.if && matches(branch.if, current)) for (const key of branch.then?.required || []) required.add(key);
+    }
+    // A delegated Graph token has no application authentication selector.
+    if (current.mode === 'delegated') forbidden.add('auth');
+    const sameIdentity = editor.dataset.configured === 'true' && Object.entries(identity).every(([key, value]) =>
+      (forbidden.has(key) ? null : current[key] ?? null) === value);
+    const certificate = editor.querySelector('[data-certificate]');
+    certificate.hidden = forbidden.has('auth') || current.auth !== 'certificate';
+    const combined = !certificate.hidden && editor.querySelector('[data-certificate-pem]').value !== '';
+    for (const input of inputs) {
+      const key = input.dataset.profileField;
+      const wrapper = input.closest('[data-credential-field]');
+      wrapper.hidden = forbidden.has(key);
+      input.disabled = wrapper.hidden;
+      input.required = !input.disabled && required.has(key) && !(wrapper.hasAttribute('data-secret') && sameIdentity) &&
+        !(combined && ['privateKey', 'thumbprint', 'thumbprintSha256'].includes(key));
+      const stored = wrapper.querySelector('[data-stored-secret]');
+      if (stored) stored.textContent = sameIdentity ? 'Stored when configured. Leave blank to keep; enter a value to replace.' : 'Identity changed. Enter a new secret before saving.';
+    }
+  }
+  editor.addEventListener('input', update);
+  editor.addEventListener('change', update);
+  editor.querySelector('[data-certificate-file]').addEventListener('change', async event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    editor.querySelector('[data-certificate-pem]').value = await file.text();
+    update();
+  });
+  update();
+}
+const savedTest = sessionStorage.getItem('credential-test:' + location.pathname);
+if (savedTest) {
+  sessionStorage.removeItem('credential-test:' + location.pathname);
+  const result = document.querySelector('[data-test-result]');
+  if (result) result.textContent = savedTest;
+}
 
 function confirmChange(consequence) {
   const dialog = document.getElementById('confirmation');
@@ -121,6 +191,12 @@ function reauthenticate(csrf) {
   });
 }
 
+async function confirmTestResponse(response) {
+  const health = await response.json();
+  if (health.status !== 'ok' || !Number.isInteger(health.checkedAt) ||
+      !Number.isInteger(health.credentialRevision) || health.errorCode !== null) throw new Error();
+}
+
 let pendingAction = false;
 document.addEventListener('submit', async event => {
   const form = event.target;
@@ -150,10 +226,12 @@ document.addEventListener('submit', async event => {
       body.value = Object.create(null);
       for (const input of profileFields) {
         delete body[input.name];
-        if (input.value === '') continue;
-        try { body.value[input.dataset.profileField] = input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value; }
+        if (input.disabled || input.value === '') continue;
+        try { body.value[input.dataset.profileField] = input.dataset.profileType === 'list' ? input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value; }
         catch { message.textContent = 'Enter valid JSON in ' + input.dataset.profileField + '.'; message.focus(); return; }
       }
+      const certificate = form.querySelector('[data-certificate]:not([hidden]) [data-certificate-pem]');
+      if (certificate?.value) body.value.certificatePem = certificate.value;
     }
     for (const input of form.querySelectorAll('[data-type]')) {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
@@ -176,7 +254,25 @@ document.addEventListener('submit', async event => {
       }
     }
     if (response.redirected) { location.assign(response.url); return; }
-    if (testResult) testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+    if (response.ok && form.dataset.saveTool) {
+      if (!form.querySelector('[data-save-and-test]').checked) { location.reload(); return; }
+      let result = 'Saved. Test could not complete. Run Test credential again.';
+      try {
+        const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/test', { method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
+        if (tested.redirected) { location.assign(tested.url); return; }
+        if (tested.ok) await confirmTestResponse(tested);
+        result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
+        if (!tested.ok) { const { error } = await tested.json(); result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
+      } catch { /* The credential is saved even when its test cannot complete. */ }
+      sessionStorage.setItem('credential-test:' + location.pathname, result);
+      location.reload();
+      return;
+    }
+    if (testResult) {
+      if (response.ok) await confirmTestResponse(response);
+      testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+    }
     if (!response.ok) {
       const result = await response.json();
       showError(message, result.error);
@@ -190,6 +286,8 @@ document.addEventListener('submit', async event => {
         const data = await refreshed.json();
         const tool = data.tools.find(tool => tool.name === form.dataset.testTool);
         document.getElementById('status-' + tool.name).textContent = tool.health.status;
+        form.closest('section').querySelector('[data-test-checklist]').textContent =
+          (tool.health.checkedAt !== null && tool.health.errorCode === null ? 'Done' : 'To do') + ': Pass Test credential below';
         const checked = form.closest('section').querySelector('[data-check-time]');
         checked.textContent = tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
         checked.title = tool.health.checkedAt === null ? '' : new Date(tool.health.checkedAt).toISOString();
