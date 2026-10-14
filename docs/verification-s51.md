@@ -21,5 +21,5 @@ Candidate evidence is recorded in delivery status and the PR body; any relevant 
 The private deny-list hygiene check runs after committing and building without printing the list.
 
 All local permission, preview, write, denial, audit, packaging and deployment rehearsal evidence uses fakes and synthetic identities.
-Live Graph application consent, application permissions, actual authentication, live output redaction and deployment remain unverified.
+See the [evidence ledger](evidence-ledger.md) for subsequent live Graph acceptance and remaining authentication, permission, redaction and deployment limits.
 No application account was requested.
