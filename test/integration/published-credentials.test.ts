@@ -4,8 +4,29 @@ import { expect, test } from 'vitest'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { withFakeService } from '../fake-service/fixture.js'
+
+test('published LDAP resolves the hosted profile and SecretRef without a native provider or network', async () => {
+  await withFakeService(async ({ directory }) => {
+    const profile = loadCredentialProfile('ldap-axi', join(process.cwd(), 'tools/node_modules/@knowttl/ldap-axi/axi-credential.schema.json'))!
+    const adapter = createLdapAdapter({ getCredential: async () => ({ url: 'ldaps://directory.test:636',
+      auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' }) }, profile)
+    const call = await adapter.prepare(['auth', 'status', '--offline'], { id: 'synthetic-ldap', tool: 'ldap-axi', revision: 1 })
+    const runner = await Runner.create(join(directory, 'calls'))
+    try {
+      const result = await runner.run('synthetic-user', process.execPath,
+        [join(process.cwd(), 'tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js'), ...call.args],
+        call.environment, call.secrets, call.limits, {}, call.files)
+      expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+      expect(result.stdout).toContain('auth: simple')
+      expect(result.stdout).toContain('credentials: resolved')
+      expect(result.stdout).toContain('connection: offline')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await runner.shutdown() }
+  })
+})
 
 test.each([
   { kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-vectra-token' },

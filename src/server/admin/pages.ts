@@ -10,12 +10,14 @@ import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 
 const settingsGuide = {
+  'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
   'falcon-axi': 'Falcon has no editable native settings. Use {}.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean). Use {} to clear settings.',
 }
 const credentialGuide = {
+  'ldap-axi': 'Required: url (verified LDAPS or LDAP with startTls=true), auth=simple, bindDn and bindPassword. Optional: base, pageSize, tlsMaxVersion=1.2 and caFile (CA PEM contents, not a path). Ambient Kerberos and keytabs are unsupported.',
   'mg-axi': 'Required: tenantId and clientId (UUIDs), auth (secret or certificate). Secret auth requires clientSecret. Certificate auth requires privateKey and thumbprint (40 hexadecimal characters). Live Graph consent remains unverified.',
   'falcon-axi': 'Required: clientId, clientSecret, region. Optional: memberCid.',
   'vectra-axi': 'Required: origin (HTTPS origin), kind (qux or rux), apiVersion (2.5 for qux, 3.4 for rux), auth (token or oauth). Token auth requires token and qux. OAuth requires clientId and clientSecret. Optional: caBundle, applianceRelease (qux), writes (native settings).',

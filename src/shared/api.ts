@@ -36,7 +36,7 @@ export type LoginResponse = z.infer<typeof loginResponseSchema>
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'])
 export const adminUserSchema = z.strictObject({
   id: accountId, username: z.string(), displayName: z.string(), source: z.literal('local'),
   enabled: z.boolean(), administrator: z.boolean(), mustChange: z.boolean(),
@@ -140,6 +140,7 @@ export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: 
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
   authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const nativeSettingsSchemas = {
+  'ldap-axi': z.strictObject({}),
   'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
   'falcon-axi': z.strictObject({}),

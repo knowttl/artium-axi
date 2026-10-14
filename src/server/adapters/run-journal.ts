@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import falconInventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import ldapInventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import type { ToolName } from '../store/credential-store.js'
 
 export type RunAction = 'read' | 'write' | 'unknown'
@@ -11,7 +12,8 @@ const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WR
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName) {
   const variable = journalVariables.find(name => environment[name])
   if (!variable) {
-    if (tool === 'falcon-axi' && falconInventory.requirements.nativeWrites === 'read-only upstream design') {
+    if (tool === 'falcon-axi' && falconInventory.requirements.nativeWrites === 'read-only upstream design'
+      || tool === 'ldap-axi' && ldapInventory.adapterBoundary.nativeWrites === 'read-only upstream design') {
       return { environment, action: async (): Promise<RunAction> => 'read' }
     }
     throw new TypeError('Missing native write journal contract')

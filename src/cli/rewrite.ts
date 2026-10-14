@@ -3,16 +3,21 @@ import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
+import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
   'falcon-axi': falcon.unsafeOverrides,
   'vectra-axi': vectra.adapterBoundary.unsafeOverrides,
   'az-axi': az.adapterBoundary.unsafeOverrides,
   'mg-axi': mg.adapterBoundary.unsafeOverrides,
+  'ldap-axi': ldap.adapterBoundary.unsafeOverrides,
 }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
-type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
+type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown }, description?: unknown, commands?: unknown } }
+const ldapHelp = /^(?:Read Active Directory and LDAPv3 directories\.|(?:entry (?:search|show)|auth status) |Usage: (?:artium-axi )?ldap-axi )/m
+const ldapCommands = ldap.commands.filter(route => route.command !== 'home').map(route => route.command)
+const ldapCredentialGuidance = 'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.'
 
 export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help, tool: string): string {
   const flags = managedFlags[tool]
@@ -31,11 +36,22 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
-  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))) return hostedHelp(output, tool, flags, true)
+  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))
+    || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
   try {
-    const { spans: suggestions, document } = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    const json = output.trimStart().startsWith('{')
+    let parsed = json ? jsonHelp(output) : toonHelp(output)
+    if (tool === 'ldap-axi' && parsed.document.description === 'Read Active Directory and LDAPv3 directories safely with ldap-axi (read-only)'
+      && Array.isArray(parsed.document.commands) && parsed.spans.length) {
+      const home = { ...parsed.document, commands: parsed.document.commands.filter(command => ldapCommands.includes(command)),
+        help: [...parsed.spans.map(span => span.value).filter(value => !/^(?:Authentication auto selects|Set LDAP_AXI_URL)/.test(value)
+          && value !== ldapCredentialGuidance), ldapCredentialGuidance] }
+      output = (json ? JSON.stringify(home) : encode(home)) + '\n'
+      parsed = json ? jsonHelp(output) : toonHelp(output)
+    }
+    const { spans: suggestions, document } = parsed
     spans = suggestions
     if (tool === 'az-axi') {
       unknownOutcome = document?.code === 'UNKNOWN_OUTCOME' || document?.error?.code === 'UNKNOWN_OUTCOME'
@@ -45,7 +61,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   for (const span of [...spans].reverse()) {
     const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples):/m.test(span.value))
     if (value === span.value) continue
-    output = output.slice(0, span.start) + (span.quoted ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    output = output.slice(0, span.start) + (span.quoted || tool === 'ldap-axi' && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
@@ -116,6 +132,7 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
     const name = token[0].split('=')[0].slice(2)
     if (!token[0].startsWith('--') || !managedFlags[tool].includes(name)) continue
     const boolean = tool === 'falcon-axi' && falcon.commands.some(command => (command.flags as Record<string, string | undefined>)[name] === 'boolean')
+      || tool === 'ldap-axi' && ldap.commands.some(command => (command.flags as Record<string, string | undefined>)[name] === 'boolean')
     const last = token[0].includes('=') || boolean ? token : tokens[++index]
     if (last) ranges.push([token.index! - 1, last.index! + last[0].length])
   }
@@ -124,6 +141,17 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   const selectors = flags.join('|')
+  if (tool === 'ldap-axi' && !commands && !/^(?:Run|Use) [`'"]?(?:artium-axi )?ldap-axi\b/.test(help)) {
+    help = help.replace(new RegExp(`^(?:Use |Pass |Set |Or use |The search base may)[^\\r\\n]*(?:--(?:${selectors})\\b|\\b(?:NODE_EXTRA_CA_CERTS|LDAP_AXI_[A-Z_]+)\\b)[^\\r\\n]*$`, 'gm'),
+      'Ask an Artium administrator to update the stored LDAP credentials: use verified LDAPS or LDAP with startTls=true, and supply trusted CA PEM contents in caFile when required.')
+  }
+  if (tool === 'ldap-axi' && commands && ldapHelp.test(help)) {
+    help = help.replace(/^(?:Authentication defaults to auto|Use --auth simple|Select configuration with|The URL scheme selects the GSSAPI transport|Use --tls-max-version)[^\r\n]*(?:\r?\n|$)/gm, '')
+      .replace(/^Commands: [^\r\n]*/m, `Commands: ${ldapCommands.join(', ')}`)
+      .replace(/^(entry (?:search|show)|auth status) /, 'Usage: ldap-axi $1 ')
+      .replace(/^Example: /gm, 'Examples: ')
+    if (!help.includes(ldapCredentialGuidance)) help = help.trimEnd() + '\n' + ldapCredentialGuidance + '\n'
+  }
   const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|Valid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
     (_, label: string, listed: string, ending: string) => {
       const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
@@ -131,16 +159,17 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '') + ending
     })
   if (!commands) return filtered
-  return filtered.replace(new RegExp(`^[ \t]*(?:(?:(?:Command|Native operation): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
+  return filtered.replace(new RegExp(`^[ \t]*(?:(?:(?:Command|Native operation|Usage): )?(?:artium-axi |npx -y @knowttl/)?${tool}\\b|Examples:)[^\\r\\n]*`, 'gm'), line => {
       line = line.replace(new RegExp(` ?\\[--(?:${selectors})\\s+<[^>]+>\\]`, 'g'), '')
       for (const [from, to] of managedFlagRanges(line, tool).reverse()) line = line.slice(0, from) + line.slice(to)
       return line
     })
-    .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples|Usage): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
     .replace(/^[ \t]*Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
       (match, separator) => separator ? `; artium-axi ${tool}` : match))
     .replace(new RegExp('`(?:npx -y @knowttl/)?' + tool + '(?=\\s|`)([^\\r\\n`]*`)', 'g'), '`artium-axi ' + tool + '$1')
     .replace(new RegExp(`^([ \t]*cat [^\\r\\n|]+ \\| )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`\\buse ${tool} entry search\\b`, 'g'), `use artium-axi ${tool} entry search`)
 }
 
 function jsonHelp(output: string): Help {

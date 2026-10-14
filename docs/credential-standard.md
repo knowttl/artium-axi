@@ -233,10 +233,11 @@ For each call, the host:
 2. Writes `$XDG_CONFIG_HOME/<tool>/config.json` containing exactly one profile, named `artium`, which is also the `defaultProfile`.
 3. Replaces each `x-secret` field with `{"env": "ARTIUM_SECRET_<n>"}` and passes the values through the environment.
 4. Adds every secret value to its output scanner.
-5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy.
+5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
+   LDAP is read-only by design and needs neither setting nor a write journal.
 
-Under this contract the host's per-tool code is limited to argument policy.
-That covers the inventory, blocked commands and blocked flags, and no credential code remains.
+The shared profile writer owns schema validation and secret injection.
+Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
 
 ### Per-tool host-facing schemas
 
@@ -256,6 +257,9 @@ The env profile uses `auth: "az"` when `AZ_AXI_TENANT_ID` is set, or `auth: "tok
 Mixed or partial env sources are rejected.
 Legacy `tokenEnv` keys are accepted for one release with a deprecation warning.
 These az-axi schema details were approved separately during implementation.
+
+The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the shipped credential schema; [credential-profile.ts](../src/server/adapters/credential-profile.ts) owns its hosted input restrictions and CA materialization.
+See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and private CA editor workaround.
 
 ## 10. Migration
 

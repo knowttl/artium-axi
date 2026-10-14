@@ -14,7 +14,7 @@ Administrators manage local accounts, roles, encrypted service credentials and a
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
-Falcon, Vectra, Azure and Graph are wired into the production server entry point.
+Falcon, Vectra, Azure, Graph and LDAP are wired into the production server entry point.
 See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -181,6 +181,7 @@ The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-a
 | Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
+| LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 
 #### Falcon
 
@@ -298,6 +299,33 @@ Save, run **Test credential**, follow the [activation requirements](#browser-adm
 Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
 See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captain live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
 
+#### LDAP
+
+Artium uses the [pinned npm release](tools/package.json) of `@knowttl/ldap-axi` with stored simple-bind credentials, encrypted by the same credential store as the other tools.
+The user's ambient Kerberos ticket belongs to their local login and is unavailable inside Artium's server-side isolated runner.
+Artium therefore requires `auth=simple`; it does not accept a keytab or manage Kerberos ticket acquisition and renewal.
+This keeps the directory identity explicit and its password rotation within the existing credential replacement flow.
+The native Kerberos provider and its installation script are unnecessary for this authentication mode and remain disabled.
+
+Obtain a dedicated directory identity with read access only, its bind DN and password, and a directory URL whose certificate can be verified.
+At `/admin/credentials`, select `ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn` and the password value in `bindPassword`.
+Use `ldaps://<directory-host>:636`, or `ldap://<directory-host>:389` with `startTls=true`.
+Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
+If a private CA is required, supply its PEM contents in `caFile`, not a server file path.
+The current web credential editor renders `caFile` as a one-line field and drops newlines from pasted multiline PEM.
+Until the credential editor supports multiline CA contents, save the complete replacement through `PUT /v1/admin/tools/ldap-axi/credential`, using a JSON string with escaped newlines for `value.caFile` and the current credential and tool revisions.
+The API preserves those newlines, and Artium materializes the CA privately for each call.
+Artium's CLI has no credential-save command.
+Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
+Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
+
+Enter the password itself in the form, never a SecretRef or password-file path.
+Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
+**Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
+LDAP is read-only by design and has no editable native write settings.
+The [LDAP inventory](tools/inventories/ldap-axi.json) owns the supported commands, blocked overrides and resource requirements.
+Local fake-directory and offline profile checks do not establish live directory acceptance.
+
 ### Build from source
 
 The source toolchain requires Node **24.11 or later** and **pnpm 10.22.0**.
@@ -332,6 +360,7 @@ The root package is private; server downloads and source builds are the installa
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
 | `artium-axi vectra-axi detection list` | Run a Vectra read through the managed adapter. |
 | `artium-axi mg-axi entra user list --limit 1` | Run a bounded Graph read through the managed adapter. |
+| `artium-axi ldap-axi user list --limit 1` | Run a bounded directory read through the managed adapter. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Tool help has two boundaries:
@@ -344,6 +373,7 @@ artium-axi falcon-axi --help
 The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
+A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
@@ -370,8 +400,9 @@ Details read bundled manifests and stored health without fetching credentials or
 Discovery and administration show the server's bundled tool versions, as defined by the [API contract](src/shared/api.ts).
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
-For Falcon, Vectra, Azure and Graph, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+For Falcon, Vectra, Azure, Graph and LDAP, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
+LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](#ldap).
 Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
@@ -460,8 +491,8 @@ There is no audit mutation or deletion route.
 Successful browser and bearer-token password confirmations emit `reauth` events.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
-Pinned Falcon runs report `read` from the inventory's read-only declaration, including normal runs and health checks.
-Failures without journal records, malformed or unreadable evidence, and recovered interrupted runs report `unknown`.
+Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
+For tools with native journals, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs also report `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 
 ## Configuration
