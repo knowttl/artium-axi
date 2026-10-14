@@ -39,7 +39,7 @@ Final implementation validation requires frozen installation, lint, full tests, 
 The PR body and delivery status bind command results to the exact committed and published heads.
 Any source/test pipeline fix repeats frozen install, lint, tests, aggregate check and private hygiene before delivery.
 The harness removes all containers, networks and temporary files it creates.
-The worker removes its created `artium-test-node22` image after verification.
+The worker removes its created harness image after verification; the [image builder](../scripts/build-fake-service-image.mjs) owns its default tag.
 AGENTS.md's existing README pointer remains factually correct and is unchanged under the project-memory correction rule.
 
 The [evidence ledger](evidence-ledger.md) owns current captain acceptance and the remaining live authentication, audience, read, metadata-only output, native permission and sandbox-write checks.
