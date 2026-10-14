@@ -178,17 +178,12 @@ See [browser administration](../README.md#browser-administration) for timestamp 
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](../README.md#browser-administration) for guided fields and combined certificate PEM uploads.
-Enter replacement secrets, leaving stored secrets blank to keep them for the same identity.
-Native settings save separately and remain unchanged by credential saves.
-The editor pre-fills non-secret values and never reveals stored secrets.
 Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
-API clients can instead use the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) to retain stored secrets and native settings.
-That contract owns the request fields, identity-change restrictions and revision requirements.
+The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) owns API request fields, retention, identity-change restrictions and revision requirements.
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
-The browser editor uses this retaining save operation; API complete replacement remains available for callers that intend to clear omitted settings.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
 Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.
@@ -395,7 +390,7 @@ Restore that backup into a separate rehearsal volume using the candidate image a
 Start the candidate only against the rehearsal volume and verify fresh login, credentials, role permissions and audit reads.
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
 When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
-Replace any incompatible credential through `/admin/credentials` using the current editor before enabling the tool; stored values remain hidden.
+Replace any incompatible credential on its `/admin/tools/:tool` page using the current editor before enabling the tool; stored secrets remain hidden.
 A successful migration alone is insufficient acceptance for an upgrade.
 Retain the pre-upgrade backup and previous image until the upgrade is accepted and its recovery window expires.
 If migration or acceptance fails, stop the candidate, restore the pre-upgrade backup into another empty volume using the previous image and matching key, verify it, then start that previous image on the restored volume.

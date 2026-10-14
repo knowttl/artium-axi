@@ -172,8 +172,7 @@ Recovery, rotation, backups, retention and upgrades remain in the [operations ru
 
 Configure only the tools you intend to use.
 At `/admin/tools`, open the tool, save its credential, then use **Test credential** and follow the [activation requirements](#browser-administration) before enabling it.
-Forms start blank and never reveal saved secrets; enter secret values themselves, leave unused fields blank, and enter arrays or objects as JSON.
-The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](#browser-administration) explains replacement and health behavior.
+The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](#browser-administration) explains editor inputs, saving and health behavior.
 
 | Tool | Information to obtain | Fixed Artium credential test |
 | --- | --- | --- |
@@ -205,7 +204,7 @@ Create a QUX personal token under **My Profile** using a local account, or have 
 Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
 See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.5#configuration) for deployment-specific requirements.
 If the deployment uses a private CA, paste its PEM contents into `caBundle`; enter no server file path.
-Leave `writes` blank for read-only use; optional writes need the native operation allowlist and upstream permissions.
+Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
 Save, run **Test credential**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
 
 #### Entra application registration for Azure and Graph
@@ -463,19 +462,18 @@ Archived users cannot be enabled through the UI or API; use Disable for temporar
 
 Credential editors pre-fill non-secret values and never return stored secrets.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
-Falcon uses the same editor when its pinned package ships that schema.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 For Vectra, `origin` must be a canonical HTTPS origin, without a path, credentials or an explicit default port.
 Enter PEM contents in `caBundle`, not a server file path; Artium writes a private CA file for each call.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
-Azure and Graph certificate editors accept a combined PEM certificate and matching private key and calculate the fingerprint automatically.
+Azure and Graph certificate editors accept one PEM file containing one certificate and its matching unencrypted private key and calculate the fingerprint automatically.
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Falcon has guided fields even when its pinned package has no credential schema; its injection path stays unchanged.
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Changing mode, kind, authentication, tenant, client or origin requires new secrets.
 Select **Test after saving** to save and report a harmless credential check inline.
-API clients can use the same retaining save operation; complete replacement still clears omitted settings.
+See the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](docs/runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.

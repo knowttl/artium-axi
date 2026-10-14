@@ -1,17 +1,7 @@
 # S40 Tools, Credentials and Roles evidence
 
-The [administration screens](../src/server/admin/pages.ts) reuse the server-rendered browser layout, escaping helper and existing S34/S35 admin APIs.
-The [form helpers](../src/server/admin/forms.ts) provide navigation, CSRF-bearing API forms, optimistic revisions and safe actor/time metadata.
-The [browser script](../src/server/admin/assets.ts) parses JSON editors, submits complete replacements, preserves invalid form input and shows credential test results with refreshed cached status, check time and safe error code.
-The API continues to own authentication, CSRF, recent reauthentication, settings and credential validation, audit transactions and test quotas.
-See [README](../README.md) for current runtime availability.
-
-The [tool administration integration suite](../test/integration/admin-tools.test.ts) requests the actual rendered Users, Tools, Credentials and Roles pages after storing canary credentials.
-It verifies that stored Falcon client ID/secret, Vectra token and Azure secret are absent, credential editors are blank, responses prohibit caching and change actors appear.
-It also verifies stale tool revisions reject credential replacement without mutation for unconfigured Vectra and Azure and configured tools, with native settings present or omitted, and that current complete replacements clear omitted settings.
-The [browser integration suite](../test/integration/browser-auth.test.ts) verifies escaped role and actor names, UTC change time, selected grants, bounded pagination and current administrator capability on all new pages.
-Existing S34/S35/S38 tests cover revision conflicts, atomic audit, manual-test quota, recent authentication and CSRF through the same real APIs the forms submit.
-The [HTTP integration suite](../test/integration/api.test.ts) verifies both user-role removal and role-grant removal immediately deny the next run using the existing token and audit both the change and denial.
+This document records historical S40 evidence, including the former separate Credentials screen and blank complete-replacement editor.
+See [browser administration](../README.md#browser-administration) for current pages and editor behavior, and the [tool administration integration suite](../test/integration/admin-tools.test.ts) for current rendered-page checks.
 The initial focused browser/tool suites passed 86 tests before the dual-revision regression additions; this result is not final-head validation.
 
 Real browser acceptance used [the TLS fixture](../test/fake-service/browser-auth.mjs), named session `CHROME_DEVTOOLS_AXI_SESSION=artium-s40`, `start`, `selectpage 1`, then individual `open`, `fill`, `click`, `dialog`, `snapshot` and `eval` commands.
