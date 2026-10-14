@@ -233,11 +233,16 @@ Have an administrator authorized to assign roles perform this step.
 | `Log Analytics Reader` | Workspace query access when granting workspace-specific log reads. |
 | `Storage Blob Data Reader` | Blob data-plane reads; ARM `Reader` and `Contributor` alone do not supply these. |
 | `Key Vault Reader` | Secret, key and certificate metadata on RBAC-mode vaults, without secret values. |
-| `AcrPull` | Registry pull/catalogue access when separately granting registry reads. |
+| `AcrPull` | Registry pull/catalogue access on RBAC-only registries. Not honored on ABAC-enabled registries. |
+| `Container Registry Repository Catalog Lister` | Catalogue listing on ABAC-enabled registries; lists all repositories and does not support ABAC conditions. |
+| `Container Registry Repository Reader` | Image, tag and metadata reads on ABAC-enabled registries; optional ABAC conditions restrict repositories. Does not grant catalogue listing. |
 | `Contributor` | Optional ARM writes at the intended scope, only when writes are wanted; this does not assign roles or grant blob/vault data-plane writes. |
 
+Check the registry's **Settings > Properties > Role assignment permissions mode** before choosing registry roles; see [Microsoft's registry permission guidance](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-abac-repository-permissions).
+On ABAC-enabled registries, ARM `Reader` and `Contributor` grant control-plane access only, so assign the catalogue and repository roles above for the reads you need.
 The live tests confirmed ARM reads, Log Analytics queries and registry catalogue reads with the tested Reader/Contributor assignments, then blob and RBAC-vault metadata reads after adding the two data-plane reader roles.
-`Log Analytics Reader` and `AcrPull` were not independently verified as minimal grants in those tests.
+Those registry results apply only to the tested registry and assignments; its permission mode is not recorded here and the results do not establish access on ABAC-enabled registries.
+`Log Analytics Reader`, `AcrPull` and the ABAC-enabled registry roles were not independently verified as minimal grants in those tests.
 Access-policy-mode vaults require corresponding vault access policies instead of the RBAC-mode role.
 
 At `/admin/credentials`, use Azure's JSON editor with this shape, replacing every placeholder:
@@ -257,7 +262,8 @@ For certificate authentication, set `auth` to `certificate` and replace `clientS
 Optionally add `workspaces` as a JSON object mapping friendly names to Log Analytics workspace customer-ID UUIDs, obtained from the workspace Overview page; these are not ARM resource IDs.
 Artium mints and injects resource-specific tokens, so supply the source identity rather than an access token or upstream token-profile JSON.
 Save, run **Test credential**, enable and grant the tool, then run `artium-axi az-axi account list`.
-Test each needed data-plane read separately using the enabled tool's help; a successful subscription list proves no blob or vault access.
+Test each needed data-plane read separately using the enabled tool's help; a successful subscription list proves no blob, vault or registry access.
+For registry catalogue access, run `artium-axi az-axi acr repository list --name <registry>`; test any needed image, tag or metadata reads separately because catalogue listing does not grant repository reads on ABAC-enabled registries.
 Keep `allowWrites` false unless writes are wanted and the corresponding Azure roles are approved.
 
 #### Microsoft Graph
