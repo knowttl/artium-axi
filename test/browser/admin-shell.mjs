@@ -118,9 +118,13 @@ for (const action of ['save', 'test']) {
             if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
             const outcome = ${JSON.stringify(outcome)};
             if (outcome === 'redirect') {
-              await original('/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              // Revoke without clearing cookies so the test request receives a browser redirect.
+              const revoked = await original('/v1/account/sessions/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ _csrf: document.querySelector('form[data-test-tool] [name=_csrf]').value }) });
-              return original(url, options);
+              if (!revoked.ok) throw new Error('Could not revoke the browser session');
+              const response = await original(url, options);
+              if (!response.redirected) throw new Error('Expected a browser sign-in redirect');
+              return response;
             }
             if (outcome === 'html') return new Response('<html>Sign in</html>', { headers: { 'Content-Type': 'text/html' } });
             return Response.json(outcome === 'ok'
@@ -159,6 +163,26 @@ for (const action of ['save', 'test']) {
     });
   }
 }
+
+test('Graph federated authentication hides incompatible fields before entering a token', () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi');
+    await page.eval(() => {
+      for (const [name, value] of [['mode', 'delegated'], ['mode', 'application'], ['auth', 'federated']]) {
+        const input = document.querySelector('[data-profile-field=' + name + ']');
+        input.value = JSON.stringify(value);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    check(await page.eval(() => {
+      const token = document.querySelector('[data-profile-field=token]');
+      return token.value === '' && !token.disabled && token.required && !token.closest('[data-credential-field]').hidden;
+    }), 'Federated token must be available and required while blank');
+    for (const name of ['privateKey', 'clientSecret', 'thumbprintSha256']) {
+      check(await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field=' + name + ']') + '); return input.disabled && input.closest("[data-credential-field]").hidden; })()'), name + ' remained visible or enabled');
+    }
+  `)
+})
 
 for (const entry of toolCredentials) test(entry.tool + ' guided credential save keeps secrets and native settings and tests inline', async () => {
   browser(`

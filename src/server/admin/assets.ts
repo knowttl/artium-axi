@@ -66,7 +66,7 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   function matches(condition, current) {
     return (condition.required || []).every(key => current[key] !== null && current[key] !== undefined) &&
       Object.entries(condition.properties || {}).every(([key, rule]) => {
-        if (rule.pattern) return typeof current[key] === 'string' && new RegExp(rule.pattern).test(current[key]);
+        if (rule.pattern && !rule['x-secret']) return typeof current[key] === 'string' && new RegExp(rule.pattern).test(current[key]);
         if (!selectors.includes(key)) return true;
         return (!Object.hasOwn(rule, 'const') || current[key] === rule.const) && (!rule.enum || rule.enum.includes(current[key]));
       });
