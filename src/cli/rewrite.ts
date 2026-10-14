@@ -14,8 +14,10 @@ const managedFlags: Record<string, string[]> = {
 }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
-type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
+type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown }, description?: unknown, commands?: unknown } }
 const ldapHelp = /^(?:Read Active Directory and LDAPv3 directories\.|(?:entry (?:search|show)|auth status) |Usage: (?:artium-axi )?ldap-axi )/m
+const ldapCommands = ldap.commands.filter(route => route.command !== 'home').map(route => route.command)
+const ldapCredentialGuidance = 'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.'
 
 export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help, tool: string): string {
   const flags = managedFlags[tool]
@@ -39,7 +41,17 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   let spans: Span[]
   let unknownOutcome = false
   try {
-    const { spans: suggestions, document } = output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)
+    const json = output.trimStart().startsWith('{')
+    let parsed = json ? jsonHelp(output) : toonHelp(output)
+    if (tool === 'ldap-axi' && parsed.document.description === 'Read Active Directory and LDAPv3 directories safely with ldap-axi (read-only)'
+      && Array.isArray(parsed.document.commands) && parsed.spans.length) {
+      const home = { ...parsed.document, commands: parsed.document.commands.filter(command => ldapCommands.includes(command)),
+        help: [...parsed.spans.map(span => span.value).filter(value => !/^(?:Authentication auto selects|Set LDAP_AXI_URL)/.test(value)
+          && value !== ldapCredentialGuidance), ldapCredentialGuidance] }
+      output = (json ? JSON.stringify(home) : encode(home)) + '\n'
+      parsed = json ? jsonHelp(output) : toonHelp(output)
+    }
+    const { spans: suggestions, document } = parsed
     spans = suggestions
     if (tool === 'az-axi') {
       unknownOutcome = document?.code === 'UNKNOWN_OUTCOME' || document?.error?.code === 'UNKNOWN_OUTCOME'
@@ -129,12 +141,11 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   if (tool === 'ldap-axi' && commands && ldapHelp.test(help)) {
-    const guidance = 'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.'
     help = help.replace(/^(?:Authentication defaults to auto|Use --auth simple|Select configuration with|The URL scheme selects the GSSAPI transport|Use --tls-max-version)[^\r\n]*(?:\r?\n|$)/gm, '')
-      .replace(/^Commands: [^\r\n]*/m, `Commands: ${ldap.commands.filter(route => route.command !== 'home').map(route => route.command).join(', ')}`)
+      .replace(/^Commands: [^\r\n]*/m, `Commands: ${ldapCommands.join(', ')}`)
       .replace(/^(entry (?:search|show)|auth status) /, 'Usage: ldap-axi $1 ')
       .replace(/^Example: /gm, 'Examples: ')
-    if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
+    if (!help.includes(ldapCredentialGuidance)) help = help.trimEnd() + '\n' + ldapCredentialGuidance + '\n'
   }
   const selectors = flags.join('|')
   const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|Valid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,

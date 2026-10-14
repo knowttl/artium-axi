@@ -4,6 +4,7 @@ import { createLdapAdapter, ldapCredentialSchema, ldapManifest } from './ldap.js
 import { toolView } from '../../cli/views.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import inventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
+import { decode } from '@toon-format/toon'
 
 const reference = { id: 'synthetic-ldap', tool: 'ldap-axi' as const, revision: 1 }
 const credential = { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' }
@@ -101,6 +102,28 @@ test.each(inventory.commands)('published $command help hosts commands and manage
   expect(output).not.toMatch(/(?<!artium-axi )ldap-axi\b|Authentication defaults to auto|GSSAPI transport|profile list|config path/)
   expect(rewriteSuggestions(output, 'ldap-axi')).toBe(output)
 })
+
+test.each(['TOON', 'JSON'].flatMap(format => [true, false].map(configured => ({ format, configured }))))(
+  'published home output uses hosted guidance in $format with configured=$configured', ({ format, configured }) => {
+    const script = `import { homeView } from "./tools/node_modules/@knowttl/ldap-axi/dist/src/home.js";
+      import { render } from "./tools/node_modules/@knowttl/ldap-axi/dist/src/render.js";
+      const home = homeView("synthetic-ldap-bin", ${configured ? '"ldaps://directory.test:636"' : 'undefined'}, ${configured});
+      process.stdout.write(${format === 'JSON' ? 'JSON.stringify({ ...home.data, help: home.help })' : 'render(home.data, home.help)'});`
+    const result = spawnSync(process.execPath, ['--input-type=module', '--eval', script], { encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    const parse = format === 'JSON' ? JSON.parse : decode
+    const original = parse(result.stdout)
+    const output = rewriteSuggestions(result.stdout, 'ldap-axi')
+    expect(parse(output)).toEqual({ ...original,
+      commands: ['entry search', 'entry show', 'user list', 'user show', 'user groups', 'group list', 'group show', 'group members', 'auth status'],
+      help: [
+        ...(configured ? ['Run `artium-axi ldap-axi auth status` to report the selected authentication and its transport'] : []),
+        'Run `artium-axi ldap-axi entry search --help` to explore a directory safely',
+        'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.',
+      ] })
+    expect(rewriteSuggestions(output, 'ldap-axi')).toBe(output)
+    expect(rewriteSuggestions(result.stdout, 'ldap-axi', true)).toBe(result.stdout)
+  })
 
 test.each(inventory.commands.flatMap(route => Object.entries(route.flags)
   .filter(([flag, type]) => type === 'value' && !ldapManifest.unsafeOverrides.includes(flag))
