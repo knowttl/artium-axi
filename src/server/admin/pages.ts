@@ -50,9 +50,9 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     let content = `<p><a href="/admin/tools">All tools</a></p><section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
       <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>
       <details open><summary>Setup checklist</summary><ol>${[
-        [credential.configured, 'Save a credential below'], [Boolean(tested), 'Pass Test credential below'],
+        [credential.configured, 'Save a credential below'], [Boolean(tested), 'Pass Test credential below', 'data-test-checklist'],
         [tool.enabled, 'Enable this tool'], [roles.length > 0, 'Grant this tool to a role on Roles'],
-      ].map(([done, label]) => `<li>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>${changed(db, tool)}`
+      ].map(([done, label, attribute]) => `<li${attribute ? ' ' + attribute : ''}>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>${changed(db, tool)}`
     content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool', revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?')
     content += `<h3>Credential</h3><p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Secrets are never displayed.</p>${changed(db, credential)}`
     content += form(api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +

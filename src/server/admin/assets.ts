@@ -286,6 +286,8 @@ document.addEventListener('submit', async event => {
         const data = await refreshed.json();
         const tool = data.tools.find(tool => tool.name === form.dataset.testTool);
         document.getElementById('status-' + tool.name).textContent = tool.health.status;
+        form.closest('section').querySelector('[data-test-checklist]').textContent =
+          (tool.health.checkedAt !== null && tool.health.errorCode === null ? 'Done' : 'To do') + ': Pass Test credential below';
         const checked = form.closest('section').querySelector('[data-check-time]');
         checked.textContent = tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
         checked.title = tool.health.checkedAt === null ? '' : new Date(tool.health.checkedAt).toISOString();
