@@ -657,6 +657,31 @@ test('session list excludes idle browsers and expired or revoked CLI families', 
     lastSeenAt: null, expiresAt: active.familyExpiresAt, current: false }])
 })
 
+test('session listing reports the temporary-password token expiry', async () => {
+  db.exec("UPDATE users SET must_change = 1 WHERE id = 'synthetic-ordinary'")
+  const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-ordinary', password } })
+  const session = loginResponseSchema.parse(login.json())
+  if (session.status !== 'password-change-required') throw new Error('Expected restricted local login')
+  const listed = adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json())
+  expect(listed.sessions).toEqual([expect.objectContaining({ kind: 'cli', expiresAt: session.passwordChangeExpiresAt })])
+})
+
+test.each(['revoked_at', 'consumed_at'] as const)('session listing ignores refresh tokens marked %s', async field => {
+  const session = await signIn('synthetic-ordinary')
+  const family = db.prepare('SELECT family_id FROM tokens WHERE hash = ?').get(hashToken(session.accessToken)) as { family_id: string }
+  db.prepare(`UPDATE tokens SET ${field} = ? WHERE hash = ?`).run(Date.now(), hashToken(session.refreshToken))
+  const listed = adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json())
+  expect(listed.sessions).toEqual([expect.objectContaining({ id: family.family_id, kind: 'cli',
+    expiresAt: session.accessExpiresAt })])
+})
+
+test('session listing caps CLI token expiry at family expiry', async () => {
+  const session = await signIn('synthetic-ordinary')
+  db.prepare('UPDATE tokens SET expires_at = ? WHERE hash = ?').run(session.familyExpiresAt + 60_000, hashToken(session.refreshToken))
+  const listed = adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json())
+  expect(listed.sessions).toEqual([expect.objectContaining({ kind: 'cli', expiresAt: session.familyExpiresAt })])
+})
+
 test('single-session revocation rolls back when its audit cannot be persisted', async () => {
   const session = await signIn('synthetic-ordinary')
   const { sessions } = adminUserRoutes.sessions.response.parse(await (await request('GET', '/synthetic-ordinary/sessions')).json())
