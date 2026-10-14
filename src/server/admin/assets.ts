@@ -23,6 +23,11 @@ input:not([type=checkbox]), select { display: block; max-width: 100%; width: 320
 pre { overflow-x: auto; }
 textarea { display: block; width: 100%; box-sizing: border-box; padding: 8px; font: 14px/1.5 monospace; }
 fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+caption { text-align: left; font-weight: 600; margin-bottom: 12px; }
+th, td { padding: 12px; border-bottom: 1px solid #a5b4c3; overflow-wrap: anywhere; }
+thead { background: #edf2f7; }
 button { padding: 8px 16px; background: #31577a; color: white; border: 0; cursor: pointer; font: inherit; }
 :focus-visible { outline: 3px solid #ab6500; outline-offset: 3px; }
 details { border-top: 1px solid #a5b4c3; padding-top: 12px; } summary { cursor: pointer; }
@@ -117,6 +122,13 @@ function reauthenticate(csrf) {
 let pendingAction = false;
 document.addEventListener('submit', async event => {
   const form = event.target;
+  if (form.matches('[data-filters]')) {
+    event.preventDefault();
+    const query = new URLSearchParams();
+    for (const [key, value] of new FormData(form)) if (value !== '') query.set(key, value);
+    location.assign(form.action + '?' + query);
+    return;
+  }
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
   const button = form.querySelector('button');
@@ -183,7 +195,8 @@ document.addEventListener('submit', async event => {
       } catch { message.textContent += ' Tool health could not refresh. Reload the page to check the current status.'; }
       return;
     }
-    location.reload();
+    if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
+    else location.reload();
   } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; }
   finally { button.disabled = false; pendingAction = false; }
 });

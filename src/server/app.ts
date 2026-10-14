@@ -19,6 +19,7 @@ import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
 import { readBrowserSession, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
 import { registerUsersPage } from './admin/users.js'
+import { registerRolesPages } from './admin/roles.js'
 import { registerAdminPages } from './admin/pages.js'
 import { registerAuditPage } from './admin/audit.js'
 import { escape } from './admin/escape.js'
@@ -176,6 +177,7 @@ export function createApp(options: {
   })
   registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles })
   registerUsersPage(app, db)
+  registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles)
   registerAuditPage(app, db)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {

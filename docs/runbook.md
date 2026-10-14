@@ -170,8 +170,7 @@ See [authentication limits](../README.md#security-and-acceptance-boundaries) for
 
 ## Roles, credentials and health
 
-Sign in as an administrator through the HTTPS proxy and use `/admin` to create users with temporary passwords.
-Use `/admin/roles` to create named roles and replace the fixed tool grants, then assign roles through Users.
+Follow [browser administration](../README.md#browser-administration) to create local users, edit role grants and assign roles through the user detail pages.
 Administrator capability is separate from tool grants, and the last enabled administrator cannot be disabled or demoted.
 Grant changes apply on the next call, including calls using existing tokens.
 Users with no enabled granted tools receive an explanatory empty list.

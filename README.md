@@ -391,14 +391,23 @@ Administrators land on `/admin`; ordinary users land on `/account` for password 
 
 | Screen | Purpose |
 | --- | --- |
-| `/admin` | Create users, change roles, enable or disable accounts, unlock accounts and reset temporary passwords. |
+| `/admin` | Search and filter the users table by source, status or role; create local users. |
+| `/admin/users/:id` | Edit display name and administrator capability, assign roles, review effective tools, enable or disable, unlock and reset passwords. |
 | `/admin/tools` | Review pinned versions and cached health; enable supported tools and edit native settings. |
 | `/admin/credentials` | Replace credentials and run a fixed harmless credential test. |
-| `/admin/roles` | Create or rename roles and replace their tool grants. |
+| `/admin/roles` | List roles and create a role. |
+| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an empty role. |
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
+User detail combines grants from every assigned role and links each tool to its granting roles.
+Direct assignments are made by an administrator.
+Disabled users remain listed as role members and must have that role removed before it can be deleted.
+Deleting an empty role removes its tool grants and records an audit event.
+User search matches literal text anywhere in a username or display name, ignoring case.
+The users and role members tables show matching totals; Next page retains the current filters.
+See the [shared API contracts](src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
 The last enabled administrator cannot be disabled or demoted.
 Mutations use revision checks and audit commits; reload stale forms rather than overwriting newer changes.
 After 15 minutes without password confirmation, administration mutations require reauthentication.

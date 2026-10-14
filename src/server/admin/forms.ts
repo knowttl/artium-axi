@@ -1,5 +1,18 @@
 import type Database from 'better-sqlite3'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
+import type { z } from 'zod'
+import { errorResponseSchema } from '../../shared/api.js'
+import { ArtiumError } from '../../shared/errors.js'
 import { escape } from './escape.js'
+
+export async function adminRead<T>(app: FastifyInstance, request: FastifyRequest, url: string, schema: z.ZodType<T>): Promise<T> {
+  const response = await app.inject({ method: 'GET', url, headers: { cookie: request.headers.cookie ?? '' } })
+  if (response.statusCode >= 400) {
+    const { error } = errorResponseSchema.parse(response.json())
+    throw new ArtiumError(error.code, error.message, error.next)
+  }
+  return schema.parse(response.json())
+}
 
 export function adminNav(current: string): string {
   return `<nav aria-label="Administration">${[['/admin', 'Users'], ['/admin/tools', 'Tools'], ['/admin/credentials', 'Credentials'], ['/admin/roles', 'Roles'], ['/admin/audit', 'Audit']].map(([path, label]) =>
@@ -8,8 +21,8 @@ export function adminNav(current: string): string {
 
 export function pageHelp(title: string): string {
   const help: Record<string, string> = {
-    Users: '<p>Create a local account with a temporary password and share it securely. The person must change it before using tools. Administrator capability allows managing all users, roles and credentials; tool access still comes from roles.</p><p>Disable blocks sign-in and revokes all browser and CLI sessions immediately. Enable permits sign-in again. Unlock clears failed sign-in attempts. Reset password revokes all sessions and requires a password change. Assign roles replaces the entire selection and applies to the next tool call.</p>',
-    Roles: '<p>Create a role, select its tools and assign the role on Users. Tool grants apply on the next call, including calls using existing tokens. Renaming a role keeps its members and grants. Saving grants replaces the entire selection.</p>',
+    Users: '<p>Search usernames or display names, then filter by sign-in source, status or role. Open a username to edit its profile, roles and sign-in controls. Create a local account with a temporary password and share it securely. The person must change it before using tools.</p><p>Administrator capability allows managing all users, roles and credentials; tool access still comes from roles. Direct means an administrator assigned the role. Effective tools combine all assigned roles; disabled users or tools cannot run calls.</p><p>Disable blocks sign-in and revokes all browser and CLI sessions immediately. Enable permits sign-in again. Unlock clears failed sign-in attempts. Reset password revokes all sessions and requires a password change. Assign roles replaces the entire selection and applies to the next tool call.</p>',
+    Roles: '<p>Create a role, open its name, select its tools and assign the role on a user detail page. Tool grants apply on the next call, including calls using existing tokens. Renaming a role keeps its members and grants. Saving grants replaces the entire selection.</p><p>Members lists everyone assigned this role, including disabled users. Direct means an administrator assigned it. A role can be deleted only after removing it from every member; deletion also removes its tool grants.</p>',
     Tools: '<p>Set a credential on Credentials, test it, enable the tool here, then grant it to a role on Roles and assign that role on Users.</p><p>Native settings replace the entire object; {} clears it. Settings that permit writes control what the native tool may change. Disabling a tool blocks new calls. Unknown health means no current check; error means the last check failed. Saving settings clears cached health.</p>',
     Credentials: '<p>Enter a complete replacement, including every native setting to retain. Omitted settings are cleared. Stored secrets are never displayed. Secret fields take the secret itself; object and array fields take JSON. The profile schema explains conditional requirements.</p><p>Test credential runs one fixed harmless read: Falcon auth status, Vectra health list, Azure account list, or Graph entra user list --limit 1. It does not enable the tool or grant access. Saving clears cached health; test again before enabling.</p>',
     Audit: '<p>Filter by user, tool, exact outcome or an inclusive UTC time range, such as 2026-01-01T00:00:00Z. Empty filters match all records. Next page keeps the filters; First page includes newly recorded events.</p><p>Sign-in and reauth record authentication; admin-change records configuration changes; run-start and run-terminal record tool calls. Success and completed indicate success; other outcomes are error codes. Read means no write journal activity, write means a mutation intent was recorded, and unknown means the evidence is incomplete. Write does not guarantee a remote change succeeded.</p>',
