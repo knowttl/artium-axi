@@ -5,6 +5,7 @@ import { decode, encode } from '@toon-format/toon'
 import { toolView } from './views.js'
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
+import graph from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 
 test('Falcon discovery hosts every indented executable example', () => {
   const output = decode(toolView({ name: 'falcon-axi', status: 'ok', version: falcon.version })) as { upstreamHelp: string }
@@ -39,7 +40,7 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
   })
 
 test('Graph static tool help hides managed flags and hosts its examples', () => {
-  const output = toolView({ name: 'mg-axi', status: 'ok', version: '0.1.6' })
+  const output = toolView({ name: 'mg-axi', status: 'ok', version: graph.version })
   expect(output).not.toMatch(/--(?:profile|config|scopes)\b/)
   expect(output).toContain('artium-axi mg-axi')
   expect(output).not.toMatch(/npx -y @knowttl\/mg-axi/)
