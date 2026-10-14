@@ -542,6 +542,7 @@ test('user detail combines overlapping role grants and reports disabled access w
   expect(detail.effectiveTools).toEqual([
     { name: 'az-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'falcon-axi', enabled: true, roleIds: ['extra', 'synthetic-role'] },
+    { name: 'ldap-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'mg-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'vectra-axi', enabled: false, roleIds: ['synthetic-role'] },
   ])
