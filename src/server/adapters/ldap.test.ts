@@ -3,9 +3,11 @@ import { spawnSync } from 'node:child_process'
 import { createLdapAdapter, ldapCredentialSchema, ldapManifest } from './ldap.js'
 import { toolView } from '../../cli/views.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
+import inventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const reference = { id: 'synthetic-ldap', tool: 'ldap-axi' as const, revision: 1 }
 const credential = { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' }
+const parserScript = 'import { parse } from "./tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js"; process.stdout.write(JSON.stringify(parse(process.argv.slice(2)).flags))'
 
 test.each([
   credential,
@@ -88,13 +90,36 @@ test('LDAP discovery advertises hosted reads without credential overrides', () =
   expect(output).not.toMatch(/--(?:auth|url|config|profile|ca-file|tls-no-verify)\b/)
 })
 
-test('published LDAP help hosts usage and examples while hiding managed flags', () => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js', 'user', 'list', '--help'], { encoding: 'utf8' })
+test.each(inventory.commands)('published $command help hosts commands and managed credentials', route => {
+  const args = route.command === 'home' ? [] : route.command.split(' ')
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js', ...args, '--help'], { encoding: 'utf8' })
   expect(result.status, result.stderr).toBe(0)
   const output = rewriteSuggestions(result.stdout, 'ldap-axi')
-  expect(output).toContain('Usage: artium-axi ldap-axi user list [flags]')
-  expect(output).toContain('use artium-axi ldap-axi entry search')
-  expect(output).toContain('--limit')
-  expect(output).not.toMatch(/--(?:auth|url|config|profile|ca-file|tls-no-verify)\b/)
+  if (route.command !== 'home') expect(output).toContain(`Usage: artium-axi ldap-axi ${route.command} `)
+  expect(output).toContain('Artium uses stored simple-bind credentials over verified LDAPS or StartTLS')
+  expect(output).not.toMatch(new RegExp(`--(?:${ldapManifest.unsafeOverrides.join('|')})\\b`))
+  expect(output).not.toMatch(/(?<!artium-axi )ldap-axi\b|Authentication defaults to auto|GSSAPI transport|profile list|config path/)
   expect(rewriteSuggestions(output, 'ldap-axi')).toBe(output)
+})
+
+test.each(inventory.commands.flatMap(route => Object.entries(route.flags)
+  .filter(([flag, type]) => type === 'value' && !ldapManifest.unsafeOverrides.includes(flag))
+  .map(([flag]) => ({ route, flag }))))('$route.command preserves the complete inline $flag value', async ({ route, flag }) => {
+  const args = route.command === 'home' ? [] : route.command.split(' ')
+  if (route.positionalInput) args.push('uid=synthetic,ou=people')
+  const value = 'synthetic=value=with=equals'
+  const call = await createLdapAdapter({ getCredential: async () => credential })
+    .prepare([...args, `--${flag}=${value}`, '--help'], reference)
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', parserScript, '--', 'package.json', ...call.args], { encoding: 'utf8' })
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(result.stdout)[flag]).toBe(value)
+  expect(call.args).toEqual([...args, `--${flag}`, value, '--help'])
+})
+
+test('preserves an empty inline root DSE base', async () => {
+  const call = await createLdapAdapter({ getCredential: async () => credential })
+    .prepare(['entry', 'search', '--base=', '--scope=base'], reference)
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', parserScript, '--', 'package.json', ...call.args], { encoding: 'utf8' })
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(result.stdout)).toEqual({ base: '', scope: 'base' })
 })

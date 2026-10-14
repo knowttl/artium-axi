@@ -15,6 +15,7 @@ const managedFlags: Record<string, string[]> = {
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
 type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown } } }
+const ldapHelp = /^(?:Read Active Directory and LDAPv3 directories\.|(?:entry (?:search|show)|auth status) |Usage: (?:artium-axi )?ldap-axi )/m
 
 export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help, tool: string): string {
   const flags = managedFlags[tool]
@@ -34,7 +35,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
   if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))
-    || tool === 'ldap-axi' && /^Usage: ldap-axi /m.test(output)) return hostedHelp(output, tool, flags, true)
+    || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
   try {
@@ -127,6 +128,14 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'ldap-axi' && commands && ldapHelp.test(help)) {
+    const guidance = 'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.'
+    help = help.replace(/^(?:Authentication defaults to auto|Use --auth simple|Select configuration with|The URL scheme selects the GSSAPI transport|Use --tls-max-version)[^\r\n]*(?:\r?\n|$)/gm, '')
+      .replace(/^Commands: [^\r\n]*/m, `Commands: ${ldap.commands.filter(route => route.command !== 'home').map(route => route.command).join(', ')}`)
+      .replace(/^(entry (?:search|show)|auth status) /, 'Usage: ldap-axi $1 ')
+      .replace(/^Example: /gm, 'Examples: ')
+    if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
+  }
   const selectors = flags.join('|')
   const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|Valid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
     (_, label: string, listed: string, ending: string) => {

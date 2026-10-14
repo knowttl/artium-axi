@@ -23,6 +23,7 @@ function ldapArguments(args: readonly string[], input: RunnerInput = {}): string
     positionals++
     index++
   }
+  const normalized = args.slice(0, index)
   for (; index < args.length; index++) {
     const token = args[index]
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(token)
@@ -35,15 +36,17 @@ function ldapArguments(args: readonly string[], input: RunnerInput = {}): string
     seen.add(name)
     if (flags[name] === 'boolean') {
       if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
+      normalized.push(token)
     } else {
       const value = inline ?? args[++index]
       if (value === undefined || value.startsWith('-') || value === '' && name !== 'base') throw new ArtiumError('INVALID_INPUT')
+      normalized.push(`--${name}`, value)
     }
   }
   if (positionals > Number(route.positionalInput) || route.positionalInput && !seen.has('help') && positionals !== 1) {
     throw new ArtiumError('INVALID_INPUT')
   }
-  return [...args]
+  return normalized
 }
 
 export function createLdapAdapter(source: SecretSource,
