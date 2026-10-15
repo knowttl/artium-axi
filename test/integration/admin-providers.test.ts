@@ -5,6 +5,8 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { browserCookie } from '../../src/server/auth/browser.js'
+import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -55,6 +57,19 @@ async function save(id: string, value: Record<string, unknown>, expectedRevision
     payload: { value, expectedRevision, expectedProviderRevision } })
 }
 const value = { tenantId, clientId, auth: 'secret', clientSecret: 'CANARY-provider-secret' }
+
+test('setup guide Users link opens the users page', async () => {
+  const provider = await create()
+  const session = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf')
+  const browserHeaders = { cookie: `${browserCookie}=${session.id}` }
+  const guide = await app.inject({ url: '/admin/settings/sign-in/' + provider.id, headers: browserHeaders })
+  expect(guide.statusCode).toBe(200)
+  const setupGuide = guide.body.split('<h2>Entra setup guide</h2>')[1]!
+  const usersLink = setupGuide.match(/<a href="([^"]+)">Users<\/a>/)![1]!
+  const users = await app.inject({ url: usersLink, headers: browserHeaders })
+  expect(users.statusCode).toBe(200)
+  expect(users.body).toContain('<h1>Users</h1>')
+})
 
 async function activation(id: string, enabled = true, expectedRevision = 2, authorization = headers) {
   return app.inject({ method: 'PATCH', url: base + '/' + id + '/activation', headers: authorization,
