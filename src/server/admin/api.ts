@@ -45,18 +45,18 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   }
 
   function readUser(id: string): PublicUser {
-    const row = db.prepare(`SELECT id, username, display_name AS displayName, source, disabled, administrator,
+    const row = db.prepare(`SELECT id, username, display_name AS displayName, source, disabled, administrator, break_glass AS breakGlass,
       must_change AS mustChange, failed_attempts AS failedAttempts, locked_until AS lockedUntil,
       revision, updated_at AS updatedAt, updated_by AS updatedBy, archived_at AS archivedAt FROM users WHERE id = ?`).get(id) as
-      (Omit<PublicUser, 'enabled' | 'administrator' | 'mustChange' | 'roleIds' | 'roleGrants'> &
-        { disabled: number, administrator: number, mustChange: number }) | undefined
+      (Omit<PublicUser, 'enabled' | 'administrator' | 'breakGlass' | 'mustChange' | 'roleIds' | 'roleGrants'> &
+        { disabled: number, administrator: number, breakGlass: number, mustChange: number }) | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     const { disabled, ...fields } = row
     const roleGrants = db.prepare('SELECT role_id AS roleId, origin FROM user_roles WHERE user_id = ? ORDER BY role_id, origin')
       .all(id) as PublicUser['roleGrants']
     const roleIds = [...new Set(roleGrants.map(grant => grant.roleId))]
     return adminUserSchema.parse({ ...fields, enabled: !disabled, administrator: Boolean(row.administrator),
-      mustChange: Boolean(row.mustChange), roleIds, roleGrants })
+      breakGlass: Boolean(row.breakGlass), mustChange: Boolean(row.mustChange), roleIds, roleGrants })
   }
 
   registerToolAdmin(app, db, audit, authorize, tools)
@@ -204,17 +204,23 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     authorize(request)
     const { id } = parse(adminUserParamsSchema, request.params)
     const input = parse(adminUserRoutes.patch.input, request.body)
-    return change(request, adminUserRoutes.patch.auditEvent, id, readUser, (actor, now) => {
+    const action = input.breakGlass === undefined ? adminUserRoutes.patch.auditEvent : input.breakGlass ? 'designate-break-glass' : 'remove-break-glass'
+    return change(request, action, id, readUser, (actor, now) => {
       const current = readUser(id)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const enabled = input.enabled ?? current.enabled
+      const administrator = input.administrator ?? current.administrator
+      const breakGlass = input.breakGlass ?? (current.breakGlass && administrator)
+      if (breakGlass && (current.source !== 'local' || !administrator)) {
+        throw new ArtiumError('INVALID_INPUT', 'Break-glass designation requires a local administrator.', 'Use a local administrator account for emergency password sign-in.')
+      }
       if (enabled && current.archivedAt !== null) {
         throw new ArtiumError('INVALID_INPUT', 'Archived users cannot be enabled.', 'Create a new user if access is needed again.')
       }
-      db.prepare(`UPDATE users SET display_name = ?, disabled = ?, administrator = ?, revision = revision + 1,
+      db.prepare(`UPDATE users SET display_name = ?, disabled = ?, administrator = ?, break_glass = ?, revision = revision + 1,
         updated_at = ?, updated_by = ? WHERE id = ? AND revision = ?`).run(input.displayName ?? current.displayName,
-        Number(!enabled), Number(input.administrator ?? current.administrator), now, actor, id, input.expectedRevision)
-      if (!enabled) revokeUserSessions(db, id, now)
+        Number(!enabled), Number(administrator), Number(breakGlass), now, actor, id, input.expectedRevision)
+      if (!enabled || (current.breakGlass && !breakGlass)) revokeUserSessions(db, id, now)
     })
   } })
   app.route({ method: adminUserRoutes.unlock.method, url: adminUserRoutes.unlock.path, handler: async request => {

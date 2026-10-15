@@ -8,7 +8,7 @@ import { accountSessionRoutes, loginSchema, passwordChangeSchema, reauthSchema, 
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from './attempts.js'
-import { LocalAuthProvider } from './local.js'
+import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
 import { adminNav, pageHelp } from '../admin/forms.js'
@@ -27,7 +27,7 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
   const remaining = Math.max(0, Math.ceil((until - Date.now()) / 60_000))
   const csrf = current ? reply.generateCsrf() : ''
   const header = current ? `<header class="site-header"><a class="brand" href="${current.administrator && !current.must_change ? '/admin' : '/account'}">artium-axi</a>
-    <div><p>Signed in as ${escape(current.display_name)}.</p><small>${current.source === 'sso' ? 'SSO sign-in' : 'Local password sign-in'}</small></div>
+    <div><p>Signed in as ${escape(current.display_name)}.</p><small>${current.source === 'sso' ? 'SSO sign-in' : current.break_glass ? 'Break-glass account' : 'Local password sign-in'}</small></div>
     ${current.administrator && !current.must_change ? `<p data-reauth-until="${until}" data-reauth-method="${sso ? 'sso' : 'local'}">${remaining ? `Changes allowed for ${remaining} min` : 'Identity confirmation required for changes'}</p>` : ''}
     <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}">${sso ? '<label><input type="checkbox" name="providerLogout" value="true"> Also sign out of Microsoft</label>' : ''}<button>Sign out</button></form></header>` : ''
   const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : `<nav aria-label="Account"><a href="/account">Account</a>${current.source === 'local' ? '<a href="/password">Change password</a>' : ''}</nav>`}</aside>` : ''
@@ -99,6 +99,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     const providers = db.prepare("SELECT id, name FROM sso_providers WHERE kind = 'entra' AND enabled = 1 ORDER BY name, id").all() as { id: string, name: string }[]
     return browserPage(reply, 'Sign in', form(reply, '/login', 'Sign in',
       '<p><label>Username <input name="username" autocomplete="username" required></label></p>' + passwordField('password', 'Password', 'current-password')) +
+      (providers.length ? '<p>Local password sign-in is limited to designated break-glass administrators. Every break-glass sign-in and password confirmation is flagged in Audit.</p>' : '') +
       providers.map(provider => `<p><a href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start">Sign in with Microsoft (${escape(provider.name)})</a></p>`).join(''))
   })
   app.post('/login', async (request, reply) => {
@@ -111,7 +112,8 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
         event: 'sign-in', userId: null, tool: null, outcome: 'SIGN_IN_FAILED' })
       throw error
     }
-    const result = audit.change({ ...context(request), event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success' }, () => {
+    const result = audit.change({ ...context(request), event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success',
+      authenticationMethod: localAuthenticationMethod(db, identity.userId) }, () => {
       if (request.cookies[browserCookie]) {
         const previous = session(request)
         db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?').run(Date.now(), previous.id)
@@ -204,7 +206,8 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     await attempts.signIn(current.username, input.data.password, context(request))
     const latest = session(request)
     const now = Date.now()
-    audit.change({ ...context(request), event: 'reauth', userId: latest.user_id, tool: null, outcome: 'success' }, () => {
+    audit.change({ ...context(request), event: 'reauth', userId: latest.user_id, tool: null, outcome: 'success',
+      authenticationMethod: localAuthenticationMethod(db, latest.user_id) }, () => {
       db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(now, latest.id)
     })
     return now + authDefaults.recentAuthMs

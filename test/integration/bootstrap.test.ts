@@ -161,6 +161,10 @@ test.each(['Synthetic-Admin', '-Synthetic-Admin'])('offline executable recovery 
   const copy = join(directory, 'copy', 'artium.db')
   mkdirSync(join(directory, 'copy'))
   await source.backup(copy)
+  const ssoCopy = openStore(copy, provider)
+  ssoCopy.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  ssoCopy.close()
   const recoveryPassword = 'CANARY-recovery-password'
   const entry = await bundle("await import('./src/server/maintenance.ts')")
   writeFileSync(join(directory, '-password'), recoveryPassword)
@@ -174,6 +178,7 @@ test.each(['Synthetic-Admin', '-Synthetic-Admin'])('offline executable recovery 
     expect(result.stdout + result.stderr).not.toContain(recoveryPassword)
     expect(result.stderr).toBe('')
     expect(await new LocalAuthProvider(recovered).signIn(username, recoveryPassword)).toEqual({ userId, mustChange: true })
+    expect(recovered.prepare('SELECT break_glass FROM users').get()).toEqual({ break_glass: 1 })
     expect(recovered.prepare('SELECT failed_attempts, locked_until FROM users').get()).toEqual({ failed_attempts: 0, locked_until: null })
     expect(() => verifyAccessToken(recovered, token)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
     expect(recovered.prepare('SELECT revoked_at FROM sessions').get()).toEqual({ revoked_at: expect.any(Number) })

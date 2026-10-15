@@ -80,6 +80,7 @@ test('upgrades a copy of a populated pre-SSO store atomically and safely reruns'
     db.close()
     db = openStore(copy, provider)
     expect(snapshot(db)).toMatchObject(previous)
+    expect(db.prepare('SELECT break_glass FROM users').all()).toEqual([{ break_glass: 0 }])
     expect(db.prepare('SELECT authentication_method, provider_id, subject FROM audit').get())
       .toEqual({ authentication_method: null, provider_id: null, subject: null })
     expect(db.prepare('SELECT user_id, role_id, origin FROM user_roles').all())

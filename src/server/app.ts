@@ -11,7 +11,7 @@ import type { CredentialProfile } from './adapters/credential-profile.js'
 import type { ToolName } from './store/credential-store.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
-import { LocalAuthProvider } from './auth/local.js'
+import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
@@ -146,6 +146,7 @@ export function createApp(options: {
       throw error
     }
     return audit.change({ event: 'sign-in', userId: identity.userId, tool: null, outcome: 'success',
+      authenticationMethod: localAuthenticationMethod(db, identity.userId),
       requestId: request.id, clientAddress: request.ip }, () => issueLoginTokens(db, identity.userId)).value
   })
   app.post('/v1/auth/reauth', async (request, reply) => {
@@ -160,6 +161,7 @@ export function createApp(options: {
     const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as { username: string }
     await authAttempts.signIn(user.username, input.data.password, { requestId: request.id, clientAddress: request.ip })
     return audit.change({ event: 'reauth', userId, tool: null, outcome: 'success',
+      authenticationMethod: localAuthenticationMethod(db, userId),
       requestId: request.id, clientAddress: request.ip }, () => issueRecentAuthTicket(db, token)).value
   })
   app.post('/v1/auth/refresh', async request => {

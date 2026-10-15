@@ -3,7 +3,7 @@
 This is P3c-1, following invitation claims and role synchronization.
 P3c was split before implementation so each PR can be reviewed and exercised independently.
 This slice adds browser SSO reauthentication, pending-form resumption and optional provider sign-out.
-P3c-2 adds break-glass designation and shared local-password enforcement/audit, safe activation, the Entra setup guide, copy buttons, match counts and complete P3 browser acceptance.
+See [P3c-2 verification](verification-p3c2.md) for its split, break-glass acceptance and remaining work.
 Providers remain disabled through all production settings routes; fresh installations keep sign-in off.
 CLI SSO/device approval and generic OIDC remain later phases.
 
@@ -25,7 +25,7 @@ The popup signals its opener using the existing external script under the strict
 The original page verifies the message source and origin, then reads the server's confirmation state and verifies the same session before resubmitting once.
 Cancel, closing the popup or failed confirmation leaves the draft in place.
 The standalone `/reauth` page also offers the Microsoft confirmation link for SSO users.
-Local password confirmation retains its existing flow.
+Local password confirmation follows the [local-password policy](../README.md#sign-in-settings).
 
 Sign-out revokes the artium session and family before any optional provider discovery or navigation.
 The Microsoft checkbox uses the bound provider's discovered HTTPS end-session endpoint, client ID and same-origin `/login` return URI.

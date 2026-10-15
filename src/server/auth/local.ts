@@ -2,7 +2,7 @@ import argon2 from 'argon2'
 import type Database from 'better-sqlite3'
 import { passwordSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import type { Audit } from '../audit/audit.js'
+import type { Audit, AuditEvent } from '../audit/audit.js'
 import { passwordDefaults } from '../config.js'
 import type { AuthProvider } from './auth-provider.js'
 import commonPasswords from './common-passwords.v1.json' with { type: 'json' }
@@ -43,6 +43,16 @@ interface LocalUser {
   disabled: number
 }
 
+// Shared by password login, confirmation and changes, including their audit boundaries.
+export function localAuthenticationMethod(db: Database.Database, userId: string): 'local' | 'break-glass' {
+  const user = db.prepare("SELECT break_glass, administrator FROM users WHERE id = ? AND source = 'local' AND disabled = 0")
+    .get(userId) as { break_glass: number, administrator: number } | undefined
+  if (!user) throw new ArtiumError('SIGN_IN_FAILED')
+  const breakGlass = Boolean(user.break_glass && user.administrator)
+  if (!breakGlass && db.prepare('SELECT 1 FROM sso_providers WHERE enabled = 1').get()) throw new ArtiumError('SIGN_IN_FAILED')
+  return breakGlass ? 'break-glass' : 'local'
+}
+
 export class LocalAuthProvider implements AuthProvider {
   constructor(private readonly db: Database.Database) {}
 
@@ -53,12 +63,14 @@ export class LocalAuthProvider implements AuthProvider {
     if (!user || !matches || user.disabled) throw new ArtiumError('SIGN_IN_FAILED')
     const current = this.readUser(user.id)
     if (!current || current.disabled || current.password_hash !== user.password_hash) throw new ArtiumError('SIGN_IN_FAILED')
+    localAuthenticationMethod(this.db, current.id)
     return { userId: current.id, mustChange: Boolean(current.must_change) }
   }
 
   async changePassword(userId: string, currentPassword: string | undefined, newPassword: string, audit: Audit,
     context: { requestId: string, clientAddress: string | null }, now = Date.now(), proof?: string | { sessionId: string }): Promise<void> {
     const user = this.readUser(userId)
+    localAuthenticationMethod(this.db, userId)
     const verifyProof = () => {
       if (typeof proof === 'string') {
         const token = verifyPasswordToken(this.db, proof)
@@ -82,7 +94,9 @@ export class LocalAuthProvider implements AuthProvider {
     }
     if (!user || user.disabled || (restricted && !user.must_change)) throw new ArtiumError('SIGN_IN_FAILED')
     const hash = await hashPassword(newPassword)
-    audit.change({ event: 'password-change', userId, tool: null, outcome: 'success', ...context }, () => {
+    const event: AuditEvent = { event: 'password-change', userId, tool: null, outcome: 'success', ...context }
+    audit.change(event, () => {
+      event.authenticationMethod = localAuthenticationMethod(this.db, userId)
       const current = verifyProof()
       if (!current.restricted && !current.recent && !passwordConfirmed) throw new ArtiumError('SIGN_IN_FAILED')
       const { changes } = this.db.prepare(`UPDATE users SET password_hash = ?, must_change = 0, revision = revision + 1,

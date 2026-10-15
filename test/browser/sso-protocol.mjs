@@ -188,6 +188,43 @@ test('uninvited identity is refused without creating a session', async () => {
   assert.equal(evidence.audit.at(-1).outcome, 'SSO_NOT_INVITED')
 })
 
+test('SSO-enabled login page refuses an undesignated local administrator', async () => {
+  await configure({ localBreakGlass: false })
+  browser(`await page.open(base + '/login');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('designated break-glass administrators')), 'Password policy help is missing');
+    await page.fill('[name=username]', 'synthetic-user');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('form[action="/login"] button');
+    await page.wait('main small');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('SIGN_IN_FAILED')), 'Undesignated administrator was admitted');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions.length, 0)
+})
+
+test('break-glass browser sign-in and password confirmation are highlighted in Audit', async () => {
+  await configure({ localBreakGlass: true })
+  browser(`await page.open(base + '/login');
+    await page.fill('[name=username]', 'synthetic-user');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('form[action="/login"] button');
+    await page.wait('form[action="/v1/admin/users"]');
+    check(await page.eval(() => document.body.innerText.includes('Break-glass account')), 'Break-glass identity flag missing');`)
+  assert.equal((await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ advanceMs: 900_000 }) })).status, 200)
+  browser(`await page.open(base + '/reauth');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('form[action="/reauth"] button');
+    await page.wait('form[action="/v1/admin/users"]');
+    await page.open(base + '/admin/audit');
+    await page.wait('.audit-table');
+    check(await page.eval(() => Array.from(document.querySelectorAll('.audit-table strong')).filter(node => node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.deepEqual(evidence.events.filter(event => ['sign-in', 'reauth'].includes(event.event))
+    .map(event => ({ event: event.event, method: event.authentication_method })), [
+    { event: 'sign-in', method: 'break-glass' }, { event: 'reauth', method: 'break-glass' },
+  ])
+})
+
 test('tampered ID token is refused in the real callback page', async () => {
   await configure({ tamperSignature: true })
   browser(`${signIn}

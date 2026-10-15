@@ -35,7 +35,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database): 
       <button>Apply filters</button> <a href="/admin/audit">Clear filters</a></form>`
     const names = new Map(users.map(user => [user.id, user.username]))
     const records = page.records.map(record => `<tr><td>${timestamp(record.occurred_at)}</td>
-      <td><details><summary>${escape(record.event)} <small>#${escape(record.id)}</small></summary><dl>${Object.entries(record).map(([key, value]) =>
+      <td><details><summary>${record.authentication_method === 'break-glass' ? '<strong>Break-glass</strong> ' : ''}${escape(record.event)} <small>#${escape(record.id)}</small></summary><dl>${Object.entries(record).map(([key, value]) =>
         `<dt>${escape(key)}</dt><dd>${value === null ? 'Not recorded' : ['occurred_at', 'checked_at', 'cutoff'].includes(key) ? timestamp(Number(value)) : escape(value)}</dd>`).join('')}</dl></details></td>
       <td>${escape(record.user_id === null ? 'System' : names.get(record.user_id) ?? record.user_id)}</td>
       <td>${escape(record.tool ?? 'None')}</td><td>${escape(record.outcome)}</td></tr>`).join('')

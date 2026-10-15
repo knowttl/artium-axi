@@ -67,6 +67,17 @@ async function cli(args: string[], input?: string, environment: NodeJS.ProcessEn
 }
 const login = (password = startingPassword) => cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)
 
+test('bundled local CLI sign-in under SSO requires a designated break-glass administrator and flags its use', async () => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  expect(await login()).toMatchObject({ code: 1, stdout: expect.stringContaining('SIGN_IN_FAILED') })
+  expect(existsSync(store.file)).toBe(false)
+  db.exec('UPDATE users SET administrator = 1, break_glass = 1')
+  expect(await login()).toMatchObject({ code: 0, stdout: expect.stringContaining('authenticated') })
+  expect(db.prepare("SELECT authentication_method FROM audit WHERE event = 'sign-in' AND outcome = 'success'").all())
+    .toEqual([{ authentication_method: 'break-glass' }])
+})
+
 test.each(['session', 'all', 'archive'])('administrator %s revocation ends a bundled CLI session and refresh cannot restore it', async action => {
   await login()
   db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator, must_change)
