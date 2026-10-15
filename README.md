@@ -535,9 +535,6 @@ Test that emergency account in a separate browser before enabling SSO, then test
 Local checks cannot prove provider credential acceptance or access-policy configuration.
 Saving provider settings or credentials disables that provider; review and enable it again afterwards.
 Disabling all providers restores ordinary local password sign-in; existing artium sessions remain active.
-Per-rule Who matches counts use enabled, unarchived users’ last successful sign-in role claims and are refreshed on page reload.
-They include matches for new rules before the next role sync; users without recorded sign-in claims are unknown, and these counts do not query Entra.
-See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility.
 Local sign-in continues to work while all providers are disabled.
 On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
 Designation requires recent identity confirmation, checks the user revision and is audited.
@@ -549,7 +546,9 @@ See [break-glass verification](docs/verification-p3c2.md) for local-password pol
 On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 Generic provider pages offer the same rule editor with a claim-name field.
 Each rule's Who matches link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
-These saved claims are not a live directory query; users who have never signed in are unknown.
+Counts refresh on page reload and include matches for new rules before the next role sync.
+These saved claims are not a live directory query; users without recorded sign-in claims are unknown.
+See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility and [claim-rule verification](docs/verification-p5b.md) for local evidence and pending maintainer live acceptance.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
 Every rule change requires the [confirmation described under browser administration](#browser-administration) and is audited atomically; stale edits require reloading the page.
@@ -567,7 +566,7 @@ Every mutation requires administrator capability and the [confirmation described
 Lists never return link tokens or hashes; expiry is evaluated when read.
 The [invitation API contracts](src/shared/api.ts) own the request and response fields.
 When a provider is enabled, its invitation link starts browser sign-in and requires an exact, case-sensitive match of the expected username.
-Claiming atomically binds the immutable provider identity, consumes the invitation, adds its direct roles and synchronizes Entra rule roles.
+Claiming atomically binds the immutable provider identity, consumes the invitation, adds its direct roles and synchronizes that provider's rule roles.
 Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
