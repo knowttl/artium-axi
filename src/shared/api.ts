@@ -204,11 +204,11 @@ export const adminToolRoutes = {
   test: { method: 'POST', path: '/v1/admin/tools/:tool/test', input: z.strictObject({}), response: healthSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'credential-test' },
 } as const
-// P2b configures only disabled single-tenant Entra providers. Settings never contact
+// Settings configure single-tenant Entra providers without contacting
 // the identity service. Tenant changes clear credentials; all writes are audited.
 const providerSettingsSchema = z.strictObject({ name: z.string().trim().min(1).max(256), tenantId: z.uuid() })
 export const adminProviderSchema = z.strictObject({ id: accountId, name: z.string(), kind: z.literal('entra'),
-  issuer: z.string(), tenantId: z.uuid(), enabled: z.literal(false), revision: z.number().int().positive(),
+  issuer: z.string(), tenantId: z.uuid(), enabled: z.boolean(), revision: z.number().int().positive(),
   updatedAt: z.number().nullable(), updatedBy: accountId.nullable() })
 export const adminProviderCredentialSchema = adminCredentialSchema.omit({ tool: true })
 export const adminProviderRoutes = {
@@ -228,6 +228,9 @@ export const adminProviderRoutes = {
     input: z.strictObject({ value: z.record(z.string(), z.unknown()), expectedRevision: z.number().int().nonnegative(),
       expectedProviderRevision: z.number().int().positive() }), response: adminProviderCredentialSchema,
     auditEvent: 'replace-provider-credential' },
+  activation: { method: 'PATCH', path: '/v1/admin/sso/providers/:id/activation',
+    input: z.strictObject({ enabled: z.boolean(), expectedRevision: z.number().int().positive() }),
+    response: adminProviderSchema, auditEvent: 'update-local-policy' },
 } as const
 
 // Deletion or changes to mapping fields atomically clear only that rule's grants,

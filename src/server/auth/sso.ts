@@ -9,6 +9,7 @@ import { ssoDefaults } from '../config.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { escape } from '../admin/escape.js'
 import { AuthRateLimits } from './attempts.js'
+import { entraCredential } from './entra-credential.js'
 import { browserCookie, browserPage, cookieOptions } from './browser.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, type BrowserSession } from './sessions.js'
 import { hashToken, revokeUserSessions } from './tokens.js'
@@ -16,10 +17,6 @@ import { hashToken, revokeUserSessions } from './tokens.js'
 export type SsoFetch = NonNullable<oidc.DiscoveryRequestOptions[typeof oidc.customFetch]>
 const preauthCookie = 'artium-sso'
 const preauthOptions = { ...cookieOptions, path: '/auth/sso/', sameSite: 'lax' } as const
-const credentialSchema = z.discriminatedUnion('auth', [
-  z.object({ auth: z.literal('secret'), tenantId: z.uuid(), clientId: z.uuid(), clientSecret: z.string().min(1) }),
-  z.object({ auth: z.literal('certificate'), tenantId: z.uuid(), clientId: z.uuid(), privateKey: z.string().min(1), thumbprintSha256: z.string().regex(/^[a-fA-F0-9]{64}$/) }),
-])
 type Provider = { id: string, issuer: string, revision: number }
 type Pending = { provider: Provider, credentialRevision: number, config: oidc.Configuration, state: string,
   nonce: string, verifier: string, redirectUri: string, expiresAt: number, invitationHash?: string,
@@ -54,10 +51,9 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
   }
   async function configuration(current: Provider) {
     const stored = credentials?.read(current.id)
-    const parsed = credentialSchema.safeParse(stored?.value)
-    if (!parsed.success || !stored) throw new ArtiumError('SSO_PROVIDER_ERROR')
-    const value = parsed.data
-    if (current.issuer !== `https://login.microsoftonline.com/${value.tenantId}/v2.0`) throw new ArtiumError('SSO_PROVIDER_ERROR')
+    if (!stored) throw new ArtiumError('SSO_PROVIDER_ERROR')
+    let value: ReturnType<typeof entraCredential>
+    try { value = entraCredential(current.issuer, stored.value) } catch { throw new ArtiumError('SSO_PROVIDER_ERROR') }
     let authentication: oidc.ClientAuth
     let config: oidc.Configuration
     if (value.auth === 'secret') authentication = oidc.ClientSecretPost(value.clientSecret)
@@ -220,6 +216,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         const created = createBrowserSession(db, userId!, csrfSecret)
         const bound = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider_id = ? AND issuer = ? AND subject = ?')
           .get(userId, transaction.provider.id, transaction.provider.issuer, subject) as { id: string }
+        db.prepare('UPDATE identities SET role_claims = ?, claims_at = ? WHERE id = ?')
+          .run(JSON.stringify(identity.data.roles ?? []), Date.now(), bound.id)
         db.prepare('UPDATE sessions SET reauthenticated_at = NULL, identity_id = ? WHERE id = ?').run(bound.id, hashToken(created.id))
         if (request.cookies[browserCookie]) db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?')
           .run(Date.now(), hashToken(request.cookies[browserCookie]!))

@@ -232,7 +232,7 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
   browser(`
     await page.click('a[href="/admin/settings/sign-in"]');
     await page.wait('[name=tenantId]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO sign-in is not available yet')), 'Missing disabled-sign-in guidance');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -241,6 +241,7 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('tbody a');
     await page.click('tbody a');
     await page.wait('[data-certificate-pem]');
+    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('main').innerText.includes('Entra setup guide')), 'Activation offered before completing setup');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.fill('[data-certificate-pem]', ${JSON.stringify(fixture.certificatePem)});

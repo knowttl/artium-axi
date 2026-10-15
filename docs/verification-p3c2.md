@@ -3,8 +3,8 @@
 This is P3c-2a, following P3c-1's SSO reauthentication and optional provider sign-out.
 Firstmate approved the P3c-2 split before implementation under the maintainer's standing rule for smaller independently testable slices.
 P3c-2a delivers break-glass designation, shared local-password enforcement, browser and bearer confirmation, recovery and audit.
-P3c-2b will add safe activation, the Entra setup guide, copy buttons, match counts and full P3 fake-provider browser acceptance.
-Production provider settings still cannot activate SSO; a fresh installation keeps providers disabled and designates no accounts.
+See [P3c-2b verification](verification-p3c2b.md) for activation, setup-guide and match-count acceptance.
+The README owns current [provider activation and setup](../README.md#sign-in-settings).
 CLI SSO/device approval and generic OIDC remain later phases.
 
 ## Behaviour

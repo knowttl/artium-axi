@@ -42,6 +42,19 @@ details { border-top: 1px solid #a5b4c3; padding-top: 12px; } summary { cursor: 
 `
 
 export const adminScript = `
+for (const button of document.querySelectorAll('[data-copy]')) {
+  button.addEventListener('click', async () => {
+    const input = button.parentElement.querySelector('input, textarea');
+    const status = button.parentElement.querySelector('[data-copy-status]');
+    try {
+      await navigator.clipboard.writeText(input.value);
+      status.textContent = 'Copied.';
+    } catch {
+      input.focus(); input.select();
+      status.textContent = 'Copy unavailable. Copy the selected text manually.';
+    }
+  });
+}
 for (const time of document.querySelectorAll('time[datetime]')) {
   time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }

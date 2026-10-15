@@ -513,7 +513,16 @@ Changing client or authentication requires a new secret; changing the provider t
 Settings and credential saves require administrator capability and the [confirmation described under browser administration](#browser-administration), check revisions, and are audited.
 The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
 
-Providers remain disabled and SSO sign-in is unavailable in this slice.
+Providers start disabled.
+The provider page includes the Entra setup guide, copy buttons for redirect and post-logout URIs, and an audited activation control requiring recent authentication.
+Activation requires a locally valid matching credential and an enabled, unlocked, unarchived break-glass local administrator with a permanent password.
+Test that emergency account in a separate browser before enabling SSO, then test an invitation claim and Microsoft sign-in while keeping break-glass access open.
+Local checks cannot prove Entra credential acceptance or Conditional Access configuration.
+Saving provider settings or credentials disables that provider; review and enable it again afterwards.
+Disabling all providers restores ordinary local password sign-in; existing artium sessions remain active.
+Per-rule Who matches counts use enabled, unarchived users’ last successful sign-in role claims and are refreshed on page reload.
+They include matches for new rules before the next role sync; users without recorded sign-in claims are unknown, and these counts do not query Entra.
+See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility.
 Local sign-in continues to work while all providers are disabled.
 On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
 Designation requires recent identity confirmation, checks the user revision and is audited.
@@ -521,7 +530,7 @@ The users table and signed-in header identify designated accounts.
 Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
 When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
 Fresh installations designate no accounts automatically and keep providers disabled.
-No activation control is exposed; see [break-glass verification](docs/verification-p3c2.md) for the current slice, fake-only evidence and remaining work.
+See [break-glass verification](docs/verification-p3c2.md) for local-password policy evidence and [P3 activation verification](docs/verification-p3c2b.md) for activation and complete fake-provider browser acceptance.
 On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
@@ -544,7 +553,7 @@ Claiming atomically binds the immutable Entra identity, consumes the invitation,
 Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
-See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) for fake-provider evidence and the remaining activation slice.
+See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) and [P3 activation verification](docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
 CLI SSO and generic OIDC discovery follow in later phases.
 
 ### Audit screen and API

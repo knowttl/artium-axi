@@ -409,6 +409,9 @@ Follow [Sign-in settings](../README.md#sign-in-settings) for provider setup and 
 Migration 016 adds a sign-in identity reference to browser sessions without backfilling existing sessions.
 Existing SSO sessions must sign in again before SSO confirmation or optional Microsoft sign-out can work.
 Local sessions follow the [local-password policy](../README.md#sign-in-settings) for confirmation.
+Migration 018 adds last-successful-sign-in role claims and their observation time to identities without backfilling existing identities.
+Existing identities remain unknown to Who matches counts until their next successful sign-in, even if they already hold rule-origin grants.
+See [Sign-in settings](../README.md#sign-in-settings) for match-count interpretation.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
 After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.

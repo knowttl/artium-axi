@@ -37,7 +37,7 @@ test('migration upgrades a copy of populated P2a data without changing it and sa
     await seedToolUser(original)
     seedProvider(original)
     original.exec(`INSERT INTO users (id, username, display_name, source, must_change) VALUES ('sso-person', 'synthetic-sso', 'SSO person', 'sso', 0);
-      INSERT INTO identities VALUES ('identity', 'sso-person', 'provider', 'https://identity.example', 'synthetic-subject', 1000);
+      INSERT INTO identities (id, user_id, provider_id, issuer, subject, created_at) VALUES ('identity', 'sso-person', 'provider', 'https://identity.example', 'synthetic-subject', 1000);
       INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('rule', 'provider', 'roles', 'Reader', 'synthetic-role');
       INSERT INTO user_roles (user_id, role_id, origin) VALUES ('sso-person', 'synthetic-role', 'rule');
       INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
@@ -51,6 +51,7 @@ test('migration upgrades a copy of populated P2a data without changing it and sa
     const upgraded = openStore(copy, key)
     try {
       expect(snapshot(upgraded)).toMatchObject(before)
+      expect(upgraded.prepare('SELECT role_claims, claims_at FROM identities').get()).toEqual({ role_claims: '[]', claims_at: null })
       expect(upgraded.prepare('SELECT break_glass FROM users ORDER BY rowid').all())
         .toEqual([{ break_glass: 0 }, { break_glass: 0 }])
       new ProviderCredentials(upgraded, key).replace('provider', value, 0, actor, 2000)

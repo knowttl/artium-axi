@@ -1,15 +1,15 @@
 # Browser SSO protocol verification
 
 P3b is delivered in two sequential slices.
-P3b-1 implements browser sign-in for already-linked Entra identities while provider activation remains unavailable.
+P3b-1 implemented browser sign-in for already-linked Entra identities before provider activation was available.
 P3b-2 adds invitation claiming with the expected-username guard, local account linking, rule role synchronization and labels.
-P3c-1 adds [SSO reauthentication and optional provider sign-out](verification-p3c.md), with activation still unavailable.
-See [P3c-2 verification](verification-p3c2.md) for the current slice boundary and remaining work.
+P3c-1 added [SSO reauthentication and optional provider sign-out](verification-p3c.md).
+See [P3 activation verification](verification-p3c2b.md) for the completed P3 scope and fake-provider browser acceptance.
 
 ## Protocol boundary
 
 The login page offers a plain link only for enabled Entra providers.
-Production settings still create and retain disabled providers; only the synthetic test fixture seeds an enabled provider.
+The README owns [provider activation and setup](../README.md#sign-in-settings).
 The start route uses tenant-specific discovery, encrypted client credentials, authorization code, S256 PKCE, nonce and query response mode.
 Certificate authentication signs a client assertion with the certificate fingerprint; client-secret authentication is supported too.
 An opaque Secure, HttpOnly, SameSite=Lax cookie identifies a bounded, process-local transaction; [ssoDefaults](../src/server/config.ts) owns its lifetime and capacity.
