@@ -79,6 +79,59 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/settings/sign-in');
+    await page.fill('[name=name]', 'Synthetic provider');
+    await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.click('form[action="/v1/admin/sso/providers"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('tbody a');
+    await page.click('tbody a');
+    await page.wait('[name=roleId]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('No role rules')), 'Missing rule empty state');
+    await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Readers');
+    await page.fill('form[action="/v1/admin/sso/role-rules"] [name=roleId]', 'synthetic-role');
+  `)
+  await expireConfirmation()
+  browser(`
+    await page.click('form[action="/v1/admin/sso/role-rules"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('details:has(form[data-method=DELETE])');
+    await page.click('details:has(form[data-method=DELETE]) > summary');
+    check(await page.eval(() => document.querySelector('details:has(form[data-method=DELETE])').innerText.includes('falcon-axi')), 'Missing target tool access');
+    await page.fill('details form[data-method=PATCH] [name=value]', 'Artium.Analysts');
+    await page.click('details form[data-method=PATCH] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('details form[data-method=PATCH] [name=value][value="Artium.Analysts"]');
+    await page.click('details:has(form[data-method=DELETE]) > summary');
+    check(await page.eval(() => document.querySelector('details form[data-method=PATCH] [name=expectedRevision]').value === '2'), 'Rule revision did not advance');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Rule editor overflows at 420px');
+    await page.click('details form[data-method=DELETE] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=cancel]');
+    check(await page.eval(() => !!document.querySelector('details form[data-method=DELETE]')), 'Cancel removed the rule');
+    await page.click('details form[data-method=DELETE] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('section:not(:has(form[data-method=DELETE])) > form[action="/v1/admin/sso/role-rules"]');
+    check(await page.eval(() => !document.querySelector('details form[data-method=DELETE]') && document.querySelector('main').innerText.includes('No role rules')), 'Rule was not removed');
+    check(await page.eval(async () => {
+      const providers = (await (await fetch('/v1/admin/sso/providers')).json()).providers;
+      const audit = (await (await fetch('/v1/admin/audit?event=admin-change')).json()).records;
+      return providers[0].enabled === false && ['create-role-rule', 'update-role-rule', 'delete-role-rule'].every(action =>
+        audit.filter(row => row.action === action && row.outcome === 'success').length === 1);
+    }), 'Rule audit missing or provider enabled');
+  `)
+})
+
 test('sign-in settings creates a disabled provider and saves a certificate without redisplaying its key', async () => {
   chrome(['resize', '420', '900'])
   browser(`
