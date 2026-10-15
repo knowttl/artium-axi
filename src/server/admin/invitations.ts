@@ -121,7 +121,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
         const action = adminInvitationRoutes.list.path + '/' + encodeURIComponent(invitation.id)
         const provider = providers.find(provider => provider.id === invitation.providerId)!
         return `<details data-invitation="${escape(invitation.id)}"><summary>${escape(invitation.displayName)} (${escape(invitation.expectedUsername)}) - ${invitation.status}</summary>
-          <p>Provider: ${escape(provider.name)}. ${invitation.userId ? 'Links an existing account' : 'Creates a new account'}. Expires: ${timestamp(invitation.expiresAt)}. Revision ${invitation.revision}.</p>
+          <p>Provider: ${escape(provider.name)}. ${invitation.claimedAt !== null ? 'Account claimed' : invitation.userId ? 'Links an existing account' : 'Creates a new account'}. Expires: ${timestamp(invitation.expiresAt)}. Revision ${invitation.revision}.</p>
           <p>Direct roles: ${invitation.roleIds.map(id => escape(roles.find(role => role.id === id)!.name)).join(', ') || 'None'}.</p>
           ${invitation.status === 'pending' || invitation.status === 'expired' ?
             form(action + '/resend', 'Resend invitation', revision(invitation.revision) + lifetime, 'Replace this invitation link? The old link immediately stops working. Send the new link securely yourself.', true) +
