@@ -349,7 +349,7 @@ The root package is private; server downloads and source builds are the installa
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
 | `artium-axi login --username synthetic-user` | Sign in with a local account. |
-| `artium-axi login --sso` | Sign in through browser approval with Microsoft; works on headless and SSH hosts. |
+| `artium-axi login --sso` | Sign in through browser approval with an enabled SSO provider; works on headless and SSH hosts. |
 | `artium-axi passwd` | Change your password, then sign in again. |
 | `artium-axi whoami` | Show identity, roles, access expiry and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
@@ -458,16 +458,16 @@ Administration and account screens share a navigation menu.
 Signed-in screens have a header showing identity, sign-in source and sign-out.
 On administration screens, the header also shows the remaining confirmation window.
 Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
-SSO admin forms instead open a Microsoft confirmation window with a forced login and fresh authentication-time check.
-Configure `auth_time` as an optional ID-token claim in the Entra application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
+SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
+For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
 Confirmation is refused if that claim is absent or stale.
 After confirming with the same identity, use **Continue to artium** to resume the pending action in the original window.
 Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
 Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.
-SSO sign-out optionally also visits Microsoft's discovered end-session endpoint.
-After signing out of artium, choose **Continue to Microsoft sign-out** to finish that optional step.
-The artium session is revoked first; if provider sign-out cannot be started, the page explains that the Microsoft session may still be active.
+SSO sign-out optionally also visits the provider's discovered end-session endpoint, when supported.
+After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
+The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
 Confirmation dialogs explain consequences before changes; each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
@@ -512,6 +512,7 @@ A client secret is also accepted, with an in-page warning recommending certifica
 For another OpenID Connect provider, choose **Add OpenID Connect provider** and enter its name and exact HTTPS issuer URL.
 Discovery reads the issuer's OpenID configuration over verified TLS and rejects redirects and mismatched issuers.
 Register the provider page's exact callback URI in a confidential web application, then save its client ID and RSA certificate (`private_key_jwt`) or client secret (`client_secret_post` or `client_secret_basic`, selected from discovery with POST preferred).
+If discovery omits the supported client-authentication methods, secret authentication defaults to Basic.
 The provider must support authorization code with PKCE S256, RS256 ID tokens and scopes `openid profile`.
 Configure `preferred_username` for invitation claims and `auth_time` for fresh browser confirmation and CLI approval; generic confirmation requests use `prompt=login` and `max_age=0`.
 Generic identities bind to exact issuer and `sub`; Entra continues to bind to `tid` + `oid`.
@@ -526,10 +527,10 @@ Settings and credential saves require administrator capability and the [confirma
 The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
 
 Providers start disabled.
-The provider page includes the Entra setup guide, copy buttons for redirect and post-logout URIs, and an audited activation control requiring recent authentication.
+The provider page includes its setup guide, copy buttons for redirect and post-logout URIs, and an audited activation control requiring recent authentication.
 Activation requires a locally valid matching credential and an enabled, unlocked, unarchived break-glass local administrator with a permanent password.
-Test that emergency account in a separate browser before enabling SSO, then test an invitation claim and Microsoft sign-in while keeping break-glass access open.
-Local checks cannot prove Entra credential acceptance or Conditional Access configuration.
+Test that emergency account in a separate browser before enabling SSO, then test an invitation claim and provider sign-in while keeping break-glass access open.
+Local checks cannot prove provider credential acceptance or access-policy configuration.
 Saving provider settings or credentials disables that provider; review and enable it again afterwards.
 Disabling all providers restores ordinary local password sign-in; existing artium sessions remain active.
 Per-rule Who matches counts use enabled, unarchived users’ last successful sign-in role claims and are refreshed on page reload.
@@ -543,7 +544,7 @@ Removing designation revokes that account's browser and CLI sessions; demotion a
 When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
 Fresh installations designate no accounts automatically and keep providers disabled.
 See [break-glass verification](docs/verification-p3c2.md) for local-password policy evidence and [P3 activation verification](docs/verification-p3c2b.md) for activation and complete fake-provider browser acceptance.
-On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
+On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
 Every rule change requires the [confirmation described under browser administration](#browser-administration) and is audited atomically; stale edits require reloading the page.
@@ -567,19 +568,18 @@ An existing identity or username is never automatically linked; expired, revoked
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
 See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) and [P3 activation verification](docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
 For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
-Open the displayed `/device` URL in any browser, enter the terminal code, complete a fresh Microsoft sign-in, and review the requesting IP and UTC time before choosing **Approve**.
+Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and UTC time before choosing **Approve**.
 Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
 Choose **This wasn't me** to deny an unexpected request.
 Codes expire after 10 minutes and can grant access only once.
-The CLI waits for approval and stores the usual private artium tokens; run `artium-axi login --sso` again after its 8-hour family ends.
-No Entra public-client or device-code grant configuration is required; this is artium's own approval flow.
+The CLI waits for approval, retries transient polling limits at the returned interval until code expiry, and stores the usual private artium tokens; run `artium-axi login --sso` again after its 8-hour family ends.
+No identity-provider public-client or device-code grant configuration is required; this is artium's own approval flow.
 Restarting artium invalidates pending approvals; run `login --sso` again.
 For bearer SSO reauthentication, send `POST /v1/auth/reauth` with your access token and JSON `{}`.
-Approve the returned code through `/device` after a fresh Microsoft sign-in as the same user.
+Approve the returned code through `/device` after a fresh provider sign-in as the same user.
 Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }`, waiting the returned `intervalMs` milliseconds between polls, until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
 Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
 Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
-Generic OIDC follows in P5.
 See [CLI device sign-in verification](docs/verification-p4a.md) for recorded fake-provider evidence and bearer reauthentication coverage.
 
 ### Audit screen and API

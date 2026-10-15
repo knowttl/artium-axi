@@ -23,11 +23,11 @@ The callback's Continue link establishes a same-site hop before Strict cookies a
 The popup signals its opener using the existing external script under the strict CSP.
 The original page verifies the message source and origin, then reads the server's confirmation state and verifies the same session before resubmitting once.
 Cancel, closing the popup or failed confirmation leaves the draft in place.
-The standalone `/reauth` page also offers the Microsoft confirmation link for SSO users.
+See [browser administration](../README.md#browser-administration) for current SSO confirmation navigation.
 Local password confirmation follows the [local-password policy](../README.md#sign-in-settings).
 
 Sign-out revokes the artium session and family before any optional provider discovery or navigation.
-The Microsoft checkbox uses the bound provider's discovered HTTPS end-session endpoint, client ID and same-origin `/login` return URI.
+The optional provider sign-out uses the bound provider's discovered HTTPS end-session endpoint, client ID and same-origin `/login` return URI.
 The signed-out document offers a plain Continue link because the strict CSP blocks a cross-origin redirect from a form submission.
 No provider token is stored or sent as a logout hint.
 Unavailable discovery or end-session support leaves artium signed out and explains that the provider session may still be active.

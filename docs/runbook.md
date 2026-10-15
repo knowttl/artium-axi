@@ -408,7 +408,7 @@ Migration 014 adds encrypted provider credential storage without rewriting exist
 Provider credentials participate in startup authentication, offline master-key rotation, backup and restore with the same AES-256-GCM format as tool credentials.
 Follow [Sign-in settings](../README.md#sign-in-settings) for provider setup and credential replacement rules.
 Migration 016 adds a sign-in identity reference to browser sessions without backfilling existing sessions.
-Existing SSO sessions must sign in again before SSO confirmation or optional Microsoft sign-out can work.
+Existing SSO sessions must sign in again before SSO confirmation or optional provider sign-out can work.
 Local sessions follow the [local-password policy](../README.md#sign-in-settings) for confirmation.
 Migration 018 adds last-successful-sign-in role claims and their observation time to identities without backfilling existing identities.
 Existing identities remain unknown to Who matches counts until their next successful sign-in, even if they already hold rule-origin grants.
