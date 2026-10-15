@@ -164,7 +164,7 @@ test.each([
   await withAzureGateway(async ({ run, send }) => {
     const response = await run(['sentinel', 'incident', 'comment', 'create', '-s', subscription,
       ...selectors, '--message', 'synthetic applied comment', '--execute'])
-    expect(response.statusCode).toBe(504)
+    expect(response.statusCode, JSON.stringify({ selectors, response: response.json() })).toBe(504)
     const error = errorResponseSchema.parse(response.json()).error
     expect(error.code).toBe('UNKNOWN_OUTCOME')
     const first = error.next.split('Check current state before trying again: ')[1].split('. Use the returned incident id')[0]
@@ -307,7 +307,7 @@ test.each(['504', 'drop'].flatMap(outcome => ['json', 'toon'].flatMap(format => 
     const failed = runSuccessSchema.parse(response.json())
     expect(failed.exitCode).toBe(1)
     const upstream = decode(failed.stdout) as { code: string, help: string[] }
-    expect(upstream.code).toBe('UNKNOWN_OUTCOME')
+    expect(upstream.code, JSON.stringify({ command, response: response.json(), evidence: JSON.parse(await send('/__evidence')) })).toBe('UNKNOWN_OUTCOME')
     const serialized = format === 'json' ? JSON.stringify(upstream) : encode(upstream)
     const output = rewriteSuggestions(serialized, 'az-axi')
     const hosted = (format === 'json' ? JSON.parse(output) : decode(output)) as typeof upstream
