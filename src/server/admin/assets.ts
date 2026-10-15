@@ -257,6 +257,17 @@ document.addEventListener('submit', async event => {
       }
     }
     if (response.redirected) { location.assign(response.url); return; }
+    if (response.ok && form.hasAttribute('data-invitation-link')) {
+      const result = await response.json();
+      const dialog = document.getElementById('invitation-link');
+      const link = dialog.querySelector('[data-claim-link]');
+      link.value = new URL(result.claimPath, location.origin).href;
+      dialog.addEventListener('close', () => location.reload(), { once: true });
+      dialog.showModal();
+      link.focus();
+      link.select();
+      return;
+    }
     if (response.ok && form.dataset.saveTool) {
       if (!form.querySelector('[data-save-and-test]').checked) { location.reload(); return; }
       let result = 'Saved. Test could not complete. Run Test credential again.';

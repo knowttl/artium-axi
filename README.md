@@ -508,7 +508,18 @@ Create roles and grant their tools on **Roles** first.
 Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
 Rules are stored only and do not change existing user grants in this slice.
 A rule with existing rule-origin grants cannot be removed or retargeted until those grants are removed.
-Invitations, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
+Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected Entra username, direct roles and an expiry of 1 to 30 days (default 7).
+To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
+Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
+Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
+Artium does not send email and stores only the link token's hash.
+Resend replaces the old link and starts a new expiry period, including for expired invitations.
+**Revoke invitation** prevents claiming; claimed or revoked invitations cannot be resent.
+Every mutation requires administrator capability and recent password confirmation, checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
+Lists never return link tokens or hashes; expiry is evaluated when read.
+Roles referenced by invitations cannot be deleted, preserving the invitation history.
+The [invitation API contracts](src/shared/api.ts) own the request and response fields.
+Claiming links, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
 
 ### Audit screen and API
 

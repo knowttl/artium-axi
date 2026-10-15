@@ -15,6 +15,7 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
 import { registerProviderAdmin } from './providers.js'
 import { registerRoleRuleAdmin } from './role-rules.js'
+import { registerInvitationAdmin } from './invitations.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
@@ -61,6 +62,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   registerToolAdmin(app, db, audit, authorize, tools)
   registerProviderAdmin(app, db, audit, authorize, providerCredentials)
   registerRoleRuleAdmin(app, db, audit, authorize)
+  registerInvitationAdmin(app, db, audit, authorize)
 
   app.route({ method: adminAuditRoute.method, url: adminAuditRoute.path, handler: async request => {
     authorize(request)
@@ -296,6 +298,9 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       }
       if (db.prepare('SELECT 1 FROM role_rules WHERE role_id = ? LIMIT 1').get(id)) {
         throw new ArtiumError('INVALID_INPUT', 'This role is used by an SSO rule.', 'Remove or retarget its rules in Sign-in settings before deleting the role.')
+      }
+      if (db.prepare('SELECT 1 FROM invitation_roles WHERE role_id = ? LIMIT 1').get(id)) {
+        throw new ArtiumError('INVALID_INPUT', 'This role is retained by an invitation.', 'Keep the role to preserve the invitation and its history.')
       }
       db.prepare('DELETE FROM role_tools WHERE role_id = ?').run(id)
       db.prepare('DELETE FROM roles WHERE id = ?').run(id)
