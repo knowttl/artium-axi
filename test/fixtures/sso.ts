@@ -1,14 +1,33 @@
-import { generateKeyPairSync } from 'node:crypto'
+import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { SsoFetch } from '../../src/server/auth/sso.js'
 import type { ProviderCredentials } from '../../src/server/store/provider-credentials.js'
 import { createFakeOidcProvider } from '../fake-service/oidc.js'
+import { hashToken } from '../../src/server/auth/tokens.js'
 
 export const syntheticTenant = '11111111-1111-4111-8111-111111111111'
 export const syntheticObject = '22222222-2222-4222-8222-222222222222'
 const clientId = '33333333-3333-4333-8333-333333333333'
 const issuer = `https://login.microsoftonline.com/${syntheticTenant}/v2.0`
 export const ssoStart = '/auth/sso/synthetic-entra/start'
+
+export function seedSsoInvitation(db: Database.Database, options: { userId?: string, expectedUsername?: string } = {}) {
+  const id = randomUUID()
+  const token = randomBytes(32).toString('base64url')
+  const now = Date.now()
+  db.prepare(`INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, user_id, created_at, created_by, expires_at)
+    VALUES (?, ?, 'synthetic-entra', ?, 'Synthetic invited user', ?, ?, 'synthetic-development-user', ?)`)
+    .run(id, hashToken(token), options.expectedUsername ?? 'synthetic-invited', options.userId ?? null, now, now + 86_400_000)
+  db.prepare('INSERT INTO invitation_roles (invitation_id, role_id) VALUES (?, ?)').run(id, 'synthetic-role')
+  return { id, claimPath: ssoStart + '?invitation=' + token }
+}
+
+export function seedSsoRules(db: Database.Database) {
+  db.exec(`INSERT INTO roles (id, name) VALUES ('synthetic-rule-role', 'Synthetic rule role');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES
+      ('synthetic-reader-rule', 'synthetic-entra', 'roles', 'Artium.Reader', 'synthetic-rule-role'),
+      ('synthetic-overlap-rule', 'synthetic-entra', 'roles', 'Artium.Reader', 'synthetic-role')`)
+}
 
 export async function seedBrowserSso(db: Database.Database, credentials: ProviderCredentials, redirectUri: string,
   options: { authentication?: 'certificate' | 'secret', authorizationEndpoint?: string, browserApproval?: boolean } = {}) {

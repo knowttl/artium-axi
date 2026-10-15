@@ -29,6 +29,8 @@ export type AuditEvent = Context & (
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
   | { event: 'invite-create' | 'invite-resend' | 'invite-revoke', outcome: Outcome, targetId: string }
+  | { event: 'invite-claim' | 'identity-link', outcome: Outcome, targetId: string, providerId: string, subject: string }
+  | { event: 'role-sync', outcome: Outcome, providerId: string, subject: string, added: string[], removed: string[] }
   | { event: 'maintenance', outcome: 'success', cutoff: number, deletedCount: number }
 )
 
@@ -115,22 +117,22 @@ export class Audit {
   }
 
   // Future mutation producers use this boundary to commit their change and event together.
-  change<T>(event: AuditEvent, mutation: () => T): { value: T, record: AuditRecord } {
+  change<T>(event: AuditEvent | AuditEvent[], mutation: () => T): { value: T, record: AuditRecord } {
     if (this.db.inTransaction) throw new ArtiumError('AUDIT_UNAVAILABLE')
-    let result: { value: T, record: AuditRecord }
+    let result: { value: T, records: AuditRecord[] }
     let mutationFailed = false
     try {
       result = this.db.transaction(() => {
         let value: T
         try { value = mutation() } catch (error) { mutationFailed = true; throw error }
-        return { value, record: this.insert(event) }
+        return { value, records: (Array.isArray(event) ? event : [event]).map(item => this.insert(item)) }
       }).immediate()
     } catch (error) {
       if (mutationFailed) throw error
       throw new ArtiumError('AUDIT_UNAVAILABLE')
     }
-    this.emit(result.record)
-    return result
+    for (const record of result.records) this.emit(record)
+    return { value: result.value, record: result.records[0]! }
   }
 
   recoverInterrupted(): number {
@@ -177,7 +179,8 @@ export class Audit {
       ? event : undefined
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
-      arguments: event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) : null,
+      arguments: event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
+        event.event === 'role-sync' ? JSON.stringify({ added: event.added, removed: event.removed }) : null,
       request_id: event.requestId, exit_code: terminal?.exitCode ?? null,
       duration_ms: terminal ? Math.round(terminal.durationMs) : null,
       stdout_bytes: terminal?.outputBytes.stdout ?? null, stderr_bytes: terminal?.outputBytes.stderr ?? null,
@@ -188,8 +191,8 @@ export class Audit {
       checked_at: test?.checkedAt ?? null, credential_revision: test?.credentialRevision ?? null,
       error_code: test?.errorCode ?? null,
       authentication_method: event.event === 'sign-in' ? event.authenticationMethod ?? null : null,
-      provider_id: event.event === 'sign-in' ? event.providerId ?? null : null,
-      subject: event.event === 'sign-in' ? event.subject ?? null : null,
+      provider_id: 'providerId' in event ? event.providerId ?? null : null,
+      subject: 'subject' in event ? event.subject ?? null : null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

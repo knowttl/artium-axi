@@ -81,9 +81,10 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const form = (action: string, method: string, label: string, fields: string, confirmation: string) =>
       apiForm(csrf, action, method, label, fields, confirmation)
     const content = `<p><a href="/admin">Back to users</a></p><section><h2>${escape(user.username)}</h2>
-      <p>Sign-in source: ${user.source === 'sso' ? 'SSO (sign-in not available yet)' : 'Local password'}. ${user.enabled ? 'Enabled' : 'Disabled'}.</p>${changed(db, user)}
+      <p>Sign-in source: ${user.source === 'sso' ? 'SSO' : 'Local password'}. ${user.enabled ? 'Enabled' : 'Disabled'}.</p>${changed(db, user)}
       ${form(path, 'PATCH', 'Save profile', revision(user.revision) + `<label>Display name <input name="displayName" value="${escape(user.displayName)}" required></label>` + administratorField(user.administrator), `Update ${user.username}’s profile and administrator capability? Administrator access changes immediately.`)}</section>
-      <section><h2>Roles</h2><p>Direct roles were assigned by an administrator. Saving replaces direct roles and keeps rule grants.</p>
+      <section><h2>Roles</h2><p>Direct roles were assigned by an administrator. Rule roles come from Entra rules and are synchronized at each sign-in. Saving replaces direct roles and keeps rule grants.</p>
+      ${user.roleGrants.filter(grant => grant.origin !== 'direct').map(grant => `<p>From Entra rule ${escape(grant.origin)}: ${escape(roles.find(role => role.id === grant.roleId)?.name ?? grant.roleId)}.</p>`).join('')}
       <p>${user.roleIds.map(assignedRole).join(', ') || 'No roles assigned.'}</p>
       ${form(path + '/roles', 'PUT', 'Assign roles', revision(user.revision) + roleFields(roles, user.directRoleIds), `Replace ${user.username}’s roles with this selection? Tool access changes on the next call.`)}</section>
       <section><h2>Effective tools</h2><p>These grants combine all assigned roles. A disabled user or tool cannot run calls.</p>

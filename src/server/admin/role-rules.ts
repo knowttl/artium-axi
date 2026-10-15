@@ -39,10 +39,9 @@ export function registerRoleRuleAdmin(app: FastifyInstance, db: Database.Databas
         authorize(request)
         const current = 'expectedRevision' in input ? read(id) : null
         if (current && 'expectedRevision' in input && current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
-        // P2 settings must not modify grants. Existing rule origins retain their FK.
-        if (current && (!('roleId' in input) || input.roleId !== current.roleId) &&
-          db.prepare('SELECT 1 FROM user_roles WHERE origin = ? LIMIT 1').get(id)) {
-          throw new ArtiumError('INVALID_INPUT', 'This rule still grants a role to users.', 'Remove its rule-origin grants before removing the rule or changing its target role.')
+        if (current && (!('providerId' in input) || input.providerId !== current.providerId ||
+          input.roleId !== current.roleId || input.claim !== current.claim || input.value !== current.value)) {
+          db.prepare('DELETE FROM user_roles WHERE origin = ?').run(id)
         }
         if (!('providerId' in input)) {
           db.prepare('DELETE FROM role_rules WHERE id = ?').run(id)
