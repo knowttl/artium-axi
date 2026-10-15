@@ -193,6 +193,61 @@ test('generic callback routed to Entra is refused in the real browser', async ()
   assert.equal(evidence.sessions.length, 0)
 })
 
+test('generic named rules can be added edited previewed and removed through real pages', async () => {
+  await configure({ localBreakGlass: true, claims: { groups: ['Readers'] } })
+  await configure({ providerId: 'synthetic-generic', claims: { groups: ['Readers'] } })
+  browser(`${signIn}
+    await page.wait('a[href="/account"]');
+    await page.open(base + '/auth/sso/synthetic-generic/start');
+    await page.wait('[data-oidc-approve]');
+    await page.click('[data-oidc-approve]');
+    await page.wait('a[href="/account"]');
+    await page.click('a[href="/account"]');
+    await page.wait('form[action="/logout"]');
+    await page.click('form[action="/logout"] button');
+    await page.wait('form[action="/login"]');
+    await page.open(base + '/login');
+    await page.fill('[name=username]', 'synthetic-user');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('form[action="/login"] button');
+    await page.wait('form[action="/v1/admin/users"]');
+    await page.open(base + '/admin/settings/sign-in/synthetic-generic');
+    await page.wait('form[action="/v1/admin/sso/role-rules"]');
+    await page.fill('form[action="/v1/admin/sso/role-rules"] [name=claim]', 'groups');
+    await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Readers');
+    await page.eval(() => { document.querySelector('form[action="/v1/admin/sso/role-rules"] [name=roleId]').value = 'synthetic-role'; });
+    await page.click('form[action="/v1/admin/sso/role-rules"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('a[href*="/matches/"]');
+    check(await page.eval(() => [...document.querySelectorAll('summary')].some(node => node.textContent.includes('Who matches: 1'))), 'Preview mixed providers or omitted saved claims');
+    const matches = await page.eval(() => document.querySelector('a[href*="/matches/"]').getAttribute('href'));
+    await page.open(base + matches);
+    await page.wait('table');
+    check(await page.eval(() => document.querySelector('tbody').innerText.includes('synthetic-generic-user') && document.querySelectorAll('tbody tr').length === 1), 'Who matches included another provider');
+    await page.open(base + '/admin/settings/sign-in/synthetic-generic');
+    await page.click('details:has(form[action*="/role-rules/"]) summary');
+    await page.fill('details [name=claim]', 'custom.claim');
+    await page.click('details form[data-method=PATCH] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('details [name=claim][value="custom.claim"]');
+    check(await page.eval(() => [...document.querySelectorAll('summary')].some(node => node.textContent.includes('Who matches: 0'))), 'Claim edit did not refresh preview');
+    await page.open(base + matches);
+    await page.wait('main');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('No users match')), 'Empty match state missing');
+    await page.open(base + '/admin/settings/sign-in/synthetic-generic');
+    await page.click('details:has(form[action*="/role-rules/"]) summary');
+    await page.click('details form[data-method=DELETE] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action="/v1/admin/sso/role-rules"]');
+    check(await page.eval(() => !document.querySelector('a[href*="/matches/"]')), 'Removed rule still present');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.deepEqual(evidence.events.filter(event => event.action?.endsWith('role-rule')).map(event => event.action),
+    ['create-role-rule', 'update-role-rule', 'delete-role-rule'])
+})
+
 test('generic ID token with another issuer is refused in the real browser', async () => {
   await configure({ providerId: 'synthetic-generic', claims: { iss: 'https://other.example' } })
   browser(`await page.open(base + '/auth/sso/synthetic-generic/start');

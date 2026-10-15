@@ -412,6 +412,9 @@ Existing SSO sessions must sign in again before SSO confirmation or optional pro
 Local sessions follow the [local-password policy](../README.md#sign-in-settings) for confirmation.
 Migration 018 adds last-successful-sign-in role claims and their observation time to identities without backfilling existing identities.
 Existing identities remain unknown to Who matches counts until their next successful sign-in, even if they already hold rule-origin grants.
+Migration 019 converts the saved role-value arrays into named claim maps under `roles`, preserving observation times, rules and grants.
+Other generic-provider claims become available after the next successful sign-in.
+The [populated-copy migration regression](../src/server/store/provider-credentials.test.ts) checks preservation, repeat migration and foreign keys without changing the original store.
 See [Sign-in settings](../README.md#sign-in-settings) for match-count interpretation.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.

@@ -83,8 +83,12 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const content = `<p><a href="/admin">Back to users</a></p><section><h2>${escape(user.username)}</h2>
       <p>Sign-in source: ${user.source === 'sso' ? 'SSO' : 'Local password'}. ${user.enabled ? 'Enabled' : 'Disabled'}.</p>${changed(db, user)}
       ${form(path, 'PATCH', 'Save profile', revision(user.revision) + `<label>Display name <input name="displayName" value="${escape(user.displayName)}" required></label>` + administratorField(user.administrator), `Update ${user.username}’s profile and administrator capability? Administrator access changes immediately.`)}</section>
-      <section><h2>Roles</h2><p>Direct roles were assigned by an administrator. Rule roles come from Entra rules and are synchronized at each sign-in. Saving replaces direct roles and keeps rule grants.</p>
-      ${user.roleGrants.filter(grant => grant.origin !== 'direct').map(grant => `<p>From Entra rule ${escape(grant.origin)}: ${escape(roles.find(role => role.id === grant.roleId)?.name ?? grant.roleId)}.</p>`).join('')}
+      <section><h2>Roles</h2><p>Direct roles were assigned by an administrator. Rule roles come from SSO provider rules and are synchronized at each sign-in. Saving replaces direct roles and keeps rule grants.</p>
+      ${user.roleGrants.filter(grant => grant.origin !== 'direct').map(grant => {
+        const provider = db.prepare('SELECT kind FROM sso_providers JOIN role_rules ON role_rules.provider_id = sso_providers.id WHERE role_rules.id = ?')
+          .get(grant.origin) as { kind: string }
+        return `<p>From ${provider.kind === 'entra' ? 'Entra' : 'OIDC'} rule ${escape(grant.origin)}: ${escape(roles.find(role => role.id === grant.roleId)?.name ?? grant.roleId)}.</p>`
+      }).join('')}
       <p>${user.roleIds.map(assignedRole).join(', ') || 'No roles assigned.'}</p>
       ${form(path + '/roles', 'PUT', 'Assign roles', revision(user.revision) + roleFields(roles, user.directRoleIds), `Replace ${user.username}’s roles with this selection? Tool access changes on the next call.`)}</section>
       <section><h2>Effective tools</h2><p>These grants combine all assigned roles. A disabled user or tool cannot run calls.</p>
