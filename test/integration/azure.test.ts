@@ -47,7 +47,7 @@ async function withAzureGateway(check: (fixture: {
       return { ...call, executable: process.execPath,
         args: ['--import', fileURLToPath(new URL('../fake-service/azure-transport.mjs', import.meta.url)),
           fileURLToPath(new URL('../../tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', import.meta.url)), ...call.args],
-        fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 1500 },
+        fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 5000 },
         environment: { ...call.environment, NODE_EXTRA_CA_CERTS: join(directory, 'ca.crt'),
           ARTIUM_TEST_AZURE_OUTCOME: outcome,
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }

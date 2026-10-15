@@ -781,6 +781,8 @@ test('archive refuses the last enabled administrator without changing its revisi
 })
 
 test('session list excludes idle browsers and expired or revoked CLI families', async () => {
+  const now = Date.now()
+  vi.spyOn(Date, 'now').mockReturnValue(now)
   const browser = await signIn('synthetic-ordinary')
   browserSession(browser.accessToken, 'synthetic-idle-browser')
   db.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ?').run(Date.now() - 1_800_000, 'synthetic-idle-browser')
