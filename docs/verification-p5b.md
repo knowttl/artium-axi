@@ -27,6 +27,7 @@ Record command, exit status, timings, environment, head SHA, input/output digest
 If the host forbids the builder, record the container gate as not run.
 Firstmate performs the private deny-list check on the PR diff before merge; the worker does not access that list.
 Create the PR against main in the designated repository, with problem, consequence, fix and P5b scope in its body.
+Use gh-axi for GitHub operations; every PR creation must pass `--repo knowttl/artium-axi -B main`.
 Confirm the final PR is ready and mergeable, report the pushed head SHA, and leave merging to firstmate.
 
 ## Remaining acceptance
@@ -34,3 +35,4 @@ Confirm the final PR is ready and mergeable, report the pushed head SHA, and lea
 Live validation: **PENDING (maintainer live Entra check)**.
 The maintainer's real Entra sign-in and invitation claim happen after the build.
 The fake-provider browser suite supplies local acceptance evidence; no real tenant or credentials are used.
+Approve the pipeline's live-validation gate on this pending maintainer-check basis, citing the fake-provider browser suite.
