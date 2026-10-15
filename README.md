@@ -514,7 +514,12 @@ Settings and credential saves require administrator capability and the [confirma
 The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
 
 Providers remain disabled and SSO sign-in is unavailable in this slice.
-Local sign-in continues unchanged.
+Local sign-in continues to work while all providers are disabled.
+On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
+Designation requires recent identity confirmation, checks the user revision and is audited.
+Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
+When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
+Fresh installations designate no accounts automatically and keep providers disabled.
 No activation control is exposed; see [browser SSO protocol verification](docs/verification-p3b.md) for the staged protocol, fake-only evidence and remaining slices.
 On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 The target role supplies tool access; rules never grant administrator capability.
@@ -559,6 +564,8 @@ An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
 Successful local password confirmations and SSO browser confirmations emit `reauth` events.
+Local sign-in and confirmation records include `authentication_method` as `local` or `break-glass`.
+Every successful use of a designated account is flagged as `break-glass`, even before SSO activation; Audit highlights these records and includes the same field in its JSON-lines export and JSON stdout stream.
 SSO reauthentication events include the authentication method, provider and validated subject.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.

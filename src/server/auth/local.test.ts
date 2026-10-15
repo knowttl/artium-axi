@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { Audit } from '../audit/audit.js'
 import { migrate } from '../store/db.js'
 import { LocalAuthProvider, hashPassword } from './local.js'
-import { verifyAccessToken } from './tokens.js'
+import { issueLoginTokens, verifyAccessToken } from './tokens.js'
 import { issueTestAccessToken } from '../../../test/fixtures/tokens.js'
 
 let db: Database.Database
@@ -58,6 +58,40 @@ test('disabled accounts cannot sign in', async () => {
   await account()
   db.exec('UPDATE users SET disabled = 1')
   await expect(provider.signIn('synthetic-user', password)).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
+})
+
+test('enabled SSO refuses an ordinary local password sign-in', async () => {
+  await account(0)
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  await expect(provider.signIn('synthetic-user', password)).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
+})
+
+test('designated local administrators can sign in while SSO is enabled', async () => {
+  await account(0)
+  db.exec(`UPDATE users SET administrator = 1, break_glass = 1;
+    INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  expect(await provider.signIn('synthetic-user', password)).toEqual({ userId: 'synthetic-user', mustChange: false })
+})
+
+test('password admission rechecks SSO policy after asynchronous verification', async () => {
+  await account(0)
+  const signIn = provider.signIn('synthetic-user', password)
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  await expect(signIn).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
+})
+
+test('a password-change token cannot bypass the SSO local-password policy', async () => {
+  const hash = await account()
+  const proof = issueLoginTokens(db, 'synthetic-user')
+  if (proof.status !== 'password-change-required') throw new Error('Expected temporary password token')
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  await expect(provider.changePassword('synthetic-user', password, 'CANARY-new-password', new Audit(db),
+    { requestId: 'synthetic-change', clientAddress: null }, Date.now(), proof.passwordChangeToken)).rejects.toMatchObject({ code: 'SIGN_IN_FAILED' })
+  expect(db.prepare('SELECT password_hash FROM users').get()).toEqual({ password_hash: hash })
 })
 
 test('development accounts perform a dummy comparison and reject password sign-in', async () => {

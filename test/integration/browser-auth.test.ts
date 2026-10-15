@@ -84,6 +84,40 @@ test('browser sign-in creates an opaque secure server session and sign-out revok
     .toEqual([{ event: 'sign-in' }, { event: 'sign-out' }])
 })
 
+test('browser password sign-in and confirmation are flagged for a designated break-glass administrator', async () => {
+  db.exec(`UPDATE users SET break_glass = 1 WHERE id = 'synthetic-development-user';
+    INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  await signIn()
+  now += authDefaults.recentAuthMs
+  expect((await request('POST', '/reauth', { _csrf: await token('/reauth'), password })).statusCode).toBe(303)
+  expect(db.prepare("SELECT event, authentication_method FROM audit WHERE event IN ('sign-in', 'reauth') ORDER BY id").all())
+    .toEqual([{ event: 'sign-in', authentication_method: 'break-glass' }, { event: 'reauth', authentication_method: 'break-glass' }])
+  expect((await request('GET', '/admin/audit')).body).toContain('<strong>Break-glass</strong> sign-in')
+  const exported = await request('GET', '/v1/admin/audit/export?format=jsonl')
+  expect(exported.body.trim().split('\n').map(line => JSON.parse(line).authentication_method)).toEqual(['break-glass', 'break-glass'])
+})
+
+test('an existing local browser session cannot confirm its password after SSO is enabled', async () => {
+  await signIn()
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  now += authDefaults.recentAuthMs
+  const response = await request('POST', '/v1/auth/reauth', { _csrf: await token('/reauth'), password })
+  expect(response.statusCode).toBe(401)
+  expect(response.body).toContain('SIGN_IN_FAILED')
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'reauth'").get()).toEqual({ count: 0 })
+})
+
+test.each([false, true])('browser local password sign-in with SSO enabled requires designation, administrator=%s', async administrator => {
+  db.prepare('UPDATE users SET administrator = ? WHERE id = ?').run(Number(administrator), userId)
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  const response = await request('POST', '/login', { _csrf: await token('/login'), username: 'synthetic-user', password })
+  expect(response.statusCode).toBe(401)
+  expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get()).toEqual({ count: 0 })
+})
+
 test.each(['/login', '/logout', '/password', '/reauth', '/v1/auth/reauth', '/v1/admin/users', '/v1/admin/tools/falcon-axi/test', '/v1/account/sessions/revoke', '/v1/account/sessions/other/revoke'])
   ('security form mutation %s rejects a missing CSRF token', async path => {
     await signIn()

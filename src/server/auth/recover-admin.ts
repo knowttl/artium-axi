@@ -22,7 +22,7 @@ export async function recoverAdministrator(file: string, provider: KeyProvider, 
       const now = Date.now()
       new Audit(db, Date.now, () => {}).change({ event: 'admin-change', action: 'recover-admin', targetId: user.id,
         userId: null, tool: null, requestId: randomUUID(), clientAddress: null, outcome: 'success' }, () => {
-        db.prepare(`UPDATE users SET password_hash = ?, administrator = 1, disabled = 0, must_change = 1,
+        db.prepare(`UPDATE users SET password_hash = ?, administrator = 1, break_glass = 1, disabled = 0, must_change = 1,
           failed_attempts = 0, locked_until = NULL, revision = revision + 1, updated_at = ?, updated_by = NULL
           WHERE id = ?`).run(hash, now, user.id)
         revokeUserSessions(db, user.id, now)

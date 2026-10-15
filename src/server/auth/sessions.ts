@@ -12,6 +12,7 @@ export interface BrowserSession {
   username: string
   display_name: string
   administrator: number
+  break_glass: number
   must_change: number
   source: 'local' | 'sso'
   identity_id: string | null
@@ -45,7 +46,7 @@ export function createBrowserSession(db: Database.Database, userId: string, csrf
 }
 
 export function readBrowserSession(db: Database.Database, id: string, now = Date.now()): BrowserSession {
-  const session = db.prepare(`SELECT sessions.*, users.username, users.display_name, users.administrator, users.must_change, users.source
+  const session = db.prepare(`SELECT sessions.*, users.username, users.display_name, users.administrator, users.break_glass, users.must_change, users.source
     FROM sessions JOIN users ON users.id = sessions.user_id JOIN session_families ON session_families.id = sessions.family_id
     WHERE sessions.id = ? AND sessions.revoked_at IS NULL AND session_families.revoked_at IS NULL AND users.disabled = 0
       AND session_families.expires_at > ?`).get(hashToken(id), now) as BrowserSession | undefined

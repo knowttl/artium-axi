@@ -316,12 +316,13 @@ test.each(['wrong username', 'expired during exchange', 'revoked during exchange
 test('local link preserves user id, name, administrator and direct roles, removes password and revokes old sessions and tokens', async () => {
   invitedIdentity()
   const userId = 'synthetic-development-user'
+  db.prepare('UPDATE users SET administrator = 1, break_glass = 1 WHERE id = ?').run(userId)
   const session = createBrowserSession(db, userId, 'synthetic-csrf')
   const token = issueTestAccessToken(db, userId)
   const invite = seedSsoInvitation(db, { userId })
   expect((await finish(await start(invite.claimPath))).statusCode).toBe(200)
-  expect(db.prepare('SELECT username, display_name, password_hash, source, must_change FROM users WHERE id = ?').get(userId))
-    .toEqual({ username: 'synthetic-user', display_name: 'Synthetic User', password_hash: null, source: 'sso', must_change: 0 })
+  expect(db.prepare('SELECT username, display_name, password_hash, source, must_change, break_glass FROM users WHERE id = ?').get(userId))
+    .toEqual({ username: 'synthetic-user', display_name: 'Synthetic User', password_hash: null, source: 'sso', must_change: 0, break_glass: 0 })
   expect(() => readBrowserSession(db, session.id)).toThrow()
   expect(() => verifyAccessToken(db, token)).toThrow()
   expect(db.prepare('SELECT user_id FROM identities WHERE subject = ?').get(`${syntheticTenant}:44444444-4444-4444-8444-444444444444`)).toEqual({ user_id: userId })

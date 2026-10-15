@@ -23,7 +23,7 @@ export type AuditEvent = Context & (
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
   | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } } & Partial<CredentialTestEvidence>)
   | { event: 'denial', outcome: ErrorCode }
-  | { event: 'sign-in' | 'reauth', outcome: Outcome, authenticationMethod?: 'sso', providerId?: string, subject?: string }
+  | { event: 'sign-in' | 'reauth', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
   | { event: 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)

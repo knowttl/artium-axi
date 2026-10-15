@@ -256,6 +256,7 @@ Do not delete data or manufacture a marker to bypass the startup refusal.
 The database prevents disabling, demoting or deleting the last enabled administrator.
 Offline recovery can restore an existing, non-archived local account's administrator capability and access, reset its password and clear its lockout.
 It sets must-change, revokes every existing CLI token and browser session for the account, and commits a durable audit event in the same transaction.
+It also designates the recovered local administrator as break-glass so password access remains possible when SSO is enabled.
 The event has action `recover-admin`, the account's internal ID as target and no online actor or password data.
 The command does not create an account or bootstrap an inconsistent store.
 
@@ -400,6 +401,8 @@ The SSO identity migration preserves local accounts, credentials, grants, sessio
 Table rebuilds and master-key validation share one transaction; a failure rolls back the schema and migration version records.
 The migration checks foreign keys before committing and enables enforcement before exposing the connection.
 Reopening an upgraded store does not reapply migrations or enable SSO providers.
+Migration 017 adds break-glass designation, defaulting existing accounts to undesignated and preserving their sessions.
+Only local administrators may be designated; removing designation revokes their sessions, and local-to-SSO linking clears it.
 Migration 014 adds encrypted provider credential storage without rewriting existing identity or tool data.
 Provider credentials participate in startup authentication, offline master-key rotation, backup and restore with the same AES-256-GCM format as tool credentials.
 Follow [Sign-in settings](../README.md#sign-in-settings) for provider setup and credential replacement rules.

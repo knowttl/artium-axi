@@ -79,6 +79,22 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('user detail designates a break-glass administrator and removing it signs them out', () => {
+  browser(`await page.open(base + '/admin/users/synthetic-development-user');
+    await page.wait('form[action="/v1/admin/users/synthetic-development-user"] [name=breakGlass]');
+    await page.click('form:has([name=breakGlass]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has([name=breakGlass][value=false])');
+    check(await page.eval(() => document.body.innerText.includes('Break-glass account')), 'Designation was not shown');
+    await page.click('form:has([name=breakGlass]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action="/login"]');
+    await page.open(base + '/admin');
+    await page.wait('form[action="/login"]');`)
+})
+
 test('invitations show each new link once and allow resend and revoke through the real forms', async () => {
   browser(`
     await page.open(base + '/admin/settings/sign-in');

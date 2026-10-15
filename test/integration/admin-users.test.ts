@@ -77,6 +77,62 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
+test('break-glass designation is revision checked, audited and revocation ends every session', async () => {
+  const browser = createBrowserSession(db, 'synthetic-second', 'CANARY-csrf')
+  const cli = await signIn('synthetic-second')
+  const patch = (breakGlass: boolean, expectedRevision: number) => app.inject({ method: 'PATCH',
+    url: '/v1/admin/users/synthetic-second', headers, payload: { breakGlass, expectedRevision } })
+  expect((await patch(true, 1)).json()).toMatchObject({ breakGlass: true, revision: 2 })
+  expect((await patch(false, 1)).statusCode).toBe(409)
+  expect((await patch(false, 2)).json()).toMatchObject({ breakGlass: false, revision: 3 })
+  expect(() => verifyAccessToken(db, cli.accessToken)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+  expect((await app.inject({ url: '/account', headers: { cookie: 'artium-session=' + browser.id } })).headers.location).toBe('/login')
+  expect(db.prepare("SELECT action, target_id, user_id FROM audit WHERE action IN ('designate-break-glass', 'remove-break-glass') ORDER BY id").all())
+    .toEqual([{ action: 'designate-break-glass', target_id: 'synthetic-second', user_id: administrator },
+      { action: 'remove-break-glass', target_id: 'synthetic-second', user_id: administrator }])
+})
+
+test.each(['ordinary', 'sso'])('a %s account cannot be designated break-glass', async kind => {
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change, administrator)
+    VALUES ('synthetic-sso', 'synthetic-sso', 'Synthetic SSO', 'sso', 0, 1)`)
+  const id = kind === 'ordinary' ? 'synthetic-ordinary' : 'synthetic-sso'
+  const response = await app.inject({ method: 'PATCH', url: '/v1/admin/users/' + id, headers,
+    payload: { breakGlass: true, expectedRevision: 1 } })
+  expect(response.statusCode).toBe(400)
+  expect(response.json().error.code).toBe('INVALID_INPUT')
+  expect(db.prepare('SELECT break_glass, revision FROM users WHERE id = ?').get(id)).toEqual({ break_glass: 0, revision: 1 })
+})
+
+test('demoting a designated administrator clears break-glass and revokes their sessions', async () => {
+  db.exec("UPDATE users SET break_glass = 1 WHERE id = 'synthetic-second'")
+  const session = await signIn('synthetic-second')
+  const response = await app.inject({ method: 'PATCH', url: '/v1/admin/users/synthetic-second', headers,
+    payload: { administrator: false, expectedRevision: 1 } })
+  expect(response.json()).toMatchObject({ administrator: false, breakGlass: false })
+  expect(() => verifyAccessToken(db, session.accessToken)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
+})
+
+test('audit failure rolls back break-glass removal and session revocations', async () => {
+  db.exec("UPDATE users SET break_glass = 1 WHERE id = 'synthetic-second'")
+  const session = await signIn('synthetic-second')
+  db.exec("CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON audit BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  const response = await app.inject({ method: 'PATCH', url: '/v1/admin/users/synthetic-second', headers,
+    payload: { breakGlass: false, expectedRevision: 1 } })
+  expect(response.json().error.code).toBe('AUDIT_UNAVAILABLE')
+  expect(db.prepare("SELECT break_glass, revision FROM users WHERE id = 'synthetic-second'").get()).toEqual({ break_glass: 1, revision: 1 })
+  expect(verifyAccessToken(db, session.accessToken)).toBe('synthetic-second')
+})
+
+test.each([false, true])('bearer password confirmation obeys break-glass policy, designated=%s', async designated => {
+  db.prepare('UPDATE users SET break_glass = ? WHERE id = ?').run(Number(designated), administrator)
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)
+    VALUES ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://identity.example', 1)`)
+  const response = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
+  expect(response.statusCode).toBe(designated ? 200 : 401)
+  expect(db.prepare("SELECT authentication_method FROM audit WHERE event = 'reauth'").all())
+    .toEqual(designated ? [{ authentication_method: 'break-glass' }] : [])
+})
+
 function request(method: string, path: string, body?: unknown, proof = headers, address = url) {
   const { 'content-type': _contentType, ...withoutContentType } = proof
   return fetch(`${address}/v1/admin/users${path}`, { method, headers: body === undefined ? withoutContentType : proof,

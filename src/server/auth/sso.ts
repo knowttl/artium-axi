@@ -184,7 +184,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
               .get(invite.user_id)
             if (!local || db.prepare('SELECT 1 FROM identities WHERE user_id = ?').get(invite.user_id)) throw new ArtiumError('SSO_INVITE_INVALID')
             userId = invite.user_id
-            db.prepare(`UPDATE users SET source = 'sso', password_hash = NULL, must_change = 0, failed_attempts = 0,
+            db.prepare(`UPDATE users SET source = 'sso', password_hash = NULL, break_glass = 0, must_change = 0, failed_attempts = 0,
               locked_until = NULL, revision = revision + 1, updated_at = ?, updated_by = NULL WHERE id = ?`).run(now, userId)
             revokeUserSessions(db, userId, now)
             events.push({ ...event, event: 'identity-link', userId, subject: subject!, targetId: userId, outcome: 'success' })

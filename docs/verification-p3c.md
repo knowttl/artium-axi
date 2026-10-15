@@ -3,7 +3,9 @@
 This is P3c-1, following invitation claims and role synchronization.
 P3c was split before implementation so each PR can be reviewed and exercised independently.
 This slice adds browser SSO reauthentication, pending-form resumption and optional provider sign-out.
-P3c-2 adds break-glass designation and shared local-password enforcement/audit, safe activation, the Entra setup guide, copy buttons, match counts and complete P3 browser acceptance.
+P3c-2 was split before implementation with firstmate approval under the maintainer's standing slicing rule.
+P3c-2a adds [break-glass designation and shared local-password enforcement/audit](verification-p3c2.md), including recovery and focused browser acceptance, with activation still unavailable.
+P3c-2b follows with safe activation, the Entra setup guide, copy buttons, match counts and complete P3 browser acceptance.
 Providers remain disabled through all production settings routes; fresh installations keep sign-in off.
 CLI SSO/device approval and generic OIDC remain later phases.
 
