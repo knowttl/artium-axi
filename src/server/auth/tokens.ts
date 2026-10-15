@@ -68,11 +68,11 @@ export function requireRecentAuth(db: Database.Database, accessToken: string, ti
 
 export function issueLoginTokens(db: Database.Database, userId: string, now = Date.now()): LoginResponse {
   return db.transaction((): LoginResponse => {
-    const user = db.prepare('SELECT disabled, must_change FROM users WHERE id = ?').get(userId) as
-      { disabled: number, must_change: number } | undefined
+    const user = db.prepare('SELECT disabled, must_change, source FROM users WHERE id = ?').get(userId) as
+      { disabled: number, must_change: number, source: string } | undefined
     if (!user || user.disabled) throw new ArtiumError('SIGN_IN_FAILED')
     const familyId = randomUUID()
-    const familyExpiresAt = now + tokenDefaults.familyMs
+    const familyExpiresAt = now + (user.source === 'sso' ? tokenDefaults.ssoFamilyMs : tokenDefaults.familyMs)
     db.prepare('INSERT INTO session_families (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
       .run(familyId, userId, now, familyExpiresAt)
     if (user.must_change) {

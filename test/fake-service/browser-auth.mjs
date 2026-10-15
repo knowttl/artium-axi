@@ -139,6 +139,7 @@ proxy.listen(0, '127.0.0.1', async () => {
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
   const spki = createHash('sha256').update(cert.publicKey.export({ type: 'spki', format: 'der' })).digest('base64')
   console.log(JSON.stringify({ url: `https://localhost:${proxy.address().port}`, spki, clock: `${address.origin}/test/clock`,
+    caFile: join(directory, 'ca.crt'), clientHome: join(directory, 'cli-client'),
     ...(sso ? { ssoControl: `${address.origin}/test/sso-protocol`, ssoEvidence: `${address.origin}/test/sso-evidence` } : {}),
     certificatePem: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'server.key'), 'utf8') }))
 })

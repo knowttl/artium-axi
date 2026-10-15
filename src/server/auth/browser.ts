@@ -19,7 +19,7 @@ import { accountContent } from '../admin/account.js'
 
 export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
-const pages = ['/login', '/logout', '/password', '/reauth', '/admin', '/account']
+const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession) {
   const sso = current?.source === 'sso'
@@ -33,7 +33,7 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
   const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : `<nav aria-label="Account"><a href="/account">Account</a>${current.source === 'local' ? '<a href="/password">Change password</a>' : ''}</nav>`}</aside>` : ''
   const dialogs = current ? `<dialog id="confirmation" aria-labelledby="confirmation-title"><form method="dialog"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button value="confirmed">Confirm change</button></div></form></dialog>
     ${current.administrator && !current.must_change ? `<dialog id="reauth-dialog" aria-labelledby="reauth-title"><h2 id="reauth-title">${sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${sso ? 'Confirm your identity with Microsoft in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p><form data-reauth>${sso ? '' : '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'}<p data-reauth-error role="alert"></p><div class="dialog-actions"><button type="button" data-reauth-cancel>Cancel</button><button>Confirm and continue</button></div></form></dialog>` : ''}` : ''
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${header}<div class="page-layout">${navigation}<main id="main"><h1>${escape(title)}</h1>${pageHelp(title)}<p id="message" role="alert" tabindex="-1"></p>${content}</main></div>${dialogs}</body></html>`)
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${header}<div class="page-layout">${navigation}<main id="main"><h1>${escape(title)}</h1>${pageHelp(title, current?.source)}<p id="message" role="alert" tabindex="-1"></p>${content}</main></div>${dialogs}</body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,

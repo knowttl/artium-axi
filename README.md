@@ -6,11 +6,11 @@
   <a href="https://github.com/kunchenguid/axi"><img alt="AXI" src="https://img.shields.io/badge/AXI-Agent%20eXperience%20Interface-green?style=flat-square" /></a>
 </p>
 
-Managed command-line tools for agents, behind one local sign-in.
+Managed command-line tools for agents, behind one artium sign-in.
 
 artium-axi packages a server and CLI that give users role-based access to pinned upstream tools.
 The published Graph and Azure releases in [the upstream pins](tools/package.json) include their upstream live-test fixes.
-Administrators manage local accounts, roles, encrypted service credentials and audit records through a browser.
+Administrators manage accounts, roles, encrypted service credentials and audit records through a browser.
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
@@ -29,7 +29,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 ## Quick Start
 
 For a new server, follow [Set up a host](#set-up-a-host) first.
-For an existing server, obtain its trusted HTTPS URL and a local account from its administrator, then continue below.
+For an existing server, obtain its trusted HTTPS URL and an account from its administrator, then continue below.
 The Linux client requires Node **24.11 or later**, curl and sha256sum on `PATH`.
 Windows and macOS execution, token storage and actual agent host loading remain unverified.
 
@@ -61,7 +61,8 @@ export PATH="$HOME/.local/bin:$PATH"
 Do not launch the downloaded file after a failure.
 The executable is a standalone Node bundle; it needs no npm install or sibling assets.
 
-Sign in using the hidden terminal password prompt, replacing the synthetic username with your account:
+For an SSO account, follow [CLI SSO sign-in](#sign-in-settings), then continue with tool discovery below.
+For a local account, sign in using the hidden terminal password prompt, replacing the synthetic username with your account:
 
 ```sh
 artium-axi login --username synthetic-user
@@ -109,7 +110,7 @@ Actual host loading and hook usefulness require separate acceptance.
 
 Give the setup agent the Linux host access, intended HTTPS hostname, DNS and certificate provisioning method, private CA bundle if applicable, and the protected data and backup locations.
 Also supply the first administrator's username and temporary password through protected input, a master-key custody decision, and credentials for each tool you want enabled from [Tool credentials](#tool-credentials).
-Upstream accounts are shared server-side service identities; users sign in to Artium with separate local accounts.
+Upstream accounts are shared server-side service identities; users sign in with their own [artium accounts](#sign-in-settings).
 
 1. **Prepare the host.**
    Install Git and Docker with Compose and reserve HTTPS port 443 for the reverse proxy.
@@ -348,6 +349,7 @@ The root package is private; server downloads and source builds are the installa
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
 | `artium-axi login --username synthetic-user` | Sign in with a local account. |
+| `artium-axi login --sso` | Sign in through browser approval with Microsoft; works on headless and SSH hosts. |
 | `artium-axi passwd` | Change your password, then sign in again. |
 | `artium-axi whoami` | Show identity, roles, access expiry and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
@@ -554,7 +556,21 @@ Linking preserves the existing user id, username, display name, administrator fl
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
 See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) and [P3 activation verification](docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
-CLI SSO and generic OIDC discovery follow in later phases.
+For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
+Open the displayed `/device` URL in any browser, enter the terminal code, complete a fresh Microsoft sign-in, and review the requesting IP and UTC time before choosing **Approve**.
+Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
+Choose **This wasn't me** to deny an unexpected request.
+Codes expire after 10 minutes and can grant access only once.
+The CLI waits for approval and stores the usual private artium tokens; run `artium-axi login --sso` again after its 8-hour family ends.
+No Entra public-client or device-code grant configuration is required; this is artium's own approval flow.
+Restarting artium invalidates pending approvals; run `login --sso` again.
+For bearer SSO reauthentication, send `POST /v1/auth/reauth` with your access token and JSON `{}`.
+Approve the returned code through `/device` after a fresh Microsoft sign-in as the same user.
+Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }`, waiting the returned `intervalMs` milliseconds between polls, until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
+Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
+Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
+Generic OIDC follows in P5.
+See [CLI device sign-in verification](docs/verification-p4a.md) for recorded fake-provider evidence and bearer reauthentication coverage.
 
 ### Audit screen and API
 
@@ -573,10 +589,11 @@ CSV quotes non-null values and leaves null fields empty; JSON lines preserves JS
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Successful local password confirmations and SSO browser confirmations emit `reauth` events.
+Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
 Successful local sign-in, password confirmation and password-change records include `authentication_method` as `local` or `break-glass`.
 These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.
 SSO reauthentication events include the authentication method, provider and validated subject.
+Device approval and refusal emit `device-approve` and `device-deny` events, with the requesting IP in `arguments.requestingAddress` and the approving or denying browser's IP in `client_address`.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
@@ -649,7 +666,7 @@ Never put tokens or keys in arguments, source files, images or logs.
 The server refuses the removed development-authentication settings `ARTIUM_AXI_DEV` and `ARTIUM_AXI_DEV_TOKEN_FILE`.
 
 Local passwords use Argon2id, require 15 to 128 code points and at most 512 UTF-8 bytes, preserve spaces and Unicode, and reject exact matches in the bundled common-password list.
-Access tokens last one hour within a 12-hour family; refresh-token reuse revokes the family.
+Access tokens last one hour within an 8-hour SSO CLI family or a 12-hour local CLI family; refresh-token reuse revokes the family.
 Password changes revoke existing CLI tokens and browser sessions.
 See [browser administration](#browser-administration) for session management and user archival.
 Sign-in limits and persistent account lockout are enforced by the [attempt boundary](src/server/auth/attempts.ts) and [configured defaults](src/server/config.ts).

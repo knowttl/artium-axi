@@ -5,7 +5,6 @@ Firstmate approved the P3c-2 split before implementation under the maintainer's 
 P3c-2a delivers break-glass designation, shared local-password enforcement, browser and bearer confirmation, recovery and audit.
 See [P3c-2b verification](verification-p3c2b.md) for activation, setup-guide and match-count acceptance.
 The README owns current [provider activation and setup](../README.md#sign-in-settings).
-CLI SSO/device approval and generic OIDC remain later phases.
 
 ## Behaviour
 

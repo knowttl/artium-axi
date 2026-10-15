@@ -986,6 +986,10 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
     check(await page.eval(() => document.querySelector('pre').textContent.includes(location.origin)), 'CLI uses wrong server');
     check(await page.eval(() => document.querySelector('main').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');
     check(await page.eval(() => {
+      const help = document.querySelector('.page-help').textContent;
+      return help.includes('your local username') && help.includes('Change password') && !help.includes('login --sso');
+    }), 'Local account help lost its username or password guidance');
+    check(await page.eval(() => {
       const table = document.querySelector('section:has(form[action="/v1/account/sessions/revoke"]) table');
       const controls = [...table.querySelectorAll('time, button')];
       return controls.every(control => {

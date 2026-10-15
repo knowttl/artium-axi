@@ -2,7 +2,7 @@
 
 This slice completes P3 with locally validated, audited provider activation, the in-app Entra setup guide, copy buttons and per-rule match counts.
 Fresh installations keep providers disabled and designate no break-glass accounts automatically.
-CLI SSO/device approval and generic OIDC remain later phases.
+See the README's [Sign-in settings](../README.md#sign-in-settings) for current CLI SSO and provider support.
 
 ## Verification plan
 

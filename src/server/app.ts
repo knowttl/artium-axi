@@ -34,6 +34,7 @@ import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
 import { registerSso, type SsoFetch } from './auth/sso.js'
+import { registerDevice } from './auth/device.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -61,7 +62,8 @@ export function createApp(options: {
     trustProxy: address => proxies.includes(address) })
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
-  const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch)
+  const device = registerDevice(app, db, audit)
+  const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
@@ -156,9 +158,13 @@ export function createApp(options: {
     }
     const token = bearer(request.headers.authorization)
     const userId = authenticate(db, token)
+    const user = db.prepare('SELECT username, source FROM users WHERE id = ?').get(userId) as { username: string, source: string }
+    if (user.source === 'sso') {
+      reply.header('cache-control', 'no-store')
+      return device.reauthenticate(request, token, userId)
+    }
     const input = reauthSchema.safeParse(request.body)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
-    const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as { username: string }
     await authAttempts.signIn(user.username, input.data.password, { requestId: request.id, clientAddress: request.ip })
     return audit.change({ event: 'reauth', userId, tool: null, outcome: 'success',
       authenticationMethod: localAuthenticationMethod(db, userId),

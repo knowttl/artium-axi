@@ -116,7 +116,7 @@ The checksum comes from the same trusted server and detects corruption or mixed 
 
 Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.
 Keep Node on PATH and retain the installed launcher path; rerun setup if the bundle moves.
-With that installation and trust configured, the following commands are the local operator checks:
+With that installation and trust configured, the following commands are the local-account operator checks:
 
 ```sh
 artium-axi setup --host claude --hook
@@ -152,11 +152,12 @@ An uncertain network outcome is never retried automatically; inspect audit and p
 
 There is no dedicated administrator CLI.
 Scripts use the JSON API over the same trusted HTTPS origin; see the [shared contracts](../src/shared/api.ts) for route bodies and revision fields.
-Start with `POST /v1/auth/login`, with JSON `{ "username": "synthetic-admin", "password": "<password>" }` supplied from protected stdin or a protected file, never command arguments.
+For local accounts, start with `POST /v1/auth/login`, with JSON `{ "username": "synthetic-admin", "password": "<password>" }` supplied from protected stdin or a protected file, never command arguments.
 Require an `authenticated` response; a `password-change-required` response must complete the password-change flow first.
 Keep the returned `accessToken` and `refreshToken` private and out of logs.
 Then send `POST /v1/auth/reauth` with `Authorization: Bearer <accessToken>` and JSON `{ "password": "<password>" }` from the same protected input source.
 The response contains `ticket` and `expiresAt` (Unix milliseconds).
+SSO administrators instead follow the README's [CLI sign-in and bearer reauthentication instructions](../README.md#sign-in-settings) to obtain artium tokens and a recent-auth ticket through browser approval.
 Send both `Authorization: Bearer <accessToken>` and `x-artium-reauth-ticket: <ticket>` on every `/v1/admin/...` request, including reads such as `GET /v1/admin/users` and `GET /v1/admin/audit`.
 With curl, provide sensitive headers through a protected configuration file or stdin with `--config -`, rather than command arguments.
 Bearer sessions do not use browser CSRF tokens.

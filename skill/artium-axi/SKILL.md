@@ -15,7 +15,7 @@ If artium-axi is absent from PATH, use the installed command below in place of `
 The setup command records the standalone bundle's Node invocation here.
 <!-- /artium-axi executable -->
 
-If sign-in is required, ask the user to sign in with `artium-axi login --username <username> --password-stdin`.
+If sign-in is required, ask the user to follow `artium-axi login --help` for their SSO or local account.
 Never request or print tokens or put passwords in arguments.
 An empty tool list means no enabled runtime tool is available through the account's roles; ask an administrator to check grants and enabled tools.
 Use `artium-axi doctor` for connection or cached health diagnostics.

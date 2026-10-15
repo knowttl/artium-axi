@@ -25,6 +25,7 @@ export type AuditEvent = Context & (
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
   | { event: 'lockout' | 'token-reuse', outcome: Outcome }
+  | { event: 'device-approve' | 'device-deny', outcome: Outcome, requestingAddress: string }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
@@ -180,7 +181,8 @@ export class Audit {
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
       arguments: event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
-        event.event === 'role-sync' ? JSON.stringify({ added: event.added, removed: event.removed }) : null,
+        event.event === 'role-sync' ? JSON.stringify({ added: event.added, removed: event.removed }) :
+        event.event === 'device-approve' || event.event === 'device-deny' ? JSON.stringify({ requestingAddress: event.requestingAddress }) : null,
       request_id: event.requestId, exit_code: terminal?.exitCode ?? null,
       duration_ms: terminal ? Math.round(terminal.durationMs) : null,
       stdout_bytes: terminal?.outputBytes.stdout ?? null, stderr_bytes: terminal?.outputBytes.stderr ?? null,

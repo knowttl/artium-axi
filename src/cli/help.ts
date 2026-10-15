@@ -10,9 +10,9 @@ const commands = {
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
   'tools show': { usage: 'artium-axi tools show <tool>', purpose: 'Show one available tool and its vetted upstream help.', flags: [], example: 'artium-axi tools show falcon-axi' },
   whoami: { usage: 'artium-axi whoami', purpose: 'Show your identity, roles, access expiry and server.', flags: [], example: 'artium-axi whoami' },
-  login: { usage: 'artium-axi login --username <username> [--password-stdin]', purpose: 'Sign in with a local account.',
-    flags: ['--username <username> (required)', '--password-stdin (default false; otherwise ARTIUM_AXI_PASSWORD or a terminal prompt)'],
-    example: 'artium-axi login --username <username> --password-stdin' },
+  login: { usage: 'artium-axi login --sso | --username <username> [--password-stdin]', purpose: 'Sign in through browser SSO (8-hour session) or with a local account.',
+    flags: ['--sso (default false; open the displayed URL in any browser and approve your terminal code; no password flags)', '--username <username> (required for local sign-in)', '--password-stdin (default false; local only; otherwise ARTIUM_AXI_PASSWORD or a terminal prompt)'],
+    example: 'artium-axi login --sso' },
   passwd: { usage: 'artium-axi passwd [--password-stdin]', purpose: 'Change your password, then sign in again.',
     flags: ['--password-stdin (default false; otherwise a terminal prompt; current password uses ARTIUM_AXI_CURRENT_PASSWORD or a terminal prompt)'],
     example: 'artium-axi passwd --password-stdin' },
@@ -45,6 +45,7 @@ export function helpCommand(args: string[], prefixHelp = false): HelpCommand | u
   }
   if (args[0] === 'falcon-axi' || args[0] === 'vectra-axi' || args[0] === 'ldap-axi') return prefixHelp && args.length === 2 ? args[0] : undefined
   if (args[0] === 'login' || args[0] === 'passwd') {
+    if (args[0] === 'login' && args.length === 3 && args.includes('--sso') && args.includes('--help')) return 'login'
     let requested = false
     let username = false
     let stdin = false
