@@ -56,6 +56,70 @@ async function save(id: string, value: Record<string, unknown>, expectedRevision
 }
 const value = { tenantId, clientId, auth: 'secret', clientSecret: 'CANARY-provider-secret' }
 
+async function activation(id: string, enabled = true, expectedRevision = 2, authorization = headers) {
+  return app.inject({ method: 'PATCH', url: base + '/' + id + '/activation', headers: authorization,
+    payload: { enabled, expectedRevision } })
+}
+
+test.each([
+  { label: 'missing credential', credential: undefined, account: 'break_glass = 1' },
+  { label: 'wrong tenant', credential: { ...value, tenantId: clientId }, account: 'break_glass = 1' },
+  { label: 'blank secret', credential: { ...value, clientSecret: '   ' }, account: 'break_glass = 1' },
+  { label: 'invalid private key', credential: { tenantId, clientId, auth: 'certificate', privateKey: 'CANARY-invalid', thumbprintSha256: '11'.repeat(32) }, account: 'break_glass = 1' },
+  { label: 'no designation', credential: value, account: 'break_glass = 0' },
+  { label: 'temporary password', credential: value, account: 'break_glass = 1, must_change = 1' },
+  { label: 'locked administrator', credential: value, account: 'break_glass = 1, locked_until = 9999999999999' },
+  { label: 'unusable password', credential: value, account: "break_glass = 1, password_hash = 'unusable'" },
+  { label: 'disabled administrator', credential: value, account: 'break_glass = 1, disabled = 1' },
+  { label: 'archived administrator', credential: value, account: 'break_glass = 1, disabled = 1, archived_at = 1' },
+])('activation refuses $label without changing policy', async ({ credential, account }) => {
+  const provider = await create()
+  if (credential) credentials.replace(provider.id, credential, 0, 'synthetic-development-user', Date.now())
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change, administrator)
+    SELECT 'synthetic-other-admin', 'synthetic-other-admin', 'Other administrator', password_hash, 0, 1 FROM users LIMIT 1`)
+  const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-other-admin', password: 'CANARY-local-password' } })
+  const otherHeaders = { authorization: 'Bearer ' + login.json().accessToken, 'x-artium-reauth-ticket': '' }
+  const proof = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: otherHeaders, payload: { password: 'CANARY-local-password' } })
+  otherHeaders['x-artium-reauth-ticket'] = proof.json().ticket
+  db.exec("UPDATE users SET " + account + " WHERE id = 'synthetic-development-user'")
+  const response = await activation(provider.id, true, 1, otherHeaders)
+  expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  expect(db.prepare('SELECT enabled, revision FROM sso_providers').get()).toEqual({ enabled: 0, revision: 1 })
+})
+
+test('activation and deactivation are revision checked and audited; saving a credential disables sign-in again', async () => {
+  const provider = await create()
+  await save(provider.id, value)
+  db.exec('UPDATE users SET break_glass = 1')
+  expect((await activation(provider.id)).json()).toMatchObject({ enabled: true, revision: 3 })
+  expect((await app.inject({ method: 'GET', url: base, headers })).json().providers[0].enabled).toBe(true)
+  expect((await activation(provider.id, false, 2)).json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  expect((await activation(provider.id, false, 3)).json()).toMatchObject({ enabled: false, revision: 4 })
+  expect((await activation(provider.id, true, 4)).statusCode).toBe(200)
+  expect((await save(provider.id, value, 1, 5)).statusCode).toBe(200)
+  expect(db.prepare('SELECT enabled, revision FROM sso_providers').get()).toEqual({ enabled: 0, revision: 6 })
+  expect(db.prepare("SELECT count(*) AS count FROM audit WHERE action = 'update-local-policy'").get()).toEqual({ count: 3 })
+})
+
+test('activation rolls policy back if audit persistence fails', async () => {
+  const provider = await create()
+  await save(provider.id, value)
+  db.exec("UPDATE users SET break_glass = 1; CREATE TRIGGER synthetic_policy_audit BEFORE INSERT ON audit WHEN NEW.action = 'update-local-policy' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  expect((await activation(provider.id)).json()).toMatchObject({ error: { code: 'AUDIT_UNAVAILABLE' } })
+  expect(db.prepare('SELECT enabled, revision FROM sso_providers').get()).toEqual({ enabled: 0, revision: 2 })
+})
+
+test('activation requires recent administrator authentication', async () => {
+  const provider = await create()
+  await save(provider.id, value)
+  expect((await activation(provider.id, true, 2, {})).json()).toMatchObject({ error: { code: 'TOKEN_INVALID' } })
+  expect((await activation(provider.id, true, 2, { authorization: headers.authorization! })).json()).toMatchObject({ error: { code: 'REAUTH_REQUIRED' } })
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change, administrator)
+    VALUES ('synthetic-other-admin', 'synthetic-other-admin', 'Other administrator', 'sso', 0, 1);
+    UPDATE users SET administrator = 0 WHERE id = 'synthetic-development-user'`)
+  expect((await activation(provider.id)).json()).toMatchObject({ error: { code: 'ADMIN_REQUIRED' } })
+})
+
 const invitationsBase = '/v1/admin/sso/invitations'
 async function invite(extra: Record<string, unknown> = {}) {
   const provider = await create()

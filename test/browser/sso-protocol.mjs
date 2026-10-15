@@ -28,6 +28,15 @@ function chrome(args, input) {
 function browser(script) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
+    const wait = page.wait.bind(page);
+    page.wait = async (...args) => {
+      try { await wait(...args); }
+      catch (error) {
+        if (!error.message.includes('Execution context was destroyed')) throw error;
+        // A form reload can replace the document while its observer is active.
+        await wait(...args);
+      }
+    };
     ${script}`)
 }
 
@@ -273,6 +282,75 @@ async function invite(options = {}) {
 const claim = path => `await page.open(base + ${JSON.stringify(path)});
   await page.wait('[data-oidc-approve]');
   await page.click('[data-oidc-approve]');`
+
+test('administrator activates configured SSO through the guide and can disable it again', async () => {
+  await configure({ enabled: false, localBreakGlass: true })
+  browser(`await page.open(base + '/login');
+    check(await page.eval(() => !document.querySelector('a[href="/auth/sso/synthetic-entra/start"]')), 'Disabled provider offered sign-in');
+    await page.fill('[name=username]', 'synthetic-user');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('form[action="/login"] button');
+    await page.wait('form[action="/v1/admin/users"]');
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra');
+    await page.wait('form[action$="/activation"]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Entra setup guide') && document.querySelector('main').innerText.includes('Assignment required')), 'Setup instructions missing');
+    const redirect = await page.eval(() => document.querySelector('[data-copy]').parentElement.querySelector('input').value);
+    check(redirect === base + '/auth/sso/synthetic-entra/callback', 'Incorrect redirect URI');
+    await page.eval(() => Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: async value => { window.copied = value; } }));
+    await page.click('[data-copy]');
+    check(await page.eval(() => window.copied === document.querySelector('[data-copy]').parentElement.querySelector('input').value && document.querySelector('[data-copy-status]').textContent === 'Copied.'), 'Copy failed');
+    await page.eval(() => Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: async () => { throw new Error('Denied'); } }));
+    await page.click('[data-copy]');
+    check(await page.eval(() => document.activeElement.selectionEnd === document.activeElement.value.length && document.querySelector('[data-copy-status]').textContent.includes('manually')), 'Manual copy fallback missing');
+    await page.click('form[action$="/activation"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/activation"] [name=enabled][value=false]');
+    await page.open(base + '/admin/settings/sign-in');
+    await page.wait('table');
+    check(await page.eval(() => document.querySelector('tbody').innerText.includes('Enabled')), 'Activated status missing');
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra');
+    await page.click('form[action$="/activation"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/activation"] [name=enabled][value=true]');
+    await page.click('form[action="/logout"] button');
+    await page.wait('form[action="/login"]');
+    check(await page.eval(() => !document.querySelector('a[href="/auth/sso/synthetic-entra/start"]')), 'Deactivated provider offered sign-in');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.events.filter(event => event.action === 'update-local-policy').length, 2)
+})
+
+test('who matches previews new rules from last validated claims and refreshes after another sign-in', async () => {
+  await invite()
+  await configure({ administrator: true, claims: { roles: ['Artium.Reader', 'Artium.Extra'] } })
+  browser(`${signIn}
+    await page.wait('a[href="/admin"]');
+    await page.click('a[href="/admin"]');
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra');
+    await page.wait('form[action="/v1/admin/sso/role-rules"]');
+    check(await page.eval(() => [...document.querySelectorAll('summary')].filter(node => node.textContent.includes('Who matches: 1')).length === 2), 'Validated role claims not counted');
+    await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Extra');
+    await page.eval(() => { document.querySelector('form[action="/v1/admin/sso/role-rules"] [name=roleId]').value = 'synthetic-role'; });
+    await page.click('form[action="/v1/admin/sso/role-rules"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#reauth-dialog[open]');`)
+  openReauthPopup()
+  browser(`await page.click('[data-oidc-approve]');
+    await page.wait('a[href="/reauth?complete=1"]');
+    await page.click('a[href="/reauth?complete=1"]');`)
+  selectPage('/admin/settings/sign-in/')
+  browser(`await page.wait('#reauth-dialog:not([open])');
+    check(await page.eval(() => [...document.querySelectorAll('summary')].some(node => node.textContent.includes('Artium.Extra') && node.textContent.includes('Who matches: 1'))), 'New rule preview depended on existing grants');`)
+  await configure({ claims: { roles: [] } })
+  browser(`${claim('/auth/sso/synthetic-entra/start')}
+    await page.wait('a[href="/admin"]');
+    await page.click('a[href="/admin"]');
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra');
+    await page.wait('form[action="/v1/admin/sso/role-rules"]');
+    check(await page.eval(() => [...document.querySelectorAll('summary')].filter(node => node.textContent.includes('Who matches: 0')).length === 3), 'Counts did not refresh after sign-in');`)
+})
 
 test('invitation claim grants direct and rule roles and a reused link is refused', async () => {
   const invitation = await invite()

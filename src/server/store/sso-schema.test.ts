@@ -113,11 +113,11 @@ test('SSO accounts have no password and providers start disabled', () => {
 
 test('identity binding is unique within a provider and issuer, independent of display username', () => {
   seedSso()
-  db.exec(`INSERT INTO identities VALUES ('identity', 'person', 'provider', 'https://identity.example', '["synthetic-tenant","synthetic-object"]', 1000);
+  db.exec(`INSERT INTO identities (id, user_id, provider_id, issuer, subject, created_at) VALUES ('identity', 'person', 'provider', 'https://identity.example', '["synthetic-tenant","synthetic-object"]', 1000);
     UPDATE users SET username = 'renamed-sso' WHERE id = 'person';`)
   expect(db.prepare('SELECT subject FROM identities WHERE user_id = ?').get('person'))
     .toEqual({ subject: '["synthetic-tenant","synthetic-object"]' })
-  expect(() => db.exec(`INSERT INTO identities SELECT 'duplicate', user_id, provider_id, issuer, subject, created_at FROM identities`)).toThrow(/UNIQUE/)
+  expect(() => db.exec(`INSERT INTO identities (id, user_id, provider_id, issuer, subject, created_at) SELECT 'duplicate', user_id, provider_id, issuer, subject, created_at FROM identities`)).toThrow(/UNIQUE/)
   expect(() => db.exec("UPDATE identities SET user_id = 'missing'")).toThrow(/FOREIGN KEY/)
   expect(() => db.exec("UPDATE identities SET provider_id = 'missing'")).toThrow(/FOREIGN KEY/)
 })

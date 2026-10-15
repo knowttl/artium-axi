@@ -81,6 +81,7 @@ if (process.env.ARTIUM_TEST_SSO === '1') {
     sso.token.tamperSignature = request.body.tamperSignature
     if (request.body.administrator !== undefined) db.prepare("UPDATE users SET administrator = ? WHERE id = 'synthetic-browser-sso'").run(request.body.administrator ? 1 : 0)
     if (request.body.localBreakGlass !== undefined) db.prepare("UPDATE users SET break_glass = ?, must_change = 0 WHERE id = 'synthetic-development-user'").run(request.body.localBreakGlass ? 1 : 0)
+    if (request.body.enabled !== undefined) db.prepare("UPDATE sso_providers SET enabled = ? WHERE id = 'synthetic-entra'").run(Number(request.body.enabled))
     return { configured: true }
   })
   server.post('/test/sso-invitation', async request => {
@@ -92,7 +93,7 @@ if (process.env.ARTIUM_TEST_SSO === '1') {
     invitations: db.prepare('SELECT id, user_id, claimed_at FROM invitations').all(),
     users: db.prepare('SELECT id, username, source, password_hash FROM users').all(),
     grants: db.prepare('SELECT user_id, role_id, origin FROM user_roles ORDER BY role_id, origin').all(),
-    events: db.prepare('SELECT event, user_id, target_id, arguments, authentication_method FROM audit ORDER BY id').all(),
+    events: db.prepare('SELECT event, action, user_id, target_id, arguments, authentication_method FROM audit ORDER BY id').all(),
     audit: db.prepare("SELECT outcome, authentication_method, provider_id, subject FROM audit WHERE authentication_method = 'sso' ORDER BY id").all() }))
 }
 server.post('/test/audit', async () => {
