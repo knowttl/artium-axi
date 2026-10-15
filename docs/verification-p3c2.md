@@ -9,24 +9,11 @@ CLI SSO/device approval and generic OIDC remain later phases.
 
 ## Behaviour
 
-Only local administrators can be designated break-glass, using the user detail page or the revision-checked user patch API.
-Database constraints also prevent invalid designations.
-Designation changes require administrator capability and recent identity confirmation and commit with `designate-break-glass` or `remove-break-glass` audit actions.
-Removing designation revokes every browser session and CLI token family for that account atomically with its audit record.
-Demoting an administrator clears designation and revokes their sessions; linking to SSO clears designation as part of the existing audited identity conversion.
-Disabled accounts still cannot sign in.
-Offline recovery designates the recovered local administrator, resets their password with must-change and revokes prior sessions in its existing audited transaction.
-
-Local password sign-in, confirmation and changes share one policy boundary.
-While every provider is disabled, existing local accounts can continue using passwords.
-When any provider is enabled, only designated local administrators can authenticate with a password, including an existing session attempting confirmation or a password change.
-The policy is rechecked after asynchronous password verification or hashing before success is committed.
-This slice exercises enabled providers through fake-only test fixtures; no production activation control is exposed.
-
-Successful local sign-in and confirmation events carry `authentication_method` as `local` or `break-glass`.
-Designation is flagged on the users table and signed-in header, and break-glass events are highlighted on the Audit page.
-Audit exports and the JSON stdout stream carry the same structured method field for alerting.
-The Overview page remains a later-phase feature.
+The README owns [designation and local-password policy](../README.md#sign-in-settings) and [authentication audit fields and exports](../README.md#audit-screen-and-api).
+The runbook owns [offline recovery](runbook.md#first-administrator-and-offline-recovery) and [migration compatibility](runbook.md#backup-restore-and-upgrade-rollback).
+The [shared API contract](../src/shared/api.ts) owns the user patch fields.
+The shared [local authentication boundary](../src/server/auth/local.ts) rechecks policy after asynchronous password verification or hashing before success is committed; [local authentication tests](../src/server/auth/local.test.ts) cover policy changes during verification.
+This slice exercises enabled providers through fake-only test fixtures.
 
 ## Verification plan
 

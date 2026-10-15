@@ -3,9 +3,8 @@
 P3b is delivered in two sequential slices.
 P3b-1 implements browser sign-in for already-linked Entra identities while provider activation remains unavailable.
 P3b-2 adds invitation claiming with the expected-username guard, local account linking, rule role synchronization and labels.
-P3c is split into two sequential, independently testable slices.
 P3c-1 adds [SSO reauthentication and optional provider sign-out](verification-p3c.md), with activation still unavailable.
-P3c-2 adds break-glass designation and shared local-password enforcement/audit, safe activation, setup help, copy buttons, match counts and complete browser acceptance.
+See [P3c-2 verification](verification-p3c2.md) for the current slice boundary and remaining work.
 
 ## Protocol boundary
 

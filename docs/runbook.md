@@ -402,13 +402,13 @@ Table rebuilds and master-key validation share one transaction; a failure rolls 
 The migration checks foreign keys before committing and enables enforcement before exposing the connection.
 Reopening an upgraded store does not reapply migrations or enable SSO providers.
 Migration 017 adds break-glass designation, defaulting existing accounts to undesignated and preserving their sessions.
-Only local administrators may be designated; removing designation revokes their sessions, and local-to-SSO linking clears it.
+See [Sign-in settings](../README.md#sign-in-settings) for designation and session-revocation behaviour.
 Migration 014 adds encrypted provider credential storage without rewriting existing identity or tool data.
 Provider credentials participate in startup authentication, offline master-key rotation, backup and restore with the same AES-256-GCM format as tool credentials.
 Follow [Sign-in settings](../README.md#sign-in-settings) for provider setup and credential replacement rules.
 Migration 016 adds a sign-in identity reference to browser sessions without backfilling existing sessions.
 Existing SSO sessions must sign in again before SSO confirmation or optional Microsoft sign-out can work.
-Local sessions retain their existing confirmation flow.
+Local sessions follow the [local-password policy](../README.md#sign-in-settings) for confirmation.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
 After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.
