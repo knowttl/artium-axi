@@ -14,6 +14,7 @@ import { serverDefaults } from './config.js'
 import { SharedIdentityResolver } from './policy/identity-resolver.js'
 import { Runner } from './runner/runner.js'
 import { createCredentialStore, openStore } from './store/db.js'
+import { ProviderCredentials } from './store/provider-credentials.js'
 import { EmbeddedSecretSource } from './store/secret-source.js'
 import { EnvironmentKeyProvider, saveMasterKey } from './store/key-provider.js'
 import { acquireMaintenanceLock } from './store/maintenance-lock.js'
@@ -39,7 +40,7 @@ async function main() {
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
     try { initializeNativeWriteLog(writeLog) }
     catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
-    const app = createApp({ db, audit, runner, credentialStore: store, resolver: new SharedIdentityResolver(store),
+    const app = createApp({ db, audit, runner, credentialStore: store, providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log')),

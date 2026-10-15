@@ -202,6 +202,32 @@ export const adminToolRoutes = {
   test: { method: 'POST', path: '/v1/admin/tools/:tool/test', input: z.strictObject({}), response: healthSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'credential-test' },
 } as const
+// P2b configures only disabled single-tenant Entra providers. Settings never contact
+// the identity service. Tenant changes clear credentials; all writes are audited.
+const providerSettingsSchema = z.strictObject({ name: z.string().trim().min(1).max(256), tenantId: z.uuid() })
+export const adminProviderSchema = z.strictObject({ id: accountId, name: z.string(), kind: z.literal('entra'),
+  issuer: z.string(), tenantId: z.uuid(), enabled: z.literal(false), revision: z.number().int().positive(),
+  updatedAt: z.number().nullable(), updatedBy: accountId.nullable() })
+export const adminProviderCredentialSchema = adminCredentialSchema.omit({ tool: true })
+export const adminProviderRoutes = {
+  list: { method: 'GET', path: '/v1/admin/sso/providers', input: z.strictObject({}),
+    response: z.strictObject({ providers: z.array(adminProviderSchema) }), auditEvent: null },
+  create: { method: 'POST', path: '/v1/admin/sso/providers', input: providerSettingsSchema,
+    response: adminProviderSchema, auditEvent: 'create-provider' },
+  patch: { method: 'PATCH', path: '/v1/admin/sso/providers/:id',
+    input: providerSettingsSchema.extend({ expectedRevision: z.number().int().positive() }),
+    response: adminProviderSchema, auditEvent: 'update-provider' },
+  credential: { method: 'GET', path: '/v1/admin/sso/providers/:id/credential', input: z.strictObject({}),
+    response: adminProviderCredentialSchema, auditEvent: null },
+  // Retain omitted secrets only for the same tenant/client/auth. Non-secret fields
+  // replace metadata. Combined certificatePem derives the key and SHA-256 fingerprint.
+  // Both current revisions are required; saving advances the provider revision too.
+  save: { method: 'PATCH', path: '/v1/admin/sso/providers/:id/credential',
+    input: z.strictObject({ value: z.record(z.string(), z.unknown()), expectedRevision: z.number().int().nonnegative(),
+      expectedProviderRevision: z.number().int().positive() }), response: adminProviderCredentialSchema,
+    auditEvent: 'replace-provider-credential' },
+} as const
+
 export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })

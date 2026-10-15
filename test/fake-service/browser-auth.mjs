@@ -10,6 +10,7 @@ import { Audit } from '../../dist/src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../dist/src/server/policy/identity-resolver.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../dist/src/server/store/db.js'
+import { ProviderCredentials } from '../../dist/src/server/store/provider-credentials.js'
 import { EnvironmentKeyProvider } from '../../dist/src/server/store/key-provider.js'
 import { seedToolUser } from '../../dist/test/fixtures/tokens.js'
 import { EmbeddedSecretSource } from '../../dist/src/server/store/secret-source.js'
@@ -54,7 +55,7 @@ for (const adapter of adapters) {
   }
 }
 const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters,
-  credentialStore: store, resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
+  credentialStore: store, providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
 Date.now = () => realNow() + offset
@@ -103,8 +104,16 @@ proxy.listen(0, '127.0.0.1', () => {
   console.log(JSON.stringify({ url: `https://localhost:${proxy.address().port}`, spki, clock: `${address.origin}/test/clock`,
     certificatePem: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'server.key'), 'utf8') }))
 })
+const connections = new Set()
+proxy.on('connection', socket => {
+  connections.add(socket)
+  socket.once('close', () => connections.delete(socket))
+})
 async function close() {
-  await new Promise(resolve => proxy.close(resolve))
+  const closed = new Promise(resolve => proxy.close(resolve))
+  // Chrome can keep speculative TLS sockets open after the final page assertion.
+  for (const socket of connections) socket.destroy()
+  await closed
   await server.close()
   db.close()
   rmSync(directory, { recursive: true, force: true })

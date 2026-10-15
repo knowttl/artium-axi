@@ -429,14 +429,15 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin/roles` | List roles and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an empty role. |
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
+| `/admin/settings/sign-in` | Add disabled Entra ID providers; open a provider to edit its settings and encrypted credential. |
 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
 User detail and role membership pages distinguish Direct assignments made by an administrator from Rule grants.
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
-The identity schema supports SSO users, providers, rules and invitations, but SSO sign-in and its settings are not available yet.
-Providers default to disabled, and SSO accounts cannot be given a local password.
+The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](#sign-in-settings) for the available provider editor and current SSO limits.
+SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
 Archived user detail allows retained direct assignments to be removed without restoring sign-in; rule grants remain, and the UI and API refuse new direct assignments, including reassigning a removed direct grant.
 Deleting an empty role removes its tool grants and records an audit event.
@@ -483,6 +484,24 @@ Credential changes clear cached health, and background checks run every 15 minut
 Use **Test credential** for a current fixed read before enabling a configured tool.
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](#microsoft-graph) and obtain the required permission results and maintainer approval before enabling Graph on a running installation.
+
+### Sign-in settings
+
+Open **Sign-in settings** at `/admin/settings/sign-in` to add a single-tenant Entra ID provider using its name and directory tenant UUID.
+Open the provider to save its application client UUID and credential.
+Certificate authentication is preferred: paste or upload one PEM containing the certificate and matching unencrypted private key; Artium calculates the SHA-256 fingerprint.
+The application's public certificate registration is an owner setup step; saving here does not contact the provider.
+A client secret is also accepted, with an in-page warning recommending certificates.
+
+Provider credentials use the encrypted store; their secrets are never returned in pages, API metadata or audit records.
+Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
+Changing client or authentication requires a new secret; changing the provider tenant removes the old credential.
+Settings and credential saves require administrator capability and recent password confirmation, check revisions, and are audited.
+The [provider API contracts](src/shared/api.ts) own the request and response fields.
+
+Providers remain disabled and SSO sign-in is unavailable in this slice.
+Local sign-in continues unchanged.
+Role-rule settings, invitations, browser SSO, CLI SSO and generic OIDC discovery follow in later slices.
 
 ### Audit screen and API
 

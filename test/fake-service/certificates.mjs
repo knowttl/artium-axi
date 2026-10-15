@@ -3,12 +3,36 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export function createTestCertificates(directory, hosts) {
-  const openssl = args => execFileSync('openssl', args, { stdio: 'pipe', timeout: 10_000 })
-  openssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=Artium synthetic test CA',
-    '-keyout', join(directory, 'ca.key'), '-out', join(directory, 'ca.crt')])
+  const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+  writeFileSync(join(directory, 'index'), '')
+  writeFileSync(join(directory, 'authority.cnf'), `[ca]
+default_ca = synthetic
+[synthetic]
+database = index
+serial = serial
+new_certs_dir = .
+private_key = ca.key
+certificate = ca.crt
+default_md = sha256
+policy = subject
+[subject]
+commonName = supplied
+[root]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+[server]
+subjectAltName = ${hosts.map(host => `DNS:${host}`).join(',')}
+basicConstraints = CA:FALSE
+extendedKeyUsage = serverAuth
+`)
+  // Fixed dates keep synthetic TLS independent of clock skew between processes.
+  const validity = ['-startdate', '20200101000000Z', '-enddate', '20991231235959Z']
+  openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Artium synthetic test CA',
+    '-keyout', 'ca.key', '-out', 'ca.csr'])
+  openssl(['ca', '-batch', '-notext', '-rand_serial', '-selfsign', '-config', 'authority.cnf',
+    '-extensions', 'root', '-in', 'ca.csr', '-out', 'ca.crt', ...validity])
   openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', `/CN=${hosts[0]}`,
     '-keyout', join(directory, 'server.key'), '-out', join(directory, 'server.csr')])
-  writeFileSync(join(directory, 'extensions'), `subjectAltName=${hosts.map(host => `DNS:${host}`).join(',')}\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n`)
-  openssl(['x509', '-req', '-in', join(directory, 'server.csr'), '-CA', join(directory, 'ca.crt'),
-    '-CAkey', join(directory, 'ca.key'), '-CAcreateserial', '-days', '1', '-extfile', join(directory, 'extensions'), '-out', join(directory, 'server.crt')])
+  openssl(['ca', '-batch', '-notext', '-rand_serial', '-config', 'authority.cnf',
+    '-extensions', 'server', '-in', 'server.csr', '-out', 'server.crt', ...validity])
 }

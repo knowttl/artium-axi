@@ -5,6 +5,15 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 import { withFakeService } from './fake-service/fixture.js'
 
+test('fake TLS certificates verify at a fixed time before issuance', async () => {
+  await withFakeService(async ({ directory }) => {
+    const result = spawnSync('openssl', ['verify', '-attime', '1735689600',
+      '-CAfile', join(directory, 'ca.crt'), '-purpose', 'sslserver', '-verify_hostname', 'localhost',
+      join(directory, 'server.crt')], { encoding: 'utf8' })
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+  })
+})
+
 test('fake HTTPS service trusts only its test CA and records ambiguous mutations', async () => {
   await withFakeService(async ({ port, send }) => {
     await expect(send('/', 'GET', false)).rejects.toThrow()

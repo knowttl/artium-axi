@@ -52,8 +52,8 @@ const fieldHelp: Record<string, string> = {
   applianceRelease: 'Optional release label for Qux appliances.',
 }
 
-export function credentialFields(tool: ToolName, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
-  const excluded = new Set([...Object.keys(nativeSettingsSchemas[tool].shape), 'tokenEnv', 'secretEnv'])
+export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
+  const excluded = new Set([...(tool ? Object.keys(nativeSettingsSchemas[tool].shape) : []), 'tokenEnv', 'secretEnv'])
   const fields = profile.fields().filter(field => !excluded.has(field.name))
     .sort((a, b) => Number(['mode', 'auth', 'kind'].includes(b.name)) - Number(['mode', 'auth', 'kind'].includes(a.name)))
     .map(({ name, schema, required }) => {
@@ -77,7 +77,7 @@ export function credentialFields(tool: ToolName, profile: CredentialProfile, met
     }
     return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}><label>${label}${input}</label><p>${escape(fieldHelp[name] ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
-  return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client or origin requires new secrets. Saving keeps native settings and clears cached health.</p>${fields}
+  return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client or origin requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
     <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
     <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(profile.inputSchema, null, 2))}</pre></details></div>`
 }

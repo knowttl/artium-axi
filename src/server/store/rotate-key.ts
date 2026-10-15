@@ -20,14 +20,16 @@ export function rotateKey(file: string, oldProvider: KeyProvider, newProvider: K
       const receipt = { old_key_id: oldKey.id, new_key_id: newKey.id }
       new Audit(db, Date.now, () => {}).change({ event: 'admin-change', action: 'rotate-key', targetId: newKey.id,
         userId: null, tool: null, requestId: randomUUID(), clientAddress: null, outcome: 'success' }, () => {
-        const rows = db.prepare('SELECT * FROM credentials ORDER BY id').all() as EncryptedCredential[]
-        const update = db.prepare(`UPDATE credentials SET schema_version = @schema_version,
-          key_id = @key_id, nonce = @nonce, ciphertext = @ciphertext,
-          authentication_tag = @authentication_tag WHERE id = @id AND tool = @tool`)
-        for (const row of rows) {
-          const plaintext = decryptCredential(row, oldKey)
-          try { update.run(encryptCredential(row.id, row.tool, plaintext, newKey)) }
-          finally { plaintext.fill(0) }
+        for (const table of ['credentials', 'provider_credentials']) {
+          const rows = db.prepare(`SELECT * FROM ${table} ORDER BY id`).all() as EncryptedCredential[]
+          const update = db.prepare(`UPDATE ${table} SET schema_version = @schema_version,
+            key_id = @key_id, nonce = @nonce, ciphertext = @ciphertext,
+            authentication_tag = @authentication_tag WHERE id = @id AND tool = @tool`)
+          for (const row of rows) {
+            const plaintext = decryptCredential(row, oldKey)
+            try { update.run(encryptCredential(row.id, row.tool, plaintext, newKey)) }
+            finally { plaintext.fill(0) }
+          }
         }
         db.prepare('UPDATE store_metadata SET master_key_id = ? WHERE id = 1').run(newKey.id)
         db.prepare('INSERT INTO key_rotations (old_key_id, new_key_id) VALUES (@old_key_id, @new_key_id)').run(receipt)

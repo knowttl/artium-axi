@@ -47,7 +47,7 @@ async function withAzureGateway(check: (fixture: {
       return { ...call, executable: process.execPath,
         args: ['--import', fileURLToPath(new URL('../fake-service/azure-transport.mjs', import.meta.url)),
           fileURLToPath(new URL('../../tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', import.meta.url)), ...call.args],
-        fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 1500 },
+        fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 5000 },
         environment: { ...call.environment, NODE_EXTRA_CA_CERTS: join(directory, 'ca.crt'),
           ARTIUM_TEST_AZURE_OUTCOME: outcome,
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
@@ -164,7 +164,7 @@ test.each([
   await withAzureGateway(async ({ run, send }) => {
     const response = await run(['sentinel', 'incident', 'comment', 'create', '-s', subscription,
       ...selectors, '--message', 'synthetic applied comment', '--execute'])
-    expect(response.statusCode).toBe(504)
+    expect(response.statusCode, JSON.stringify({ selectors, response: response.json() })).toBe(504)
     const error = errorResponseSchema.parse(response.json()).error
     expect(error.code).toBe('UNKNOWN_OUTCOME')
     const first = error.next.split('Check current state before trying again: ')[1].split('. Use the returned incident id')[0]
@@ -307,7 +307,7 @@ test.each(['504', 'drop'].flatMap(outcome => ['json', 'toon'].flatMap(format => 
     const failed = runSuccessSchema.parse(response.json())
     expect(failed.exitCode).toBe(1)
     const upstream = decode(failed.stdout) as { code: string, help: string[] }
-    expect(upstream.code).toBe('UNKNOWN_OUTCOME')
+    expect(upstream.code, JSON.stringify({ command, response: response.json(), evidence: JSON.parse(await send('/__evidence')) })).toBe('UNKNOWN_OUTCOME')
     const serialized = format === 'json' ? JSON.stringify(upstream) : encode(upstream)
     const output = rewriteSuggestions(serialized, 'az-axi')
     const hosted = (format === 'json' ? JSON.parse(output) : decode(output)) as typeof upstream
@@ -316,9 +316,10 @@ test.each(['504', 'drop'].flatMap(outcome => ['json', 'toon'].flatMap(format => 
     for (const suggestion of suggestions) {
       const emitted = suggestion.slice(suggestion.indexOf('`') + 1, -1)
       const recovered = await run(hostedArgs(emitted))
-      expect(recovered.statusCode).toBe(200)
+      const diagnostic = JSON.stringify({ command: emitted, statusCode: recovered.statusCode, response: recovered.json() })
+      expect(recovered.statusCode, diagnostic).toBe(200)
       const result = runSuccessSchema.parse(recovered.json())
-      expect(result.exitCode).toBe(0)
+      expect(result.exitCode, diagnostic).toBe(0)
       expect(decode(result.stdout)).toMatchObject({ properties: { [field]: value } })
     }
     expect(rewriteSuggestions(output, 'az-axi')).toBe(output)

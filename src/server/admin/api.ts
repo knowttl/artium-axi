@@ -13,11 +13,13 @@ import { requireRecentAuth, revokeUserSessions, verifyAccessToken } from '../aut
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
+import { registerProviderAdmin } from './providers.js'
+import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
 
-export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts, tools: ToolAdminOptions): void {
+export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts, tools: ToolAdminOptions, providerCredentials?: ProviderCredentials): void {
   db.function('unicode_lower', { deterministic: true }, (value: string | null) => value === null ? null : value.toLowerCase())
   function authorize(request: FastifyRequest): string {
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
@@ -56,6 +58,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   }
 
   registerToolAdmin(app, db, audit, authorize, tools)
+  registerProviderAdmin(app, db, audit, authorize, providerCredentials)
 
   app.route({ method: adminAuditRoute.method, url: adminAuditRoute.path, handler: async request => {
     authorize(request)
