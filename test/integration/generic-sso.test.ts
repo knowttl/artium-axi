@@ -100,6 +100,36 @@ test('generic invitation claim binds sub and refuses username mismatch without c
   expect((await app.inject({ url: invitation.claimPath, headers })).body).toContain('SSO_INVITE_INVALID')
 })
 
+test('named claims synchronize each provider independently while preserving direct grants', async () => {
+  db.exec(`INSERT INTO roles (id, name) VALUES ('rule-role', 'Rule role');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-first-user', 'synthetic-role');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES
+      ('first-rule', 'synthetic-first', 'groups', 'Readers', 'rule-role'),
+      ('second-rule', 'synthetic-second', 'custom.claim', 'Readers', 'rule-role');`)
+  fakes[0].token.claims = { groups: ['Readers'], 'custom.claim': 'Readers' }
+  fakes[1].token.claims = { groups: ['Readers'], 'custom.claim': 'Readers' }
+  expect((await finish(await start(0))).statusCode).toBe(200)
+  expect((await finish(await start(1))).statusCode).toBe(200)
+  expect(db.prepare("SELECT user_id, origin FROM user_roles WHERE role_id = 'rule-role' ORDER BY user_id").all()).toEqual([
+    { user_id: 'synthetic-first-user', origin: 'first-rule' },
+    { user_id: 'synthetic-second-user', origin: 'second-rule' },
+  ])
+  fakes[0].token.claims = { groups: ['readers'] }
+  expect((await finish(await start(0))).statusCode).toBe(200)
+  expect(db.prepare('SELECT role_id, origin FROM user_roles WHERE user_id = ?').all('synthetic-first-user'))
+    .toEqual([{ role_id: 'synthetic-role', origin: 'direct' }])
+  expect(db.prepare("SELECT origin FROM user_roles WHERE user_id = 'synthetic-second-user'").all()).toEqual([{ origin: 'second-rule' }])
+  expect(db.prepare("SELECT count(*) AS count FROM audit WHERE event = 'role-sync'").get()).toEqual({ count: 3 })
+})
+
+test.each([null, 7, true, { Readers: true }, ['Other', 7, { value: 'Readers' }]])('nonmatching claim %j does not grant a role', async groups => {
+  db.exec(`INSERT INTO role_rules (id, provider_id, claim, value, role_id)
+    VALUES ('group-rule', 'synthetic-first', 'groups', 'Readers', 'synthetic-role')`)
+  fakes[0].token.claims = { groups }
+  expect((await finish(await start(0))).statusCode).toBe(200)
+  expect(db.prepare("SELECT * FROM user_roles WHERE user_id = 'synthetic-first-user'").all()).toEqual([])
+})
+
 test.each([0, 1])('generic provider %s confirms its bound browser identity with fresh authentication', async index => {
   const signedIn = await finish(await start(index))
   const session = signedIn.cookies.find(cookie => cookie.name === browserCookie)!.value

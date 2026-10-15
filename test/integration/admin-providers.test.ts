@@ -465,6 +465,24 @@ test('rule create, edit and remove are audited without enabling providers or cha
   ])
 })
 
+test('generic claim name changes remove only their own grants and are audited', async () => {
+  const provider = await app.inject({ method: 'POST', url: base, headers,
+    payload: { kind: 'oidc', name: 'Synthetic generic', issuer: 'https://identity.example' } })
+  expect(provider.statusCode).toBe(200)
+  const input = { providerId: provider.json().id, claim: 'groups', value: 'Readers', roleId: 'synthetic-role' }
+  const created = await app.inject({ method: 'POST', url: rulesBase, headers, payload: input })
+  expect(created.statusCode).toBe(200)
+  const rule = created.json()
+  db.prepare('INSERT INTO user_roles (user_id, role_id, origin) VALUES (?, ?, ?)')
+    .run('synthetic-development-user', input.roleId, rule.id)
+  const updated = await app.inject({ method: 'PATCH', url: rulesBase + '/' + rule.id, headers,
+    payload: { ...input, claim: 'custom.claim', expectedRevision: 1 } })
+  expect(updated.json()).toMatchObject({ claim: 'custom.claim', revision: 2 })
+  expect(db.prepare('SELECT origin FROM user_roles').all()).toEqual([{ origin: 'direct' }])
+  expect(db.prepare('SELECT action FROM audit WHERE target_id = ? ORDER BY id').all(rule.id))
+    .toEqual([{ action: 'create-role-rule' }, { action: 'update-role-rule' }])
+})
+
 test.each(['PATCH', 'DELETE'] as const)('stale %s of a rule preserves the current mapping and audit', async method => {
   const { rule, input } = await createRule()
   const url = rulesBase + '/' + rule.id

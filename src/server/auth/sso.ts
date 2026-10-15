@@ -16,6 +16,7 @@ import { browserIdentity, createBrowserSession, readBrowserSession, type Browser
 import { hashToken, revokeUserSessions } from './tokens.js'
 import { deviceUserCodeSchema } from '../../shared/api.js'
 import type { registerDevice } from './device.js'
+import { matchesClaim, roleClaims } from './role-claims.js'
 
 export type SsoFetch = NonNullable<oidc.DiscoveryRequestOptions[typeof oidc.customFetch]>
 const preauthCookie = 'artium-sso'
@@ -177,14 +178,14 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         throw new ArtiumError('SSO_TOKEN_INVALID')
       }
       subject = identity.data.sub
-      let roleClaims: string[] = []
+      let savedClaims = roleClaims(claims!)
       if (transaction.provider.kind === 'entra') {
         const entra = z.object({ tid: z.uuid(), oid: z.uuid(), roles: z.array(z.string()).optional() }).safeParse(claims)
         if (!entra.success || transaction.provider.issuer !== `https://login.microsoftonline.com/${entra.data.tid}/v2.0`) {
           throw new ArtiumError('SSO_TOKEN_INVALID')
         }
         subject = `${entra.data.tid}:${entra.data.oid}`
-        roleClaims = entra.data.roles ?? []
+        savedClaims = { roles: entra.data.roles ?? [] }
       }
       if (transaction.device) {
         const authTime = z.number().int().min(transaction.device.startedAt).max(Math.floor(Date.now() / 1000) + 30).safeParse(claims?.auth_time)
@@ -242,11 +243,11 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           userId = linked.id
           if (linked.disabled) throw new ArtiumError('USER_DISABLED')
         }
-        const rules = db.prepare("SELECT id, role_id, value FROM role_rules WHERE provider_id = ? AND claim = 'roles' ORDER BY id")
-          .all(transaction.provider.id) as { id: string, role_id: string, value: string }[]
+        const rules = db.prepare('SELECT id, role_id, claim, value FROM role_rules WHERE provider_id = ? ORDER BY id')
+          .all(transaction.provider.id) as { id: string, role_id: string, claim: string, value: string }[]
         const previous = db.prepare(`SELECT origin FROM user_roles JOIN role_rules ON role_rules.id = user_roles.origin
           WHERE user_id = ? AND provider_id = ?`).all(userId, transaction.provider.id) as { origin: string }[]
-        const matching = rules.filter(rule => roleClaims.includes(rule.value))
+        const matching = rules.filter(rule => (transaction.provider.kind !== 'entra' || rule.claim === 'roles') && matchesClaim(savedClaims, rule))
         const removed = previous.filter(row => !matching.some(rule => rule.id === row.origin)).map(row => row.origin)
         const added = matching.filter(rule => !previous.some(row => row.origin === rule.id)).map(rule => rule.id)
         for (const origin of removed) db.prepare('DELETE FROM user_roles WHERE user_id = ? AND origin = ?').run(userId, origin)
@@ -257,8 +258,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         const created = createBrowserSession(db, userId!, csrfSecret)
         const bound = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider_id = ? AND issuer = ? AND subject = ?')
           .get(userId, transaction.provider.id, transaction.provider.issuer, subject) as { id: string }
-        db.prepare('UPDATE identities SET role_claims = ?, claims_at = ? WHERE id = ?')
-          .run(JSON.stringify(roleClaims), Date.now(), bound.id)
+        db.prepare('UPDATE identities SET claim_values = ?, claims_at = ? WHERE id = ?')
+          .run(JSON.stringify(savedClaims), Date.now(), bound.id)
         db.prepare('UPDATE sessions SET reauthenticated_at = NULL, identity_id = ? WHERE id = ?').run(bound.id, hashToken(created.id))
         if (request.cookies[browserCookie]) db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?')
           .run(Date.now(), hashToken(request.cookies[browserCookie]!))

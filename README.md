@@ -517,7 +517,9 @@ The provider must support authorization code with PKCE S256, RS256 ID tokens and
 Configure `preferred_username` for invitation claims and `auth_time` for fresh browser confirmation and CLI approval; generic confirmation requests use `prompt=login` and `max_age=0`.
 Generic identities bind to exact issuer and `sub`; Entra continues to bind to `tid` + `oid`.
 Multiple enabled providers appear on both the sign-in page and CLI approval page, each with its own callback and state binding.
-Assign generic-provider users direct artium roles for tool access; arbitrary claim rules follow separately.
+Assign generic-provider users direct artium roles or configure claim rules for tool access.
+Generic rules accept any exact top-level claim name, such as `groups` or `custom.claim`, and match a string or a string in an array against the case-sensitive rule value.
+Dots are literal claim-name characters, not nested paths; numbers, booleans and objects do not match.
 See [generic OIDC verification](docs/verification-p5a.md) for the approved scope split, fake-provider evidence and pending maintainer live acceptance.
 
 Provider credentials use the encrypted store; their secrets are never returned in pages, API metadata or audit records.
@@ -545,12 +547,15 @@ When any SSO provider is enabled, only designated local administrators may use p
 Fresh installations designate no accounts automatically and keep providers disabled.
 See [break-glass verification](docs/verification-p3c2.md) for local-password policy evidence and [P3 activation verification](docs/verification-p3c2b.md) for activation and complete fake-provider browser acceptance.
 On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
+Generic provider pages offer the same rule editor with a claim-name field.
+Each rule's Who matches link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
+These saved claims are not a live directory query; users who have never signed in are unknown.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
 Every rule change requires the [confirmation described under browser administration](#browser-administration) and is audited atomically; stale edits require reloading the page.
-At each Entra sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
-User details label Direct and Rule grants and identify the Entra rule that supplied each rule grant.
-Deleting a rule or changing its provider, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
+At each SSO sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
+User details label Direct and Rule grants and identify the provider rule that supplied each rule grant.
+Deleting a rule or changing its provider, claim name, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
 Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected `preferred_username` (Entra sign-in username for Microsoft), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.

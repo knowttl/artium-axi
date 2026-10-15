@@ -51,7 +51,7 @@ test('migration upgrades a copy of populated P2a data without changing it and sa
     const upgraded = openStore(copy, key)
     try {
       expect(snapshot(upgraded)).toMatchObject(before)
-      expect(upgraded.prepare('SELECT role_claims, claims_at FROM identities').get()).toEqual({ role_claims: '[]', claims_at: null })
+      expect(upgraded.prepare('SELECT claim_values, claims_at FROM identities').get()).toEqual({ claim_values: '{"roles":[]}', claims_at: null })
       expect(upgraded.prepare('SELECT break_glass FROM users ORDER BY rowid').all())
         .toEqual([{ break_glass: 0 }, { break_glass: 0 }])
       new ProviderCredentials(upgraded, key).replace('provider', value, 0, actor, 2000)
@@ -82,6 +82,40 @@ test('provider credentials survive master key rotation and backup restoration', 
     expect(new ProviderCredentials(restored, replacementKey).read('provider')).toEqual({ value, revision: 1, updatedAt: 1000, updatedBy: actor })
   } finally { restored.close() }
   expect(() => openStore(file, key)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+})
+
+test('named claim migration preserves saved claims and grants on a populated copy and safely reruns', async () => {
+  const migrations = join(directory, 'migrations')
+  mkdirSync(migrations)
+  for (const file of readdirSync('src/server/store/migrations').filter(file => Number(file.split('-')[0]) <= 18)) {
+    copyFileSync(join('src/server/store/migrations', file), join(migrations, file))
+  }
+  const original = new Database(join(directory, 'original.db'))
+  try {
+    migrate(original, migrations)
+    original.prepare('INSERT INTO store_metadata VALUES (1, ?)').run(key.getKey().id)
+    await seedToolUser(original)
+    seedProvider(original)
+    original.exec(`INSERT INTO identities (id, user_id, provider_id, issuer, subject, created_at, role_claims, claims_at)
+      VALUES ('identity', 'synthetic-development-user', 'provider', 'https://identity.example', 'subject', 1000, '["Readers","Writers"]', 2000);
+      INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('rule', 'provider', 'roles', 'Readers', 'synthetic-role');
+      INSERT INTO user_roles (user_id, role_id, origin) VALUES ('synthetic-development-user', 'synthetic-role', 'rule');`)
+    const rules = original.prepare('SELECT * FROM role_rules').all()
+    const grants = original.prepare('SELECT * FROM user_roles').all()
+    await original.backup(join(directory, 'copy.db'))
+    const copy = openStore(join(directory, 'copy.db'), key)
+    try {
+      expect(copy.prepare('SELECT claim_values, claims_at FROM identities').get())
+        .toEqual({ claim_values: '{"roles":["Readers","Writers"]}', claims_at: 2000 })
+      migrate(copy)
+      validateSchema(copy)
+      expect(copy.prepare('SELECT * FROM role_rules').all()).toEqual(rules)
+      expect(copy.prepare('SELECT * FROM user_roles').all()).toEqual(grants)
+      expect(copy.pragma('foreign_key_check')).toEqual([])
+      expect(original.prepare('SELECT role_claims, claims_at FROM identities').get())
+        .toEqual({ role_claims: '["Readers","Writers"]', claims_at: 2000 })
+    } finally { copy.close() }
+  } finally { original.close() }
 })
 
 test('tampered provider credentials are refused at startup and backup validation', async () => {

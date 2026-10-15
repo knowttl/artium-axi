@@ -14,6 +14,7 @@ import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { certificateFields } from './certificate.js'
 import { credentialFields } from './credential-form.js'
 import { escape } from './escape.js'
+import { matchesClaim } from '../auth/role-claims.js'
 import { adminRead, apiForm, changed, revision } from './forms.js'
 
 const text = { type: 'string', minLength: 1 }
@@ -150,7 +151,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
     }).value
   })
 
-  for (const path of ['/admin/settings/sign-in', '/admin/settings/sign-in/:id']) app.get(path, async (request, reply) => {
+  for (const path of ['/admin/settings/sign-in', '/admin/settings/sign-in/:id', '/admin/settings/sign-in/:id/matches/:ruleId']) app.get(path, async (request, reply) => {
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const { providers } = await adminRead(app, request, adminProviderRoutes.list.path, adminProviderRoutes.list.response)
@@ -167,6 +168,22 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
     } else {
       const provider = providers.find(provider => provider.id === id)
       if (!provider) throw new ArtiumError('NOT_FOUND')
+      const matchingUsers = (rule: { claim: string, value: string }) => {
+        const identities = db.prepare(`SELECT users.id, users.username, identities.claim_values, identities.claims_at
+          FROM identities JOIN users ON users.id = identities.user_id
+          WHERE identities.provider_id = ? AND identities.issuer = ? AND identities.claims_at IS NOT NULL
+          AND users.disabled = 0 AND users.archived_at IS NULL ORDER BY users.username, users.id`)
+          .all(id, provider.issuer) as { id: string, username: string, claim_values: string, claims_at: number }[]
+        return identities.filter(identity => matchesClaim(JSON.parse(identity.claim_values), rule))
+      }
+      const ruleId = (request.params as { ruleId?: string }).ruleId
+      if (ruleId) {
+        const { rules } = await adminRead(app, request, adminRoleRuleRoutes.list.path + '?providerId=' + encodeURIComponent(id), adminRoleRuleRoutes.list.response)
+        const rule = rules.find(rule => rule.id === ruleId)
+        if (!rule) throw new ArtiumError('NOT_FOUND')
+        const users = matchingUsers(rule)
+        return browserPage(reply, 'Who matches', `<p><a href="/admin/settings/sign-in/${escape(id)}">Back to provider</a></p><section><h2>${escape(rule.claim)} contains ${escape(rule.value)}</h2><p>Matches from the last successful sign-in of enabled, unarchived users. This is not a live directory query. Users who have never signed in are unknown. Grants synchronize on the next sign-in.</p>${users.length ? `<div class="table-scroll"><table><caption>${users.length} matching users</caption><thead><tr><th>User</th><th>Claims recorded</th></tr></thead><tbody>${users.map(user => `<tr><th><a href="/admin/users/${escape(user.id)}">${escape(user.username)}</a></th><td>${escape(new Date(user.claims_at).toISOString())}</td></tr>`).join('')}</tbody></table></div>` : '<p>No users match this rule in the saved sign-in claims.</p>'}</section>`, current)
+      }
       const api = adminProviderRoutes.list.path + '/' + id
       const credential = await adminRead(app, request, api + '/credential', adminProviderRoutes.credential.response)
       content += `<p><a href="/admin/settings/sign-in">All providers</a></p><section><h2>${escape(provider.name)}</h2><p>${provider.kind === 'entra' ? 'Entra ID' : 'OpenID Connect'} | ${provider.enabled ? 'Enabled' : 'Disabled'}</p><p>Issuer: ${escape(provider.issuer)}</p>${changed(db, provider)}` +
@@ -178,7 +195,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         <li>Register this exact redirect URI.${copy('Redirect URI', origin + '/auth/sso/' + encodeURIComponent(id) + '/callback')}</li>
         <li>Configure private_key_jwt with an RSA certificate, or client_secret_post or client_secret_basic with a client secret, then save the matching credential below. Secret authentication follows the discovered methods, preferring client_secret_post when available. The client ID is the provider's application identifier.</li>
         <li>Configure preferred_username in ID tokens for invitation claims and auth_time for fresh CLI sign-in and identity confirmation. Invitations compare preferred_username exactly; account identity uses the immutable issuer and sub claims.</li>
-        <li>Designate and test a separate local break-glass administrator before activation. Create invitations from <a href="/admin/invitations">Invitations</a> and assign direct artium roles to grant tools.</li>
+        <li>Designate and test a separate local break-glass administrator before activation. Create invitations from <a href="/admin/invitations">Invitations</a> and assign direct artium roles or configure claim rules below to grant tools.</li>
         <li>Enable the provider, then test an invitation claim, browser sign-in and CLI approval in a separate browser while keeping break-glass access open. Discovery happens on sign-in, not while saving settings.</li>
         <li>If the provider supports end-session, register this post-logout return URI.${copy('Post-logout URI', origin + '/login')}</li>
       </ol></section>` : `<section><h2>Entra setup guide</h2><ol>
@@ -201,22 +218,17 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
           `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile(provider.kind), credential.metadata, credential.configured),
           'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.') + '</section>'
-      if (provider.kind === 'oidc') return browserPage(reply, 'Sign-in settings', content, current)
       const { rules } = await adminRead(app, request, adminRoleRuleRoutes.list.path + '?providerId=' + encodeURIComponent(id), adminRoleRuleRoutes.list.response)
       const roles = db.prepare('SELECT id, name FROM roles ORDER BY name, id').all() as { id: string, name: string }[]
-      const fields = (value = '', roleId = '') => `<input type="hidden" name="providerId" value="${escape(id)}"><input type="hidden" name="claim" value="roles"><p>Claim: roles (Entra app roles)</p><label>Claim value<input name="value" value="${escape(value)}" maxlength="256" required></label><p>Use the app role value, for example Artium.Readers, rather than its display name.</p><label>Artium role<select name="roleId" required><option value="">Choose a role</option>${roles.map(role => `<option value="${escape(role.id)}"${role.id === roleId ? ' selected' : ''}>${escape(role.name)}</option>`).join('')}</select></label>`
-      content += `<section><h2>Role rules</h2><p>Map an exact, case-sensitive value in the Entra roles claim to an artium role. Define app roles in the application registration, then assign groups to them in the enterprise application. Tool access comes from the target artium role; rules never grant administrator capability.</p><p>Rules synchronize at sign-in. Removing or retargeting a rule immediately removes its grants. Direct and other-rule grants remain. Who matches counts enabled, unarchived users from their last successful sign-in claims, including users not yet granted a new rule. Reload for current counts. This is not a live directory query; users who have never signed in are unknown.</p>`
+      const fields = (value = '', roleId = '', claim = 'groups') => `<input type="hidden" name="providerId" value="${escape(id)}">${provider.kind === 'entra' ? '<input type="hidden" name="claim" value="roles"><p>Claim: roles (Entra app roles)</p>' : `<label>Claim name<input name="claim" value="${escape(claim)}" maxlength="256" required></label><p>Use an exact top-level claim name, for example groups. Dots are literal, not nested paths. String values and strings in arrays match exactly; other values are ignored.</p>`}<label>Claim value<input name="value" value="${escape(value)}" maxlength="256" required></label><p>${provider.kind === 'entra' ? 'Use the app role value, for example Artium.Readers, rather than its display name.' : 'Use the exact, case-sensitive value, for example Readers.'}</p><label>Artium role<select name="roleId" required><option value="">Choose a role</option>${roles.map(role => `<option value="${escape(role.id)}"${role.id === roleId ? ' selected' : ''}>${escape(role.name)}</option>`).join('')}</select></label>`
+      content += `<section><h2>Role rules</h2><p>${provider.kind === 'entra' ? 'Map an exact, case-sensitive value in the Entra roles claim to an artium role. Define app roles in the application registration, then assign groups to them in the enterprise application.' : 'Map an exact, case-sensitive value in any named claim to an artium role.'} Tool access comes from the target artium role; rules never grant administrator capability.</p><p>Rules synchronize at sign-in. Removing or retargeting a rule immediately removes its grants. Direct and other-rule grants remain. Who matches counts enabled, unarchived users from their last successful sign-in claims, including users not yet granted a new rule. Reload for current counts. This is not a live directory query; users who have never signed in are unknown.</p>`
       content += rules.length ? rules.map(rule => {
         const role = roles.find(role => role.id === rule.roleId)!
         const tools = db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(role.id) as { tool: string }[]
         const action = adminRoleRuleRoutes.list.path + '/' + rule.id
-        const { count } = db.prepare(`SELECT count(DISTINCT users.id) AS count FROM identities JOIN users ON users.id = identities.user_id
-          WHERE identities.provider_id = ? AND identities.issuer = ? AND identities.claims_at IS NOT NULL
-          AND users.disabled = 0 AND users.archived_at IS NULL
-          AND EXISTS (SELECT 1 FROM json_each(identities.role_claims) WHERE value = ?)`)
-          .get(id, provider.issuer, rule.value) as { count: number }
-        return `<details><summary>${escape(rule.value)} → ${escape(role.name)} | Who matches: ${count}</summary><p>Target role: <a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a>. Tools: ${tools.map(tool => escape(tool.tool)).join(', ') || 'No tools granted'}.</p>${changed(db, rule)}` +
-          apiForm(csrf, action, 'PATCH', 'Save rule', revision(rule.revision) + fields(rule.value, rule.roleId), 'Save this mapping? Changing its claim value or target role immediately removes its existing rule-origin grants. Direct grants and grants from other rules are retained. Matching users receive grants at their next sign-in.') +
+        const count = matchingUsers(rule).length
+        return `<details><summary>${escape(rule.claim)} contains ${escape(rule.value)} → ${escape(role.name)} | Who matches: ${count}</summary><p><a href="/admin/settings/sign-in/${escape(id)}/matches/${escape(rule.id)}">Who matches</a></p><p>Target role: <a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a>. Tools: ${tools.map(tool => escape(tool.tool)).join(', ') || 'No tools granted'}.</p>${changed(db, rule)}` +
+          apiForm(csrf, action, 'PATCH', 'Save rule', revision(rule.revision) + fields(rule.value, rule.roleId, rule.claim), 'Save this mapping? Changing its claim name, value or target role immediately removes its existing rule-origin grants. Direct grants and grants from other rules are retained. Matching users receive grants at their next sign-in.') +
           apiForm(csrf, action, 'DELETE', 'Remove rule', revision(rule.revision), 'Remove this mapping and immediately remove its rule-origin grants? Direct grants and grants from other rules are retained. This cannot be undone.') + '</details>'
       }).join('') : '<p>No role rules. Add a mapping below after creating a role and granting its tools.</p>'
       content += roles.length ? `<h3>Add rule</h3>${apiForm(csrf, adminRoleRuleRoutes.create.path, 'POST', 'Add rule', fields(), 'Add this mapping? Matching users receive its role at their next sign-in.')}</section>` : '<p><a href="/admin/roles">Create an artium role</a> before adding rules.</p></section>'

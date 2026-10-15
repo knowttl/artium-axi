@@ -257,7 +257,7 @@ export const adminProviderRoutes = {
 
 // Deletion or changes to mapping fields atomically clear only that rule's grants,
 // including archived users' grants. Direct grants and other rule origins survive.
-const roleRuleSettingsSchema = z.strictObject({ providerId: accountId, claim: z.literal('roles'),
+const roleRuleSettingsSchema = z.strictObject({ providerId: accountId, claim: z.string().min(1).max(256),
   value: z.string().trim().min(1).max(256), roleId: accountId })
 export const adminRoleRuleSchema = roleRuleSettingsSchema.extend({ id: accountId,
   revision: z.number().int().positive(), updatedAt: z.number().nullable(), updatedBy: accountId.nullable() })

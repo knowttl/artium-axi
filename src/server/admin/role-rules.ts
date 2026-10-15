@@ -13,8 +13,10 @@ export function registerRoleRuleAdmin(app: FastifyInstance, db: Database.Databas
     if (!result.success) throw new ArtiumError('INVALID_INPUT')
     return result.data
   }
-  function provider(id: string): void {
-    if (!db.prepare("SELECT 1 FROM sso_providers WHERE id = ? AND kind = 'entra'").get(id)) throw new ArtiumError('NOT_FOUND')
+  function provider(id: string): { kind: string } {
+    const row = db.prepare('SELECT kind FROM sso_providers WHERE id = ?').get(id) as { kind: string } | undefined
+    if (!row) throw new ArtiumError('NOT_FOUND')
+    return row
   }
   function read(id: string): z.infer<typeof adminRoleRuleSchema> {
     const row = db.prepare(`SELECT id, provider_id AS providerId, claim, value, role_id AS roleId,
@@ -47,7 +49,7 @@ export function registerRoleRuleAdmin(app: FastifyInstance, db: Database.Databas
           db.prepare('DELETE FROM role_rules WHERE id = ?').run(id)
           return { id, deleted: true as const }
         }
-        provider(input.providerId)
+        if (provider(input.providerId).kind === 'entra' && input.claim !== 'roles') throw new ArtiumError('INVALID_INPUT')
         if (!db.prepare('SELECT 1 FROM roles WHERE id = ?').get(input.roleId)) throw new ArtiumError('NOT_FOUND')
         if (db.prepare('SELECT 1 FROM role_rules WHERE provider_id = ? AND claim = ? AND value = ? AND role_id = ? AND id != ?')
           .get(input.providerId, input.claim, input.value, input.roleId, id)) {
