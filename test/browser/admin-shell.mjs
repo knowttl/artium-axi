@@ -79,6 +79,85 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('invitations show each new link once and allow resend and revoke through the real forms', async () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in');
+    await page.fill('[name=name]', 'Synthetic provider');
+    await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.click('form[action="/v1/admin/sso/providers"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('a[href^="/admin/settings/sign-in/"]');
+    await page.open(base + '/admin');
+    await page.click('a[href="/admin/invitations"]');
+    await page.wait('form[data-invitation-link]');
+    await page.fill('[name=displayName]', 'Synthetic invited user');
+    await page.fill('[name=expectedUsername]', 'synthetic@identity.example');
+    await page.click('[name=roleIds][type=checkbox]');
+    await page.click('form[data-invitation-link] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#invitation-link[open]');
+    const first = await page.eval(() => document.querySelector('[data-claim-link]').value);
+    check(first.startsWith(base + '/auth/sso/'), 'Invitation was not a link for this server');
+    await page.click('#invitation-link button');
+    await page.wait('details[data-invitation]');
+    check(await page.eval(() => document.querySelector('[data-claim-link]').value === ''), 'Old link was redisplayed');
+    await page.click('details[data-invitation] > summary');
+    check(await page.eval(() => document.querySelector('details[data-invitation]').innerText.includes('Synthetic Role')), 'Direct role was not retained');
+    await page.click('form[action$="/resend"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#invitation-link[open]');
+    const second = await page.eval(() => document.querySelector('[data-claim-link]').value);
+    check(second !== first, 'Resend reused the old link');
+    await page.click('#invitation-link button');
+    await page.wait('details[data-invitation]');
+    await page.click('details[data-invitation] > summary');
+    await page.click('form[action$="/revoke"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('details[data-invitation] > summary');
+    await page.wait('details[data-invitation]:not(:has(form))');
+    check(await page.eval(() => document.querySelector('details[data-invitation] > summary').innerText.includes('revoked')), 'Invitation was not revoked');
+    check(await page.eval(async () => (await (await fetch('/v1/admin/sso/providers')).json()).providers.every(provider => !provider.enabled)), 'Invitations enabled SSO');
+  `)
+})
+
+test('invitations link an existing local user through its detail page and recent-auth confirmation', async () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in');
+    await page.fill('[name=name]', 'Synthetic provider');
+    await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.click('form[action="/v1/admin/sso/providers"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('a[href^="/admin/settings/sign-in/"]');
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('a[href^="/admin/invitations?userId="]');
+    await page.wait('[name=userId]');
+    check(await page.eval(() => document.querySelector('[name=userId]').value === 'synthetic-ordinary'), 'Wrong account selected for linking');
+    check(await page.eval(() => document.querySelector('[name=displayName]').value === 'Ordinary'), 'Display name was not prefilled');
+    await page.fill('[name=expectedUsername]', 'synthetic@identity.example');
+  `)
+  await expireConfirmation()
+  browser(`
+    await page.click('form[data-invitation-link] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('#invitation-link[open]');
+    await page.click('#invitation-link button');
+    await page.wait('details[data-invitation]');
+    const invitations = await page.eval(async () => (await (await fetch('/v1/admin/sso/invitations')).json()).invitations);
+    check(invitations.length === 1 && invitations[0].userId === 'synthetic-ordinary', 'Link invitation did not bind the existing account');
+    const user = await page.eval(async () => (await (await fetch('/v1/admin/users/synthetic-ordinary')).json()));
+    check(user.source === 'local' && user.enabled, 'Preparing the link changed local access');
+  `)
+})
+
 test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async () => {
   chrome(['resize', '420', '900'])
   browser(`

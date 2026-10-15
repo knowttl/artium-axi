@@ -246,6 +246,29 @@ export const adminRoleRuleRoutes = {
     response: z.strictObject({ id: accountId, deleted: z.literal(true) }), auditEvent: 'delete-role-rule' },
 } as const
 
+// Only create and resend return the bearer link. Lists never expose its token or hash.
+const invitationLifetimeSchema = z.number().int().min(1).max(30).default(7)
+export const adminInvitationSchema = z.strictObject({ id: accountId, providerId: accountId,
+  expectedUsername: z.string(), displayName: z.string(), userId: accountId.nullable(), roleIds: z.array(accountId),
+  createdAt: z.number().int(), createdBy: accountId, expiresAt: z.number().int(),
+  claimedAt: z.number().int().nullable(), revokedAt: z.number().int().nullable(),
+  status: z.enum(['pending', 'expired', 'claimed', 'revoked']), revision: z.number().int().positive() })
+const invitationLinkSchema = z.strictObject({ invitation: adminInvitationSchema, claimPath: z.string().min(1) })
+export const adminInvitationRoutes = {
+  list: { method: 'GET', path: '/v1/admin/sso/invitations', input: adminPageQuerySchema,
+    response: z.strictObject({ invitations: z.array(adminInvitationSchema), nextCursor: accountId.nullable() }), auditEvent: null },
+  create: { method: 'POST', path: '/v1/admin/sso/invitations', input: z.strictObject({ providerId: accountId,
+    expectedUsername: z.string().trim().min(1).max(256), displayName: z.string().trim().min(1).max(256),
+    userId: accountId.optional(), roleIds: z.array(accountId).max(100).refine(ids => new Set(ids).size === ids.length),
+    expiresInDays: invitationLifetimeSchema }), response: invitationLinkSchema, auditEvent: 'invite-create' },
+  resend: { method: 'POST', path: '/v1/admin/sso/invitations/:id/resend',
+    input: z.strictObject({ expectedRevision: z.number().int().positive(), expiresInDays: invitationLifetimeSchema }),
+    response: invitationLinkSchema, auditEvent: 'invite-resend' },
+  revoke: { method: 'POST', path: '/v1/admin/sso/invitations/:id/revoke',
+    input: z.strictObject({ expectedRevision: z.number().int().positive() }),
+    response: adminInvitationSchema, auditEvent: 'invite-revoke' },
+} as const
+
 export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })

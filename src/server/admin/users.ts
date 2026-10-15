@@ -47,7 +47,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       if (cursor) next.set('cursor', cursor)
       return '/admin?' + escape(next.toString())
     }
-    const content = `<section><h2>Find users</h2><form method="get" action="/admin" data-filters>
+    const content = `<p><a href="/admin/invitations">Invite SSO user and manage invitations</a></p><section><h2>Find users</h2><form method="get" action="/admin" data-filters>
       <label>Search <input name="q" value="${escape(query.data.q ?? '')}" maxlength="256"></label><p>Matches any part of a username or display name.</p>
       ${select('source', 'Sign-in source', [['local', 'Local password'], ['sso', 'SSO']])}
       ${select('status', 'Status', [['enabled', 'Enabled'], ['disabled', 'Disabled']])}
@@ -90,6 +90,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       ${user.effectiveTools.length ? `<div class="table-scroll"><table><caption>Effective tools for ${escape(user.username)}</caption><thead><tr><th>Tool</th><th>Access</th><th>Granted by</th></tr></thead><tbody>${user.effectiveTools.map(tool =>
         `<tr><th scope="row">${escape(tool.name)}</th><td>${tool.enabled ? 'Available' : user.enabled ? 'Tool disabled' : 'User disabled'}</td><td>${tool.roleIds.map(assignedRole).join(', ')}</td></tr>`).join('')}</tbody></table></div>` : '<p>No tools granted. Assign a role that grants tools above.</p>'}</section>
       <section><h2>Sign-in controls</h2><p>${user.mustChange ? 'Password change required. ' : ''}Failed sign-ins: ${user.failedAttempts}. Locked until: ${timestamp(user.lockedUntil, 'Not locked')}</p>
+      ${user.source === 'local' && user.enabled ? `<p><a href="/admin/invitations?userId=${escape(encodeURIComponent(user.id))}">Link to SSO</a></p>` : ''}
       ${form(path, 'PATCH', user.enabled ? 'Disable user' : 'Enable user', revision(user.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!user.enabled}">`, user.enabled ? `Disable ${user.username}? Sign-in is blocked and all their browser and CLI sessions are revoked immediately.` : `Enable ${user.username}? They can sign in again; revoked sessions stay signed out.`)}
       ${form(path + '/unlock', 'POST', 'Unlock user', '', `Clear ${user.username}’s failed sign-in attempts and lockout? Their password and sessions stay unchanged.`)}
       ${user.source === 'local' ? `<details><summary>Reset password</summary>${form(path + '/password-reset', 'POST', 'Reset password', temporaryPassword, `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`)}</details>` : ''}</section>

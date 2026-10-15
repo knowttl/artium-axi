@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -39,6 +39,7 @@ beforeEach(async () => {
   db.exec('DELETE FROM audit')
 })
 afterEach(async () => {
+  vi.restoreAllMocks()
   await app.close()
   db.close()
   rmSync(directory, { recursive: true, force: true })
@@ -54,6 +55,161 @@ async function save(id: string, value: Record<string, unknown>, expectedRevision
     payload: { value, expectedRevision, expectedProviderRevision } })
 }
 const value = { tenantId, clientId, auth: 'secret', clientSecret: 'CANARY-provider-secret' }
+
+const invitationsBase = '/v1/admin/sso/invitations'
+async function invite(extra: Record<string, unknown> = {}) {
+  const provider = await create()
+  return app.inject({ method: 'POST', url: invitationsBase, headers, payload: {
+    providerId: provider.id, expectedUsername: 'synthetic@identity.example', displayName: 'Synthetic invited user',
+    roleIds: ['synthetic-role'], ...extra } })
+}
+
+test('invitation creation stores only a hash, direct roles and a seven-day expiry without granting access', async () => {
+  const response = await invite()
+  expect(response.statusCode).toBe(201)
+  expect(response.headers['cache-control']).toBe('no-store')
+  const { invitation, claimPath } = response.json()
+  expect(invitation).toMatchObject({ status: 'pending', userId: null, roleIds: ['synthetic-role'], revision: 1 })
+  expect(invitation.expiresAt - invitation.createdAt).toBe(7 * 86_400_000)
+  const token = new URL(claimPath, 'https://artium.example').searchParams.get('invitation')!
+  const { hashToken } = await import('../../src/server/auth/tokens.js')
+  expect(db.prepare('SELECT token_hash FROM invitations WHERE id = ?').get(invitation.id)).toEqual({ token_hash: hashToken(token) })
+  expect(db.prepare('SELECT count(*) AS count FROM users').get()).toEqual({ count: 1 })
+  const list = await app.inject({ method: 'GET', url: invitationsBase, headers })
+  expect(list.json().invitations).toEqual([invitation])
+  expect(list.body).not.toContain(token)
+  expect(list.body).not.toContain(hashToken(token))
+  const audit = JSON.stringify(db.prepare("SELECT * FROM audit WHERE event = 'invite-create'").all())
+  expect(audit).toContain(invitation.id)
+  expect(audit).not.toContain(token)
+  expect(audit).not.toContain(hashToken(token))
+  expect(db.prepare('SELECT DISTINCT enabled FROM sso_providers').all()).toEqual([{ enabled: 0 }])
+})
+
+test('link invitations retain a local account and its grants until claim', async () => {
+  const before = db.prepare('SELECT * FROM users').all()
+  const grants = db.prepare('SELECT * FROM user_roles').all()
+  const response = await invite({ userId: 'synthetic-development-user' })
+  expect(response.statusCode).toBe(201)
+  expect(response.json().invitation.userId).toBe('synthetic-development-user')
+  expect(db.prepare('SELECT * FROM users').all()).toEqual(before)
+  expect(db.prepare('SELECT * FROM user_roles').all()).toEqual(grants)
+  expect(db.prepare('SELECT * FROM identities').all()).toEqual([])
+})
+
+test('resend rotates the stored link and revoke ends it with revision checks and audit', async () => {
+  const { invitation, claimPath } = (await invite()).json()
+  const original = db.prepare('SELECT token_hash FROM invitations WHERE id = ?').get(invitation.id)
+  const resend = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/resend', headers,
+    payload: { expectedRevision: 1, expiresInDays: 2 } })
+  expect(resend.statusCode).toBe(200)
+  expect(resend.json().claimPath).not.toBe(claimPath)
+  expect(resend.json().invitation).toMatchObject({ revision: 2, status: 'pending' })
+  expect(db.prepare('SELECT token_hash FROM invitations WHERE id = ?').get(invitation.id)).not.toEqual(original)
+  const stale = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/revoke', headers,
+    payload: { expectedRevision: 1 } })
+  expect(stale.json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  const revoked = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/revoke', headers,
+    payload: { expectedRevision: 2 } })
+  expect(revoked.json()).toMatchObject({ status: 'revoked', revision: 3 })
+  const refused = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/resend', headers,
+    payload: { expectedRevision: 3 } })
+  expect(refused.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  expect(db.prepare("SELECT event, target_id FROM audit WHERE event LIKE 'invite-%' ORDER BY id").all()).toEqual([
+    { event: 'invite-create', target_id: invitation.id }, { event: 'invite-resend', target_id: invitation.id },
+    { event: 'invite-revoke', target_id: invitation.id },
+  ])
+})
+
+test('expiry is inclusive and an expired invitation can be resent with a fresh lifetime', async () => {
+  const { invitation } = (await invite({ expiresInDays: 1 })).json()
+  vi.spyOn(Date, 'now').mockReturnValue(invitation.expiresAt)
+  const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
+  headers = { authorization: 'Bearer ' + login.json().accessToken }
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+  headers['x-artium-reauth-ticket'] = reauth.json().ticket
+  const list = await app.inject({ method: 'GET', url: invitationsBase, headers })
+  expect(list.json().invitations[0].status).toBe('expired')
+  const resent = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/resend', headers,
+    payload: { expectedRevision: 1, expiresInDays: 3 } })
+  expect(resent.json().invitation).toMatchObject({ status: 'pending', expiresAt: invitation.expiresAt + 3 * 86_400_000 })
+})
+
+test.each([
+  { providerId: 'missing' }, { roleIds: ['missing'] }, { roleIds: ['synthetic-role', 'synthetic-role'] },
+  { userId: 'missing' }, { expiresInDays: 0 }, { expiresInDays: 31 }, { expectedUsername: ' ' },
+])('invalid invitation input leaves no invitation or audit behind: %j', async extra => {
+  const response = await invite(extra)
+  expect(response.statusCode).toBeGreaterThanOrEqual(400)
+  expect(db.prepare('SELECT * FROM invitations').all()).toEqual([])
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'invite-create'").all()).toEqual([])
+})
+
+test.each(['disabled', 'sso', 'archived'])('cannot invite a %s account for local linking', async kind => {
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change)
+    SELECT 'link-user', 'synthetic-link', 'Link user', password_hash, 0 FROM users LIMIT 1`)
+  if (kind === 'disabled') db.exec("UPDATE users SET disabled = 1 WHERE id = 'link-user'")
+  if (kind === 'archived') db.exec("UPDATE users SET disabled = 1, archived_at = 1 WHERE id = 'link-user'")
+  if (kind === 'sso') db.exec("UPDATE users SET source = 'sso', password_hash = NULL WHERE id = 'link-user'")
+  expect((await invite({ userId: 'link-user' })).json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+})
+
+test('invitation mutations roll back when audit persistence fails', async () => {
+  const { invitation } = (await invite()).json()
+  const before = db.prepare('SELECT * FROM invitations').all()
+  db.exec("CREATE TRIGGER synthetic_invite_audit_failure BEFORE INSERT ON audit WHEN NEW.event LIKE 'invite-%' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  const response = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/resend', headers,
+    payload: { expectedRevision: 1 } })
+  expect(response.json()).toMatchObject({ error: { code: 'AUDIT_UNAVAILABLE' } })
+  expect(db.prepare('SELECT * FROM invitations').all()).toEqual(before)
+})
+
+test.each(['resend', 'revoke'])('a claimed invitation refuses %s', async action => {
+  const { invitation } = (await invite({ userId: 'synthetic-development-user' })).json()
+  db.prepare('UPDATE invitations SET claimed_at = ? WHERE id = ?').run(Date.now(), invitation.id)
+  const response = await app.inject({ method: 'POST', url: invitationsBase + '/' + invitation.id + '/' + action,
+    headers, payload: { expectedRevision: 1 } })
+  expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  expect((await app.inject({ method: 'GET', url: invitationsBase, headers })).json().invitations[0]).toMatchObject({ status: 'claimed', revision: 1 })
+})
+
+test('invitation lists paginate without losing retained records', async () => {
+  const first = (await invite()).json().invitation.id
+  const second = (await invite({ expectedUsername: 'other@identity.example' })).json().invitation.id
+  const page = (await app.inject({ method: 'GET', url: invitationsBase + '?limit=1', headers })).json()
+  const next = (await app.inject({ method: 'GET', url: invitationsBase + '?limit=1&cursor=' + page.nextCursor, headers })).json()
+  expect([page.invitations[0].id, next.invitations[0].id]).toEqual([first, second].sort())
+  expect(next.nextCursor).toBeNull()
+})
+
+test('invitation role references prevent deleting a role even when it has no members', async () => {
+  await invite()
+  db.exec('DELETE FROM user_roles')
+  const response = await app.inject({ method: 'DELETE', url: '/v1/admin/roles/synthetic-role', headers, payload: { expectedRevision: 1 } })
+  expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'This role is retained by an invitation.' } })
+  expect(db.prepare('SELECT role_id FROM invitation_roles').all()).toEqual([{ role_id: 'synthetic-role' }])
+})
+
+test('invitation operations require administrator capability and recent auth', async () => {
+  const { invitation } = (await invite()).json()
+  const routes = [
+    { method: 'GET' as const, url: invitationsBase },
+    { method: 'POST' as const, url: invitationsBase, payload: { providerId: invitation.providerId, expectedUsername: 'synthetic@identity.example', displayName: 'Invited', roleIds: [] } },
+    { method: 'POST' as const, url: invitationsBase + '/' + invitation.id + '/resend', payload: { expectedRevision: 1 } },
+    { method: 'POST' as const, url: invitationsBase + '/' + invitation.id + '/revoke', payload: { expectedRevision: 1 } },
+  ]
+  for (const route of routes) {
+    const response = await app.inject({ ...route, headers: { authorization: headers.authorization! } })
+    expect(response.json()).toMatchObject({ error: { code: 'REAUTH_REQUIRED' } })
+  }
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change)
+    SELECT 'ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1`)
+  const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-ordinary', password: 'CANARY-local-password' } })
+  for (const route of routes) {
+    const response = await app.inject({ ...route, headers: { authorization: 'Bearer ' + login.json().accessToken } })
+    expect(response.json()).toMatchObject({ error: { code: 'ADMIN_REQUIRED' } })
+  }
+})
 
 test('provider changes are audited, revision checked and cannot enable SSO', async () => {
   const provider = await create()

@@ -27,6 +27,7 @@ export type AuditEvent = Context & (
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
+  | { event: 'invite-create' | 'invite-resend' | 'invite-revoke', outcome: Outcome, targetId: string }
   | { event: 'maintenance', outcome: 'success', cutoff: number, deletedCount: number }
 )
 
@@ -177,7 +178,8 @@ export class Audit {
       duration_ms: terminal ? Math.round(terminal.durationMs) : null,
       stdout_bytes: terminal?.outputBytes.stdout ?? null, stderr_bytes: terminal?.outputBytes.stderr ?? null,
       client_address: event.clientAddress, outcome: event.outcome,
-      action: admin?.action ?? terminal?.action ?? (event.event === 'health-check' ? event.action : null) ?? null, target_id: admin?.targetId ?? null,
+      action: admin?.action ?? terminal?.action ?? (event.event === 'health-check' ? event.action : null) ?? null,
+      target_id: 'targetId' in event ? event.targetId ?? null : null,
       cutoff: maintenance?.cutoff ?? null, deleted_count: maintenance?.deletedCount ?? null,
       checked_at: test?.checkedAt ?? null, credential_revision: test?.credentialRevision ?? null,
       error_code: test?.errorCode ?? null,

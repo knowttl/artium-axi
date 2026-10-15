@@ -422,6 +422,7 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | --- | --- |
 | `/admin` | Search and filter the users table by source, status or role; create local users. |
 | `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
+| `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](#sign-in-settings) for usage and claim availability. |
 | `/account` | Review your roles and tools, download and set up the CLI, change your password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
@@ -441,6 +442,7 @@ SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
 Archived user detail allows retained direct assignments to be removed without restoring sign-in; rule grants remain, and the UI and API refuse new direct assignments, including reassigning a removed direct grant.
 Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
+Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
 Deletion removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
 The users and role members tables show matching totals; Next page retains the current filters.
@@ -508,7 +510,17 @@ Create roles and grant their tools on **Roles** first.
 Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
 Rules are stored only and do not change existing user grants in this slice.
 A rule with existing rule-origin grants cannot be removed or retargeted until those grants are removed.
-Invitations, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
+Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected Entra username, direct roles and an expiry of 1 to 30 days (default 7).
+To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
+Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
+Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
+Artium does not send email and stores only the link token's hash.
+Resend replaces the old link and starts a new expiry period, including for expired invitations.
+**Revoke invitation** prevents claiming; claimed or revoked invitations cannot be resent.
+Every mutation requires administrator capability and recent password confirmation, checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
+Lists never return link tokens or hashes; expiry is evaluated when read.
+The [invitation API contracts](src/shared/api.ts) own the request and response fields.
+Claiming links, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
 
 ### Audit screen and API
 
