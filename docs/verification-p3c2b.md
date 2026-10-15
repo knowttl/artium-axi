@@ -24,6 +24,27 @@ Record unsupported container acceptance as not run, with its cause.
 Retain head, input and compiled-output digests and cleanup evidence for successful container acceptance.
 Firstmate owns the private deny-list check; workers must not seek the list.
 
+## Implementation evidence
+
+The full Vitest baseline passed 2,712 tests across 62 files.
+The final focused five-file run passed all 142 tests, including unavailable emergency accounts and migration defaults for existing identities.
+TypeScript, the generated error reference, compilation and AXI distribution checks passed.
+The first aggregate check's build rejected changing inputs during implementation; a clean build and the remaining lint/distribution checks subsequently passed against the stable candidate.
+
+The combined real-browser run passed 62 of 63 cases, including all 17 SSO cases and the complete P3 protocol checklist.
+Its sole failure was an older assertion requiring the removed sign-in-unavailable message.
+The corrected case passed separately, including certificate persistence, secret non-disclosure, disabled setup and the 420-pixel overflow check.
+Together these runs cover all 63 unique browser cases successfully.
+
+`pnpm test:containers` exited 0 in 182,308 ms on Linux x64 with Node v24.14.0 and Docker 29.8.1.
+The host permitted the task-owned privileged BuildKit worker.
+Runner limits and exhaustion, the walking skeleton, fake-service probes, production package execution, backup and restore passed.
+`cacheRemoved: true` confirms cleanup of the private builder/cache and task-owned test resources.
+The container run exercised source commit `404bb987678deb53a260ba5999493c52a174e09b`; the delivery follow-up adds only this verification evidence.
+Its relevant input digest was `dc9a9d542deb90c6258d8354df47697b847ad7667cbf00d494286f041e798fa4` and compiled-output digest was `a1c0db642ad2b8e5ea1c54070f6d7483e4bd116ff1f6cb83e31d2d4c64b91557`.
+Recorded image identities were `sha256:72c7dee7a4b9a1c418d548664931649aaac593821db3366fd22d5bf13c824130`, `sha256:b91b2bcf7f3d9a5ebcbf99c70c87f640ea82aa5743980fc65a822e07fa3cbc6b` and `sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397`.
+Reuse container evidence only while both digests match; pipeline source changes require fresh container acceptance.
+
 ## Live acceptance
 
 **PENDING (maintainer live Entra check)**: one real Entra sign-in and one invitation claim on the test copy.
