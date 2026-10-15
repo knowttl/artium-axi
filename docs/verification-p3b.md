@@ -26,6 +26,8 @@ Replaced links and already-bound identities are refused.
 New accounts receive invitation direct grants without administrator capability.
 Local links retain the account id, username, profile, administrator flag and history, clear the password and revoke prior sessions and tokens.
 At each sign-in, only the signing-in provider's rule-origin grants are synchronized; direct and other-provider grants remain intact.
+Audited rule deletion or changes to its provider, claim, value or target role remove that rule's grants, including grants retained by archived users, under the existing recent-authentication requirement.
+Direct grants and grants from other rules remain intact; failed changes roll back grant removal with the rule mutation.
 Claim, identity-link, role-sync and sign-in audits commit in the same transaction as account, identity, grant and session changes.
 Role-sync audit arguments identify added and removed rule origins, which reference their target roles.
 Audit records identify the SSO method, provider, subject when validated and user when linked.
@@ -51,6 +53,7 @@ Firstmate owns the private deny-list check before merge; workers must not seek t
 
 Create the pull request through `gh-axi` with `--repo knowttl/artium-axi -B main`.
 The pull request must state the problem, consequence, fix and P3b-2 scope, including the P3c follow-up.
+Include the rule-management behaviour: deletion and retargeting clear only that rule's grants, so archived users cannot permanently block rule changes.
 P3b-2 stacks on https://github.com/knowttl/artium-axi/pull/77, which must merge first; the pull request still targets main.
 Live acceptance remains **PENDING (maintainer live Entra check)**: one real Entra sign-in and one invitation claim on the test copy.
 The fake-provider browser suite supplies local protocol and invitation claim evidence, not live acceptance.
