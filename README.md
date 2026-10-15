@@ -416,14 +416,14 @@ If the client reports `CLI_OUTDATED`, download the current bundle and checksum f
 
 Open `/login` through the trusted HTTPS proxy.
 Temporary passwords open `/password` and require a new login after changing them.
-Administrators land on `/admin`; ordinary users land on `/account` for tool access, CLI setup, password change and session management.
+Administrators land on `/admin`; ordinary users land on `/account` for tool access, CLI setup and session management.
 
 | Screen | Purpose |
 | --- | --- |
 | `/admin` | Search and filter the users table by source, status or role; create local users. |
 | `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
 | `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](#sign-in-settings) for usage and claim availability. |
-| `/account` | Review your roles and tools, download and set up the CLI, change your password and revoke your sessions. |
+| `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
 | `/admin/credentials` | Redirect to the merged tools index. |
