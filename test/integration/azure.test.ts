@@ -316,9 +316,10 @@ test.each(['504', 'drop'].flatMap(outcome => ['json', 'toon'].flatMap(format => 
     for (const suggestion of suggestions) {
       const emitted = suggestion.slice(suggestion.indexOf('`') + 1, -1)
       const recovered = await run(hostedArgs(emitted))
-      expect(recovered.statusCode).toBe(200)
+      const diagnostic = JSON.stringify({ command: emitted, statusCode: recovered.statusCode, response: recovered.json() })
+      expect(recovered.statusCode, diagnostic).toBe(200)
       const result = runSuccessSchema.parse(recovered.json())
-      expect(result.exitCode).toBe(0)
+      expect(result.exitCode, diagnostic).toBe(0)
       expect(decode(result.stdout)).toMatchObject({ properties: { [field]: value } })
     }
     expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
