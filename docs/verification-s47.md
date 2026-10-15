@@ -11,9 +11,10 @@ The access token is revoked on the source after the backup, proving that restore
 Wrong keys, damaged credentials, unknown migrations, missing tables, foreign-key violations, corrupt files, a running destination and nonempty volumes fail without publishing a database.
 Public CLI subprocesses exercise backup, restore, receipts and unknown-flag rejection.
 
-A migration rehearsal restores a copy, applies a synthetic version-012 schema change through the real migrator and confirms that the version-011 image refuses that newer schema.
+A migration rehearsal restores a copy and applies a synthetic migration after the latest repository migration through the real migrator.
+The repository migrator refuses that newer schema.
 Rollback restores the pre-upgrade backup into another empty directory and verifies the old schema and retained roles.
-The original source store remains on version 011.
+The original source store retains its pre-rehearsal schema version.
 This proves local migration and database rollback mechanics; it does not establish acceptance for an unspecified future production migration.
 
 `pnpm test:containers` includes [backup-probe.mjs](../test/fake-service/backup-probe.mjs) after building the pinned production image.
