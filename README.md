@@ -110,7 +110,7 @@ Actual host loading and hook usefulness require separate acceptance.
 
 Give the setup agent the Linux host access, intended HTTPS hostname, DNS and certificate provisioning method, private CA bundle if applicable, and the protected data and backup locations.
 Also supply the first administrator's username and temporary password through protected input, a master-key custody decision, and credentials for each tool you want enabled from [Tool credentials](#tool-credentials).
-Upstream accounts are shared server-side service identities; users sign in to Artium with separate local accounts.
+Upstream accounts are shared server-side service identities; users sign in with their own [artium accounts](#sign-in-settings).
 
 1. **Prepare the host.**
    Install Git and Docker with Compose and reserve HTTPS port 443 for the reverse proxy.
@@ -561,12 +561,12 @@ Open the displayed `/device` URL in any browser, enter the terminal code, comple
 Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
 Choose **This wasn't me** to deny an unexpected request.
 Codes expire after 10 minutes and can grant access only once.
-The CLI waits for approval, stores the usual private artium tokens, and signs in again after its 8-hour family ends.
+The CLI waits for approval and stores the usual private artium tokens; run `artium-axi login --sso` again after its 8-hour family ends.
 No Entra public-client or device-code grant configuration is required; this is artium's own approval flow.
 Restarting artium invalidates pending approvals; run `login --sso` again.
 For bearer SSO reauthentication, send `POST /v1/auth/reauth` with your access token and JSON `{}`.
 Approve the returned code through `/device` after a fresh Microsoft sign-in as the same user.
-Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }` at the returned interval until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
+Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }`, waiting the returned `intervalMs` milliseconds between polls, until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
 Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
 Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
 Generic OIDC follows in P5.
