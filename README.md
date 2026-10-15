@@ -563,7 +563,12 @@ Codes expire after 10 minutes and can grant access only once.
 The CLI waits for approval, stores the usual private artium tokens, and signs in again after its 8-hour family ends.
 No Entra public-client or device-code grant configuration is required; this is artium's own approval flow.
 Restarting artium invalidates pending approvals; run `login --sso` again.
-Bearer SSO reauthentication follows in P4b; generic OIDC follows in P5.
+For bearer SSO reauthentication, send `POST /v1/auth/reauth` with your access token and JSON `{}`.
+Approve the returned code through `/device` after a fresh Microsoft sign-in as the same user.
+Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }` at the returned interval until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
+Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
+Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
+Generic OIDC follows in P5.
 See [CLI device sign-in verification](docs/verification-p4a.md) for the approved phase split and fake-provider evidence.
 
 ### Audit screen and API

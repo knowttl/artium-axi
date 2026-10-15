@@ -17,7 +17,7 @@ import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser, issueTestAccessToken } from '../fixtures/tokens.js'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules, ssoStart, syntheticObject, syntheticTenant } from '../fixtures/sso.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { verifyAccessToken } from '../../src/server/auth/tokens.js'
+import { requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -372,6 +372,83 @@ async function deviceBrowser(code: string) {
   const csrf = /name="_csrf" value="([^"]+)"/.exec(page.body)![1]
   return { page, headers: { ...headers, origin: 'https://localhost', cookie: cookies }, csrf }
 }
+
+test('bearer SSO reauthentication issues a single ticket bound to the initiating family after approval', async () => {
+  const token = issueTestAccessToken(db, 'synthetic-browser-sso')
+  const authorization = { authorization: `Bearer ${token}` }
+  const requested = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization, payload: {} })
+  expect(requested.statusCode).toBe(200)
+  const device = requested.json()
+  expect(device.verificationUri).toContain('/device')
+  const browser = await deviceBrowser(device.userCode)
+  expect(browser.page.body).toContain('Approve CLI identity confirmation')
+  expect((await app.inject({ method: 'POST', url: '/device', headers: browser.headers,
+    payload: { _csrf: browser.csrf, code: device.userCode, decision: 'approve' } })).statusCode).toBe(200)
+  const collected = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization,
+    payload: { deviceCode: device.deviceCode } })
+  expect(collected.statusCode).toBe(200)
+  expect(requireRecentAuth(db, token, collected.json().ticket)).toBe('synthetic-browser-sso')
+  const other = issueTestAccessToken(db, 'synthetic-browser-sso')
+  expect(() => requireRecentAuth(db, other, collected.json().ticket)).toThrow('Recent identity confirmation')
+  expect((await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization,
+    payload: { deviceCode: device.deviceCode } })).json().error.code).toBe('DEVICE_CODE_INVALID')
+  expect(db.prepare("SELECT authentication_method FROM audit WHERE event = 'reauth'").get()).toEqual({ authentication_method: 'sso' })
+})
+
+test.each([
+  { failure: 'denial', code: 'DEVICE_DENIED' },
+  { failure: 'expiry', code: 'DEVICE_CODE_EXPIRED' },
+  { failure: 'revoked CLI', code: 'TOKEN_INVALID' },
+  { failure: 'expired CLI', code: 'TOKEN_EXPIRED' },
+  { failure: 'disabled user', code: 'USER_DISABLED' },
+  { failure: 'revoked browser', code: 'TOKEN_INVALID' },
+  { failure: 'disabled provider', code: 'SSO_PROVIDER_ERROR' },
+  { failure: 'audit failure', code: 'AUDIT_UNAVAILABLE' },
+])('bearer SSO reauthentication refuses $failure without a ticket', async ({ failure, code }) => {
+  const token = issueTestAccessToken(db, 'synthetic-browser-sso')
+  const authorization = { authorization: `Bearer ${token}` }
+  const device = (await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization, payload: {} })).json()
+  const browser = await deviceBrowser(device.userCode)
+  await app.inject({ method: 'POST', url: '/device', headers: browser.headers,
+    payload: { _csrf: browser.csrf, code: device.userCode, decision: failure === 'denial' ? 'deny' : 'approve' } })
+  if (failure === 'expiry') vi.spyOn(Date, 'now').mockReturnValue(device.expiresAt)
+  if (failure === 'revoked CLI') db.prepare('UPDATE tokens SET revoked_at = ?').run(Date.now())
+  if (failure === 'expired CLI') db.prepare('UPDATE tokens SET expires_at = ?').run(Date.now())
+  if (failure === 'disabled user') db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-browser-sso'")
+  if (failure === 'revoked browser') db.prepare('UPDATE sessions SET revoked_at = ?').run(Date.now())
+  if (failure === 'disabled provider') db.exec('UPDATE sso_providers SET enabled = 0')
+  if (failure === 'audit failure') db.exec("CREATE TRIGGER synthetic_ticket_audit_failure BEFORE INSERT ON audit WHEN NEW.event = 'reauth' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  const response = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization,
+    payload: { deviceCode: device.deviceCode } })
+  expect(response.json().error.code).toBe(code)
+  expect(db.prepare('SELECT COUNT(*) AS count FROM recent_auth_tickets').get()).toEqual({ count: 0 })
+})
+
+test('bearer SSO reauthentication cannot be collected by another token or the login endpoint', async () => {
+  const token = issueTestAccessToken(db, 'synthetic-browser-sso')
+  const authorization = { authorization: `Bearer ${token}` }
+  const device = (await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization, payload: {} })).json()
+  const other = issueTestAccessToken(db, 'synthetic-browser-sso')
+  expect((await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: { authorization: `Bearer ${other}` },
+    payload: { deviceCode: device.deviceCode } })).json().error.code).toBe('DEVICE_CODE_INVALID')
+  expect((await app.inject({ method: 'POST', url: '/v1/auth/device/poll',
+    payload: { deviceCode: device.deviceCode } })).json().error.code).toBe('DEVICE_CODE_INVALID')
+  expect((await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization,
+    payload: { deviceCode: device.deviceCode } })).json()).toEqual({ status: 'pending' })
+  expect((await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization,
+    payload: { deviceCode: device.deviceCode } })).json().error.code).toBe('DEVICE_POLL_LIMITED')
+})
+
+test('bearer SSO reauthentication refuses approval by a different SSO user', async () => {
+  const token = issueTestAccessToken(db, 'synthetic-development-user')
+  db.exec("UPDATE users SET source = 'sso', password_hash = NULL WHERE id = 'synthetic-development-user'")
+  const authorization = { authorization: `Bearer ${token}` }
+  const device = (await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization, payload: {} })).json()
+  expect((await finish(await start(ssoStart + '?device=' + device.userCode))).body).toContain('SSO_TOKEN_INVALID')
+  expect((await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: authorization,
+    payload: { deviceCode: device.deviceCode } })).json()).toEqual({ status: 'pending' })
+  expect(db.prepare('SELECT COUNT(*) AS count FROM recent_auth_tickets').get()).toEqual({ count: 0 })
+})
 
 test('device approval requires a fresh SSO sign-in, displays the request and issues a single 8-hour CLI family', async () => {
   const device = await deviceRequest()

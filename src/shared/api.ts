@@ -25,7 +25,7 @@ export const reauthSchema = z.strictObject({ password: z.string() })
 // Cookie responses include x-artium-reauth-until as Unix milliseconds for the browser header.
 // Browser API calls requesting application/json receive REAUTH_REQUIRED as JSON;
 // ordinary page/form requests retain the /reauth redirect.
-// SSO browser confirmation uses the provider round trip from /reauth, not this password route.
+// SSO browser confirmation uses the provider round trip from /reauth.
 export const reauthResponseSchema = z.strictObject({ ticket: z.string(), expiresAt: z.number().int() })
 export const loginResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('authenticated'), accessToken: z.string(), refreshToken: z.string(),
@@ -41,6 +41,11 @@ export const devicePollSchema = z.strictObject({ deviceCode: z.string().regex(/^
 export const deviceStartResponseSchema = z.strictObject({ deviceCode: z.string(), userCode: deviceUserCodeSchema,
   verificationUri: z.string().url(), expiresAt: z.number().int(), intervalMs: z.number().int().min(1000).max(30_000) })
 export const devicePollResponseSchema = z.union([z.strictObject({ status: z.literal('pending') }), loginResponseSchema])
+// SSO bearer callers start with {}, then poll /v1/auth/reauth with deviceCode
+// and the same access token after explicit /device approval by the same user.
+export const ssoReauthSchema = z.union([z.strictObject({}), devicePollSchema])
+export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
+  z.strictObject({ status: z.literal('pending') }), reauthResponseSchema])
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)

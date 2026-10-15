@@ -158,9 +158,13 @@ export function createApp(options: {
     }
     const token = bearer(request.headers.authorization)
     const userId = authenticate(db, token)
+    const user = db.prepare('SELECT username, source FROM users WHERE id = ?').get(userId) as { username: string, source: string }
+    if (user.source === 'sso') {
+      reply.header('cache-control', 'no-store')
+      return device.reauthenticate(request, token, userId)
+    }
     const input = reauthSchema.safeParse(request.body)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
-    const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as { username: string }
     await authAttempts.signIn(user.username, input.data.password, { requestId: request.id, clientAddress: request.ip })
     return audit.change({ event: 'reauth', userId, tool: null, outcome: 'success',
       authenticationMethod: localAuthenticationMethod(db, userId),
