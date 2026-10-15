@@ -202,8 +202,12 @@ test('reauth requires an access token and strict password input', async () => {
 })
 
 test('address limit bounds distinct unknown usernames and ignores spoofed forwarding', async () => {
-  const start = Date.now() + 900_000
+  await app.close()
+  const start = Date.now()
   const clock = vi.spyOn(Date, 'now').mockReturnValue(start)
+  // Start with empty counters instead of expiring the fixture login using wall time.
+  app = createApp(options)
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
   for (let attempt = 0; attempt < 30; attempt++) await expectFailure(await login('CANARY-wrong', `unknown-${attempt}`), 'SIGN_IN_FAILED')
   await expectFailure(await login('CANARY-wrong', 'another-unknown'), 'AUTH_RATE_LIMITED')
   await expectFailure(await fetch(`${url}/v1/auth/login`, { method: 'POST',
