@@ -511,7 +511,7 @@ Create roles and grant their tools on **Roles** first.
 Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
 At each Entra sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
 User details label Direct and Rule grants and identify the Entra rule that supplied each rule grant.
-A rule with existing rule-origin grants cannot be removed or retargeted until those grants are removed.
+Deleting a rule or changing its provider, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
 Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected Entra username, direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
