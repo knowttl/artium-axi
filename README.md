@@ -521,7 +521,8 @@ Local checks cannot prove Entra credential acceptance or Conditional Access conf
 Saving provider settings or credentials disables that provider; review and enable it again afterwards.
 Disabling all providers restores ordinary local password sign-in; existing artium sessions remain active.
 Per-rule Who matches counts use enabled, unarchived users’ last successful sign-in role claims and are refreshed on page reload.
-They include matches for new rules before the next role sync; users who have never signed in are unknown, and these counts do not query Entra.
+They include matches for new rules before the next role sync; users without recorded sign-in claims are unknown, and these counts do not query Entra.
+See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility.
 Local sign-in continues to work while all providers are disabled.
 On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
 Designation requires recent identity confirmation, checks the user revision and is audited.

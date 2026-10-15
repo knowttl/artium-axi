@@ -17,7 +17,7 @@ The protocol suite covers the Strict-cookie callback hop, a CSP-compatible start
 It also covers identity linking, rule synchronization, fresh SSO confirmation, optional provider sign-out and break-glass password admission and audit flags.
 New journeys exercise activation and deactivation through real administrator forms, exact setup URI values, clipboard success and denied-permission fallback, and new-rule previews from last validated claims followed by count refresh at sign-in.
 Match counts are local observations of enabled, unarchived users, not live directory membership.
-Migration 018 defaults existing identities to unknown sign-in claims until their next successful sign-in.
+The [upgrade runbook](runbook.md#backup-restore-and-upgrade-rollback) owns existing-identity compatibility for match counts.
 
 Run `pnpm check` and mandatory fake-only `pnpm test:containers` when the host permits its task-owned privileged BuildKit worker.
 Record unsupported container acceptance as not run, with its cause.

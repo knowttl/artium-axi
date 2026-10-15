@@ -1,8 +1,8 @@
 # Invitation management verification
 
 This is P3a of three sequential Entra browser sign-in slices.
-It adds administrator invitation preparation and management while providers remain disabled.
-See [browser SSO protocol verification](verification-p3b.md) for the subsequent slices and their current boundaries.
+It added administrator invitation preparation and management before provider activation was available.
+See [Sign-in settings](../README.md#sign-in-settings) for current availability and [P3 activation verification](verification-p3c2b.md) for complete fake-provider browser acceptance.
 
 ## Local checks
 
@@ -19,6 +19,6 @@ The supervising maintainer owns the private deny-list check before merge; worker
 
 Create the pull request through `gh-axi` with `--repo knowttl/artium-axi -B main`.
 The body must state the problem, consequence, fix and P3a scope, and link to the subsequent slices above.
-The P3a browser suite proves invitation preparation only; see [browser SSO live acceptance](verification-p3b.md#publication-and-live-acceptance) for the pending live gate and remaining claim checks.
+The P3a browser suite proves invitation preparation only; see [P3 live acceptance](verification-p3c2b.md#live-acceptance) for the pending maintainer check.
 No real provider, tenant, client or credential is used for these checks.
 Stop at a ready, mergeable PR; do not merge.
