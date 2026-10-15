@@ -427,9 +427,9 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles and create a role. |
-| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an empty role. |
+| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete eligible roles. |
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
-| `/admin/settings/sign-in` | Add disabled Entra ID providers; open a provider to edit its settings and encrypted credential. |
+| `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](#sign-in-settings). |
 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
@@ -440,7 +440,8 @@ The identity schema supports SSO users, providers, rules and invitations; see [S
 SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
 Archived user detail allows retained direct assignments to be removed without restoring sign-in; rule grants remain, and the UI and API refuse new direct assignments, including reassigning a removed direct grant.
-Deleting an empty role removes its tool grants and records an audit event.
+Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
+Deletion removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
 The users and role members tables show matching totals; Next page retains the current filters.
 See the [shared API contracts](src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
@@ -497,7 +498,7 @@ Provider credentials use the encrypted store; their secrets are never returned i
 Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
 Changing client or authentication requires a new secret; changing the provider tenant removes the old credential.
 Settings and credential saves require administrator capability and recent password confirmation, check revisions, and are audited.
-The [provider API contracts](src/shared/api.ts) own the request and response fields.
+The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
 
 Providers remain disabled and SSO sign-in is unavailable in this slice.
 Local sign-in continues unchanged.
@@ -507,7 +508,6 @@ Create roles and grant their tools on **Roles** first.
 Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
 Rules are stored only and do not change existing user grants in this slice.
 A rule with existing rule-origin grants cannot be removed or retargeted until those grants are removed.
-A role referenced by a rule cannot be deleted until the mapping is removed or retargeted.
 Invitations, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
 
 ### Audit screen and API
