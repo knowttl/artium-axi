@@ -78,7 +78,7 @@ beforeEach(async () => {
   db.exec(`UPDATE users SET administrator = 1;
     INSERT INTO users (id, username, display_name, password_hash, must_change)
       SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
-    INSERT INTO user_roles VALUES ('synthetic-ordinary', 'synthetic-role'); UPDATE tools SET enabled = 1;`)
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-ordinary', 'synthetic-role'); UPDATE tools SET enabled = 1;`)
   store = createCredentialStore(db, provider)
   const source = new EmbeddedSecretSource(store)
   network = new FakeTokenTransport()

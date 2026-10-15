@@ -31,7 +31,7 @@ await seedToolUser(db)
 db.exec('UPDATE users SET administrator = 1, must_change = 1')
 db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change)
   SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
-  INSERT INTO user_roles VALUES ('synthetic-ordinary', 'synthetic-role')`)
+  INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-ordinary', 'synthetic-role')`)
 const store = createCredentialStore(db, key)
 const source = new EmbeddedSecretSource(store)
 const profile = tool => loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))
@@ -71,6 +71,16 @@ server.post('/test/audit', async () => {
     userId: 'synthetic-ordinary', tool: 'falcon-axi', requestId: 'synthetic-run-' + id, clientAddress: '192.0.2.1',
     args: ['read', '--password=CANARY-audit-secret'], sensitive: { flags: ['--password'], positions: [] } })
   return { seeded: 103 }
+})
+server.post('/test/sso', async () => {
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change)
+    VALUES ('synthetic-sso', 'synthetic-sso', 'Synthetic SSO', 'sso', 0);
+    INSERT INTO sso_providers (id, name, kind, issuer)
+      VALUES ('synthetic-provider', 'Synthetic provider', 'entra', 'https://identity.example');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id)
+      VALUES ('synthetic-rule', 'synthetic-provider', 'roles', 'Artium.Reader', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id, origin) VALUES ('synthetic-sso', 'synthetic-role', 'synthetic-rule');`)
+  return { seeded: true }
 })
 server.get('/test/tools/:tool', async request => {
   const reference = store.findCredential(request.params.tool)

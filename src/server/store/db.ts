@@ -96,19 +96,29 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
 }
 
 export function migrate(db: Database.Database, directory = migrationsDirectory): void {
-  db.transaction(() => {
-    db.exec('CREATE TABLE IF NOT EXISTS migrations (version INTEGER PRIMARY KEY)')
-    const applied = new Set(db.prepare('SELECT version FROM migrations').all().map(row => (row as { version: number }).version))
-    const files = readdirSync(directory).filter(file => /^\d+-.+\.sql$/.test(file)).sort()
-    const supported = new Set(files.map(file => Number(file.split('-')[0])))
-    if ([...applied].some(version => !supported.has(version))) throw new ArtiumError('STORE_SCHEMA_INVALID')
-    for (const file of files) {
-      const version = Number(file.split('-')[0])
-      if (applied.has(version)) continue
-      db.exec(readFileSync(join(directory, file), 'utf8'))
-      db.prepare('INSERT INTO migrations (version) VALUES (?)').run(version)
-    }
-  }).immediate()
+  // SQLite table rebuilds require FK enforcement off outside the transaction.
+  // Check all references before commit, then restore the caller's enforcement.
+  const foreignKeys = db.pragma('foreign_keys', { simple: true }) === 1
+  if (foreignKeys && db.inTransaction) throw new ArtiumError('STORE_SCHEMA_INVALID')
+  if (foreignKeys) db.pragma('foreign_keys = OFF')
+  try {
+    db.transaction(() => {
+      db.exec('CREATE TABLE IF NOT EXISTS migrations (version INTEGER PRIMARY KEY)')
+      const applied = new Set(db.prepare('SELECT version FROM migrations').all().map(row => (row as { version: number }).version))
+      const files = readdirSync(directory).filter(file => /^\d+-.+\.sql$/.test(file)).sort()
+      const supported = new Set(files.map(file => Number(file.split('-')[0])))
+      if ([...applied].some(version => !supported.has(version))) throw new ArtiumError('STORE_SCHEMA_INVALID')
+      for (const file of files) {
+        const version = Number(file.split('-')[0])
+        if (applied.has(version)) continue
+        db.exec(readFileSync(join(directory, file), 'utf8'))
+        db.prepare('INSERT INTO migrations (version) VALUES (?)').run(version)
+      }
+      if ((db.pragma('foreign_key_check') as unknown[]).length) throw new ArtiumError('STORE_SCHEMA_INVALID')
+    }).immediate()
+  } finally {
+    if (foreignKeys) db.pragma('foreign_keys = ON')
+  }
 }
 
 // The returned connection is ready only after every stored credential authenticates.
@@ -120,7 +130,8 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
   try {
     chmodSync(file, 0o600)
     db.pragma('busy_timeout = 5000')
-    db.pragma('foreign_keys = ON')
+    // Keep schema upgrades and key validation in one rollback boundary.
+    db.pragma('foreign_keys = OFF')
     db.pragma('journal_mode = WAL')
     db.pragma('synchronous = FULL')
     db.transaction(() => {
@@ -141,6 +152,7 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
       const insertTool = db.prepare("INSERT INTO tools (name, enabled, pinned_version) VALUES (?, 0, '') ON CONFLICT(name) DO NOTHING")
       for (const tool of toolSchema.options) insertTool.run(tool)
     }).immediate()
+    db.pragma('foreign_keys = ON')
     return db
   } catch (error) {
     db.close()

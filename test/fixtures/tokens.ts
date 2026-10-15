@@ -8,7 +8,7 @@ export async function seedToolUser(db: Database.Database): Promise<void> {
   db.prepare(`INSERT INTO users (id, username, display_name, password_hash, must_change)
     VALUES ('synthetic-development-user', 'synthetic-user', 'Synthetic User', ?, 0)`).run(hash)
   db.exec(`INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
-    INSERT INTO user_roles VALUES ('synthetic-development-user', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-development-user', 'synthetic-role');
     INSERT INTO role_tools SELECT 'synthetic-role', name FROM tools`)
 }
 

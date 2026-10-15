@@ -38,7 +38,7 @@ export const meResponseSchema = z.strictObject({ username: z.string(), displayNa
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'])
 export const adminUserSchema = z.strictObject({
-  id: accountId, username: z.string(), displayName: z.string(), source: z.literal('local'),
+  id: accountId, username: z.string(), displayName: z.string(), source: z.enum(['local', 'sso']),
   enabled: z.boolean(), administrator: z.boolean(), mustChange: z.boolean(),
   failedAttempts: z.number().int().nonnegative(), lockedUntil: z.number().int().nullable(),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(),
@@ -47,15 +47,16 @@ export const adminUserSchema = z.strictObject({
 })
 const adminPageQuerySchema = z.strictObject({ cursor: accountId.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) })
 export const adminUsersQuerySchema = adminPageQuerySchema.extend({
-  q: z.string().min(1).max(256).optional(), source: z.literal('local').optional(),
+  q: z.string().min(1).max(256).optional(), source: z.enum(['local', 'sso']).optional(),
   status: z.enum(['enabled', 'disabled']).optional(), role: accountId.optional(),
 })
 // Archived users are excluded from list results and totalCount, but remain readable by id.
 // totalCount counts all matching users, independent of cursor; pagination keeps the same filters.
 export const adminUsersResponseSchema = z.strictObject({ users: z.array(adminUserSchema), nextCursor: accountId.nullable(),
   totalCount: z.number().int().nonnegative() })
-// Grants are deduplicated by tool; enabled requires both an enabled user and enabled tool.
-export const adminUserDetailSchema = adminUserSchema.extend({ effectiveTools: z.array(z.strictObject({
+// roleIds includes each effective role once; directRoleIds is the editable subset.
+// Grants are deduplicated by tool and role; enabled requires both an enabled user and enabled tool.
+export const adminUserDetailSchema = adminUserSchema.extend({ directRoleIds: z.array(accountId), effectiveTools: z.array(z.strictObject({
   name: toolSchema, enabled: z.boolean(), roleIds: z.array(accountId),
 })) })
 export const adminUserCreateSchema = z.strictObject({ username: z.string().min(1), displayName: z.string().min(1),
@@ -110,7 +111,7 @@ export const adminUserRoutes = {
     authorization: 'administrator-and-recent-auth', auditEvent: 'unlock-user' },
   reset: { method: 'POST', path: '/v1/admin/users/:id/password-reset', input: adminUserResetSchema, response: adminUserSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'reset-user-password' },
-  // Archived users may retain or remove current memberships, never add or restore them.
+  // Replaces direct grants only; rule grants are retained. Archived users cannot gain direct grants.
   roles: { method: 'PUT', path: '/v1/admin/users/:id/roles',
     input: z.strictObject({ roleIds: z.array(accountId).refine(ids => new Set(ids).size === ids.length), expectedRevision: z.number().int().positive() }),
     response: adminUserSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'assign-user-roles' },

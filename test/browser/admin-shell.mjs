@@ -567,6 +567,36 @@ test('user detail unlock clears a lockout caused by failed sign-ins', async () =
   `)
 })
 
+test('SSO user direct-role edits preserve rule access and offer no password reset', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/sso'), { method: 'POST' })).status, 200)
+  browser(`
+    await page.open(base + '/admin?source=sso');
+    check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').innerText.includes('SSO')), 'SSO source filter failed');
+    await page.click('a[href="/admin/users/synthetic-sso"]');
+    await page.wait('form[action$="/roles"]');
+    check(await page.eval(() => !document.querySelector('form[action$="/password-reset"]')), 'SSO account offers a local password');
+    check(await page.eval(() => !document.querySelector('[name=roleIds][type=checkbox]').checked), 'Rule grant was treated as a direct grant');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('(Rule)')), 'Rule access was not shown');
+    await page.click('form[action$="/roles"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('falcon-axi') && document.querySelector('main').innerText.includes('(Rule)')), 'Saving empty direct roles removed rule access');
+    await page.click('[name=roleIds][type=checkbox]');
+    await page.click('form[action$="/roles"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=expectedRevision][value="3"]');
+    check(await page.eval(() => document.querySelector('[name=roleIds][type=checkbox]').checked), 'Direct role was not saved alongside rule grant');
+    await page.click('[name=roleIds][type=checkbox]');
+    await page.click('form[action$="/roles"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=expectedRevision][value="4"]');
+    check(await page.eval(() => !document.querySelector('[name=roleIds][type=checkbox]').checked && document.querySelector('main').innerText.includes('(Rule)')), 'Removing direct role did not retain rule grant');
+  `)
+})
+
 test('user detail resets a password and the person must change it at sign-in', () => {
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');

@@ -36,7 +36,7 @@ const audit = new Audit(db, Date.now, () => {})
 db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
   UPDATE tools SET enabled = 1 WHERE name = 'mg-axi';
   INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
-  INSERT INTO user_roles VALUES ('synthetic-user', 'synthetic-role');
+  INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
   INSERT INTO role_tools VALUES ('synthetic-role', 'mg-axi');`)
 const token = issueTestAccessToken(db, 'synthetic-user')
 const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]))

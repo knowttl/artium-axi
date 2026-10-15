@@ -434,6 +434,9 @@ Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
 Direct assignments are made by an administrator.
+Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
+The identity schema supports SSO users, providers, rules and invitations, but SSO sign-in and its settings are not available yet.
+Providers default to disabled, and SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
 Archived user detail allows retained role assignments to be removed without restoring sign-in; the UI and API refuse new memberships, including reassigning a removed role.
 Deleting an empty role removes its tool grants and records an audit event.

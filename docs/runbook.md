@@ -396,6 +396,10 @@ If migration or acceptance fails, stop the candidate, restore the pre-upgrade ba
 Rollback loses changes made since the pre-upgrade backup; keep the failed-upgrade volume for investigation until the owner approves its disposal.
 Never run an old image against the upgraded volume.
 Startup refuses migration versions unknown to its image with `STORE_SCHEMA_INVALID`.
+The SSO identity migration preserves local accounts, credentials, grants, sessions and audit history, and marks existing role grants as direct.
+Table rebuilds and master-key validation share one transaction; a failure rolls back the schema and migration version records.
+The migration checks foreign keys before committing and enables enforcement before exposing the connection.
+Reopening an upgraded store does not reapply migrations or enable SSO providers.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
 After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.
