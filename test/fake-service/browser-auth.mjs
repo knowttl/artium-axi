@@ -23,6 +23,7 @@ import { loadCredentialProfile } from '../../dist/src/server/adapters/credential
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport } from '../../dist/test/fixtures/azure-token-transport.js'
 import { createTestCertificates } from './certificates.mjs'
+import { seedBrowserSso } from '../../dist/test/fixtures/sso.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
 createTestCertificates(directory, ['localhost'])
@@ -54,7 +55,10 @@ for (const adapter of adapters) {
       limits: { timeoutMs: 5000 } }
   }
 }
+let sso
+let callbackCookies
 const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters,
+  ...(process.env.ARTIUM_TEST_SSO === '1' ? { ssoFetch: (...args) => sso.fetch(...args) } : {}),
   credentialStore: store, providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
@@ -66,6 +70,21 @@ server.post('/test/clock', async request => {
   offset += advanceMs
   return { now: Date.now() }
 })
+if (process.env.ARTIUM_TEST_SSO === '1') {
+  server.addHook('onRequest', async request => {
+    if (request.url.startsWith('/auth/sso/synthetic-entra/callback')) callbackCookies = {
+      session: Boolean(request.cookies['artium-session']), preauth: Boolean(request.cookies['artium-sso']), csrf: Boolean(request.cookies._csrf),
+    }
+  })
+  server.post('/test/sso-protocol', async request => {
+    sso.token.claims = request.body.claims
+    sso.token.tamperSignature = request.body.tamperSignature
+    return { configured: true }
+  })
+  server.get('/test/sso-evidence', async () => ({ callbackCookies,
+    sessions: db.prepare('SELECT user_id, reauthenticated_at FROM sessions WHERE revoked_at IS NULL').all(),
+    audit: db.prepare("SELECT outcome, authentication_method, provider_id, subject FROM audit WHERE authentication_method = 'sso' ORDER BY id").all() }))
+}
 server.post('/test/audit', async () => {
   const audit = new Audit(db, () => Date.UTC(2026, 0, 1))
   for (let id = 0; id < 103; id++) audit.record({ event: 'run-start', outcome: 'started',
@@ -90,7 +109,9 @@ server.get('/test/tools/:tool', async request => {
 })
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
 const proxy = createServer({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) }, (request, response) => {
-  const upstream = httpRequest({ hostname: '127.0.0.1', port: address.port, path: request.url, method: request.method,
+  const authorization = sso && request.url.startsWith('/test/oidc/authorize?')
+  const upstream = httpRequest({ hostname: '127.0.0.1', port: authorization ? new URL(sso.url).port : address.port,
+    path: authorization ? request.url.replace('/test/oidc/authorize', '/authorize') : request.url, method: request.method,
     headers: { ...request.headers, 'x-forwarded-proto': 'https' } }, reply => {
     response.writeHead(reply.statusCode, reply.headers)
     reply.pipe(response)
@@ -98,10 +119,15 @@ const proxy = createServer({ key: readFileSync(join(directory, 'server.key')), c
   upstream.on('error', () => { response.writeHead(502); response.end() })
   request.pipe(upstream)
 })
-proxy.listen(0, '127.0.0.1', () => {
+proxy.listen(0, '127.0.0.1', async () => {
+  if (process.env.ARTIUM_TEST_SSO === '1') sso = await seedBrowserSso(db, new ProviderCredentials(db, key),
+    `https://localhost:${proxy.address().port}/auth/sso/synthetic-entra/callback`, {
+      authorizationEndpoint: `https://127.0.0.1:${proxy.address().port}/test/oidc/authorize`, browserApproval: true,
+    })
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
   const spki = createHash('sha256').update(cert.publicKey.export({ type: 'spki', format: 'der' })).digest('base64')
   console.log(JSON.stringify({ url: `https://localhost:${proxy.address().port}`, spki, clock: `${address.origin}/test/clock`,
+    ...(sso ? { ssoControl: `${address.origin}/test/sso-protocol`, ssoEvidence: `${address.origin}/test/sso-evidence` } : {}),
     certificatePem: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'server.key'), 'utf8') }))
 })
 const connections = new Set()
@@ -115,6 +141,7 @@ async function close() {
   for (const socket of connections) socket.destroy()
   await closed
   await server.close()
+  await sso?.close()
   db.close()
   rmSync(directory, { recursive: true, force: true })
 }

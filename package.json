@@ -54,6 +54,7 @@
     "argon2": "0.45.1",
     "better-sqlite3": "13.0.3",
     "fastify": "^5.12.5",
+    "openid-client": "6.8.8",
     "zod": "4.6.5"
   }
 }

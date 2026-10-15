@@ -74,12 +74,16 @@ export class AuthRateLimits {
 
   admit(username: string, address: string, now = Date.now()): void {
     this.prune(this.usernames, now)
-    this.prune(this.addresses, now)
-    this.consume(this.addresses, hashToken(address), authDefaults.addressAttempts, now)
+    this.admitAddress(address, now)
     const counter = this.usernames.get(hashToken(canonicalUsername(username)))
     if (counter ? counter.count >= authDefaults.usernameAttempts : this.usernames.size >= authDefaults.counterKeys) {
       throw new ArtiumError('AUTH_RATE_LIMITED')
     }
+  }
+
+  admitAddress(address: string, now = Date.now()): void {
+    this.prune(this.addresses, now)
+    this.consume(this.addresses, hashToken(address), authDefaults.addressAttempts, now)
   }
 
   recordFailure(username: string, now = Date.now()): void {

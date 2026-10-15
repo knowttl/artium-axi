@@ -504,6 +504,10 @@ The [provider and role-rule API contracts](src/shared/api.ts) own the request an
 
 Providers remain disabled and SSO sign-in is unavailable in this slice.
 Local sign-in continues unchanged.
+The staged browser protocol supports existing Entra identities, authorization code with PKCE and nonce, ID token signature and claim validation, address rate limits and sign-in audit records.
+Only the fake browser harness seeds an enabled provider; no activation control is exposed.
+Invitation claiming, local identity linking and role synchronization follow in P3b-2; safe activation and SSO reauthentication follow in P3c.
+Protocol sessions do not grant recent-auth permission for administration changes.
 On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.

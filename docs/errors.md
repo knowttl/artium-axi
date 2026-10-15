@@ -21,6 +21,10 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | RECOVERY_FAILED | artium-axi | 500 | 1 | Administrator recovery did not complete. | Use an existing local username in a bootstrapped store, check the matching master key and inspect local storage. |
 | PASSWORD_INVALID | artium-axi | 400 | 1 | The password does not meet the local password rules. | Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords. |
 | SIGN_IN_FAILED | artium-axi | 401 | 1 | The username or password is incorrect. | Check your username and password. |
+| SSO_STATE_INVALID | artium-axi | 400 | 1 | The SSO sign-in request expired or was already used. | Start a new sign-in from this browser. |
+| SSO_TOKEN_INVALID | artium-axi | 401 | 1 | The identity provider response could not be verified. | Start a new sign-in or ask an administrator to check provider settings. |
+| SSO_NOT_INVITED | artium-axi | 403 | 1 | This identity is not linked to an artium account. | Ask an administrator for access. Invitation claiming is not available yet. |
+| SSO_PROVIDER_ERROR | artium-axi | 503 | 1 | SSO sign-in is unavailable. | Ask an administrator to check the provider configuration or try again later. |
 | AUTH_RATE_LIMITED | artium-axi | 429 | 1 | The authentication attempt limit was reached. | Wait 15 minutes before trying again. |
 | ACCOUNT_LOCKED | artium-axi | 429 | 1 | The account is temporarily locked. | Wait 15 minutes or ask an administrator to unlock the account. |
 | REAUTH_REQUIRED | artium-axi | 401 | 1 | Recent password confirmation is required. | Confirm your password through /v1/auth/reauth. |

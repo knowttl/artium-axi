@@ -17,7 +17,7 @@ import { revokeUserSessions } from './tokens.js'
 import { accountContent } from '../admin/account.js'
 
 export const browserCookie = 'artium-session'
-const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
+export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
 const pages = ['/login', '/logout', '/password', '/reauth', '/admin', '/account']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession) {
@@ -25,10 +25,10 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
   const remaining = Math.max(0, Math.ceil((until - Date.now()) / 60_000))
   const csrf = current ? reply.generateCsrf() : ''
   const header = current ? `<header class="site-header"><a class="brand" href="${current.administrator && !current.must_change ? '/admin' : '/account'}">artium-axi</a>
-    <div><p>Signed in as ${escape(current.display_name)}.</p><small>Local password sign-in</small></div>
+    <div><p>Signed in as ${escape(current.display_name)}.</p><small>${current.source === 'sso' ? 'SSO sign-in' : 'Local password sign-in'}</small></div>
     ${current.administrator && !current.must_change ? `<p data-reauth-until="${until}">${remaining ? `Changes allowed for ${remaining} min` : 'Password confirmation required for changes'}</p>` : ''}
     <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}"><button>Sign out</button></form></header>` : ''
-  const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : '<nav aria-label="Account"><a href="/account">Account</a><a href="/password">Change password</a></nav>'}</aside>` : ''
+  const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : `<nav aria-label="Account"><a href="/account">Account</a>${current.source === 'local' ? '<a href="/password">Change password</a>' : ''}</nav>`}</aside>` : ''
   const dialogs = current ? `<dialog id="confirmation" aria-labelledby="confirmation-title"><form method="dialog"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button value="confirmed">Confirm change</button></div></form></dialog>
     ${current.administrator && !current.must_change ? `<dialog id="reauth-dialog" aria-labelledby="reauth-title"><h2 id="reauth-title">Confirm password</h2><p>Confirm your password to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p><form data-reauth><label>Password <input name="password" type="password" autocomplete="current-password" required></label><p data-reauth-error role="alert"></p><div class="dialog-actions"><button type="button" data-reauth-cancel>Cancel</button><button>Confirm and continue</button></div></form></dialog>` : ''}` : ''
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ' class="signed-in"' : ''}>${header}<div class="page-layout">${navigation}<main id="main"><h1>${escape(title)}</h1>${pageHelp(title)}<p id="message" role="alert" tabindex="-1"></p>${content}</main></div>${dialogs}</body></html>`)
@@ -41,7 +41,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const provider = new LocalAuthProvider(db)
   const context = (request: FastifyRequest) => ({ requestId: request.id, clientAddress: request.ip })
   const session = (request: FastifyRequest) => readBrowserSession(db, request.cookies[browserCookie] ?? '')
-  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/admin/') || request.url.startsWith('/v1/account/') || pages.includes(request.url.split('?')[0]!) ||
+  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/auth/sso/') || request.url.startsWith('/admin/') || request.url.startsWith('/v1/account/') || pages.includes(request.url.split('?')[0]!) ||
     Boolean(request.cookies?.[browserCookie] && !request.headers.authorization && request.url.startsWith('/v1/'))
 
   app.addHook('onRequest', async (request, reply) => {
@@ -93,8 +93,10 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
         reply.clearCookie(browserCookie, cookieOptions)
       }
     }
+    const providers = db.prepare("SELECT id, name FROM sso_providers WHERE kind = 'entra' AND enabled = 1 ORDER BY name, id").all() as { id: string, name: string }[]
     return browserPage(reply, 'Sign in', form(reply, '/login', 'Sign in',
-      '<p><label>Username <input name="username" autocomplete="username" required></label></p>' + passwordField('password', 'Password', 'current-password')))
+      '<p><label>Username <input name="username" autocomplete="username" required></label></p>' + passwordField('password', 'Password', 'current-password')) +
+      providers.map(provider => `<p><a href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start">Sign in with Microsoft (${escape(provider.name)})</a></p>`).join(''))
   })
   app.post('/login', async (request, reply) => {
     const input = loginSchema.safeParse(request.body)

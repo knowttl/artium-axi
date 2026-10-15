@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { seedToolUser } from '../../../test/fixtures/tokens.js'
-import { Audit } from '../audit/audit.js'
 import { createBrowserSession, readBrowserSession } from '../auth/sessions.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { createCredentialStore, migrate, openStore, validateSchema } from './db.js'
@@ -62,8 +61,8 @@ test('upgrades a copy of a populated pre-SSO store atomically and safely reruns'
     original.exec(`INSERT INTO tokens (hash, type, family_id, user_id, expires_at)
       SELECT 'CANARY-refresh-hash', 'refresh', id, user_id, expires_at FROM session_families;
       INSERT INTO recent_auth_tickets SELECT id, 'CANARY-ticket-hash', expires_at FROM session_families;`)
-    new Audit(original).record({ event: 'sign-in', userId: 'synthetic-development-user', tool: null, outcome: 'success',
-      requestId: 'synthetic-request', clientAddress: null })
+    original.exec(`INSERT INTO audit (occurred_at, event, user_id, outcome, request_id)
+      VALUES (1000, 'sign-in', 'synthetic-development-user', 'success', 'synthetic-request')`)
     const tables = ['users', 'roles', 'role_tools', 'tools', 'credentials', 'tool_health', 'session_families',
       'tokens', 'sessions', 'bootstrap_metadata', 'recent_auth_tickets', 'audit', 'store_metadata', 'key_rotations']
     const snapshot = (connection: Database.Database) => Object.fromEntries(tables.map(table =>
@@ -80,7 +79,9 @@ test('upgrades a copy of a populated pre-SSO store atomically and safely reruns'
     } finally { refused.close() }
     db.close()
     db = openStore(copy, provider)
-    expect(snapshot(db)).toEqual(previous)
+    expect(snapshot(db)).toMatchObject(previous)
+    expect(db.prepare('SELECT authentication_method, provider_id, subject FROM audit').get())
+      .toEqual({ authentication_method: null, provider_id: null, subject: null })
     expect(db.prepare('SELECT user_id, role_id, origin FROM user_roles').all())
       .toEqual([{ user_id: 'synthetic-development-user', role_id: 'synthetic-role', origin: 'direct' }])
     expect(readBrowserSession(db, session.id).user_id).toBe('synthetic-development-user')
@@ -91,7 +92,7 @@ test('upgrades a copy of a populated pre-SSO store atomically and safely reruns'
     expect(() => db.exec('DELETE FROM users')).toThrow('LAST_ADMINISTRATOR')
     migrate(db)
     validateSchema(db)
-    expect(snapshot(db)).toEqual(previous)
+    expect(snapshot(db)).toMatchObject(previous)
     expect(db.pragma('foreign_key_check')).toEqual([])
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1)
     expect(snapshot(original)).toEqual(previous)

@@ -23,7 +23,7 @@ let url: string
 let headers: Record<string, string>
 const password = 'CANARY-local-password'
 const administrator = 'synthetic-development-user'
-const auditCsvHeader = 'id,occurred_at,event,user_id,tool,arguments,request_id,exit_code,duration_ms,stdout_bytes,stderr_bytes,client_address,outcome,action,target_id,cutoff,deleted_count,checked_at,credential_revision,error_code\r\n'
+const auditCsvHeader = 'id,occurred_at,event,user_id,tool,arguments,request_id,exit_code,duration_ms,stdout_bytes,stderr_bytes,client_address,outcome,action,target_id,cutoff,deleted_count,checked_at,credential_revision,error_code,authentication_method,provider_id,subject\r\n'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const createInput = { username: ' Synthetic-New ', displayName: 'Synthetic New', temporaryPassword: 'CANARY-temporary-password',
   administrator: false, roleIds: ['synthetic-role'] }
@@ -96,7 +96,7 @@ test('SSO accounts can be listed and managed without acquiring a local password'
   const login = await fetch(url + '/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username: 'synthetic-sso', password }) })
   await failure(login, 'SIGN_IN_FAILED')
-  expect((await fetch(url + '/auth/sso/synthetic/start')).status).toBe(404)
+  expect((await fetch(url + '/auth/sso/synthetic/start')).status).toBe(503)
 })
 
 test('replacing direct roles keeps rule grants and returns each effective role once', async () => {
@@ -245,7 +245,7 @@ test('CSV export quotes commas, quotes and newlines without changing field value
   expect(response.headers.get('content-type')).toBe('text/csv; charset=utf-8')
   expect(response.headers.get('content-disposition')).toBe('attachment; filename="artium-audit.csv"')
   expect(await response.text()).toBe(auditCsvHeader
-    + `"${record.id}","0","admin-change","${administrator}",,,"request,""quoted""\nnext",,,,,,"success","create-user","synthetic-new",,,,,\r\n`)
+    + `"${record.id}","0","admin-change","${administrator}",,,"request,""quoted""\nnext",,,,,,"success","create-user","synthetic-new",,,,,,,,\r\n`)
 })
 
 test.each([{ format: 'csv', expected: auditCsvHeader }, { format: 'jsonl', expected: '' }])('empty $format export has no records', async ({ format, expected }) => {
