@@ -79,13 +79,14 @@ if (process.env.ARTIUM_TEST_SSO === '1') {
   server.post('/test/sso-protocol', async request => {
     sso.token.claims = request.body.claims
     sso.token.tamperSignature = request.body.tamperSignature
+    if (request.body.administrator !== undefined) db.prepare("UPDATE users SET administrator = ? WHERE id = 'synthetic-browser-sso'").run(request.body.administrator ? 1 : 0)
     return { configured: true }
   })
   server.post('/test/sso-invitation', async request => {
     seedSsoRules(db)
     return seedSsoInvitation(db, request.body)
   })
-  server.get('/test/sso-evidence', async () => ({ callbackCookies,
+  server.get('/test/sso-evidence', async () => ({ callbackCookies, authorizations: sso.authorizations,
     sessions: db.prepare('SELECT user_id, reauthenticated_at FROM sessions WHERE revoked_at IS NULL').all(),
     invitations: db.prepare('SELECT id, user_id, claimed_at FROM invitations').all(),
     users: db.prepare('SELECT id, username, source, password_hash FROM users').all(),
@@ -117,9 +118,9 @@ server.get('/test/tools/:tool', async request => {
 })
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
 const proxy = createServer({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) }, (request, response) => {
-  const authorization = sso && request.url.startsWith('/test/oidc/authorize?')
-  const upstream = httpRequest({ hostname: '127.0.0.1', port: authorization ? new URL(sso.url).port : address.port,
-    path: authorization ? request.url.replace('/test/oidc/authorize', '/authorize') : request.url, method: request.method,
+  const providerRequest = sso && request.url.startsWith('/test/oidc/')
+  const upstream = httpRequest({ hostname: '127.0.0.1', port: providerRequest ? new URL(sso.url).port : address.port,
+    path: providerRequest ? request.url.replace('/test/oidc/', '/') : request.url, method: request.method,
     headers: { ...request.headers, 'x-forwarded-proto': 'https' } }, reply => {
     response.writeHead(reply.statusCode, reply.headers)
     reply.pipe(response)
@@ -131,6 +132,7 @@ proxy.listen(0, '127.0.0.1', async () => {
   if (process.env.ARTIUM_TEST_SSO === '1') sso = await seedBrowserSso(db, new ProviderCredentials(db, key),
     `https://localhost:${proxy.address().port}/auth/sso/synthetic-entra/callback`, {
       authorizationEndpoint: `https://127.0.0.1:${proxy.address().port}/test/oidc/authorize`, browserApproval: true,
+      endSessionEndpoint: `https://127.0.0.1:${proxy.address().port}/test/oidc/logout`,
     })
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
   const spki = createHash('sha256').update(cert.publicKey.export({ type: 'spki', format: 'der' })).digest('base64')

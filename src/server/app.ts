@@ -60,8 +60,8 @@ export function createApp(options: {
     genReqId: () => randomUUID(), requestIdHeader: false,
     trustProxy: address => proxies.includes(address) })
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
-  const browser = registerBrowser(app, db, audit, authAttempts)
-  registerSso(app, db, audit, options.providerCredentials, options.ssoFetch)
+  const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
+  const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {

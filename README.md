@@ -451,12 +451,22 @@ See the [shared API contracts](src/shared/api.ts) for user filters, detail respo
 The last enabled administrator cannot be disabled, demoted or archived.
 Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
 Session revocation and administration changes commit with their audit records.
-After 15 minutes without password confirmation, administration mutations require reauthentication.
+After 15 minutes without identity confirmation, administration mutations require reauthentication.
 Administration and account screens share a navigation menu.
 Signed-in screens have a header showing identity, sign-in source and sign-out.
-On administration screens, the header also shows the remaining password-confirmation window.
-Admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
+On administration screens, the header also shows the remaining confirmation window.
+Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
+SSO admin forms instead open a Microsoft confirmation window with a forced login and fresh authentication-time check.
+Configure `auth_time` as an optional ID-token claim in the Entra application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
+Confirmation is refused if that claim is absent or stale.
+After confirming with the same identity, use **Continue to artium** to resume the pending action in the original window.
+Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
+Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.
+SSO sign-out optionally also visits Microsoft's discovered end-session endpoint.
+After signing out of artium, choose **Continue to Microsoft sign-out** to finish that optional step.
+The artium session is revoked first; if provider sign-out cannot be started, the page explains that the Microsoft session may still be active.
+Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
 Confirmation dialogs explain consequences before changes; each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
 
@@ -528,7 +538,7 @@ Claiming atomically binds the immutable Entra identity, consumes the invitation,
 Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
-See [browser SSO protocol verification](docs/verification-p3b.md) for fake-provider evidence and the remaining activation slice.
+See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) for fake-provider evidence and the remaining activation slice.
 CLI SSO and generic OIDC discovery follow in later phases.
 
 ### Audit screen and API

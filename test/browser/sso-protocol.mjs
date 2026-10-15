@@ -62,6 +62,99 @@ const signIn = `await page.open(base + '/login');
   await page.wait('[data-oidc-approve]');
   await page.click('[data-oidc-approve]');`
 
+function selectPage(urlPart) {
+  const pages = chrome(['pages'])
+  const row = pages.split('\n').find(line => line.includes(urlPart))
+  assert.ok(row, pages)
+  const id = /^\s*(\d+),/.exec(row)?.[1]
+  assert.ok(id, pages)
+  chrome(['selectpage', id])
+}
+
+const prepareChange = `${signIn}
+  await page.wait('a[href="/admin"]');
+  await page.click('a[href="/admin"]');
+  await page.open(base + '/admin/roles');
+  await page.wait('form[action="/v1/admin/roles"]');
+  await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
+  await page.click('form[action="/v1/admin/roles"] button');
+  await page.wait('#reauth-dialog[open]');
+  check(await page.eval(() => !document.querySelector('#reauth-dialog [name=password]')), 'SSO asked for a local password');`
+
+function openReauthPopup() {
+  browser(`await page.click('#reauth-dialog button:not([type=button])');`)
+  selectPage('/reauth')
+  browser(`await page.wait('[data-sso-reauth-start]');
+    await page.click('[data-sso-reauth-start]');
+    await page.wait('[data-oidc-approve]');`)
+}
+
+test('SSO identity confirmation resumes the pending form through the real popup and Strict-cookie hop', async () => {
+  await configure({ administrator: true })
+  browser(prepareChange)
+  openReauthPopup()
+  browser(`await page.click('[data-oidc-approve]');
+    await page.wait('a[href="/reauth?complete=1"]');
+    await page.click('a[href="/reauth?complete=1"]');`)
+  selectPage('/admin/roles')
+  browser(`await page.wait('a[href^="/admin/roles/"]');
+    await page.wait('#reauth-dialog:not([open])');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic resumed role')), 'Pending role was not saved');
+    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes allowed for')), 'Recent-auth window was not updated');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
+  assert.equal(evidence.authorizations.at(-1).prompt, 'login')
+  assert.equal(evidence.sessions.length, 1)
+  assert.ok(evidence.sessions[0].reauthenticated_at)
+  assert.equal(evidence.events.filter(event => event.event === 'reauth').length, 1)
+})
+
+test('cancelled SSO confirmation keeps the entered draft without making the change', async () => {
+  await configure({ administrator: true })
+  browser(`${prepareChange}
+    await page.click('[data-reauth-cancel]');
+    await page.wait('#reauth-dialog:not([open])');
+    check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Cancelled confirmation lost the draft');
+    check(await page.eval(async () => !(await (await fetch('/v1/admin/roles')).json()).roles.some(role => role.name === 'Synthetic resumed role')), 'Cancelled action created a role');`)
+})
+
+test('stale provider authentication is refused and leaves the pending draft intact', async () => {
+  await configure({ administrator: true, claims: { auth_time: 1 } })
+  browser(prepareChange)
+  openReauthPopup()
+  browser(`await page.click('[data-oidc-approve]');
+    await page.wait('main small');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Stale authentication was accepted');`)
+  selectPage('/admin/roles')
+  browser(`await page.click('[data-reauth-cancel]');
+    await page.wait('#reauth-dialog:not([open])');
+    check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Failed confirmation lost the draft');
+    check(await page.eval(async () => !(await (await fetch('/v1/admin/roles')).json()).roles.some(role => role.name === 'Synthetic resumed role')), 'Failed confirmation created a role');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions[0].reauthenticated_at, null)
+  assert.equal(evidence.audit.at(-1).outcome, 'SSO_TOKEN_INVALID')
+})
+
+test('optional Microsoft sign-out revokes artium before visiting the fake provider logout page', async () => {
+  browser(`${signIn}
+    await page.wait('a[href="/account"]');
+    await page.click('a[href="/account"]');
+    await page.wait('form[action="/logout"]');
+    await page.click('[name=providerLogout]');
+    await page.click('form[action="/logout"] button');
+    await page.wait('[data-provider-signout]');
+    await page.click('[data-provider-signout]');
+    await page.wait('a[href$="/login"]');
+    check(await page.eval(() => document.querySelector('h1').textContent === 'Signed out of synthetic provider'), 'Provider logout did not run');
+    await page.click('a');
+    await page.wait('[name=username]');
+    await page.open(base + '/account');
+    await page.wait('[name=username]');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions.length, 0)
+  assert.equal(evidence.events.at(-1).event, 'sign-out')
+})
+
 test('CSP-compatible link and Strict-cookie callback hop establish an SSO account session', async () => {
   browser(`${signIn}
     await page.wait('a[href="/account"]');

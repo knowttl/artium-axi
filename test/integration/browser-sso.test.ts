@@ -46,8 +46,8 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function start(path = ssoStart) {
-  const response = await app.inject({ url: path, headers })
+async function start(path = ssoStart, sessionToken?: string) {
+  const response = await app.inject({ url: path, headers: { ...headers, ...(sessionToken ? { cookie: `${browserCookie}=${sessionToken}` } : {}) } })
   expect(response.statusCode).toBe(302)
   const authorization = new URL(response.headers.location!)
   expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
@@ -57,6 +57,100 @@ async function start(path = ssoStart) {
   expect(cookie).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 600 })
   return { url: issued.headers.get('location')!, cookie: `${cookie.name}=${cookie.value}` }
 }
+
+async function signedIn() {
+  const response = await finish(await start())
+  return response.cookies.find(cookie => cookie.name === browserCookie)!.value
+}
+
+test('SSO reauth requires a new provider login and updates only the initiating session', async () => {
+  const first = await signedIn()
+  const second = await signedIn()
+  const transaction = await start(ssoStart + '?reauth=1', first)
+  expect(fake.authorizations.at(-1)).toMatchObject({ prompt: 'login' })
+  const response = await finish(transaction)
+  expect(response.statusCode).toBe(200)
+  expect(response.body).toContain('/reauth?complete=1')
+  expect(response.cookies.some(cookie => cookie.name === browserCookie || cookie.name === '_csrf')).toBe(false)
+  expect(readBrowserSession(db, first).reauthenticated_at).not.toBeNull()
+  expect(readBrowserSession(db, second).reauthenticated_at).toBeNull()
+  expect(db.prepare("SELECT authentication_method, provider_id, subject, user_id FROM audit WHERE event = 'reauth'").get())
+    .toEqual({ authentication_method: 'sso', provider_id: 'synthetic-entra', subject: `${syntheticTenant}:${syntheticObject}`, user_id: 'synthetic-browser-sso' })
+  expect((await finish(transaction)).body).toContain('SSO_STATE_INVALID')
+})
+
+test.each([
+  { label: 'missing', value: null }, { label: 'stale', value: 1 },
+  { label: 'future', value: 9_999_999_999 }, { label: 'non-numeric', value: 'fresh' },
+])('SSO reauth refuses $label auth_time', async ({ value }) => {
+  const sessionToken = await signedIn()
+  fake.token.claims = { auth_time: value }
+  const response = await finish(await start(ssoStart + '?reauth=1', sessionToken))
+  expect(response.body).toContain('SSO_TOKEN_INVALID')
+  expect(readBrowserSession(db, sessionToken).reauthenticated_at).toBeNull()
+  expect(db.prepare("SELECT event, outcome FROM audit ORDER BY id DESC LIMIT 1").get()).toEqual({ event: 'reauth', outcome: 'SSO_TOKEN_INVALID' })
+})
+
+test('SSO reauth refuses a different identity without changing the signed-in user', async () => {
+  const sessionToken = await signedIn()
+  fake.token.claims = { oid: '44444444-4444-4444-8444-444444444444' }
+  expect((await finish(await start(ssoStart + '?reauth=1', sessionToken))).body).toContain('SSO_TOKEN_INVALID')
+  expect(readBrowserSession(db, sessionToken)).toMatchObject({ user_id: 'synthetic-browser-sso', reauthenticated_at: null })
+})
+
+test.each(['revoked', 'expired', 'identity changed', 'user disabled', 'audit unavailable'])('SSO reauth cannot authorize a session after %s', async failure => {
+  const sessionToken = await signedIn()
+  const transaction = await start(ssoStart + '?reauth=1', sessionToken)
+  if (failure === 'revoked') db.prepare('UPDATE sessions SET revoked_at = ?').run(Date.now())
+  if (failure === 'expired') db.prepare('UPDATE sessions SET expires_at = ?').run(Date.now())
+  if (failure === 'identity changed') db.prepare('UPDATE identities SET subject = ?').run('changed-subject')
+  if (failure === 'user disabled') db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-browser-sso'")
+  if (failure === 'audit unavailable') db.exec("CREATE TRIGGER synthetic_reauth_audit_failure BEFORE INSERT ON audit WHEN NEW.event = 'reauth' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  expect((await finish(transaction)).statusCode).toBeGreaterThanOrEqual(400)
+  expect(db.prepare('SELECT reauthenticated_at FROM sessions').get()).toEqual({ reauthenticated_at: null })
+})
+
+test('SSO reauth cannot start without its session or use an invitation', async () => {
+  expect((await app.inject({ url: ssoStart + '?reauth=1', headers })).statusCode).toBe(401)
+  expect((await app.inject({ url: seedSsoInvitation(db).claimPath + '&reauth=1', headers })).body).toContain('INVALID_INPUT')
+})
+
+async function signOut(sessionToken: string, providerLogout = false) {
+  const cookie = `${browserCookie}=${sessionToken}; _csrf=${readBrowserSession(db, sessionToken).csrf_token}`
+  const page = await app.inject({ url: '/account', headers: { ...headers, cookie } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(page.body)![1]!
+  return app.inject({ method: 'POST', url: '/logout', headers: { ...headers, origin: 'https://localhost',
+    cookie },
+    payload: { _csrf: csrf, ...(providerLogout ? { providerLogout: 'true' } : {}) } })
+}
+
+test('optional provider sign-out revokes the local session before offering the discovered end-session endpoint', async () => {
+  const sessionToken = await signedIn()
+  const response = await signOut(sessionToken, true)
+  expect(response.statusCode).toBe(200)
+  const destination = new URL(/data-provider-signout href="([^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&'))
+  expect(destination.pathname).toBe(`/${syntheticTenant}/v2.0/logout`)
+  expect(destination.searchParams.get('post_logout_redirect_uri')).toBe('https://localhost/login')
+  expect(destination.searchParams.get('client_id')).toBe('33333333-3333-4333-8333-333333333333')
+  expect(() => readBrowserSession(db, sessionToken)).toThrow()
+  expect(db.prepare('SELECT revoked_at FROM session_families').get()).toMatchObject({ revoked_at: expect.any(Number) })
+  expect(db.prepare("SELECT event, outcome FROM audit ORDER BY id DESC LIMIT 1").get()).toEqual({ event: 'sign-out', outcome: 'success' })
+})
+
+test('ordinary sign-out stays in artium', async () => {
+  const sessionToken = await signedIn()
+  expect((await signOut(sessionToken)).headers.location).toBe('/login')
+  expect(() => readBrowserSession(db, sessionToken)).toThrow()
+})
+
+test('provider failure leaves artium signed out and explains the remaining provider session', async () => {
+  const sessionToken = await signedIn()
+  db.exec('UPDATE sso_providers SET enabled = 0')
+  const response = await signOut(sessionToken, true)
+  expect(response.statusCode).toBe(200)
+  expect(response.body).toContain('Microsoft session may still be active')
+  expect(() => readBrowserSession(db, sessionToken)).toThrow()
+})
 
 async function finish(transaction: Awaited<ReturnType<typeof start>>) {
   return app.inject({ url: transaction.url, headers: { ...headers, cookie: transaction.cookie } })

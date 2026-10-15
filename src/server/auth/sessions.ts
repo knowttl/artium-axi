@@ -14,10 +14,18 @@ export interface BrowserSession {
   administrator: number
   must_change: number
   source: 'local' | 'sso'
+  identity_id: string | null
   reauthenticated_at: number | null
   created_at: number
   last_seen_at: number
   expires_at: number
+}
+
+export function browserIdentity(db: Database.Database, session: BrowserSession) {
+  const identity = db.prepare('SELECT id, provider_id, issuer, subject FROM identities WHERE id = ? AND user_id = ?')
+    .get(session.identity_id, session.user_id) as { id: string, provider_id: string, issuer: string, subject: string } | undefined
+  if (session.source !== 'sso' || !identity) throw new ArtiumError('SSO_STATE_INVALID')
+  return identity
 }
 
 export function createBrowserSession(db: Database.Database, userId: string, csrfSecret: string, now = Date.now()) {
