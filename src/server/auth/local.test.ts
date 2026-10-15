@@ -147,6 +147,19 @@ test('password change clears must-change and revokes every existing session with
   ])
 })
 
+test.each([[0, 'local'], [1, 'break-glass']] as const)
+('password changes persist and stream the authentication method for designation %s', async (designation, method) => {
+  await account(0)
+  db.prepare('UPDATE users SET administrator = 1, break_glass = ?').run(designation)
+  const stream = vi.fn()
+  await provider.changePassword('synthetic-user', password, 'CANARY-new-password', new Audit(db, Date.now, stream),
+    { requestId: 'synthetic-change', clientAddress: null })
+  expect(db.prepare("SELECT authentication_method FROM audit WHERE event = 'password-change'").get())
+    .toEqual({ authentication_method: method })
+  expect(stream).toHaveBeenCalledTimes(1)
+  expect(JSON.parse(stream.mock.calls[0]![0])).toMatchObject({ event: 'password-change', authentication_method: method })
+})
+
 test.each([
   ['CANARY-wrong-password', 'CANARY-new-password', 'SIGN_IN_FAILED'],
   [password, 'short', 'PASSWORD_INVALID'],

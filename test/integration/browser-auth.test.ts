@@ -98,6 +98,19 @@ test('browser password sign-in and confirmation are flagged for a designated bre
   expect(exported.body.trim().split('\n').map(line => JSON.parse(line).authentication_method)).toEqual(['break-glass', 'break-glass'])
 })
 
+test('password confirmation after break-glass designation flags the password change in Audit and exports', async () => {
+  await signIn()
+  db.prepare('UPDATE users SET break_glass = 1 WHERE id = ?').run(userId)
+  now += authDefaults.recentAuthMs
+  expect((await request('POST', '/password', { _csrf: await token('/password'), currentPassword: password, newPassword }))
+    .headers.location).toBe('/login')
+  await signIn(newPassword)
+  expect((await request('GET', '/admin/audit')).body).toContain('<strong>Break-glass</strong> password-change')
+  const exported = await request('GET', '/v1/admin/audit/export?format=jsonl&event=password-change')
+  expect(exported.statusCode).toBe(200)
+  expect(JSON.parse(exported.body.trim())).toMatchObject({ event: 'password-change', authentication_method: 'break-glass' })
+})
+
 test('an existing local browser session cannot confirm its password after SSO is enabled', async () => {
   await signIn()
   db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)

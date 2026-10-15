@@ -2,7 +2,7 @@ import argon2 from 'argon2'
 import type Database from 'better-sqlite3'
 import { passwordSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import type { Audit } from '../audit/audit.js'
+import type { Audit, AuditEvent } from '../audit/audit.js'
 import { passwordDefaults } from '../config.js'
 import type { AuthProvider } from './auth-provider.js'
 import commonPasswords from './common-passwords.v1.json' with { type: 'json' }
@@ -94,8 +94,9 @@ export class LocalAuthProvider implements AuthProvider {
     }
     if (!user || user.disabled || (restricted && !user.must_change)) throw new ArtiumError('SIGN_IN_FAILED')
     const hash = await hashPassword(newPassword)
-    audit.change({ event: 'password-change', userId, tool: null, outcome: 'success', ...context }, () => {
-      localAuthenticationMethod(this.db, userId)
+    const event: AuditEvent = { event: 'password-change', userId, tool: null, outcome: 'success', ...context }
+    audit.change(event, () => {
+      event.authenticationMethod = localAuthenticationMethod(this.db, userId)
       const current = verifyProof()
       if (!current.restricted && !current.recent && !passwordConfirmed) throw new ArtiumError('SIGN_IN_FAILED')
       const { changes } = this.db.prepare(`UPDATE users SET password_hash = ?, must_change = 0, revision = revision + 1,
