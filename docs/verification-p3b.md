@@ -11,7 +11,7 @@ The login page offers a plain link only for enabled Entra providers.
 Production settings still create and retain disabled providers; only the synthetic test fixture seeds an enabled provider.
 The start route uses tenant-specific discovery, encrypted client credentials, authorization code, S256 PKCE, nonce and query response mode.
 Certificate authentication signs a client assertion with the certificate fingerprint; client-secret authentication is supported too.
-An opaque Secure, HttpOnly, SameSite=Lax cookie identifies a bounded, process-local, ten-minute transaction.
+An opaque Secure, HttpOnly, SameSite=Lax cookie identifies a bounded, process-local transaction; [ssoDefaults](../src/server/config.ts) owns its lifetime and capacity.
 State is bound to the provider and callback URL and consumed before exchange, including failed callbacks.
 A server restart invalidates pending sign-ins.
 Provider or credential revision changes invalidate pending sign-ins.
