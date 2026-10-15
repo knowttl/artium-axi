@@ -1,8 +1,7 @@
-# CLI device sign-in (P4a)
+# CLI SSO sign-in and bearer reauthentication (P4)
 
-P4 is split into independently reviewable changes with firstmate approval on 2026-10-15.
-P4a implements device creation, polling, approval and denial, the browser approval page, `login --sso`, the 8-hour SSO CLI family cap, CLI help and account instructions.
-The current change also implements bearer reauthentication through device approval; it is no longer deferred to P4b.
+This change delivers all of P4: device creation, polling, approval and denial, the browser approval page, `login --sso`, the 8-hour SSO CLI family cap, bearer reauthentication through device approval, CLI help and account instructions.
+The initial P4a/P4b split was withdrawn with firstmate approval on 2026-10-15.
 
 The README owns [CLI sign-in and bearer reauthentication usage](../README.md#sign-in-settings), [audit fields](../README.md#audit-screen-and-api) and [session limits](../README.md#security-and-acceptance-boundaries).
 The [shared API contracts](../src/shared/api.ts), [configured defaults](../src/server/config.ts) and [device approval implementation](../src/server/auth/device.ts) own the protocol, limits and approval invariants.
@@ -17,6 +16,9 @@ The existing P3 browser journeys also passed, including Strict-cookie callback h
 These recorded worker runs cover P4a device sign-in, rather than the later bearer reauthentication additions.
 Bearer reauthentication coverage in [the integration suite](../test/integration/browser-sso.test.ts) exercises same-user approval, family-bound tickets, single collection, token binding, polling limits, denial, expiry, revocation, disabled users and providers, and audit failure.
 The no-mistakes pipeline owns final-candidate baseline and container verification; its results are recorded with delivery evidence.
+The shared Account help now follows the signed-in user's source: SSO users receive `login --sso` guidance without local password-change instructions; local users retain their existing guidance.
+The browser regression reproduced the stale SSO help before correction and checks both SSO and local Account help through the real pages.
+`pnpm build && node --test --test-name-pattern='bundled CLI device sign-in: approve|ordinary account shows role tools' test/browser/sso-protocol.mjs test/browser/admin-shell.mjs` passed both browser checks after correction.
 
 Live acceptance: **PENDING (maintainer live Entra check)**.
 The maintainer's real Entra sign-in and invitation claim happen after the build and do not hold this merge.

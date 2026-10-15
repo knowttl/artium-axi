@@ -163,6 +163,10 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
         check(await page.eval(() => document.body.textContent.includes('DEVICE_CODE_INVALID')), 'consumed approval was reusable');`)
       browser(`await page.open(base + '/account');
         await page.wait('main');
+        check(await page.eval(() => {
+          const help = document.querySelector('.page-help').textContent;
+          return help.includes('login --sso') && !help.includes('your local username') && !help.includes('Change password');
+        }), 'SSO account help gives local password instructions');
         check(await page.eval(() => document.body.textContent.includes('login --sso') && document.body.textContent.includes('headless and SSH')), 'account CLI instructions missing');`)
     } else {
       assert.equal(result.code, 1, result.stdout + result.stderr)
