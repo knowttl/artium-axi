@@ -10,7 +10,7 @@ interface FakeOidcOptions {
   browserApproval?: boolean
   clientId: string
   redirectUri: string
-  authentication: { kind: 'secret', secret: string } | { kind: 'certificate', publicKey: KeyObject }
+  authentication: { kind: 'secret', secret: string, method?: 'client_secret_basic' | 'client_secret_post' } | { kind: 'certificate', publicKey: KeyObject }
   claims: { sub: string, [key: string]: unknown }
   now?: () => number
   token?: { claims?: Record<string, unknown>, tamperSignature?: boolean }
@@ -31,14 +31,14 @@ export async function createFakeOidcProvider(options: FakeOidcOptions) {
   const authorizeInput = z.object({ client_id: z.literal(options.clientId), redirect_uri: z.literal(options.redirectUri),
     response_type: z.literal('code'), scope: z.string().refine(value => value.split(' ').includes('openid')),
     state: z.string().min(1), nonce: z.string().min(1), code_challenge: z.string().min(1), code_challenge_method: z.literal('S256'),
-    prompt: z.literal('login').optional() })
+    prompt: z.literal('login').optional(), max_age: z.literal('0').optional() })
   const tokenInput = z.object({ grant_type: z.literal('authorization_code'), code: z.string(),
     redirect_uri: z.literal(options.redirectUri), client_id: z.literal(options.clientId), code_verifier: z.string() })
 
   app.get('/.well-known/openid-configuration', async () => ({ issuer, authorization_endpoint: options.authorizationEndpoint ?? url + '/authorize',
     token_endpoint: issuer + '/token', jwks_uri: issuer + '/jwks', response_types_supported: ['code'],
     subject_types_supported: ['public'], id_token_signing_alg_values_supported: ['RS256'],
-    token_endpoint_auth_methods_supported: [options.authentication.kind === 'certificate' ? 'private_key_jwt' : 'client_secret_post'],
+    token_endpoint_auth_methods_supported: [options.authentication.kind === 'certificate' ? 'private_key_jwt' : options.authentication.method ?? 'client_secret_post'],
     code_challenge_methods_supported: ['S256'],
     ...(options.endSessionEndpoint === null ? {} : { end_session_endpoint: options.endSessionEndpoint ?? issuer + '/logout' }) }))
   app.get('/jwks', async () => ({ keys: [{ ...publicKey.export({ format: 'jwk' }), kid, use: 'sig', alg: 'RS256' }] }))
@@ -60,7 +60,17 @@ export async function createFakeOidcProvider(options: FakeOidcOptions) {
     reply.header('Cache-Control', 'no-store')
     const body = request.body as Record<string, unknown>
     let authenticated = false
-    if (options.authentication.kind === 'secret') authenticated = body?.client_secret === options.authentication.secret
+    if (options.authentication.kind === 'secret') {
+      if (options.authentication.method === 'client_secret_basic') {
+        const authorization = request.headers.authorization ?? ''
+        const encoded = authorization.startsWith('Basic ') ? Buffer.from(authorization.slice(6), 'base64').toString('utf8') : ''
+        const separator = encoded.indexOf(':')
+        const decode = (value: string) => new URLSearchParams('value=' + value).get('value')
+        authenticated = separator >= 0 && decode(encoded.slice(0, separator)) === options.clientId
+          && decode(encoded.slice(separator + 1)) === options.authentication.secret
+        if (body.client_id === undefined) body.client_id = options.clientId
+      } else authenticated = body?.client_secret === options.authentication.secret
+    }
     else {
       try {
         if (body.client_assertion_type !== 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer' || typeof body.client_assertion !== 'string') throw new Error('Invalid assertion')

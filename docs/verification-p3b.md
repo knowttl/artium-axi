@@ -8,9 +8,8 @@ See [P3 activation verification](verification-p3c2b.md) for the completed P3 sco
 
 ## Protocol boundary
 
-The login page offers a plain link only for enabled Entra providers.
-The README owns [provider activation and setup](../README.md#sign-in-settings).
-The start route uses tenant-specific discovery, encrypted client credentials, authorization code, S256 PKCE, nonce and query response mode.
+The README owns current [sign-in choices, provider activation and setup](../README.md#sign-in-settings).
+The P3 Entra checks exercise tenant-specific discovery, encrypted client credentials, authorization code, S256 PKCE, nonce and query response mode.
 Certificate authentication signs a client assertion with the certificate fingerprint; client-secret authentication is supported too.
 An opaque Secure, HttpOnly, SameSite=Lax cookie identifies a bounded, process-local transaction; [ssoDefaults](../src/server/config.ts) owns its lifetime and capacity.
 State is bound to the provider and callback URL and consumed before exchange, including failed callbacks.

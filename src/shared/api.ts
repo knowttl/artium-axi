@@ -216,12 +216,21 @@ export const adminToolRoutes = {
   test: { method: 'POST', path: '/v1/admin/tools/:tool/test', input: z.strictObject({}), response: healthSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'credential-test' },
 } as const
-// Settings configure single-tenant Entra providers without contacting
-// the identity service. Tenant changes clear credentials; all writes are audited.
-const providerSettingsSchema = z.strictObject({ name: z.string().trim().min(1).max(256), tenantId: z.uuid() })
-export const adminProviderSchema = z.strictObject({ id: accountId, name: z.string(), kind: z.literal('entra'),
-  issuer: z.string(), tenantId: z.uuid(), enabled: z.boolean(), revision: z.number().int().positive(),
-  updatedAt: z.number().nullable(), updatedBy: accountId.nullable() })
+// Settings never contact the identity service. Issuer changes clear credentials.
+export const oidcIssuerSchema = z.url().refine(value => {
+  const url = new URL(value)
+  return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash
+})
+const providerSettings = { name: z.string().trim().min(1).max(256) }
+const entraSettings = z.strictObject({ ...providerSettings, kind: z.literal('entra').default('entra'), tenantId: z.uuid() })
+const oidcSettings = z.strictObject({ ...providerSettings, kind: z.literal('oidc'), issuer: oidcIssuerSchema })
+const providerSettingsSchema = z.union([entraSettings, oidcSettings])
+const providerFields = { id: accountId, name: z.string(), issuer: z.string(), enabled: z.boolean(),
+  revision: z.number().int().positive(), updatedAt: z.number().nullable(), updatedBy: accountId.nullable() }
+export const adminProviderSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ ...providerFields, kind: z.literal('entra'), tenantId: z.uuid() }),
+  z.strictObject({ ...providerFields, kind: z.literal('oidc') }),
+])
 export const adminProviderCredentialSchema = adminCredentialSchema.omit({ tool: true })
 export const adminProviderRoutes = {
   list: { method: 'GET', path: '/v1/admin/sso/providers', input: z.strictObject({}),
@@ -229,7 +238,8 @@ export const adminProviderRoutes = {
   create: { method: 'POST', path: '/v1/admin/sso/providers', input: providerSettingsSchema,
     response: adminProviderSchema, auditEvent: 'create-provider' },
   patch: { method: 'PATCH', path: '/v1/admin/sso/providers/:id',
-    input: providerSettingsSchema.extend({ expectedRevision: z.number().int().positive() }),
+    input: z.union([entraSettings.extend({ expectedRevision: z.number().int().positive() }),
+      oidcSettings.extend({ expectedRevision: z.number().int().positive() })]),
     response: adminProviderSchema, auditEvent: 'update-provider' },
   credential: { method: 'GET', path: '/v1/admin/sso/providers/:id/credential', input: z.strictObject({}),
     response: adminProviderCredentialSchema, auditEvent: null },

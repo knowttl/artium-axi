@@ -10,6 +10,7 @@ import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { escape } from '../admin/escape.js'
 import { AuthRateLimits } from './attempts.js'
 import { entraCredential } from './entra-credential.js'
+import { oidcCredential } from './oidc-credential.js'
 import { browserCookie, browserPage, cookieOptions } from './browser.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, type BrowserSession } from './sessions.js'
 import { hashToken, revokeUserSessions } from './tokens.js'
@@ -19,7 +20,7 @@ import type { registerDevice } from './device.js'
 export type SsoFetch = NonNullable<oidc.DiscoveryRequestOptions[typeof oidc.customFetch]>
 const preauthCookie = 'artium-sso'
 const preauthOptions = { ...cookieOptions, path: '/auth/sso/', sameSite: 'lax' } as const
-type Provider = { id: string, issuer: string, revision: number }
+type Provider = { id: string, kind: 'entra' | 'oidc', issuer: string, revision: number }
 type Pending = { provider: Provider, credentialRevision: number, config: oidc.Configuration, state: string,
   nonce: string, verifier: string, redirectUri: string, expiresAt: number, invitationHash?: string,
   device?: { code: string, startedAt: number },
@@ -36,7 +37,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
     authenticationMethod: 'sso' as const, providerId, userId: null as string | null, tool: null,
     requestId: request.id, clientAddress: request.ip })
   function provider(id: string): Provider {
-    const row = db.prepare("SELECT id, issuer, revision FROM sso_providers WHERE id = ? AND kind = 'entra' AND enabled = 1").get(id) as Provider | undefined
+    const row = db.prepare('SELECT id, kind, issuer, revision FROM sso_providers WHERE id = ? AND enabled = 1').get(id) as Provider | undefined
     if (!row) throw new ArtiumError('SSO_PROVIDER_ERROR')
     return row
   }
@@ -55,11 +56,21 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
   async function configuration(current: Provider) {
     const stored = credentials?.read(current.id)
     if (!stored) throw new ArtiumError('SSO_PROVIDER_ERROR')
-    let value: ReturnType<typeof entraCredential>
-    try { value = entraCredential(current.issuer, stored.value) } catch { throw new ArtiumError('SSO_PROVIDER_ERROR') }
+    let value: ReturnType<typeof entraCredential> | ReturnType<typeof oidcCredential>
+    try { value = current.kind === 'entra' ? entraCredential(current.issuer, stored.value) : oidcCredential(stored.value) }
+    catch { throw new ArtiumError('SSO_PROVIDER_ERROR') }
     let authentication: oidc.ClientAuth
     let config: oidc.Configuration
-    if (value.auth === 'secret') authentication = oidc.ClientSecretPost(value.clientSecret)
+    if (value.auth === 'secret') {
+      const post = oidc.ClientSecretPost(value.clientSecret)
+      const basic = oidc.ClientSecretBasic(value.clientSecret)
+      authentication = current.kind === 'entra' ? post : (metadata, client, body, headers) => {
+        const methods = metadata.token_endpoint_auth_methods_supported ?? ['client_secret_basic']
+        if (methods.includes('client_secret_post')) return post(metadata, client, body, headers)
+        if (methods.includes('client_secret_basic')) return basic(metadata, client, body, headers)
+        throw new ArtiumError('SSO_PROVIDER_ERROR')
+      }
+    }
     else {
       const key = await webcrypto.subtle.importKey('pkcs8', createPrivateKey(value.privateKey).export({ type: 'pkcs8', format: 'der' }),
         { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
@@ -68,9 +79,18 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         payload.aud = config.serverMetadata().token_endpoint!
       } })
     }
+    // Discovery must not follow redirects away from the administrator's configured URL.
+    // Native fetch retains certificate verification; only tests inject a fake transport.
+    const fetchProvider: SsoFetch = async (url, options) => {
+      const request = { ...options, redirect: 'manual' as const }
+      const response = await (transport ? transport(url, request) : fetch(url, request as RequestInit))
+      if (response.status >= 300 && response.status < 400) throw new ArtiumError('SSO_PROVIDER_ERROR')
+      return response
+    }
     config = await oidc.discovery(new URL(current.issuer), value.clientId,
       { id_token_signed_response_alg: 'RS256' }, authentication,
-      { ...(transport ? { [oidc.customFetch]: transport } : {}), execute: [oidc.enableNonRepudiationChecks], timeout: 10 })
+      { [oidc.customFetch]: fetchProvider, execute: [oidc.enableNonRepudiationChecks], timeout: 10 })
+    if (config.serverMetadata().issuer !== current.issuer) throw new ArtiumError('SSO_PROVIDER_ERROR')
     return { config, credentialRevision: stored.revision }
   }
   app.get<{ Params: { provider: string } }>('/auth/sso/:provider/start', async (request, reply) => {
@@ -110,7 +130,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       const url = oidc.buildAuthorizationUrl(config, { response_type: 'code', response_mode: 'query', scope: 'openid profile',
         redirect_uri: transaction.redirectUri, state: transaction.state, nonce: transaction.nonce,
         code_challenge_method: 'S256', code_challenge: await oidc.calculatePKCECodeChallenge(verifier),
-        ...(reauth || transaction.device ? { prompt: 'login' } : {}) })
+        ...(reauth || transaction.device ? { prompt: 'login', ...(current.kind === 'oidc' ? { max_age: '0' } : {}) } : {}) })
       const handle = randomBytes(32).toString('base64url')
       if (pending.size >= ssoDefaults.pendingLimit) throw new ArtiumError('AUTH_RATE_LIMITED')
       if (request.cookies[preauthCookie]) pending.delete(hashToken(request.cookies[preauthCookie]!))
@@ -150,13 +170,22 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         throw new ArtiumError(error instanceof oidc.AuthorizationResponseError || error instanceof oidc.ResponseBodyError
           ? 'SSO_PROVIDER_ERROR' : 'SSO_TOKEN_INVALID')
       }
-      const identity = z.object({ tid: z.uuid(), oid: z.uuid(), iat: z.number().finite().max(Date.now() / 1000 + 30),
-        preferred_username: z.string().min(1).max(256).optional(), roles: z.array(z.string()).optional() }).safeParse(claims)
-      if (!identity.success || transaction.provider.issuer !== `https://login.microsoftonline.com/${identity.data.tid}/v2.0` ||
+      const identity = z.object({ sub: z.string().min(1), iat: z.number().finite().max(Date.now() / 1000 + 30),
+        preferred_username: z.string().min(1).max(256).optional() }).safeParse(claims)
+      if (!identity.success || claims?.iss !== transaction.provider.issuer ||
         (claims?.azp !== undefined && claims.azp !== transaction.config.clientMetadata().client_id)) {
         throw new ArtiumError('SSO_TOKEN_INVALID')
       }
-      subject = `${identity.data.tid}:${identity.data.oid}`
+      subject = identity.data.sub
+      let roleClaims: string[] = []
+      if (transaction.provider.kind === 'entra') {
+        const entra = z.object({ tid: z.uuid(), oid: z.uuid(), roles: z.array(z.string()).optional() }).safeParse(claims)
+        if (!entra.success || transaction.provider.issuer !== `https://login.microsoftonline.com/${entra.data.tid}/v2.0`) {
+          throw new ArtiumError('SSO_TOKEN_INVALID')
+        }
+        subject = `${entra.data.tid}:${entra.data.oid}`
+        roleClaims = entra.data.roles ?? []
+      }
       if (transaction.device) {
         const authTime = z.number().int().min(transaction.device.startedAt).max(Math.floor(Date.now() / 1000) + 30).safeParse(claims?.auth_time)
         if (!authTime.success) throw new ArtiumError('SSO_TOKEN_INVALID')
@@ -217,7 +246,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           .all(transaction.provider.id) as { id: string, role_id: string, value: string }[]
         const previous = db.prepare(`SELECT origin FROM user_roles JOIN role_rules ON role_rules.id = user_roles.origin
           WHERE user_id = ? AND provider_id = ?`).all(userId, transaction.provider.id) as { origin: string }[]
-        const matching = rules.filter(rule => identity.data.roles?.includes(rule.value))
+        const matching = rules.filter(rule => roleClaims.includes(rule.value))
         const removed = previous.filter(row => !matching.some(rule => rule.id === row.origin)).map(row => row.origin)
         const added = matching.filter(rule => !previous.some(row => row.origin === rule.id)).map(rule => rule.id)
         for (const origin of removed) db.prepare('DELETE FROM user_roles WHERE user_id = ? AND origin = ?').run(userId, origin)
@@ -229,7 +258,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         const bound = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider_id = ? AND issuer = ? AND subject = ?')
           .get(userId, transaction.provider.id, transaction.provider.issuer, subject) as { id: string }
         db.prepare('UPDATE identities SET role_claims = ?, claims_at = ? WHERE id = ?')
-          .run(JSON.stringify(identity.data.roles ?? []), Date.now(), bound.id)
+          .run(JSON.stringify(roleClaims), Date.now(), bound.id)
         db.prepare('UPDATE sessions SET reauthenticated_at = NULL, identity_id = ? WHERE id = ?').run(bound.id, hashToken(created.id))
         if (request.cookies[browserCookie]) db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?')
           .run(Date.now(), hashToken(request.cookies[browserCookie]!))

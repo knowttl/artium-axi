@@ -51,7 +51,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
     const invitation = audit.change({ event: 'invite-create', targetId: id, userId: actor, tool: null,
       outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
-      if (!db.prepare("SELECT 1 FROM sso_providers WHERE id = ? AND kind = 'entra'").get(input.providerId)) throw new ArtiumError('NOT_FOUND')
+      if (!db.prepare('SELECT 1 FROM sso_providers WHERE id = ?').get(input.providerId)) throw new ArtiumError('NOT_FOUND')
       if (input.userId) localUser(input.userId)
       for (const roleId of input.roleIds) {
         if (!db.prepare('SELECT 1 FROM roles WHERE id = ?').get(roleId)) throw new ArtiumError('NOT_FOUND')
@@ -101,7 +101,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
     const user = userId ? localUser(userId) : null
     const params = new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))
     const { invitations, nextCursor } = await adminRead(app, request, adminInvitationRoutes.list.path + '?' + params, adminInvitationRoutes.list.response)
-    const providers = db.prepare("SELECT id, name FROM sso_providers WHERE kind = 'entra' ORDER BY name, id").all() as { id: string, name: string }[]
+    const providers = db.prepare('SELECT id, name FROM sso_providers ORDER BY name, id').all() as { id: string, name: string }[]
     const roles = db.prepare('SELECT id, name FROM roles ORDER BY name, id').all() as { id: string, name: string }[]
     const csrf = reply.generateCsrf()
     const lifetime = '<label>Expires in days<input name="expiresInDays" data-type="number" type="number" min="1" max="30" value="7" required></label><p>Choose 1 to 30 days. Resend starts a new expiry period and invalidates the old link.</p>'
@@ -114,7 +114,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
         `<label>Provider<select name="providerId" required>${providers.map(provider => `<option value="${escape(provider.id)}">${escape(provider.name)}</option>`).join('')}</select></label>
         ${userId ? `<input type="hidden" name="userId" value="${escape(userId)}">` : ''}
         <label>Display name<input name="displayName" maxlength="256" value="${escape(user?.displayName ?? '')}" required></label>
-        <label>Expected username<input name="expectedUsername" maxlength="256" required></label><p>Enter the exact Entra sign-in username. It must match at claim time; a renamed user needs a new invitation. Accounts are never linked automatically by email.</p>
+        <label>Expected username<input name="expectedUsername" maxlength="256" required></label><p>Enter the exact preferred_username claim from the provider (the Entra sign-in username for Microsoft). It must match at claim time; a renamed user needs a new invitation. Accounts are never linked automatically by email.</p>
         <fieldset><legend>Direct roles to add when claimed</legend><input type="hidden" name="roleIds" disabled>${roles.map(role => `<label><input type="checkbox" name="roleIds" value="${escape(role.id)}"> ${escape(role.name)}</label>`).join('') || '<p>No roles yet. Create roles to grant tool access.</p>'}</fieldset>` + lifetime,
         'Create a one-time invitation link? Copy it before leaving the result. You must send it securely yourself.', true) : '<p>Add an Entra provider in Sign-in settings first.</p>'}</section>
       <section><h2>Invitations</h2>${invitations.length ? invitations.map(invitation => {

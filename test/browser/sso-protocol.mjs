@@ -42,9 +42,9 @@ function browser(script) {
     ${script}`)
 }
 
-beforeEach(async () => {
+beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SSO: '1' }, stdio: ['ignore', 'pipe', 'inherit'],
+    env: { ...process.env, ARTIUM_TEST_SSO: '1', ARTIUM_TEST_GENERIC_SSO: context.name.startsWith('generic') ? '1' : '0' }, stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
   try {
@@ -54,6 +54,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  if (server.exitCode !== null || server.signalCode !== null) return
   const exited = once(server, 'exit')
   server.kill('SIGTERM')
   await exited
@@ -122,6 +123,108 @@ async function cliDeviceCode(child) {
     throw new Error('CLI exited without an approval code')
   } finally { lines.close() }
 }
+
+test('generic provider settings and credential are editable and activation is explicit', async () => {
+  await configure({ enabled: false, localBreakGlass: true })
+  await configure({ providerId: 'synthetic-generic', enabled: false })
+  browser(`await page.open(base + '/login');
+    await page.fill('[name=username]', 'synthetic-user');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('form[action="/login"] button');
+    await page.wait('form[action="/v1/admin/users"]');
+    await page.open(base + '/admin/settings/sign-in');
+    await page.wait('form[action="/v1/admin/sso/providers"] [name=issuer]');
+    await page.fill('form:has([name=issuer]) [name=name]', 'Synthetic created OIDC');
+    await page.fill('form:has([name=issuer]) [name=issuer]', 'https://generic.example');
+    await page.click('form:has([name=issuer]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('tbody tr:nth-child(3)');
+    const href = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'Synthetic created OIDC')?.getAttribute('href'));
+    check(href, 'Created provider missing');
+    await page.open(base + href);
+    await page.wait('[data-credential-editor]');
+    check(await page.eval(() => document.body.innerText.includes('OpenID Connect setup guide') && !document.querySelector('[name=tenantId]')), 'Generic settings show Entra requirements');
+    await page.eval(() => {
+      const select = document.querySelector('[name="profile.auth"]');
+      select.value = JSON.stringify('secret'); select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.fill('[name="profile.clientId"]', 'synthetic-generic-client');
+    await page.fill('[name="profile.clientSecret"]', 'CANARY-browser-oidc-secret');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/activation"]');
+    check(await page.eval(() => document.querySelector('[name="profile.clientSecret"]').value === ''), 'Stored secret redisplayed');
+    check(await page.eval(() => document.querySelector('form[action$="/activation"] [name=enabled]').value === 'true'), 'Credential save enabled provider');
+    await page.click('form[action$="/activation"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/activation"] [name=enabled][value=false]');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Settings overflow');`)
+})
+
+test('generic provider and Entra are both offered and generic sign-in reaches its own account', async () => {
+  browser(`await page.open(base + '/login');
+    await page.wait('a[href="/auth/sso/synthetic-generic/start"]');
+    check(await page.eval(() => !!document.querySelector('a[href="/auth/sso/synthetic-entra/start"]')), 'Entra provider missing');
+    check(await page.eval(() => document.querySelector('a[href="/auth/sso/synthetic-generic/start"]').textContent === 'Sign in with synthetic-generic'), 'Generic provider mislabeled');
+    await page.click('a[href="/auth/sso/synthetic-generic/start"]');
+    await page.wait('[data-oidc-approve]');
+    await page.click('[data-oidc-approve]');
+    await page.wait('a[href="/account"]');
+    await page.click('a[href="/account"]');
+    await page.wait('section h2');
+    check(await page.eval(() => document.body.innerText.includes('SSO sign-in')), 'Generic account session missing');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions[0].user_id, 'synthetic-generic-user')
+  assert.equal(evidence.audit.at(-1).provider_id, 'synthetic-generic')
+  assert.equal(evidence.audit.at(-1).subject, 'synthetic-subject')
+})
+
+test('generic callback routed to Entra is refused in the real browser', async () => {
+  browser(`await page.open(base + '/auth/sso/synthetic-generic/start');
+    await page.wait('[data-oidc-approve]');
+    const callback = await page.eval(() => document.querySelector('[data-oidc-approve]').href);
+    await page.open(callback.replace('/synthetic-generic/callback', '/synthetic-entra/callback'));
+    await page.wait('main small');
+    check(await page.eval(() => document.body.textContent.includes('SSO_STATE_INVALID')), 'Cross-provider callback accepted');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions.length, 0)
+})
+
+test('generic ID token with another issuer is refused in the real browser', async () => {
+  await configure({ providerId: 'synthetic-generic', claims: { iss: 'https://other.example' } })
+  browser(`await page.open(base + '/auth/sso/synthetic-generic/start');
+    await page.wait('[data-oidc-approve]');
+    await page.click('[data-oidc-approve]');
+    await page.wait('main small');
+    check(await page.eval(() => document.body.textContent.includes('SSO_TOKEN_INVALID')), 'Issuer mix-up accepted');`)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions.length, 0)
+})
+
+test('generic provider approves bundled CLI sign-in alongside Entra', async () => {
+  const login = cli(['login', '--sso'])
+  try {
+    const code = await cliDeviceCode(login.child)
+    browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
+      await page.wait('[data-device-sso][href^="/auth/sso/synthetic-generic/"]');
+      check(await page.eval(() => !!document.querySelector('[data-device-sso][href^="/auth/sso/synthetic-entra/"]')), 'Entra approval option missing');
+      await page.click('[data-device-sso][href^="/auth/sso/synthetic-generic/"]');
+      await page.wait('[data-oidc-approve]');
+      await page.click('[data-oidc-approve]');
+      await page.wait('a[href^="/device?code="]');
+      await page.click('a[href^="/device?code="]');
+      await page.wait('button[value=approve]');
+      await page.click('button[value=approve]');`)
+    const result = await login.result
+    assert.equal(result.code, 0, result.stdout + result.stderr)
+    const me = await cli(['whoami']).result
+    assert.equal(me.code, 0, me.stdout + me.stderr)
+    assert.match(me.stdout, /synthetic-generic-user/)
+  } finally { if (login.child.exitCode === null) login.child.kill() }
+})
 
 for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device sign-in: ${decision}`, async () => {
   const login = cli(['login', '--sso'])

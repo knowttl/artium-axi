@@ -66,6 +66,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  if (server.exitCode !== null || server.signalCode !== null) return
   const exited = once(server, 'exit')
   server.kill('SIGTERM')
   await exited
