@@ -6,11 +6,11 @@
   <a href="https://github.com/kunchenguid/axi"><img alt="AXI" src="https://img.shields.io/badge/AXI-Agent%20eXperience%20Interface-green?style=flat-square" /></a>
 </p>
 
-Managed command-line tools for agents, behind one local sign-in.
+Managed command-line tools for agents, behind one artium sign-in.
 
 artium-axi packages a server and CLI that give users role-based access to pinned upstream tools.
 The published Graph and Azure releases in [the upstream pins](tools/package.json) include their upstream live-test fixes.
-Administrators manage local accounts, roles, encrypted service credentials and audit records through a browser.
+Administrators manage accounts, roles, encrypted service credentials and audit records through a browser.
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
@@ -29,7 +29,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 ## Quick Start
 
 For a new server, follow [Set up a host](#set-up-a-host) first.
-For an existing server, obtain its trusted HTTPS URL and a local account from its administrator, then continue below.
+For an existing server, obtain its trusted HTTPS URL and an account from its administrator, then continue below.
 The Linux client requires Node **24.11 or later**, curl and sha256sum on `PATH`.
 Windows and macOS execution, token storage and actual agent host loading remain unverified.
 
@@ -61,7 +61,8 @@ export PATH="$HOME/.local/bin:$PATH"
 Do not launch the downloaded file after a failure.
 The executable is a standalone Node bundle; it needs no npm install or sibling assets.
 
-Sign in using the hidden terminal password prompt, replacing the synthetic username with your account:
+For an SSO account, follow [CLI SSO sign-in](#sign-in-settings), then continue with tool discovery below.
+For a local account, sign in using the hidden terminal password prompt, replacing the synthetic username with your account:
 
 ```sh
 artium-axi login --username synthetic-user
@@ -569,7 +570,7 @@ Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<de
 Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
 Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
 Generic OIDC follows in P5.
-See [CLI device sign-in verification](docs/verification-p4a.md) for the approved phase split and fake-provider evidence.
+See [CLI device sign-in verification](docs/verification-p4a.md) for recorded fake-provider evidence and bearer reauthentication coverage.
 
 ### Audit screen and API
 
@@ -588,10 +589,11 @@ CSV quotes non-null values and leaves null fields empty; JSON lines preserves JS
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Successful local password confirmations and SSO browser confirmations emit `reauth` events.
+Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
 Successful local sign-in, password confirmation and password-change records include `authentication_method` as `local` or `break-glass`.
 These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.
 SSO reauthentication events include the authentication method, provider and validated subject.
+Device approval and refusal emit `device-approve` and `device-deny` events, with the requesting IP in `arguments.requestingAddress` and the approving or denying browser's IP in `client_address`.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.

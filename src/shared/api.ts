@@ -102,7 +102,7 @@ export const accountSessionRoutes = {
   revokeAll: { method: 'POST', path: '/v1/account/sessions/revoke', input: emptyInputSchema, response: revokedSchema },
 } as const
 
-// Bearer administration requires both the current capability and a session-bound password ticket.
+// Bearer administration requires both the current capability and a session-family recent-auth ticket.
 // Cookie administration requires the current capability, with recent identity confirmation
 // and same-origin CSRF proof on mutations; GET and HEAD do not require recent confirmation.
 export const adminUserRoutes = {

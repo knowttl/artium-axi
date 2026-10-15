@@ -6,7 +6,7 @@ Each completed slice records its exact commit, commands, result and evidence pat
 `pending` means the build evidence has not been collected.
 `unverified` means no live acceptance is claimed.
 All live checks wait until the full build is complete and require approved identities and destinations.
-P4a adds CLI device sign-in, fresh browser approval and the 8-hour SSO CLI family cap; [P4a verification](verification-p4a.md) records fake-provider evidence and the approved split with bearer reauthentication following in P4b.
+See [P4 verification](verification-p4a.md) for recorded CLI device sign-in evidence and bearer reauthentication coverage.
 P4a live acceptance is PENDING (maintainer live Entra check), deferred until after the build and not a merge prerequisite.
 Real captures, credential details and policy records stay in the private evidence store.
 Public conversion and release, deployment, real writes and destructive maintenance require separate approval.

@@ -2,19 +2,10 @@
 
 P4 is split into independently reviewable changes with firstmate approval on 2026-10-15.
 P4a implements device creation, polling, approval and denial, the browser approval page, `login --sso`, the 8-hour SSO CLI family cap, CLI help and account instructions.
-P4b follows separately for bearer reauthentication through device approval and its mismatch, expiry and revocation checks.
+The current change also implements bearer reauthentication through device approval; it is no longer deferred to P4b.
 
-The approval page uses the existing server-rendered shell, same-origin CSRF protection and strict CSP.
-It shows the requesting IP and UTC time, a warning against approving another person's request, and an explicit “This wasn't me” denial action.
-Each request requires a new provider round trip with `prompt=login` and a fresh validated `auth_time`, followed by explicit approval.
-An unrelated or older browser session cannot approve it.
-Approval and denial audit records retain the requesting address in `arguments.requestingAddress` and the approving address in `client_address`.
-Device secrets are random 32-byte values stored only as hashes in a bounded process-local map.
-Requests expire in ten minutes; a server restart invalidates them.
-Creation and code entry have independent address limits using the existing authentication defaults.
-Polling enforces the advertised five-second interval per device secret.
-Collection rechecks the approving browser session and enabled provider, issues normal artium tokens and consumes the request.
-Refresh preserves the original 8-hour family expiry; local CLI families remain 12 hours and browser sessions retain their existing limits.
+The README owns [CLI sign-in and bearer reauthentication usage](../README.md#sign-in-settings), [audit fields](../README.md#audit-screen-and-api) and [session limits](../README.md#security-and-acceptance-boundaries).
+The [shared API contracts](../src/shared/api.ts), [configured defaults](../src/server/config.ts) and [device approval implementation](../src/server/auth/device.ts) own the protocol, limits and approval invariants.
 
 ## Verification
 
@@ -23,7 +14,8 @@ Refresh preserves the original 8-hour family expiry; local CLI families remain 1
 `pnpm build && node --test test/browser/sso-protocol.mjs` passed all 21 browser tests in 121 seconds, including bundled CLI approval, denial, expiry, consumed-code refusal, creation rate limits and account instructions against the fake provider.
 The browser cases run the bundled CLI with a synthetic CA and drive the real `/device` and provider pages through `chrome-devtools-axi`.
 The existing P3 browser journeys also passed, including Strict-cookie callback hops, pending-form SSO reauthentication, invitation claims, role synchronization and provider activation.
-The worker browser run used the final source, test and build inputs with only documentation and commit metadata changed afterwards.
+These recorded worker runs cover P4a device sign-in, rather than the later bearer reauthentication additions.
+Bearer reauthentication coverage in [the integration suite](../test/integration/browser-sso.test.ts) exercises same-user approval, family-bound tickets, single collection, token binding, polling limits, denial, expiry, revocation, disabled users and providers, and audit failure.
 The no-mistakes pipeline owns final-candidate baseline and container verification; its results are recorded with delivery evidence.
 
 Live acceptance: **PENDING (maintainer live Entra check)**.

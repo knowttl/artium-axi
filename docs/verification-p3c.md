@@ -5,7 +5,6 @@ P3c was split before implementation so each PR can be reviewed and exercised ind
 This slice adds browser SSO reauthentication, pending-form resumption and optional provider sign-out.
 See [P3c-2 verification](verification-p3c2.md) for break-glass acceptance and [P3 activation verification](verification-p3c2b.md) for completed P3 browser acceptance.
 The README owns current [provider activation and setup](../README.md#sign-in-settings).
-CLI SSO/device approval and generic OIDC remain later phases.
 
 ## Behaviour
 
