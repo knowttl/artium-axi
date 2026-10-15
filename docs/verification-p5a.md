@@ -22,7 +22,11 @@ The generic-provider API and fake-provider suite passed 18 checks, including dis
 Five new real-browser checks passed: generic settings/credential/activation, simultaneous Entra and generic sign-in choices, wrong-provider callback refusal, wrong-token-issuer refusal, and bundled CLI sign-in through the generic provider.
 The existing admin-provider, browser-SSO and fake-provider focused suites passed 150 checks before the Basic fixture repair.
 `pnpm check` passed: the current error reference, TypeScript lint, all 2,766 tests across 63 files, the build and AXI distribution checks.
-Complete browser and container acceptance results will be recorded before pipeline handoff.
+`pnpm test:browser` passed all 72 real-browser checks in 417 seconds at b66d5542cb10f8bb699fb08dc178a263990d6caf.
+The complete browser run includes the existing Entra flows and all five new generic-provider journeys.
+A previous run was interrupted by a concurrent rebuild; the browser fixture cleanup now also handles a process that exited before teardown.
+The passing browser run used a stable build with no concurrent compilation.
+Final container acceptance is recorded separately below.
 All provider requests use injected local fake transports; browser tests drive the real server-rendered pages through chrome-devtools-axi.
 Production discovery uses verified TLS and rejects redirects away from the configured discovery URL.
 Generic client secrets use the discovered authentication methods, preferring POST when available and otherwise Basic; omitted methods default to Basic.
