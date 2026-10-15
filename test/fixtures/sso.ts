@@ -30,12 +30,13 @@ export function seedSsoRules(db: Database.Database) {
 }
 
 export async function seedBrowserSso(db: Database.Database, credentials: ProviderCredentials, redirectUri: string,
-  options: { authentication?: 'certificate' | 'secret', authorizationEndpoint?: string, browserApproval?: boolean } = {}) {
+  options: { authentication?: 'certificate' | 'secret', authorizationEndpoint?: string, endSessionEndpoint?: string, browserApproval?: boolean } = {}) {
   const authentication = options.authentication ?? 'certificate'
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
   const token: { claims?: Record<string, unknown>, tamperSignature?: boolean } = {}
   const configuration: Parameters<typeof createFakeOidcProvider>[0] = { issuer, clientId, redirectUri, token,
     authorizationEndpoint: options.authorizationEndpoint ?? issuer + '/authorize', browserApproval: options.browserApproval,
+    endSessionEndpoint: options.endSessionEndpoint,
     authentication: authentication === 'certificate' ? { kind: 'certificate', publicKey } : { kind: 'secret', secret: 'CANARY-sso-client-secret' },
     claims: { sub: 'synthetic-subject', tid: syntheticTenant, oid: syntheticObject, preferred_username: 'synthetic-sso', roles: ['Artium.Reader'] } }
   const provider = await createFakeOidcProvider(configuration)
@@ -52,5 +53,5 @@ export async function seedBrowserSso(db: Database.Database, credentials: Provide
     const path = url.slice(issuer.length)
     return fetch(provider.url + path, options as RequestInit)
   }
-  return { token, configuration, url: provider.url, fetch: fetchProvider, close: provider.close }
+  return { token, configuration, url: provider.url, fetch: fetchProvider, authorizations: provider.authorizations, close: provider.close }
 }

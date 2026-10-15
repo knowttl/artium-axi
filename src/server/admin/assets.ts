@@ -49,10 +49,13 @@ const reauthState = document.querySelector('[data-reauth-until]');
 function updateReauthState() {
   if (!reauthState) return;
   const minutes = Math.max(0, Math.ceil((Number(reauthState.dataset.reauthUntil) - Date.now()) / 60000));
-  reauthState.textContent = minutes ? 'Changes allowed for ' + minutes + ' min' : 'Password confirmation required for changes';
+  reauthState.textContent = minutes ? 'Changes allowed for ' + minutes + ' min' : 'Identity confirmation required for changes';
 }
 updateReauthState();
 if (reauthState) setInterval(updateReauthState, 30000);
+if (document.querySelector('[data-sso-reauth-complete]') && window.opener) {
+  window.opener.postMessage('artium-reauth-complete', location.origin);
+}
 
 for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   const schema = JSON.parse(editor.dataset.schema);
@@ -155,11 +158,43 @@ function reauthenticate(csrf) {
   return new Promise(resolve => {
     let closed = false;
     const controller = new AbortController();
+    let popup;
+    let popupClosed;
+    const completed = async event => {
+      if (event.origin !== location.origin || event.source !== popup || event.data !== 'artium-reauth-complete' || closed) return;
+      try {
+        const response = await fetch('/reauth?status=1', { headers: { Accept: 'application/json' }, signal: controller.signal });
+        if (!response.ok || response.redirected) throw new Error();
+        const status = await response.json();
+        if (status.sessionId !== document.body.dataset.sessionId || status.until <= Date.now()) throw new Error();
+        if (closed) return;
+        reauthState.dataset.reauthUntil = status.until;
+        updateReauthState();
+        dialog.close('confirmed');
+      } catch { if (!closed) error.textContent = 'Identity confirmation did not complete for this session. Try again or cancel to keep your draft.'; }
+    };
+    window.addEventListener('message', completed);
     const submit = async event => {
       event.preventDefault();
       if (button.disabled) return;
       button.disabled = true;
       error.textContent = '';
+      if (reauthState.dataset.reauthMethod === 'sso') {
+        popup = window.open('/reauth', 'artium-reauth', 'popup,width=600,height=760');
+        if (!popup) {
+          error.textContent = 'Allow a popup for artium, then try again. Your draft stays here.';
+          button.disabled = false;
+          return;
+        }
+        popupClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(popupClosed);
+            button.disabled = false;
+            error.textContent = 'Confirmation window closed. Try again or cancel to keep your draft.';
+          }
+        }, 500);
+        return;
+      }
       try {
         const response = await fetch('/v1/auth/reauth', { method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -183,6 +218,9 @@ function reauthenticate(csrf) {
     dialog.addEventListener('close', () => {
       closed = true;
       controller.abort();
+      clearInterval(popupClosed);
+      popup?.close();
+      window.removeEventListener('message', completed);
       button.disabled = false;
       form.removeEventListener('submit', submit);
       form.reset();
@@ -190,7 +228,8 @@ function reauthenticate(csrf) {
     }, { once: true });
     dialog.querySelector('[data-reauth-cancel]').onclick = () => dialog.close('cancel');
     dialog.showModal();
-    form.elements.password.focus();
+    if (form.elements.password) form.elements.password.focus();
+    else button.focus();
   });
 }
 

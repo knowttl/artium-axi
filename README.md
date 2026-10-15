@@ -451,19 +451,29 @@ See the [shared API contracts](src/shared/api.ts) for user filters, detail respo
 The last enabled administrator cannot be disabled, demoted or archived.
 Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
 Session revocation and administration changes commit with their audit records.
-After 15 minutes without password confirmation, administration mutations require reauthentication.
+After 15 minutes without identity confirmation, administration mutations require reauthentication.
 Administration and account screens share a navigation menu.
 Signed-in screens have a header showing identity, sign-in source and sign-out.
-On administration screens, the header also shows the remaining password-confirmation window.
-Admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
+On administration screens, the header also shows the remaining confirmation window.
+Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
+SSO admin forms instead open a Microsoft confirmation window with a forced login and fresh authentication-time check.
+Configure `auth_time` as an optional ID-token claim in the Entra application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
+Confirmation is refused if that claim is absent or stale.
+After confirming with the same identity, use **Continue to artium** to resume the pending action in the original window.
+Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
+Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.
+SSO sign-out optionally also visits Microsoft's discovered end-session endpoint.
+After signing out of artium, choose **Continue to Microsoft sign-out** to finish that optional step.
+The artium session is revoked first; if provider sign-out cannot be started, the page explains that the Microsoft session may still be active.
+Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
 Confirmation dialogs explain consequences before changes; each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
 
 User detail and Account list active browser sessions and CLI token families.
 Revoke ends one whole family, including its access and refresh tokens; Sign out everywhere ends all sessions while allowing a new sign-in.
 Revoking your current browser session signs you out immediately.
-Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or recent password confirmation.
+Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or the [recent confirmation required for administration](#browser-administration).
 Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
@@ -500,7 +510,7 @@ A client secret is also accepted, with an in-page warning recommending certifica
 Provider credentials use the encrypted store; their secrets are never returned in pages, API metadata or audit records.
 Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
 Changing client or authentication requires a new secret; changing the provider tenant removes the old credential.
-Settings and credential saves require administrator capability and recent password confirmation, check revisions, and are audited.
+Settings and credential saves require administrator capability and the [confirmation described under browser administration](#browser-administration), check revisions, and are audited.
 The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
 
 Providers remain disabled and SSO sign-in is unavailable in this slice.
@@ -509,7 +519,7 @@ No activation control is exposed; see [browser SSO protocol verification](docs/v
 On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
-Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
+Every rule change requires the [confirmation described under browser administration](#browser-administration) and is audited atomically; stale edits require reloading the page.
 At each Entra sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
 User details label Direct and Rule grants and identify the Entra rule that supplied each rule grant.
 Deleting a rule or changing its provider, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
@@ -520,7 +530,7 @@ Creation and **Resend invitation** display a bearer link once; copy it before cl
 Artium does not send email and stores only the link token's hash.
 Resend replaces the old link and starts a new expiry period, including for expired invitations.
 **Revoke invitation** prevents claiming; claimed or revoked invitations cannot be resent.
-Every mutation requires administrator capability and recent password confirmation, checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
+Every mutation requires administrator capability and the [confirmation described under browser administration](#browser-administration), checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
 Lists never return link tokens or hashes; expiry is evaluated when read.
 The [invitation API contracts](src/shared/api.ts) own the request and response fields.
 When a provider is enabled, its invitation link starts browser sign-in and requires an exact, case-sensitive match of the expected username.
@@ -528,7 +538,7 @@ Claiming atomically binds the immutable Entra identity, consumes the invitation,
 Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
-See [browser SSO protocol verification](docs/verification-p3b.md) for fake-provider evidence and the remaining activation slice.
+See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) for fake-provider evidence and the remaining activation slice.
 CLI SSO and generic OIDC discovery follow in later phases.
 
 ### Audit screen and API
@@ -548,7 +558,8 @@ CSV quotes non-null values and leaves null fields empty; JSON lines preserves JS
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Successful browser and bearer-token password confirmations emit `reauth` events.
+Successful local password confirmations and SSO browser confirmations emit `reauth` events.
+SSO reauthentication events include the authentication method, provider and validated subject.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.

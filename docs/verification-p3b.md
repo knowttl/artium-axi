@@ -3,7 +3,9 @@
 P3b is delivered in two sequential slices.
 P3b-1 implements browser sign-in for already-linked Entra identities while provider activation remains unavailable.
 P3b-2 adds invitation claiming with the expected-username guard, local account linking, rule role synchronization and labels.
-P3c adds safe activation, break-glass policy, SSO reauthentication, provider sign-out, setup help and complete browser acceptance.
+P3c is split into two sequential, independently testable slices.
+P3c-1 adds [SSO reauthentication and optional provider sign-out](verification-p3c.md), with activation still unavailable.
+P3c-2 adds break-glass designation and shared local-password enforcement/audit, safe activation, setup help, copy buttons, match counts and complete browser acceptance.
 
 ## Protocol boundary
 
@@ -32,7 +34,7 @@ Claim, identity-link, role-sync and sign-in audits commit in the same transactio
 Role-sync audit arguments identify added and removed rule origins, which reference their target roles.
 Audit records identify the SSO method, provider, subject when validated and user when linked.
 An explicit same-site Continue link on the callback document allows Strict session cookies to reach the account page.
-SSO sessions carry no recent-auth privilege before P3c.
+Ordinary SSO sign-in carries no recent-auth privilege; P3c-1 adds explicit SSO reauthentication.
 
 ## Local checks
 

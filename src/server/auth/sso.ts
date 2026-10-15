@@ -10,7 +10,7 @@ import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { escape } from '../admin/escape.js'
 import { AuthRateLimits } from './attempts.js'
 import { browserCookie, browserPage, cookieOptions } from './browser.js'
-import { createBrowserSession } from './sessions.js'
+import { browserIdentity, createBrowserSession, readBrowserSession, type BrowserSession } from './sessions.js'
 import { hashToken, revokeUserSessions } from './tokens.js'
 
 export type SsoFetch = NonNullable<oidc.DiscoveryRequestOptions[typeof oidc.customFetch]>
@@ -22,17 +22,18 @@ const credentialSchema = z.discriminatedUnion('auth', [
 ])
 type Provider = { id: string, issuer: string, revision: number }
 type Pending = { provider: Provider, credentialRevision: number, config: oidc.Configuration, state: string,
-  nonce: string, verifier: string, redirectUri: string, expiresAt: number, invitationHash?: string }
+  nonce: string, verifier: string, redirectUri: string, expiresAt: number, invitationHash?: string,
+  reauth?: { sessionToken: string, userId: string, identityId: string, subject: string, startedAt: number } }
 type Invitation = { id: string, expected_username: string, display_name: string, user_id: string | null }
 
 // Transactions are process-local, bounded and consumed before any asynchronous exchange.
 // Restarting the server invalidates outstanding sign-ins; tokens never enter the store.
 export function registerSso(app: FastifyInstance, db: Database.Database, audit: Audit,
-  credentials?: ProviderCredentials, transport?: SsoFetch): void {
+  credentials?: ProviderCredentials, transport?: SsoFetch) {
   const pending = new Map<string, Pending>()
   const limits = new AuthRateLimits()
-  const context = (request: FastifyRequest, providerId: string) => ({ event: 'sign-in' as const,
-    authenticationMethod: 'sso' as const, providerId, userId: null, tool: null,
+  const context = (request: FastifyRequest, providerId: string) => ({ event: 'sign-in' as 'sign-in' | 'reauth',
+    authenticationMethod: 'sso' as const, providerId, userId: null as string | null, tool: null,
     requestId: request.id, clientAddress: request.ip })
   function provider(id: string): Provider {
     const row = db.prepare("SELECT id, issuer, revision FROM sso_providers WHERE id = ? AND kind = 'entra' AND enabled = 1").get(id) as Provider | undefined
@@ -51,47 +52,62 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
     if (!row) throw new ArtiumError('SSO_INVITE_INVALID')
     return row
   }
+  async function configuration(current: Provider) {
+    const stored = credentials?.read(current.id)
+    const parsed = credentialSchema.safeParse(stored?.value)
+    if (!parsed.success || !stored) throw new ArtiumError('SSO_PROVIDER_ERROR')
+    const value = parsed.data
+    if (current.issuer !== `https://login.microsoftonline.com/${value.tenantId}/v2.0`) throw new ArtiumError('SSO_PROVIDER_ERROR')
+    let authentication: oidc.ClientAuth
+    let config: oidc.Configuration
+    if (value.auth === 'secret') authentication = oidc.ClientSecretPost(value.clientSecret)
+    else {
+      const key = await webcrypto.subtle.importKey('pkcs8', createPrivateKey(value.privateKey).export({ type: 'pkcs8', format: 'der' }),
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+      authentication = oidc.PrivateKeyJwt(key, { [oidc.modifyAssertion]: (header, payload) => {
+        header['x5t#S256'] = Buffer.from(value.thumbprintSha256, 'hex').toString('base64url')
+        payload.aud = config.serverMetadata().token_endpoint!
+      } })
+    }
+    config = await oidc.discovery(new URL(current.issuer), value.clientId,
+      { id_token_signed_response_alg: 'RS256' }, authentication,
+      { ...(transport ? { [oidc.customFetch]: transport } : {}), execute: [oidc.enableNonRepudiationChecks], timeout: 10 })
+    return { config, credentialRevision: stored.revision }
+  }
   app.get<{ Params: { provider: string } }>('/auth/sso/:provider/start', async (request, reply) => {
     const event = context(request, request.params.provider)
     try {
       limits.admitAddress(request.ip)
       for (const [key, transaction] of pending) if (transaction.expiresAt <= Date.now()) pending.delete(key)
       if (pending.size >= ssoDefaults.pendingLimit) throw new ArtiumError('AUTH_RATE_LIMITED')
-      const query = z.object({ invitation: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional() }).strict().safeParse(request.query)
+      const query = z.object({ invitation: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(), reauth: z.literal('1').optional() }).strict().safeParse(request.query)
       if (!query.success) throw new ArtiumError('INVALID_INPUT')
+      if (query.data.reauth && query.data.invitation) throw new ArtiumError('INVALID_INPUT')
       const current = provider(request.params.provider)
+      let reauth: Pending['reauth']
+      if (query.data.reauth) {
+        event.event = 'reauth'
+        const sessionToken = request.cookies[browserCookie] ?? ''
+        const session = readBrowserSession(db, sessionToken)
+        const identity = browserIdentity(db, session)
+        if (identity.provider_id !== current.id || identity.issuer !== current.issuer) throw new ArtiumError('SSO_STATE_INVALID')
+        event.userId = session.user_id
+        reauth = { sessionToken, userId: session.user_id, identityId: identity.id, subject: identity.subject, startedAt: Math.floor(Date.now() / 1000) }
+      }
       const invitationHash = query.data.invitation ? hashToken(query.data.invitation) : undefined
       if (invitationHash) invitation(invitationHash, current.id)
-      const stored = credentials?.read(current.id)
-      const parsed = credentialSchema.safeParse(stored?.value)
-      if (!parsed.success || !stored) throw new ArtiumError('SSO_PROVIDER_ERROR')
-      const value = parsed.data
-      if (current.issuer !== `https://login.microsoftonline.com/${value.tenantId}/v2.0` || request.protocol !== 'https') {
-        throw new ArtiumError('SSO_PROVIDER_ERROR')
-      }
-      let authentication: oidc.ClientAuth
-      let config: oidc.Configuration
-      if (value.auth === 'secret') authentication = oidc.ClientSecretPost(value.clientSecret)
-      else {
-        const key = await webcrypto.subtle.importKey('pkcs8', createPrivateKey(value.privateKey).export({ type: 'pkcs8', format: 'der' }),
-          { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
-        authentication = oidc.PrivateKeyJwt(key, { [oidc.modifyAssertion]: (header, payload) => {
-          header['x5t#S256'] = Buffer.from(value.thumbprintSha256, 'hex').toString('base64url')
-          payload.aud = config.serverMetadata().token_endpoint!
-        } })
-      }
-      config = await oidc.discovery(new URL(current.issuer), value.clientId,
-        { id_token_signed_response_alg: 'RS256' }, authentication,
-        { ...(transport ? { [oidc.customFetch]: transport } : {}), execute: [oidc.enableNonRepudiationChecks], timeout: 10 })
+      if (request.protocol !== 'https') throw new ArtiumError('SSO_PROVIDER_ERROR')
+      const { config, credentialRevision } = await configuration(current)
       const verifier = oidc.randomPKCECodeVerifier()
-      const transaction: Pending = { provider: current, credentialRevision: stored.revision, config,
+      const transaction: Pending = { provider: current, credentialRevision, config,
         state: oidc.randomState(), nonce: oidc.randomNonce(), verifier,
         redirectUri: `https://${request.host}/auth/sso/${encodeURIComponent(current.id)}/callback`,
-        expiresAt: Date.now() + ssoDefaults.transactionMs, invitationHash }
+        expiresAt: Date.now() + ssoDefaults.transactionMs, invitationHash, reauth }
       unchanged(transaction)
       const url = oidc.buildAuthorizationUrl(config, { response_type: 'code', response_mode: 'query', scope: 'openid profile',
         redirect_uri: transaction.redirectUri, state: transaction.state, nonce: transaction.nonce,
-        code_challenge_method: 'S256', code_challenge: await oidc.calculatePKCECodeChallenge(verifier) })
+        code_challenge_method: 'S256', code_challenge: await oidc.calculatePKCECodeChallenge(verifier),
+        ...(reauth ? { prompt: 'login' } : {}) })
       const handle = randomBytes(32).toString('base64url')
       if (pending.size >= ssoDefaults.pendingLimit) throw new ArtiumError('AUTH_RATE_LIMITED')
       if (request.cookies[preauthCookie]) pending.delete(hashToken(request.cookies[preauthCookie]!))
@@ -111,6 +127,10 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
     const key = hashToken(request.cookies[preauthCookie] ?? '')
     const transaction = pending.get(key)
     pending.delete(key)
+    if (transaction?.reauth) {
+      event.event = 'reauth'
+      userId = transaction.reauth.userId
+    }
     try {
       limits.admitAddress(request.ip)
       const url = new URL(request.url, `https://${request.host}`)
@@ -134,6 +154,20 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         throw new ArtiumError('SSO_TOKEN_INVALID')
       }
       subject = `${identity.data.tid}:${identity.data.oid}`
+      if (transaction.reauth) {
+        const proof = transaction.reauth
+        const authTime = z.number().int().min(proof.startedAt).max(Math.floor(Date.now() / 1000) + 30).safeParse(claims?.auth_time)
+        if (!authTime.success || subject !== proof.subject) throw new ArtiumError('SSO_TOKEN_INVALID')
+        audit.change({ ...event, event: 'reauth', userId, subject, outcome: 'success' }, () => {
+          unchanged(transaction)
+          const session = readBrowserSession(db, proof.sessionToken)
+          const bound = browserIdentity(db, session)
+          if (bound.id !== proof.identityId || bound.subject !== subject || bound.issuer !== transaction.provider.issuer ||
+            bound.provider_id !== transaction.provider.id) throw new ArtiumError('SSO_STATE_INVALID')
+          db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(authTime.data * 1000, session.id)
+        })
+        return browserPage(reply, 'Identity confirmed', '<p>Your identity has been confirmed.</p><p><a href="/reauth?complete=1">Continue to artium</a></p>')
+      }
       const csrfSecret = randomBytes(32).toString('base64url')
       const events: AuditEvent[] = []
       const session = audit.change(events, () => {
@@ -184,8 +218,9 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         if (added.length || removed.length) events.push({ ...event, event: 'role-sync', userId, subject: subject!, outcome: 'success', added, removed })
         events.push({ ...event, userId, subject, outcome: 'success' })
         const created = createBrowserSession(db, userId!, csrfSecret)
-        // SSO recent-auth is implemented in P3c; this protocol cannot authorize admin changes.
-        db.prepare('UPDATE sessions SET reauthenticated_at = NULL WHERE id = ?').run(hashToken(created.id))
+        const bound = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider_id = ? AND issuer = ? AND subject = ?')
+          .get(userId, transaction.provider.id, transaction.provider.issuer, subject) as { id: string }
+        db.prepare('UPDATE sessions SET reauthenticated_at = NULL, identity_id = ? WHERE id = ?').run(bound.id, hashToken(created.id))
         if (request.cookies[browserCookie]) db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?')
           .run(Date.now(), hashToken(request.cookies[browserCookie]!))
         return created
@@ -200,4 +235,16 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
     }
   })
   app.addHook('onClose', async () => { pending.clear() })
+  return {
+    async endSession(session: BrowserSession, origin: string): Promise<string | undefined> {
+      const identity = browserIdentity(db, session)
+      const current = provider(identity.provider_id)
+      if (identity.issuer !== current.issuer) throw new ArtiumError('SSO_PROVIDER_ERROR')
+      const { config } = await configuration(current)
+      if (!config.serverMetadata().end_session_endpoint) return undefined
+      const url = oidc.buildEndSessionUrl(config, { client_id: config.clientMetadata().client_id, post_logout_redirect_uri: origin + '/login' })
+      if (url.protocol !== 'https:') throw new ArtiumError('SSO_PROVIDER_ERROR')
+      return url.href
+    },
+  }
 }

@@ -20,11 +20,12 @@ export const passwordChangeSchema = z.strictObject({ newPassword: z.string(), cu
 export const loginSchema = z.strictObject({ username: z.string(), password: z.string() })
 export const refreshSchema = z.strictObject({ refreshToken: z.string().min(1) })
 export const reauthSchema = z.strictObject({ password: z.string() })
-// Bearer callers receive a session-family ticket; cookie callers require same-origin CSRF
+// Bearer callers receive a session-family ticket; local cookie callers require same-origin CSRF
 // proof and receive 204 after updating their browser session's password-confirmation time.
 // Cookie responses include x-artium-reauth-until as Unix milliseconds for the browser header.
 // Browser API calls requesting application/json receive REAUTH_REQUIRED as JSON;
 // ordinary page/form requests retain the /reauth redirect.
+// SSO browser confirmation uses the provider round trip from /reauth, not this password route.
 export const reauthResponseSchema = z.strictObject({ ticket: z.string(), expiresAt: z.number().int() })
 export const loginResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('authenticated'), accessToken: z.string(), refreshToken: z.string(),
@@ -82,7 +83,7 @@ export const sessionParamsSchema = z.strictObject({ id: accountId, sessionId: ac
 const emptyInputSchema = z.strictObject({})
 const revokedSchema = z.strictObject({ revoked: z.literal(true) })
 // Personal session routes use a browser cookie and same-origin CSRF on mutations;
-// administrator capability and recent password confirmation are not required.
+// administrator capability and recent identity confirmation are not required.
 export const accountSessionRoutes = {
   list: { method: 'GET', path: '/v1/account/sessions', input: emptyInputSchema, response: userSessionsSchema },
   revoke: { method: 'POST', path: '/v1/account/sessions/:sessionId/revoke', input: emptyInputSchema, response: revokedSchema },
@@ -90,7 +91,7 @@ export const accountSessionRoutes = {
 } as const
 
 // Bearer administration requires both the current capability and a session-bound password ticket.
-// Cookie administration requires the current capability, with recent password confirmation
+// Cookie administration requires the current capability, with recent identity confirmation
 // and same-origin CSRF proof on mutations; GET and HEAD do not require recent confirmation.
 export const adminUserRoutes = {
   sessions: { method: 'GET', path: '/v1/admin/users/:id/sessions', input: emptyInputSchema,
