@@ -501,7 +501,14 @@ The [provider API contracts](src/shared/api.ts) own the request and response fie
 
 Providers remain disabled and SSO sign-in is unavailable in this slice.
 Local sign-in continues unchanged.
-Role-rule settings, invitations, browser SSO, CLI SSO and generic OIDC discovery follow in later slices.
+On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
+The target role supplies tool access; rules never grant administrator capability.
+Create roles and grant their tools on **Roles** first.
+Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
+Rules are stored only and do not change existing user grants in this slice.
+A rule with existing rule-origin grants cannot be removed or retargeted until those grants are removed.
+A role referenced by a rule cannot be deleted until the mapping is removed or retargeted.
+Invitations, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
 
 ### Audit screen and API
 

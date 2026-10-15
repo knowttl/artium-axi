@@ -155,3 +155,103 @@ test('provider mutation requires administrator capability and recent authenticat
   expect((await app.inject({ method: 'POST', url: base, headers, payload })).json())
     .toMatchObject({ error: { code: 'ADMIN_REQUIRED' } })
 })
+
+const rulesBase = '/v1/admin/sso/role-rules'
+async function createRule() {
+  const provider = await create()
+  const input = { providerId: provider.id, claim: 'roles', value: 'Artium.Readers', roleId: 'synthetic-role' }
+  const response = await app.inject({ method: 'POST', url: rulesBase, headers, payload: input })
+  expect(response.statusCode).toBe(200)
+  return { rule: response.json(), input }
+}
+
+test('rule create, edit and remove are audited without enabling providers or changing user grants', async () => {
+  const grants = db.prepare('SELECT * FROM user_roles').all()
+  const { rule, input } = await createRule()
+  expect(rule).toMatchObject({ ...input, revision: 1, updatedBy: 'synthetic-development-user', updatedAt: expect.any(Number) })
+  db.exec("INSERT INTO roles (id, name) VALUES ('synthetic-other-role', 'Other role')")
+  const payload = { ...input, value: 'Artium.Analysts', roleId: 'synthetic-other-role', expectedRevision: 1 }
+  const edited = await app.inject({ method: 'PATCH', url: rulesBase + '/' + rule.id, headers, payload })
+  expect(edited.json()).toMatchObject({ ...input, value: 'Artium.Analysts', roleId: 'synthetic-other-role', revision: 2 })
+  const list = await app.inject({ method: 'GET', url: rulesBase + '?providerId=' + input.providerId, headers })
+  expect(list.json().rules).toEqual([edited.json()])
+  const other = await create()
+  expect((await app.inject({ method: 'GET', url: rulesBase + '?providerId=' + other.id, headers })).json()).toEqual({ rules: [] })
+  const removed = await app.inject({ method: 'DELETE', url: rulesBase + '/' + rule.id, headers, payload: { expectedRevision: 2 } })
+  expect(removed.json()).toEqual({ id: rule.id, deleted: true })
+  expect((await app.inject({ method: 'GET', url: rulesBase + '?providerId=' + input.providerId, headers })).json()).toEqual({ rules: [] })
+  expect(db.prepare('SELECT * FROM user_roles').all()).toEqual(grants)
+  expect(db.prepare('SELECT DISTINCT enabled FROM sso_providers').all()).toEqual([{ enabled: 0 }])
+  expect(db.prepare("SELECT action, target_id, user_id FROM audit WHERE action LIKE '%role-rule' ORDER BY id").all()).toEqual([
+    { action: 'create-role-rule', target_id: rule.id, user_id: 'synthetic-development-user' },
+    { action: 'update-role-rule', target_id: rule.id, user_id: 'synthetic-development-user' },
+    { action: 'delete-role-rule', target_id: rule.id, user_id: 'synthetic-development-user' },
+  ])
+})
+
+test.each(['PATCH', 'DELETE'] as const)('stale %s of a rule preserves the current mapping and audit', async method => {
+  const { rule, input } = await createRule()
+  const url = rulesBase + '/' + rule.id
+  expect((await app.inject({ method: 'PATCH', url, headers, payload: { ...input, value: 'Artium.Analysts', expectedRevision: 1 } })).statusCode).toBe(200)
+  const response = await app.inject({ method, url, headers, payload: method === 'PATCH' ? { ...input, expectedRevision: 1 } : { expectedRevision: 1 } })
+  expect(response.json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  expect(db.prepare('SELECT value, revision FROM role_rules WHERE id = ?').get(rule.id)).toEqual({ value: 'Artium.Analysts', revision: 2 })
+  expect(db.prepare("SELECT count(*) AS count FROM audit WHERE action LIKE '%role-rule'").get()).toEqual({ count: 2 })
+})
+
+test.each([
+  { label: 'duplicate mapping', patch: {}, code: 'INVALID_INPUT' },
+  { label: 'missing role', patch: { roleId: 'missing' }, code: 'NOT_FOUND' },
+  { label: 'missing provider', patch: { providerId: 'missing' }, code: 'NOT_FOUND' },
+  { label: 'unsupported claim', patch: { claim: 'administrator' }, code: 'INVALID_INPUT' },
+  { label: 'empty value', patch: { value: '  ' }, code: 'INVALID_INPUT' },
+])('rejects $label on rule creation and editing', async ({ patch, code }) => {
+  const { input } = await createRule()
+  const second = await app.inject({ method: 'POST', url: rulesBase, headers, payload: { ...input, value: 'Artium.Other' } })
+  const createResponse = await app.inject({ method: 'POST', url: rulesBase, headers, payload: { ...input, ...patch } })
+  expect(createResponse.json()).toMatchObject({ error: { code } })
+  const editResponse = await app.inject({ method: 'PATCH', url: rulesBase + '/' + second.json().id, headers, payload: { ...input, ...patch, expectedRevision: 1 } })
+  expect(editResponse.json()).toMatchObject({ error: { code } })
+  expect(db.prepare('SELECT count(*) AS count FROM role_rules').get()).toEqual({ count: 2 })
+  expect(db.prepare('SELECT value, revision FROM role_rules WHERE id = ?').get(second.json().id)).toEqual({ value: 'Artium.Other', revision: 1 })
+})
+
+test.each(['POST', 'PATCH', 'DELETE'] as const)('rule %s rolls back when audit cannot persist', async method => {
+  const { rule, input } = await createRule()
+  db.exec("CREATE TRIGGER synthetic_rule_audit_failure BEFORE INSERT ON audit WHEN NEW.action LIKE '%role-rule' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  const response = await app.inject({ method, url: rulesBase + (method === 'POST' ? '' : '/' + rule.id), headers,
+    payload: method === 'DELETE' ? { expectedRevision: 1 } : { ...input, value: 'Artium.Other', ...(method === 'PATCH' ? { expectedRevision: 1 } : {}) } })
+  expect(response.json()).toMatchObject({ error: { code: 'AUDIT_UNAVAILABLE' } })
+  expect(db.prepare('SELECT value, revision FROM role_rules').all()).toEqual([{ value: input.value, revision: 1 }])
+})
+
+test.each(['POST', 'PATCH', 'DELETE'] as const)('rule %s requires administrator capability and recent authentication', async method => {
+  const { rule, input } = await createRule()
+  const request = { method, url: rulesBase + (method === 'POST' ? '' : '/' + rule.id),
+    payload: method === 'DELETE' ? { expectedRevision: 1 } : { ...input, value: 'Artium.Other', ...(method === 'PATCH' ? { expectedRevision: 1 } : {}) } }
+  expect((await app.inject({ ...request, headers: { authorization: headers.authorization } })).json())
+    .toMatchObject({ error: { code: 'REAUTH_REQUIRED' } })
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator)
+    SELECT 'synthetic-other-admin', 'synthetic-other-admin', 'Other admin', password_hash, 1 FROM users LIMIT 1;
+    UPDATE users SET administrator = 0 WHERE id = 'synthetic-development-user'`)
+  expect((await app.inject({ ...request, headers })).json()).toMatchObject({ error: { code: 'ADMIN_REQUIRED' } })
+  expect(db.prepare('SELECT value, revision FROM role_rules').all()).toEqual([{ value: input.value, revision: 1 }])
+})
+
+test('referenced rules and roles cannot be removed or retargeted while preserving existing grants', async () => {
+  const { rule, input } = await createRule()
+  const tools = db.prepare('SELECT * FROM role_tools WHERE role_id = ?').all(input.roleId)
+  db.prepare('INSERT INTO user_roles (user_id, role_id, origin) VALUES (?, ?, ?)').run('synthetic-development-user', input.roleId, rule.id)
+  db.exec("INSERT INTO roles (id, name) VALUES ('synthetic-other-role', 'Other role')")
+  const changed = await app.inject({ method: 'PATCH', url: rulesBase + '/' + rule.id, headers,
+    payload: { ...input, roleId: 'synthetic-other-role', expectedRevision: 1 } })
+  expect(changed.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  const removed = await app.inject({ method: 'DELETE', url: rulesBase + '/' + rule.id, headers, payload: { expectedRevision: 1 } })
+  expect(removed.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  expect(db.prepare('SELECT origin FROM user_roles').all()).toEqual(expect.arrayContaining([{ origin: 'direct' }, { origin: rule.id }]))
+  db.prepare('DELETE FROM user_roles WHERE origin = ?').run(rule.id)
+  db.exec("DELETE FROM user_roles WHERE origin = 'direct'")
+  const role = await app.inject({ method: 'DELETE', url: '/v1/admin/roles/' + input.roleId, headers, payload: { expectedRevision: 1 } })
+  expect(role.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'This role is used by an SSO rule.' } })
+  expect(db.prepare('SELECT * FROM role_tools WHERE role_id = ?').all(input.roleId)).toEqual(tools)
+})

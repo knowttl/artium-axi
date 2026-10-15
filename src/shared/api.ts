@@ -228,6 +228,24 @@ export const adminProviderRoutes = {
     auditEvent: 'replace-provider-credential' },
 } as const
 
+// Rules are stored only in P2; sign-in evaluation follows separately.
+const roleRuleSettingsSchema = z.strictObject({ providerId: accountId, claim: z.literal('roles'),
+  value: z.string().trim().min(1).max(256), roleId: accountId })
+export const adminRoleRuleSchema = roleRuleSettingsSchema.extend({ id: accountId,
+  revision: z.number().int().positive(), updatedAt: z.number().nullable(), updatedBy: accountId.nullable() })
+export const adminRoleRuleRoutes = {
+  list: { method: 'GET', path: '/v1/admin/sso/role-rules', input: z.strictObject({ providerId: accountId }),
+    response: z.strictObject({ rules: z.array(adminRoleRuleSchema) }), auditEvent: null },
+  create: { method: 'POST', path: '/v1/admin/sso/role-rules', input: roleRuleSettingsSchema,
+    response: adminRoleRuleSchema, auditEvent: 'create-role-rule' },
+  patch: { method: 'PATCH', path: '/v1/admin/sso/role-rules/:id',
+    input: roleRuleSettingsSchema.extend({ expectedRevision: z.number().int().positive() }),
+    response: adminRoleRuleSchema, auditEvent: 'update-role-rule' },
+  delete: { method: 'DELETE', path: '/v1/admin/sso/role-rules/:id',
+    input: z.strictObject({ expectedRevision: z.number().int().positive() }),
+    response: z.strictObject({ id: accountId, deleted: z.literal(true) }), auditEvent: 'delete-role-rule' },
+} as const
+
 export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })

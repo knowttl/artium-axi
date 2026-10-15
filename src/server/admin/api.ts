@@ -14,6 +14,7 @@ import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
 import { registerProviderAdmin } from './providers.js'
+import { registerRoleRuleAdmin } from './role-rules.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
@@ -59,6 +60,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
 
   registerToolAdmin(app, db, audit, authorize, tools)
   registerProviderAdmin(app, db, audit, authorize, providerCredentials)
+  registerRoleRuleAdmin(app, db, audit, authorize)
 
   app.route({ method: adminAuditRoute.method, url: adminAuditRoute.path, handler: async request => {
     authorize(request)
@@ -291,6 +293,9 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       if (readRole(id).revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       if (db.prepare('SELECT 1 FROM user_roles WHERE role_id = ? LIMIT 1').get(id)) {
         throw new ArtiumError('INVALID_INPUT', 'This role still has members.', 'Remove this role from every member before deleting it.')
+      }
+      if (db.prepare('SELECT 1 FROM role_rules WHERE role_id = ? LIMIT 1').get(id)) {
+        throw new ArtiumError('INVALID_INPUT', 'This role is used by an SSO rule.', 'Remove or retarget its rules in Sign-in settings before deleting the role.')
       }
       db.prepare('DELETE FROM role_tools WHERE role_id = ?').run(id)
       db.prepare('DELETE FROM roles WHERE id = ?').run(id)

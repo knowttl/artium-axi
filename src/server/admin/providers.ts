@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { adminProviderRoutes, adminProviderSchema, adminUserParamsSchema } from '../../shared/api.js'
+import { adminProviderRoutes, adminProviderSchema, adminRoleRuleRoutes, adminUserParamsSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit } from '../audit/audit.js'
@@ -141,6 +141,19 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
           `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile, credential.metadata, credential.configured),
           'Save the encrypted provider credential, keeping omitted secrets only for the same identity? SSO stays disabled.') + '</section>'
+      const { rules } = await adminRead(app, request, adminRoleRuleRoutes.list.path + '?providerId=' + encodeURIComponent(id), adminRoleRuleRoutes.list.response)
+      const roles = db.prepare('SELECT id, name FROM roles ORDER BY name, id').all() as { id: string, name: string }[]
+      const fields = (value = '', roleId = '') => `<input type="hidden" name="providerId" value="${escape(id)}"><input type="hidden" name="claim" value="roles"><p>Claim: roles (Entra app roles)</p><label>Claim value<input name="value" value="${escape(value)}" maxlength="256" required></label><p>Use the app role value, for example Artium.Readers, rather than its display name.</p><label>Artium role<select name="roleId" required><option value="">Choose a role</option>${roles.map(role => `<option value="${escape(role.id)}"${role.id === roleId ? ' selected' : ''}>${escape(role.name)}</option>`).join('')}</select></label>`
+      content += `<section><h2>Role rules</h2><p>Map an exact, case-sensitive value in the Entra roles claim to an artium role. Define app roles in the application registration, then assign groups to them in the enterprise application. Tool access comes from the target artium role; rules never grant administrator capability.</p><p>Rules are saved and audited but are not evaluated yet. SSO and this provider stay disabled. Existing user grants are unchanged.</p>`
+      content += rules.length ? rules.map(rule => {
+        const role = roles.find(role => role.id === rule.roleId)!
+        const tools = db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(role.id) as { tool: string }[]
+        const action = adminRoleRuleRoutes.list.path + '/' + rule.id
+        return `<details><summary>${escape(rule.value)} → ${escape(role.name)}</summary><p>Target role: <a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a>. Tools: ${tools.map(tool => escape(tool.tool)).join(', ') || 'No tools granted'}.</p>${changed(db, rule)}` +
+          apiForm(csrf, action, 'PATCH', 'Save rule', revision(rule.revision) + fields(rule.value, rule.roleId), 'Save this mapping? It will be used when SSO sign-in becomes available.') +
+          apiForm(csrf, action, 'DELETE', 'Remove rule', revision(rule.revision), 'Remove this mapping? This cannot be undone.') + '</details>'
+      }).join('') : '<p>No role rules. Add a mapping below after creating a role and granting its tools.</p>'
+      content += roles.length ? `<h3>Add rule</h3>${apiForm(csrf, adminRoleRuleRoutes.create.path, 'POST', 'Add rule', fields(), 'Add this mapping? It will be used when SSO sign-in becomes available.')}</section>` : '<p><a href="/admin/roles">Create an artium role</a> before adding rules.</p></section>'
     }
     return browserPage(reply, 'Sign-in settings', content, current)
   })
