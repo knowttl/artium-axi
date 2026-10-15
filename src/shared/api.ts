@@ -37,6 +37,8 @@ export const meResponseSchema = z.strictObject({ username: z.string(), displayNa
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'])
+// roleIds includes each effective role once; roleGrants retains overlapping origins.
+// An origin is 'direct' for administrator assignments, otherwise the role rule's id.
 export const adminUserSchema = z.strictObject({
   id: accountId, username: z.string(), displayName: z.string(), source: z.enum(['local', 'sso']),
   enabled: z.boolean(), administrator: z.boolean(), mustChange: z.boolean(),
@@ -55,7 +57,7 @@ export const adminUsersQuerySchema = adminPageQuerySchema.extend({
 // totalCount counts all matching users, independent of cursor; pagination keeps the same filters.
 export const adminUsersResponseSchema = z.strictObject({ users: z.array(adminUserSchema), nextCursor: accountId.nullable(),
   totalCount: z.number().int().nonnegative() })
-// roleIds includes each effective role once; directRoleIds is the editable subset.
+// directRoleIds is the editable subset of roleIds.
 // Grants are deduplicated by tool and role; enabled requires both an enabled user and enabled tool.
 export const adminUserDetailSchema = adminUserSchema.extend({ directRoleIds: z.array(accountId), effectiveTools: z.array(z.strictObject({
   name: toolSchema, enabled: z.boolean(), roleIds: z.array(accountId),
@@ -110,6 +112,7 @@ export const adminUserRoutes = {
     authorization: 'administrator-and-recent-auth', auditEvent: 'update-user' },
   unlock: { method: 'POST', path: '/v1/admin/users/:id/unlock', input: adminUserUnlockSchema, response: adminUserSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'unlock-user' },
+  // Local accounts only; SSO accounts return INVALID_INPUT without changing credentials.
   reset: { method: 'POST', path: '/v1/admin/users/:id/password-reset', input: adminUserResetSchema, response: adminUserSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'reset-user-password' },
   // Replaces direct grants only; rule grants are retained. Archived users cannot gain direct grants.

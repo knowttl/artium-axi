@@ -421,7 +421,7 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | Screen | Purpose |
 | --- | --- |
 | `/admin` | Search and filter the users table by source, status or role; create local users. |
-| `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset passwords and archive. |
+| `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
 | `/account` | Review your roles and tools, download and set up the CLI, change your password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
@@ -433,12 +433,12 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
-Direct assignments are made by an administrator.
+User detail and role membership pages distinguish Direct assignments made by an administrator from Rule grants.
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
 The identity schema supports SSO users, providers, rules and invitations, but SSO sign-in and its settings are not available yet.
 Providers default to disabled, and SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
-Archived user detail allows retained role assignments to be removed without restoring sign-in; the UI and API refuse new memberships, including reassigning a removed role.
+Archived user detail allows retained direct assignments to be removed without restoring sign-in; rule grants remain, and the UI and API refuse new direct assignments, including reassigning a removed direct grant.
 Deleting an empty role removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
 The users and role members tables show matching totals; Next page retains the current filters.
