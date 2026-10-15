@@ -56,9 +56,11 @@ for (const adapter of adapters) {
   }
 }
 let sso
+let genericSso
 let callbackCookies
 const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters,
-  ...(process.env.ARTIUM_TEST_SSO === '1' ? { ssoFetch: (...args) => sso.fetch(...args) } : {}),
+  ...(process.env.ARTIUM_TEST_SSO === '1' ? { ssoFetch: (...args) =>
+    (args[0].startsWith('https://generic.example/') ? genericSso : sso).fetch(...args) } : {}),
   credentialStore: store, providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
@@ -77,11 +79,13 @@ if (process.env.ARTIUM_TEST_SSO === '1') {
     }
   })
   server.post('/test/sso-protocol', async request => {
-    sso.token.claims = request.body.claims
-    sso.token.tamperSignature = request.body.tamperSignature
+    const selected = request.body.providerId === 'synthetic-generic' ? genericSso : sso
+    selected.token.claims = request.body.claims
+    selected.token.tamperSignature = request.body.tamperSignature
     if (request.body.administrator !== undefined) db.prepare("UPDATE users SET administrator = ? WHERE id = 'synthetic-browser-sso'").run(request.body.administrator ? 1 : 0)
     if (request.body.localBreakGlass !== undefined) db.prepare("UPDATE users SET break_glass = ?, must_change = 0 WHERE id = 'synthetic-development-user'").run(request.body.localBreakGlass ? 1 : 0)
-    if (request.body.enabled !== undefined) db.prepare("UPDATE sso_providers SET enabled = ? WHERE id = 'synthetic-entra'").run(Number(request.body.enabled))
+    if (request.body.enabled !== undefined) db.prepare('UPDATE sso_providers SET enabled = ? WHERE id = ?')
+      .run(Number(request.body.enabled), request.body.providerId ?? 'synthetic-entra')
     return { configured: true }
   })
   server.post('/test/sso-invitation', async request => {
@@ -120,9 +124,10 @@ server.get('/test/tools/:tool', async request => {
 })
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
 const proxy = createServer({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) }, (request, response) => {
-  const providerRequest = sso && request.url.startsWith('/test/oidc/')
-  const upstream = httpRequest({ hostname: '127.0.0.1', port: providerRequest ? new URL(sso.url).port : address.port,
-    path: providerRequest ? request.url.replace('/test/oidc/', '/') : request.url, method: request.method,
+  const providerRequest = genericSso && request.url.startsWith('/test/generic-oidc/') ? genericSso
+    : sso && request.url.startsWith('/test/oidc/') ? sso : undefined
+  const upstream = httpRequest({ hostname: '127.0.0.1', port: providerRequest ? new URL(providerRequest.url).port : address.port,
+    path: providerRequest ? request.url.replace(/^\/test\/(?:generic-)?oidc\//, '/') : request.url, method: request.method,
     headers: { ...request.headers, 'x-forwarded-proto': 'https' } }, reply => {
     response.writeHead(reply.statusCode, reply.headers)
     reply.pipe(response)
@@ -135,6 +140,13 @@ proxy.listen(0, '127.0.0.1', async () => {
     `https://localhost:${proxy.address().port}/auth/sso/synthetic-entra/callback`, {
       authorizationEndpoint: `https://127.0.0.1:${proxy.address().port}/test/oidc/authorize`, browserApproval: true,
       endSessionEndpoint: `https://127.0.0.1:${proxy.address().port}/test/oidc/logout`,
+    })
+  if (process.env.ARTIUM_TEST_GENERIC_SSO === '1') genericSso = await seedBrowserSso(db, new ProviderCredentials(db, key),
+    `https://localhost:${proxy.address().port}/auth/sso/synthetic-generic/callback`, {
+      generic: { id: 'synthetic-generic', issuer: 'https://generic.example', clientId: 'synthetic-generic-client' },
+      authentication: 'secret', browserApproval: true,
+      authorizationEndpoint: `https://127.0.0.1:${proxy.address().port}/test/generic-oidc/authorize`,
+      endSessionEndpoint: `https://127.0.0.1:${proxy.address().port}/test/generic-oidc/logout`,
     })
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
   const spki = createHash('sha256').update(cert.publicKey.export({ type: 'spki', format: 'der' })).digest('base64')
@@ -155,6 +167,7 @@ async function close() {
   await closed
   await server.close()
   await sso?.close()
+  await genericSso?.close()
   db.close()
   rmSync(directory, { recursive: true, force: true })
 }

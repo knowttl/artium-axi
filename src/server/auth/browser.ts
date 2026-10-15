@@ -29,10 +29,10 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
   const header = current ? `<header class="site-header"><a class="brand" href="${current.administrator && !current.must_change ? '/admin' : '/account'}">artium-axi</a>
     <div><p>Signed in as ${escape(current.display_name)}.</p><small>${current.source === 'sso' ? 'SSO sign-in' : current.break_glass ? 'Break-glass account' : 'Local password sign-in'}</small></div>
     ${current.administrator && !current.must_change ? `<p data-reauth-until="${until}" data-reauth-method="${sso ? 'sso' : 'local'}">${remaining ? `Changes allowed for ${remaining} min` : 'Identity confirmation required for changes'}</p>` : ''}
-    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}">${sso ? '<label><input type="checkbox" name="providerLogout" value="true"> Also sign out of Microsoft</label>' : ''}<button>Sign out</button></form></header>` : ''
+    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}">${sso ? '<label><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button>Sign out</button></form></header>` : ''
   const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : `<nav aria-label="Account"><a href="/account">Account</a>${current.source === 'local' ? '<a href="/password">Change password</a>' : ''}</nav>`}</aside>` : ''
   const dialogs = current ? `<dialog id="confirmation" aria-labelledby="confirmation-title"><form method="dialog"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button value="confirmed">Confirm change</button></div></form></dialog>
-    ${current.administrator && !current.must_change ? `<dialog id="reauth-dialog" aria-labelledby="reauth-title"><h2 id="reauth-title">${sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${sso ? 'Confirm your identity with Microsoft in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p><form data-reauth>${sso ? '' : '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'}<p data-reauth-error role="alert"></p><div class="dialog-actions"><button type="button" data-reauth-cancel>Cancel</button><button>Confirm and continue</button></div></form></dialog>` : ''}` : ''
+    ${current.administrator && !current.must_change ? `<dialog id="reauth-dialog" aria-labelledby="reauth-title"><h2 id="reauth-title">${sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${sso ? 'Confirm your identity with your provider in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p><form data-reauth>${sso ? '' : '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'}<p data-reauth-error role="alert"></p><div class="dialog-actions"><button type="button" data-reauth-cancel>Cancel</button><button>Confirm and continue</button></div></form></dialog>` : ''}` : ''
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${header}<div class="page-layout">${navigation}<main id="main"><h1>${escape(title)}</h1>${pageHelp(title, current?.source)}<p id="message" role="alert" tabindex="-1"></p>${content}</main></div>${dialogs}</body></html>`)
 }
 
@@ -96,11 +96,11 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
         reply.clearCookie(browserCookie, cookieOptions)
       }
     }
-    const providers = db.prepare("SELECT id, name FROM sso_providers WHERE kind = 'entra' AND enabled = 1 ORDER BY name, id").all() as { id: string, name: string }[]
+    const providers = db.prepare('SELECT id, name, kind FROM sso_providers WHERE enabled = 1 ORDER BY name, id').all() as { id: string, name: string, kind: string }[]
     return browserPage(reply, 'Sign in', form(reply, '/login', 'Sign in',
       '<p><label>Username <input name="username" autocomplete="username" required></label></p>' + passwordField('password', 'Password', 'current-password')) +
       (providers.length ? '<p>Local password sign-in is limited to designated break-glass administrators. Every break-glass sign-in and password confirmation is flagged in Audit.</p>' : '') +
-      providers.map(provider => `<p><a href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start">Sign in with Microsoft (${escape(provider.name)})</a></p>`).join(''))
+      providers.map(provider => `<p><a href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start">Sign in with ${provider.kind === 'entra' ? `Microsoft (${escape(provider.name)})` : escape(provider.name)}</a></p>`).join(''))
   })
   app.post('/login', async (request, reply) => {
     const input = loginSchema.safeParse(request.body)
@@ -134,9 +134,9 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     if (input.data.providerLogout && current.source === 'sso') {
       try {
         const destination = await providerSignOut(current, `${request.protocol}://${request.host}`)
-        if (destination) return browserPage(reply, 'Signed out', `<p>You are signed out of artium.</p><p><a data-provider-signout href="${escape(destination)}">Continue to Microsoft sign-out</a></p><p><a href="/login">Return to artium sign-in</a></p>`)
+        if (destination) return browserPage(reply, 'Signed out', `<p>You are signed out of artium.</p><p><a data-provider-signout href="${escape(destination)}">Continue to provider sign-out</a></p><p><a href="/login">Return to artium sign-in</a></p>`)
       } catch { /* Local revocation succeeds even when discovery is unavailable. */ }
-      return browserPage(reply, 'Signed out', '<p>You are signed out of artium. Microsoft sign-out could not be started; your Microsoft session may still be active.</p><p><a href="/login">Sign in</a></p>')
+      return browserPage(reply, 'Signed out', '<p>You are signed out of artium. Provider sign-out could not be started; your provider session may still be active.</p><p><a href="/login">Sign in</a></p>')
     }
     return reply.redirect('/login', 303)
   })
@@ -192,7 +192,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
         if (!recentBrowserAuth(current)) throw new ArtiumError('REAUTH_REQUIRED')
         return browserPage(reply, 'Identity confirmed', '<p data-sso-reauth-complete>Confirmation complete. You can close this window and return to your pending action.</p><p><a href="/account">Account</a></p>', current)
       }
-      return browserPage(reply, 'Confirm identity', `<p>Confirm your identity with Microsoft before making changes.</p><p><a data-sso-reauth-start href="/auth/sso/${escape(encodeURIComponent(identity.provider_id))}/start?reauth=1">Confirm with Microsoft</a></p>`, current)
+      return browserPage(reply, 'Confirm identity', `<p>Confirm your identity with your provider before making changes.</p><p><a data-sso-reauth-start href="/auth/sso/${escape(encodeURIComponent(identity.provider_id))}/start?reauth=1">Confirm with your provider</a></p>`, current)
     }
     return browserPage(reply, 'Confirm password', '<p>Confirm your password, then submit your administration action again.</p>' +
       form(reply, '/reauth', 'Confirm password', passwordField('password', 'Password', 'current-password')), current)

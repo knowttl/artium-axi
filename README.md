@@ -509,9 +509,19 @@ Certificate authentication is preferred: paste or upload one PEM containing the 
 The application's public certificate registration is an owner setup step; saving here does not contact the provider.
 A client secret is also accepted, with an in-page warning recommending certificates.
 
+For another OpenID Connect provider, choose **Add OpenID Connect provider** and enter its name and exact HTTPS issuer URL.
+Discovery reads the issuer's OpenID configuration over verified TLS and rejects redirects and mismatched issuers.
+Register the provider page's exact callback URI in a confidential web application, then save its client ID and RSA certificate (`private_key_jwt`) or client secret (`client_secret_post` or `client_secret_basic`, selected from discovery with POST preferred).
+The provider must support authorization code with PKCE S256, RS256 ID tokens and scopes `openid profile`.
+Configure `preferred_username` for invitation claims and `auth_time` for fresh browser confirmation and CLI approval; generic confirmation requests use `prompt=login` and `max_age=0`.
+Generic identities bind to exact issuer and `sub`; Entra continues to bind to `tid` + `oid`.
+Multiple enabled providers appear on both the sign-in page and CLI approval page, each with its own callback and state binding.
+Assign generic-provider users direct artium roles for tool access; arbitrary claim rules follow separately.
+See [generic OIDC verification](docs/verification-p5a.md) for the approved scope split, fake-provider evidence and pending maintainer live acceptance.
+
 Provider credentials use the encrypted store; their secrets are never returned in pages, API metadata or audit records.
 Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
-Changing client or authentication requires a new secret; changing the provider tenant removes the old credential.
+Changing client or authentication requires a new secret; changing the provider tenant or issuer removes the old credential.
 Settings and credential saves require administrator capability and the [confirmation described under browser administration](#browser-administration), check revisions, and are audited.
 The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
 
@@ -540,7 +550,7 @@ Every rule change requires the [confirmation described under browser administrat
 At each Entra sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
 User details label Direct and Rule grants and identify the Entra rule that supplied each rule grant.
 Deleting a rule or changing its provider, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
-Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected Entra username, direct roles and an expiry of 1 to 30 days (default 7).
+Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected `preferred_username` (Entra sign-in username for Microsoft), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
 Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
@@ -551,7 +561,7 @@ Every mutation requires administrator capability and the [confirmation described
 Lists never return link tokens or hashes; expiry is evaluated when read.
 The [invitation API contracts](src/shared/api.ts) own the request and response fields.
 When a provider is enabled, its invitation link starts browser sign-in and requires an exact, case-sensitive match of the expected username.
-Claiming atomically binds the immutable Entra identity, consumes the invitation, adds its direct roles and synchronizes rule roles.
+Claiming atomically binds the immutable provider identity, consumes the invitation, adds its direct roles and synchronizes Entra rule roles.
 Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.

@@ -58,6 +58,47 @@ async function save(id: string, value: Record<string, unknown>, expectedRevision
 }
 const value = { tenantId, clientId, auth: 'secret', clientSecret: 'CANARY-provider-secret' }
 
+test('generic provider settings retain secrets only for the same client and clear credentials on issuer change', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers,
+    payload: { name: 'Synthetic OIDC', kind: 'oidc', issuer: 'https://identity.example' } })
+  expect(created.statusCode).toBe(200)
+  const provider = created.json()
+  expect(provider).toMatchObject({ kind: 'oidc', enabled: false, issuer: 'https://identity.example' })
+  const credential = { clientId: 'synthetic-web-client', auth: 'secret', clientSecret: 'CANARY-oidc-secret' }
+  expect((await save(provider.id, credential)).statusCode).toBe(200)
+  const metadata = await app.inject({ url: base + '/' + provider.id + '/credential', headers })
+  expect(metadata.json().metadata).toEqual({ clientId: credential.clientId, auth: 'secret' })
+  expect(metadata.body).not.toContain(credential.clientSecret)
+  expect((await save(provider.id, { clientId: credential.clientId, auth: 'secret' }, 1, 2)).statusCode).toBe(200)
+  expect(credentials.read(provider.id)!.value.clientSecret).toBe(credential.clientSecret)
+  expect((await save(provider.id, { clientId: 'another-client', auth: 'secret' }, 2, 3)).statusCode).toBe(400)
+  const changed = await app.inject({ method: 'PATCH', url: base + '/' + provider.id, headers,
+    payload: { name: provider.name, kind: 'oidc', issuer: 'https://second.example', expectedRevision: 3 } })
+  expect(changed.statusCode).toBe(200)
+  expect(credentials.read(provider.id)).toBeUndefined()
+  expect(db.prepare('SELECT action FROM audit ORDER BY id').all()).toEqual([
+    { action: 'create-provider' }, { action: 'replace-provider-credential' },
+    { action: 'replace-provider-credential' }, { action: 'update-provider' },
+  ])
+})
+
+test.each(['http://identity.example', 'https://user:password@identity.example', 'https://identity.example?other=1', 'https://identity.example#other'])
+  ('generic provider rejects unsuitable discovery issuer %s', async issuer => {
+    const response = await app.inject({ method: 'POST', url: base, headers, payload: { name: 'Synthetic', kind: 'oidc', issuer } })
+    expect(response.statusCode).toBe(400)
+    expect(db.prepare('SELECT count(*) AS count FROM sso_providers').get()).toEqual({ count: 0 })
+  })
+
+test('generic provider activation requires a usable credential and break-glass administrator', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers,
+    payload: { name: 'Synthetic OIDC', kind: 'oidc', issuer: 'https://identity.example' } })
+  const provider = created.json()
+  db.exec('UPDATE users SET break_glass = 1')
+  expect((await activation(provider.id, true, 1)).statusCode).toBe(400)
+  expect((await save(provider.id, { clientId: 'synthetic-client', auth: 'secret', clientSecret: 'CANARY-oidc-secret' })).statusCode).toBe(200)
+  expect((await activation(provider.id)).json()).toMatchObject({ kind: 'oidc', enabled: true })
+})
+
 test('setup guide Users link opens the users page', async () => {
   const provider = await create()
   const session = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf')

@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
 import { afterEach, beforeEach, expect, test } from 'vitest'
+import { ClientSecretBasic } from 'openid-client'
 import { createFakeOidcProvider } from './oidc.js'
 
 let provider: Awaited<ReturnType<typeof createFakeOidcProvider>>
@@ -120,4 +121,17 @@ test('a secret-configured provider accepts only its configured secret', async ()
   const rejected = await exchange(issued, { client_secret: 'CANARY-wrong-secret' })
   expect(rejected.status).toBe(401)
   expect((await exchange(issued, { client_secret: 'CANARY-client-secret' })).status).toBe(200)
+})
+
+test('Basic authentication decodes form-encoded credentials without requiring body credentials', async () => {
+  await provider.close()
+  const secret = 'CANARY-basic+/:= secret'
+  provider = await createFakeOidcProvider({ clientId, redirectUri, claims: { sub: 'synthetic-subject' },
+    authentication: { kind: 'secret', secret, method: 'client_secret_basic' } })
+  const body = new URLSearchParams({ grant_type: 'authorization_code', code: await code(),
+    redirect_uri: redirectUri, code_verifier: verifier })
+  const headers = new Headers()
+  ClientSecretBasic(secret)({ issuer: provider.issuer }, { client_id: clientId }, body, headers)
+  const response = await fetch(provider.issuer + '/token', { method: 'POST', body, headers })
+  expect(response.status).toBe(200)
 })

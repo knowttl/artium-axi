@@ -148,7 +148,7 @@ test('provider failure leaves artium signed out and explains the remaining provi
   db.exec('UPDATE sso_providers SET enabled = 0')
   const response = await signOut(sessionToken, true)
   expect(response.statusCode).toBe(200)
-  expect(response.body).toContain('Microsoft session may still be active')
+  expect(response.body).toContain('provider session may still be active')
   expect(() => readBrowserSession(db, sessionToken)).toThrow()
 })
 
@@ -517,7 +517,7 @@ test('an unrelated browser session cannot approve a device request and CSRF rema
   const device = await deviceRequest()
   const unrelated = await signedIn()
   expect((await app.inject({ url: '/device?code=' + device.userCode, headers: { ...headers, cookie: `${browserCookie}=${unrelated}` } })).body)
-    .toContain('Confirm your identity with a fresh Microsoft sign-in')
+    .toContain('Confirm your identity with a fresh provider sign-in')
   expect((await app.inject({ method: 'POST', url: '/device', headers: { ...headers, cookie: `${browserCookie}=${unrelated}` },
     payload: { code: device.userCode, decision: 'approve' } })).statusCode).toBe(403)
 })

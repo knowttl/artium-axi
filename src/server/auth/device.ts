@@ -32,7 +32,7 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
     return active([...requests.values()].find(row => row.userCode === code))
   }
   function providers() {
-    return db.prepare("SELECT id, name FROM sso_providers WHERE kind = 'entra' AND enabled = 1 ORDER BY name, id")
+    return db.prepare('SELECT id, name FROM sso_providers WHERE enabled = 1 ORDER BY name, id')
       .all() as { id: string, name: string }[]
   }
   function approver(token: string) {
@@ -115,8 +115,8 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
         <input type="hidden" name="_csrf" value="${escape(csrf)}"><input type="hidden" name="code" value="${escape(code)}">
         <button name="decision" value="approve">Approve</button><button name="decision" value="deny">This wasn't me</button></form>`
     } else if (!row.approved) {
-      actions = '<p>Confirm your identity with a fresh Microsoft sign-in before approving.</p>' + providers().map(provider =>
-        `<p><a data-device-sso href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start?device=${encodeURIComponent(code)}">Sign in with Microsoft (${escape(provider.name)})</a></p>`).join('')
+      actions = '<p>Confirm your identity with a fresh provider sign-in before approving.</p>' + providers().map(provider =>
+        `<p><a data-device-sso href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start?device=${encodeURIComponent(code)}">Sign in with ${escape(provider.name)}</a></p>`).join('')
     }
     return browserPage(reply, row.reauth ? 'CLI identity confirmation' : 'CLI sign-in', details + actions, current)
   })
