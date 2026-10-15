@@ -26,7 +26,6 @@ The existing admin-provider, browser-SSO and fake-provider focused suites passed
 The complete browser run includes the existing Entra flows and all five new generic-provider journeys.
 A previous run was interrupted by a concurrent rebuild; the browser fixture cleanup now also handles a process that exited before teardown.
 The passing browser run used a stable build with no concurrent compilation.
-Final container acceptance is recorded separately below.
 All provider requests use injected local fake transports; browser tests drive the real server-rendered pages through chrome-devtools-axi.
 Production discovery uses verified TLS and rejects redirects away from the configured discovery URL.
 Generic client secrets use the discovered authentication methods, preferring POST when available and otherwise Basic; omitted methods default to Basic.
@@ -34,6 +33,27 @@ Fresh installs have no providers, and every newly configured provider starts dis
 Entra's tenant-specific settings and immutable tid + oid binding remain unchanged; generic identities use exact issuer + sub and invitation claims require preferred_username.
 Generic providers currently grant tools through direct artium roles; arbitrary claim mapping belongs to P5b.
 No CLI command definitions changed; the normal build regenerates its bundled command/help artifact.
+
+## Container acceptance
+
+`pnpm test:containers` exited 0 in 140,174 ms on Linux x64, Node v24.14.0 and Docker 29.8.1.
+The fake-only runner, walking skeleton, Graph headless, fake-service, packaged CLI and backup/restore probes passed.
+The private privileged builder was artium-test-build-f4146343-76c0-4032-97c1-bb8193f01ece.
+The container evidence reported passed=true and cacheRemoved=true; the runner, probe containers, images, recovery volumes and private builder cache were removed by the gate.
+
+| Evidence | Value |
+| --- | --- |
+| Tested head | 9b5f7245c02c8f72c5fb61f32b34c9c60aec9546 |
+| Relevant input digest | e89f1fe0c997662a473a7c2e3a78072186de37b03774edf83c319ca7185a980a |
+| Compiled output digest | 855448d4c31fe3554186060de92e33ee790200ebc04d3d08265b39ef6e0fd494 |
+| Runner image | sha256:d82410fd923b8f8a8cb3936271ed8b601fcedf1078066bcc418d929593f55056 |
+| Server and production fake image | sha256:d722f210259ea8b1af8139894e45c60c361db61cdf424aea418cef719f55c866 |
+| Node-only and fake-service image | sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397 |
+
+The evidence-recording commit after the tested head changes documentation only.
+Relevant input and compiled-output digests must match the values above for reuse; pipeline code, test, pin, script or Docker changes require fresh container acceptance.
+
+## Remaining acceptance
 
 Private hygiene acceptance is performed by firstmate using its private deny list before merge.
 The worker does not access that list.
