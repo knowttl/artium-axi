@@ -21,7 +21,7 @@ if (process.argv[2] === 'backup') {
       VALUES ('synthetic-admin', 'synthetic-admin', 'Synthetic Admin', 'synthetic-hash', 0, 1);
       INSERT INTO bootstrap_metadata VALUES (1, 1);
       INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
-      INSERT INTO user_roles VALUES ('synthetic-admin', 'synthetic-role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-admin', 'synthetic-role');
       INSERT INTO role_tools VALUES ('synthetic-role', 'falcon-axi');
       INSERT INTO audit (occurred_at, event, outcome) VALUES (1, 'synthetic-backup-proof', 'success');`)
     const store = createCredentialStore(db, provider)

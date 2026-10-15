@@ -121,7 +121,7 @@ export function createApp(options: {
     const userId = authenticate(db, token)
     const user = db.prepare('SELECT username, display_name, administrator FROM users WHERE id = ?').get(userId) as
       { username: string, display_name: string, administrator: number }
-    const roles = db.prepare('SELECT name FROM roles JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = ? ORDER BY name')
+    const roles = db.prepare('SELECT DISTINCT name FROM roles JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = ? ORDER BY name')
       .all(userId) as { name: string }[]
     const expiry = db.prepare('SELECT expires_at FROM tokens WHERE hash = ?').get(hashToken(token)) as { expires_at: number }
     return { username: user.username, displayName: user.display_name, administrator: Boolean(user.administrator),

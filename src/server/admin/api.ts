@@ -44,14 +44,15 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const row = db.prepare(`SELECT id, username, display_name AS displayName, source, disabled, administrator,
       must_change AS mustChange, failed_attempts AS failedAttempts, locked_until AS lockedUntil,
       revision, updated_at AS updatedAt, updated_by AS updatedBy, archived_at AS archivedAt FROM users WHERE id = ?`).get(id) as
-      (Omit<PublicUser, 'enabled' | 'administrator' | 'mustChange' | 'roleIds'> &
+      (Omit<PublicUser, 'enabled' | 'administrator' | 'mustChange' | 'roleIds' | 'roleGrants'> &
         { disabled: number, administrator: number, mustChange: number }) | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     const { disabled, ...fields } = row
-    const roleIds = (db.prepare('SELECT role_id FROM user_roles WHERE user_id = ? ORDER BY role_id').all(id) as { role_id: string }[])
-      .map(role => role.role_id)
+    const roleGrants = db.prepare('SELECT role_id AS roleId, origin FROM user_roles WHERE user_id = ? ORDER BY role_id, origin')
+      .all(id) as PublicUser['roleGrants']
+    const roleIds = [...new Set(roleGrants.map(grant => grant.roleId))]
     return adminUserSchema.parse({ ...fields, enabled: !disabled, administrator: Boolean(row.administrator),
-      mustChange: Boolean(row.mustChange), roleIds })
+      mustChange: Boolean(row.mustChange), roleIds, roleGrants })
   }
 
   registerToolAdmin(app, db, audit, authorize, tools)
@@ -167,12 +168,13 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     authorize(request)
     const { id } = parse(adminUserParamsSchema, request.params)
     const user = readUser(id)
-    const grants = db.prepare(`SELECT role_tools.tool AS name, tools.enabled, user_roles.role_id AS roleId
+    const grants = db.prepare(`SELECT DISTINCT role_tools.tool AS name, tools.enabled, user_roles.role_id AS roleId
       FROM user_roles JOIN role_tools ON role_tools.role_id = user_roles.role_id
       JOIN tools ON tools.name = role_tools.tool WHERE user_roles.user_id = ? ORDER BY role_tools.tool, user_roles.role_id`)
       .all(id) as { name: string, enabled: number, roleId: string }[]
     const names = [...new Set(grants.map(grant => grant.name))]
-    return adminUserRoutes.get.response.parse({ ...user, effectiveTools: names.map(name => ({ name,
+    const directRoleIds = user.roleGrants.filter(grant => grant.origin === 'direct').map(grant => grant.roleId)
+    return adminUserRoutes.get.response.parse({ ...user, directRoleIds, effectiveTools: names.map(name => ({ name,
       enabled: user.enabled && Boolean(grants.find(grant => grant.name === name)!.enabled),
       roleIds: grants.filter(grant => grant.name === name).map(grant => grant.roleId),
     })) })
@@ -224,10 +226,10 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     authorize(request)
     const { id } = parse(adminUserParamsSchema, request.params)
     const input = parse(adminUserRoutes.reset.input, request.body)
-    readUser(id)
+    if (readUser(id).source !== 'local') throw new ArtiumError('INVALID_INPUT', 'SSO users do not have a local password.', 'Manage this account at its identity provider.')
     const hash = await hashPassword(input.temporaryPassword)
     const user = change(request, adminUserRoutes.reset.auditEvent, id, readUser, (actor, now) => {
-      readUser(id)
+      if (readUser(id).source !== 'local') throw new ArtiumError('INVALID_INPUT')
       db.prepare(`UPDATE users SET password_hash = ?, must_change = 1, failed_attempts = 0, locked_until = NULL,
         revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?`).run(hash, now, actor, id)
       revokeUserSessions(db, id, now)
@@ -243,10 +245,12 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     return change(request, adminUserRoutes.roles.auditEvent, id, readUser, (actor, now) => {
       const current = readUser(id)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
-      if (current.archivedAt !== null && input.roleIds.some(roleId => !current.roleIds.includes(roleId))) {
+      const directRoles = db.prepare("SELECT role_id FROM user_roles WHERE user_id = ? AND origin = 'direct'")
+        .all(id) as { role_id: string }[]
+      if (current.archivedAt !== null && input.roleIds.some(roleId => !directRoles.some(row => row.role_id === roleId))) {
         throw new ArtiumError('INVALID_INPUT', 'Archived users cannot gain role memberships.', 'Remove retained roles only.')
       }
-      db.prepare('DELETE FROM user_roles WHERE user_id = ?').run(id)
+      db.prepare("DELETE FROM user_roles WHERE user_id = ? AND origin = 'direct'").run(id)
       const assign = db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)')
       for (const roleId of input.roleIds) assign.run(id, roleId)
       db.prepare('UPDATE users SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
@@ -269,9 +273,9 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const { id } = parse(adminUserParamsSchema, request.params)
     readRole(id)
     const { cursor, limit } = parse(adminRoleRoutes.members.input, request.query)
-    const rows = db.prepare('SELECT user_id AS id FROM user_roles WHERE role_id = ? AND user_id > ? ORDER BY user_id LIMIT ?')
+    const rows = db.prepare('SELECT DISTINCT user_id AS id FROM user_roles WHERE role_id = ? AND user_id > ? ORDER BY user_id LIMIT ?')
       .all(id, cursor ?? '', limit + 1) as { id: string }[]
-    const { totalCount } = db.prepare('SELECT COUNT(*) AS totalCount FROM user_roles WHERE role_id = ?').get(id) as { totalCount: number }
+    const { totalCount } = db.prepare('SELECT COUNT(DISTINCT user_id) AS totalCount FROM user_roles WHERE role_id = ?').get(id) as { totalCount: number }
     const page = rows.slice(0, limit)
     return adminRoleRoutes.members.response.parse({ users: page.map(row => readUser(row.id)), totalCount,
       nextCursor: rows.length > limit ? page.at(-1)!.id : null })

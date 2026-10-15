@@ -29,7 +29,7 @@ beforeEach(() => {
     VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'synthetic-hash', 0, 1);
     INSERT INTO bootstrap_metadata VALUES (1, 1);
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
-    INSERT INTO user_roles VALUES ('synthetic-user', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
     INSERT INTO role_tools VALUES ('synthetic-role', 'falcon-axi');`)
   createCredentialStore(db, provider).replaceCredential('falcon-axi', { secret: 'CANARY-backup' }, 0, 'synthetic-user', 1)
   db.close()
@@ -116,7 +116,7 @@ test.each(['key', 'credential', 'schema', 'missing-table', 'foreign-key', 'corru
     if (failure === 'missing-table') db.exec('DROP TABLE audit')
     if (failure === 'foreign-key') {
       db.pragma('foreign_keys = OFF')
-      db.exec("INSERT INTO user_roles VALUES ('missing-user', 'synthetic-role')")
+      db.exec("INSERT INTO user_roles (user_id, role_id) VALUES ('missing-user', 'synthetic-role')")
     }
     db.close()
   }

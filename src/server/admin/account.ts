@@ -5,7 +5,7 @@ import { escape } from './escape.js'
 import { sessionTable } from './session-table.js'
 
 export function accountContent(db: Database.Database, current: BrowserSession, csrf: string, origin: string): string {
-  const roles = db.prepare(`SELECT roles.name FROM roles JOIN user_roles ON roles.id = user_roles.role_id
+  const roles = db.prepare(`SELECT DISTINCT roles.name FROM roles JOIN user_roles ON roles.id = user_roles.role_id
     WHERE user_roles.user_id = ? ORDER BY roles.name`).all(current.user_id) as { name: string }[]
   const tools = db.prepare(`SELECT DISTINCT tools.name, tools.enabled FROM tools
     JOIN role_tools ON role_tools.tool = tools.name JOIN user_roles ON user_roles.role_id = role_tools.role_id

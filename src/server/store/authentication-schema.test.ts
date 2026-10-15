@@ -49,7 +49,7 @@ it('migrates an empty store and persists the identity relationships on reopen', 
   `)
   db.close()
   db = openStore(file, provider)
-  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }, { version: 8 }, { version: 9 }, { version: 10 }, { version: 11 }, { version: 12 }])
+  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }, { version: 8 }, { version: 9 }, { version: 10 }, { version: 11 }, { version: 12 }, { version: 13 }])
   expect(db.prepare(`SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'person'`).all())
     .toEqual([{ tool: 'falcon-axi' }])
   expect(db.prepare('SELECT source, administrator, revision FROM users WHERE id = ?').get('person'))
@@ -99,7 +99,7 @@ it('rejects duplicate canonical usernames while retaining separate display names
 
 it('keeps administrator capability separate from tool grants', () => {
   seedIdentity()
-  db.exec("UPDATE users SET administrator = 1 WHERE id = 'other'; INSERT INTO user_roles VALUES ('person', 'reader'); INSERT INTO role_tools VALUES ('reader', 'falcon-axi');")
+  db.exec("UPDATE users SET administrator = 1 WHERE id = 'other'; INSERT INTO user_roles (user_id, role_id) VALUES ('person', 'reader'); INSERT INTO role_tools VALUES ('reader', 'falcon-axi');")
   expect(db.prepare("SELECT administrator FROM users WHERE id = 'person'").get()).toEqual({ administrator: 0 })
   expect(db.prepare("SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'other'").all()).toEqual([])
 })
@@ -107,8 +107,8 @@ it('keeps administrator capability separate from tool grants', () => {
 it.each([
   "INSERT INTO role_tools VALUES ('missing', 'falcon-axi')",
   "INSERT INTO role_tools VALUES ('reader', 'missing')",
-  "INSERT INTO user_roles VALUES ('missing', 'reader')",
-  "INSERT INTO user_roles VALUES ('person', 'missing')",
+  "INSERT INTO user_roles (user_id, role_id) VALUES ('missing', 'reader')",
+  "INSERT INTO user_roles (user_id, role_id) VALUES ('person', 'missing')",
   "INSERT INTO session_families (id, user_id, created_at, expires_at) VALUES ('missing', 'missing', 1000, 2000)",
   "INSERT INTO tokens (hash, type, family_id, user_id, expires_at) VALUES ('hash', 'access', 'missing', 'person', 2000)",
   "INSERT INTO tokens (hash, type, family_id, user_id, expires_at) VALUES ('hash', 'access', 'family', 'other', 2000)",

@@ -8,6 +8,7 @@ import { Audit } from '../../src/server/audit/audit.js'
 import { adminAuditExportRoute, adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminRolesResponseSchema, adminUserRoutes, adminUserSchema, adminUsersResponseSchema, loginResponseSchema } from '../../src/shared/api.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { hashToken, verifyAccessToken } from '../../src/server/auth/tokens.js'
+import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
@@ -61,7 +62,7 @@ beforeEach(async () => {
       SELECT 'synthetic-second', 'synthetic-second', 'Second', password_hash, 1, 0 FROM users LIMIT 1;
     INSERT INTO users (id, username, display_name, password_hash, must_change)
       SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
-    INSERT INTO user_roles VALUES ('synthetic-ordinary', 'synthetic-role');`)
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-ordinary', 'synthetic-role');`)
   const started = await start(db)
   app = started.server
   url = started.address
@@ -81,6 +82,72 @@ function request(method: string, path: string, body?: unknown, proof = headers, 
   return fetch(`${address}/v1/admin/users${path}`, { method, headers: body === undefined ? withoutContentType : proof,
     body: body === undefined ? undefined : JSON.stringify(body) })
 }
+
+test('SSO accounts can be listed and managed without acquiring a local password', async () => {
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change)
+    VALUES ('synthetic-sso', 'synthetic-sso', 'Synthetic SSO', 'sso', 0);`)
+  const listed = await request('GET', '?source=sso')
+  expect(listed.status).toBe(200)
+  expect(adminUsersResponseSchema.parse(await listed.json()).users.map(user => user.id)).toEqual(['synthetic-sso'])
+  expect((await request('PATCH', '/synthetic-sso', { displayName: 'Renamed', expectedRevision: 1 })).status).toBe(200)
+  await failure(await request('POST', '/synthetic-sso/password-reset', { temporaryPassword: 'CANARY-reset-password' }), 'INVALID_INPUT')
+  expect(db.prepare("SELECT password_hash, must_change FROM users WHERE id = 'synthetic-sso'").get())
+    .toEqual({ password_hash: null, must_change: 0 })
+  const login = await fetch(url + '/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: 'synthetic-sso', password }) })
+  await failure(login, 'SIGN_IN_FAILED')
+  expect((await fetch(url + '/auth/sso/synthetic/start')).status).toBe(404)
+})
+
+test('replacing direct roles keeps rule grants and returns each effective role once', async () => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'entra', 'https://identity.example');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id)
+      VALUES ('synthetic-rule', 'synthetic-provider', 'roles', 'Artium.Reader', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id, origin) VALUES ('synthetic-ordinary', 'synthetic-role', 'synthetic-rule');`)
+  const detail = adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())
+  expect(detail.roleIds).toEqual(['synthetic-role'])
+  expect(detail.directRoleIds).toEqual(['synthetic-role'])
+  expect(detail.roleGrants).toEqual([{ roleId: 'synthetic-role', origin: 'direct' },
+    { roleId: 'synthetic-role', origin: 'synthetic-rule' }])
+  expect(detail.effectiveTools.find(tool => tool.name === 'falcon-axi')?.roleIds).toEqual(['synthetic-role'])
+  const members = adminRoleRoutes.members.response.parse(await (await fetch(url + '/v1/admin/roles/synthetic-role/members', { headers })).json())
+  expect(members.totalCount).toBe(2)
+  expect(members.users.map(user => user.id)).toEqual(['synthetic-development-user', 'synthetic-ordinary'])
+  expect(members.users.find(user => user.id === 'synthetic-ordinary')?.roleGrants).toEqual(detail.roleGrants)
+  expect((await request('PUT', '/synthetic-ordinary/roles', { roleIds: [], expectedRevision: 1 })).status).toBe(200)
+  const changed = adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())
+  expect(changed.roleIds).toEqual(['synthetic-role'])
+  expect(changed.directRoleIds).toEqual([])
+  expect(changed.roleGrants).toEqual([{ roleId: 'synthetic-role', origin: 'synthetic-rule' }])
+  expect(changed.effectiveTools).toEqual(detail.effectiveTools)
+  expect(db.prepare("SELECT origin FROM user_roles WHERE user_id = 'synthetic-ordinary'").all())
+    .toEqual([{ origin: 'synthetic-rule' }])
+  expect(db.prepare("SELECT action, user_id FROM audit WHERE action = 'assign-user-roles'").all())
+    .toEqual([{ action: 'assign-user-roles', user_id: administrator }])
+})
+
+test.each([
+  { removed: '', archived: null, assignment: 'Direct, Rule' },
+  { removed: 'synthetic-rule', archived: null, assignment: 'Direct' },
+  { removed: 'direct', archived: null, assignment: 'Rule' },
+  { removed: 'direct', archived: 1, assignment: 'Rule' },
+])('admin pages show $assignment assignments with archivedAt=$archived', async ({ removed, archived, assignment }) => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'entra', 'https://identity.example');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id)
+      VALUES ('synthetic-rule', 'synthetic-provider', 'roles', 'Artium.Reader', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id, origin) VALUES ('synthetic-ordinary', 'synthetic-role', 'synthetic-rule');`)
+  db.prepare("DELETE FROM user_roles WHERE user_id = 'synthetic-ordinary' AND origin = ?").run(removed)
+  db.prepare("UPDATE users SET archived_at = ?, disabled = ? WHERE id = 'synthetic-ordinary'").run(archived, Number(archived !== null))
+  const session = createBrowserSession(db, administrator, 'CANARY-csrf')
+  const cookie = { cookie: 'artium-session=' + session.id }
+  const userPage = await app.inject({ url: '/admin/users/synthetic-ordinary', headers: cookie })
+  expect(userPage.statusCode).toBe(200)
+  expect(userPage.body).toContain(`</a> (${assignment})`)
+  expect(userPage.body).not.toContain('No retained roles remain.')
+  const rolePage = await app.inject({ url: '/admin/roles/synthetic-role', headers: cookie })
+  expect(rolePage.statusCode).toBe(200)
+  expect(rolePage.body).toContain(`<a href="/admin/users/synthetic-ordinary">synthetic-ordinary</a></th><td>Ordinary</td><td>${archived === null ? 'Enabled' : 'Archived'}</td><td>${assignment}</td>`)
+})
 
 async function failure(response: Response, code: ErrorCode) {
   expect(response.status).toBe(errors[code].status)
@@ -613,7 +680,7 @@ test.each(['ÉMILIE', 'émilie'])('user search folds Unicode consistently for bo
 test('user detail combines overlapping role grants and reports disabled access without granting admin tools', async () => {
   db.exec(`INSERT INTO roles (id, name) VALUES ('extra', 'Extra');
     INSERT INTO role_tools VALUES ('extra', 'falcon-axi');
-    INSERT INTO user_roles VALUES ('synthetic-ordinary', 'extra');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-ordinary', 'extra');
     UPDATE tools SET enabled = CASE WHEN name = 'falcon-axi' THEN 1 ELSE 0 END;`)
   const detail = adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())
   expect(detail.effectiveTools).toEqual([
