@@ -411,3 +411,13 @@ test('referenced rules and roles cannot be removed or retargeted while preservin
   expect(role.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'This role is used by an SSO rule.' } })
   expect(db.prepare('SELECT * FROM role_tools WHERE role_id = ?').all(input.roleId)).toEqual(tools)
 })
+
+test('a granted rule cannot move to another provider and strand its existing grants', async () => {
+  const { rule, input } = await createRule()
+  db.prepare('INSERT INTO user_roles (user_id, role_id, origin) VALUES (?, ?, ?)').run('synthetic-development-user', input.roleId, rule.id)
+  db.exec("INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-other-provider', 'Other provider', 'entra', 'https://login.microsoftonline.com/44444444-4444-4444-8444-444444444444/v2.0')")
+  const response = await app.inject({ method: 'PATCH', url: rulesBase + '/' + rule.id, headers,
+    payload: { ...input, providerId: 'synthetic-other-provider', expectedRevision: 1 } })
+  expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  expect(db.prepare('SELECT provider_id FROM role_rules WHERE id = ?').get(rule.id)).toEqual({ provider_id: input.providerId })
+})

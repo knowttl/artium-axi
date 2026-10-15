@@ -23,7 +23,7 @@ import { loadCredentialProfile } from '../../dist/src/server/adapters/credential
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport } from '../../dist/test/fixtures/azure-token-transport.js'
 import { createTestCertificates } from './certificates.mjs'
-import { seedBrowserSso } from '../../dist/test/fixtures/sso.js'
+import { seedBrowserSso, seedSsoInvitation, seedSsoRules } from '../../dist/test/fixtures/sso.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
 createTestCertificates(directory, ['localhost'])
@@ -81,8 +81,16 @@ if (process.env.ARTIUM_TEST_SSO === '1') {
     sso.token.tamperSignature = request.body.tamperSignature
     return { configured: true }
   })
+  server.post('/test/sso-invitation', async request => {
+    seedSsoRules(db)
+    return seedSsoInvitation(db, request.body)
+  })
   server.get('/test/sso-evidence', async () => ({ callbackCookies,
     sessions: db.prepare('SELECT user_id, reauthenticated_at FROM sessions WHERE revoked_at IS NULL').all(),
+    invitations: db.prepare('SELECT id, user_id, claimed_at FROM invitations').all(),
+    users: db.prepare('SELECT id, username, source, password_hash FROM users').all(),
+    grants: db.prepare('SELECT user_id, role_id, origin FROM user_roles ORDER BY role_id, origin').all(),
+    events: db.prepare('SELECT event, user_id, target_id, arguments FROM audit ORDER BY id').all(),
     audit: db.prepare("SELECT outcome, authentication_method, provider_id, subject FROM audit WHERE authentication_method = 'sso' ORDER BY id").all() }))
 }
 server.post('/test/audit', async () => {

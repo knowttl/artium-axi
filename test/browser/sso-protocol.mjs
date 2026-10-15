@@ -131,3 +131,93 @@ test('replaying a completed callback cannot issue another session', async () => 
   assert.equal(evidence.sessions.length, 1)
   assert.deepEqual(evidence.audit.map(event => event.outcome), ['success', 'SSO_STATE_INVALID'])
 })
+
+async function invite(options = {}) {
+  const response = await fetch(fixture.ssoControl.replace('sso-protocol', 'sso-invitation'), {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(options),
+  })
+  assert.equal(response.status, 200)
+  return response.json()
+}
+
+const claim = path => `await page.open(base + ${JSON.stringify(path)});
+  await page.wait('[data-oidc-approve]');
+  await page.click('[data-oidc-approve]');`
+
+test('invitation claim grants direct and rule roles and a reused link is refused', async () => {
+  const invitation = await invite()
+  await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-invited' } })
+  browser(`${claim(invitation.claimPath)}
+    await page.wait('a[href="/account"]');
+    await page.click('a[href="/account"]');
+    await page.wait('section h2');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic invited user')), 'Claimed account missing');
+    await page.open(base + ${JSON.stringify(invitation.claimPath)});
+    await page.wait('main small');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Reused link accepted');
+  `)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const userId = evidence.invitations[0].user_id
+  assert.ok(evidence.invitations[0].claimed_at)
+  assert.deepEqual(evidence.grants.filter(grant => grant.user_id === userId).map(({ role_id, origin }) => ({ role_id, origin })), [
+    { role_id: 'synthetic-role', origin: 'direct' }, { role_id: 'synthetic-role', origin: 'synthetic-overlap-rule' },
+    { role_id: 'synthetic-rule-role', origin: 'synthetic-reader-rule' },
+  ])
+  assert.equal(evidence.sessions.length, 1)
+})
+
+test('wrong-username claim refuses the identity and leaves the invitation unused', async () => {
+  const invitation = await invite()
+  await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'Synthetic-Invited' } })
+  browser(`${claim(invitation.claimPath)}
+    await page.wait('main small');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Wrong username accepted');
+  `)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.invitations[0].claimed_at, null)
+  assert.equal(evidence.sessions.length, 0)
+})
+
+test('expired invitation link is refused before provider sign-in', async () => {
+  const invitation = await invite()
+  assert.equal((await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ advanceMs: 86_400_000 }) })).status, 200)
+  browser(`await page.open(base + ${JSON.stringify(invitation.claimPath)});
+    await page.wait('main small');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Expired link accepted');
+  `)
+  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.sessions.length, 0)
+  assert.equal(evidence.invitations[0].claimed_at, null)
+})
+
+test('local account linking keeps the account and role sync removes only rule access on the next sign-in', async () => {
+  const invitation = await invite({ userId: 'synthetic-development-user' })
+  await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-invited' } })
+  browser(`${claim(invitation.claimPath)}
+    await page.wait('a[href="/admin"]');
+    await page.click('a[href="/admin"]');
+    await page.wait('a[href="/admin/users/synthetic-development-user"]');
+    await page.click('a[href="/admin/users/synthetic-development-user"]');
+    await page.wait('section h2');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('From Entra rule synthetic-reader-rule') && document.querySelector('main').innerText.includes('(Direct, Rule)') && document.querySelector('main').innerText.includes('Sign-in source: SSO')), 'Linked account or grant labels missing');
+  `)
+  let evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.equal(evidence.invitations[0].user_id, 'synthetic-development-user')
+  assert.equal(evidence.users.find(user => user.id === 'synthetic-development-user').password_hash, null)
+  assert.ok(evidence.events.some(event => event.event === 'identity-link'))
+  assert.equal(evidence.grants.filter(grant => grant.user_id === 'synthetic-development-user').length, 3)
+  await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-invited', roles: [] } })
+  browser(`${claim('/auth/sso/synthetic-entra/start')}
+    await page.wait('a[href="/admin"]');
+    await page.click('a[href="/admin"]');
+    await page.wait('a[href="/admin/users/synthetic-development-user"]');
+    await page.click('a[href="/admin/users/synthetic-development-user"]');
+    await page.wait('section h2');
+    check(await page.eval(() => !document.querySelector('main').innerText.includes('From Entra rule') && document.querySelector('main').innerText.includes('(Direct)')), 'Rule labels or direct grant did not synchronize');
+  `)
+  evidence = await (await fetch(fixture.ssoEvidence)).json()
+  assert.deepEqual(evidence.grants.filter(grant => grant.user_id === 'synthetic-development-user'), [
+    { user_id: 'synthetic-development-user', role_id: 'synthetic-role', origin: 'direct' },
+  ])
+})

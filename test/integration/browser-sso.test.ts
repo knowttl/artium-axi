@@ -14,8 +14,10 @@ import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { ProviderCredentials } from '../../src/server/store/provider-credentials.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
-import { seedToolUser } from '../fixtures/tokens.js'
-import { seedBrowserSso, ssoStart, syntheticObject, syntheticTenant } from '../fixtures/sso.js'
+import { seedToolUser, issueTestAccessToken } from '../fixtures/tokens.js'
+import { seedBrowserSso, seedSsoInvitation, seedSsoRules, ssoStart, syntheticObject, syntheticTenant } from '../fixtures/sso.js'
+import { createBrowserSession } from '../../src/server/auth/sessions.js'
+import { verifyAccessToken } from '../../src/server/auth/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -44,8 +46,8 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function start() {
-  const response = await app.inject({ url: ssoStart, headers })
+async function start(path = ssoStart) {
+  const response = await app.inject({ url: path, headers })
   expect(response.statusCode).toBe(302)
   const authorization = new URL(response.headers.location!)
   expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
@@ -183,4 +185,79 @@ test.each(['/auth/sso/synthetic-entra/callback', ssoStart + '?unsupported=true']
   const response = await app.inject(request)
   expect(response.statusCode).toBe(429)
   expect(db.prepare("SELECT count(*) AS count FROM audit WHERE outcome = 'AUTH_RATE_LIMITED'").get()).toEqual({ count: 1 })
+})
+
+function invitedIdentity() {
+  fake.token.claims = { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-invited' }
+}
+
+test('claim creates an SSO account with invitation roles and matching rule grants, never administrator access', async () => {
+  invitedIdentity()
+  seedSsoRules(db)
+  const invite = seedSsoInvitation(db)
+  expect((await finish(await start(invite.claimPath))).statusCode).toBe(200)
+  const user = db.prepare("SELECT id, source, password_hash, administrator FROM users WHERE username = 'synthetic-invited'").get() as { id: string }
+  expect(user).toMatchObject({ source: 'sso', password_hash: null, administrator: 0 })
+  expect(db.prepare('SELECT role_id, origin FROM user_roles WHERE user_id = ? ORDER BY role_id, origin').all(user.id)).toEqual([
+    { role_id: 'synthetic-role', origin: 'direct' }, { role_id: 'synthetic-role', origin: 'synthetic-overlap-rule' },
+    { role_id: 'synthetic-rule-role', origin: 'synthetic-reader-rule' },
+  ])
+  expect(db.prepare('SELECT event FROM audit ORDER BY id').all()).toEqual([{ event: 'invite-claim' }, { event: 'role-sync' }, { event: 'sign-in' }])
+})
+
+test.each(['wrong username', 'expired during exchange', 'revoked during exchange', 'resent during exchange', 'already claimed'])('claim refuses %s without consuming a valid invitation or granting access', async failure => {
+  invitedIdentity()
+  const invite = seedSsoInvitation(db)
+  if (failure === 'wrong username') fake.token.claims!.preferred_username = 'Synthetic-Invited'
+  const transaction = await start(invite.claimPath)
+  if (failure === 'expired during exchange') db.prepare('UPDATE invitations SET expires_at = ? WHERE id = ?').run(Date.now(), invite.id)
+  if (failure === 'revoked during exchange') db.prepare('UPDATE invitations SET revoked_at = ? WHERE id = ?').run(Date.now(), invite.id)
+  if (failure === 'resent during exchange') db.prepare('UPDATE invitations SET token_hash = ? WHERE id = ?').run('rotated', invite.id)
+  if (failure === 'already claimed') expect((await finish(await start(invite.claimPath))).statusCode).toBe(200)
+  expect((await finish(transaction)).body).toContain('SSO_INVITE_INVALID')
+  expect(db.prepare("SELECT count(*) AS count FROM sessions").get()).toEqual({ count: failure === 'already claimed' ? 1 : 0 })
+  if (failure === 'wrong username') expect(db.prepare('SELECT claimed_at FROM invitations WHERE id = ?').get(invite.id)).toEqual({ claimed_at: null })
+})
+
+test('local link preserves user id, name, administrator and direct roles, removes password and revokes old sessions and tokens', async () => {
+  invitedIdentity()
+  const userId = 'synthetic-development-user'
+  const session = createBrowserSession(db, userId, 'synthetic-csrf')
+  const token = issueTestAccessToken(db, userId)
+  const invite = seedSsoInvitation(db, { userId })
+  expect((await finish(await start(invite.claimPath))).statusCode).toBe(200)
+  expect(db.prepare('SELECT username, display_name, password_hash, source, must_change FROM users WHERE id = ?').get(userId))
+    .toEqual({ username: 'synthetic-user', display_name: 'Synthetic User', password_hash: null, source: 'sso', must_change: 0 })
+  expect(() => readBrowserSession(db, session.id)).toThrow()
+  expect(() => verifyAccessToken(db, token)).toThrow()
+  expect(db.prepare('SELECT user_id FROM identities WHERE subject = ?').get(`${syntheticTenant}:44444444-4444-4444-8444-444444444444`)).toEqual({ user_id: userId })
+  expect(db.prepare("SELECT event FROM audit WHERE event = 'identity-link'").get()).toEqual({ event: 'identity-link' })
+})
+
+test('sign-in removes only this provider rule grants while retaining direct and other-provider grants', async () => {
+  seedSsoRules(db)
+  db.exec(`INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-browser-sso', 'synthetic-role');
+    INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('other-provider', 'Synthetic other', 'oidc', 'https://other.example');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('other-rule', 'other-provider', 'roles', 'Other', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id, origin) VALUES ('synthetic-browser-sso', 'synthetic-role', 'other-rule')`)
+  expect((await finish(await start())).statusCode).toBe(200)
+  fake.token.claims = { roles: [] }
+  expect((await finish(await start())).statusCode).toBe(200)
+  expect(db.prepare("SELECT origin FROM user_roles WHERE user_id = 'synthetic-browser-sso' ORDER BY origin").all())
+    .toEqual([{ origin: 'direct' }, { origin: 'other-rule' }])
+  expect(db.prepare("SELECT arguments FROM audit WHERE event = 'role-sync' ORDER BY id DESC LIMIT 1").get()).toEqual({
+    arguments: JSON.stringify({ added: [], removed: ['synthetic-overlap-rule', 'synthetic-reader-rule'] }),
+  })
+})
+
+test('claim audit failure rolls back invitation consumption, identity, account and grants', async () => {
+  invitedIdentity()
+  seedSsoRules(db)
+  const invite = seedSsoInvitation(db)
+  const transaction = await start(invite.claimPath)
+  db.exec("CREATE TRIGGER synthetic_claim_audit_failure BEFORE INSERT ON audit WHEN NEW.event = 'invite-claim' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
+  expect((await finish(transaction)).body).toContain('AUDIT_UNAVAILABLE')
+  expect(db.prepare('SELECT claimed_at, user_id FROM invitations WHERE id = ?').get(invite.id)).toEqual({ claimed_at: null, user_id: null })
+  expect(db.prepare("SELECT id FROM users WHERE username = 'synthetic-invited'").get()).toBeUndefined()
+  expect(db.prepare('SELECT count(*) AS count FROM sessions').get()).toEqual({ count: 0 })
 })

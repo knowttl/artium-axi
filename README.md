@@ -509,7 +509,8 @@ On a provider page, add, edit or remove role rules mapping an exact, case-sensit
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
 Every rule change requires recent password confirmation and is audited atomically; stale edits require reloading the page.
-Rules are stored only and do not change existing user grants in this slice.
+At each Entra sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
+User details label Direct and Rule grants and identify the Entra rule that supplied each rule grant.
 A rule with existing rule-origin grants cannot be removed or retargeted until those grants are removed.
 Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected Entra username, direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
@@ -521,7 +522,12 @@ Resend replaces the old link and starts a new expiry period, including for expir
 Every mutation requires administrator capability and recent password confirmation, checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
 Lists never return link tokens or hashes; expiry is evaluated when read.
 The [invitation API contracts](src/shared/api.ts) own the request and response fields.
-Invitation claiming and role evaluation at sign-in remain unavailable; see the remaining slices in [browser SSO protocol verification](docs/verification-p3b.md).
+When a provider is enabled, its invitation link starts browser sign-in and requires an exact, case-sensitive match of the expected username.
+Claiming atomically binds the immutable Entra identity, consumes the invitation, adds its direct roles and synchronizes rule roles.
+Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
+An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
+Claim, link, role-sync and sign-in audit events commit with the account and session changes.
+See [browser SSO protocol verification](docs/verification-p3b.md) for fake-provider evidence and the remaining activation slice.
 CLI SSO and generic OIDC discovery follow in later phases.
 
 ### Audit screen and API

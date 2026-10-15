@@ -108,7 +108,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
     const form = (action: string, label: string, fields: string, confirmation: string, link = false) =>
       apiForm(csrf, action, 'POST', label, fields, confirmation, link ? 'data-invitation-link' : '')
     const content = `<p><a href="/admin">Back to users</a> | <a href="/admin/settings/sign-in">Sign-in settings</a></p>
-      <p>SSO remains disabled. You can prepare invitations now; links can be claimed after browser SSO is available and an administrator enables the provider. Nothing is emailed automatically.</p>
+      <p>Invitation links start Entra sign-in when the provider is enabled. Providers remain disabled until safe activation is available. Nothing is emailed automatically.</p>
       <section><h2>${user ? 'Link local user to SSO' : 'Invite SSO user'}</h2>${user ? `<p>Linking ${escape(user.username)} keeps the existing account and history. No password, roles or sessions change until the invitation is claimed.</p>` : '<p>Create an account invitation. No account or tool access is created until it is claimed. To link an existing local account, open that user and choose Link to SSO.</p>'}
       ${providers.length ? form(adminInvitationRoutes.create.path, 'Create invitation',
         `<label>Provider<select name="providerId" required>${providers.map(provider => `<option value="${escape(provider.id)}">${escape(provider.name)}</option>`).join('')}</select></label>
@@ -128,7 +128,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
             form(action + '/revoke', 'Revoke invitation', revision(invitation.revision), 'Revoke this invitation? The link can no longer be claimed. Existing accounts and access are unchanged.') : ''}</details>`
       }).join('') : '<p>No invitations yet. Create one above.</p>'}
       <p><a href="/admin/invitations">First page</a>${nextCursor ? ` | <a href="/admin/invitations?cursor=${escape(encodeURIComponent(nextCursor))}">Next page</a>` : ''}</p></section>
-      <dialog id="invitation-link" aria-labelledby="invitation-link-title"><h2 id="invitation-link-title">Copy invitation link now</h2><p>This link is shown once. Send it securely to the expected user. SSO is not available yet.</p><label>Invitation link<textarea data-claim-link readonly rows="4"></textarea></label><form method="dialog"><button>Done</button></form></dialog>`
+      <dialog id="invitation-link" aria-labelledby="invitation-link-title"><h2 id="invitation-link-title">Copy invitation link now</h2><p>This link is shown once. Send it securely to the expected user. The provider must be enabled before it can be claimed.</p><label>Invitation link<textarea data-claim-link readonly rows="4"></textarea></label><form method="dialog"><button>Done</button></form></dialog>`
     return browserPage(reply, 'Invitations', content, current)
   })
 }
