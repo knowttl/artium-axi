@@ -17,7 +17,7 @@ A server restart invalidates pending sign-ins.
 Provider or credential revision changes invalidate pending sign-ins.
 ID token signatures are checked against JWKS, with exact issuer, audience, authorized party when present, expiry, issue time and nonce validation.
 Entra identity lookup uses provider, issuer and the immutable `tid:oid` subject.
-Unknown identities are refused without account creation or automatic username linking.
+Without a valid invitation, unknown identities are refused without account creation or automatic username linking.
 Provider tokens are discarded after validation and never stored in artium sessions or audit.
 Successful session creation and its sign-in audit event commit atomically.
 Invitation links bind their hashed token to the pre-auth transaction and are checked again after token exchange.

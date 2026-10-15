@@ -229,7 +229,8 @@ export const adminProviderRoutes = {
     auditEvent: 'replace-provider-credential' },
 } as const
 
-// Rules are stored only in P2; sign-in evaluation follows separately.
+// Deletion or changes to mapping fields atomically clear only that rule's grants,
+// including archived users' grants. Direct grants and other rule origins survive.
 const roleRuleSettingsSchema = z.strictObject({ providerId: accountId, claim: z.literal('roles'),
   value: z.string().trim().min(1).max(256), roleId: accountId })
 export const adminRoleRuleSchema = roleRuleSettingsSchema.extend({ id: accountId,

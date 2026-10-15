@@ -440,7 +440,8 @@ Saving a user's roles replaces direct assignments and preserves grants originati
 The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](#sign-in-settings) for the available provider editor and current SSO limits.
 SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
-Archived user detail allows retained direct assignments to be removed without restoring sign-in; rule grants remain, and the UI and API refuse new direct assignments, including reassigning a removed direct grant.
+Archived user detail allows retained direct assignments to be removed without restoring sign-in; the UI and API refuse new direct assignments, including reassigning a removed direct grant.
+See [Sign-in settings](#sign-in-settings) for removing rule-origin grants.
 Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
 Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
 Deletion removes its tool grants and records an audit event.
