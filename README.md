@@ -558,7 +558,8 @@ CSV quotes non-null values and leaves null fields empty; JSON lines preserves JS
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Successful browser and bearer-token password confirmations emit `reauth` events.
+Successful local password confirmations and SSO browser confirmations emit `reauth` events.
+SSO reauthentication events include the authentication method, provider and validated subject.
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.

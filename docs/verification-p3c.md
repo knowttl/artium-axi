@@ -10,7 +10,7 @@ CLI SSO/device approval and generic OIDC remain later phases.
 ## Behaviour
 
 Each new SSO browser session stores its sign-in identity reference, without retaining provider tokens.
-Existing sessions without that reference must sign in again before SSO confirmation or provider sign-out can work.
+See the [upgrade runbook](runbook.md#backup-restore-and-upgrade-rollback) for existing-session compatibility.
 Explicit reauthentication uses the same authorization code, PKCE, nonce, state and bounded single-use transaction protocol as sign-in, with `prompt=login`.
 It requires an integer `auth_time` at or after the transaction start, allowing at most 30 seconds of future clock skew.
 It must return the same immutable identity and revalidate the initiating session, user, identity, provider and credential revision before granting recent-auth privilege.

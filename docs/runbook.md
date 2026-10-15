@@ -174,7 +174,7 @@ Follow [browser administration](../README.md#browser-administration) to create l
 Grant changes apply on the next call, including calls using existing tokens.
 Users with no enabled granted tools receive an explanatory empty list.
 Review actor, change time and revision before saving; reload stale forms instead of overwriting newer edits.
-See [browser administration](../README.md#browser-administration) for timestamp display and inline password confirmation.
+See [browser administration](../README.md#browser-administration) for timestamp display and inline identity confirmation.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](../README.md#browser-administration) for guided fields and combined certificate PEM uploads.
@@ -403,6 +403,9 @@ Reopening an upgraded store does not reapply migrations or enable SSO providers.
 Migration 014 adds encrypted provider credential storage without rewriting existing identity or tool data.
 Provider credentials participate in startup authentication, offline master-key rotation, backup and restore with the same AES-256-GCM format as tool credentials.
 Follow [Sign-in settings](../README.md#sign-in-settings) for provider setup and credential replacement rules.
+Migration 016 adds a sign-in identity reference to browser sessions without backfilling existing sessions.
+Existing SSO sessions must sign in again before SSO confirmation or optional Microsoft sign-out can work.
+Local sessions retain their existing confirmation flow.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
 After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.
