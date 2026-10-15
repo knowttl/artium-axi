@@ -11,13 +11,17 @@ export async function ssoLogin(client: Client) {
   process.stdout.write(`status: approval-required\nopen: ${JSON.stringify(device.verificationUri)}\ncode: ${device.userCode}\nexpires: ${new Date(device.expiresAt).toISOString()}\n`)
   process.stderr.write('Waiting for browser approval. Approve only the code shown on your own terminal.\n')
   while (Date.now() < device.expiresAt) {
-    const response = devicePollResponseSchema.safeParse(await client.request('/v1/auth/device/poll', 'POST', { deviceCode: device.deviceCode }))
-    if (!response.success || response.data.status === 'password-change-required') throw new ArtiumError('INVALID_RESPONSE')
-    if (response.data.status === 'authenticated') {
-      const session = response.data
-      await client.sessions.locked(async () => { client.sessions.write(session) })
-      process.stdout.write(`status: authenticated\nsession-ends: ${new Date(session.familyExpiresAt).toISOString()}\nnext: artium-axi tools\n`)
-      return
+    try {
+      const response = devicePollResponseSchema.safeParse(await client.request('/v1/auth/device/poll', 'POST', { deviceCode: device.deviceCode }))
+      if (!response.success || response.data.status === 'password-change-required') throw new ArtiumError('INVALID_RESPONSE')
+      if (response.data.status === 'authenticated') {
+        const session = response.data
+        await client.sessions.locked(async () => { client.sessions.write(session) })
+        process.stdout.write(`status: authenticated\nsession-ends: ${new Date(session.familyExpiresAt).toISOString()}\nnext: artium-axi tools\n`)
+        return
+      }
+    } catch (error) {
+      if (!(error instanceof ArtiumError) || error.code !== 'DEVICE_POLL_LIMITED') throw error
     }
     await setTimeout(Math.min(device.intervalMs, Math.max(0, device.expiresAt - Date.now())))
   }
