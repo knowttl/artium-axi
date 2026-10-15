@@ -11,6 +11,7 @@ import { identityView, toolsView, toolView } from './views.js'
 import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
 import { toolInput } from './input.js'
+import { ssoLogin } from './device.js'
 
 async function main(args: string[]) {
   const prefixHelp = args[0] === '--help'
@@ -27,6 +28,10 @@ async function main(args: string[]) {
   }
   if (command === 'login' || command === 'passwd') {
     const remaining = args.slice(1)
+    if (command === 'login' && remaining.length === 1 && remaining[0] === '--sso') {
+      await ssoLogin(new Client())
+      return
+    }
     let stdin = false
     let username: string | undefined
     let invalid = false
@@ -38,7 +43,7 @@ async function main(args: string[]) {
     }
     if (invalid || (command === 'login' && !username)) {
       throw new ArtiumError('INVALID_INPUT', 'Invalid sign-in arguments. Password arguments are refused.',
-        command === 'login' ? 'Use artium-axi login --username <username> --password-stdin.' : 'Use artium-axi passwd --password-stdin.')
+        command === 'login' ? 'Use artium-axi login --sso or artium-axi login --username <username> --password-stdin.' : 'Use artium-axi passwd --password-stdin.')
     }
     const client = new Client()
     if (command === 'login') {

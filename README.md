@@ -348,6 +348,7 @@ The root package is private; server downloads and source builds are the installa
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
 | `artium-axi login --username synthetic-user` | Sign in with a local account. |
+| `artium-axi login --sso` | Sign in through browser approval with Microsoft; works on headless and SSH hosts. |
 | `artium-axi passwd` | Change your password, then sign in again. |
 | `artium-axi whoami` | Show identity, roles, access expiry and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
@@ -554,7 +555,16 @@ Linking preserves the existing user id, username, display name, administrator fl
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
 See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) and [P3 activation verification](docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
-CLI SSO and generic OIDC discovery follow in later phases.
+For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
+Open the displayed `/device` URL in any browser, enter the terminal code, complete a fresh Microsoft sign-in, and review the requesting IP and UTC time before choosing **Approve**.
+Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
+Choose **This wasn't me** to deny an unexpected request.
+Codes expire after 10 minutes and can grant access only once.
+The CLI waits for approval, stores the usual private artium tokens, and signs in again after its 8-hour family ends.
+No Entra public-client or device-code grant configuration is required; this is artium's own approval flow.
+Restarting artium invalidates pending approvals; run `login --sso` again.
+Bearer SSO reauthentication follows in P4b; generic OIDC follows in P5.
+See [CLI device sign-in verification](docs/verification-p4a.md) for the approved phase split and fake-provider evidence.
 
 ### Audit screen and API
 
@@ -649,7 +659,7 @@ Never put tokens or keys in arguments, source files, images or logs.
 The server refuses the removed development-authentication settings `ARTIUM_AXI_DEV` and `ARTIUM_AXI_DEV_TOKEN_FILE`.
 
 Local passwords use Argon2id, require 15 to 128 code points and at most 512 UTF-8 bytes, preserve spaces and Unicode, and reject exact matches in the bundled common-password list.
-Access tokens last one hour within a 12-hour family; refresh-token reuse revokes the family.
+Access tokens last one hour within an 8-hour SSO CLI family or a 12-hour local CLI family; refresh-token reuse revokes the family.
 Password changes revoke existing CLI tokens and browser sessions.
 See [browser administration](#browser-administration) for session management and user archival.
 Sign-in limits and persistent account lockout are enforced by the [attempt boundary](src/server/auth/attempts.ts) and [configured defaults](src/server/config.ts).

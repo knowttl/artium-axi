@@ -34,6 +34,7 @@ import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
 import { registerSso, type SsoFetch } from './auth/sso.js'
+import { registerDevice } from './auth/device.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -61,7 +62,8 @@ export function createApp(options: {
     trustProxy: address => proxies.includes(address) })
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
-  const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch)
+  const device = registerDevice(app, db, audit)
+  const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {

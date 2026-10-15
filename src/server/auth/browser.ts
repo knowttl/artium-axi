@@ -19,7 +19,7 @@ import { accountContent } from '../admin/account.js'
 
 export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
-const pages = ['/login', '/logout', '/password', '/reauth', '/admin', '/account']
+const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession) {
   const sso = current?.source === 'sso'

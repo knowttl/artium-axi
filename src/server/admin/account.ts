@@ -22,9 +22,9 @@ curl --fail --output artium-axi.mjs "$ARTIUM_AXI_URL/cli/artium-axi.mjs" &&
 curl --fail --output artium-axi.mjs.sha256 "$ARTIUM_AXI_URL/cli/artium-axi.mjs.sha256" &&
 sha256sum --check artium-axi.mjs.sha256 &&
 chmod 755 artium-axi.mjs`)}</pre><p>Stop if download or verification fails. The checksum detects corruption; trust the server URL first.</p>
-    <pre>${escape(`./artium-axi.mjs login --username ${shellQuote(current.username)}
+    <pre>${escape(`${current.source === 'sso' ? './artium-axi.mjs login --sso' : './artium-axi.mjs login --username ' + shellQuote(current.username)}
 ./artium-axi.mjs tools
-./artium-axi.mjs setup --host codex`)}</pre><p>Login prompts for your password without displaying it. If a temporary password must be changed, run ./artium-axi.mjs passwd, then sign in again. Setup installs the agent skill; use --host claude or --host opencode for those hosts. SSO sign-in is not available in this phase.</p></section>
+./artium-axi.mjs setup --host codex`)}</pre><p>${current.source === 'sso' ? 'Open the displayed /device URL in any browser, enter your terminal code, sign in with Microsoft and review the requesting IP and time. Approve only a request you started on a device you control. Choose “This wasn\'t me” for an unexpected request. Codes expire after 10 minutes; CLI access ends after 8 hours and requires a new sign-in. This works on headless and SSH hosts without enabling the Entra device-code grant.' : 'Login prompts for your password without displaying it. If a temporary password must be changed, run ./artium-axi.mjs passwd, then sign in again.'} Setup installs the agent skill; use --host claude or --host opencode for those hosts.</p></section>
     ${sessionTable(csrf, '/v1/account/sessions', listUserSessions(db, current.user_id, current.family_id).sessions)}`
 }
 

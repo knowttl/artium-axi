@@ -3,6 +3,8 @@ import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
 import { createServer } from 'node:net'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
 
 const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-sso-${process.pid}`,
@@ -97,6 +99,89 @@ function openReauthPopup() {
     await page.click('[data-sso-reauth-start]');
     await page.wait('[data-oidc-approve]');`)
 }
+
+function cli(args) {
+  const child = spawn(process.execPath, ['dist/cli/artium-axi.mjs', ...args], {
+    env: { PATH: process.env.PATH, XDG_CONFIG_HOME: fixture.clientHome, ARTIUM_AXI_URL: fixture.url, ARTIUM_AXI_CA_FILE: fixture.caFile },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  let stdout = ''
+  let stderr = ''
+  child.stdout.on('data', chunk => { stdout += chunk })
+  child.stderr.on('data', chunk => { stderr += chunk })
+  const result = once(child, 'close', { signal: AbortSignal.timeout(30_000) }).then(([code]) => ({ code, stdout, stderr }))
+  return { child, result }
+}
+
+async function cliDeviceCode(child) {
+  const lines = createInterface({ input: child.stdout })
+  try {
+    for await (const line of lines) {
+      if (line.startsWith('code: ')) return line.slice(6)
+    }
+    throw new Error('CLI exited without an approval code')
+  } finally { lines.close() }
+}
+
+for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device sign-in: ${decision}`, async () => {
+  const login = cli(['login', '--sso'])
+  try {
+    const code = await cliDeviceCode(login.child)
+    if (decision === 'expire') {
+      const response = await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: 600_000 }) })
+      assert.equal(response.status, 200)
+      browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
+        await page.wait('main');
+        check(await page.eval(() => document.body.textContent.includes('DEVICE_CODE_EXPIRED')), 'browser did not report expiry');`)
+    } else browser(`await page.open(base + '/device');
+      await page.fill('[name=code]', ${JSON.stringify(code)});
+      await page.click('form[action="/device"] button');
+      await page.wait('[data-device-sso]');
+      await page.click('[data-device-sso]');
+      await page.wait('[data-oidc-approve]');
+      await page.click('[data-oidc-approve]');
+      await page.wait('a[href^="/device?code="]');
+      await page.click('a[href^="/device?code="]');
+      await page.wait('button[value=approve]');
+      check(await page.eval(() => document.body.textContent.includes('Requesting IP: 127.0.0.1') && document.body.textContent.includes('Requested:') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
+      check(await page.eval(() => document.querySelector('button[value=deny]').textContent === "This wasn't me"), 'denial action missing');
+      check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'device page overflows');
+      await page.click('button[value=${decision}]');
+      await page.wait('main');`)
+    const result = await login.result
+    const sessionFile = join(fixture.clientHome, 'artium-axi', 'session.json')
+    if (decision === 'approve') {
+      assert.equal(result.code, 0, result.stdout + result.stderr)
+      assert.match(result.stdout, /status: authenticated/)
+      const session = JSON.parse(readFileSync(sessionFile, 'utf8'))
+      assert.ok(!result.stdout.includes(session.accessToken) && !result.stdout.includes(session.refreshToken))
+      const me = await cli(['whoami']).result
+      assert.equal(me.code, 0, me.stdout + me.stderr)
+      assert.match(me.stdout, /synthetic-browser-sso/)
+      browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
+        await page.wait('main');
+        check(await page.eval(() => document.body.textContent.includes('DEVICE_CODE_INVALID')), 'consumed approval was reusable');`)
+      browser(`await page.open(base + '/account');
+        await page.wait('main');
+        check(await page.eval(() => document.body.textContent.includes('login --sso') && document.body.textContent.includes('headless and SSH')), 'account CLI instructions missing');`)
+    } else {
+      assert.equal(result.code, 1, result.stdout + result.stderr)
+      assert.match(result.stdout, decision === 'deny' ? /DEVICE_DENIED/ : /DEVICE_CODE_EXPIRED/)
+      assert.equal(existsSync(sessionFile), false)
+    }
+  } finally { if (login.child.exitCode === null) login.child.kill() }
+})
+
+test('bundled CLI reports device creation rate limits without storing a session', async () => {
+  for (let index = 0; index < 30; index++) {
+    const response = await fetch(new URL('/v1/auth/device', fixture.clock), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+    assert.equal(response.status, 200)
+  }
+  const result = await cli(['login', '--sso']).result
+  assert.equal(result.code, 1, result.stdout + result.stderr)
+  assert.match(result.stdout, /AUTH_RATE_LIMITED/)
+  assert.equal(existsSync(join(fixture.clientHome, 'artium-axi', 'session.json')), false)
+})
 
 test('SSO identity confirmation resumes the pending form through the real popup and Strict-cookie hop', async () => {
   await configure({ administrator: true })

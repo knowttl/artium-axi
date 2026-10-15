@@ -26,6 +26,10 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | SSO_NOT_INVITED | artium-axi | 403 | 1 | This identity is not linked to an artium account. | Ask an administrator for an invitation and open its link to sign in. |
 | SSO_INVITE_INVALID | artium-axi | 403 | 1 | This invitation cannot be claimed by this identity. | Use the expected sign-in username or ask an administrator for a new invitation link. |
 | SSO_PROVIDER_ERROR | artium-axi | 503 | 1 | SSO sign-in is unavailable. | Ask an administrator to check the provider configuration or try again later. |
+| DEVICE_CODE_INVALID | artium-axi | 400 | 1 | The device code is invalid or was already used. | Run artium-axi login --sso to start a new request. |
+| DEVICE_CODE_EXPIRED | artium-axi | 400 | 1 | The device request expired. | Run artium-axi login --sso to start a new request. |
+| DEVICE_DENIED | artium-axi | 403 | 1 | The device request was denied. | Start a new sign-in only if you requested it. |
+| DEVICE_POLL_LIMITED | artium-axi | 429 | 1 | The device request was polled too quickly. | Wait for the requested polling interval before polling again. |
 | AUTH_RATE_LIMITED | artium-axi | 429 | 1 | The authentication attempt limit was reached. | Wait 15 minutes before trying again. |
 | ACCOUNT_LOCKED | artium-axi | 429 | 1 | The account is temporarily locked. | Wait 15 minutes or ask an administrator to unlock the account. |
 | REAUTH_REQUIRED | artium-axi | 401 | 1 | Recent identity confirmation is required. | In the browser, confirm at /reauth using Microsoft for SSO or your local password. Local CLI users confirm their password through /v1/auth/reauth. |

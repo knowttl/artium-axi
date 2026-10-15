@@ -34,6 +34,13 @@ export const loginResponseSchema = z.discriminatedUnion('status', [
     passwordChangeExpiresAt: z.number().int() }),
 ])
 export type LoginResponse = z.infer<typeof loginResponseSchema>
+// Artium approval, not the identity provider's device-code grant. Codes expire in
+// ten minutes and are single use; pending requests are invalidated on server restart.
+export const deviceUserCodeSchema = z.string().trim().toUpperCase().regex(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/)
+export const devicePollSchema = z.strictObject({ deviceCode: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
+export const deviceStartResponseSchema = z.strictObject({ deviceCode: z.string(), userCode: deviceUserCodeSchema,
+  verificationUri: z.string().url(), expiresAt: z.number().int(), intervalMs: z.number().int().min(1000).max(30_000) })
+export const devicePollResponseSchema = z.union([z.strictObject({ status: z.literal('pending') }), loginResponseSchema])
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)

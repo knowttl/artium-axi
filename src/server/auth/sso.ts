@@ -13,6 +13,8 @@ import { entraCredential } from './entra-credential.js'
 import { browserCookie, browserPage, cookieOptions } from './browser.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, type BrowserSession } from './sessions.js'
 import { hashToken, revokeUserSessions } from './tokens.js'
+import { deviceUserCodeSchema } from '../../shared/api.js'
+import type { registerDevice } from './device.js'
 
 export type SsoFetch = NonNullable<oidc.DiscoveryRequestOptions[typeof oidc.customFetch]>
 const preauthCookie = 'artium-sso'
@@ -20,13 +22,14 @@ const preauthOptions = { ...cookieOptions, path: '/auth/sso/', sameSite: 'lax' }
 type Provider = { id: string, issuer: string, revision: number }
 type Pending = { provider: Provider, credentialRevision: number, config: oidc.Configuration, state: string,
   nonce: string, verifier: string, redirectUri: string, expiresAt: number, invitationHash?: string,
+  device?: { code: string, startedAt: number },
   reauth?: { sessionToken: string, userId: string, identityId: string, subject: string, startedAt: number } }
 type Invitation = { id: string, expected_username: string, display_name: string, user_id: string | null }
 
 // Transactions are process-local, bounded and consumed before any asynchronous exchange.
 // Restarting the server invalidates outstanding sign-ins; tokens never enter the store.
 export function registerSso(app: FastifyInstance, db: Database.Database, audit: Audit,
-  credentials?: ProviderCredentials, transport?: SsoFetch) {
+  credentials?: ProviderCredentials, transport?: SsoFetch, devices?: ReturnType<typeof registerDevice>) {
   const pending = new Map<string, Pending>()
   const limits = new AuthRateLimits()
   const context = (request: FastifyRequest, providerId: string) => ({ event: 'sign-in' as 'sign-in' | 'reauth',
@@ -76,9 +79,12 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       limits.admitAddress(request.ip)
       for (const [key, transaction] of pending) if (transaction.expiresAt <= Date.now()) pending.delete(key)
       if (pending.size >= ssoDefaults.pendingLimit) throw new ArtiumError('AUTH_RATE_LIMITED')
-      const query = z.object({ invitation: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(), reauth: z.literal('1').optional() }).strict().safeParse(request.query)
+      const query = z.object({ invitation: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(), reauth: z.literal('1').optional(),
+        device: deviceUserCodeSchema.optional() }).strict().safeParse(request.query)
       if (!query.success) throw new ArtiumError('INVALID_INPUT')
       if (query.data.reauth && query.data.invitation) throw new ArtiumError('INVALID_INPUT')
+      if (query.data.device && (query.data.reauth || query.data.invitation || !devices)) throw new ArtiumError('INVALID_INPUT')
+      if (query.data.device) devices!.validate(query.data.device)
       const current = provider(request.params.provider)
       let reauth: Pending['reauth']
       if (query.data.reauth) {
@@ -98,12 +104,13 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       const transaction: Pending = { provider: current, credentialRevision, config,
         state: oidc.randomState(), nonce: oidc.randomNonce(), verifier,
         redirectUri: `https://${request.host}/auth/sso/${encodeURIComponent(current.id)}/callback`,
-        expiresAt: Date.now() + ssoDefaults.transactionMs, invitationHash, reauth }
+        expiresAt: Date.now() + ssoDefaults.transactionMs, invitationHash, reauth,
+        ...(query.data.device ? { device: { code: query.data.device, startedAt: Math.floor(Date.now() / 1000) } } : {}) }
       unchanged(transaction)
       const url = oidc.buildAuthorizationUrl(config, { response_type: 'code', response_mode: 'query', scope: 'openid profile',
         redirect_uri: transaction.redirectUri, state: transaction.state, nonce: transaction.nonce,
         code_challenge_method: 'S256', code_challenge: await oidc.calculatePKCECodeChallenge(verifier),
-        ...(reauth ? { prompt: 'login' } : {}) })
+        ...(reauth || transaction.device ? { prompt: 'login' } : {}) })
       const handle = randomBytes(32).toString('base64url')
       if (pending.size >= ssoDefaults.pendingLimit) throw new ArtiumError('AUTH_RATE_LIMITED')
       if (request.cookies[preauthCookie]) pending.delete(hashToken(request.cookies[preauthCookie]!))
@@ -150,6 +157,11 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         throw new ArtiumError('SSO_TOKEN_INVALID')
       }
       subject = `${identity.data.tid}:${identity.data.oid}`
+      if (transaction.device) {
+        const authTime = z.number().int().min(transaction.device.startedAt).max(Math.floor(Date.now() / 1000) + 30).safeParse(claims?.auth_time)
+        if (!authTime.success) throw new ArtiumError('SSO_TOKEN_INVALID')
+        devices!.validate(transaction.device.code)
+      }
       if (transaction.reauth) {
         const proof = transaction.reauth
         const authTime = z.number().int().min(proof.startedAt).max(Math.floor(Date.now() / 1000) + 30).safeParse(claims?.auth_time)
@@ -224,8 +236,9 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         return created
       }).value
       reply.setCookie(browserCookie, session.id, cookieOptions).setCookie('_csrf', csrfSecret, cookieOptions)
+      if (transaction.device) devices!.signedIn(transaction.device.code, session.id)
       // A document and user navigation establish a same-site hop before Strict cookies are needed.
-      return browserPage(reply, 'Sign-in complete', `<p>Your identity has been verified.</p><p><a href="${escape(session.administrator ? '/admin' : '/account')}">Continue to artium</a></p>`)
+      return browserPage(reply, 'Sign-in complete', `<p>Your identity has been verified.</p><p><a href="${escape(transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account')}">Continue to artium</a></p>`)
     } catch (error) {
       const failure = error instanceof ArtiumError ? error : new ArtiumError('SSO_PROVIDER_ERROR')
       audit.record({ ...event, userId, subject, outcome: failure.code })

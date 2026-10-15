@@ -236,6 +236,10 @@ test.each([
   ['login', '--username', 'synthetic-user', '--unknown'],
   ['login', '--username', 'synthetic-user', '--username', 'synthetic-user'],
   ['login', '--username', 'synthetic-user', '--password-stdin', '--password-stdin'],
+  ['login', '--sso', '--username', 'synthetic-user'],
+  ['login', '--sso', '--password-stdin'],
+  ['login', '--sso', '--sso'],
+  ['passwd', '--sso'],
 ].map(args => ({ args })))('password and unknown arguments are refused without token output: $args', async ({ args }) => {
   const result = await cli(args)
   expect(result).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '' })
