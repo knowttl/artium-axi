@@ -43,6 +43,7 @@ export const adminUserSchema = z.strictObject({
   failedAttempts: z.number().int().nonnegative(), lockedUntil: z.number().int().nullable(),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(),
   roleIds: z.array(accountId),
+  roleGrants: z.array(z.strictObject({ roleId: accountId, origin: z.string().min(1) })),
   archivedAt: z.number().int().nullable(),
 })
 const adminPageQuerySchema = z.strictObject({ cursor: accountId.optional(), limit: z.coerce.number().int().min(1).max(100).default(50) })

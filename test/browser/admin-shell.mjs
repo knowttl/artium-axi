@@ -588,12 +588,22 @@ test('SSO user direct-role edits preserve rule access and offer no password rese
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="3"]');
     check(await page.eval(() => document.querySelector('[name=roleIds][type=checkbox]').checked), 'Direct role was not saved alongside rule grant');
+    check(await page.eval(() => document.querySelector('table caption').closest('table').innerText.includes('(Direct, Rule)')), 'Effective tools lost an overlapping grant origin');
+    await page.open(base + '/admin/roles/synthetic-role');
+    check(await page.eval(() => document.querySelector('a[href="/admin/users/synthetic-sso"]').closest('tr').innerText.includes('Direct, Rule')), 'Role membership lost an overlapping grant origin');
+    await page.open(base + '/admin/users/synthetic-sso');
     await page.click('[name=roleIds][type=checkbox]');
     await page.click('form[action$="/roles"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="4"]');
     check(await page.eval(() => !document.querySelector('[name=roleIds][type=checkbox]').checked && document.querySelector('main').innerText.includes('(Rule)')), 'Removing direct role did not retain rule grant');
+    await page.click('form[action$="/archive"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action="/v1/admin/users"]');
+    await page.open(base + '/admin/users/synthetic-sso');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('(Rule)') && document.querySelector('main').innerText.includes('No direct roles remain.') && !document.querySelector('main').innerText.includes('No retained roles remain.')), 'Archived user lost retained rule provenance');
   `)
 })
 

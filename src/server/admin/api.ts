@@ -44,14 +44,15 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const row = db.prepare(`SELECT id, username, display_name AS displayName, source, disabled, administrator,
       must_change AS mustChange, failed_attempts AS failedAttempts, locked_until AS lockedUntil,
       revision, updated_at AS updatedAt, updated_by AS updatedBy, archived_at AS archivedAt FROM users WHERE id = ?`).get(id) as
-      (Omit<PublicUser, 'enabled' | 'administrator' | 'mustChange' | 'roleIds'> &
+      (Omit<PublicUser, 'enabled' | 'administrator' | 'mustChange' | 'roleIds' | 'roleGrants'> &
         { disabled: number, administrator: number, mustChange: number }) | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     const { disabled, ...fields } = row
-    const roleIds = (db.prepare('SELECT DISTINCT role_id FROM user_roles WHERE user_id = ? ORDER BY role_id').all(id) as { role_id: string }[])
-      .map(role => role.role_id)
+    const roleGrants = db.prepare('SELECT role_id AS roleId, origin FROM user_roles WHERE user_id = ? ORDER BY role_id, origin')
+      .all(id) as PublicUser['roleGrants']
+    const roleIds = [...new Set(roleGrants.map(grant => grant.roleId))]
     return adminUserSchema.parse({ ...fields, enabled: !disabled, administrator: Boolean(row.administrator),
-      mustChange: Boolean(row.mustChange), roleIds })
+      mustChange: Boolean(row.mustChange), roleIds, roleGrants })
   }
 
   registerToolAdmin(app, db, audit, authorize, tools)
@@ -172,8 +173,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       JOIN tools ON tools.name = role_tools.tool WHERE user_roles.user_id = ? ORDER BY role_tools.tool, user_roles.role_id`)
       .all(id) as { name: string, enabled: number, roleId: string }[]
     const names = [...new Set(grants.map(grant => grant.name))]
-    const directRoleIds = (db.prepare("SELECT role_id FROM user_roles WHERE user_id = ? AND origin = 'direct' ORDER BY role_id")
-      .all(id) as { role_id: string }[]).map(row => row.role_id)
+    const directRoleIds = user.roleGrants.filter(grant => grant.origin === 'direct').map(grant => grant.roleId)
     return adminUserRoutes.get.response.parse({ ...user, directRoleIds, effectiveTools: names.map(name => ({ name,
       enabled: user.enabled && Boolean(grants.find(grant => grant.name === name)!.enabled),
       roleIds: grants.filter(grant => grant.name === name).map(grant => grant.roleId),
