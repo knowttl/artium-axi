@@ -484,6 +484,24 @@ Use **Test credential** for a current fixed read before enabling a configured to
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](#microsoft-graph) and obtain the required permission results and maintainer approval before enabling Graph on a running installation.
 
+### Sign-in settings
+
+Open **Sign-in settings** at `/admin/settings/sign-in` to add a single-tenant Entra ID provider using its name and directory tenant UUID.
+Open the provider to save its application client UUID and credential.
+Certificate authentication is preferred: paste or upload one PEM containing the certificate and matching unencrypted private key; Artium calculates the SHA-256 fingerprint.
+The application's public certificate registration is an owner setup step; saving here does not contact the provider.
+A client secret is also accepted, with an in-page warning recommending certificates.
+
+Provider credentials use the encrypted store and are never returned in pages, API metadata or audit records.
+Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
+Changing client or authentication requires a new secret; changing the provider tenant removes the old credential.
+Settings and credential saves require administrator capability and recent password confirmation, check revisions, and record `create-provider`, `update-provider` or `replace-provider-credential` audit actions.
+The [provider API contracts](src/shared/api.ts) own the request and response fields.
+
+Providers remain disabled and SSO sign-in is unavailable in this slice.
+Local sign-in continues unchanged.
+Role-rule settings, invitations, browser SSO, CLI SSO and generic OIDC discovery follow in later slices.
+
 ### Audit screen and API
 
 Audit supports user, tool, exact event, exact outcome and inclusive UTC From/To filters.

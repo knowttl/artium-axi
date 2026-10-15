@@ -400,6 +400,11 @@ The SSO identity migration preserves local accounts, credentials, grants, sessio
 Table rebuilds and master-key validation share one transaction; a failure rolls back the schema and migration version records.
 The migration checks foreign keys before committing and enables enforcement before exposing the connection.
 Reopening an upgraded store does not reapply migrations or enable SSO providers.
+Migration 014 adds encrypted provider credential storage without rewriting existing identity or tool data.
+Provider credentials participate in startup authentication, offline master-key rotation, backup and restore with the same AES-256-GCM format as tool credentials.
+At `/admin/settings/sign-in`, save provider settings and credentials separately; both are audited and leave SSO disabled.
+Changing a provider tenant clears its stored credential, so save a fresh credential afterwards.
+Changing a client or authentication method requires replacement secrets; blank secret fields retain stored values only for the same identity.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
 After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.

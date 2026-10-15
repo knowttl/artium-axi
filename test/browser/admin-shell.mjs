@@ -79,6 +79,75 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('sign-in settings creates a disabled provider and saves a certificate without redisplaying its key', async () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.click('a[href="/admin/settings/sign-in"]');
+    await page.wait('[name=tenantId]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO sign-in is not available yet')), 'Missing disabled-sign-in guidance');
+    await page.fill('[name=name]', 'Synthetic provider');
+    await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.click('form[action="/v1/admin/sso/providers"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('tbody a');
+    await page.click('tbody a');
+    await page.wait('[data-certificate-pem]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
+    await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
+    await page.fill('[data-certificate-pem]', ${JSON.stringify(fixture.certificatePem)});
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === '' && document.querySelector('[data-certificate-pem]').value === ''), 'Private key redisplayed');
+    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase())}, 'Incorrect fingerprint');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Settings page overflows at 420px');
+    await page.fill('form:has([name=name]) [name=name]', 'Renamed provider');
+    await page.click('form:has([name=name]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=name][value="Renamed provider"]');
+    check(await page.eval(async () => {
+      const providers = (await (await fetch('/v1/admin/sso/providers')).json()).providers;
+      const credential = await (await fetch('/v1/admin/sso/providers/' + providers[0].id + '/credential')).json();
+      const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
+      return providers[0].enabled === false && credential.configured && !JSON.stringify(credential).includes('PRIVATE KEY') &&
+        audit.records.filter(row => row.action === 'replace-provider-credential' && row.outcome === 'success').length === 2 &&
+        audit.records.some(row => row.action === 'update-provider' && row.outcome === 'success');
+    }), 'Provider state or audit incorrect');
+  `)
+})
+
+test('sign-in settings can save a client secret and requires a replacement when the client changes', () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in');
+    await page.fill('[name=name]', 'Synthetic secret provider');
+    await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.click('form[action="/v1/admin/sso/providers"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('tbody a');
+    await page.click('tbody a');
+    await page.wait('[data-profile-field=auth]');
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    check(await page.eval(() => document.querySelector('[data-certificate]').hidden && document.querySelector('main').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
+    await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
+    await page.fill('[data-profile-field=clientSecret]', 'CANARY-provider-secret');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').value === '' && !document.documentElement.outerHTML.includes('CANARY-provider-secret')), 'Secret redisplayed');
+    await page.fill('[data-profile-field=clientId]', '33333333-3333-4333-8333-333333333333');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').required), 'Changed client does not require a replacement secret');
+  `)
+})
+
 test('audit event filter, pagination and expanded details retain the selected search', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
   chrome(['resize', '420', '900'])

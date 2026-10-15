@@ -20,6 +20,9 @@ function validateBackup(db: Database.Database, provider: KeyProvider): string {
     throw new ArtiumError('MASTER_KEY_INVALID')
   }
   for (const row of db.prepare('SELECT * FROM credentials').all() as EncryptedCredential[]) decryptCredential(row, key).fill(0)
+  if (db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'provider_credentials'").get()) {
+    for (const row of db.prepare('SELECT * FROM provider_credentials').all() as EncryptedCredential[]) decryptCredential(row, key).fill(0)
+  }
   return key.id
 }
 

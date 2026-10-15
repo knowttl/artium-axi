@@ -32,11 +32,13 @@ import { ToolHealth } from './health/health.js'
 import { acceptsCliVersion } from '../shared/version.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
+import type { ProviderCredentials } from './store/provider-credentials.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
   adapters: readonly Adapter<unknown>[], environment?: NodeJS.ProcessEnv,
   credentialStore?: MutableCredentialStore,
+  providerCredentials?: ProviderCredentials,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
   const credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = Object.fromEntries(toolSchema.options.flatMap(tool => {
@@ -175,7 +177,7 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles })
+  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles }, options.providerCredentials)
   registerUsersPage(app, db)
   registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles)
