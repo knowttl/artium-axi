@@ -10,8 +10,8 @@ export function accountContent(db: Database.Database, current: BrowserSession, c
   const tools = db.prepare(`SELECT DISTINCT tools.name, tools.enabled FROM tools
     JOIN role_tools ON role_tools.tool = tools.name JOIN user_roles ON user_roles.role_id = role_tools.role_id
     WHERE user_roles.user_id = ? ORDER BY tools.name`).all(current.user_id) as { name: string, enabled: number }[]
-  return `<section><h2>Your account</h2><p>${escape(current.display_name)} (${escape(current.username)}). Local password sign-in.</p>
-    <p>Roles: ${roles.map(role => escape(role.name)).join(', ') || 'None'}.</p><p><a href="/password">Change password</a></p></section>
+  return `<section><h2>Your account</h2><p>${escape(current.display_name)} (${escape(current.username)}). ${current.source === 'sso' ? 'SSO sign-in' : 'Local password sign-in'}.</p>
+    <p>Roles: ${roles.map(role => escape(role.name)).join(', ') || 'None'}.</p>${current.source === 'local' ? '<p><a href="/password">Change password</a></p>' : ''}</section>
     <section><h2>Your tools</h2><p>Roles determine your tool access. Ask an administrator to change your roles or configure a tool.</p>
     ${tools.length ? `<div class="table-scroll"><table><caption>Granted tools</caption><thead><tr><th>Tool</th><th>Access</th></tr></thead><tbody>${tools.map(tool =>
       `<tr><th scope="row">${escape(tool.name)}</th><td>${tool.enabled ? 'Enabled' : 'Tool disabled'}</td></tr>`).join('')}</tbody></table></div>` : '<p>No tools granted. Ask an administrator to assign a role that grants the tools you need.</p>'}</section>

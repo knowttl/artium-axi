@@ -504,6 +504,7 @@ The [provider and role-rule API contracts](src/shared/api.ts) own the request an
 
 Providers remain disabled and SSO sign-in is unavailable in this slice.
 Local sign-in continues unchanged.
+No activation control is exposed; see [browser SSO protocol verification](docs/verification-p3b.md) for the staged protocol, fake-only evidence and remaining slices.
 On a provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
@@ -520,7 +521,8 @@ Resend replaces the old link and starts a new expiry period, including for expir
 Every mutation requires administrator capability and recent password confirmation, checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
 Lists never return link tokens or hashes; expiry is evaluated when read.
 The [invitation API contracts](src/shared/api.ts) own the request and response fields.
-Claiming links, browser SSO, role evaluation at sign-in, CLI SSO and generic OIDC discovery follow in later slices.
+Invitation claiming and role evaluation at sign-in remain unavailable; see the remaining slices in [browser SSO protocol verification](docs/verification-p3b.md).
+CLI SSO and generic OIDC discovery follow in later phases.
 
 ### Audit screen and API
 

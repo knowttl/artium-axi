@@ -33,12 +33,14 @@ import { acceptsCliVersion } from '../shared/version.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
+import { registerSso, type SsoFetch } from './auth/sso.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
   adapters: readonly Adapter<unknown>[], environment?: NodeJS.ProcessEnv,
   credentialStore?: MutableCredentialStore,
   providerCredentials?: ProviderCredentials,
+  ssoFetch?: SsoFetch,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
   const credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = Object.fromEntries(toolSchema.options.flatMap(tool => {
@@ -59,6 +61,7 @@ export function createApp(options: {
     trustProxy: address => proxies.includes(address) })
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
   const browser = registerBrowser(app, db, audit, authAttempts)
+  registerSso(app, db, audit, options.providerCredentials, options.ssoFetch)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
@@ -68,7 +71,7 @@ export function createApp(options: {
     if (browser.isBrowser(request)) {
       if (failure.code === 'REAUTH_REQUIRED' && !(request.url.startsWith('/v1/') && request.headers.accept === 'application/json')) return reply.redirect('/reauth', 303)
       if (failure.code === 'PASSWORD_CHANGE_REQUIRED') return reply.redirect('/password', 303)
-      if (['TOKEN_INVALID', 'TOKEN_EXPIRED', 'USER_DISABLED'].includes(failure.code)) {
+      if (['TOKEN_INVALID', 'TOKEN_EXPIRED', 'USER_DISABLED'].includes(failure.code) && !request.url.startsWith('/auth/sso/')) {
         return reply.clearCookie(browserCookie, { path: '/' }).redirect('/login', 303)
       }
       reply.code(errors[failure.code].status)

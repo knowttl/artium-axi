@@ -23,7 +23,8 @@ export type AuditEvent = Context & (
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
   | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } } & Partial<CredentialTestEvidence>)
   | { event: 'denial', outcome: ErrorCode }
-  | { event: 'sign-in' | 'reauth' | 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
+  | { event: 'sign-in', outcome: Outcome, authenticationMethod?: 'sso', providerId?: string, subject?: string }
+  | { event: 'reauth' | 'lockout' | 'token-reuse' | 'password-change', outcome: Outcome }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
@@ -52,6 +53,9 @@ export interface AuditRecord {
   checked_at: number | null
   credential_revision: number | null
   error_code: ErrorCode | null
+  authentication_method: string | null
+  provider_id: string | null
+  subject: string | null
 }
 
 const dayMs = 24 * 60 * 60 * 1000
@@ -183,6 +187,9 @@ export class Audit {
       cutoff: maintenance?.cutoff ?? null, deleted_count: maintenance?.deletedCount ?? null,
       checked_at: test?.checkedAt ?? null, credential_revision: test?.credentialRevision ?? null,
       error_code: test?.errorCode ?? null,
+      authentication_method: event.event === 'sign-in' ? event.authenticationMethod ?? null : null,
+      provider_id: event.event === 'sign-in' ? event.providerId ?? null : null,
+      subject: event.event === 'sign-in' ? event.subject ?? null : null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

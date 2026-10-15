@@ -147,6 +147,7 @@ export const adminAuditRecordSchema = z.strictObject({
   client_address: z.string().nullable(), outcome: z.string(), action: z.string().nullable(), target_id: z.string().nullable(),
   cutoff: z.number().int().nullable(), deleted_count: z.number().int().nullable(), checked_at: z.number().int().nullable(),
   credential_revision: z.number().int().nullable(), error_code: z.string().nullable(),
+  authentication_method: z.string().nullable(), provider_id: z.string().nullable(), subject: z.string().nullable(),
 })
 export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: adminAuditQuerySchema,
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),

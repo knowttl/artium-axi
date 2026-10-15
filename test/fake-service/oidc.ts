@@ -4,14 +4,18 @@ import formbody from '@fastify/formbody'
 import { z } from 'zod'
 
 interface FakeOidcOptions {
+  issuer?: string
+  authorizationEndpoint?: string
+  browserApproval?: boolean
   clientId: string
   redirectUri: string
   authentication: { kind: 'secret', secret: string } | { kind: 'certificate', publicKey: KeyObject }
   claims: { sub: string, [key: string]: unknown }
   now?: () => number
+  token?: { claims?: Record<string, unknown>, tamperSignature?: boolean }
 }
 
-// Auto-approves one synthetic identity. This loopback server is test infrastructure only.
+// Serves one synthetic identity. This loopback server is test infrastructure only.
 export async function createFakeOidcProvider(options: FakeOidcOptions) {
   const app = Fastify()
   await app.register(formbody)
@@ -21,13 +25,14 @@ export async function createFakeOidcProvider(options: FakeOidcOptions) {
   const codes = new Map<string, { challenge: string, nonce: string, expires: number }>()
   const assertions = new Set<string>()
   let issuer: string
+  let url: string
   const authorizeInput = z.object({ client_id: z.literal(options.clientId), redirect_uri: z.literal(options.redirectUri),
     response_type: z.literal('code'), scope: z.string().refine(value => value.split(' ').includes('openid')),
     state: z.string().min(1), nonce: z.string().min(1), code_challenge: z.string().min(1), code_challenge_method: z.literal('S256') })
   const tokenInput = z.object({ grant_type: z.literal('authorization_code'), code: z.string(),
     redirect_uri: z.literal(options.redirectUri), client_id: z.literal(options.clientId), code_verifier: z.string() })
 
-  app.get('/.well-known/openid-configuration', async () => ({ issuer, authorization_endpoint: issuer + '/authorize',
+  app.get('/.well-known/openid-configuration', async () => ({ issuer, authorization_endpoint: options.authorizationEndpoint ?? url + '/authorize',
     token_endpoint: issuer + '/token', jwks_uri: issuer + '/jwks', response_types_supported: ['code'],
     subject_types_supported: ['public'], id_token_signing_alg_values_supported: ['RS256'],
     token_endpoint_auth_methods_supported: [options.authentication.kind === 'certificate' ? 'private_key_jwt' : 'client_secret_post'],
@@ -42,6 +47,7 @@ export async function createFakeOidcProvider(options: FakeOidcOptions) {
     const redirect = new URL(options.redirectUri)
     redirect.searchParams.set('code', code)
     redirect.searchParams.set('state', input.state)
+    if (options.browserApproval) return reply.type('text/html').send(`<!doctype html><html lang="en"><head><title>Synthetic identity provider</title></head><body><h1>Synthetic identity provider</h1><p><a data-oidc-approve href="${redirect.href.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}">Continue with synthetic identity</a></p></body></html>`)
     return reply.redirect(redirect.href)
   })
   app.post('/token', async (request, reply) => {
@@ -74,11 +80,13 @@ export async function createFakeOidcProvider(options: FakeOidcOptions) {
     codes.delete(input.code)
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid, typ: 'JWT' })).toString('base64url')
     const payload = Buffer.from(JSON.stringify({ ...options.claims, iss: issuer, aud: options.clientId,
-      iat: Math.floor(now() / 1000), exp: Math.floor(now() / 1000) + 300, nonce: code.nonce })).toString('base64url')
+      iat: Math.floor(now() / 1000), exp: Math.floor(now() / 1000) + 300, nonce: code.nonce,
+      ...options.token?.claims })).toString('base64url')
     const signed = header + '.' + payload
     return { token_type: 'Bearer', access_token: 'CANARY-' + randomBytes(16).toString('base64url'), expires_in: 300,
-      id_token: signed + '.' + sign('RSA-SHA256', Buffer.from(signed), privateKey).toString('base64url') }
+      id_token: signed + '.' + sign('RSA-SHA256', Buffer.from(options.token?.tamperSignature ? signed + 'tampered' : signed), privateKey).toString('base64url') }
   })
-  issuer = await app.listen({ host: '127.0.0.1', port: 0 })
-  return { issuer, close: () => app.close() }
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  issuer = options.issuer ?? url
+  return { issuer, url, close: () => app.close() }
 }
