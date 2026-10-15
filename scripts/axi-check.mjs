@@ -174,7 +174,7 @@ try {
   const empty = decode(await success(['tools']))
   assert.equal(empty.tools, '0 available')
   assert.ok(empty.reason && empty.contact)
-  db.exec("INSERT INTO user_roles VALUES ('synthetic-development-user', 'synthetic-role')")
+  db.exec("INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-development-user', 'synthetic-role')")
   pass(5, 'Definitive empty states: zero with reason and administrator contact')
   const invalid = await cli(['tools', '--unknown'])
   assert.equal(invalid.code, 2)
