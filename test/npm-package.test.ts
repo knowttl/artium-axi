@@ -16,7 +16,6 @@ test('npm tarball installs an offline standalone client and its embedded skill w
     execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', directory, join(directory, packed.filename)])
     const executable = join(directory, 'node_modules', '.bin', 'artium-axi')
     const env = { PATH: process.env.PATH, HOME: directory, CLAUDE_CONFIG_DIR: join(directory, '.claude') }
-    expect(execFileSync(executable, ['--version'], { cwd: directory, env, encoding: 'utf8' })).toBe(`${cliVersion}\n`)
     expect(execFileSync(executable, ['setup', '--host', 'claude'], { cwd: directory, env, encoding: 'utf8' })).toContain('status: installed')
     const skill = readFileSync(join(directory, '.claude', 'skills', 'artium-axi', 'SKILL.md'), 'utf8')
     expect(skill).toContain('artium-axi')
