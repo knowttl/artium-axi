@@ -195,7 +195,6 @@ The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) ow
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
-Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.
 See [README tool administration](../README.md) for native-settings guidance and the live-results and maintainer-approval requirements before enabling Graph on a running installation.
 
 Check liveness and readiness through the trusted endpoint:
