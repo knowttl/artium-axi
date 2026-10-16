@@ -1,6 +1,6 @@
 # S45 setup and embedded skill
 
-T6.6 installs one embedded skill from the standalone CLI, with an opt-in verified Claude Code hook.
+Setup installs the embedded base skill and fetches reviewed upstream skill adaptations for the signed-in account's enabled, granted runtime tools, with an opt-in verified Claude Code hook.
 It does not add download or launcher distribution.
 
 Claude Code, Codex and OpenCode host contracts checked on 2026-10-08; Pi installer paths are defined by [setup.ts](../src/cli/setup.ts):
@@ -16,6 +16,7 @@ The Claude paths above are defaults: when `CLAUDE_CONFIG_DIR` is nonempty, setup
 Relative `CLAUDE_CONFIG_DIR` values resolve against the setup process's working directory.
 When `PI_CODING_AGENT_DIR` is nonempty, setup installs `skills/artium-axi/SKILL.md` under that directory instead.
 Relative Pi directory values resolve against the setup process's working directory; a leading `~` or `~/` expands to the user's home directory.
+Each granted tool uses a sibling `skills/<tool>/SKILL.md` directory under the same host location.
 
 Claude Code's documented exec form passes paths as argument tokens without a shell.
 The installer identifies its own hook by the documented `statusMessage` field and repairs that hook's executable paths on reinstallation.
@@ -26,16 +27,26 @@ No universal hook schema is assumed for Codex, OpenCode or Pi.
 
 The Markdown source is imported as text by esbuild and included inside `dist/cli/artium-axi.mjs`.
 The existing build-input digest includes `skill/`, and the Docker build context copies it before bundling.
-There is no generated second copy of the skill to become stale.
-The installed skill contains a Node invocation for the current bundle and a checksum comment, with no companion files.
+There is no generated second copy of the base skill to become stale.
+The installed base skill contains a Node invocation for the current bundle and a checksum comment, with no companion files.
+`GET /v1/skills` uses the same authentication and current-grant filter as tool discovery.
+The server reads npm-package skills from `/opt/tools` and the Falcon skill copied from its pinned source during the image build.
+The overlays in `src/server/tool-skills.ts` bind each review to the upstream content digest, retain operational guidance, remove standalone credential setup, filter command tables to managed capabilities and prefix command examples with `artium-axi <tool>`.
+Missing or changed upstream content fails the entire download before local installation.
+Every installed skill uses the same checksum ownership marker and edited/unmanaged refusal.
+Re-running setup adds new grants and reports retained skills for tools no longer available without deleting them.
 See [README setup guidance](../README.md) for managed-path repair and explicit skill replacement.
 All validation of settings and skill ownership precedes writes.
-Each changed file is written to a unique sibling temporary file and atomically renamed, with its original mode preserved and temporary files removed.
+All changed files are staged before replacement and atomically renamed, with their original modes preserved and temporary files removed.
+If a replacement fails, completed replacements are rolled back from staged backups.
 
 `test/cli-setup.test.ts` runs the production bundle copied into a temporary directory without source files or node_modules.
-It checks all supported fresh-home paths, the single installed file, repeat-install byte and modification-time stability, edited/unmanaged skill refusal and force replacement, unrelated Claude settings and hooks, moved bundle repair, malformed settings refusal, unsupported-hook explanations and usage errors without writes.
+It checks all supported fresh-home paths, the base skill with no grants, repeat-install byte and modification-time stability, edited/unmanaged skill refusal and force replacement, unrelated Claude settings and hooks, moved bundle repair, malformed settings refusal, unsupported-hook explanations and usage errors without writes.
 It also checks relocated Claude configuration with and without hooks and executes the recorded invocation from a replacement-sensitive bundle path.
 Pi cases cover absolute, relative and tilde directory overrides, repeat-install stability and edited/unmanaged skill refusal with explicit force replacement.
+Granted-skill cases cover new grants on re-run for every host, retained skills after grant removal and whole-install refusal when a later tool skill is edited or unmanaged.
+`test/tool-skills.test.ts` checks the reviewed overlays against pinned upstream content, including a byte-identical Falcon source fixture, and refuses unreviewed content.
+`test/integration/tool-skills.test.ts` checks authentication, changing grants, disabled tools, unavailable runtimes and all-or-nothing downloads, plus a standalone CLI re-run after a role grant changes.
 `test/cli.test.ts` and `test/integration/api.test.ts` retain their direct bundle coverage with the Markdown loader enabled.
 
 Actual Windows and macOS host execution remains deferred captain evidence after the full build.

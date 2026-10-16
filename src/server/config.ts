@@ -5,6 +5,13 @@ export const toolPaths = {
   'mg-axi': '/opt/tools/node_modules/.bin/mg-axi',
   'ldap-axi': '/opt/tools/node_modules/.bin/ldap-axi',
 } as const
+export const toolSkillPaths = {
+  'falcon-axi': '/opt/tools/skills/falcon-axi/SKILL.md',
+  'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/skills/vectra-axi/SKILL.md',
+  'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/skills/az-axi/SKILL.md',
+  'mg-axi': '/opt/tools/node_modules/@knowttl/mg-axi/skills/mg-axi/SKILL.md',
+  'ldap-axi': '/opt/tools/node_modules/@knowttl/ldap-axi/skills/ldap-axi/SKILL.md',
+} as const
 export const toolCredentialSchemaPaths = {
   'falcon-axi': '/opt/falcon-axi/lib/python3.11/site-packages/falcon_axi/axi-credential.schema.json',
   'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json',

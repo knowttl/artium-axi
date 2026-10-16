@@ -5,7 +5,7 @@ import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const commands = {
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: [], example: 'artium-axi' },
-  setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install the embedded skill and an optional verified Claude Code session hook.',
+  setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and an optional Claude Code session hook.',
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
   'tools show': { usage: 'artium-axi tools show <tool>', purpose: 'Show one available tool and its vetted upstream help.', flags: [], example: 'artium-axi tools show falcon-axi' },

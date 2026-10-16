@@ -3,16 +3,41 @@ import { promisify } from 'node:util'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
+import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
+import { SessionStore } from '../src/cli/session.js'
+import { loadToolSkill } from '../src/server/tool-skills.js'
+import type { ToolName } from '../src/server/store/credential-store.js'
 
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), "artium-setup-$&-$`-$'-$$-"))
 const bundle = join(directory, 'standalone.mjs')
-beforeAll(() => {
+let granted: ToolName[] = []
+let skillResponse: unknown
+let url: string
+const sessions = new Map<string, string>()
+const server = createServer((request, reply) => {
+  if (request.url !== '/v1/skills' || request.headers.authorization !== 'Bearer CANARY-access') {
+    reply.writeHead(401).end()
+    return
+  }
+  reply.setHeader('content-type', 'application/json')
+  reply.end(JSON.stringify(skillResponse ?? { skills: granted.map(name => ({ name,
+    content: loadToolSkill(name, name === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : `tools/node_modules/@knowttl/${name}/skills/${name}/SKILL.md`) })) }))
+})
+beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
   copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  url = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 })
-afterAll(() => rmSync(directory, { recursive: true, force: true }))
+beforeEach(() => { granted = []; skillResponse = undefined })
+afterAll(async () => {
+  await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  rmSync(directory, { recursive: true, force: true })
+})
 
 function home() { return mkdtempSync(join(directory, 'home-')) }
 function read(path: string) { return readFileSync(path, 'utf8') }
@@ -21,19 +46,26 @@ function write(path: string, content: string) {
   writeFileSync(path, content)
 }
 async function cli(home: string, args: string[], executable = bundle, claudeConfigDir?: string, piAgentDir?: string) {
+  if (!sessions.has(home)) {
+    const config = mkdtempSync(join(directory, 'session-'))
+    sessions.set(home, config)
+    new SessionStore(url, join(config, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: 'CANARY-access',
+      refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3_600_000, familyExpiresAt: Date.now() + 43_200_000 })
+  }
   try {
     return { ...await execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 10_000,
-      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: claudeConfigDir, PI_CODING_AGENT_DIR: piAgentDir } }), code: 0 }
+      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: sessions.get(home), ARTIUM_AXI_URL: url,
+        ARTIUM_AXI_TEST_HTTP: '1', CLAUDE_CONFIG_DIR: claudeConfigDir, PI_CODING_AGENT_DIR: piAgentDir } }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
 
 test.each([
   ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'],
   ['pi', '.pi/agent/skills'],
-])('standalone setup installs only the embedded skill for %s and repeats without writes', async (host, location) => {
+])('standalone setup installs the base skill with no grants for %s and repeats without writes', async (host, location) => {
   const target = home()
   const args = ['setup', '--host', host]
-  expect(await cli(target, args)).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('hook: not requested') })
+  expect(await cli(target, args)).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('artium-axi,installed') })
   const path = join(target, location, 'artium-axi/SKILL.md')
   const content = read(path)
   expect(content).toContain('Use artium-axi tools first')
@@ -216,4 +248,72 @@ test('Pi setup help identifies Pi without installing', async () => {
   expect(await cli(target, ['setup', '--host', 'pi', '--help'])).toMatchObject({ code: 0,
     stdout: expect.stringContaining('<claude|codex|opencode|pi>') })
   expect(readdirSync(target)).toEqual([])
+})
+
+test.each([
+  ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'], ['pi', '.pi/agent/skills'],
+])('setup installs grants and adds newly granted skills on re-run for %s', async (host, location) => {
+  const target = home()
+  const args = ['setup', '--host', host]
+  granted = ['az-axi']
+  expect(await cli(target, args)).toMatchObject({ code: 0, stdout: expect.stringContaining('az-axi,installed') })
+  const path = join(target, location, 'az-axi/SKILL.md')
+  const previous = read(path)
+  const modified = statSync(path).mtimeMs
+  expect(previous).toContain('artium-axi az-axi rg query --file query.kql')
+  granted = ['az-axi', 'ldap-axi']
+  const result = await cli(target, args)
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('az-axi,unchanged')
+  expect(result.stdout).toContain('ldap-axi,installed')
+  expect(statSync(path).mtimeMs).toBe(modified)
+  expect(readdirSync(join(target, location)).sort()).toEqual(['artium-axi', 'az-axi', 'ldap-axi'])
+  granted = ['ldap-axi']
+  expect(await cli(target, args)).toMatchObject({ code: 0, stdout: expect.stringContaining('az-axi,retained (no longer granted)') })
+  expect(read(path)).toBe(previous)
+})
+
+test.each(['edited', 'unmanaged'])('a later %s tool skill refuses the entire installation until --force', async kind => {
+  const target = home()
+  const path = join(target, '.claude/skills/ldap-axi/SKILL.md')
+  granted = ['ldap-axi']
+  await cli(target, ['setup', '--host', 'claude'])
+  const content = kind === 'edited' ? read(path) + 'Local edit\n' : 'Local skill\n'
+  write(path, content)
+  const base = join(target, '.claude/skills/artium-axi/SKILL.md')
+  const modified = statSync(base).mtimeMs
+  granted = ['az-axi', 'ldap-axi']
+  expect(await cli(target, ['setup', '--host', 'claude', '--hook'])).toMatchObject({ code: 2,
+    stdout: expect.stringContaining('--force') })
+  expect(read(path)).toBe(content)
+  expect(statSync(base).mtimeMs).toBe(modified)
+  expect(readdirSync(join(target, '.claude'))).toEqual(['skills'])
+  expect(readdirSync(join(target, '.claude/skills')).sort()).toEqual(['artium-axi', 'ldap-axi'])
+  expect(await cli(target, ['setup', '--host', 'claude', '--hook', '--force'])).toMatchObject({ code: 0 })
+  expect(read(path)).toContain('artium-axi ldap-axi user list')
+})
+
+test('setup without a signed-in session writes no host files', async () => {
+  const target = home()
+  await expect(execute(process.execPath, [bundle, 'setup', '--host', 'codex'], {
+    env: { PATH: process.env.PATH, HOME: target, USERPROFILE: target, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }, timeout: 10_000,
+  })).rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('TOKEN_INVALID') })
+  expect(readdirSync(target)).toEqual([])
+})
+
+test('invalid skill snapshots refuse installation before writing the base skill', async () => {
+  const target = home()
+  skillResponse = { skills: [{ name: 'unknown-tool', content: 'unreviewed' }] }
+  expect(await cli(target, ['setup', '--host', 'codex'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE') })
+  expect(readdirSync(target)).toEqual([])
+})
+
+test('setup installs every granted tool with one compact output row per skill', async () => {
+  const target = home()
+  granted = ['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi']
+  const result = await cli(target, ['setup', '--host', 'codex'])
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout.trim().split('\n')).toEqual(['skills[6]{name,status}:',
+    '  artium-axi,installed', '  falcon-axi,installed', '  vectra-axi,installed', '  az-axi,installed', '  mg-axi,installed', '  ldap-axi,installed'])
+  expect(readdirSync(join(target, '.agents/skills')).sort()).toEqual(['artium-axi', ...granted].sort())
 })
