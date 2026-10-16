@@ -15,7 +15,7 @@ import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
 
 async function main(args: string[]) {
-  if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
+  if (args.length === 1 && args[0] === '--version') {
     process.stdout.write(`${cliVersion}\n`)
     return
   }

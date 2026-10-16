@@ -127,8 +127,8 @@ async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
   }
 }
 
-test.each(['--version', '-v', '-V'])('standalone bundle prints the package version offline without configuration or sign-in: %s', async flag => {
-  const result = await execute(process.execPath, [bundle, flag], { cwd: directory, timeout: 10_000,
+test('standalone bundle prints the package version offline without configuration or sign-in', async () => {
+  const result = await execute(process.execPath, [bundle, '--version'], { cwd: directory, timeout: 10_000,
     env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, 'unsigned-config') } })
   expect(result).toEqual({ stdout: `${cliVersion}\n`, stderr: '' })
 })
