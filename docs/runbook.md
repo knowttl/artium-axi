@@ -116,7 +116,7 @@ The checksum comes from the same trusted server and detects corruption or mixed 
 
 Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.
 Keep Node on PATH and retain the installed launcher path; rerun setup if the bundle moves.
-Install the agent skill using the [skill installation guidance](../README.md#skill-installation) for your host.
+Install agent skills using the [skill installation guidance](../README.md#skill-installation) for your host.
 With that installation and trust configured, the following commands are the local-account operator checks:
 
 ```sh

@@ -1,7 +1,7 @@
 # S45 setup and embedded skill
 
-Setup installs the embedded base skill and fetches reviewed upstream skill adaptations for every tool granted to the signed-in account, with an opt-in verified Claude Code hook.
-It does not add download or launcher distribution.
+The [README skill installation guidance](../README.md#skill-installation) owns setup prerequisites, grant handling and replacement behavior.
+Download and launcher distribution checks belong to [S46 verification](verification-s46.md).
 
 Claude Code, Codex and OpenCode host contracts checked on 2026-10-08; Pi installer paths are defined by [setup.ts](../src/cli/setup.ts):
 
@@ -28,15 +28,11 @@ No universal hook schema is assumed for Codex, OpenCode or Pi.
 The Markdown source is imported as text by esbuild and included inside `dist/cli/artium-axi.mjs`.
 The existing build-input digest includes `skill/`, and the Docker build context copies it before bundling.
 There is no generated second copy of the base skill to become stale.
-The installed base skill contains a Node invocation for the current bundle and a checksum comment, with no companion files.
-`GET /v1/skills` uses the same authentication and current-grant filter as tool discovery.
-The server reads npm-package skills from `/opt/tools` and the Falcon skill copied from its pinned source during the image build.
+Every installed skill contains a Node invocation for the current bundle and a checksum comment, with no companion files.
+The `GET /v1/skills` contract is documented alongside [skillsResponseSchema](../src/shared/api.ts).
+The server reads upstream skills from [toolSkillPaths](../src/server/config.ts); the [Dockerfile](../Dockerfile) copies the Falcon skill from its pinned source during the image build.
 The overlays in `src/server/tool-skills.ts` bind each review to the upstream content digest, retain operational guidance, remove standalone credential setup, filter command tables to managed capabilities and prefix command examples with `artium-axi <tool>`.
 Missing or changed upstream content fails the entire download before local installation.
-Every installed skill uses the same checksum ownership marker and edited/unmanaged refusal.
-Re-running setup adds new grants and reports retained Artium-managed skills for tools no longer granted without deleting them.
-Unmanaged standalone skills outside the current grants are left untouched and unreported.
-See [README setup guidance](../README.md) for managed-path repair and explicit skill replacement.
 All validation of settings and skill ownership precedes writes.
 All changed files are staged before replacement and atomically renamed, with their original modes preserved and temporary files removed.
 If a replacement fails, completed replacements are rolled back from staged backups.

@@ -725,7 +725,7 @@ pnpm test:containers
 ```
 
 `pnpm check` verifies generated error-reference freshness, strict type checking, parser/schema inventory freshness, the Vitest suite, compilation and the AXI/distribution checklist.
-The checklist exercises a fresh Linux download, checksum, setup, login, temporary-password change and first call against a local HTTPS fake.
+See [checklist verification](docs/verification-s46.md) for the fake-only download, authentication, setup and first-call checks.
 It refuses unverified host platforms.
 
 | Command | Scope |

@@ -50,7 +50,9 @@ export const meResponseSchema = z.strictObject({ username: z.string(), displayNa
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'])
-// One authenticated snapshot of granted tools and their managed skills.
+// GET /v1/skills returns one authenticated, no-store snapshot of the account's
+// role-granted tools and their managed skills, including disabled tools and tools
+// without runtime adapters. Any unavailable skill fails the whole snapshot.
 export const skillsResponseSchema = z.strictObject({ skills: z.array(z.strictObject({
   name: toolSchema, content: z.string().min(1),
 })).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length) })
