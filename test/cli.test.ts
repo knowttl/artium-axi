@@ -21,7 +21,7 @@ const bundle = join(directory, 'artium-axi.mjs')
 const clockBundle = join(directory, 'artium-axi-clock.mjs')
 const stalls = new EventEmitter()
 let url: string
-let response: { status: number, body: unknown, location?: string, stall?: boolean }
+let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string }
 let requests: { path: string, token?: string, body: unknown, version?: string }[]
 let doctorResponses: Record<string, typeof response> | undefined
 const server = createServer()
@@ -51,7 +51,8 @@ beforeAll(async () => {
       stalls.emit(request.url!, { socket, closed })
     }
     if (request.url!.startsWith('/stall-headers/')) { stalled(); return }
-    reply.writeHead(current.status, { 'content-type': 'application/json', ...(current.location ? { location: current.location } : {}) })
+    reply.writeHead(current.status, { 'content-type': 'application/json', ...(current.location ? { location: current.location } : {}),
+      ...(current.serverVersion ? { 'x-artium-cli-version': current.serverVersion } : {}) })
     if (current.stall || request.url!.startsWith('/stall-body/')) {
       reply.flushHeaders()
       if (request.url!.startsWith('/stall-body/')) stalled()
@@ -125,6 +126,20 @@ async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
     await closed
   }
 }
+
+test.each([
+  { serverVersion: '0.0.0-old', warning: true },
+  { serverVersion: '999.0.0', warning: true },
+  { serverVersion: cliVersion, warning: false },
+  { serverVersion: undefined, warning: false },
+])('login succeeds with server version $serverVersion and warns only on mismatch', async ({ serverVersion, warning }) => {
+  requests = []
+  response = { status: 200, serverVersion, body: { status: 'authenticated', accessToken: 'CANARY-access',
+    refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 300_000, familyExpiresAt: Date.now() + 3600_000 } }
+  const result = await cli(['login', '--username', 'synthetic-user', '--password-stdin'], {}, false, 'CANARY-password\n')
+  expect(result).toMatchObject({ code: 0, stdout: 'status: authenticated\nnext: artium-axi tools\n',
+    stderr: warning ? `warning: CLI ${cliVersion} differs from server ${serverVersion}; download the matching client from ${url}/cli/artium-axi.mjs and verify its .sha256, or run npm install -g @knowttl/artium-axi@${serverVersion}.\n` : '' })
+})
 
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []

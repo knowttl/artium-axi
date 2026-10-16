@@ -115,6 +115,24 @@ See [host verification](docs/verification-s45.md) for recorded discovery checks 
 
 ## Other ways to install
 
+### npm client
+
+Downloading the client and checksum from your server remains the recommended installation path because it supplies the matching version.
+As an alternative, install the client CLI and its embedded skill from npm with Node.js 24.11.0 or newer:
+
+```sh
+npm install -g @knowttl/artium-axi
+export ARTIUM_AXI_URL='https://artium.example'
+artium-axi login --username synthetic-user
+artium-axi setup --host codex
+```
+
+The npm package contains no server or upstream executables and needs no runtime npm dependencies.
+Login warns when client and server versions differ and continues signing in.
+Download the matching client and checksum from your server, or install its version with `npm install -g @knowttl/artium-axi@<server-version>`.
+Older servers without a version response header cannot supply this warning.
+A successful login does not bypass the [minimum CLI version requirements](src/shared/api.ts) for subsequent API calls.
+
 ### Set up a host
 
 Give the setup agent the Linux host access, intended HTTPS hostname, DNS and certificate provisioning method, private CA bundle if applicable, and the protected data and backup locations.
@@ -348,7 +366,9 @@ node dist/cli/artium-axi.mjs --help
 The build produces the standalone `dist/cli/artium-axi.mjs`.
 Set `ARTIUM_AXI_URL` and use the same login and discovery commands with `node dist/cli/artium-axi.mjs` in place of `artium-axi`.
 After signing in, run `node dist/cli/artium-axi.mjs setup --host codex` to install your granted skills.
-The root package is private; server downloads and source builds are the installation paths described here.
+The root package remains private for server development; `pnpm build:npm` stages the separate public client package in `dist/npm` using the root package version.
+Run `npm pack --dry-run ./dist/npm` to inspect the client tarball before release.
+Only the bundled CLI, skill, README, LICENSE, NOTICE and client package metadata are included.
 
 ## Usage
 
