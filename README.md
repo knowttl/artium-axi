@@ -377,6 +377,7 @@ Only the bundled CLI, skill, README, LICENSE, NOTICE and client package metadata
 | Command | Purpose |
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
+| `artium-axi --version` | Print only the client package version and a newline, then exit without configuration, sign-in or network access. |
 | `artium-axi login --username synthetic-user` | Sign in with a local account. |
 | `artium-axi login --sso` | Sign in through browser approval with an enabled SSO provider; works on headless and SSH hosts. |
 | `artium-axi passwd` | Change your password, then sign in again. |
