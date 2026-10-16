@@ -24,7 +24,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 - Empty lists explain why no enabled tool is available and direct you to an administrator.
 - Local help works before sign-in and includes usage, purpose, flags and an example.
 - Artium errors use TOON on stdout; upstream calls preserve separate stdout, stderr and exit status.
-- Embedded skills support Claude Code, Codex and OpenCode, with an optional Claude Code session hook.
+- Embedded skills support Claude Code, Codex, OpenCode and Pi, with an optional Claude Code session hook.
 
 ## Quick Start
 
@@ -95,14 +95,15 @@ Install the embedded skill after downloading the client:
 artium-axi setup --host claude --hook
 ```
 
-Use `--host codex` or `--host opencode` without `--hook` for those hosts.
+Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
+See [host paths and configuration overrides](docs/verification-s45.md) for installation locations.
 Setup always installs the skill; only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
 Unsupported hosts or hooks are refused before files are written.
 
 Setup preserves unrelated settings and hooks and leaves unchanged managed files alone.
 It refuses to replace an edited or unmanaged skill unless `--force` is explicit.
 Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
-Actual host loading and hook usefulness require separate acceptance.
+See [host verification](docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.
 
 ## Other ways to install
 

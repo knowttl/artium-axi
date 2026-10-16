@@ -5,8 +5,8 @@ import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const commands = {
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: [], example: 'artium-axi' },
-  setup: { usage: 'artium-axi setup --host <claude|codex|opencode> [--hook] [--force]', purpose: 'Install the embedded skill and an optional verified Claude Code session hook.',
-    flags: ['--host <claude|codex|opencode> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
+  setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install the embedded skill and an optional verified Claude Code session hook.',
+    flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
   'tools show': { usage: 'artium-axi tools show <tool>', purpose: 'Show one available tool and its vetted upstream help.', flags: [], example: 'artium-axi tools show falcon-axi' },
   whoami: { usage: 'artium-axi whoami', purpose: 'Show your identity, roles, access expiry and server.', flags: [], example: 'artium-axi whoami' },
@@ -38,7 +38,7 @@ export function helpCommand(args: string[], prefixHelp = false): HelpCommand | u
   if (args[0] === 'setup' && args.includes('--help')) {
     const path = args.filter(arg => arg !== '--help')
     for (let index = 1; index < path.length; index++) {
-      if (path[index] === '--host' && ['claude', 'codex', 'opencode'].includes(path[index + 1])) index++
+      if (path[index] === '--host' && ['claude', 'codex', 'opencode', 'pi'].includes(path[index + 1])) index++
       else if (path[index] !== '--hook' && path[index] !== '--force') return undefined
     }
     return 'setup'
