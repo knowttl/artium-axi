@@ -28,6 +28,8 @@ const { createFalconAdapter } = await import('../dist/src/server/adapters/falcon
 const { SharedIdentityResolver } = await import('../dist/src/server/policy/identity-resolver.js')
 const { seedToolUser } = await import('../dist/test/fixtures/tokens.js')
 const { cliVersion } = await import('../dist/src/shared/version.js')
+const { toolSkillPaths } = await import('../dist/src/server/config.js')
+toolSkillPaths['falcon-axi'] = join(root, 'test/fixtures/falcon-SKILL.md')
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-axi-check-'))
 const started = performance.now()
@@ -43,6 +45,7 @@ try {
   const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 9).toString('base64') })
   db = openStore(join(directory, 'data', 'artium.db'), key)
   await seedToolUser(db)
+  db.exec("DELETE FROM role_tools WHERE tool <> 'falcon-axi'")
   db.exec("UPDATE users SET must_change = 1; UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'")
   const store = createCredentialStore(db, key)
   const reference = store.replaceCredential('falcon-axi', { clientId: 'CANARY-check-client', clientSecret: 'CANARY-check-secret', region: 'us-2' }, 0, 'synthetic-development-user', Date.now())
@@ -124,11 +127,6 @@ try {
     assert.equal(result.stderr, '')
     return result.stdout
   }
-  for (const host of ['claude', 'codex', 'opencode', 'pi']) {
-    const output = decode(await success(['setup', '--host', host, ...(host === 'claude' ? ['--hook'] : [])]))
-    assert.equal(output.status, 'installed')
-    assert.match(readFileSync(output.skill, 'utf8'), /Use artium-axi tools first/)
-  }
   for (const host of ['codex', 'opencode', 'pi']) {
     const unsupported = await cli(['setup', '--host', host, '--hook'])
     assert.equal(unsupported.code, 2)
@@ -142,6 +140,12 @@ try {
   assert.equal(decode(login.stdout).error.code, 'PASSWORD_CHANGE_REQUIRED')
   await success(['passwd', '--password-stdin'], 'CANARY-check-new-password\n')
   await success(['login', '--username', 'synthetic-user', '--password-stdin'], 'CANARY-check-new-password\n')
+  for (const [host, location] of [['claude', '.claude'], ['codex', '.agents'], ['opencode', '.config/opencode'], ['pi', '.pi/agent']]) {
+    const output = decode(await success(['setup', '--host', host, ...(host === 'claude' ? ['--hook'] : [])]))
+    assert.deepEqual(output.skills, [{ name: 'artium-axi', status: 'installed' }, { name: 'falcon-axi', status: 'installed' }])
+    assert.match(readFileSync(join(home, location, 'skills/artium-axi/SKILL.md'), 'utf8'), /Use artium-axi tools first/)
+    assert.match(readFileSync(join(home, location, 'skills/falcon-axi/SKILL.md'), 'utf8'), /artium-axi falcon-axi detection list/)
+  }
   const first = await success(['falcon-axi', 'detection', 'list'])
   assert.equal(first, upstream.replace('`falcon-axi detection', '`artium-axi falcon-axi detection'))
   console.log(`distribution: Linux download, SHA-256 rejection of corruption, standalone launcher, setup, login, password change and first call passed; sha256=${digest}`)

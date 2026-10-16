@@ -24,7 +24,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 - Empty lists explain why no enabled tool is available and direct you to an administrator.
 - Local help works before sign-in and includes usage, purpose, flags and an example.
 - Artium errors use TOON on stdout; upstream calls preserve separate stdout, stderr and exit status.
-- Embedded skills support Claude Code, Codex, OpenCode and Pi, with an optional Claude Code session hook.
+- Managed skills support Claude Code, Codex, OpenCode and Pi, with an optional Claude Code session hook.
 
 ## Quick Start
 
@@ -89,7 +89,7 @@ Choose your first call from the example shown for an available tool.
 
 ### Skill installation
 
-Install the embedded skill after downloading the client:
+Install the base skill and a skill for every tool granted to your signed-in account:
 
 ```sh
 artium-axi setup --host claude --hook
@@ -97,11 +97,19 @@ artium-axi setup --host claude --hook
 
 Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
 See [host paths and configuration overrides](docs/verification-s45.md) for installation locations.
-Setup always installs the skill; only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
+Setup requires the configured server URL and an authenticated account.
+It fetches reviewed adaptations of the server's pinned upstream skills; command examples run through `artium-axi <tool>` using Artium-managed credentials.
+Skills include granted tools that are disabled; running those tools still returns `TOOL_DISABLED`.
+Only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
 Unsupported hosts or hooks are refused before files are written.
 
 Setup preserves unrelated settings and hooks and leaves unchanged managed files alone.
 It refuses to replace an edited or unmanaged skill unless `--force` is explicit.
+Setup checks every skill and hook setting before writing; a refusal leaves the installation unchanged.
+Re-run setup to add newly granted tools.
+Artium-managed skills for tools no longer granted are retained and reported, not deleted.
+Unmanaged standalone skills outside the current grants are left untouched and unreported.
+Output lists one installed, unchanged or retained row per skill.
 Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
 See [host verification](docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.
 
@@ -335,11 +343,11 @@ From the repository root:
 pnpm install --frozen-lockfile
 pnpm build
 node dist/cli/artium-axi.mjs --help
-node dist/cli/artium-axi.mjs setup --host codex
 ```
 
 The build produces the standalone `dist/cli/artium-axi.mjs`.
 Set `ARTIUM_AXI_URL` and use the same login and discovery commands with `node dist/cli/artium-axi.mjs` in place of `artium-axi`.
+After signing in, run `node dist/cli/artium-axi.mjs setup --host codex` to install your granted skills.
 The root package is private; server downloads and source builds are the installation paths described here.
 
 ## Usage
@@ -357,7 +365,7 @@ The root package is private; server downloads and source builds are the installa
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
-| `artium-axi setup --host claude --hook` | Install the embedded skill and optional Claude Code hook. |
+| `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
 | `artium-axi vectra-axi detection list` | Run a Vectra read through the managed adapter. |
 | `artium-axi mg-axi entra user list --limit 1` | Run a bounded Graph read through the managed adapter. |
@@ -717,7 +725,7 @@ pnpm test:containers
 ```
 
 `pnpm check` verifies generated error-reference freshness, strict type checking, parser/schema inventory freshness, the Vitest suite, compilation and the AXI/distribution checklist.
-The checklist exercises a fresh Linux download, checksum, setup, login, temporary-password change and first call against a local HTTPS fake.
+See [checklist verification](docs/verification-s46.md) for the fake-only download, authentication, setup and first-call checks.
 It refuses unverified host platforms.
 
 | Command | Scope |

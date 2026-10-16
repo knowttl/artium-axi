@@ -35,6 +35,7 @@ import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
 import { registerSso, type SsoFetch } from './auth/sso.js'
 import { registerDevice } from './auth/device.js'
+import { loadToolSkill } from './tool-skills.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -107,21 +108,34 @@ export function createApp(options: {
     try { db.prepare('SELECT version FROM migrations').all(); return { status: 'ok' } }
     catch { return reply.code(503).send({ status: 'unavailable' }) }
   })
-  app.get('/v1/tools', async request => {
-    const userId = authenticate(db, bearer(request.headers.authorization))
-    const tools = adapters.flatMap(adapter => {
+  const grantedAdapters = (authorization: string | undefined) => {
+    const userId = authenticate(db, bearer(authorization))
+    return adapters.filter(adapter => {
       try { checkToolPolicy(db, userId, adapter.name) }
       catch (error) {
-        if (error instanceof ArtiumError && ['TOOL_DISABLED', 'TOOL_NOT_GRANTED'].includes(error.code)) return []
+        if (error instanceof ArtiumError && ['TOOL_DISABLED', 'TOOL_NOT_GRANTED'].includes(error.code)) return false
         throw error
       }
+      return true
+    })
+  }
+  app.get('/v1/tools', async request => {
+    const tools = grantedAdapters(request.headers.authorization).map(adapter => {
       const row = db.prepare(`SELECT EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
         (SELECT status FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
           AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = tools.name) AS health
         FROM tools WHERE name = ?`).get(adapter.name) as { configured: number, health: 'ok' | 'error' | null }
-      return [{ name: adapter.name, version: toolManifests[adapter.name].version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }]
+      return { name: adapter.name, version: toolManifests[adapter.name].version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }
     })
     return toolsResponseSchema.parse({ tools })
+  })
+  app.get('/v1/skills', async (request, reply) => {
+    const userId = authenticate(db, bearer(request.headers.authorization))
+    const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
+      JOIN role_tools ON role_tools.role_id = user_roles.role_id
+      WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
+    reply.header('cache-control', 'no-store')
+    return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
   })
   app.get('/v1/me', async request => {
     const token = bearer(request.headers.authorization)

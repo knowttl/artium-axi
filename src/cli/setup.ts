@@ -4,6 +4,9 @@ import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import skill from '../../skill/artium-axi/SKILL.md'
 import { ArtiumError } from '../shared/errors.js'
+import { skillsResponseSchema, toolSchema } from '../shared/api.js'
+import { Client } from './http.js'
+import { encode } from '@toon-format/toon'
 
 const hosts = {
   claude: ['.claude'],
@@ -23,13 +26,35 @@ function readOptional(path: string): string | undefined {
   }
 }
 
-function replaceAtomically(path: string, content: string) {
-  mkdirSync(dirname(path), { recursive: true })
-  const temporary = `${path}.${randomUUID()}.tmp`
+function replaceAtomically(changes: { path: string, content: string }[]) {
+  const staged: { path: string, temporary: string, backup: string, previous: string | undefined, committed: boolean }[] = []
   try {
-    writeFileSync(temporary, content, { flag: 'wx', mode: existsSync(path) ? statSync(path).mode : 0o600 })
-    renameSync(temporary, path)
-  } finally { rmSync(temporary, { force: true }) }
+    for (const { path, content } of changes) {
+      mkdirSync(dirname(path), { recursive: true })
+      const temporary = `${path}.${randomUUID()}.tmp`
+      const backup = `${temporary}.backup`
+      const previous = readOptional(path)
+      staged.push({ path, temporary, backup, previous, committed: false })
+      const mode = existsSync(path) ? statSync(path).mode : 0o600
+      writeFileSync(temporary, content, { flag: 'wx', mode })
+      if (previous !== undefined) writeFileSync(backup, previous, { flag: 'wx', mode })
+    }
+    for (const entry of staged) {
+      renameSync(entry.temporary, entry.path)
+      entry.committed = true
+    }
+  } catch (error) {
+    for (const entry of [...staged].reverse()) if (entry.committed) {
+      if (entry.previous === undefined) rmSync(entry.path)
+      else renameSync(entry.backup, entry.path)
+    }
+    throw error
+  } finally {
+    for (const { temporary, backup } of staged) {
+      rmSync(temporary, { force: true })
+      rmSync(backup, { force: true })
+    }
+  }
 }
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -62,7 +87,7 @@ function claudeSettings(path: string, executable: string): string {
   return JSON.stringify(settings, null, 2) + '\n'
 }
 
-export function setup(args: string[]): string {
+export async function setup(args: string[]): Promise<string> {
   let host: keyof typeof hosts | undefined
   let hook = false
   let force = false
@@ -81,24 +106,36 @@ export function setup(args: string[]): string {
   const invocation = process.platform === 'win32'
     ? `& '${process.execPath.replaceAll("'", "''")}' '${executable.replaceAll("'", "''")}'`
     : `${quote(process.execPath)} ${quote(executable)}`
-  const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`)
-  const installed = `${content}\n<!-- artium-axi sha256:${checksum(content)} -->\n`
+  const executableBlock = `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`
+  const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => executableBlock)
   const hostDirectory = host === 'claude' && process.env.CLAUDE_CONFIG_DIR
     ? resolve(process.env.CLAUDE_CONFIG_DIR)
     : host === 'pi' && process.env.PI_CODING_AGENT_DIR
       ? resolve(process.env.PI_CODING_AGENT_DIR.replace(/^~(?=\/|$)/, () => homedir()))
       : join(homedir(), ...hosts[host])
-  const skillPath = join(hostDirectory, 'skills', 'artium-axi', 'SKILL.md')
-  const previous = readOptional(skillPath)
-  if (previous !== undefined && previous !== installed && !force) {
-    const match = previous.match(/^([\s\S]*)\n<!-- artium-axi sha256:([a-f0-9]{64}) -->\n$/)
-    if (!match || checksum(match[1]) !== match[2]) {
-      throw new ArtiumError('INVALID_INPUT', 'The installed skill was edited or is unmanaged; no installation was written.', `Use artium-axi setup --host ${host}${hook ? ' --hook' : ''} --force to explicitly replace it.`)
+  const client = new Client()
+  const response = skillsResponseSchema.safeParse(await client.authenticated('/v1/skills', 'GET'))
+  if (!response.success) throw new ArtiumError('INVALID_RESPONSE')
+  const skills = [{ name: 'artium-axi', content }, ...response.data.skills].map(({ name, content }) => {
+    if (name !== 'artium-axi') content = content.replace(/^(---\n[\s\S]*?\n---\n)/, frontmatter => `${frontmatter}\nIf artium-axi is absent from PATH, use the installed command below in place of \`artium-axi\` in every example:\n\n${executableBlock}\n`)
+    const path = join(hostDirectory, 'skills', name, 'SKILL.md')
+    const installed = `${content}\n<!-- artium-axi sha256:${checksum(content)} -->\n`
+    const previous = readOptional(path)
+    if (previous !== undefined && previous !== installed && !force) {
+      const match = previous.match(/^([\s\S]*)\n<!-- artium-axi sha256:([a-f0-9]{64}) -->\n$/)
+      if (!match || checksum(match[1]) !== match[2]) {
+        throw new ArtiumError('INVALID_INPUT', 'The installed skill was edited or is unmanaged; no installation was written.', `Use artium-axi setup --host ${host}${hook ? ' --hook' : ''} --force to explicitly replace ${path}.`)
+      }
     }
-  }
+    return { name, path, installed, previous }
+  })
+  const retained = toolSchema.options.filter(name => !response.data.skills.some(skill => skill.name === name))
+    .filter(name => /^<!-- artium-axi sha256:[a-f0-9]{64} -->$/m.test(readOptional(join(hostDirectory, 'skills', name, 'SKILL.md')) ?? ''))
   const settingsPath = join(hostDirectory, 'settings.json')
   const settings = hook ? claudeSettings(settingsPath, executable) : undefined
-  if (previous !== installed) replaceAtomically(skillPath, installed)
-  if (settings !== undefined && readOptional(settingsPath) !== settings) replaceAtomically(settingsPath, settings)
-  return `status: installed\nhost: ${host}\nskill: ${JSON.stringify(skillPath)}\nhook: ${hook ? 'SessionStart' : 'not requested'}\n`
+  const changes = skills.filter(skill => skill.previous !== skill.installed).map(skill => ({ path: skill.path, content: skill.installed }))
+  if (settings !== undefined && readOptional(settingsPath) !== settings) changes.push({ path: settingsPath, content: settings })
+  replaceAtomically(changes)
+  return encode({ skills: [...skills.map(skill => ({ name: skill.name, status: skill.previous === skill.installed ? 'unchanged' : 'installed' })),
+    ...retained.map(name => ({ name, status: 'retained (no longer granted)' }))], ...(hook ? { hook: 'SessionStart' } : {}) }) + '\n'
 }

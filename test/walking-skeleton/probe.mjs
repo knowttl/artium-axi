@@ -79,11 +79,6 @@ try {
     chmodSync(join(install, 'artium-axi'), 0o755)
     assert.deepEqual(readdirSync(install), ['artium-axi'])
     const cli = (args, input) => execute('artium-axi', args, environment, input)
-    for (const host of ['claude', 'codex', 'opencode']) {
-      const setup = await cli(['setup', '--host', host])
-      assert.equal(setup.code, 0, setup.stdout + setup.stderr)
-      assert.match(setup.stdout, /status: installed/)
-    }
     const loginArgs = ['login', '--username', 'synthetic-admin', '--password-stdin']
     const restricted = await cli(loginArgs, 'CANARY-bootstrap-password\n')
     assert.equal(restricted.code, 1, restricted.stdout + restricted.stderr)
@@ -95,6 +90,12 @@ try {
     const login = await cli(loginArgs, 'CANARY-changed-password\n')
     assert.equal(login.code, 0, login.stdout + login.stderr)
     assert.doesNotMatch(login.stdout + login.stderr, /CANARY-|accessToken|refreshToken/)
+    for (const host of ['claude', 'codex', 'opencode', 'pi']) {
+      const setup = await cli(['setup', '--host', host])
+      assert.equal(setup.code, 0, setup.stdout + setup.stderr)
+      assert.match(setup.stdout, /artium-axi,installed/)
+      assert.match(setup.stdout, /falcon-axi,installed/)
+    }
     const identity = await cli(['whoami'])
     assert.equal(identity.code, 0, identity.stdout + identity.stderr)
     assert.match(identity.stdout, /synthetic-admin/)
