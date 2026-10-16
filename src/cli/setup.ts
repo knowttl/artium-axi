@@ -130,7 +130,7 @@ export async function setup(args: string[]): Promise<string> {
     return { name, path, installed, previous }
   })
   const retained = toolSchema.options.filter(name => !response.data.skills.some(skill => skill.name === name))
-    .filter(name => readOptional(join(hostDirectory, 'skills', name, 'SKILL.md')) !== undefined)
+    .filter(name => /^<!-- artium-axi sha256:[a-f0-9]{64} -->$/m.test(readOptional(join(hostDirectory, 'skills', name, 'SKILL.md')) ?? ''))
   const settingsPath = join(hostDirectory, 'settings.json')
   const settings = hook ? claudeSettings(settingsPath, executable) : undefined
   const changes = skills.filter(skill => skill.previous !== skill.installed).map(skill => ({ path: skill.path, content: skill.installed }))

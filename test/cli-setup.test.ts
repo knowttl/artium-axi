@@ -277,6 +277,24 @@ test.each([
   granted = ['ldap-axi']
   expect(await cli(target, args)).toMatchObject({ code: 0, stdout: expect.stringContaining('az-axi,retained (no longer granted)') })
   expect(read(path)).toBe(previous)
+  const edited = previous + 'Local edit\n'
+  write(path, edited)
+  expect(await cli(target, args)).toMatchObject({ code: 0, stdout: expect.stringContaining('az-axi,retained (no longer granted)') })
+  expect(read(path)).toBe(edited)
+})
+
+test.each([
+  ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'], ['pi', '.pi/agent/skills'],
+])('setup leaves unmanaged standalone skills untouched and unreported for %s', async (host, location) => {
+  const target = home()
+  const path = join(target, location, 'az-axi/SKILL.md')
+  const standalone = read('tools/node_modules/@knowttl/az-axi/skills/az-axi/SKILL.md')
+  write(path, standalone)
+  const modified = statSync(path).mtimeMs
+  expect(await cli(target, ['setup', '--host', host])).toMatchObject({ code: 0, stderr: '',
+    stdout: 'skills[1]{name,status}:\n  artium-axi,installed\n' })
+  expect(read(path)).toBe(standalone)
+  expect(statSync(path).mtimeMs).toBe(modified)
 })
 
 test.each(['edited', 'unmanaged'])('a later %s tool skill refuses the entire installation until --force', async kind => {

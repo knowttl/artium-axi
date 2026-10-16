@@ -130,9 +130,12 @@ export function createApp(options: {
     return toolsResponseSchema.parse({ tools })
   })
   app.get('/v1/skills', async (request, reply) => {
-    const granted = grantedAdapters(request.headers.authorization)
+    const userId = authenticate(db, bearer(request.headers.authorization))
+    const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
+      JOIN role_tools ON role_tools.role_id = user_roles.role_id
+      WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
     reply.header('cache-control', 'no-store')
-    return { skills: granted.map(adapter => ({ name: adapter.name, content: loadToolSkill(adapter.name) })) }
+    return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
   })
   app.get('/v1/me', async request => {
     const token = bearer(request.headers.authorization)

@@ -89,7 +89,7 @@ Choose your first call from the example shown for an available tool.
 
 ### Skill installation
 
-Install the base skill and a skill for every enabled runtime tool granted to your signed-in account:
+Install the base skill and a skill for every tool granted to your signed-in account:
 
 ```sh
 artium-axi setup --host claude --hook
@@ -99,6 +99,7 @@ Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those 
 See [host paths and configuration overrides](docs/verification-s45.md) for installation locations.
 Setup requires the configured server URL and an authenticated account.
 It fetches reviewed adaptations of the server's pinned upstream skills; command examples run through `artium-axi <tool>` using Artium-managed credentials.
+Skills include granted tools that are disabled; running those tools still returns `TOOL_DISABLED`.
 Only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
 Unsupported hosts or hooks are refused before files are written.
 
@@ -106,7 +107,8 @@ Setup preserves unrelated settings and hooks and leaves unchanged managed files 
 It refuses to replace an edited or unmanaged skill unless `--force` is explicit.
 Setup checks every skill and hook setting before writing; a refusal leaves the installation unchanged.
 Re-run setup to add newly granted tools.
-Skills for tools no longer available are retained and reported, not deleted.
+Artium-managed skills for tools no longer granted are retained and reported, not deleted.
+Unmanaged standalone skills outside the current grants are left untouched and unreported.
 Output lists one installed, unchanged or retained row per skill.
 Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
 See [host verification](docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.

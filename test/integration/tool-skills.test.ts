@@ -30,6 +30,7 @@ beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-skills-api-'))
   db = openStore(join(directory, 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
   await seedToolUser(db)
+  db.exec("DELETE FROM role_tools WHERE tool NOT IN ('falcon-axi', 'ldap-axi')")
   db.exec('UPDATE tools SET enabled = 1')
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), environment: {},
@@ -46,17 +47,45 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-test('the authenticated skill snapshot follows current grants, enabled tools and runtime availability', async () => {
+test('the authenticated skill snapshot follows current grants independently of tool enablement', async () => {
   const first = await app.inject({ url: '/v1/skills', headers })
   expect(first.statusCode).toBe(200)
   expect(first.headers['cache-control']).toBe('no-store')
   expect(skillsResponseSchema.parse(first.json()).skills.map(skill => skill.name)).toEqual(['falcon-axi', 'ldap-axi'])
   db.exec("DELETE FROM role_tools WHERE tool = 'ldap-axi'; UPDATE tools SET enabled = 0 WHERE name = 'falcon-axi'")
-  expect((await app.inject({ url: '/v1/skills', headers })).json()).toEqual({ skills: [] })
+  expect(skillsResponseSchema.parse((await app.inject({ url: '/v1/skills', headers })).json()).skills.map(skill => skill.name)).toEqual(['falcon-axi'])
+  expect((await app.inject({ url: '/v1/tools', headers })).json()).toEqual({ tools: [] })
+  expect((await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,
+    payload: { args: ['detection', 'list'] } })).json().error.code).toBe('TOOL_DISABLED')
   db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'ldap-axi')")
   expect((await app.inject({ url: '/v1/skills', headers })).json().skills).toEqual([
+    { name: 'falcon-axi', content: expect.stringContaining('artium-axi falcon-axi') },
     { name: 'ldap-axi', content: expect.stringContaining('artium-axi ldap-axi user list') },
   ])
+})
+
+test('granted tools without runtime adapters still receive skills', async () => {
+  db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'az-axi')")
+  const response = await app.inject({ url: '/v1/skills', headers })
+  expect(response.statusCode).toBe(200)
+  expect(skillsResponseSchema.parse(response.json()).skills.map(skill => skill.name)).toEqual(['az-axi', 'falcon-axi', 'ldap-axi'])
+})
+
+test('overlapping role grants produce one skill per tool', async () => {
+  db.exec(`INSERT INTO roles (id, name) VALUES ('overlapping-role', 'Overlapping Role');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-development-user', 'overlapping-role');
+    INSERT INTO role_tools VALUES ('overlapping-role', 'falcon-axi')`)
+  const response = await app.inject({ url: '/v1/skills', headers })
+  expect(skillsResponseSchema.parse(response.json()).skills.map(skill => skill.name)).toEqual(['falcon-axi', 'ldap-axi'])
+})
+
+test('skill snapshots exclude grants belonging only to another account', async () => {
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change)
+    VALUES ('ungranted-user', 'ungranted-user', 'Ungranted User', 'sso', 0)`)
+  const response = await app.inject({ url: '/v1/skills',
+    headers: { authorization: `Bearer ${issueTestAccessToken(db, 'ungranted-user')}` } })
+  expect(response.statusCode).toBe(200)
+  expect(response.json()).toEqual({ skills: [] })
 })
 
 test('skill downloads require an active signed-in account', async () => {

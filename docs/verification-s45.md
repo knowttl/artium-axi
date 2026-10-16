@@ -1,6 +1,6 @@
 # S45 setup and embedded skill
 
-Setup installs the embedded base skill and fetches reviewed upstream skill adaptations for the signed-in account's enabled, granted runtime tools, with an opt-in verified Claude Code hook.
+Setup installs the embedded base skill and fetches reviewed upstream skill adaptations for every tool granted to the signed-in account, with an opt-in verified Claude Code hook.
 It does not add download or launcher distribution.
 
 Claude Code, Codex and OpenCode host contracts checked on 2026-10-08; Pi installer paths are defined by [setup.ts](../src/cli/setup.ts):
@@ -34,7 +34,8 @@ The server reads npm-package skills from `/opt/tools` and the Falcon skill copie
 The overlays in `src/server/tool-skills.ts` bind each review to the upstream content digest, retain operational guidance, remove standalone credential setup, filter command tables to managed capabilities and prefix command examples with `artium-axi <tool>`.
 Missing or changed upstream content fails the entire download before local installation.
 Every installed skill uses the same checksum ownership marker and edited/unmanaged refusal.
-Re-running setup adds new grants and reports retained skills for tools no longer available without deleting them.
+Re-running setup adds new grants and reports retained Artium-managed skills for tools no longer granted without deleting them.
+Unmanaged standalone skills outside the current grants are left untouched and unreported.
 See [README setup guidance](../README.md) for managed-path repair and explicit skill replacement.
 All validation of settings and skill ownership precedes writes.
 All changed files are staged before replacement and atomically renamed, with their original modes preserved and temporary files removed.

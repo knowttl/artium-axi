@@ -50,7 +50,7 @@ export const meResponseSchema = z.strictObject({ username: z.string(), displayNa
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'])
-// One authenticated snapshot of enabled, granted runtime tools and their managed skills.
+// One authenticated snapshot of granted tools and their managed skills.
 export const skillsResponseSchema = z.strictObject({ skills: z.array(z.strictObject({
   name: toolSchema, content: z.string().min(1),
 })).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length) })
