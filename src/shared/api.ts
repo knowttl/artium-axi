@@ -188,7 +188,7 @@ export const nativeSettingsSchemas = {
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
-  if (tool === 'ldap-axi') return false
+  if (tool === 'ldap-axi' || tool === 'falcon-axi') return false
   if (tool === 'mg-axi' || tool === 'vectra-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }

@@ -13,7 +13,7 @@ import type { ToolName } from '../store/credential-store.js'
 const settingsGuide = {
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
-  'falcon-axi': 'Optional allowWrites (boolean). Writes are off unless allowWrites is explicitly true. The reviewed Falcon pin has no write commands; enabling this switch adds none today. Use {} to turn the switch off.',
+  'falcon-axi': 'Optional allowWrites (boolean), saved for a future write-capable pin. The reviewed Falcon pin has no write commands and remains read-only even when this switch is true. Use {} to turn the switch off.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean). Use {} to clear settings.',
 }
@@ -48,7 +48,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const roles = db.prepare(`SELECT roles.id, roles.name FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as Array<{ id: string, name: string }>
     const tested = db.prepare(`SELECT 1 FROM tool_health WHERE tool = ? AND credential_revision = ? AND status = 'ok'`).get(tool.name, credential.revision)
     let content = `<p><a href="/admin/tools">All tools</a></p><section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
-      <p>Write access: ${tool.readOnly ? 'Read-only' : 'Writes enabled'}. Writes default to off. Set allowWrites to true in native settings to enable this tool, nested inside writes for Graph and Vectra with the operations allow-list. LDAP is always read-only.</p>
+      <p>Write access: ${tool.readOnly ? 'Read-only' : 'Writes enabled'}. Writes default to off. Set allowWrites to true in native settings to enable writes for Azure, nested inside writes for Graph and Vectra with the operations allow-list. Falcon's current pin and LDAP remain read-only.</p>
       <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>
       <details open><summary>Setup checklist</summary><ol>${[
         [credential.configured, 'Save a credential below'], [Boolean(tested), 'Pass Test credential below', 'data-test-checklist'],

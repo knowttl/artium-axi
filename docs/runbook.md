@@ -180,9 +180,9 @@ On its admin tool page, save native settings with `allowWrites: true` for Falcon
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.
-Tool lists and health responses report `readOnly`; LDAP always remains read-only.
-Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins remain on.
-The reviewed Falcon pin has no write commands; enabling its switch adds none today.
+Tool lists and health responses report `readOnly`; LDAP and the current Falcon pin always remain read-only.
+Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
+The reviewed Falcon pin has no write commands; enabling its saved switch leaves effective write access off.
 The Falcon switch is available for a future write-capable pin, which requires a separate review and upgrade.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
