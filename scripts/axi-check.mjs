@@ -45,6 +45,7 @@ try {
   const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 9).toString('base64') })
   db = openStore(join(directory, 'data', 'artium.db'), key)
   await seedToolUser(db)
+  db.exec("DELETE FROM role_tools WHERE tool <> 'falcon-axi'")
   db.exec("UPDATE users SET must_change = 1; UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'")
   const store = createCredentialStore(db, key)
   const reference = store.replaceCredential('falcon-axi', { clientId: 'CANARY-check-client', clientSecret: 'CANARY-check-secret', region: 'us-2' }, 0, 'synthetic-development-user', Date.now())
