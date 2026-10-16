@@ -106,7 +106,8 @@ export async function setup(args: string[]): Promise<string> {
   const invocation = process.platform === 'win32'
     ? `& '${process.execPath.replaceAll("'", "''")}' '${executable.replaceAll("'", "''")}'`
     : `${quote(process.execPath)} ${quote(executable)}`
-  const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`)
+  const executableBlock = `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`
+  const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => executableBlock)
   const hostDirectory = host === 'claude' && process.env.CLAUDE_CONFIG_DIR
     ? resolve(process.env.CLAUDE_CONFIG_DIR)
     : host === 'pi' && process.env.PI_CODING_AGENT_DIR
@@ -116,6 +117,7 @@ export async function setup(args: string[]): Promise<string> {
   const response = skillsResponseSchema.safeParse(await client.authenticated('/v1/skills', 'GET'))
   if (!response.success) throw new ArtiumError('INVALID_RESPONSE')
   const skills = [{ name: 'artium-axi', content }, ...response.data.skills].map(({ name, content }) => {
+    if (name !== 'artium-axi') content = content.replace(/^(---\n[\s\S]*?\n---\n)/, frontmatter => `${frontmatter}\nIf artium-axi is absent from PATH, use the installed command below in place of \`artium-axi\` in every example:\n\n${executableBlock}\n`)
     const path = join(hostDirectory, 'skills', name, 'SKILL.md')
     const installed = `${content}\n<!-- artium-axi sha256:${checksum(content)} -->\n`
     const previous = readOptional(path)

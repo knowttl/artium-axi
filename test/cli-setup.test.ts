@@ -8,6 +8,7 @@ import { once } from 'node:events'
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
 import { SessionStore } from '../src/cli/session.js'
 import { loadToolSkill } from '../src/server/tool-skills.js'
+import { toolSchema } from '../src/shared/api.js'
 import type { ToolName } from '../src/server/store/credential-store.js'
 
 const execute = promisify(execFile)
@@ -83,10 +84,13 @@ test.each([
 test.each([
   ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'],
   ['pi', '.pi/agent/skills'],
-])('installed %s invocation executes from a replacement-sensitive bundle path', async (host, location) => {
+].flatMap(([host, location]) => ['artium-axi', ...toolSchema.options].map(tool => ({ host, location, tool }))))
+('installed $host $tool invocation executes from a replacement-sensitive bundle path', async ({ host, location, tool }) => {
   const target = home()
+  granted = [...toolSchema.options]
   expect(await cli(target, ['setup', '--host', host])).toMatchObject({ code: 0 })
-  const content = read(join(target, location, 'artium-axi/SKILL.md'))
+  const content = read(join(target, location, tool, 'SKILL.md'))
+  expect(content).toContain('in place of `artium-axi` in every example')
   const invocation = content.match(/```sh\n([^\n]+)\n```/)![1]
   const result = await execute(process.platform === 'win32' ? 'powershell.exe' : 'sh',
     process.platform === 'win32' ? ['-NoProfile', '-Command', `${invocation} --help`] : ['-c', `${invocation} --help`],
@@ -174,6 +178,7 @@ test('Claude hook installation preserves unrelated settings and hooks and is ide
 
 test('setup repairs managed skill and hook paths after the bundle moves', async () => {
   const target = home()
+  granted = ['az-axi']
   await cli(target, ['setup', '--host', 'claude', '--hook'])
   const relocated = join(directory, 'relocated.mjs')
   copyFileSync(bundle, relocated)
@@ -182,6 +187,7 @@ test('setup repairs managed skill and hook paths after the bundle moves', async 
   expect(settings.hooks.SessionStart).toHaveLength(1)
   expect(settings.hooks.SessionStart[0].hooks[0].args).toEqual([relocated, 'tools'])
   expect(read(join(target, '.claude/skills/artium-axi/SKILL.md'))).toContain(relocated.replaceAll("'", "'\\''"))
+  expect(read(join(target, '.claude/skills/az-axi/SKILL.md'))).toContain(relocated.replaceAll("'", "'\\''"))
 })
 
 test.each(['invalid json', '[]', '{"hooks":[]}', '{"hooks":{"SessionStart":{}}}', '{"hooks":{"SessionStart":null}}', '{"hooks":{"SessionStart":[{"hooks":"invalid"}]}}'])
