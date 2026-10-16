@@ -11,7 +11,7 @@ The download routes are implemented in [cli-download.ts](../src/server/cli-downl
 They read the compiled bundle relative to the compiled server module, independent of its working directory.
 Both responses identify the version and SHA-256; the checksum response names the downloaded `artium-axi.mjs` file.
 The checklist downloads both over HTTPS, checks the digest with sha256sum, rejects deliberate corruption, checks metadata and byte equality, then renames the one-file bundle to the executable `artium-axi`.
-It launches from a directory containing only that file, installs the three supported skills, executes the recorded Claude hook, changes a synthetic temporary password, signs in again and runs one fake first call.
+It launches from a directory containing only that file, installs the embedded skill for every supported host, executes the recorded Claude hook, changes a synthetic temporary password, signs in again and runs one fake first call.
 Unknown hosts and unsupported hooks return actionable usage errors.
 
 The ten script-visible checks are:

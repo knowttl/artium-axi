@@ -96,15 +96,14 @@ artium-axi setup --host claude --hook
 ```
 
 Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
-Pi loads the skill from `~/.pi/agent/skills/artium-axi/SKILL.md`, or from `skills/artium-axi/SKILL.md` under `PI_CODING_AGENT_DIR` when set.
+See [host paths and configuration overrides](docs/verification-s45.md) for installation locations.
 Setup always installs the skill; only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
 Unsupported hosts or hooks are refused before files are written.
 
 Setup preserves unrelated settings and hooks and leaves unchanged managed files alone.
 It refuses to replace an edited or unmanaged skill unless `--force` is explicit.
 Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
-Pi 1.2.0 discovery was verified on Linux in offline RPC sessions: `get_commands` listed `skill:artium-axi` from both the default directory and a relocated `PI_CODING_AGENT_DIR`.
-Other host/platform combinations and hook usefulness require separate acceptance.
+See [host verification](docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.
 
 ## Other ways to install
 

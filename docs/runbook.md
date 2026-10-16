@@ -116,12 +116,10 @@ The checksum comes from the same trusted server and detects corruption or mixed 
 
 Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.
 Keep Node on PATH and retain the installed launcher path; rerun setup if the bundle moves.
+Install the agent skill using the [skill installation guidance](../README.md#skill-installation) for your host.
 With that installation and trust configured, the following commands are the local-account operator checks:
 
 ```sh
-artium-axi setup --host claude --hook
-artium-axi setup --host codex
-artium-axi setup --host opencode
 artium-axi login --username synthetic-admin --password-stdin
 artium-axi passwd --password-stdin
 artium-axi login --username synthetic-admin --password-stdin
@@ -142,8 +140,8 @@ Browser users sign in at `/login`, change temporary passwords at `/password`, an
 See [browser administration](../README.md#browser-administration) for `/account` usage and session management.
 The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
 
-Setup writes an embedded skill and, for Claude only, an optional SessionStart hook.
-Local Linux file generation is verified; actual agent loading and hook usefulness, Windows/macOS launchers and live client trust remain unexercised owner acceptance.
+See [host verification](verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
+Windows/macOS launchers and live client trust remain unexercised owner acceptance.
 CLI tokens are private local files bound to the server URL; do not export or share the session file.
 After `SESSION_BUSY`, remove the session lock directory only after all CLI processes using it have exited.
 An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.
