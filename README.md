@@ -131,7 +131,7 @@ The npm package contains no server or upstream executables and needs no runtime 
 Login warns when client and server versions differ and continues signing in.
 Download the matching client and checksum from your server, or install its version with `npm install -g @knowttl/artium-axi@<server-version>`.
 Older servers without a version response header cannot supply this warning.
-The server still enforces its minimum CLI version on authenticated calls.
+A successful login does not bypass the [minimum CLI version requirements](src/shared/api.ts) for subsequent API calls.
 
 ### Set up a host
 
