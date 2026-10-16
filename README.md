@@ -124,7 +124,7 @@ As an alternative, install the client CLI and its embedded skill from npm with N
 npm install -g @knowttl/artium-axi
 export ARTIUM_AXI_URL='https://artium.example'
 artium-axi setup --host codex
-artium-axi login --username '<username>' --password-stdin
+artium-axi login --username synthetic-user
 ```
 
 The npm package contains no server or upstream executables and needs no runtime npm dependencies.
@@ -377,6 +377,7 @@ Only the bundled CLI, skill, README, LICENSE, NOTICE and client package metadata
 | Command | Purpose |
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
+| `artium-axi --version` | Show the client version without contacting the server; `-v` and `-V` are aliases. |
 | `artium-axi login --username synthetic-user` | Sign in with a local account. |
 | `artium-axi login --sso` | Sign in through browser approval with an enabled SSO provider; works on headless and SSH hosts. |
 | `artium-axi passwd` | Change your password, then sign in again. |
