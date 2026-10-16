@@ -123,8 +123,8 @@ As an alternative, install the client CLI and its embedded skill from npm with N
 ```sh
 npm install -g @knowttl/artium-axi
 export ARTIUM_AXI_URL='https://artium.example'
-artium-axi setup --host codex
 artium-axi login --username synthetic-user
+artium-axi setup --host codex
 ```
 
 The npm package contains no server or upstream executables and needs no runtime npm dependencies.
