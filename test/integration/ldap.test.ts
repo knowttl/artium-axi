@@ -72,7 +72,7 @@ test('LDAP credentials can be saved, tested, enabled and used for a granted read
     payload: { enabled: true, expectedRevision: 2 } })
   expect(enabled.statusCode, enabled.body).toBe(200)
   const available = await app.inject({ method: 'GET', url: '/v1/tools', headers })
-  expect(available.json().tools).toContainEqual({ name: 'ldap-axi', version: '0.1.4', status: 'ok' })
+  expect(available.json().tools).toContainEqual({ name: 'ldap-axi', version: '0.1.4', status: 'ok', readOnly: true })
   const result = await app.inject({ method: 'POST', url: '/v1/tools/ldap-axi/run', headers,
     payload: { args: ['user', 'list', '--limit', '1'] } })
   expect(result.statusCode, result.body).toBe(200)

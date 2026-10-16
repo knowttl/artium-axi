@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
-import { healthSchema } from '../../shared/api.js'
+import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
@@ -103,7 +103,9 @@ export class ToolHealth {
         durationMs = runnerError?.durationMs ?? Date.now() - started
         outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
       }
+      const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
+        readOnly: !toolAllowsWrites(tool, JSON.parse(settings.native_settings)),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
       audit.record({ ...context, event: 'run-terminal', action: await journal?.action(!failure) ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence })

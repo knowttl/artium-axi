@@ -10,6 +10,7 @@ import type { ToolName } from '../store/credential-store.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
+import { toolAllowsWrites } from '../../shared/api.js'
 
 type Schema = Record<string, any>
 export interface ProfileField { name: string, schema: Schema, required: boolean }
@@ -32,7 +33,8 @@ export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, 
       const normalized = argumentsForCall(args, input)
       if (reference.tool !== adapter.name) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
       const value = await source.getCredential(reference)
-      return { executable: adapter.executable, ...normalized, ...profile.prepare(adapter.name, value, writeLog, false), limits }
+      return { executable: adapter.executable, ...normalized,
+        ...profile.prepare(adapter.name, value, writeLog, !toolAllowsWrites(adapter.name, value as Record<string, unknown>)), limits }
     } }
 }
 
@@ -58,6 +60,7 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'falcon-axi') this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow writes' }
     if (tool === 'ldap-axi') {
       this.inputSchema.required = [...new Set([...this.inputSchema.required ?? [], 'auth', 'bindDn', 'bindPassword'])]
       this.inputSchema.properties.auth = { const: 'simple', title: 'Authentication' }
@@ -169,6 +172,8 @@ export class CredentialProfile {
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
     if (tool !== 'ldap-axi' && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
+    // Falcon's administrator switch is host policy, not an upstream profile field.
+    if (tool === 'falcon-axi') delete parsed.value.allowWrites
     const environment: Record<string, string> = {}
     const secrets: string[] = []
     for (const path of parsed.paths) {

@@ -107,6 +107,41 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
+test.each([
+  { tool: 'falcon-axi', settings: { allowWrites: true } },
+  { tool: 'az-axi', settings: { allowWrites: true } },
+  { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } } },
+  { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } } },
+] as const)('$tool administrator switch is audited and independent of other tools', async ({ tool, settings }) => {
+  const initial = await request('GET', '')
+  const before = (await initial.json() as { tools: Array<{ name: string, readOnly: boolean, health: { readOnly: boolean } }> }).tools
+  expect(before.every(item => item.readOnly && item.health.readOnly)).toBe(true)
+  const enabled = await request('PATCH', `/${tool}`, { nativeSettings: settings, expectedRevision: 1 })
+  expect(enabled.status).toBe(200)
+  expect(await enabled.json()).toMatchObject({ readOnly: false, health: { readOnly: false } })
+  const list = (await (await request('GET', '')).json() as { tools: Array<{ name: string, readOnly: boolean }> }).tools
+  expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual([tool])
+  expect(db.prepare("SELECT action, tool, user_id FROM audit WHERE event = 'admin-change'").all())
+    .toEqual([{ action: 'update-tool', tool, user_id: actor }])
+  const disabled = await request('PATCH', `/${tool}`, { nativeSettings: {}, expectedRevision: 2 })
+  expect(disabled.status).toBe(200)
+  expect(await disabled.json()).toMatchObject({ readOnly: true, health: { readOnly: true } })
+})
+
+test.each([
+  { tool: 'falcon-axi', settings: { allowWrites: true } },
+  { tool: 'az-axi', settings: { allowWrites: true } },
+  { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } } },
+  { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } } },
+] as const)('$tool migration preserves an explicit write opt-in', async ({ tool, settings }) => {
+  store.replaceCredential(tool, { ...values[tool], ...settings }, 0, actor, 123)
+  store = createCredentialStore(db, provider)
+  expect(store.readToolSettings!(tool)).toMatchObject(settings)
+  expect(store.readCredential(store.findCredential(tool)!)).toMatchObject(settings)
+  const list = (await (await request('GET', '')).json() as { tools: Array<{ name: string, readOnly: boolean }> }).tools
+  expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual([tool])
+})
+
 test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
@@ -487,7 +522,7 @@ test.each([
   const discovery = await fetch(`${url}/v1/tools`, { headers })
   expect(discovery.status).toBe(200)
   const { tools } = toolsResponseSchema.parse(await discovery.json())
-  expect(tools).toEqual([{ name: tool, version, status: 'unknown' }])
+  expect(tools).toEqual([{ name: tool, version, status: 'unknown', readOnly: true }])
   expect(toolView(tools[0]!)).toContain(`version: "${version}"`)
   const admin = await request('GET', '')
   expect(admin.status).toBe(200)

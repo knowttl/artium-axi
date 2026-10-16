@@ -45,7 +45,7 @@ test.each([undefined, 'synthetic-member'])('preparation adds the managed region 
   expect(result).toEqual({
     executable: '/opt/falcon-axi/bin/falcon-axi',
     args: [...args, '--region', 'us-2', ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret' },
+    environment: { FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'true' },
     secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 60_000 },
   })
 })

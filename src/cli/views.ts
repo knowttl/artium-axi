@@ -4,7 +4,7 @@ import { meResponseSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { rewriteDiscoveryHelp } from './rewrite.js'
 
-type Tools = z.infer<typeof toolsResponseSchema>['tools']
+type Tools = z.input<typeof toolsResponseSchema>['tools']
 
 export function identityView(user: z.infer<typeof meResponseSchema>, server: string): string {
   return `user: ${JSON.stringify(user.username)}\nserver: ${JSON.stringify(server)}\nroles[${user.roles.length}]: ${user.roles.map(role => JSON.stringify(role)).join(',')}\naccessExpiresAt: ${user.accessExpiresAt}\n`
@@ -12,7 +12,7 @@ export function identityView(user: z.infer<typeof meResponseSchema>, server: str
 
 export function toolsView(tools: Tools): string {
   if (!tools.length) return 'tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n'
-  return `tools[${tools.length}]{name,status,version}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)}`).join('\n')}\nnext[2]:\n  - artium-axi tools show ${tools[0].name}\n  - artium-axi ${tools[0].name} ${manifests[tools[0].name].discovery.example.join(' ')}\n`
+  return `tools[${tools.length}]{name,status,version,readOnly}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)},${tool.readOnly ?? true}`).join('\n')}\nnext[2]:\n  - artium-axi tools show ${tools[0].name}\n  - artium-axi ${tools[0].name} ${manifests[tools[0].name].discovery.example.join(' ')}\n`
 }
 
 export function toolView(tool: Tools[number]): string {
@@ -20,5 +20,5 @@ export function toolView(tool: Tools[number]): string {
   if (tool.version !== manifest.version) throw new ArtiumError('INVALID_RESPONSE', 'The server tool version differs from the bundled manifest.', 'Download the current CLI from /cli/artium-axi.mjs.')
   const commands = manifest.discovery.commands
   const help = rewriteDiscoveryHelp(manifest.discovery.help, tool.name)
-  return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\ncommands[${commands.length}]: ${commands.join(',')}\nexample: artium-axi ${tool.name} ${manifest.discovery.example.join(' ')}\nupstreamHelp: ${JSON.stringify(help)}\n`
+  return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\nreadOnly: ${tool.readOnly ?? true}\ncommands[${commands.length}]: ${commands.join(',')}\nexample: artium-axi ${tool.name} ${manifest.discovery.example.join(' ')}\nupstreamHelp: ${JSON.stringify(help)}\n`
 }

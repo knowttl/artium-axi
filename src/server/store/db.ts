@@ -59,6 +59,10 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
     }
   }).immediate()
   return {
+    readToolSettings(tool) {
+      const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
+      return JSON.parse(row.native_settings)
+    },
     findCredential(tool) {
       return db.prepare('SELECT id, tool, revision FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>
     },

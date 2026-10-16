@@ -3,7 +3,7 @@ import { isIP } from 'node:net'
 import Fastify from 'fastify'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
-import { inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema } from '../shared/api.js'
+import { inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { loadCredentialProfile } from './adapters/credential-profile.js'
@@ -124,11 +124,12 @@ export function createApp(options: {
   }
   app.get('/v1/tools', async request => {
     const tools = grantedAdapters(request.headers.authorization).map(adapter => {
-      const row = db.prepare(`SELECT EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
+      const row = db.prepare(`SELECT native_settings AS nativeSettings, EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
         (SELECT status FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
           AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = tools.name) AS health
-        FROM tools WHERE name = ?`).get(adapter.name) as { configured: number, health: 'ok' | 'error' | null }
-      return { name: adapter.name, version: toolManifests[adapter.name].version, status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }
+        FROM tools WHERE name = ?`).get(adapter.name) as { nativeSettings: string, configured: number, health: 'ok' | 'error' | null }
+      return { name: adapter.name, version: toolManifests[adapter.name].version,
+        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }
     })
     return toolsResponseSchema.parse({ tools })
   })
