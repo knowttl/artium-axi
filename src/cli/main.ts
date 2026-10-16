@@ -12,8 +12,13 @@ import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
 import { toolInput } from './input.js'
 import { ssoLogin } from './device.js'
+import { cliVersion } from '../shared/version.js'
 
 async function main(args: string[]) {
+  if (args.length === 1 && args[0] === '--version') {
+    process.stdout.write(`${cliVersion}\n`)
+    return
+  }
   const prefixHelp = args[0] === '--help'
   if (prefixHelp) args = args.slice(1)
   const command = args[0]
