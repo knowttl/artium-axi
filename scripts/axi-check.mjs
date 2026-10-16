@@ -124,12 +124,12 @@ try {
     assert.equal(result.stderr, '')
     return result.stdout
   }
-  for (const host of ['claude', 'codex', 'opencode']) {
+  for (const host of ['claude', 'codex', 'opencode', 'pi']) {
     const output = decode(await success(['setup', '--host', host, ...(host === 'claude' ? ['--hook'] : [])]))
     assert.equal(output.status, 'installed')
     assert.match(readFileSync(output.skill, 'utf8'), /Use artium-axi tools first/)
   }
-  for (const host of ['codex', 'opencode']) {
+  for (const host of ['codex', 'opencode', 'pi']) {
     const unsupported = await cli(['setup', '--host', host, '--hook'])
     assert.equal(unsupported.code, 2)
     assert.match(decode(unsupported.stdout).error.message, /unsupported.*no verified.*No files were written/)

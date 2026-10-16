@@ -24,7 +24,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 - Empty lists explain why no enabled tool is available and direct you to an administrator.
 - Local help works before sign-in and includes usage, purpose, flags and an example.
 - Artium errors use TOON on stdout; upstream calls preserve separate stdout, stderr and exit status.
-- Embedded skills support Claude Code, Codex and OpenCode, with an optional Claude Code session hook.
+- Embedded skills support Claude Code, Codex, OpenCode and Pi, with an optional Claude Code session hook.
 
 ## Quick Start
 
@@ -95,14 +95,16 @@ Install the embedded skill after downloading the client:
 artium-axi setup --host claude --hook
 ```
 
-Use `--host codex` or `--host opencode` without `--hook` for those hosts.
+Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
+Pi loads the skill from `~/.pi/agent/skills/artium-axi/SKILL.md`, or from `skills/artium-axi/SKILL.md` under `PI_CODING_AGENT_DIR` when set.
 Setup always installs the skill; only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
 Unsupported hosts or hooks are refused before files are written.
 
 Setup preserves unrelated settings and hooks and leaves unchanged managed files alone.
 It refuses to replace an edited or unmanaged skill unless `--force` is explicit.
 Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
-Actual host loading and hook usefulness require separate acceptance.
+Pi 1.2.0 discovery was verified on Linux in offline RPC sessions: `get_commands` listed `skill:artium-axi` from both the default directory and a relocated `PI_CODING_AGENT_DIR`.
+Other host/platform combinations and hook usefulness require separate acceptance.
 
 ## Other ways to install
 

@@ -20,15 +20,16 @@ function write(path: string, content: string) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content)
 }
-async function cli(home: string, args: string[], executable = bundle, claudeConfigDir?: string) {
+async function cli(home: string, args: string[], executable = bundle, claudeConfigDir?: string, piAgentDir?: string) {
   try {
     return { ...await execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 10_000,
-      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: claudeConfigDir } }), code: 0 }
+      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: claudeConfigDir, PI_CODING_AGENT_DIR: piAgentDir } }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
 
 test.each([
   ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'],
+  ['pi', '.pi/agent/skills'],
 ])('standalone setup installs only the embedded skill for %s and repeats without writes', async (host, location) => {
   const target = home()
   const args = ['setup', '--host', host]
@@ -49,6 +50,7 @@ test.each([
 
 test.each([
   ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'],
+  ['pi', '.pi/agent/skills'],
 ])('installed %s invocation executes from a replacement-sensitive bundle path', async (host, location) => {
   const target = home()
   expect(await cli(target, ['setup', '--host', host])).toMatchObject({ code: 0 })
@@ -160,7 +162,7 @@ test.each(['invalid json', '[]', '{"hooks":[]}', '{"hooks":{"SessionStart":{}}}'
   expect(readdirSync(join(target, '.claude'))).toEqual(['settings.json'])
 })
 
-test.each(['codex', 'opencode'])('unsupported %s hook explains the limit without writing a universal format', async host => {
+test.each(['codex', 'opencode', 'pi'])('unsupported %s hook explains the limit without writing a universal format', async host => {
   const target = home()
   expect(await cli(target, ['setup', '--host', host, '--hook'])).toMatchObject({ code: 2, stderr: '',
     stdout: expect.stringContaining(`no verified ${host} hook implementation`) })
@@ -178,5 +180,40 @@ test('setup help is available without server configuration or writes', async () 
   const target = home()
   expect(await cli(target, ['setup', '--help'])).toMatchObject({ code: 0,
     stdout: expect.stringContaining('usage: artium-axi setup --host') })
+  expect(readdirSync(target)).toEqual([])
+})
+
+test.each(['absolute', 'relative', 'tilde'])('Pi setup honors a %s PI_CODING_AGENT_DIR', async kind => {
+  const target = home()
+  const config = kind === 'absolute' ? home() : kind === 'relative' ? 'pi-config' : '~/pi-config'
+  const resolved = kind === 'absolute' ? config : kind === 'relative' ? join(directory, config) : join(target, 'pi-config')
+  try {
+    expect(await cli(target, ['setup', '--host', 'pi'], bundle, undefined, config)).toMatchObject({ code: 0 })
+    const path = join(resolved, 'skills/artium-axi/SKILL.md')
+    expect(read(path)).toContain('Use artium-axi tools first')
+    const modified = statSync(path).mtimeMs
+    expect(await cli(target, ['setup', '--host', 'pi'], bundle, undefined, config)).toMatchObject({ code: 0 })
+    expect(statSync(path).mtimeMs).toBe(modified)
+    expect(readdirSync(target)).toEqual(kind === 'tilde' ? ['pi-config'] : [])
+  } finally { rmSync(resolved, { recursive: true, force: true }) }
+})
+
+test.each(['edited', 'unmanaged'])('Pi setup refuses an %s skill until --force is explicit', async kind => {
+  const target = home()
+  const path = join(target, '.pi/agent/skills/artium-axi/SKILL.md')
+  expect(await cli(target, ['setup', '--host', 'pi'])).toMatchObject({ code: 0 })
+  const content = kind === 'edited' ? read(path).replace('Use artium-axi tools first', 'Local customization') : 'local skill\n'
+  write(path, content)
+  expect(await cli(target, ['setup', '--host', 'pi'])).toMatchObject({ code: 2,
+    stdout: expect.stringContaining('The installed skill was edited or is unmanaged; no installation was written.') })
+  expect(read(path)).toBe(content)
+  expect(await cli(target, ['setup', '--host', 'pi', '--force'])).toMatchObject({ code: 0 })
+  expect(read(path)).toContain('Use artium-axi tools first')
+})
+
+test('Pi setup help identifies Pi without installing', async () => {
+  const target = home()
+  expect(await cli(target, ['setup', '--host', 'pi', '--help'])).toMatchObject({ code: 0,
+    stdout: expect.stringContaining('<claude|codex|opencode|pi>') })
   expect(readdirSync(target)).toEqual([])
 })

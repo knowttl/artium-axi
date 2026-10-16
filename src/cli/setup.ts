@@ -9,6 +9,7 @@ const hosts = {
   claude: ['.claude'],
   codex: ['.agents'],
   opencode: ['.config', 'opencode'],
+  pi: ['.pi', 'agent'],
 } as const
 const hookName = 'artium-axi managed tools'
 const checksum = (content: string) => createHash('sha256').update(content).digest('hex')
@@ -70,9 +71,9 @@ export function setup(args: string[]): string {
     if (option === '--host' && host === undefined && Object.hasOwn(hosts, args[index + 1] ?? '')) host = args[++index] as keyof typeof hosts
     else if (option === '--hook' && !hook) hook = true
     else if (option === '--force' && !force) force = true
-    else throw new ArtiumError('INVALID_INPUT', 'Unknown setup host, argument or flag.', 'Use artium-axi setup --host <claude|codex|opencode> [--hook] [--force].')
+    else throw new ArtiumError('INVALID_INPUT', 'Unknown setup host, argument or flag.', 'Use artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force].')
   }
-  if (!host) throw new ArtiumError('INVALID_INPUT', 'Setup requires --host.', 'Use artium-axi setup --host <claude|codex|opencode> [--hook] [--force].')
+  if (!host) throw new ArtiumError('INVALID_INPUT', 'Setup requires --host.', 'Use artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force].')
   if (hook && host !== 'claude') {
     throw new ArtiumError('INVALID_INPUT', `Hook installation is unsupported for ${host}: this installer has no verified ${host} hook implementation. No files were written.`, `Install the skill with artium-axi setup --host ${host} without --hook; Claude Code supports --hook.`)
   }
@@ -83,7 +84,10 @@ export function setup(args: string[]): string {
   const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`)
   const installed = `${content}\n<!-- artium-axi sha256:${checksum(content)} -->\n`
   const hostDirectory = host === 'claude' && process.env.CLAUDE_CONFIG_DIR
-    ? resolve(process.env.CLAUDE_CONFIG_DIR) : join(homedir(), ...hosts[host])
+    ? resolve(process.env.CLAUDE_CONFIG_DIR)
+    : host === 'pi' && process.env.PI_CODING_AGENT_DIR
+      ? resolve(process.env.PI_CODING_AGENT_DIR.replace(/^~(?=\/|$)/, () => homedir()))
+      : join(homedir(), ...hosts[host])
   const skillPath = join(hostDirectory, 'skills', 'artium-axi', 'SKILL.md')
   const previous = readOptional(skillPath)
   if (previous !== undefined && previous !== installed && !force) {
