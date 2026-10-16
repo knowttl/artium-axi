@@ -23,6 +23,7 @@ let server: ReturnType<typeof createServer>
 let url: string
 let polls: number[]
 let failure: ErrorCode
+let serverVersion: string | undefined
 let store: SessionStore
 const session = { status: 'authenticated', accessToken: 'CANARY-access', refreshToken: 'CANARY-refresh',
   accessExpiresAt: Date.now() + 300_000, familyExpiresAt: Date.now() + 28_800_000 }
@@ -32,9 +33,11 @@ beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-cli-device-'))
   polls = []
   failure = 'DEVICE_POLL_LIMITED'
+  serverVersion = undefined
   server = createServer(async (request, reply) => {
     for await (const _chunk of request) { /* Drain the request body. */ }
     reply.setHeader('content-type', 'application/json')
+    if (serverVersion) reply.setHeader('x-artium-cli-version', serverVersion)
     if (request.url === '/v1/auth/device') {
       reply.end(JSON.stringify({ deviceCode: 'CANARY-device', userCode: 'ABCD-EFGH', verificationUri: url + '/device',
         expiresAt: Date.now() + 60_000, intervalMs: 1000 }))
@@ -74,6 +77,17 @@ test('bundled SSO login waits and resumes pending approval after a polling limit
   expect(polls[2]! - polls[1]!).toBeGreaterThan(900)
   expect(result.stdout + result.stderr).not.toContain(session.accessToken)
   expect(result.stdout + result.stderr).not.toContain(session.refreshToken)
+})
+
+test('bundled SSO login warns once on version mismatch and still saves the session', async () => {
+  serverVersion = '999.0.0'
+  const result = await login()
+  expect(result.stdout).toContain('status: authenticated')
+  expect(result.stderr.split('\n').filter(line => line.startsWith('warning:'))).toEqual([
+    expect.stringContaining('differs from server 999.0.0'),
+  ])
+  expect(result.stderr).toContain('npm install -g @knowttl/artium-axi@999.0.0')
+  expect(store.read()).toMatchObject(session)
 })
 
 test.each(['DEVICE_DENIED', 'DEVICE_CODE_EXPIRED', 'SERVER_UNAVAILABLE'] as const)(

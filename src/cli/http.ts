@@ -35,7 +35,7 @@ export class Client {
     const controller = new AbortController()
     const deadline = setTimeout(() => controller.abort(), DEFAULT_REQUEST_DEADLINE_MS)
     const url = new URL(`${this.serverUrl}${path}`)
-    const result = await new Promise<{ status: number, body: unknown }>((resolve, reject) => {
+    const result = await new Promise<{ status: number, body: unknown, serverVersion?: string }>((resolve, reject) => {
       const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
         method, ca, rejectUnauthorized: true, signal: controller.signal,
         headers: { 'x-artium-cli-version': cliVersion, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
@@ -49,7 +49,8 @@ export class Client {
         response.on('data', chunk => chunks.push(chunk))
         response.on('error', () => reject(new ArtiumError('SERVER_UNAVAILABLE')))
         response.on('end', () => {
-          try { resolve({ status: response.statusCode!, body: response.statusCode === 204 ? undefined : JSON.parse(Buffer.concat(chunks).toString('utf8')) }) }
+          try { resolve({ status: response.statusCode!, body: response.statusCode === 204 ? undefined : JSON.parse(Buffer.concat(chunks).toString('utf8')),
+            serverVersion: typeof response.headers['x-artium-cli-version'] === 'string' ? response.headers['x-artium-cli-version'] : undefined }) }
           catch { reject(new ArtiumError('INVALID_RESPONSE')) }
         })
       })
@@ -70,6 +71,10 @@ export class Client {
       throw new ArtiumError(code, message, next, failure.data.error.requestId)
     }
     if (result.status !== 200 && result.status !== 204) throw new ArtiumError('INVALID_RESPONSE')
+    if ((path === '/v1/auth/login' || path === '/v1/auth/device') && result.serverVersion && result.serverVersion !== cliVersion) {
+      const version = result.serverVersion.replace(/[\x00-\x1f\x7f]/g, '')
+      process.stderr.write(`warning: CLI ${cliVersion} differs from server ${version}; download the matching client from ${this.serverUrl}/cli/artium-axi.mjs and verify its .sha256, or run npm install -g @knowttl/artium-axi@${version}.\n`)
+    }
     return result.body
   }
 

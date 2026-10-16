@@ -2,6 +2,7 @@
   "name": "artium-axi",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "bin": {
     "artium-axi-server": "bin/artium-axi-server"
@@ -14,6 +15,7 @@
     "start": "node dist/src/server/main.js",
     "prepare": "pnpm --dir tools install --frozen-lockfile",
     "build": "node scripts/build.mjs",
+    "build:npm": "node scripts/build-npm.mjs",
     "test:containers": "node scripts/container-checks.mjs",
     "test:browser": "pnpm build && node --test test/browser/*.mjs",
     "test:axi": "node scripts/axi-check.mjs",

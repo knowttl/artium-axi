@@ -20,6 +20,7 @@ import { seedToolUser } from '../fixtures/tokens.js'
 import { SessionStore } from '../../src/cli/session.js'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { cliVersion } from '../../src/shared/version.js'
 
 let directory: string
 let db: Database.Database
@@ -66,6 +67,15 @@ async function cli(args: string[], input?: string, environment: NodeJS.ProcessEn
   return { stdout, stderr, code }
 }
 const login = (password = startingPassword) => cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)
+
+test('an older client can log in and receives the server version', async () => {
+  const response = await app.inject({ method: 'POST', url: '/v1/auth/login',
+    headers: { 'x-artium-cli-version': '0.0.0-old' },
+    payload: { username: 'synthetic-user', password: startingPassword } })
+  expect(response.statusCode).toBe(200)
+  expect(response.json().status).toBe('authenticated')
+  expect(response.headers['x-artium-cli-version']).toBe(cliVersion)
+})
 
 test('bundled local CLI sign-in under SSO requires a designated break-glass administrator and flags its use', async () => {
   db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled)

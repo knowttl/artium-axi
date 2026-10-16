@@ -151,3 +151,11 @@ test('the current CLI version is accepted', async () => {
   const response = await app.inject({ url: '/v1/me', headers: { 'x-artium-cli-version': cliVersion, authorization: `Bearer ${token}` } })
   expect(response.statusCode).toBe(200)
 })
+
+test.each(['/v1/auth/device', '/v1/auth/device/poll'])(
+  '%s returns the server version without rejecting an older client', async url => {
+    const response = await app.inject({ method: 'POST', url, payload: {}, headers: { 'x-artium-cli-version': '0.0.0-old' } })
+    expect(response.headers['x-artium-cli-version']).toBe(cliVersion)
+    expect(response.statusCode).not.toBe(426)
+    expect(response.body).not.toContain('CLI_OUTDATED')
+  })

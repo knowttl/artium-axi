@@ -29,7 +29,7 @@ import { runTool } from './runner/run.js'
 import type { Runner } from './runner/runner.js'
 import type { MutableCredentialStore } from './store/credential-store.js'
 import { ToolHealth } from './health/health.js'
-import { acceptsCliVersion } from '../shared/version.js'
+import { acceptsCliVersion, cliVersion } from '../shared/version.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
@@ -89,9 +89,12 @@ export function createApp(options: {
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })
   app.setNotFoundHandler(() => { throw new ArtiumError('NOT_FOUND') })
-  app.addHook('onRequest', async request => {
+  app.addHook('onRequest', async (request, reply) => {
+    const path = request.url.split('?')[0]
+    const login = path === '/v1/auth/login' || path === '/v1/auth/device' || path === '/v1/auth/device/poll'
+    if (login) reply.header('X-Artium-Cli-Version', cliVersion)
     const version = request.headers['x-artium-cli-version']
-    if (request.url.split('?')[0].startsWith('/v1/') && version !== undefined &&
+    if (path.startsWith('/v1/') && !login && version !== undefined &&
       !browser.isBrowser(request) && (typeof version !== 'string' || !acceptsCliVersion(version))) {
       const host = request.headers.host
       throw new ArtiumError('CLI_OUTDATED', undefined,
