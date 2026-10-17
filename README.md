@@ -660,11 +660,12 @@ See the [API contract](src/shared/api.ts) and [retention and export runbook](doc
 
 Use `login --password-stdin` or `passwd --password-stdin` to supply the login or new password through stdin.
 Stdin removes one final LF or CRLF and preserves all other spaces and Unicode.
-Password arguments are refused; tokens are never printed.
+Password arguments are refused; tokens are never printed to stdout or stderr.
 Ordinary password changes also require the current password through the terminal prompt or `ARTIUM_AXI_CURRENT_PASSWORD`.
 Clear password environment values after use.
 
-Sessions live in `artium-axi/session.json` under the applicable base directory and are bound to the normalized server URL.
+By default, sessions live in `artium-axi/session.json` under the applicable base directory and are bound to the normalized server URL.
+Callers that manage their own tokens can instead use [externally managed client sessions](#externally-managed-client-sessions).
 POSIX directories use mode 0700 and files mode 0600; Windows uses a restricted ACL and refuses storage if it cannot establish it.
 Do not export or share the session file.
 CLI processes serialize refreshes through `session.lock`; after `SESSION_BUSY`, remove that lock directory only when every CLI process has exited.
@@ -708,10 +709,10 @@ After a successful refresh, fd 4 receives one newline-terminated JSON object bef
 
 Every rotation is delivered even if the subsequent request fails; an invocation without rotation writes no record.
 Consume fd 4 concurrently with stdout and stderr, and retain rotations regardless of the command's exit status.
-If rotation delivery fails, the CLI refuses to retry the request and returns an error; the caller must recover the session rather than reuse the consumed refresh token.
+If rotation delivery fails, the CLI refuses to retry the request and returns `INVALID_INPUT` (exit 2); the caller must recover the session rather than reuse the consumed refresh token.
 Managed public output is buffered and scanned against supplied and rotated tokens and their canonical encodings before printing; a match withholds both streams and returns `SECRET_IN_OUTPUT`.
 
-Exit codes are 0 for success, 2 for invalid input or private descriptors and refused commands, and 1 for authentication, transport or output-scanning failures.
+Exit codes are 0 for success, 2 for invalid input, client configuration or private channels and refused commands, and 1 for authentication, server-binding, transport or output-scanning failures.
 Tool exit codes pass through as usual.
 Missing or closed descriptors, invalid JSON and mismatched server bindings fail before network access; no failure falls back to a session file.
 
