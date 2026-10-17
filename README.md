@@ -20,7 +20,7 @@ See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries
 ## Agent Ergonomics
 
 - Running without arguments shows identity, roles, available tools, cached health and pinned versions.
-- Tool lists use a compact `name`, `status`, `version` schema and suggest a detail view and first call.
+- Tool lists show cached health, pinned versions and write-access status and suggest a detail view and first call.
 - Empty lists explain why no enabled tool is available and direct you to an administrator.
 - Local help works before sign-in and includes usage, purpose, flags and an example.
 - Artium errors use TOON on stdout; upstream calls preserve separate stdout, stderr and exit status.
@@ -412,9 +412,8 @@ Other Azure commands, including the dashboard and `home`, leave stdin unread; he
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](src/shared/api.ts).
 
-Write permission remains subject to the pinned tool's native gates and the configured adapter policy.
-Vectra writes require its configured allowlist and upstream confirmation; Artium does not add a universal confirmation flag.
-Falcon has no editable native write settings.
+See [write-access administration](docs/runbook.md#roles-credentials-and-health) for per-tool switches, native write gates and the current Falcon limitation.
+Artium does not add a universal confirmation flag.
 
 Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.
 Artium also returns this error when its runner times out, cancels or receives a process signal after starting an executed Azure write; read timeouts remain `TIMEOUT`.

@@ -77,7 +77,8 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
         : { provider: 'certificate', key: clientId, thumbprint: credential.thumbprint.toLowerCase(), keyEnv: holder }
       return {
         executable: toolPaths['mg-axi'], args: normalized,
-        environment: { MG_AXI_CONFIG: 'mg-profile.json', MG_AXI_WRITE_LOG: writeLog, [holder]: secret },
+        environment: { MG_AXI_CONFIG: 'mg-profile.json', MG_AXI_WRITE_LOG: writeLog,
+          MG_AXI_READ_ONLY: String(writes?.allowWrites !== true), [holder]: secret },
         files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
           artium: { mode: 'application', tenantId, clientId, cloud: 'commercial', preview,
             allowDeviceCode: false, enabledPacks: ['entra'], sensitiveAreas: [], credentialRef,

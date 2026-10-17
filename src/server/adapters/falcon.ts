@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
+import { toolAllowsWrites } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
 import { toolPaths } from '../config.js'
@@ -17,6 +18,7 @@ export const falconCredentialFiles = z.object({
 export type FalconCredentialFiles = z.infer<typeof falconCredentialFiles>
 
 export const falconCredentialSchema = z.object({
+  allowWrites: z.boolean().optional(),
   clientId: z.string().trim().min(1),
   clientSecret: z.string().trim().min(1),
   region: z.string().min(1),
@@ -29,7 +31,8 @@ function prepareCredential(args: readonly string[], credential: FalconCredential
   return {
     executable: toolPaths['falcon-axi'],
     args: [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_CLIENT_ID: clientId, FALCON_CLIENT_SECRET: clientSecret },
+    environment: { FALCON_CLIENT_ID: clientId, FALCON_CLIENT_SECRET: clientSecret,
+      FALCON_AXI_READ_ONLY: String(!toolAllowsWrites('falcon-axi', credential)) },
     secrets: [clientId, clientSecret],
     limits: { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs },
   }

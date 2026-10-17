@@ -179,18 +179,28 @@ export const nativeSettingsSchemas = {
   'ldap-axi': z.strictObject({}),
   'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
-  'falcon-axi': z.strictObject({}),
+  'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
   'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
     managementGroup: z.string().min(1).optional(), workspaces: z.record(z.string().min(1), z.uuid()).optional(),
     description: z.string().optional(), allowWrites: z.boolean().optional() }),
 } as const
+export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
+  if (!settings || typeof settings !== 'object') return false
+  if (tool === 'ldap-axi' || tool === 'falcon-axi') return false
+  if (tool === 'mg-axi' || tool === 'vectra-axi') {
+    return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
+  }
+  return settings.allowWrites === true
+}
 export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
+  readOnly: z.boolean().default(true),
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.
 export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),
+  readOnly: z.boolean().default(true),
   nativeSettings: z.record(z.string(), z.unknown()), revision: z.number().int().positive(),
   updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema })
 export const adminCredentialSchema = z.strictObject({ tool: toolSchema, configured: z.boolean(),
@@ -334,6 +344,7 @@ export const toolsResponseSchema = z.strictObject({
   tools: z.array(z.strictObject({
     name: toolSchema,
     version: z.string(),
+    readOnly: z.boolean().default(true),
     status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
   })),
 })

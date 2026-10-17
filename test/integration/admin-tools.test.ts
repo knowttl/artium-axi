@@ -18,7 +18,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import type { MutableCredentialStore, ToolName } from '../../src/server/store/credential-store.js'
 import { adminCredentialSchema, adminToolSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
-import { toolView } from '../../src/cli/views.js'
+import { toolsView, toolView } from '../../src/cli/views.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 import { seedToolUser } from '../fixtures/tokens.js'
@@ -105,6 +105,69 @@ afterEach(async () => {
   db.close()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test.each([
+  { tool: 'falcon-axi', settings: { allowWrites: true }, readOnly: true, writableTools: [] },
+  { tool: 'az-axi', settings: { allowWrites: true }, readOnly: false, writableTools: ['az-axi'] },
+  { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, readOnly: false, writableTools: ['mg-axi'] },
+  { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } }, readOnly: false, writableTools: ['vectra-axi'] },
+] as const)('$tool administrator switch is audited and independent of other tools', async ({ tool, settings, readOnly, writableTools }) => {
+  const initial = await request('GET', '')
+  const before = (await initial.json() as { tools: Array<{ name: string, readOnly: boolean, health: { readOnly: boolean } }> }).tools
+  expect(before.every(item => item.readOnly && item.health.readOnly)).toBe(true)
+  const enabled = await request('PATCH', `/${tool}`, { nativeSettings: settings, expectedRevision: 1 })
+  expect(enabled.status).toBe(200)
+  expect(await enabled.json()).toMatchObject({ nativeSettings: settings, readOnly, health: { readOnly } })
+  const list = (await (await request('GET', '')).json() as { tools: Array<{ name: string, readOnly: boolean }> }).tools
+  expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual(writableTools)
+  expect(db.prepare("SELECT action, tool, user_id FROM audit WHERE event = 'admin-change'").all())
+    .toEqual([{ action: 'update-tool', tool, user_id: actor }])
+  const disabled = await request('PATCH', `/${tool}`, { nativeSettings: {}, expectedRevision: 2 })
+  expect(disabled.status).toBe(200)
+  expect(await disabled.json()).toMatchObject({ readOnly: true, health: { readOnly: true } })
+})
+
+test.each([
+  { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: [] },
+  { tool: 'az-axi', settings: { allowWrites: true }, writableTools: ['az-axi'] },
+  { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, writableTools: ['mg-axi'] },
+  { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } }, writableTools: ['vectra-axi'] },
+] as const)('$tool migration preserves an explicit write opt-in', async ({ tool, settings, writableTools }) => {
+  store.replaceCredential(tool, { ...values[tool], ...settings }, 0, actor, 123)
+  store = createCredentialStore(db, provider)
+  expect(store.readToolSettings!(tool)).toMatchObject(settings)
+  expect(store.readCredential(store.findCredential(tool)!)).toMatchObject(settings)
+  const list = (await (await request('GET', '')).json() as { tools: Array<{ name: string, readOnly: boolean }> }).tools
+  expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual(writableTools)
+})
+
+test('Falcon discovery and successful health checks remain read-only with its saved switch on', async () => {
+  await replace('falcon-axi', { ...values['falcon-axi'], allowWrites: true })
+  const tested = await request('POST', '/falcon-axi/test', {})
+  expect(tested.status).toBe(200)
+  expect(healthSchema.parse(await tested.json())).toMatchObject({ status: 'ok', readOnly: true })
+  const admin = (await (await request('GET', '')).json() as { tools: unknown[] }).tools
+    .map(tool => adminToolSchema.parse(tool)).find(tool => tool.name === 'falcon-axi')!
+  expect(admin).toMatchObject({ nativeSettings: { allowWrites: true }, readOnly: true,
+    health: { status: 'ok', readOnly: true } })
+  const discovery = await fetch(`${url}/v1/tools`, { headers })
+  expect(discovery.status).toBe(200)
+  const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
+  expect(tool).toMatchObject({ status: 'ok', readOnly: true })
+  expect(toolView(tool)).toContain('readOnly: true\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.3.0",true\n')
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi',
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('Write access: Read-only.')
+  expect(page.body).not.toContain('Writes enabled')
 })
 
 test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
@@ -487,7 +550,7 @@ test.each([
   const discovery = await fetch(`${url}/v1/tools`, { headers })
   expect(discovery.status).toBe(200)
   const { tools } = toolsResponseSchema.parse(await discovery.json())
-  expect(tools).toEqual([{ name: tool, version, status: 'unknown' }])
+  expect(tools).toEqual([{ name: tool, version, status: 'unknown', readOnly: true }])
   expect(toolView(tools[0]!)).toContain(`version: "${version}"`)
   const admin = await request('GET', '')
   expect(admin.status).toBe(200)

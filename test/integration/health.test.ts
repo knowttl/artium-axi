@@ -13,6 +13,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
+import { toolsResponseSchema } from '../../src/shared/api.js'
 import { cliVersion } from '../../src/shared/version.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
@@ -132,9 +133,9 @@ test('replacement during a check queues one fresh check and never caches the old
   expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
 })
 
-test('an old CLI is refused with the download command before authentication or tool preparation', async () => {
+test.each(['0.0.0', '0.0.0-old'])('CLI %s is refused with the download command before authentication or tool preparation', async version => {
   const prepare = vi.spyOn(adapter, 'prepare')
-  const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': '0.0.0-old', host: 'synthetic.invalid' } })
+  const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
   expect(response.statusCode).toBe(426)
   expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED',
     next: 'Download the current CLI: curl --fail --output artium-axi.mjs https://synthetic.invalid/cli/artium-axi.mjs' } })
@@ -148,13 +149,16 @@ test.each(['/health/live', '/health/ready', '/cli/unavailable.mjs', '/login'])('
 })
 
 test('the current CLI version is accepted', async () => {
-  const response = await app.inject({ url: '/v1/me', headers: { 'x-artium-cli-version': cliVersion, authorization: `Bearer ${token}` } })
+  const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': cliVersion, authorization: `Bearer ${token}` } })
   expect(response.statusCode).toBe(200)
+  expect(toolsResponseSchema.parse(response.json()).tools).toEqual([
+    { name: 'falcon-axi', version: '0.3.0', status: 'unknown', readOnly: true },
+  ])
 })
 
-test.each(['/v1/auth/device', '/v1/auth/device/poll'])(
+test.each(['/v1/auth/login', '/v1/auth/device', '/v1/auth/device/poll'])(
   '%s returns the server version without rejecting an older client', async url => {
-    const response = await app.inject({ method: 'POST', url, payload: {}, headers: { 'x-artium-cli-version': '0.0.0-old' } })
+    const response = await app.inject({ method: 'POST', url, payload: {}, headers: { 'x-artium-cli-version': '0.0.0' } })
     expect(response.headers['x-artium-cli-version']).toBe(cliVersion)
     expect(response.statusCode).not.toBe(426)
     expect(response.body).not.toContain('CLI_OUTDATED')

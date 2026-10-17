@@ -150,7 +150,7 @@ test.each([
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
-  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version}:\n  falcon-axi,ok,"0.3.0"\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
+  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version,readOnly}:\n  falcon-axi,ok,"0.3.0",true\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
   expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
   expect((await cli(['tools'])).stdout).toBe('tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n')
@@ -512,7 +512,7 @@ test('tool detail uses pinned help without running the tool', async () => {
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] } }
   const result = await cli(['tools', 'show', 'falcon-axi'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
-  expect(result.stdout).toContain('version: "0.3.0"\nstatus: ok\ncommands[')
+  expect(result.stdout).toContain('version: "0.3.0"\nstatus: ok\nreadOnly: true\ncommands[')
   expect(result.stdout).toContain('example: artium-axi falcon-axi detection list\nupstreamHelp:')
   expect(result.stdout).toContain('default 20, ceiling 10000')
   expect(requests.map(request => request.path)).toEqual(['/v1/tools'])

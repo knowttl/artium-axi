@@ -3,7 +3,7 @@ import { certificateFields } from './certificate.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
-  nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
+  nativeSettingsSchemas, toolSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { falconCredentialSchema } from '../adapters/falcon.js'
 import { vectraCredentialSchema } from '../adapters/vectra.js'
@@ -71,7 +71,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !credential ? 'unconfigured' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
-    return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled), nativeSettings: JSON.parse(row.nativeSettings), health })
+    const nativeSettings = JSON.parse(row.nativeSettings)
+    const readOnly = !toolAllowsWrites(tool, nativeSettings)
+    return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
+      nativeSettings, readOnly, health: { ...health, readOnly } })
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
     readTool(tool)

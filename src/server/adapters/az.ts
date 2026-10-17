@@ -1,6 +1,6 @@
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
-import { nativeSettingsSchemas } from '../../shared/api.js'
+import { nativeSettingsSchemas, toolAllowsWrites } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/az-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -184,9 +184,13 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
     async prepare(args, reference, input) {
       const normalized = azArguments(args, input)
       if (reference.tool !== 'az-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (normalized.write && source.getSettings && !toolAllowsWrites('az-axi', source.getSettings(reference))) {
+        throw new ArtiumError('FLAG_BLOCKED')
+      }
       const parsed = azCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
       const { tenantId, clientId, auth, subscriptions, managementGroup, workspaces, description, allowWrites } = parsed.data
+      if (normalized.write && allowWrites !== true) throw new ArtiumError('FLAG_BLOCKED')
       const credential = auth === 'secret'
         ? { tenantId, clientId, auth, clientSecret: parsed.data.clientSecret }
         : { tenantId, clientId, auth, privateKey: parsed.data.privateKey, thumbprintSha256: parsed.data.thumbprintSha256 }
@@ -195,8 +199,9 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
       const injection = profile ? profile.prepare('az-axi', Object.fromEntries(Object.entries({
         subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId,
         ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [`${resource}Token`, token!.accessToken])),
-      }).filter(([, value]) => value !== undefined)), writeLog, false) : {
+      }).filter(([, value]) => value !== undefined)), writeLog, allowWrites !== true) : {
         environment: { AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
+          AZ_AXI_READ_ONLY: String(allowWrites !== true),
           ...Object.fromEntries(Object.entries(tokens).map(([resource, token]) => [holders[resource], token!.accessToken])) },
         files: [{ name: 'az-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
           artium: { subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId,

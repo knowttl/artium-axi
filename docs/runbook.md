@@ -175,6 +175,16 @@ Users with no enabled granted tools receive an explanatory empty list.
 Review actor, change time and revision before saving; reload stale forms instead of overwriting newer edits.
 See [browser administration](../README.md#browser-administration) for timestamp display and inline identity confirmation.
 
+Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
+On its admin tool page, save native settings with `allowWrites: true` for Falcon or Azure, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
+Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
+Set the switch to false or clear the settings to turn writes off.
+Settings changes use the existing administrator authorization, revision checks and audit trail.
+Tool lists and health responses report `readOnly`; LDAP and the current Falcon pin always remain read-only.
+Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
+The reviewed Falcon pin has no write commands; enabling its saved switch leaves effective write access off.
+The Falcon switch is available for a future write-capable pin, which requires a separate review and upgrade.
+
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](../README.md#browser-administration) for guided fields and combined certificate PEM uploads.
 Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
@@ -185,7 +195,6 @@ The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) ow
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
-Falcon has no editable native write settings; Vectra writes require the configured allowlist and upstream confirmation.
 See [README tool administration](../README.md) for native-settings guidance and the live-results and maintainer-approval requirements before enabling Graph on a running installation.
 
 Check liveness and readiness through the trusted endpoint:

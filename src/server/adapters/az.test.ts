@@ -154,7 +154,7 @@ test.each([
   const call = await adapter.prepare(args, reference)
   expect(transport.requests.map(request => request.form.get('scope'))).toEqual([`${azureAudiences[resource]}/.default`])
   expect(call.environment).toEqual({ AZ_AXI_CONFIG: 'az-profile.json', AZ_AXI_WRITE_LOG: writeLog,
-    ARTIUM_SECRET_0: azureTestToken })
+    AZ_AXI_READ_ONLY: 'false', ARTIUM_SECRET_0: azureTestToken })
   expect(JSON.parse(call.files[0].content as string)).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
     artium: { auth: 'token', tenantId: credential.tenantId, subscriptions: credential.subscriptions,
       allowWrites: true, workspaces: credential.workspaces, [`${resource}Token`]: { env: 'ARTIUM_SECRET_0' } },

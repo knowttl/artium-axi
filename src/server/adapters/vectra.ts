@@ -75,6 +75,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
       return {
         executable: toolPaths['vectra-axi'], ...normalized,
         environment: { VECTRA_AXI_CONFIG: 'vectra-profile.json', VECTRA_AXI_WRITE_LOG: writeLog,
+          VECTRA_AXI_READ_ONLY: String(credential.writes?.allowWrites !== true),
           ARTIUM_SECRET_0: credential.auth === 'token' ? token! : clientSecret! },
         files: [{ name: 'vectra-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium',
           profiles: { artium: { ...profile, ...(caBundle ? { caBundle: 'vectra-ca.pem' } : {}) } } }) },
