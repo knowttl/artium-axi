@@ -652,7 +652,7 @@ See the [API contract](src/shared/api.ts) and [retention and export runbook](doc
 | --- | --- |
 | `ARTIUM_AXI_URL` | Required HTTPS base URL without credentials, query or fragment. |
 | `ARTIUM_AXI_CA_FILE` | Optional readable PEM CA file added to Node's certificate trust. |
-| `ARTIUM_AXI_PASSWORD` | Login password source when `--password-stdin` is absent, before the terminal prompt. |
+| `ARTIUM_AXI_PASSWORD` | Ordinary login password source when `--password-stdin` is absent, before the terminal prompt; refused for [managed sign-in](#externally-managed-client-sessions). |
 | `ARTIUM_AXI_CURRENT_PASSWORD` | Current password for an ordinary password change, before the terminal prompt. |
 | `XDG_CONFIG_HOME` | Session-file base on Linux/macOS; otherwise `~/.config`. |
 | `APPDATA` | Session-file base on Windows, whose execution remains unverified. |
@@ -684,7 +684,7 @@ Stdin remains available for tool input; stdout and stderr retain their normal co
 Do not pass tokens in arguments or environment variables, connect fd 4 to a log or public output, or redirect either private channel to a disk file.
 The CLI refuses regular files as private channels and never reads, creates, locks, updates or deletes `session.json` in this mode.
 
-Send one UTF-8 JSON object of at most 64 KiB to fd 3, then close the input pipe:
+For authenticated calls, send one UTF-8 JSON object of at most 64 KiB to fd 3, then close the input pipe:
 
 ```json
 {"serverUrl":"https://artium.example.test","accessToken":"CANARY-access","refreshToken":"CANARY-refresh"}
@@ -701,7 +701,7 @@ Help is available without private channels through `artium-axi --help`.
 To obtain the first session, run `artium-axi --managed-session login --username <username> --password-stdin` with the password on protected inherited stdin, or `artium-axi --managed-session login --sso` for browser approval.
 Login does not read or require fd 3; it requires a writable private pipe or socket on fd 4 before contacting the server.
 Password arguments and `ARTIUM_AXI_PASSWORD` are refused, including when `--password-stdin` is present; unset that variable before managed sign-in.
-Password input removes one final LF or CRLF, preserving other spaces and Unicode, as in ordinary stdin sign-in.
+Password input follows the stdin rules in [client settings](#client-settings).
 SSO displays the approval URL and user code immediately so the user can approve while the CLI waits.
 Both sign-in methods return the new session as one newline-terminated JSON object on fd 4, using the same envelope shown below for rotations, and create nothing under the config or session paths.
 The login server-version warning still appears on stderr when versions differ.
@@ -719,7 +719,8 @@ After a successful refresh, fd 4 receives one newline-terminated JSON object bef
 
 Every rotation is delivered even if the subsequent request fails; an authenticated invocation without rotation writes no record.
 Consume fd 4 concurrently with stdout and stderr, and retain new sessions and rotations regardless of the command's exit status.
-If rotation delivery fails, the CLI refuses to retry the request and returns `INVALID_INPUT` (exit 2); the caller must recover the session rather than reuse the consumed refresh token.
+If new-session or rotation delivery fails, the CLI returns `INVALID_INPUT` (exit 2); the caller must recover the session.
+After failed rotation delivery, the CLI refuses to retry the request; do not reuse the consumed refresh token.
 Managed public output is buffered and scanned against supplied, newly issued and rotated tokens and their canonical encodings before printing; a match withholds both buffered streams and returns `SECRET_IN_OUTPUT`.
 SSO approval instructions are displayed before session issuance; managed password input and the private SSO device code are also checked against buffered output.
 
