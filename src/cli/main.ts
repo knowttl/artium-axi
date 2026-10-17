@@ -25,11 +25,11 @@ async function main(args: string[]) {
   const managedMode = args[0] === '--managed-session'
   if (managedMode) {
     args = args.slice(1)
-    if (['login', 'passwd', 'logout', 'setup'].includes(args[0])) {
+    if (['passwd', 'logout', 'setup'].includes(args[0])) {
       throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
-        'The caller must acquire and manage tokens; use managed mode for authenticated calls.')
+        'The caller manages session persistence, password changes and revocation.')
     }
-    managed = await ManagedSession.read()
+    managed = await ManagedSession.read(args[0] === 'login')
   }
   if (args.length === 1 && args[0] === '--version') {
     output('stdout', `${cliVersion}\n`)
@@ -50,8 +50,12 @@ async function main(args: string[]) {
   }
   if (command === 'login' || command === 'passwd') {
     const remaining = args.slice(1)
+    if (managed && process.env.ARTIUM_AXI_PASSWORD !== undefined) {
+      throw new ArtiumError('INVALID_INPUT', 'Password environment values are refused in managed mode.',
+        'Unset ARTIUM_AXI_PASSWORD; use --password-stdin for local sign-in or --sso.')
+    }
     if (command === 'login' && remaining.length === 1 && remaining[0] === '--sso') {
-      await ssoLogin(new Client())
+      await ssoLogin(new Client(process.env, managed), managed)
       return
     }
     let stdin = false
@@ -67,15 +71,22 @@ async function main(args: string[]) {
       throw new ArtiumError('INVALID_INPUT', 'Invalid sign-in arguments. Password arguments are refused.',
         command === 'login' ? 'Use artium-axi login --sso or artium-axi login --username <username> --password-stdin.' : 'Use artium-axi passwd --password-stdin.')
     }
-    const client = new Client()
+    const client = new Client(process.env, managed)
     if (command === 'login') {
+      if (managed && !stdin) {
+        throw new ArtiumError('INVALID_INPUT', 'Managed login requires protected password input.',
+          'Use --password-stdin with inherited stdin; unset ARTIUM_AXI_PASSWORD. Password arguments and environment values are refused.')
+      }
       const password = await readPassword(stdin, 'ARTIUM_AXI_PASSWORD')
-      const session = await client.sessions.locked(async () => {
+      managed?.protect(password)
+      const signIn = async () => {
         const parsed = loginResponseSchema.safeParse(await client.request('/v1/auth/login', 'POST', { username, password }))
         if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
-        client.sessions.write(parsed.data)
+        if (managed) await managed.emit(client.serverUrl, parsed.data)
+        else client.sessions.write(parsed.data)
         return parsed.data
-      })
+      }
+      const session = await (managed ? signIn() : client.sessions.locked(signIn))
       if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
       output('stdout', 'status: authenticated\nnext: artium-axi tools\n')
     } else {
