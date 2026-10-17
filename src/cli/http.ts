@@ -79,7 +79,9 @@ export class Client {
     if (result.status !== 200 && result.status !== 204) throw new ArtiumError('INVALID_RESPONSE')
     if ((path === '/v1/auth/login' || path === '/v1/auth/device') && result.serverVersion && result.serverVersion !== cliVersion) {
       const version = result.serverVersion.replace(/[\x00-\x1f\x7f]/g, '')
-      process.stderr.write(`warning: CLI ${cliVersion} differs from server ${version}; download the matching client from ${this.serverUrl}/cli/artium-axi.mjs and verify its .sha256, or run npm install -g @knowttl/artium-axi@${version}.\n`)
+      const warning = `warning: CLI ${cliVersion} differs from server ${version}; download the matching client from ${this.serverUrl}/cli/artium-axi.mjs and verify its .sha256, or run npm install -g @knowttl/artium-axi@${version}.\n`
+      if (this.managed) this.managed.write('stderr', warning)
+      else process.stderr.write(warning)
     }
     return result.body
   }

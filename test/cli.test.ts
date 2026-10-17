@@ -139,7 +139,7 @@ const managedTokens = { accessToken: 'CANARY-managed-access', refreshToken: 'CAN
 const rotatedTokens = { status: 'authenticated', accessToken: 'CANARY-rotated-access', refreshToken: 'CANARY-rotated-refresh',
   accessExpiresAt: 100000, familyExpiresAt: 200000 }
 
-async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean } = {}) {
+async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean, environment?: NodeJS.ProcessEnv } = {}) {
   const configuration = mkdtempSync(join(directory, 'managed-config-'))
   const storedFile = join(configuration, 'artium-axi', 'session.json')
   if (options.existing) {
@@ -148,7 +148,7 @@ async function managedCli(args: string[], options: { json?: string, input?: stri
   }
   const child = spawn(process.execPath, [bundle, '--managed-session', ...args], {
     cwd: directory, env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
-      ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') },
+      ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...options.environment },
     stdio: ['pipe', 'pipe', 'pipe', options.missing === 3 ? 'ignore' : 'pipe', options.missing === 4 ? 'ignore' : 'pipe'],
     signal: AbortSignal.timeout(10_000),
   })
@@ -196,10 +196,92 @@ test.each(['not JSON CANARY-managed-access', '{}', '{"accessToken":""}', 'x'.rep
   expect(requests).toEqual([])
 })
 
-test.each(['login', 'passwd', 'logout', 'setup'])('managed mode refuses %s before network access', async command => {
+test.each(['passwd', 'logout', 'setup'])('managed mode refuses %s before network access', async command => {
   requests = []
   expect(await managedCli([command])).toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
   expect(requests).toEqual([])
+})
+
+test.each([false, true])('managed login returns the first session privately without touching files (existing: %s)', async existing => {
+  requests = []
+  response = { status: 200, serverVersion: '999.0.0', body: rotatedTokens }
+  const result = await managedCli(['login', '--username', 'synthetic-user', '--password-stdin'],
+    { input: 'CANARY-password\n', missing: 3, existing })
+  expect(result).toMatchObject({ code: 0, stdout: 'status: authenticated\nnext: artium-axi tools\n',
+    rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
+  expect(result.stderr).toContain('differs from server 999.0.0')
+  expect(result.stdout + result.stderr).not.toContain('CANARY-password')
+  expect(requests).toEqual([{ path: '/v1/auth/login', token: undefined,
+    body: { username: 'synthetic-user', password: 'CANARY-password' }, version: cliVersion }])
+})
+
+test.each([false, true])('managed SSO returns the first session privately without touching files (existing: %s)', async existing => {
+  requests = []
+  responseSequence = [
+    { status: 200, serverVersion: '999.0.0', body: { deviceCode: 'CANARY-device', userCode: 'ABCD-EFGH',
+      verificationUri: url + '/device', expiresAt: Date.now() + 60_000, intervalMs: 1000 } },
+    { status: 200, body: rotatedTokens },
+  ]
+  try {
+    const result = await managedCli(['login', '--sso'], { missing: 3, existing })
+    expect(result).toMatchObject({ code: 0, stdout: expect.stringContaining('status: authenticated'),
+      rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
+    expect(result.stdout).toContain('code: ABCD-EFGH')
+    expect(result.stderr).toContain('differs from server 999.0.0')
+    expect(result.stdout + result.stderr).not.toContain('CANARY-device')
+    expect(requests.map(request => request.path)).toEqual(['/v1/auth/device', '/v1/auth/device/poll'])
+  } finally { responseSequence = undefined }
+})
+
+test.each([
+  { args: ['--password', 'CANARY-password'] },
+  { args: ['CANARY-password'] },
+  { args: [], environment: { ARTIUM_AXI_PASSWORD: 'CANARY-password' } },
+  { args: ['--password-stdin'], environment: { ARTIUM_AXI_PASSWORD: 'CANARY-password' } },
+  { args: [] },
+])('managed login refuses unsafe or absent password sources (%#)', async ({ args, environment }) => {
+  requests = []
+  const result = await managedCli(['login', '--username', 'synthetic-user', ...args],
+    { missing: 3, input: 'CANARY-password', environment })
+  expect(result).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })
+  expect(result.stdout).not.toContain('CANARY-password')
+  expect(requests).toEqual([])
+})
+
+test('managed login refuses a missing private output before sending credentials', async () => {
+  requests = []
+  expect(await managedCli(['login', '--username', 'synthetic-user', '--password-stdin'], { missing: 4, input: 'CANARY-password' }))
+    .toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test('managed SSO refuses password environment input before network access', async () => {
+  requests = []
+  expect(await managedCli(['login', '--sso'], { missing: 3, environment: { ARTIUM_AXI_PASSWORD: 'CANARY-password' } }))
+    .toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test('managed login returns restricted password-change tokens only on the private channel', async () => {
+  const restricted = { status: 'password-change-required', passwordChangeToken: 'CANARY-password-change', passwordChangeExpiresAt: 200000 }
+  response = { status: 200, body: restricted }
+  const result = await managedCli(['login', '--username', 'synthetic-user', '--password-stdin'], { missing: 3, input: 'CANARY-password' })
+  expect(result).toMatchObject({ code: 1, stdout: expect.stringContaining('PASSWORD_CHANGE_REQUIRED'), stderr: '',
+    rotations: `${JSON.stringify({ serverUrl: url, ...restricted })}\n` })
+  expect(result.stdout).not.toContain(restricted.passwordChangeToken)
+})
+
+test('managed login withholds a password echoed by a server error', async () => {
+  response = { status: 401, body: errorResponse(new ArtiumError('SIGN_IN_FAILED', 'CANARY-password'), 'synthetic-error') }
+  expect(await managedCli(['login', '--username', 'synthetic-user', '--password-stdin'], { missing: 3, input: 'CANARY-password' }))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '', rotations: '' })
+})
+
+test('managed login scans version warnings against the issued tokens', async () => {
+  response = { status: 200, serverVersion: rotatedTokens.accessToken, body: rotatedTokens }
+  expect(await managedCli(['login', '--username', 'synthetic-user', '--password-stdin'], { missing: 3, input: 'CANARY-password' }))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '',
+      rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
 })
 
 test.each([false, true])('managed rotation is private even when the retried request fails (%s)', async fails => {
