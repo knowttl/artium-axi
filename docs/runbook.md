@@ -2,7 +2,7 @@
 
 ## Scope and prerequisites
 
-This runbook covers local operation of the packaged server and client.
+This runbook covers local operation of the packaged server and client, and npm client releases.
 Exercise changes first in disposable Linux stores with synthetic identities, canary credentials and fake upstream services.
 Live host provisioning, proxy deployment, client installation and live adapter acceptance belong to the owner and have not been exercised here.
 The local rehearsal and its limitations are recorded in [S49 verification](verification-s49.md).
@@ -42,6 +42,20 @@ The Compose validation creates no stack and reads no secret contents.
 Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
 Check the [container-test prerequisites](../README.md#development--testing) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
 Do not use real adapter credentials or globally prune Docker resources.
+
+## npm client releases
+
+The [release workflow](../.github/workflows/release-please.yml) runs on pushes to `main` and uses release-please to create or update a release PR.
+Review and merge that PR to create the GitHub release and trigger publication from its tag.
+The [release configuration](../release-please-config.json) and [version manifest](../.release-please-manifest.json) own release naming and version tracking.
+The publish job installs frozen dependencies, runs `pnpm check`, then stages the client with `pnpm build:npm` and publishes `@knowttl/artium-axi` with public access and provenance.
+It skips publication when no release was created or the staged version already exists on npm.
+This workflow releases the client CLI and embedded skill; server deployment remains a separate operation.
+
+Before the first automated release, the owner must enable GitHub Actions, allow GitHub Actions to create pull requests, and configure the npm package's GitHub Actions trusted publisher for `knowttl/artium-axi` and workflow filename `release-please.yml`, without an environment name.
+The workflow uses `GITHUB_TOKEN` for release management and OIDC for npm publication; no npm publish token is required.
+Keep the local container acceptance and private hygiene checks in [Development / testing](../README.md#development--testing) as release prerequisites; the workflow's `pnpm check` does not include them.
+Hosted release handling, npm trusted-publisher configuration and actual publication remain unverified by local checks.
 
 ## Proxy and certificate trust
 
