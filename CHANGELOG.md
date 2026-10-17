@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/knowttl/artium-axi/compare/v0.0.3...v0.0.4) (2026-10-17)
+
+
+### Features
+
+* **cli:** support login with externally managed sessions ([#94](https://github.com/knowttl/artium-axi/issues/94)) ([2b0ef18](https://github.com/knowttl/artium-axi/commit/2b0ef1856a5681f3c58ec9656c4a0d0126541440))
+
 ## [0.0.3](https://github.com/knowttl/artium-axi/compare/v0.0.2...v0.0.3) (2026-10-17)
 
 
