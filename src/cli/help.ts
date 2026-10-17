@@ -30,7 +30,10 @@ export type HelpCommand = keyof typeof commands
 
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
-  const flags = [command === 'falcon-axi' || command === 'vectra-axi' || command === 'ldap-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags]
+  const flags = [command === 'falcon-axi' || command === 'vectra-axi' || command === 'ldap-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags,
+    '--managed-session before the command (default false; authenticated calls only; session JSON on inherited pipe fd 3, rotations as JSON lines on private pipe fd 4; no session file)',
+    'Managed input: {serverUrl, accessToken, refreshToken?}; close fd 3 after JSON (64 KiB maximum). Output: {serverUrl, status, accessToken, refreshToken, accessExpiresAt, familyExpiresAt} per rotation, before retry, including on later failure.',
+    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused login/passwd/logout/setup; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
   return `usage: ${entry.usage}\npurpose: ${entry.purpose}\nflags[${flags.length}]:\n${flags.map(flag => `  - ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n`
 }
 

@@ -1,9 +1,10 @@
-import { execFile, execFileSync, fork } from 'node:child_process'
+import { execFile, execFileSync, fork, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
 import { createServer as createHttpServer } from 'node:http'
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import type { Writable } from 'node:stream'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { TLSSocket } from 'node:tls'
@@ -24,6 +25,7 @@ let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string }
 let requests: { path: string, token?: string, body: unknown, version?: string }[]
 let doctorResponses: Record<string, typeof response> | undefined
+let responseSequence: typeof response[] | undefined
 const server = createServer()
 
 beforeAll(async () => {
@@ -38,7 +40,7 @@ beforeAll(async () => {
     for await (const chunk of request) body += chunk
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined,
       version: request.headers['x-artium-cli-version'] as string | undefined })
-    const current = doctorResponses?.[request.url!] ?? response
+    const current = responseSequence?.shift() ?? doctorResponses?.[request.url!] ?? response
     const stalled = () => {
       const socket = request.socket
       const closed = new Promise<void>((resolve, reject) => {
@@ -131,6 +133,152 @@ test('standalone bundle prints the package version offline without configuration
   const result = await execute(process.execPath, [bundle, '--version'], { cwd: directory, timeout: 10_000,
     env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, 'unsigned-config') } })
   expect(result).toEqual({ stdout: `${cliVersion}\n`, stderr: '' })
+})
+
+const managedTokens = { accessToken: 'CANARY-managed-access', refreshToken: 'CANARY-managed-refresh' }
+const rotatedTokens = { status: 'authenticated', accessToken: 'CANARY-rotated-access', refreshToken: 'CANARY-rotated-refresh',
+  accessExpiresAt: 100000, familyExpiresAt: 200000 }
+
+async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean } = {}) {
+  const configuration = mkdtempSync(join(directory, 'managed-config-'))
+  const storedFile = join(configuration, 'artium-axi', 'session.json')
+  if (options.existing) {
+    mkdirSync(join(configuration, 'artium-axi'))
+    writeFileSync(storedFile, 'synthetic unreadable session')
+  }
+  const child = spawn(process.execPath, [bundle, '--managed-session', ...args], {
+    cwd: directory, env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
+      ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') },
+    stdio: ['pipe', 'pipe', 'pipe', options.missing === 3 ? 'ignore' : 'pipe', options.missing === 4 ? 'ignore' : 'pipe'],
+    signal: AbortSignal.timeout(10_000),
+  })
+  const closed = once(child, 'close')
+  let stdout = '', stderr = '', rotations = ''
+  child.stdout!.on('data', chunk => { stdout += chunk })
+  child.stderr!.on('data', chunk => { stderr += chunk })
+  child.stdio[4]?.on('data', chunk => { rotations += chunk })
+  const sessionInput = child.stdio[3] as Writable | null
+  sessionInput?.on('error', () => {})
+  sessionInput?.end(options.json ?? JSON.stringify({ serverUrl: url, ...managedTokens }))
+  child.stdin!.end(options.input ?? '')
+  const [code, signal] = await closed
+  expect(signal).toBeNull()
+  if (options.existing) {
+    expect(readdirSync(configuration)).toEqual(['artium-axi'])
+    expect(readdirSync(join(configuration, 'artium-axi'))).toEqual(['session.json'])
+    expect(readFileSync(storedFile, 'utf8')).toBe('synthetic unreadable session')
+  } else expect(readdirSync(configuration)).toEqual([])
+  for (const token of [...Object.values(managedTokens), rotatedTokens.accessToken, rotatedTokens.refreshToken]) {
+    expect(stdout + stderr).not.toContain(token)
+  }
+  return { code, stdout, stderr, rotations }
+}
+
+test.each([false, true])('managed calls ignore session files and preserve tool stdin (existing file: %s)', async existing => {
+  requests = []
+  response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+  expect(await managedCli(['az-axi', 'rg', 'query'], { input: 'synthetic query', existing }))
+    .toEqual({ code: 0, stdout: 'synthetic result', stderr: '', rotations: '' })
+  expect(requests).toEqual([{ path: '/v1/tools/az-axi/run', token: `Bearer ${managedTokens.accessToken}`,
+    body: { args: ['rg', 'query'], stdin: 'synthetic query' }, version: cliVersion }])
+})
+
+test.each([3, 4] as const)('managed mode refuses missing private fd %s before network access', async missing => {
+  requests = []
+  expect(await managedCli(['tools'], { missing })).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test.each(['not JSON CANARY-managed-access', '{}', '{"accessToken":""}', 'x'.repeat(65537)])('managed mode refuses invalid session JSON (%#)', async json => {
+  requests = []
+  expect(await managedCli(['tools'], { json })).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test.each(['login', 'passwd', 'logout', 'setup'])('managed mode refuses %s before network access', async command => {
+  requests = []
+  expect(await managedCli([command])).toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test.each([false, true])('managed rotation is private even when the retried request fails (%s)', async fails => {
+  requests = []
+  responseSequence = [
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 200, body: rotatedTokens },
+    fails ? { status: 503, body: errorResponse(new ArtiumError('SERVER_UNAVAILABLE'), 'synthetic-retry') }
+      : { status: 200, body: { tools: [] } },
+  ]
+  try {
+    const result = await managedCli(['tools'])
+    expect(result.code).toBe(fails ? 1 : 0)
+    expect(result.stdout).toContain(fails ? 'SERVER_UNAVAILABLE' : 'tools: 0 available')
+    expect(result.stderr).toBe('')
+    expect(result.rotations).toBe(`${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n`)
+    expect(requests.map(request => ({ path: request.path, token: request.token, body: request.body }))).toEqual([
+      { path: '/v1/tools', token: `Bearer ${managedTokens.accessToken}`, body: undefined },
+      { path: '/v1/auth/refresh', token: undefined, body: { refreshToken: managedTokens.refreshToken } },
+      { path: '/v1/tools', token: `Bearer ${rotatedTokens.accessToken}`, body: undefined },
+    ])
+  } finally { responseSequence = undefined }
+})
+
+test.each(['stdout', 'stderr'] as const)('managed mode withholds both streams when a token appears in %s', async stream => {
+  response = { status: 200, body: { source: 'falcon-axi', stdout: 'safe output', stderr: 'safe diagnostic',
+    [stream]: Buffer.from(managedTokens.accessToken).toString('base64'), exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: 50, stderr: 50 }, truncated: { stdout: false, stderr: false } } }
+  const result = await managedCli(['falcon-axi'])
+  expect(result).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '', rotations: '' })
+  expect(result.stdout).not.toContain('safe output')
+  expect(result.stdout).not.toContain(Buffer.from(managedTokens.accessToken).toString('base64'))
+})
+
+test('managed access-only expiry returns to the caller without refreshing', async () => {
+  requests = []
+  response = { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') }
+  expect(await managedCli(['tools'], { json: JSON.stringify({ serverUrl: url, accessToken: managedTokens.accessToken }) }))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('TOKEN_EXPIRED'), stderr: '', rotations: '' })
+  expect(requests).toHaveLength(1)
+})
+
+test('managed mode rejects a session bound to another server before network access', async () => {
+  requests = []
+  expect(await managedCli(['tools'], { json: JSON.stringify({ serverUrl: 'https://synthetic.invalid', ...managedTokens }) }))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('SESSION_SERVER_MISMATCH'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test('managed mode scans server error text before printing it', async () => {
+  response = { status: 401, body: errorResponse(new ArtiumError('TOKEN_INVALID', managedTokens.refreshToken), 'synthetic-error') }
+  expect(await managedCli(['tools']))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '', rotations: '' })
+})
+
+test('managed refresh refusal returns no rotation and does not retry the call', async () => {
+  requests = []
+  responseSequence = [
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-refused') },
+  ]
+  try {
+    expect(await managedCli(['tools']))
+      .toMatchObject({ code: 1, stdout: expect.stringContaining('TOKEN_INVALID'), stderr: '', rotations: '' })
+    expect(requests.map(request => request.path)).toEqual(['/v1/tools', '/v1/auth/refresh'])
+  } finally { responseSequence = undefined }
+})
+
+test('managed rotation remains private when the retry echoes a rotated token', async () => {
+  responseSequence = [
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 200, body: rotatedTokens },
+    { status: 200, body: { source: 'falcon-axi', stdout: rotatedTokens.accessToken, stderr: 'synthetic diagnostic', exitCode: 0,
+      durationMs: 1, outputBytes: { stdout: 50, stderr: 50 }, truncated: { stdout: false, stderr: false } } },
+  ]
+  try {
+    expect(await managedCli(['falcon-axi'])).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '',
+      rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
+  } finally { responseSequence = undefined }
 })
 
 test.each([

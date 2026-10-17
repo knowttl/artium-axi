@@ -2,14 +2,14 @@ import { meResponseSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { Client } from './http.js'
 
-export async function doctor(): Promise<void> {
+export async function doctor(createClient = () => new Client(), write = (text: string) => { process.stdout.write(text) }): Promise<void> {
   let failure: ArtiumError | undefined
   const line = (name: string, pass: boolean, detail?: string, error?: ArtiumError) => {
     if (!pass) failure ??= error ?? new ArtiumError('INVALID_RESPONSE')
-    process.stdout.write(`${pass ? 'pass' : 'fail'}: ${name}${detail ? ` (${detail})` : ''}\n`)
+    write(`${pass ? 'pass' : 'fail'}: ${name}${detail ? ` (${detail})` : ''}\n`)
   }
   let client: Client
-  try { client = new Client() }
+  try { client = createClient() }
   catch (error) {
     for (const name of ['server address', 'certificate', 'token', 'CLI version']) line(name, false, 'CLIENT_CONFIG_INVALID')
     throw error

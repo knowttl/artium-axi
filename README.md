@@ -675,6 +675,46 @@ Certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZE
 Only an explicit pre-execution `TOKEN_EXPIRED` response permits one serialized refresh and retry.
 A network failure or uncertain command outcome is never retried automatically.
 
+### Externally managed client sessions
+
+Callers that keep credentials outside the CLI can opt in with one leading flag: `artium-axi --managed-session <command> <args>`.
+The caller supplies inherited pipes or sockets: fd 3 for session input and fd 4 for private rotation output.
+Stdin remains available for tool input; stdout and stderr retain their normal command formats.
+Do not pass tokens in arguments or environment variables, connect fd 4 to a log or public output, or redirect either private channel to a disk file.
+The CLI refuses regular files as private channels and never reads, creates, locks, updates or deletes `session.json` in this mode.
+
+Send one UTF-8 JSON object of at most 64 KiB to fd 3, then close the input pipe:
+
+```json
+{"serverUrl":"https://artium.example.test","accessToken":"CANARY-access","refreshToken":"CANARY-refresh"}
+```
+
+`serverUrl` must match the normalized `ARTIUM_AXI_URL`, allowing a final slash.
+`accessToken` is required and nonempty; `refreshToken` is optional and nonempty when supplied.
+The optional fields `status: "authenticated"`, `accessExpiresAt` and `familyExpiresAt` (integer Unix milliseconds) allow a rotation record to be reused as input; other fields are refused.
+The caller owns token acquisition, expiry policy, refresh serialization across processes and secure persistence.
+Managed mode supports the home view, `whoami`, `tools`, `tools show`, `doctor` and tool commands.
+`login`, `passwd`, `logout` and `setup` are refused before any network call; ordinary sign-in and its server-version warning remain unchanged without the flag.
+Help is available without private channels through `artium-axi --help`.
+
+Only an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
+Without a refresh token, or if refresh is refused, the CLI returns the authentication error for the caller to handle.
+Network failures and uncertain outcomes are never automatically retried.
+After a successful refresh, fd 4 receives one newline-terminated JSON object before the request is retried:
+
+```json
+{"serverUrl":"https://artium.example.test","status":"authenticated","accessToken":"CANARY-new-access","refreshToken":"CANARY-new-refresh","accessExpiresAt":1800000000000,"familyExpiresAt":1800003600000}
+```
+
+Every rotation is delivered even if the subsequent request fails; an invocation without rotation writes no record.
+Consume fd 4 concurrently with stdout and stderr, and retain rotations regardless of the command's exit status.
+If rotation delivery fails, the CLI refuses to retry the request and returns an error; the caller must recover the session rather than reuse the consumed refresh token.
+Managed public output is buffered and scanned against supplied and rotated tokens and their canonical encodings before printing; a match withholds both streams and returns `SECRET_IN_OUTPUT`.
+
+Exit codes are 0 for success, 2 for invalid input or private descriptors and refused commands, and 1 for authentication, transport or output-scanning failures.
+Tool exit codes pass through as usual.
+Missing or closed descriptors, invalid JSON and mismatched server bindings fail before network access; no failure falls back to a session file.
+
 ### Server settings and custody
 
 | Variable | Meaning |
