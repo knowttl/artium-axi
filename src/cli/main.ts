@@ -13,10 +13,26 @@ import { setup } from './setup.js'
 import { toolInput } from './input.js'
 import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
+import { ManagedSession } from './managed-session.js'
+
+let managed: ManagedSession | undefined
+function output(stream: 'stdout' | 'stderr', text: string) {
+  if (managed) managed.write(stream, text)
+  else process[stream].write(text)
+}
 
 async function main(args: string[]) {
+  const managedMode = args[0] === '--managed-session'
+  if (managedMode) {
+    args = args.slice(1)
+    if (['login', 'passwd', 'logout', 'setup'].includes(args[0])) {
+      throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
+        'The caller must acquire and manage tokens; use managed mode for authenticated calls.')
+    }
+    managed = await ManagedSession.read()
+  }
   if (args.length === 1 && args[0] === '--version') {
-    process.stdout.write(`${cliVersion}\n`)
+    output('stdout', `${cliVersion}\n`)
     return
   }
   const prefixHelp = args[0] === '--help'
@@ -24,11 +40,12 @@ async function main(args: string[]) {
   const command = args[0]
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
-  if (help) { process.stdout.write(commandHelp(help)); return }
-  if (command === 'setup') { process.stdout.write(await setup(args.slice(1))); return }
+  if (help) { output('stdout', commandHelp(help)); return }
+  if (command === 'setup') { output('stdout', await setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
-    await doctor()
+    if (managed) await doctor(() => new Client(process.env, managed), text => output('stdout', text))
+    else await doctor()
     return
   }
   if (command === 'login' || command === 'passwd') {
@@ -60,14 +77,14 @@ async function main(args: string[]) {
         return parsed.data
       })
       if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
-      process.stdout.write('status: authenticated\nnext: artium-axi tools\n')
+      output('stdout', 'status: authenticated\nnext: artium-axi tools\n')
     } else {
       await client.changePassword(async session => {
         const newPassword = await readPassword(stdin)
         const currentPassword = session.status === 'authenticated' ? await readPassword(false, 'ARTIUM_AXI_CURRENT_PASSWORD') : undefined
         return { newPassword, ...(currentPassword === undefined ? {} : { currentPassword }) }
       })
-      process.stdout.write('status: password-changed\nnext: artium-axi login --username <username> --password-stdin\n')
+      output('stdout', 'status: password-changed\nnext: artium-axi login --username <username> --password-stdin\n')
     }
     return
   }
@@ -84,8 +101,8 @@ async function main(args: string[]) {
       try { await client.request('/v1/auth/logout', 'POST', undefined, session.refreshToken); return true }
       catch { return false }
     })
-    process.stdout.write(`status: logged-out\nremoteRevocation: ${verified ? 'verified' : 'unverified'}\n`)
-    if (!verified) process.stdout.write('next: Remote revocation is unverified. The local tokens were removed.\n')
+    output('stdout', `status: logged-out\nremoteRevocation: ${verified ? 'verified' : 'unverified'}\n`)
+    if (!verified) output('stdout', 'next: Remote revocation is unverified. The local tokens were removed.\n')
     return
   }
   const home = args.length === 0
@@ -96,23 +113,23 @@ async function main(args: string[]) {
     throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
   }
   const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
-  const client = new Client()
-  const homeSession = home ? client.sessions.read() : undefined
-  if (home && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
+  const client = new Client(process.env, managed)
+  const homeSession = home && !managed ? client.sessions.read() : undefined
+  if (home && !managed && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
   const result = await client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession)
   if (home || whoami) {
     const parsed = meResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
-    let output = identityView(parsed.data, client.serverUrl)
+    let view = identityView(parsed.data, client.serverUrl)
     if (home) {
       const tools = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET', undefined, homeSession))
       if (!tools.success) throw new ArtiumError('INVALID_RESPONSE')
       const executable = resolve(process.argv[1])
       const local = relative(homedir(), executable)
       const bin = local && !isAbsolute(local) && !local.startsWith(`..${sep}`) && local !== '..' ? `~${sep}${local}` : executable
-      output = `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n${output}${toolsView(tools.data.tools)}`
+      view = `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n${view}${toolsView(tools.data.tools)}`
     }
-    process.stdout.write(output)
+    output('stdout', view)
   } else if (listing) {
     const parsed = toolsResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
@@ -120,22 +137,30 @@ async function main(args: string[]) {
     if (detail) {
       const tool = tools.find(tool => tool.name === args[2])
       if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED', 'The tool is not available to your account.', 'Ask an administrator to check your role assignments and enabled tools.')
-      process.stdout.write(toolView(tool))
-    } else process.stdout.write(toolsView(tools))
+      output('stdout', toolView(tool))
+    } else output('stdout', toolsView(tools))
   } else {
     const parsed = runSuccessSchema.safeParse(result)
     if (!parsed.success || parsed.data.source !== command) throw new ArtiumError('INVALID_RESPONSE')
     const { stdout, stderr, exitCode, truncated } = parsed.data
-    if (truncated.stdout || truncated.stderr) process.stderr.write(`artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
-    process.stdout.write(rewriteSuggestions(stdout, command!, truncated.stdout))
-    process.stderr.write(rewriteSuggestions(stderr, command!, truncated.stderr))
+    if (truncated.stdout || truncated.stderr) output('stderr', `artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
+    output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout))
+    output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr))
     process.exitCode = exitCode
   }
 }
 
 function printError(response: ReturnType<typeof errorResponse>) {
-  process.stdout.write(`error:\n${Object.entries(response.error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
+  output('stdout', `error:\n${Object.entries(response.error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
   process.exitCode = errors[response.error.code].exitCode
 }
 
-main(process.argv.slice(2)).catch(error => printError(errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), randomUUID())))
+main(process.argv.slice(2))
+  .catch(error => printError(errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), randomUUID())))
+  .then(() => {
+    try { managed?.flush() }
+    catch {
+      managed = undefined
+      printError(errorResponse(new ArtiumError('SECRET_IN_OUTPUT'), randomUUID()))
+    }
+  })

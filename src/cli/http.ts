@@ -8,22 +8,28 @@ import { ArtiumError } from '../shared/errors.js'
 import { cliVersion } from '../shared/version.js'
 import { SessionStore, sessionPath } from './session.js'
 import type { StoredSession } from './session.js'
+import type { ManagedSession } from './managed-session.js'
 
 export const DEFAULT_REQUEST_DEADLINE_MS = 90_000
 
 export class Client {
   readonly serverUrl: string
-  readonly sessions: SessionStore
+  private readonly storedSessions?: SessionStore
+  get sessions(): SessionStore {
+    if (!this.storedSessions) throw new ArtiumError('INVALID_INPUT', 'Session-file operations are unavailable in managed mode.')
+    return this.storedSessions
+  }
   certificateVerified = false
-  constructor(private readonly environment = process.env) {
+  constructor(private readonly environment = process.env, private readonly managed?: ManagedSession) {
     try {
       const url = new URL(environment.ARTIUM_AXI_URL!)
       if (url.username || url.password || url.href.includes('?') || url.href.includes('#') ||
         (url.protocol !== 'https:' && !(url.protocol === 'http:' && environment.ARTIUM_AXI_TEST_HTTP === '1' &&
           ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error()
       this.serverUrl = url.href.replace(/\/$/, '')
-      this.sessions = new SessionStore(this.serverUrl, sessionPath(process.platform, environment))
+      if (!managed) this.storedSessions = new SessionStore(this.serverUrl, sessionPath(process.platform, environment))
     } catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
+    managed?.checkServer(this.serverUrl)
   }
 
   async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string): Promise<unknown> {
@@ -79,6 +85,10 @@ export class Client {
   }
 
   async authenticated(path: string, method: 'GET' | 'POST', input?: unknown, previous?: StoredSession): Promise<unknown> {
+    if (this.managed) return this.managed.authenticated(
+      token => this.request(path, method, input, token),
+      refreshToken => this.request('/v1/auth/refresh', 'POST', { refreshToken }),
+    )
     const session = previous ? this.reload(previous) : this.sessions.read()
     if (!session) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
     if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')

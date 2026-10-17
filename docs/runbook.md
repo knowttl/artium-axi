@@ -156,8 +156,7 @@ The implementation's current password validation is documented in the README; th
 
 See [host verification](verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
 Windows/macOS launchers and live client trust remain unexercised owner acceptance.
-CLI tokens are private local files bound to the server URL; do not export or share the session file.
-After `SESSION_BUSY`, remove the session lock directory only after all CLI processes using it have exited.
+Follow [client settings](../README.md#client-settings) for default session-file protection and `SESSION_BUSY` recovery, or [externally managed client sessions](../README.md#externally-managed-client-sessions) when the caller owns token custody.
 An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.
 
 ## Scripted administrator sessions
