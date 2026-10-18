@@ -367,14 +367,15 @@ Create a dedicated PAT scoped to the organization with Work Items, Code and Buil
 Grant corresponding read-write permissions only for intended mutations; a write switch never grants Azure DevOps permissions.
 Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ado-axi project list --limit 1`.
 
-Writes are off by default.
-An administrator can enable them with native settings `{"allowWrites":true}`; `{}` turns them off.
+Writes are off by default; follow [write-access administration](docs/runbook.md#roles-credentials-and-health) to enable them.
 Artium classifies every command using the reviewed [ADO inventory](tools/inventories/ado-axi.json), which binds the routing review to upstream source digests.
-Artium manages `--org`, `--profile` and `--config`; those overrides and the `config` and `update` commands are refused.
+Artium manages `--org`, `--profile` and `--config`; those overrides and the top-level `config` and `update` commands are refused.
 Use `--project` to select another project within the managed organization.
-The `api` command accepts relative paths and GET only, even when writes are enabled; body flags, absolute URLs, repeated flags, stdin and files are refused.
+The `api` command accepts relative paths and GET only, even when writes are enabled; body flags and absolute URLs are refused.
+All commands refuse repeated flags, stdin and files.
 Use `pipeline watch --timeout 50` or less to stay within the runner's call timeout.
-Writes are journaled by Artium only: a successful write call records `write`, while a failed or timed-out write records `unknown` and must be checked before retrying.
+Writes are journaled by Artium only; see [audit action classification](#audit-screen-and-api).
+For an interrupted write, run the returned read-back command and follow its inspection guidance before retrying.
 PAT authentication is available now; client ID and secret authentication is a separate integration phase, with no device flow.
 Local fake-service checks do not establish live organization acceptance.
 
@@ -556,7 +557,7 @@ Azure and Graph certificate editors accept one PEM file containing one certifica
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Falcon has guided fields even when its pinned package has no credential schema; its injection path stays unchanged.
 Browser saves keep native settings and retain blank stored secrets for the same identity.
-Changing mode, kind, authentication, tenant, client or origin requires new secrets.
+Identity changes require new secrets as defined by the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`).
 Select **Test after saving** to save and report a harmless credential check inline.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.

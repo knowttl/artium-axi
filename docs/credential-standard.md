@@ -262,12 +262,11 @@ The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the 
 See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
 
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
-The [host adapter](../src/server/adapters/ado.ts) owns a credential schema with `org`, optional `project`, `auth: "pat"` and secret `token`.
-It uses the shared credential editor and input normalization, including organization-root URL normalization, but prepares its upstream profile itself.
-Each isolated call receives `ADO_AXI_CONFIG` with `auth: "pat"` and `patEnv: "ARTIUM_SECRET_0"`.
+The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.
+It uses the shared credential editor and input normalization, but prepares its upstream profile itself instead of using the shared profile writer.
+Each isolated call receives `ADO_AXI_CONFIG` pointing to a private profile file with `auth: "pat"` and `patEnv: "ARTIUM_SECRET_0"`.
 The PAT and its Basic authentication encoding are registered for redaction.
-Artium owns the default-off `allowWrites` switch and host classification because upstream has no native write gate or journal.
-The `config` and `update` commands and organization, profile and config overrides are blocked; `api` accepts relative GET calls only.
+See [Azure DevOps setup and supported boundaries](../README.md#azure-devops) for managed access and [audit action classification](../README.md#audit-screen-and-api) for host journaling.
 
 ## 10. Migration
 

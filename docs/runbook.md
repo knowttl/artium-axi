@@ -236,7 +236,7 @@ Review actor, change time and revision before saving; reload stale forms instead
 See [browser administration](../README.md#browser-administration) for timestamp display and inline identity confirmation.
 
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
-On its admin tool page, save native settings with `allowWrites: true` for Falcon or Azure, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
+On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure or Azure DevOps, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.

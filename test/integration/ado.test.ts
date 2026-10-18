@@ -34,7 +34,7 @@ test('every classified route, alias and default dispatches through the pinned bi
   const reviewer = '11111111-1111-1111-1111-111111111111'
   const added = '22222222-2222-2222-2222-222222222222'
   const repo = ['--repo', 'Synthetic Repo']
-  const routes: { command: string, values: string[], method: string, path: string, result: unknown,
+  const routes: { command: string, values: string[], method: string, path: string, result: object,
     body?: unknown, query?: Record<string, string>, recovery?: unknown }[] = [
     { command: 'home', values: [], method: 'POST', path: `${org}/_apis/wit/workitemsbatch`,
       result: { 'my-work-items': [{ id: 42 }], 'active-pull-requests': [{ id: 42 }], 'recent-runs': [{ id: 8 }] } },
