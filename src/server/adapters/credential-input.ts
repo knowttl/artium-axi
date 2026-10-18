@@ -75,8 +75,8 @@ export class CredentialInput {
   }
 
   normalize(value: Record<string, unknown>): { value: Record<string, unknown>, normalizations: InputNormalization[] } {
-    const changes = new Map<string, string>()
-    const visit = (input: any, pointer: string, path: string, depth = 0): any => {
+    const changes = new Map<string, { path: string[], reason: string }>()
+    const visit = (input: any, pointer: string, path: string[], depth = 0): any => {
       if (depth > 64 || this.validator(pointer)(input)) return input
       const schema = this.resolve(pointer)
       if (!schema || typeof schema !== 'object') return input
@@ -95,10 +95,16 @@ export class CredentialInput {
         for (const [name] of Object.entries(schema.properties ?? {})) {
           if (!Object.hasOwn(next, name)) continue
           const escaped = name.replaceAll('~', '~0').replaceAll('/', '~1')
-          next[name] = visit(next[name], `${pointer}/properties/${escaped}`, path ? `${path}.${name}` : name, depth + 1)
+          next[name] = visit(next[name], `${pointer}/properties/${escaped}`, [...path, name], depth + 1)
+        }
+        if (!Array.isArray(next) && schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+          for (const name of Object.keys(next)) {
+            if (Object.hasOwn(schema.properties ?? {}, name)) continue
+            next[name] = visit(next[name], `${pointer}/additionalProperties`, [...path, name], depth + 1)
+          }
         }
         if (Array.isArray(next) && schema.items && !Array.isArray(schema.items)) {
-          next = next.map((item, index) => visit(item, `${pointer}/items`, `${path}.${index}`, depth + 1))
+          next = next.map((item, index) => visit(item, `${pointer}/items`, [...path, String(index)], depth + 1))
         }
       }
       for (const [index] of (schema.allOf ?? []).entries()) next = visit(next, `${pointer}/allOf/${index}`, path, depth + 1)
@@ -116,30 +122,32 @@ export class CredentialInput {
         if (unique.size === 1) next = [...unique.values()][0]
       }
       if (typeof input === 'string' && next !== input && this.validator(pointer)(next)) {
-        changes.set(path, next === input.trim() ? 'removed surrounding whitespace' : 'canonicalized format')
+        changes.set(JSON.stringify(path), { path, reason: next === input.trim() ? 'removed surrounding whitespace' : 'canonicalized format' })
         return next
       }
       return typeof input === 'string' ? input : next
     }
-    const normalized = visit(value, '', '') as Record<string, unknown>
+    const normalized = visit(value, '', []) as Record<string, unknown>
     // Reports derive from the final value, never speculative alternative branches.
-    const normalizations = [...changes].filter(([path]) => {
-      const read = (root: any) => path.split('.').reduce((node, key) => node?.[key], root)
+    const normalizations = [...changes.values()].filter(({ path }) => {
+      const read = (root: any) => path.reduce((node, key) => node?.[key], root)
       return read(value) !== read(normalized)
-    }).map(([field, reason]) => ({ field, reason }))
+    }).map(({ path, reason }) => ({ field: path.join('.'), reason }))
     return { value: normalized, normalizations }
   }
 
   reasons(): { path: string[], message: string }[] {
     const errors = this.validate.errors ?? []
     const fieldsIn = (schema: Schema, path: string[]): string[] => {
+      if (!schema || typeof schema !== 'object') return []
       const names = new Set<string>([...schema?.required ?? [], ...Object.keys(schema?.properties ?? {})])
       const fields = [...names].flatMap(name => {
         const nested = fieldsIn(schema?.properties?.[name], [...path, name])
         return nested.length ? nested : [[...path, name].join('.')]
       })
       return [...fields, ...['allOf', 'oneOf', 'anyOf'].flatMap(keyword =>
-        (schema?.[keyword] ?? []).flatMap((branch: Schema) => fieldsIn(branch, path)))]
+        (schema?.[keyword] ?? []).flatMap((branch: Schema) => fieldsIn(branch, path))),
+        ...['not', 'if', 'then', 'else'].flatMap(keyword => fieldsIn(schema[keyword], path))]
     }
     const reason = (error: ErrorObject) => {
       const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
@@ -151,8 +159,13 @@ export class CredentialInput {
       if (error.keyword === 'required') rule = 'is required'
       if (error.keyword === 'type') rule = `must be ${schema?.type ?? 'the expected type'}`
       if (error.keyword === 'format') rule = credentialFormats[error.params.format]?.reason ?? `must match the ${error.params.format} format`
-      if (error.keyword === 'pattern' || error.keyword === 'not') rule = 'does not satisfy the allowed character or field combination rules'
-      if (error.keyword === 'minLength') rule = 'must not be empty'
+      if (error.keyword === 'pattern') rule = 'must match the required character pattern'
+      if (error.keyword === 'not') rule = 'must not match the excluded rule'
+      if (error.keyword === 'minLength') rule = `must have a length >= ${error.params.limit}`
+      if (error.keyword === 'maxLength') rule = `must have a length <= ${error.params.limit}`
+      if (error.keyword === 'minItems') rule = `must contain at least ${error.params.limit} item${error.params.limit === 1 ? '' : 's'}`
+      if (error.keyword === 'maxItems') rule = `must contain at most ${error.params.limit} item${error.params.limit === 1 ? '' : 's'}`
+      if (error.keyword === 'uniqueItems') rule = 'must contain unique items'
       if (error.keyword === 'enum' || error.keyword === 'const') rule = 'must match an allowed choice'
       if (error.keyword === 'not' && schema?.not?.pattern === '\\s') rule = 'must not contain whitespace'
       if (error.keyword === 'not') {
@@ -162,11 +175,12 @@ export class CredentialInput {
           rule = 'must not be used in this field combination'
         }
       }
-      if (error.keyword === 'const' && typeof schema?.const === 'boolean') rule = `must be ${schema.const} for this URL`
+      if (error.keyword === 'const' && typeof schema?.const === 'boolean' && /\/(then|else)\//.test(error.schemaPath)) rule = `must be ${schema.const} for this URL`
       if (['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'].includes(error.keyword)) {
         rule = `must be ${error.params.comparison} ${error.params.limit}`
       }
       if (error.keyword === 'additionalProperties') rule = 'is an unsupported field'
+      if (error.keyword === 'propertyNames' || error.propertyName !== undefined) rule = 'must use property names that satisfy the schema'
       const branch = error.schemaPath.match(/^(.*?)\/(then|else)\//)
       if (branch && !(error.keyword === 'const' && typeof schema?.const === 'boolean')) {
         const condition = this.resolve(`${branch[1].replace(/^.*?#/, '')}/if`)
@@ -175,16 +189,16 @@ export class CredentialInput {
       }
       return { path, message: `${field} ${rule}.` }
     }
-    const concrete = errors.filter(error => !['if', 'oneOf', 'anyOf'].includes(error.keyword)
-      && !/\/(oneOf|anyOf)\//.test(error.schemaPath))
+    const concrete = errors.filter(error => !['if', 'oneOf', 'anyOf'].includes(error.keyword))
     const reasons = concrete.map(reason)
-    const alternatives = errors.filter(error => ['oneOf', 'anyOf'].includes(error.keyword)
-      || /\/(oneOf|anyOf)\//.test(error.schemaPath))
+    const alternatives = errors.filter(error => ['oneOf', 'anyOf'].includes(error.keyword))
     if (!alternatives.length) return reasons
     // Conflicting alternatives name only schema-owned fields, never values.
     const fields = [...new Set(alternatives.flatMap(error => {
       const node = this.resolve(error.schemaPath.replace(/^.*?#/, '').replace(/\/[^/]+$/, ''))
-      return [...Object.keys(node?.properties ?? {}), ...node?.required ?? []]
+      const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
+      const fields: string[] = node[error.keyword].flatMap((branch: Schema) => fieldsIn(branch, path))
+      return fields.length ? fields : [path.join('.') || 'credential']
     }))]
     return [...reasons, { path: [], message: `${fields.join(', ') || 'credential'} must satisfy the selected credential field combination.` }]
   }

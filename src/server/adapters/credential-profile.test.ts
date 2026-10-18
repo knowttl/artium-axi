@@ -142,7 +142,7 @@ test.each(['oneOf', 'anyOf'])('preserves %s conflicts alongside concrete field d
   if (result.success) throw new Error('Expected invalid credential')
   expect(result.error.issues).toEqual(expect.arrayContaining([
     expect.objectContaining({ path: ['tenantId'], message: 'tenantId must match the uuid format.' }),
-    expect.objectContaining({ path: [], message: expect.stringMatching(/auth.*clientSecret.*privateKey.*must satisfy the selected credential field combination/) }),
+    expect.objectContaining({ path: [], message: expect.stringMatching(/^(?=.*auth)(?=.*clientSecret)(?=.*privateKey).*must satisfy the selected credential field combination/) }),
   ]))
   expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
     message: expect.stringContaining('must satisfy the selected credential field combination') }))
@@ -170,6 +170,110 @@ test('published Azure accepts tokens and environment entries for different resou
   const profile = loadCredentialProfile('az-axi', join(process.cwd(), 'tools/node_modules/@knowttl/az-axi/axi-credential.schema.json'))!
   const value = { auth: 'token', armToken: 'CANARY-secret', tokenEnv: { logs: 'SYNTHETIC_ENV' } }
   expect(profile.parseInput(value)).toEqual({ value, normalizations: [] })
+})
+
+test.each(['arm', 'logs', 'graph', 'storage', 'vault', 'registry'])('normalizes published Azure tokenEnv.%s', resource => {
+  const profile = loadCredentialProfile('az-axi', join(process.cwd(), 'tools/node_modules/@knowttl/az-axi/axi-credential.schema.json'))!
+  const value = { auth: 'token', tokenEnv: { [resource]: ' SYNTHETIC_ENV ' } }
+  expect(profile.credentialSchema.safeParse(value).success).toBe(false)
+  const result = profile.parseInput(value)
+  expect(result).toEqual({ value: { auth: 'token', tokenEnv: { [resource]: 'SYNTHETIC_ENV' } },
+    normalizations: [{ field: `tokenEnv.${resource}`, reason: 'removed surrounding whitespace' }] })
+  expect(profile.parseInput(result.value)).toEqual({ value: result.value, normalizations: [] })
+  expect(value.tokenEnv[resource]).toBe(' SYNTHETIC_ENV ')
+})
+
+test.each(['synthetic.entry', 'synthetic/entry', 'synthetic~entry'])('reports dictionary normalization for %s', name => {
+  const profile = new CredentialProfile({ type: 'object', properties: { entries: { type: 'object',
+    additionalProperties: { type: 'string', pattern: '^\\S+$' } } } })
+  const result = profile.parseInput({ entries: { [name]: ' synthetic ' } })
+  expect(result).toEqual({ value: { entries: { [name]: 'synthetic' } },
+    normalizations: [{ field: `entries.${name}`, reason: 'removed surrounding whitespace' }] })
+  expect(profile.parseInput(result.value)).toEqual({ value: result.value, normalizations: [] })
+})
+
+test('preserves valid dictionary values while normalizing a rejected sibling', () => {
+  const profile = new CredentialProfile({ type: 'object', properties: {
+    accepted: { type: 'object', additionalProperties: { type: 'string' } },
+    rejected: { type: 'object', additionalProperties: { type: 'string', pattern: '^\\S+$' } },
+  } })
+  const value = { accepted: { entry: ' CANARY interior whitespace\n' }, rejected: { entry: ' synthetic ' } }
+  expect(profile.parseInput(value)).toEqual({ value: { ...value, rejected: { entry: 'synthetic' } },
+    normalizations: [{ field: 'rejected.entry', reason: 'removed surrounding whitespace' }] })
+})
+
+test.each([
+  ['type', { type: 'string' }, true, 'value must be string.'],
+  ['required', { type: 'object', required: ['nested'] }, {}, 'value.nested is required.'],
+  ['additionalProperties', { type: 'object', additionalProperties: false }, { unexpected: 'CANARY-value' }, 'value.unexpected is an unsupported field.'],
+  ['propertyNames', { type: 'object', propertyNames: { enum: ['allowed'] } }, { 'CANARY-name': 'synthetic' }, 'value must use property names that satisfy the schema.'],
+  ['pattern', { type: 'string', pattern: '^synthetic$' }, 'CANARY-value', 'value must match the required character pattern.'],
+  ['format', { type: 'string', format: 'uuid' }, 'CANARY-value', 'value must match the uuid format.'],
+  ['enum', { enum: ['synthetic'] }, 'CANARY-value', 'value must match an allowed choice.'],
+  ['const', { const: 'synthetic' }, 'CANARY-value', 'value must match an allowed choice.'],
+  ['minLength', { type: 'string', minLength: 5 }, 'abc', 'value must have a length >= 5.'],
+  ['maxLength', { type: 'string', maxLength: 2 }, 'CANARY-value', 'value must have a length <= 2.'],
+  ['minItems', { type: 'array', minItems: 2 }, ['CANARY-value'], 'value must contain at least 2 items.'],
+  ['maxItems', { type: 'array', maxItems: 0 }, ['CANARY-value'], 'value must contain at most 0 items.'],
+  ['uniqueItems', { type: 'array', uniqueItems: true }, ['CANARY-value', 'CANARY-value'], 'value must contain unique items.'],
+  ['not', { type: 'object', not: { required: ['first', 'second'] } }, { first: 'CANARY-a', second: 'CANARY-b' },
+    'value.first, value.second must not be used in this field combination.'],
+  ['allOf', { allOf: [{ type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must have a length <= 2.'],
+  ['oneOf', { oneOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must have a length >= 20.'],
+  ['anyOf', { anyOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must have a length <= 2.'],
+  ['if/then', { type: 'object', if: { required: ['enabled'], properties: { enabled: { const: true } } }, then: { required: ['target'] } },
+    { enabled: true }, 'value.target is required for the selected enabled.'],
+] as const)('reports the %s rejection without input values', (_keyword, field, value, message) => {
+  const profile = new CredentialProfile({ type: 'object', properties: { value: field } })
+  expect(() => profile.parseInput({ value })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining(message) }))
+  const result = profile.credentialSchema.safeParse({ value })
+  expect(result.success).toBe(false)
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+  expect(JSON.stringify(result)).not.toContain('does not satisfy the credential rules')
+})
+
+test.each([
+  ['mg-axi', { ...credential, sensitiveAreas: ['CANARY-area'] }, 'sensitiveAreas must contain at most 0 items.'],
+  ['mg-axi', { ...credential, enabledPacks: ['entra', 'entra'] }, 'enabledPacks must contain unique items.'],
+  ['mg-axi', { ...credential, writes: { allowWrites: true, operations: [] } }, 'writes.operations must contain at least 1 item.'],
+  ['mg-axi', { ...credential, writes: { allowWrites: true, operations: Array(65).fill('synthetic') } }, 'writes.operations must contain at most 64 items.'],
+  ['mg-axi', { ...credential, writes: { allowWrites: true, operations: [''] } }, 'writes.operations.0 must have a length >= 1.'],
+  ['mg-axi', { ...credential, writes: { allowWrites: true, operations: ['x'.repeat(257)] } }, 'writes.operations.0 must have a length <= 256.'],
+  ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token',
+    writes: { allowWrites: true, operations: [] } }, 'writes.operations must contain at least 1 item.'],
+  ['az-axi', { auth: 'token', armToken: 'CANARY-token', allowWrites: true, subscriptions: [] }, 'subscriptions must contain at least 1 item for the selected allowWrites.'],
+  ['az-axi', { auth: 'token', tokenEnv: { 'CANARY-name': 'SYNTHETIC_ENV' } }, 'tokenEnv must use property names that satisfy the schema.'],
+] as const)('reports published %s field constraints for %j', (tool, value, message) => {
+  const profile = loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining(message) }))
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+  expect(JSON.stringify(result)).not.toContain('does not satisfy the credential rules')
+})
+
+test.each([
+  ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token', tokenEnv: 'SYNTHETIC_ENV' },
+    'token', 'tokenEnv'],
+  ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token', clientSecret: 'CANARY-secret' },
+    'token', 'clientSecret'],
+  ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic', clientSecret: 'CANARY-secret', secretEnv: 'SYNTHETIC_ENV' },
+    'clientSecret', 'secretEnv'],
+  ['mg-axi', { ...credential, privateKey: 'CANARY-key' }, 'clientSecret', 'privateKey'],
+  ['mg-axi', { ...credential, token: 'CANARY-token' }, 'clientSecret', 'token'],
+  ['mg-axi', { ...credential, thumbprintSha256: 'a'.repeat(64) }, 'clientSecret', 'thumbprintSha256'],
+  ['mg-axi', { ...identity, auth: 'certificate', privateKey: 'CANARY-key', thumbprintSha256: 'a'.repeat(64), token: 'CANARY-token' }, 'privateKey', 'token'],
+  ['mg-axi', { ...identity, auth: 'federated', token: 'CANARY-token', privateKey: 'CANARY-key' }, 'token', 'privateKey'],
+] as const)('names published %s alternative conflicts for %j', (tool, value, first, second) => {
+  const profile = loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  if (result.success) throw new Error('Expected invalid credential')
+  const combination = result.error.issues.find(issue => issue.message.endsWith('must satisfy the selected credential field combination.'))
+  expect(combination?.message).toContain(first)
+  expect(combination?.message).toContain(second)
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  expect(JSON.stringify(result)).not.toContain('CANARY')
 })
 let directory: string
 beforeEach(() => { directory = mkdtempSync(join(tmpdir(), 'artium-profile-')) })
