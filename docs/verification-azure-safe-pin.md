@@ -13,9 +13,9 @@ Vectra and Graph pins remain unchanged.
 4. Confirm `/v1/tools/az-axi/run` executes a pinned subscription read against the fake service.
 5. Make the fake service apply a PATCH and return a gateway timeout with `Retry-After: 0`.
    Confirm exactly one PATCH and one mutation, upstream exit code 1, and caller-visible `UNKNOWN_OUTCOME` with state-check guidance.
-   The public-interface [Azure integration tests](../test/integration/azure.test.ts) also hold API and native write responses past the runner deadline, check a single mutation, and retain `TIMEOUT` for reads.
-   They execute emitted recovery reads and assert visible tag, alert, comment, incident and network-rule state, including all updated incident fields and supported selectors.
-   API runner-timeout and native ambiguous gateway-timeout or connection-loss cases verify complete values longer than 4,000 characters; native cases follow every emitted recovery read in JSON and TOON help.
+   The public-interface [Azure write-recovery tests](../test/integration/azure-write-recovery.test.ts) also hold API and native write responses past the runner deadline, check a single mutation, and retain `TIMEOUT` for reads.
+   They execute emitted recovery reads and assert visible tag, alert, comment, incident and network-rule state, including all updated incident fields and representative selectors.
+   API runner-timeout cases verify complete values longer than 4,000 characters; the [read/format tests](../test/integration/azure-read-format.test.ts) cover native ambiguous gateway-timeout recovery through JSON and connection-loss recovery through TOON, following every emitted recovery read.
 6. Confirm the existing six-resource reads and native write preview, opt-in, scope, confirmation and durable-log checks still pass.
 7. After committing, run `pnpm hygiene:check` with the private external deny list supplied through `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE`.
    Record its hash and result in delivery evidence without exposing its terms or path.

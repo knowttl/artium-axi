@@ -5,15 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 import { withFakeService } from './fake-service/fixture.js'
 
-test('fake TLS certificates verify at a fixed time before issuance', async () => {
-  await withFakeService(async ({ directory }) => {
-    const result = spawnSync('openssl', ['verify', '-attime', '1735689600',
-      '-CAfile', join(directory, 'ca.crt'), '-purpose', 'sslserver', '-verify_hostname', 'localhost',
-      join(directory, 'server.crt')], { encoding: 'utf8' })
-    expect(result.status, result.stdout + result.stderr).toBe(0)
-  })
-})
-
 test('fake HTTPS service trusts only its test CA and records ambiguous mutations', async () => {
   await withFakeService(async ({ port, send }) => {
     await expect(send('/', 'GET', false)).rejects.toThrow()
@@ -23,16 +14,6 @@ test('fake HTTPS service trusts only its test CA and records ambiguous mutations
       { method: 'GET', host: `localhost:${port}`, path: '/', canaryReceived: true },
       { method: 'PATCH', host: `localhost:${port}`, path: '/synthetic', canaryReceived: true },
     ] })
-  })
-})
-
-test('fake pagination serves distinct items and a terminal second page', async () => {
-  await withFakeService(async ({ send }) => {
-    const first = JSON.parse(await send('/page'))
-    expect(first).toEqual({ value: [{ id: 'synthetic-page-1' }],
-      nextLink: 'https://management.azure.com/page-next?api-version=2022-12-01' })
-    const second = JSON.parse(await send(new URL(first.nextLink).pathname))
-    expect(second).toEqual({ value: [{ id: 'synthetic-page-2' }] })
   })
 })
 

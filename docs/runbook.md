@@ -54,7 +54,8 @@ This workflow releases the client CLI and embedded skill; server deployment rema
 
 Before the first automated release, the owner must enable GitHub Actions, allow GitHub Actions to create pull requests, and configure the npm package's GitHub Actions trusted publisher for `knowttl/artium-axi` and workflow filename `release-please.yml`, without an environment name.
 The workflow uses `GITHUB_TOKEN` for release management and OIDC for npm publication; no npm publish token is required.
-Keep the local container acceptance and private hygiene checks in [Development / testing](../README.md#development--testing) as release prerequisites; the workflow's `pnpm check` does not include them.
+Before merging every release PR, require passing local container acceptance and private hygiene evidence for the release candidate using [Development / testing](../README.md#development--testing), even when the release PR changes only version metadata.
+Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
 Hosted release handling, npm trusted-publisher configuration and actual publication remain unverified by local checks.
 
 ## Proxy and certificate trust
