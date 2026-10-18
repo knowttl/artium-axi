@@ -217,7 +217,7 @@ try {
   pass(9, 'Contextual disclosure: suggested detail and first-call commands execute')
   for (const args of [[], ['tools'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'], ['setup']]) {
     const help = decode(await success([...args, '--help']))
-    assert.deepEqual(Object.keys(help), ['usage', 'purpose', 'flags', 'example'])
+    assert.equal(Object.keys(help)[0], 'purpose')
     assert.ok(help.usage.startsWith('artium-axi') && help.purpose && help.flags.length && help.example)
   }
   for (const tool of ['falcon-axi', 'vectra-axi']) {

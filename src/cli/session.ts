@@ -13,7 +13,7 @@ export type StoredSession = LoginResponse & { loginGeneration: string }
 export function sessionPath(platform = process.platform, environment = process.env, home = homedir()) {
   const paths = platform === 'win32' ? win32 : { join }
   const base = platform === 'win32' ? environment.APPDATA : environment.XDG_CONFIG_HOME || join(home, '.config')
-  if (!base) throw new ArtiumError('CLIENT_CONFIG_INVALID')
+  if (!base) throw new ArtiumError('CLIENT_CONFIG_INVALID', undefined, 'Set APPDATA to your writable roaming configuration folder, then sign in again.')
   return paths.join(base, 'artium-axi', 'session.json')
 }
 

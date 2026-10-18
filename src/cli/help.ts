@@ -1,4 +1,5 @@
 import { toolSchema } from '../shared/api.js'
+import { ArtiumError } from '../shared/errors.js'
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
@@ -24,18 +25,84 @@ const commands = {
     flags: ['Arguments after vectra-axi are forwarded upstream, including --help.'], example: `artium-axi vectra-axi ${vectra.discovery.example.join(' ')}` },
   'ldap-axi': { usage: 'artium-axi ldap-axi [<args>]', purpose: 'Read directory data with the managed LDAP bind identity.',
     flags: ['Arguments after ldap-axi are forwarded upstream, including --help.'], example: `artium-axi ldap-axi ${ldap.discovery.example.join(' ')}` },
+  'az-axi': { usage: 'artium-axi az-axi [<args>]', purpose: 'Run Azure commands with your managed identity.',
+    flags: ['Arguments after az-axi are forwarded upstream, including --help.'], example: 'artium-axi az-axi sub list' },
+  'mg-axi': { usage: 'artium-axi mg-axi [<args>]', purpose: 'Run Microsoft Graph commands with your managed identity.',
+    flags: ['Arguments after mg-axi are forwarded upstream, including --help.'], example: 'artium-axi mg-axi entra user list' },
+  'managed-session': { usage: 'artium-axi --managed-session <command> [<args>]', purpose: 'Let a caller supply and persist sessions through private pipes.',
+    flags: [], example: 'artium-axi --managed-session whoami' },
 } as const
 
 export type HelpCommand = keyof typeof commands
 
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
-  const flags = [command === 'falcon-axi' || command === 'vectra-axi' || command === 'ldap-axi' ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags,
-    '--managed-session before the command (default false; login and authenticated calls; session JSON on inherited pipe fd 3, new sessions and rotations as JSON lines on private pipe fd 4; no session file)',
+  const flags = [toolSchema.safeParse(command).success ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags,
+    '--managed-session before the command (default false; caller-owned sessions; see artium-axi --managed-session --help)']
+  const protocol = [
+    'Session JSON on inherited pipe fd 3, new sessions and rotations as JSON lines on private pipe fd 4; no session file.',
     'Managed input: {serverUrl, accessToken, refreshToken?}; close fd 3 after JSON (64 KiB maximum). Output: {serverUrl, status, accessToken, refreshToken, accessExpiresAt, familyExpiresAt} per rotation, before retry, including on later failure.',
     'Managed login: fd 3 is unused; fd 4 must be a writable private pipe/socket. Local sign-in requires --username <username> --password-stdin with protected inherited stdin; password argv and ARTIUM_AXI_PASSWORD are refused. SSO uses login --sso and displays browser approval instructions immediately. New sessions use the rotation envelope; password-change-required returns {serverUrl, status, passwordChangeToken, passwordChangeExpiresAt} on fd 4 and exits 1.',
     'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
-  return `usage: ${entry.usage}\npurpose: ${entry.purpose}\nflags[${flags.length}]:\n${flags.map(flag => `  - ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n`
+  const purposes = command === 'home' ? `commands[${Object.keys(commands).length - 2}]{command,purpose}:\n${Object.entries(commands)
+    .filter(([name]) => name !== 'home' && name !== 'managed-session')
+    .map(([name, value]) => `  ${name},${JSON.stringify(value.purpose)}`).join('\n')}\n` : ''
+  return `purpose: ${entry.purpose}\nusage: ${entry.usage}\n${purposes}flags[${flags.length}]:\n${flags.map(flag => `  - ${JSON.stringify(flag)}`).join('\n')}\nexample: ${entry.example}\n` +
+    (command === 'login' || command === 'managed-session' ? `managedSession[${protocol.length}]:\n${protocol.map(line => `  - ${JSON.stringify(line)}`).join('\n')}\n` : '')
+}
+
+// Validate local syntax before configuration, private pipes or network access.
+// Tool arguments belong to the upstream parser, except in local prefix help.
+export function validateArguments(args: string[], prefixHelp: boolean) {
+  const command = args[0]
+  const rootFlags = '--help, --version, --managed-session (before the command)'
+  const rootCommands = Object.keys(commands).filter(name => name !== 'home' && name !== 'managed-session' && name !== 'tools show').join(', ')
+  function fail(token: string | undefined, level: string, choices: string): never {
+    const kind = token?.startsWith('-') ? 'flag' : 'argument'
+    // Positional sign-in input may be a password; report its position, never its value.
+    const message = token === undefined ? `Missing argument for ${level}.` :
+      (command === 'login' || command === 'passwd') && kind === 'argument' ? `Unexpected positional argument at position ${args.indexOf(token) + 1} for ${level}. Password arguments are refused.` :
+        `Unknown or unexpected ${kind} ${JSON.stringify(kind === 'flag' ? token.split('=')[0] : token)} for ${level}.`
+    throw new ArtiumError('INVALID_INPUT', message, choices)
+  }
+  if (!command) return
+  if (command === '--version' && args.length === 1) return
+  if (!Object.hasOwn(commands, command) || command === 'home' || command === 'managed-session' || command === 'tools show') {
+    fail(command, 'artium-axi', `Valid commands: ${rootCommands}. Valid flags: ${rootFlags}.`)
+  }
+  if (toolSchema.safeParse(command).success) {
+    if (prefixHelp && args.length > 1) fail(args[1], command, `Use artium-axi --help ${command} for local help; artium-axi ${command} --help for upstream flags.`)
+    return
+  }
+  let level = command
+  let start = 1
+  if (command === 'tools' && args[1] === 'show') {
+    level = 'tools show'
+    start = 2
+  }
+  const entry = commands[level as HelpCommand]
+  const validFlags = ['--help', ...entry.flags.map(flag => flag.split(' ')[0])]
+  const choices = `Valid flags for ${level}: ${validFlags.join(', ')}.` +
+    (level === 'tools' ? ' Valid subcommands: show <tool>.' : level === 'tools show' ? ` Valid tools: ${toolSchema.options.join(', ')}.` : '')
+  let tool = false
+  const seen = new Set<string>()
+  for (let index = start; index < args.length; index++) {
+    const token = args[index]
+    if (level === 'tools show' && !token.startsWith('-') && !tool) {
+      if (!toolSchema.safeParse(token).success) fail(token, level, choices)
+      tool = true
+    } else {
+      if (!validFlags.includes(token) || seen.has(token)) fail(token, level, choices)
+      seen.add(token)
+      if (token === '--username' || token === '--host') {
+        const value = args[index + 1]
+        if (!value) fail(value, `${level} ${token}`, `Supply ${token} ${token === '--host' ? '<claude|codex|opencode|pi>' : '<username>'}. ${choices}`)
+        if (token === '--host' && !['claude', 'codex', 'opencode', 'pi'].includes(value)) fail(value, `${level} --host`, `Valid hosts: claude, codex, opencode, pi. Use ${entry.usage}.`)
+        index++
+      }
+    }
+  }
+  if (level === 'tools show' && !tool && !seen.has('--help') && !prefixHelp) fail(undefined, level, choices)
 }
 
 export function helpCommand(args: string[], prefixHelp = false): HelpCommand | undefined {
@@ -47,7 +114,7 @@ export function helpCommand(args: string[], prefixHelp = false): HelpCommand | u
     }
     return 'setup'
   }
-  if (args[0] === 'falcon-axi' || args[0] === 'vectra-axi' || args[0] === 'ldap-axi') return prefixHelp && args.length === 2 ? args[0] : undefined
+  if (toolSchema.safeParse(args[0]).success) return prefixHelp && args.length === 2 ? args[0] as HelpCommand : undefined
   if (args[0] === 'login' || args[0] === 'passwd') {
     if (args[0] === 'login' && args.length === 3 && args.includes('--sso') && args.includes('--help')) return 'login'
     let requested = false

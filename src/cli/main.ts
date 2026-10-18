@@ -6,7 +6,7 @@ import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
 import { doctor } from './doctor.js'
-import { commandHelp, helpCommand } from './help.js'
+import { commandHelp, helpCommand, validateArguments } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
 import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
@@ -22,15 +22,14 @@ function output(stream: 'stdout' | 'stderr', text: string) {
 }
 
 async function main(args: string[]) {
-  const managedMode = args[0] === '--managed-session'
-  if (managedMode) {
-    args = args.slice(1)
-    if (['passwd', 'logout', 'setup'].includes(args[0])) {
-      throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
-        'The caller manages session persistence, password changes and revocation.')
-    }
-    managed = await ManagedSession.read(args[0] === 'login')
+  if (args.length === 2 && args.includes('--managed-session') && args.includes('--help')) {
+    output('stdout', commandHelp('managed-session'))
+    return
   }
+  const localArgs = args[0] === '--managed-session' ? args.slice(1) : args
+  validateArguments(localArgs[0] === '--help' ? localArgs.slice(1) : localArgs, localArgs[0] === '--help')
+  const managedMode = args[0] === '--managed-session'
+  if (managedMode) args = args.slice(1)
   if (args.length === 1 && args[0] === '--version') {
     output('stdout', `${cliVersion}\n`)
     return
@@ -41,6 +40,13 @@ async function main(args: string[]) {
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
   if (help) { output('stdout', commandHelp(help)); return }
+  if (managedMode) {
+    if (['passwd', 'logout', 'setup'].includes(args[0])) {
+      throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
+        'The caller manages session persistence, password changes and revocation.')
+    }
+    managed = await ManagedSession.read(args[0] === 'login')
+  }
   if (command === 'setup') { output('stdout', await setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')

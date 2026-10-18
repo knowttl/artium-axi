@@ -397,6 +397,8 @@ See [npm client releases](docs/runbook.md#npm-client-releases) for automated pub
 | `artium-axi ldap-axi user list --limit 1` | Run a bounded directory read through the managed adapter. |
 
 Add `--help` to a local command to inspect its accepted flags.
+Top-level help lists command purposes; invalid local commands, arguments and flags name the rejected token and show valid choices for that command.
+Rejected positional password input is identified by position without printing its value.
 Tool help has two boundaries:
 
 ```sh
@@ -704,7 +706,7 @@ The optional fields `status: "authenticated"`, `accessExpiresAt` and `familyExpi
 The caller owns expiry policy, refresh serialization across processes and secure persistence.
 Managed mode supports `login`, the home view, `whoami`, `tools`, `tools show`, `doctor` and tool commands.
 `passwd`, `logout` and `setup` are refused before any network call; ordinary sign-in and its server-version warning remain unchanged without the flag.
-Help is available without private channels through `artium-axi --help`.
+Help is available without private channels through `artium-axi --help`; use `artium-axi --managed-session --help` or `artium-axi login --help` for the pipe protocol.
 
 To obtain the first session, run `artium-axi --managed-session login --username <username> --password-stdin` with the password on protected inherited stdin, or `artium-axi --managed-session login --sso` for browser approval.
 Login does not read or require fd 3; it requires a writable private pipe or socket on fd 4 before contacting the server.

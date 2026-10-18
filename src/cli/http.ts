@@ -28,7 +28,10 @@ export class Client {
           ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error()
       this.serverUrl = url.href.replace(/\/$/, '')
       if (!managed) this.storedSessions = new SessionStore(this.serverUrl, sessionPath(process.platform, environment))
-    } catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
+    } catch (error) {
+      if (error instanceof ArtiumError) throw error
+      throw new ArtiumError('CLIENT_CONFIG_INVALID')
+    }
     managed?.checkServer(this.serverUrl)
   }
 
