@@ -132,12 +132,21 @@ export class CredentialInput {
 
   reasons(): { path: string[], message: string }[] {
     const errors = this.validate.errors ?? []
+    const fieldsIn = (schema: Schema, path: string[]): string[] => {
+      const names = new Set<string>([...schema?.required ?? [], ...Object.keys(schema?.properties ?? {})])
+      const fields = [...names].flatMap(name => {
+        const nested = fieldsIn(schema?.properties?.[name], [...path, name])
+        return nested.length ? nested : [[...path, name].join('.')]
+      })
+      return [...fields, ...['allOf', 'oneOf', 'anyOf'].flatMap(keyword =>
+        (schema?.[keyword] ?? []).flatMap((branch: Schema) => fieldsIn(branch, path)))]
+    }
     const reason = (error: ErrorObject) => {
       const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
       const schema = this.resolve(error.schemaPath.replace(/^.*?#/, '').replace(/\/[^/]+$/, ''))
       if (error.keyword === 'required') path.push(error.params.missingProperty)
       if (error.keyword === 'additionalProperties') path.push(error.params.additionalProperty)
-      const field = path.join('.') || 'credential'
+      let field = path.join('.') || 'credential'
       let rule = 'does not satisfy the credential rules'
       if (error.keyword === 'required') rule = 'is required'
       if (error.keyword === 'type') rule = `must be ${schema?.type ?? 'the expected type'}`
@@ -146,6 +155,13 @@ export class CredentialInput {
       if (error.keyword === 'minLength') rule = 'must not be empty'
       if (error.keyword === 'enum' || error.keyword === 'const') rule = 'must match an allowed choice'
       if (error.keyword === 'not' && schema?.not?.pattern === '\\s') rule = 'must not contain whitespace'
+      if (error.keyword === 'not') {
+        const fields = [...new Set(fieldsIn(schema?.not, path))]
+        if (fields.length) {
+          field = fields.join(', ')
+          rule = 'must not be used in this field combination'
+        }
+      }
       if (error.keyword === 'const' && typeof schema?.const === 'boolean') rule = `must be ${schema.const} for this URL`
       if (['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'].includes(error.keyword)) {
         rule = `must be ${error.params.comparison} ${error.params.limit}`

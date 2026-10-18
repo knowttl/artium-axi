@@ -148,6 +148,29 @@ test.each(['oneOf', 'anyOf'])('preserves %s conflicts alongside concrete field d
     message: expect.stringContaining('must satisfy the selected credential field combination') }))
   expect(JSON.stringify(result)).not.toContain('CANARY')
 })
+
+test.each([
+  ['armToken', 'arm'],
+  ['logsToken', 'logs'],
+  ['graphToken', 'graph'],
+  ['storageToken', 'storage'],
+  ['vaultToken', 'vault'],
+  ['registryToken', 'registry'],
+])('names published Azure %s and tokenEnv.%s conflicts without values', (token, resource) => {
+  const profile = loadCredentialProfile('az-axi', join(process.cwd(), 'tools/node_modules/@knowttl/az-axi/axi-credential.schema.json'))!
+  const value = { auth: 'token', [token]: 'CANARY-secret', tokenEnv: { [resource]: 'CANARY_ENV' } }
+  const message = `${token}, tokenEnv.${resource} must not be used in this field combination.`
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message }))
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+})
+
+test('published Azure accepts tokens and environment entries for different resources', () => {
+  const profile = loadCredentialProfile('az-axi', join(process.cwd(), 'tools/node_modules/@knowttl/az-axi/axi-credential.schema.json'))!
+  const value = { auth: 'token', armToken: 'CANARY-secret', tokenEnv: { logs: 'SYNTHETIC_ENV' } }
+  expect(profile.parseInput(value)).toEqual({ value, normalizations: [] })
+})
 let directory: string
 beforeEach(() => { directory = mkdtempSync(join(tmpdir(), 'artium-profile-')) })
 afterEach(() => { rmSync(directory, { recursive: true, force: true }) })
