@@ -827,7 +827,7 @@ Before publishing a candidate, commit and build it, then set `ARTIUM_AXI_HYGIENE
 pnpm hygiene:check
 ```
 
-The UTF-8 list contains one literal term per line, matched case-insensitively after trimming whitespace; blanks and duplicates are ignored.
+The UTF-8 list contains one literal term per line, matched after trimming whitespace using context-independent Unicode simple case folding; blanks and case-equivalent duplicates are ignored.
 Unset, unreadable, empty or in-tree lists fail.
 Never copy real terms or the list into this repository.
 Record only its revision or SHA-256, candidate commit and pass/fail result.
@@ -835,7 +835,7 @@ Record only its revision or SHA-256, candidate commit and pass/fail result.
 The check scans tracked, untracked and ignored files, generated output and every commit message reachable from `HEAD`, excluding only `.git` metadata and installed `node_modules` directories.
 Supply intended release assets outside the checkout as additional `pnpm hygiene:check` arguments, keeping the list outside those directories too.
 Symlinks, unreadable files and BOM-marked UTF-16/UTF-32 assets fail rather than reducing coverage; convert unsupported encodings to UTF-8.
-Diagnostics report location and normalized entry number without secret excerpts, and redact labels whose paths match a term.
+Diagnostics report location (with one-based columns in the original text's UTF-16 code units) and normalized entry number without secret excerpts, and redact labels whose paths match a term using the same folding rule.
 The scan cannot guarantee absence of unknown sensitive values and does not approve publication.
 
 Further operational guidance lives in the [runbook](docs/runbook.md); local implementation and deferred live acceptance are tracked in the [evidence ledger](docs/evidence-ledger.md).

@@ -9,19 +9,16 @@ let files = 0
 let terms = []
 
 function safe(value) {
-  const normalized = value.toLowerCase()
-  return JSON.stringify(terms.some(term => normalized.includes(term)) ? '[redacted]' : value)
+  return JSON.stringify(terms.some(term => value.search(term) !== -1) ? '[redacted]' : value)
 }
 
 function scan(label, content) {
-  const lines = content.toLowerCase().split('\n')
+  const lines = content.split('\n')
   for (const [index, term] of terms.entries()) {
     for (const [line, text] of lines.entries()) {
-      let column = text.indexOf(term)
-      while (column !== -1) {
-        console.log(`match: ${safe(label)}:${line + 1}:${column + 1} term=${index + 1}`)
+      for (const match of text.matchAll(term)) {
+        console.log(`match: ${safe(label)}:${line + 1}:${match.index + 1} term=${index + 1}`)
         matches++
-        column = text.indexOf(term, column + term.length)
       }
     }
   }
@@ -65,7 +62,12 @@ try {
       throw new Error('deny list must stay outside the candidate tree')
     }
     const list = readFileSync(listPath)
-    terms = [...new Set(list.toString('utf8').split(/\r?\n/).map(term => term.trim().toLowerCase()).filter(Boolean))]
+    // Unicode simple case folding is context-independent and preserves original match offsets.
+    for (const term of list.toString('utf8').split(/\r?\n/).map(term => term.trim()).filter(Boolean)) {
+      if (!terms.some(existing => new RegExp(`^(?:${existing.source})$`, 'iu').test(term))) {
+        terms.push(new RegExp(RegExp.escape(term), 'giu'))
+      }
+    }
     if (!terms.length) throw new Error('deny list must contain at least one nonempty term')
     for (const asset of assets) {
       const assetRelative = relative(realpathSync(asset), realpathSync(listPath))
