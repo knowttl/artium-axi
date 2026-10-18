@@ -24,7 +24,7 @@ const windowsBundle = join(directory, 'artium-axi-windows.mjs')
 const stalls = new EventEmitter()
 let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string }
-let requests: { path: string, token?: string, body: unknown, version?: string }[]
+let requests: { path: string, token?: string, body: unknown, version?: string }[] = []
 let doctorResponses: Record<string, typeof response> | undefined
 let responseSequence: typeof response[] | undefined
 const server = createServer()

@@ -397,8 +397,9 @@ See [npm client releases](docs/runbook.md#npm-client-releases) for automated pub
 | `artium-axi ldap-axi user list --limit 1` | Run a bounded directory read through the managed adapter. |
 
 Add `--help` to a local command to inspect its accepted flags.
-Top-level help lists command purposes; invalid local commands, arguments and flags name the rejected token and show valid choices for that command.
-Rejected positional password input is identified by position without printing its value.
+Top-level help lists command purposes.
+Unknown or unexpected local commands, arguments and flags are rejected before configuration, private-channel reads or network access, with valid choices for the relevant command.
+Rejected tokens are named, except for `login` and `passwd` input, which is identified by position without printing its value because it may contain a password.
 Tool help has two boundaries:
 
 ```sh
