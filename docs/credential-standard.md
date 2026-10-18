@@ -261,6 +261,14 @@ These az-axi schema details were approved separately during implementation.
 The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the shipped credential schema; [credential-profile.ts](../src/server/adapters/credential-profile.ts) owns its hosted input restrictions and CA materialization.
 See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
 
+ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
+The [host adapter](../src/server/adapters/ado.ts) owns a credential schema with `org`, optional `project`, `auth: "pat"` and secret `token`.
+It uses the shared credential editor and input normalization, including organization-root URL normalization, but prepares its upstream profile itself.
+Each isolated call receives `ADO_AXI_CONFIG` with `auth: "pat"` and `patEnv: "ARTIUM_SECRET_0"`.
+The PAT and its Basic authentication encoding are registered for redaction.
+Artium owns the default-off `allowWrites` switch and host classification because upstream has no native write gate or journal.
+The `config` and `update` commands and organization, profile and config overrides are blocked; `api` accepts relative GET calls only.
+
 ## 10. Migration
 
 The per-tool migration and suggested order are in [credential-migration.md](credential-migration.md), section "Migration path per tool".

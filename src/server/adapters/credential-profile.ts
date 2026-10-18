@@ -11,7 +11,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
 import { toolAllowsWrites } from '../../shared/api.js'
-import { CredentialInput, standardCredentialFormats } from './credential-input.js'
+import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
 export { isCanonicalHttpsOrigin } from './credential-input.js'
 
 type Schema = Record<string, any>
@@ -35,7 +35,8 @@ export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, 
 
 // Only the pinned package is consulted. Missing schemas retain the legacy adapter;
 // invalid schemas fail startup rather than silently downgrading credential handling.
-export function loadCredentialProfile(tool: ToolName, file: string = toolCredentialSchemaPaths[tool]): CredentialProfile | undefined {
+export function loadCredentialProfile(tool: ToolName, file = toolCredentialSchemaPaths[tool]): CredentialProfile | undefined {
+  if (!file) return
   let content: string
   try { content = readFileSync(file, 'utf8') }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw new ArtiumError('CREDENTIAL_INVALID') }
@@ -92,6 +93,7 @@ export class CredentialProfile {
     const create = () => {
       const ajv = String(schema.$schema).includes('2020-12') ? new Ajv2020(options) : new Ajv(options)
       addFormats.default(ajv, { formats: Object.keys(standardCredentialFormats) as FormatName[] })
+      for (const [name, format] of Object.entries(credentialFormats)) ajv.addFormat(name, { type: 'string', validate: format.validate })
       return ajv
     }
     const host = create()

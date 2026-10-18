@@ -13,6 +13,39 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ requests, mutations }))
     return
   }
+  if (['dev.azure.com', 'vsrm.dev.azure.com', 'vssps.dev.azure.com', 'almsearch.dev.azure.com'].includes(req.headers.host)) {
+    const authorization = req.headers.authorization ?? ''
+    const recorded = { method: req.method, host: req.headers.host, path: url.pathname,
+      auth: authorization.startsWith('Basic ') ? 'Basic' : authorization.startsWith('Bearer ') ? 'Bearer' : 'none',
+      canaryReceived: authorization === `Basic ${Buffer.from(':CANARY-ado-pat').toString('base64')}` }
+    requests.push(recorded)
+    const workItem = { id: 42, rev: 2, fields: { 'System.Title': 'Synthetic work item', 'System.State': 'Active', 'System.WorkItemType': 'Task' } }
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      if (body) recorded.body = JSON.parse(body)
+      if (url.pathname.endsWith('/_apis/projects') && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 'synthetic-project', name: 'Synthetic Project', state: 'wellFormed' }], count: 1 }))
+      } else if (url.pathname.endsWith('/_apis/connectionData') && req.method === 'GET') {
+        res.end(JSON.stringify({ authenticatedUser: { id: 'synthetic-user', providerDisplayName: 'Synthetic User' } }))
+      } else if (url.pathname.endsWith('/_apis/wit/wiql') && req.method === 'POST') {
+        res.end(JSON.stringify({ workItems: [{ id: 42 }] }))
+      } else if (url.pathname.endsWith('/_apis/wit/workitemsbatch') && req.method === 'POST') {
+        res.end(JSON.stringify({ value: [workItem] }))
+      } else if (url.pathname.endsWith('/_apis/wit/workitems/42') && ['GET', 'PATCH'].includes(req.method)) {
+        if (req.method === 'PATCH') mutations++
+        res.end(JSON.stringify(workItem))
+      } else if (url.pathname.endsWith('/_apis/redaction') && req.method === 'GET') {
+        res.end(JSON.stringify(url.searchParams.get('form') === 'basic'
+          ? { header: Buffer.from(':CANARY-ado-pat').toString('base64') } : { token: 'CANARY-ado-pat' }))
+      } else {
+        res.writeHead(404)
+        res.end(JSON.stringify({ message: 'Unknown fake Azure DevOps route' }))
+      }
+    })
+    return
+  }
   if (req.headers.host === 'synthetic.azurecr.io' && ['/oauth2/exchange', '/oauth2/token'].includes(url.pathname)) {
     let body = ''
     req.setEncoding('utf8')

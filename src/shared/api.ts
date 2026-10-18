@@ -51,7 +51,7 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -175,6 +175,7 @@ export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: 
   authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const nativeSettingsSchemas = {
   'ldap-axi': z.strictObject({}),
+  'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
   'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
@@ -232,7 +233,7 @@ export const adminToolRoutes = {
   // Certificate auth for Azure/Graph also accepts value.certificatePem containing one
   // certificate and matching unencrypted private key; the host derives the fingerprint.
   // Omitted optional non-secret fields are removed; explicit empty or null secrets are invalid.
-  // Changing mode, kind, auth, tenantId, clientId or origin requires new secrets.
+  // Changing mode, kind, auth, tenantId, clientId, origin or org requires new secrets.
   // Native settings are retained; edits belong to patch above and are rejected inside value here.
   // Both current revisions are required (credential revision 0 before first save);
   // stale edits fail with REVISION_CONFLICT without mutation.

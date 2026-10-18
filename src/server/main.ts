@@ -5,6 +5,7 @@ import { createVectraAdapter } from './adapters/vectra.js'
 import { createAzAdapter } from './adapters/az.js'
 import { createMgAdapter } from './adapters/mg.js'
 import { createLdapAdapter } from './adapters/ldap.js'
+import { createAdoAdapter } from './adapters/ado.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { retainRunJournals } from './adapters/run-journal.js'
 import { Audit } from './audit/audit.js'
@@ -48,7 +49,7 @@ async function main() {
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log')),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
-        createLdapAdapter(source)] })
+        createLdapAdapter(source), createAdoAdapter(source)] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }

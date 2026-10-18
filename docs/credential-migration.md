@@ -13,6 +13,7 @@ The [credential standard](credential-standard.md) is the canonical contract.
 | awx-axi | Add profiles and SecretRefs; bind stored tokens to their origin; enforce HTTPS and per-request TLS policy; rename environment variables; revoke PATs on logout; enforce Windows DACLs. |
 | azure-axi | Keep ambient credentials; adopt tenant/subscription profiles, AZURE_AXI variables and auth status. |
 | artium-axi | Use one schema-driven profile writer, admin form and validation; retire legacy credential schemas and guide strings as each pinned tool migrates; use ARTIUM_SECRET_<n> holders; keep the az token broker. Addresses I-14 (certificate field alignment) and I-15 (bespoke onboarding). |
+| ado-axi | Third-party, non-standard tool with a host-owned PAT schema and per-call patEnv injection. Artium owns routing, the write switch and journaling; no upstream modification or migration is required. Client ID and secret support is a separate phase. |
 
 The host now has the shared schema-driven profile writer, validation and admin fields, with legacy paths retained for pinned packages that do not ship a schema.
 Schema locations are owned by [server configuration](../src/server/config.ts); an absent schema retains legacy handling for older adapters, while LDAP falls back to its bundled schema.

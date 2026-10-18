@@ -13,6 +13,7 @@ import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
 
 const settingsGuide = {
+  'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
   'falcon-axi': 'Optional allowWrites (boolean), saved for a future write-capable pin. The reviewed Falcon pin has no write commands and remains read-only even when this switch is true. Use {} to turn the switch off.',
@@ -20,6 +21,7 @@ const settingsGuide = {
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean). Use {} to clear settings.',
 }
 const testGuide = {
+  'ado-axi': 'Azure DevOps project list --limit 1',
   'falcon-axi': 'Falcon auth status', 'vectra-axi': 'Vectra health list', 'az-axi': 'Azure account list',
   'mg-axi': 'Graph entra user list --limit 1', 'ldap-axi': 'LDAP auth status',
 }

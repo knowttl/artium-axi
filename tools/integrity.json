@@ -1,4 +1,8 @@
 {
+  "@jeffreyhaen/ado-axi": {
+    "version": "0.4.6",
+    "integrity": "sha512-DThi4K9uO/jz93QQMBXtpnCXeHaYsOWSt6TFdYGhnqDN8aScow3bwbhVTIg4KEMVT0KHPYPdH00V9UOPX0c2fA=="
+  },
   "@knowttl/az-axi": {
     "version": "0.1.8",
     "integrity": "sha512-7SKu71YKa7wyszHu4onz+ETSAJ/PAuh2Ov3W7R+pRRhsSIQbemqGsqYAmda5d/8fx5oMohbj1chCQeTXlAOt9A=="

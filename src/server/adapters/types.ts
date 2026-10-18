@@ -18,6 +18,7 @@ export interface PreparedCall {
   files: TemporaryFile[]
   secrets: string[]
   fileArguments?: readonly number[]
+  effect?: 'read' | 'write'
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   limits: { timeoutMs: number, runtime?: 'python', nodeHeapMiB?: number }
 }

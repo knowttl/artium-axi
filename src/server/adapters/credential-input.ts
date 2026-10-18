@@ -35,6 +35,10 @@ function canonicalUrl(value: string, protocols: readonly string[]): string {
 }
 
 export const credentialFormats: Record<string, Format> = {
+  'ado-org': { validate: value => /^[A-Za-z0-9][A-Za-z0-9-]*$/.test(value),
+    normalize: value => /^https:\/\/dev\.azure\.com\/([A-Za-z0-9][A-Za-z0-9-]*)\/?$/i.exec(value)?.[1]
+      ?? /^https:\/\/([A-Za-z0-9][A-Za-z0-9-]*)\.visualstudio\.com\/?$/i.exec(value)?.[1] ?? value,
+    reason: 'must be an Azure DevOps organization name or organization-root HTTPS URL without credentials, query or API path' },
   'canonical-https-origin': { validate: isCanonicalHttpsOrigin,
     normalize: value => canonicalUrl(value, ['https:']), reason: 'must be an HTTPS origin without a path, query, fragment or embedded credentials' },
   'ldap-url': { validate: value => {

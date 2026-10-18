@@ -5,8 +5,29 @@ import { loadCredentialProfile } from '../../src/server/adapters/credential-prof
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { withFakeService } from '../fake-service/fixture.js'
+import { loadTrustedCa } from '../../src/server/trusted-ca.js'
+
+test.each(['dev', 'vsrm', 'vssps', 'almsearch'])('published ADO uses PAT Basic auth and redacts it on the %s host', async host => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const adapter = createAdoAdapter({ getCredential: async () => ({ org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' }) })
+    const call = await adapter.prepare(['api', '_apis/redaction', '--host', host, '--query', 'form=basic'], { id: 'synthetic-ado', tool: 'ado-axi' })
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    try {
+      await expect(runner.run('synthetic-user', process.execPath,
+        ['--import', join(process.cwd(), 'test/fake-service/ado-transport.mjs'),
+          join(process.cwd(), 'tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js'), ...call.args],
+        { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files))
+        .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([
+        { method: 'GET', host: host === 'dev' ? 'dev.azure.com' : `${host}.dev.azure.com`, path: '/synthetic-org/_apis/redaction', auth: 'Basic', canaryReceived: true },
+      ])
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await runner.shutdown() }
+  })
+})
 
 test('published LDAP resolves the hosted profile and SecretRef without a native provider or network', async () => {
   await withFakeService(async ({ directory }) => {

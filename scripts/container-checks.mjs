@@ -56,6 +56,10 @@ try {
       recoveryContainers.push(ldapPackage)
       await command('docker', ['run', '--name', ldapPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/ldap-axi', image, 'user', 'list', '--help'])
+      const adoPackage = `${builder}-ado-package`
+      recoveryContainers.push(adoPackage)
+      await command('docker', ['run', '--name', adoPackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/ado-axi', image, '--version'])
       const backupVolume = `${builder}-backup`
       const restoreVolume = `${builder}-restore`
       for (const volume of [backupVolume, restoreVolume]) {
