@@ -92,11 +92,12 @@ export class ToolHealth {
     let outputBytes = { stdout: 0, stderr: 0 }
     let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
     let secrets: string[] = []
+    let credential: Record<string, unknown> | undefined
     try {
       audit.record({ ...context, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args),
         checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
       try {
-        const credential = store!.readCredential(reference) as Record<string, unknown> | undefined
+        credential = store!.readCredential(reference) as Record<string, unknown> | undefined
         if (!credential) throw new ArtiumError('REVISION_CONFLICT')
         // Include schema-declared secrets, including custom profile fields, before preflight.
         const secretFields = new Set(adapter.credentialProfile?.fields().filter(field => field.schema['x-secret']).map(field => field.name))
@@ -128,13 +129,7 @@ export class ToolHealth {
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes
-        if (exitCode !== 0) {
-          failure = toolFailure(result.stdout, result.stderr, exitCode, tool)
-          if (failure.code === 'UPSTREAM_NETWORK_FAILED' && failure.diagnostic && !failure.diagnostic.host) {
-            const endpoints = healthEndpoints(tool, credential)
-            failure.diagnostic.host = (failure.diagnostic.stage === 'token acquisition' ? endpoints[0] : endpoints.at(-1))?.hostname
-          }
-        }
+        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode, tool)
       } catch (error) {
         failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
         const runnerError = error instanceof RunnerError ? error : undefined
@@ -142,10 +137,16 @@ export class ToolHealth {
         outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
       }
       const checkedAt = Date.now()
-      const diagnostic = safeDiagnostic(failure && {
+      const detail: Diagnostic | undefined = failure && {
         ...(failure.diagnostic ?? { stage: 'tool run', message: errors[failure.code].message }),
         checkedAt, credentialRevision: reference.revision,
-      }, secrets)
+      }
+      if (failure && ['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'].includes(failure.code)
+        && detail && !detail.host && credential) {
+        const endpoints = healthEndpoints(tool, credential)
+        detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints.at(-1))?.hostname
+      }
+      const diagnostic = safeDiagnostic(detail, secrets)
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,

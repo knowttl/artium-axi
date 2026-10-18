@@ -2,13 +2,16 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
+import { diagnosticError } from '../../src/server/health/diagnostic.js'
+import { preflight } from '../../src/server/health/preflight.js'
 import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -167,31 +170,65 @@ test.each([
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(message)
 })
 
-test.each(['synthetic-development-user', healthDefaults.actor])('LDAP network failures retain the configured host for %s', async actor => {
-  store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
-    bindPassword: 'CANARY-LDAP-PASSWORD' }, 0, 'synthetic-development-user', Date.now())
-  const ldap = createLdapAdapter(new EmbeddedSecretSource(store))
-  health = new ToolHealth(db, new Audit(db), runner, [ldap], store)
-  const text = 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory'
-  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
-  await expect(health.check('ldap-axi', actor, 'ldap-network', null)).rejects.toMatchObject({
-    code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', host: 'directory.test', message: text,
-      checkedAt: expect.any(Number), credentialRevision: 1 },
+describe.each(['synthetic-development-user', healthDefaults.actor])('destination diagnostics for %s', actor => {
+  test.each([
+    { tool: 'ldap-axi', credential: { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+      bindPassword: 'CANARY-LDAP-PASSWORD' }, create: () => createLdapAdapter(new EmbeddedSecretSource(store)),
+    toolCode: 'SERVER_UNREACHABLE', message: 'could not connect to the directory',
+    code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', host: 'directory.test' },
+    { tool: 'ldap-axi', credential: { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+      bindPassword: 'CANARY-LDAP-PASSWORD' }, create: () => createLdapAdapter(new EmbeddedSecretSource(store)),
+    toolCode: 'TLS_UNTRUSTED', message: 'certificate verification failed',
+    code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'directory.test' },
+    { tool: 'vectra-axi', credential: { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token',
+      token: 'CANARY-VECTRA-TOKEN' },
+    create: () => createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
+    toolCode: 'TLS_TRUST_ERROR', message: 'certificate verification failed',
+    code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'appliance.test' },
+  ] as const)('$tool $toolCode retains the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
+    store.replaceCredential(tool, credential, 0, 'synthetic-development-user', Date.now())
+    health = new ToolHealth(db, new Audit(db), runner, [create()], store)
+    const text = `code: ${toolCode}\nmessage: ${message}`
+    vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+    await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
+      code, diagnostic: { stage, host, toolCode, message: text, checkedAt: expect.any(Number), credentialRevision: 1 },
+    })
+    const cached = db.prepare('SELECT checked_at FROM tool_health WHERE tool = ?').get(tool) as { checked_at: number }
+    expect(health.diagnostic(tool, 1, cached.checked_at)).toMatchObject({ host })
+    const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+    expect(audit).not.toContain(host)
+    expect(audit).not.toContain('CANARY-')
+    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain('CANARY-')
   })
-  const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
-  expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toMatchObject({ host: 'directory.test' })
-  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
-  expect(JSON.stringify(health.diagnostic('ldap-axi', 1, cached.checked_at))).not.toContain('CANARY-LDAP-PASSWORD')
 })
 
-test('scans the configured host before returning or caching a network diagnostic', async () => {
+test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('preserves the specific preflight host for %s', async code => {
+  vi.mocked(preflight).mockRejectedValueOnce(diagnosticError(code, {
+    stage: 'TLS', host: 'specific-endpoint.test', message: 'Synthetic connection failure.',
+  }))
+  await expect(health.check('falcon-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
+    code, diagnostic: { host: 'specific-endpoint.test', checkedAt: expect.any(Number), credentialRevision: 1 },
+  })
+})
+
+test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('completes hostless preparation diagnostics for %s', async code => {
+  vi.spyOn(adapter, 'prepare').mockRejectedValueOnce(diagnosticError(code, { stage: 'TLS', message: 'Synthetic connection failure.' }))
+  await expect(health.check('falcon-axi', 'synthetic-development-user', 'prepare-host', null)).rejects.toMatchObject({
+    code, diagnostic: { host: 'api.us-2.crowdstrike.com', checkedAt: expect.any(Number), credentialRevision: 1 },
+  })
+})
+
+test.each([
+  ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED'],
+  ['TLS_UNTRUSTED', 'certificate verification failed', 'UPSTREAM_TLS_FAILED'],
+])('scans the configured host before returning or caching %s', async (toolCode, message, code) => {
   store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
     bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
   vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '',
-    stderr: 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory', exitCode: 1 })
+    stderr: `code: ${toolCode}\nmessage: ${message}`, exitCode: 1 })
   await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({
-    code: 'UPSTREAM_NETWORK_FAILED', diagnostic: undefined,
+    code, diagnostic: undefined,
   })
   const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
   expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
