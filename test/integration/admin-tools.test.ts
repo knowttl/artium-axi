@@ -222,6 +222,11 @@ test.each([
   { name: 'expired token', code: 'UPSTREAM_AUTH_FAILED', elapsed: 0, configure: (transport: FakeTokenTransport) => {
     transport.response = { ...transport.response, expires_in: -1 }
   } },
+  { name: 'service outage', code: 'TOOL_FAILED', elapsed: 0, configure: (transport: FakeTokenTransport) => {
+    transport.status = 503
+    transport.response = { error: 'temporarily_unavailable',
+      error_description: `${values['az-axi'].clientSecret} CANARY-RAW-SERVICE-RESPONSE` }
+  } },
 ])('token $name has safe administrator diagnostics in the test response and cached health', async ({ code, elapsed, configure }) => {
   store.replaceCredential('az-axi', values['az-axi'], 0, actor, Date.now())
   configure(network)
@@ -246,6 +251,7 @@ test.each([
     expect(evidence).not.toContain(values['az-axi'].clientSecret)
     expect(evidence).not.toContain('CANARY-AZURE-ACCESS-TOKEN')
     expect(evidence).not.toContain('CANARY-NETWORK-FAILURE')
+    expect(evidence).not.toContain('CANARY-RAW-SERVICE-RESPONSE')
   } finally { vi.useRealTimers() }
 })
 

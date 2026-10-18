@@ -1,7 +1,7 @@
 import type { LookupAddress } from 'node:dns'
 import { lookup } from 'node:dns/promises'
 import { connect, isIP } from 'node:net'
-import { connect as connectTls, rootCertificates } from 'node:tls'
+import { connect as connectTls, getCACertificates } from 'node:tls'
 import type { ToolName } from '../store/credential-store.js'
 import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
 
@@ -94,7 +94,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   // peer certificate for the diagnostic, then require authorized before success.
   // No application bytes or credentials are sent on this socket.
   const secure = connectTls({ socket, host, servername: isIP(host) ? undefined : host, rejectUnauthorized: false,
-    ...(ca ? { ca: [...rootCertificates, ca] } : {}), ...(maxVersion ? { maxVersion } : {}) })
+    ...(ca ? { ca: [...getCACertificates('default'), ca] } : {}), ...(maxVersion ? { maxVersion } : {}) })
   try {
     await new Promise<void>((resolve, reject) => {
       secure.setTimeout(timeoutMs, () => secure.destroy(Object.assign(new Error(), { code: 'ETIMEDOUT' })))

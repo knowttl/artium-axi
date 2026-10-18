@@ -92,11 +92,16 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
 }
 
 function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
-  const fields = error as { errorCode?: string, errorMessage?: string, message?: string, code?: string, cause?: { code?: string } }
+  const fields = error as { errorCode?: string, errorMessage?: string, message?: string, code?: string, status?: number, cause?: { code?: string } }
   // Inspect only to select an allowlisted explanation. Never forward the response body.
   const text = [fields?.errorCode, fields?.errorMessage, fields?.message, fields?.code, fields?.cause?.code].join(' ')
   const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const host = 'login.microsoftonline.com'
+  const toolCode = providerCode ?? (/^[a-z][a-z0-9_]{0,79}$/.test(fields?.errorCode ?? '') ? fields.errorCode : undefined)
+  if (fields?.status === 429 || fields?.status !== undefined && fields.status >= 500 && fields.status <= 599
+    || ['temporarily_unavailable', 'server_error'].includes(fields?.errorCode ?? '')) return diagnosticError('TOOL_FAILED', {
+    stage: 'token acquisition', host, message: 'The identity provider service could not complete token acquisition.',
+    ...(toolCode ? { toolCode } : {}), hint: 'Try again later and check identity provider service availability.' })
   const verificationCode = certificateErrorCodePattern.exec(text)?.[0]
   if (verificationCode || /certificate verification|ERR_TLS/i.test(text)) return diagnosticError('UPSTREAM_TLS_FAILED', {
     stage: 'TLS', host, message: `TLS certificate verification failed contacting ${host}.`,
@@ -106,7 +111,6 @@ function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
     message: `Token acquisition could not reach ${host}.`, hint: 'Check DNS, routing, firewall rules and timeouts.' })
   if (/key|PEM|DECODER|crypto/i.test(text) && !providerCode) return diagnosticError('CREDENTIAL_INVALID', {
     stage: 'configuration', message: 'Invalid credential field: privateKey.' })
-  const toolCode = providerCode ?? (/^[a-z][a-z0-9_]{0,79}$/.test(fields?.errorCode ?? '') ? fields.errorCode : undefined)
   return diagnosticError('UPSTREAM_AUTH_FAILED', { stage: 'token acquisition', host,
     message: 'The identity provider rejected token acquisition.', ...(toolCode ? { toolCode } : {}),
     hint: providerCode && azureAdvice[providerCode] || 'Check the tenant, application credential and permissions.' })

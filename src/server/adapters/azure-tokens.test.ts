@@ -110,6 +110,38 @@ describe('Azure token authentication', () => {
   })
 
   it.each([
+    [400, 'temporarily_unavailable'],
+    [400, 'server_error'],
+    [429, 'slow_down'],
+    [500, 'unexpected_service_error'],
+    [502, 'server_error'],
+    [503, 'temporarily_unavailable'],
+    [504, 'unexpected_service_error'],
+  ] as const)('classifies token HTTP %s / %s as a service failure without forwarding its body', async (status, code) => {
+    const network = new FakeTokenTransport()
+    network.status = status
+    network.response = { error: code, error_description: `${secretCredential.clientSecret} CANARY-RAW-SERVICE-RESPONSE` }
+    const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
+    expect(error).toMatchObject({ code: 'TOOL_FAILED', diagnostic: {
+      stage: 'token acquisition', host: 'login.microsoftonline.com', toolCode: code,
+      hint: expect.stringContaining('service availability'),
+    } })
+    expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
+    expect(JSON.stringify(error)).not.toContain('CANARY-RAW-SERVICE-RESPONSE')
+  })
+
+  it('drops service diagnostics when a retained code matches the credential secret', async () => {
+    const network = new FakeTokenTransport()
+    network.status = 503
+    network.response = { error: 'temporarily_unavailable' }
+    const error = await mintAzureToken({ ...secretCredential, clientSecret: 'temporarily_unavailable' }, 'arm', network)
+      .catch(error => error as ArtiumError)
+    expect(error).toMatchObject({ code: 'TOOL_FAILED' })
+    expect((error as ArtiumError).diagnostic).toBeUndefined()
+    expect(JSON.stringify(error)).not.toContain('temporarily_unavailable')
+  })
+
+  it.each([
     ['arm', 'https://management.azure.com//.default'],
     ['logs', 'https://api.loganalytics.io/.default'],
     ['graph', 'https://graph.microsoft.com/.default'],

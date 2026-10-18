@@ -2,17 +2,14 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createServer, createSecureContext, TLSSocket } from 'node:tls'
+import { createServer, createSecureContext, getCACertificates, setDefaultCACertificates, TLSSocket } from 'node:tls'
 import { createServer as createTcpServer, type Socket } from 'node:net'
 import { afterAll, beforeAll, expect, test, vi } from 'vitest'
 import { createTestCertificates } from '../../../test/fake-service/certificates.mjs'
 import { healthEndpoints, preflight, preflightEndpoint } from './preflight.js'
+import { installTrustedCa, loadTrustedCa } from '../trusted-ca.js'
 
 const dns = vi.hoisted(() => ({ lookup: vi.fn() }))
-const tls = vi.hoisted(() => ({ roots: [] as string[] }))
-vi.mock('node:tls', async importOriginal => ({
-  ...await importOriginal<typeof import('node:tls')>(), rootCertificates: tls.roots,
-}))
 vi.mock('node:dns/promises', async importOriginal => {
   const original = await importOriginal<typeof import('node:dns/promises')>()
   return { ...original, lookup: dns.lookup.mockImplementation(original.lookup) }
@@ -22,7 +19,6 @@ let directory: string
 beforeAll(() => {
   directory = mkdtempSync(join(tmpdir(), 'artium-preflight-'))
   createTestCertificates(directory, ['localhost'])
-  tls.roots.push(readFileSync(join(directory, 'ca.crt'), 'utf8'))
   mkdirSync(join(directory, 'extra'))
   createTestCertificates(join(directory, 'extra'), ['extra.synthetic.invalid'])
   execFileSync('openssl', ['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-leaf',
@@ -125,15 +121,38 @@ test('LDAP preflight negotiates StartTLS and verifies TLS before any bind', asyn
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 
-test('a configured private CA preserves trust in the default roots', async () => {
+test.each([
+  { tool: 'vectra-axi', field: 'origin', protocol: 'https' },
+  { tool: 'ldap-axi', field: 'url', protocol: 'ldaps' },
+] as const)('$protocol credential CA preserves installed server-wide trust', async ({ tool, field, protocol }) => {
   const server = createServer({ key: readFileSync(join(directory, 'server.key')),
     cert: readFileSync(join(directory, 'server.crt')) })
   server.on('tlsClientError', () => {})
   await new Promise<void>(resolve => server.listen(0, resolve))
+  const defaults = getCACertificates('default')
   try {
-    await expect(preflight('vectra-axi', { origin: `https://localhost:${(server.address() as { port: number }).port}`,
+    installTrustedCa(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    await expect(preflight(tool, { [field]: `${protocol}://localhost:${(server.address() as { port: number }).port}`,
       caBundle: readFileSync(join(directory, 'extra', 'ca.crt'), 'utf8') })).resolves.toBeUndefined()
-  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+  } finally { setDefaultCACertificates(defaults); await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test('StartTLS credential CA preserves installed server-wide trust', async () => {
+  const secureContext = createSecureContext({ key: readFileSync(join(directory, 'server.key')),
+    cert: readFileSync(join(directory, 'server.crt')) })
+  const server = createTcpServer(socket => socket.once('data', () => {
+    socket.write(Buffer.from('300c02010178070a010004000400', 'hex'))
+    const secure = new TLSSocket(socket, { isServer: true, secureContext })
+    secure.on('error', () => {})
+    secure.on('end', () => secure.end())
+  }))
+  await new Promise<void>(resolve => server.listen(0, resolve))
+  const defaults = getCACertificates('default')
+  try {
+    installTrustedCa(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    await expect(preflight('ldap-axi', { url: `ldap://localhost:${(server.address() as { port: number }).port}`,
+      startTls: true, caBundle: readFileSync(join(directory, 'extra', 'ca.crt'), 'utf8') })).resolves.toBeUndefined()
+  } finally { setDefaultCACertificates(defaults); await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 
 test('LDAPS preflight respects the stored TLS version limit', async () => {
