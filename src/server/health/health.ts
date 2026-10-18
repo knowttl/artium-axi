@@ -104,7 +104,12 @@ export class ToolHealth {
           .flatMap(([, value]) => typeof value === 'string' && value ? [value] : [])
         const parsed = adapter.credentialSchema.safeParse(credential)
         if (!parsed.success) {
-          const path = parsed.error.issues[0]?.path.filter(key => typeof key === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)).join('.')
+          let issue = parsed.error.issues[0]
+          // Union errors wrap field errors; prefer the branch closest to the stored profile.
+          while (issue?.code === 'invalid_union') {
+            issue = issue.errors.reduce((closest, branch) => branch.length < closest.length ? branch : closest)[0]
+          }
+          const path = issue?.path.filter(key => typeof key === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)).join('.')
           throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: `Invalid credential field: ${path || 'profile'}.` })
         }
         if (!background) await preflight(tool, credential)

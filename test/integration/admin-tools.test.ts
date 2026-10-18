@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
-import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { createVectraAdapter, vectraCredentialSchema } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
@@ -182,11 +182,20 @@ test('Graph sign-in failure retains the native message and token-acquisition sta
   expect(JSON.stringify(body)).not.toContain(values['mg-axi'].clientSecret)
 })
 
-test('invalid stored credentials name the field without its value', async () => {
-  store.replaceCredential('falcon-axi', { ...values['falcon-axi'], clientSecret: 123 }, 0, actor, Date.now())
-  const response = await request('POST', '/falcon-axi/test', {})
+test.each([
+  { tool: 'falcon-axi', value: { ...values['falcon-axi'], clientSecret: 123 }, field: 'clientSecret' },
+  { tool: 'vectra-axi', value: { ...values['vectra-axi'], token: 123 }, field: 'token' },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', origin: values['vectra-axi'].origin,
+    auth: 'oauth', clientId: 'synthetic-client', clientSecret: 123 }, field: 'clientSecret' },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', origin: values['vectra-axi'].origin,
+    auth: 'oauth', clientId: 'synthetic-client', clientSecret: 123 }, field: 'clientSecret' },
+] as const)('$tool invalid stored credentials name $field without its value', async ({ tool, value, field }) => {
+  if (tool === 'vectra-axi') adapters.find(adapter => adapter.name === tool)!.credentialSchema = vectraCredentialSchema
+  store.replaceCredential(tool, value, 0, actor, Date.now())
+  const response = await request('POST', `/${tool}/test`, {})
+  expect(response.status).toBe(errors.CREDENTIAL_INVALID.status)
   expect(await response.json()).toMatchObject({ error: { code: 'CREDENTIAL_INVALID', diagnostic: {
-    stage: 'configuration', message: 'Invalid credential field: clientSecret.', credentialRevision: 1,
+    stage: 'configuration', message: `Invalid credential field: ${field}.`, credentialRevision: 1,
   } } })
 })
 
