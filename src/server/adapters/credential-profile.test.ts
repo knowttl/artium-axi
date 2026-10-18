@@ -203,6 +203,7 @@ test('preserves valid dictionary values while normalizing a rejected sibling', (
 })
 
 test.each([
+  ['false schema', false, 'CANARY-value', 'value is not permitted by the schema.'],
   ['type', { type: 'string' }, true, 'value must be string.'],
   ['required', { type: 'object', required: ['nested'] }, {}, 'value.nested is required.'],
   ['additionalProperties', { type: 'object', additionalProperties: false }, { unexpected: 'CANARY-value' }, 'value.unexpected is an unsupported field.'],
@@ -214,6 +215,7 @@ test.each([
   ['minLength', { type: 'string', minLength: 5 }, 'abc', 'value must have a length >= 5.'],
   ['maxLength', { type: 'string', maxLength: 2 }, 'CANARY-value', 'value must have a length <= 2.'],
   ['minItems', { type: 'array', minItems: 2 }, ['CANARY-value'], 'value must contain at least 2 items.'],
+  ['minItems empty', { type: 'array', minItems: 1 }, [], 'value must contain at least 1 item.'],
   ['maxItems', { type: 'array', maxItems: 0 }, ['CANARY-value'], 'value must contain at most 0 items.'],
   ['uniqueItems', { type: 'array', uniqueItems: true }, ['CANARY-value', 'CANARY-value'], 'value must contain unique items.'],
   ['not', { type: 'object', not: { required: ['first', 'second'] } }, { first: 'CANARY-a', second: 'CANARY-b' },
@@ -223,6 +225,10 @@ test.each([
   ['anyOf', { anyOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must satisfy the selected credential field combination.'],
   ['if/then', { type: 'object', if: { required: ['enabled'], properties: { enabled: { const: true } } }, then: { required: ['target'] } },
     { enabled: true }, 'value.target is required for the selected enabled.'],
+  ['if/else', { type: 'object', if: { required: ['enabled'], properties: { enabled: { const: true } } }, else: { required: ['target'] } },
+    { enabled: false }, 'value.target is required for the selected enabled.'],
+  ['not pattern', { type: 'string', not: { pattern: '\\s' } }, 'CANARY value', 'value must not contain whitespace.'],
+  ['not scalar', { type: 'string', not: { const: 'CANARY-value' } }, 'CANARY-value', 'value must not match the excluded rule.'],
 ] as const)('reports the %s rejection without input values', (_keyword, field, value, message) => {
   const profile = new CredentialProfile({ type: 'object', properties: { value: field } })
   expect(() => profile.parseInput({ value })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining(message) }))
@@ -230,6 +236,47 @@ test.each([
   expect(result.success).toBe(false)
   expect(JSON.stringify(result)).not.toContain('CANARY')
   expect(JSON.stringify(result)).not.toContain('does not satisfy the credential rules')
+})
+
+test('retains validator rejection when a profile introduces an unhandled rule', () => {
+  const profile = new CredentialProfile({ type: 'object', properties: { value: { type: 'number', multipleOf: 2 } } })
+  expect(() => profile.parseInput({ value: 3 })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
+    message: 'value must satisfy the credential schema.' }))
+  expect(profile.credentialSchema.safeParse({ value: 3 }).success).toBe(false)
+})
+
+test.each(['oneOf', 'anyOf'])('reports independent rules from the selected %s branch only', keyword => {
+  const profile = new CredentialProfile({ type: 'object', properties: { auth: { enum: ['token', 'oauth'] },
+    origin: { type: 'string' } }, [keyword]: [
+    { properties: { auth: { const: 'token' }, token: { type: 'string', maxLength: 2 }, entries: { type: 'array', minItems: 1 } }, required: ['token'] },
+    { properties: { auth: { const: 'oauth' } }, required: ['clientId', 'clientSecret'] },
+  ] })
+  const value = { auth: 'token', origin: false, token: 'CANARY-token', entries: [] }
+  const messages = ['origin must be string.', 'token must have a length <= 2.', 'entries must contain at least 1 item.']
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  if (result.success) throw new Error('Expected invalid credential')
+  expect(result.error.issues.map(issue => issue.message)).toEqual(messages)
+  expect(result.error.issues.map(issue => issue.path)).toEqual([['origin'], ['token'], ['entries']])
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: messages.join(' ') }))
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+})
+
+test.each(['oneOf', 'anyOf'])('walks the selected %s branch through references and allOf', keyword => {
+  const profile = new CredentialProfile({ type: 'object', properties: { auth: { type: 'string' }, token: {}, tokenEnv: {}, entries: {} },
+    [keyword]: [{ $ref: '#/$defs/token' }, { properties: { auth: { const: 'oauth' } }, required: ['clientId'] }],
+    $defs: { token: { allOf: [
+      { properties: { auth: { const: 'token' }, entries: { type: 'array', minItems: 1 } } },
+      { not: { allOf: [{ required: ['token'] }, { anyOf: [{ required: ['tokenEnv'] }, { required: ['other'] }] }] } },
+    ] } } })
+  const value = { auth: 'token', token: 'CANARY-token', tokenEnv: 'CANARY-env', entries: [] }
+  const messages = ['entries must contain at least 1 item.', 'token, tokenEnv must satisfy the selected credential field combination.']
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  if (result.success) throw new Error('Expected invalid credential')
+  expect(result.error.issues.map(issue => issue.message)).toEqual(messages)
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: messages.join(' ') }))
+  expect(JSON.stringify(result)).not.toContain('CANARY')
 })
 
 test.each([
