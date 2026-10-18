@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
-import { Ajv } from 'ajv'
+import { Ajv, type ValidateFunction } from 'ajv'
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { z } from 'zod'
@@ -54,7 +54,7 @@ export class CredentialProfile {
   readonly credentialSchema: z.ZodType<Record<string, unknown>>
   readonly inputSchema: Schema
   private readonly secrets = new Set<string>()
-  private readonly validateInput: (value: unknown) => boolean
+  private readonly validateInput: ValidateFunction
   private readonly validateProfile: (value: unknown) => boolean
 
   constructor(readonly schema: Schema, tool?: ToolName) {
@@ -72,6 +72,9 @@ export class CredentialProfile {
       this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
         if: { properties: { url: { pattern: '^ldap://' } } },
         then: { required: ['startTls'], properties: { startTls: { const: true } } },
+      }, {
+        if: { properties: { url: { pattern: '^ldaps://' } } },
+        then: { properties: { startTls: { const: false } } },
       }]
     }
     if (tool === 'vectra-axi' && this.inputSchema.properties?.origin) {
@@ -112,9 +115,15 @@ export class CredentialProfile {
     this.validateInput = host.compile(this.inputSchema)
     this.validateProfile = create().compile(schema)
     this.credentialSchema = z.custom<Record<string, unknown>>(value => {
+      return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+    }, 'Invalid credential profile').superRefine((value, context) => {
       this.secrets.clear()
-      return Boolean(value && typeof value === 'object' && !Array.isArray(value) && this.validateInput(value))
-    }, 'Invalid credential profile')
+      if (this.validateInput(value)) return
+      const issue = this.validateInput.errors?.find(error => error.instancePath === '/startTls' && error.keyword === 'const')
+      context.addIssue(issue
+        ? { code: 'custom', path: ['startTls'], message: `startTls must be ${issue.params.allowedValue} for this URL.` }
+        : { code: 'custom', message: 'Invalid credential profile' })
+    })
   }
 
   private hostSchema(schema: Schema, secretProperties: Schema = schema?.properties ?? {}): Schema {

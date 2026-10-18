@@ -61,6 +61,9 @@ async function configure() {
 }
 
 test('LDAP credentials can be saved, tested, enabled and used for a granted read', async () => {
+  const rejected = await app.inject({ method: 'PUT', url: '/v1/admin/tools/ldap-axi/credential', headers,
+    payload: { value: { ...credential, startTls: true }, expectedRevision: 0, expectedToolRevision: 1 } })
+  expect(rejected.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'startTls must be false for this URL.' } })
   const saved = await configure()
   expect(saved.json()).toMatchObject({ tool: 'ldap-axi', configured: true, revision: 1,
     metadata: { auth: 'simple', bindDn: 'uid=reader' } })

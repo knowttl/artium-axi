@@ -48,7 +48,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   const schemaFor = (tool: ToolName) => credentialProfiles[tool]?.credentialSchema ?? credentialSchemas[tool]
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const result = schema.safeParse(value)
-    if (!result.success) throw new ArtiumError('INVALID_INPUT')
+    if (!result.success) {
+      const issue = result.error.issues.find(issue => issue.path.length === 1 && issue.path[0] === 'startTls')
+      throw new ArtiumError('INVALID_INPUT', issue?.message)
+    }
     return result.data
   }
   function toolName(request: FastifyRequest): ToolName {
