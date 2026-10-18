@@ -1,0 +1,3 @@
+#!/bin/sh
+printf '%s\n' "$@" > "$ARTIUM_TEST_AZ_RECORD"
+printf '%s\n' '{"accessToken":"CANARY-AZURE-ACCESS-TOKEN","expiresOn":"2030-01-01 00:00:00","tokenType":"Bearer"}'

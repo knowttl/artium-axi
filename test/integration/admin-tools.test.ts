@@ -583,7 +583,11 @@ test('save removes omitted optional non-secret fields', async () => {
   expect(store.readCredential(store.findCredential('falcon-axi')!)).toEqual(values['falcon-axi'])
 })
 
-test('ADO retains its PAT only for the same organization and exposes a secret-free editor', async () => {
+test.each([
+  values['ado-axi'],
+  { org: 'synthetic-org', auth: 'client-secret', tenantId: azureTestTenant,
+    clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-ado-client-secret' },
+])('ADO retains $auth secrets only for the same identity and exposes a secret-free editor', async value => {
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
   const adapter = createAdoAdapter(new EmbeddedSecretSource(store))
@@ -591,12 +595,13 @@ test('ADO retains its PAT only for the same organization and exposes a secret-fr
     resolver: new SharedIdentityResolver(store) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   db.exec("UPDATE tools SET enabled = 0 WHERE name = 'ado-axi'")
-  await replace('ado-axi')
-  const saved = await save('ado-axi', { org: 'https://dev.azure.com/synthetic-org/', auth: 'pat', project: 'Other Project' }, 1)
+  await replace('ado-axi', value)
+  const { token: _token, clientSecret: _clientSecret, ...identity } = value as Record<string, unknown>
+  const saved = await save('ado-axi', { ...identity, org: 'https://dev.azure.com/synthetic-org/', project: 'Other Project' }, 1)
   expect(saved.status).toBe(200)
-  expect(store.readCredential(store.findCredential('ado-axi')!)).toEqual({ ...values['ado-axi'], project: 'Other Project' })
-  expect(JSON.stringify(await saved.json())).not.toContain(values['ado-axi'].token)
-  await failure(await save('ado-axi', { org: 'other-org', auth: 'pat' }, 2), 'INVALID_INPUT')
+  expect(store.readCredential(store.findCredential('ado-axi')!)).toEqual({ ...value, project: 'Other Project' })
+  expect(JSON.stringify(await saved.json())).not.toContain('CANARY-')
+  await failure(await save('ado-axi', { ...identity, org: 'other-org' }, 2), 'INVALID_INPUT')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -608,7 +613,10 @@ test('ADO retains its PAT only for the same organization and exposes a secret-fr
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('data-profile-field="org"')
   expect(page.body).toContain('data-profile-field="token"')
-  expect(page.body).not.toContain(values['ado-axi'].token)
+  expect(page.body).toContain('data-profile-field="clientSecret"')
+  expect(page.body).toContain('data-profile-field="tenantId"')
+  expect(page.body).toContain('data-profile-field="clientId"')
+  expect(page.body).not.toContain('CANARY-')
 })
 
 test.each([

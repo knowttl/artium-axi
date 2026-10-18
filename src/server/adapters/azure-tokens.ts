@@ -22,6 +22,7 @@ export const azureAudiences = Object.freeze({
   storage: 'https://storage.azure.com/',
   vault: 'https://vault.azure.net/',
   registry: 'https://containerregistry.azure.net',
+  devops: '499b84ac-1321-427f-aa17-267ca6975798',
 })
 export type AzureResource = keyof typeof azureAudiences
 

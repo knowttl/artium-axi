@@ -15,6 +15,7 @@ export interface PreparedCall {
   executable: string
   args: string[]
   environment: Record<string, string>
+  pathPrefix?: string
   files: TemporaryFile[]
   secrets: string[]
   fileArguments?: readonly number[]

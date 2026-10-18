@@ -1,21 +1,30 @@
 import inventory from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { runnerLimits, toolPaths } from '../config.js'
+import { adoPathPrefix, runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
+import { AzureTokenCache } from './azure-token-cache.js'
 import type { Adapter, PreparedCall } from './types.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
 export const adoProfile = new CredentialProfile({ type: 'object', additionalProperties: false,
-  required: ['org', 'auth', 'token'], properties: {
+  required: ['org', 'auth'], properties: {
     org: { type: 'string', format: 'ado-org', title: 'Organization', description: 'Azure DevOps organization name or organization-root URL.' },
     project: { type: 'string', minLength: 1, title: 'Default project' },
-    auth: { enum: ['pat'], title: 'Authentication' },
+    auth: { enum: ['pat', 'client-secret'], title: 'Authentication' },
     token: { type: 'string', 'x-secret': true, title: 'Personal access token' },
+    tenantId: { type: 'string', format: 'uuid', title: 'Tenant ID' },
+    clientId: { type: 'string', format: 'uuid', title: 'Client ID' },
+    clientSecret: { type: 'string', 'x-secret': true, title: 'Client secret' },
     allowWrites: { type: 'boolean' },
-  } }, 'ado-axi')
+  }, oneOf: [
+    { properties: { auth: { const: 'pat' } }, required: ['token'],
+      not: { anyOf: [{ required: ['tenantId'] }, { required: ['clientId'] }, { required: ['clientSecret'] }] } },
+    { properties: { auth: { const: 'client-secret' } }, required: ['tenantId', 'clientId', 'clientSecret'],
+      not: { required: ['token'] } },
+  ] }, 'ado-axi')
 export const adoCredentialSchema = adoProfile.credentialSchema
 
 function adoArguments(args: readonly string[], input: RunnerInput = {}) {
@@ -127,9 +136,10 @@ function readBack(call: ReturnType<typeof adoArguments>): PreparedCall['write'] 
     ...(afterCheck ? { afterCheck } : {}) }
 }
 
-export function createAdoAdapter(source: SecretSource): Adapter<unknown> {
+export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCache()): Adapter<unknown> {
   return {
     name: 'ado-axi', executable: toolPaths['ado-axi'], credentialSchema: adoCredentialSchema, credentialProfile: adoProfile,
+    invalidateCredential: reference => { cache.replace(reference.id, reference.revision!) },
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: adoManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment'],
       positions: args.map((_, index) => index).filter(index => index > 0 && !args[index].startsWith('-')) }),
@@ -144,12 +154,20 @@ export function createAdoAdapter(source: SecretSource): Adapter<unknown> {
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const value = parsed.data
       if (call.effect === 'write' && !toolAllowsWrites('ado-axi', value)) throw new ArtiumError('FLAG_BLOCKED')
-      const token = value.token as string
+      const clientSecret = value.auth === 'client-secret'
+      if (clientSecret && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
+      const minted = clientSecret ? (await cache.acquire({ id: reference.id, revision: reference.revision!, credential: {
+        auth: 'secret', tenantId: value.tenantId as string, clientId: value.clientId as string, clientSecret: value.clientSecret as string,
+      } }, { required: ['devops'], optional: [] })).devops! : undefined
+      const token = minted?.accessToken ?? value.token as string
       return { executable: toolPaths['ado-axi'], args: call.args,
-        environment: { ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: token },
+        environment: { ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: token,
+          ...(minted ? { ARTIUM_ADO_EXPIRES_ON: new Date(minted.expiresAt).toISOString().replace('T', ' ').replace('Z', '') } : {}) },
+        ...(minted ? { pathPrefix: adoPathPrefix } : {}),
         files: [{ name: 'ado-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {
-          artium: { org: value.org, ...(value.project ? { project: value.project } : {}), auth: 'pat', patEnv: 'ARTIUM_SECRET_0' },
-        } }) }], secrets: [token, Buffer.from(`:${token}`).toString('base64')],
+          artium: { org: value.org, ...(value.project ? { project: value.project } : {}),
+            ...(minted ? { auth: 'az' } : { auth: 'pat', patEnv: 'ARTIUM_SECRET_0' }) },
+        } }) }], secrets: minted ? [...new Set([value.clientSecret as string, ...minted.secrets])] : [token, Buffer.from(`:${token}`).toString('base64')],
         effect: call.effect as 'read' | 'write', ...(call.effect === 'write' ? { write: readBack(call) } : {}),
         limits: { timeoutMs: runnerLimits.timeoutMs } }
     },

@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process'
 import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { getCACertificates } from 'node:tls'
 import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
-import { runnerLimits, runtimePath, toolPaths } from '../config.js'
+import { adoPathPrefix, runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { validateInput, writeInput } from './input.js'
@@ -59,8 +59,11 @@ export class Runner {
     return new Runner(root, trustedCa)
   }
 
-  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}, files: readonly TemporaryFile[] = [], beforeSpawn?: () => void): Promise<RunnerResult> {
+  run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}, files: readonly TemporaryFile[] = [], beforeSpawn?: () => void, pathPrefix?: string): Promise<RunnerResult> {
     if (!userId) return Promise.reject(new TypeError('An authenticated user is required'))
+    if (pathPrefix !== undefined && (!isAbsolute(pathPrefix) || pathPrefix !== adoPathPrefix)) {
+      return Promise.reject(new TypeError('Unsupported runtime PATH prefix'))
+    }
     try {
       input = validateInput(args, input)
     } catch (error) {
@@ -74,7 +77,7 @@ export class Runner {
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa)
+    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix)
       .finally(() => this.active.delete(key))
     this.active.set(key, { userId, controller, result })
     return result
@@ -110,6 +113,7 @@ async function execute(
   files: readonly TemporaryFile[] = [],
   beforeSpawn?: () => void,
   trustedCa?: TrustedCaBundle,
+  pathPrefix?: string,
 ): Promise<RunnerResult> {
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
@@ -181,7 +185,7 @@ async function execute(
             NODE_EXTRA_CA_CERTS: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
             REQUESTS_CA_BUNDLE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
           } : {}),
-          PATH: runtimePath,
+          PATH: pathPrefix ? `${pathPrefix}:${runtimePath}` : runtimePath,
           ...directories,
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}`,
         },

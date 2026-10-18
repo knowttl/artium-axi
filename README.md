@@ -209,7 +209,7 @@ The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-a
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
-| Azure DevOps (`ado-axi`) | Organization, optional default project and personal access token (PAT). | `project list --limit 1`. |
+| Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
 
 #### Falcon
 
@@ -365,6 +365,10 @@ Artium encrypts the PAT in its credential store and injects it through a private
 Do not enter a SecretRef or environment-variable name.
 Create a dedicated PAT scoped to the organization with Work Items, Code and Build read permissions as needed for the commands you use.
 Grant corresponding read-write permissions only for intended mutations; a write switch never grants Azure DevOps permissions.
+For service principal authentication, choose `auth=client-secret` and enter `tenantId`, `clientId` and `clientSecret` instead of `token`.
+Add the service principal as a user in the Azure DevOps organization, in the organization's Entra tenant, and grant the required project permissions before testing.
+Artium acquires and caches an Azure DevOps access token with client credentials and supplies it through a restricted per-call `az` stand-in.
+The stand-in answers only the pinned tool's Azure DevOps token request; no Azure CLI sign-in or device flow is used.
 Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ado-axi project list --limit 1`.
 
 Writes are off by default; follow [write-access administration](docs/runbook.md#roles-credentials-and-health) to enable them.
@@ -376,7 +380,6 @@ All commands refuse repeated flags, stdin and files.
 Use `pipeline watch --timeout 50` or less to stay within the runner's call timeout.
 Writes are journaled by Artium only; see [audit action classification](#audit-screen-and-api).
 For an interrupted write, run the returned read-back command and follow its inspection guidance before retrying.
-PAT authentication is available now; client ID and secret authentication is a separate integration phase, with no device flow.
 Local fake-service checks do not establish live organization acceptance.
 
 ### Build from source

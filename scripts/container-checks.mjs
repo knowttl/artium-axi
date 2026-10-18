@@ -60,6 +60,12 @@ try {
       recoveryContainers.push(adoPackage)
       await command('docker', ['run', '--name', adoPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/ado-axi', image, '--version'])
+      const adoToken = `${builder}-ado-token`
+      recoveryContainers.push(adoToken)
+      await command('docker', ['run', '--name', adoToken, '--pull', 'never', '--network', 'none', '--read-only',
+        '-e', 'ARTIUM_SECRET_0=CANARY-ado-token', '-e', 'ARTIUM_ADO_EXPIRES_ON=2030-01-01 00:00:00',
+        '--entrypoint', '/opt/artium/libexec/ado-axi/az', image,
+        'account', 'get-access-token', '--resource', '499b84ac-1321-427f-aa17-267ca6975798', '--output', 'json'])
       const backupVolume = `${builder}-backup`
       const restoreVolume = `${builder}-restore`
       for (const volume of [backupVolume, restoreVolume]) {

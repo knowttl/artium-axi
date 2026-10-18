@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
-import { runtimePath } from '../config.js'
+import { adoPathPrefix, runtimePath } from '../config.js'
 import { Runner } from './runner.js'
 
 let root: string
@@ -25,6 +25,18 @@ afterEach(async () => {
 
 const fake = (args: string[], environment = {}, secrets: string[] = []) =>
   run(fakeTool.executable, [...fakeTool.args, ...args], environment, secrets)
+
+test('only the allow-listed absolute prefix can precede the runtime PATH', async () => {
+  const result = await run(process.execPath, ['-e', 'console.log(process.env.PATH)'], { PATH: '/incorrect' }, [], {}, {}, [], undefined, adoPathPrefix)
+  expect(result.stdout).toBe(`${adoPathPrefix}:${runtimePath}\n`)
+})
+
+test.each(['', '.', 'libexec/ado-axi', '/tmp/ado-axi', `${adoPathPrefix}:/tmp`, `${adoPathPrefix}/..`])(
+  'refuses unsupported PATH prefix %j before creating a call', async prefix => {
+    await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], {}, {}, [], undefined, prefix))
+      .rejects.toThrow('Unsupported runtime PATH prefix')
+    expect(await readdir(root)).toEqual([])
+  })
 
 test('trusted adapter heap allowance overrides caller environment options', async () => {
   const result = await run(process.execPath, ['-e', 'console.log(process.env.NODE_OPTIONS)'],

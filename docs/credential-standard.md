@@ -264,8 +264,10 @@ See [LDAP credential setup](../README.md#ldap) for the authentication choice, re
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
 The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.
 It uses the shared credential editor and input normalization, but prepares its upstream profile itself instead of using the shared profile writer.
-Each isolated call receives `ADO_AXI_CONFIG` pointing to a private profile file with `auth: "pat"` and `patEnv: "ARTIUM_SECRET_0"`.
-The PAT and its Basic authentication encoding are registered for redaction.
+Each isolated call receives `ADO_AXI_CONFIG` pointing to a private profile file.
+PAT calls use `auth: "pat"` and `patEnv: "ARTIUM_SECRET_0"`; the PAT and its Basic authentication encoding are registered for redaction.
+Client-secret calls use `auth: "az"` without a tenant field and a restricted Artium-owned `az` stand-in on the per-call PATH.
+The shared Azure token cache acquires the DevOps audience token; the client secret and minted token are registered for redaction.
 See [Azure DevOps setup and supported boundaries](../README.md#azure-devops) for managed access and [audit action classification](../README.md#audit-screen-and-api) for host journaling.
 
 ## 10. Migration

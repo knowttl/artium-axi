@@ -24,7 +24,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const authorization = req.headers.authorization ?? ''
     const recorded = { method: req.method, host: req.headers.host, path: url.pathname, query: Object.fromEntries(url.searchParams),
       auth: authorization.startsWith('Basic ') ? 'Basic' : authorization.startsWith('Bearer ') ? 'Bearer' : 'none',
-      canaryReceived: authorization === `Basic ${Buffer.from(':CANARY-ado-pat').toString('base64')}` }
+      canaryReceived: authorization === `Basic ${Buffer.from(':CANARY-ado-pat').toString('base64')}`
+        || authorization === 'Bearer CANARY-AZURE-ACCESS-TOKEN' }
     requests.push(recorded)
     const workItem = resources.get('ado-work-item') ?? { id: 42, rev: 2, fields: { 'System.Title': 'Synthetic work item', 'System.State': 'Active',
       'System.WorkItemType': 'Task', 'System.Tags': 'synthetic', 'System.Description': 'Synthetic description',
@@ -162,7 +163,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         } else res.end(JSON.stringify({ value: refs.filter(ref => ref.name.startsWith(`refs/${url.searchParams.get('filter') ?? ''}`)) }))
       } else if (url.pathname.endsWith('/_apis/redaction') && req.method === 'GET') {
         res.end(JSON.stringify(url.searchParams.get('form') === 'basic'
-          ? { header: Buffer.from(':CANARY-ado-pat').toString('base64') } : { token: 'CANARY-ado-pat' }))
+          ? { header: Buffer.from(':CANARY-ado-pat').toString('base64') }
+          : { token: authorization.startsWith('Bearer ') ? 'CANARY-AZURE-ACCESS-TOKEN' : 'CANARY-ado-pat' }))
       } else {
         res.writeHead(404)
         res.end(JSON.stringify({ message: 'Unknown fake Azure DevOps route' }))

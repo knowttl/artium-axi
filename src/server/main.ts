@@ -6,6 +6,7 @@ import { createAzAdapter } from './adapters/az.js'
 import { createMgAdapter } from './adapters/mg.js'
 import { createLdapAdapter } from './adapters/ldap.js'
 import { createAdoAdapter } from './adapters/ado.js'
+import { AzureTokenCache } from './adapters/azure-token-cache.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { retainRunJournals } from './adapters/run-journal.js'
 import { Audit } from './audit/audit.js'
@@ -41,15 +42,16 @@ async function main() {
     runner = await Runner.create(serverDefaults.temporaryDirectory, trustedCa)
     const audit = new Audit(db)
     const source = new EmbeddedSecretSource(store)
+    const azureTokens = new AzureTokenCache()
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
     try { initializeNativeWriteLog(writeLog) }
     catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
     const app = createApp({ db, audit, runner, credentialStore: store, providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),
-        createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log')),
+        createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'), azureTokens),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
-        createLdapAdapter(source), createAdoAdapter(source)] })
+        createLdapAdapter(source), createAdoAdapter(source, azureTokens)] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }

@@ -29,7 +29,7 @@ export interface ToolAdminOptions {
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema }
 const publicFields = {
-  'ado-axi': ['org', 'project', 'auth'],
+  'ado-axi': ['org', 'project', 'auth', 'tenantId', 'clientId'],
   'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion', 'caFile'],
   'falcon-axi': ['clientId', 'region', 'memberCid'],
   'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease', 'caBundle'],
@@ -37,7 +37,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
-  'ado-axi': ['token'],
+  'ado-axi': ['token', 'clientSecret'],
   'ldap-axi': ['bindPassword'],
   'falcon-axi': ['clientSecret'],
   'vectra-axi': ['token', 'clientSecret'],
