@@ -762,7 +762,8 @@ Fake-service results do not establish live platform permissions or production re
 Never put tokens or keys in arguments, source files, images or logs.
 The server refuses the removed development-authentication settings `ARTIUM_AXI_DEV` and `ARTIUM_AXI_DEV_TOKEN_FILE`.
 
-Local passwords use Argon2id, require 15 to 128 code points and at most 512 UTF-8 bytes, preserve spaces and Unicode, and reject exact matches in the bundled common-password list.
+Local passwords use Argon2id and accept any non-empty password of at most 512 UTF-8 bytes, preserving spaces and Unicode.
+The byte cap bounds input to native hashing; there are no minimum-length, character-count or common-password rules.
 Access tokens last one hour within an 8-hour SSO CLI family or a 12-hour local CLI family; refresh-token reuse revokes the family.
 Password changes revoke existing CLI tokens and browser sessions.
 See [browser administration](#browser-administration) for session management and user archival.

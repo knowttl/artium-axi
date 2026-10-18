@@ -403,12 +403,25 @@ test('create canonicalizes the username, assigns roles, forces password change a
     .toEqual([{ action: 'create-user', target_id: user.id, user_id: administrator, arguments: null, outcome: 'success' }])
 })
 
+test('short passwords are accepted on create and temporary-password change', async () => {
+  expect((await request('POST', '', { ...createInput, temporaryPassword: 'abc' })).status).toBe(201)
+  const login = () => fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: createInput.username, password: 'abc' }) })
+  const session = loginResponseSchema.parse(await (await login()).json())
+  if (session.status !== 'password-change-required') throw new Error('Expected temporary password login')
+  const changed = await fetch(`${url}/v1/auth/password`, { method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session.passwordChangeToken}` },
+    body: JSON.stringify({ newPassword: 'abc' }) })
+  expect(changed.status).toBe(204)
+  expect(loginResponseSchema.parse(await (await login()).json()).status).toBe('authenticated')
+})
+
 test.each([
   { input: { ...createInput, roleIds: ['missing-role'] }, code: 'INVALID_INPUT' },
   { input: { ...createInput, username: ' SYNTHETIC-SECOND ' }, code: 'INVALID_INPUT' },
   { input: { ...createInput, username: 'bad username' }, code: 'USERNAME_INVALID' },
-  { input: { ...createInput, temporaryPassword: 'too-short' }, code: 'PASSWORD_INVALID' },
-  { input: { ...createInput, temporaryPassword: 'passwordpassword' }, code: 'PASSWORD_INVALID' },
+  { input: { ...createInput, temporaryPassword: '' }, code: 'PASSWORD_INVALID' },
+  { input: { ...createInput, temporaryPassword: 'x'.repeat(513) }, code: 'PASSWORD_INVALID' },
 ] as const)('invalid create returns $code without inserting an account or audit', async ({ input, code }) => {
   await failure(await request('POST', '', input), code)
   expect(db.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 3 })
@@ -512,7 +525,7 @@ test('reset forces a restricted login with the exact new password and revokes al
     body: JSON.stringify({ username: 'synthetic-ordinary', password: temporaryPassword }) })
   expect(loginResponseSchema.parse(await login.json()).status).toBe('password-change-required')
   expect(db.prepare("SELECT action FROM audit WHERE event = 'admin-change'").get()).toEqual({ action: 'reset-user-password' })
-  await failure(await request('POST', '/synthetic-ordinary/password-reset', { temporaryPassword: 'short' }), 'PASSWORD_INVALID')
+  await failure(await request('POST', '/synthetic-ordinary/password-reset', { temporaryPassword: '' }), 'PASSWORD_INVALID')
 })
 
 test.each(routes.filter(route => route.method !== 'GET'))('$method $path audit failure rolls back the whole mutation', async route => {

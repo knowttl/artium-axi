@@ -12,10 +12,8 @@ export const inputLimits = {
 } as const
 
 const byteLength = (value: string) => new TextEncoder().encode(value).length
-export const passwordSchema = z.string().refine(value => {
-  const length = [...value].length
-  return length >= 15 && length <= 128 && byteLength(value) <= 512
-}, 'Expected 15 to 128 Unicode code points and at most 512 UTF-8 bytes')
+// Bound input passed to native hashing without imposing password complexity rules.
+export const passwordSchema = z.string().min(1).refine(value => byteLength(value) <= 512, 'Expected at most 512 UTF-8 bytes')
 export const passwordChangeSchema = z.strictObject({ newPassword: z.string(), currentPassword: z.string().optional() })
 // /v1/auth/login, /v1/auth/device and /v1/auth/device/poll return the server's
 // X-Artium-Cli-Version and bypass minimum CLI version enforcement so sign-in can proceed.

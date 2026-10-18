@@ -91,7 +91,7 @@ test.each([
   } finally { db.close() }
 })
 
-test.each(['short', 'passwordpassword'])('invalid bootstrap password %s leaves no marker', async value => {
+test.each(['', 'x'.repeat(513)])('invalid bootstrap password %s leaves no marker', async value => {
   writeFileSync(passwordFile, value)
   const db = openStore(file, provider)
   try {

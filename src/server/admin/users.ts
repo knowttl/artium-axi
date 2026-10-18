@@ -27,7 +27,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
   const roleFields = (roles: Awaited<ReturnType<typeof allRoles>>, selected: string[]) =>
     `<fieldset><legend>Roles</legend><input type="hidden" name="roleIds" disabled>${roles.length ? roles.map(role =>
       `<label><input type="checkbox" name="roleIds" value="${escape(role.id)}"${selected.includes(role.id) ? ' checked' : ''}> ${escape(role.name)} (Direct)</label>`).join('') : '<p>No roles yet. Create a role on Roles to grant tool access.</p>'}</fieldset>`
-  const temporaryPassword = '<label>Temporary password <input type="password" name="temporaryPassword" autocomplete="new-password" required></label><p>Use 15 to 128 characters, avoiding common passwords. Share securely; the person must replace it on first sign-in.</p>'
+  const temporaryPassword = '<label>Temporary password <input type="password" name="temporaryPassword" autocomplete="new-password" required></label><p>Enter a password of at most 512 UTF-8 bytes. Share securely; the person must replace it on first sign-in.</p>'
   const administratorField = (selected: boolean) => `<label><input type="checkbox" name="administrator" data-type="boolean"${selected ? ' checked' : ''}> Administrator</label><p>Administrators can manage all users, roles and credentials. Tool access still comes from roles.</p>`
 
   app.get('/admin', async (request, reply) => {

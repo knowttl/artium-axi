@@ -19,7 +19,7 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | PASSWORD_FILE_INVALID | artium-axi | 400 | 1 | The password file is missing or unreadable. | Supply a readable UTF-8 password file containing the exact password, without an added newline. |
 | BOOTSTRAP_INCONSISTENT | artium-axi | 503 | 1 | The store contains data without a bootstrap marker. | Stop the server and restore a consistent bootstrapped store and matching master key. |
 | RECOVERY_FAILED | artium-axi | 500 | 1 | Administrator recovery did not complete. | Use an existing local username in a bootstrapped store, check the matching master key and inspect local storage. |
-| PASSWORD_INVALID | artium-axi | 400 | 1 | The password does not meet the local password rules. | Use 15 to 128 Unicode code points, at most 512 UTF-8 bytes, and avoid common passwords. |
+| PASSWORD_INVALID | artium-axi | 400 | 1 | The password must be non-empty and at most 512 UTF-8 bytes. | Enter a password of at most 512 UTF-8 bytes. |
 | SIGN_IN_FAILED | artium-axi | 401 | 1 | The username or password is incorrect. | Check your username and password. |
 | SSO_STATE_INVALID | artium-axi | 400 | 1 | The SSO sign-in request expired or was already used. | Start a new sign-in from this browser. |
 | SSO_TOKEN_INVALID | artium-axi | 401 | 1 | The identity provider response could not be verified. | Start a new sign-in or ask an administrator to check provider settings. |

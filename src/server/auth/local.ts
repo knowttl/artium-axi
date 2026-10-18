@@ -5,11 +5,9 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { passwordDefaults } from '../config.js'
 import type { AuthProvider } from './auth-provider.js'
-import commonPasswords from './common-passwords.v1.json' with { type: 'json' }
 import { revokeUserSessions, verifyPasswordToken } from './tokens.js'
 import { readBrowserSession, recentBrowserAuth } from './sessions.js'
 
-const common = new Set(commonPasswords.passwords)
 const dummyHash = '$argon2id$v=19$m=65536,p=1,t=3$vNZ3Sa+H+g+67iTEmnJxbQ$4dkx0/sgcEmrkpSfYhnbOS9a/6SskDG33I0aMQmBdCI'
 let activeHashes = 0
 
@@ -31,7 +29,7 @@ export function canonicalUsername(username: string): string {
 
 // All account creation, reset and change producers share this validation and hash boundary.
 export function hashPassword(password: string): Promise<string> {
-  if (!passwordSchema.safeParse(password).success || common.has(password)) throw new ArtiumError('PASSWORD_INVALID')
+  if (!passwordSchema.safeParse(password).success) throw new ArtiumError('PASSWORD_INVALID')
   return hashing(() => argon2.hash(password, { type: argon2.argon2id,
     memoryCost: passwordDefaults.memoryCost, timeCost: passwordDefaults.timeCost, parallelism: passwordDefaults.parallelism }))
 }
