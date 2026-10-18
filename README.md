@@ -388,7 +388,7 @@ See [npm client releases](docs/runbook.md#npm-client-releases) for automated pub
 | `artium-axi whoami` | Show identity, roles, access expiry and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
-| `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health. |
+| `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |

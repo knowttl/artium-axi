@@ -20,7 +20,8 @@ export class Client {
     return this.storedSessions
   }
   certificateVerified = false
-  constructor(private readonly environment = process.env, private readonly managed?: ManagedSession) {
+  constructor(private readonly environment = process.env, private readonly managed?: ManagedSession,
+    private readonly requestDeadlineMs = DEFAULT_REQUEST_DEADLINE_MS) {
     try {
       const url = new URL(environment.ARTIUM_AXI_URL!)
       if (url.username || url.password || url.href.includes('?') || url.href.includes('#') ||
@@ -39,7 +40,7 @@ export class Client {
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
     const body = input === undefined ? undefined : JSON.stringify(input)
     const controller = new AbortController()
-    const deadline = setTimeout(() => controller.abort(), DEFAULT_REQUEST_DEADLINE_MS)
+    const deadline = setTimeout(() => controller.abort(), this.requestDeadlineMs)
     const url = new URL(`${this.serverUrl}${path}`)
     const result = await new Promise<{ status: number, body: unknown, serverVersion?: string }>((resolve, reject) => {
       const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {

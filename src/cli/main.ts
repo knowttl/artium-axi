@@ -44,7 +44,7 @@ async function main(args: string[]) {
   if (command === 'setup') { output('stdout', await setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
-    if (managed) await doctor(() => new Client(process.env, managed), text => output('stdout', text))
+    if (managed) await doctor(deadline => new Client(process.env, managed, deadline), text => output('stdout', text))
     else await doctor()
     return
   }
