@@ -4,6 +4,7 @@ import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json'
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
+import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
   'falcon-axi': falcon.unsafeOverrides,
@@ -11,6 +12,7 @@ const managedFlags: Record<string, string[]> = {
   'az-axi': az.adapterBoundary.unsafeOverrides,
   'mg-axi': mg.adapterBoundary.unsafeOverrides,
   'ldap-axi': ldap.adapterBoundary.unsafeOverrides,
+  'ado-axi': ado.adapterBoundary.unsafeOverrides,
 }
 
 type Span = { start: number, raw: string, value: string, quoted: boolean }
@@ -36,7 +38,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
-  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))
+  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples|Usage): )?/, ''))
     || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
@@ -59,9 +61,9 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   }
   catch { return output }
   for (const span of [...spans].reverse()) {
-    const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples):/m.test(span.value))
+    const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value))
     if (value === span.value) continue
-    output = output.slice(0, span.start) + (span.quoted || tool === 'ldap-axi' && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
@@ -140,6 +142,21 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'ado-axi') {
+    const guidance = 'Artium manages the organization, profile, config and PAT. api accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. Use pipeline watch --timeout 50 or less.'
+    if (/^(?:Usage: |(?:Run|Use) [`'"]?)?(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {
+      help = 'ado-axi api [GET] <relative-path> [--method GET] [--query <query>] [--api-version <version>] [--host dev|vsrm|vssps|almsearch] [--no-project] [--raw] [--limit <n>] [--full] [--fields <fields>]\n'
+    }
+    help = help.replace(/\n"built-in":\n[\s\S]*$/, '')
+      .split('\n').filter(line => /^\s*(?:(?:Run|Use) [`'"]?|Usage: )?(?:artium-axi )?ado-axi (?!config\b|update\b)/.test(line)
+        || !/(?:\bado-axi (?:config|update)\b|\baz (?:CLI )?login\b|\baz login\b|\bADO_[A-Z_]+\b|\bPAT\b.*\benv\b|stdin|piped|--profile|--org\b|--config\b)/i.test(line))
+      .map(line => line.replace(/<path\|url>/g, '<relative-path>').replace(/--timeout 1800/g, '--timeout 50')
+        .replace(/^([ \t]*MSYS_NO_PATHCONV=1 )ado-axi(?=\s|$)/, '$1artium-axi ado-axi')
+        .replace('raw REST escape hatch for everything else', 'GET-only REST calls')
+        .replace(/ \| config\b/g, '')).join('\n')
+    if (!help.trim()) help = guidance
+    else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
+  }
   const selectors = flags.join('|')
   if (tool === 'ldap-axi' && !commands && !/^(?:Run|Use) [`'"]?(?:artium-axi )?ldap-axi\b/.test(help)) {
     help = help.replace(new RegExp(`^(?:Use |Pass |Set |Or use |The search base may)[^\\r\\n]*(?:--(?:${selectors})\\b|\\b(?:NODE_EXTRA_CA_CERTS|LDAP_AXI_[A-Z_]+)\\b)[^\\r\\n]*$`, 'gm'),

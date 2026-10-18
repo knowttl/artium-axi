@@ -9,7 +9,11 @@ export type RunAction = 'read' | 'write' | 'unknown'
 // These pinned tools journal mutations after their native write gates.
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
 
-export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName) {
+export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
+  if (tool === 'ado-axi') {
+    if (!effect) throw new TypeError('Missing host-classified effect')
+    return { environment, action: async (succeeded: boolean): Promise<RunAction> => effect === 'read' ? 'read' : succeeded ? 'write' : 'unknown' }
+  }
   const variable = journalVariables.find(name => environment[name])
   if (!variable) {
     if (tool === 'falcon-axi' && falconInventory.requirements.nativeWrites === 'read-only upstream design'

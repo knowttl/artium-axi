@@ -13,6 +13,163 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ requests, mutations }))
     return
   }
+  if (url.pathname === '/__ado/reset' && req.method === 'POST') {
+    resources.clear()
+    requests.length = 0
+    mutations = 0
+    res.end('{}')
+    return
+  }
+  if (['dev.azure.com', 'vsrm.dev.azure.com', 'vssps.dev.azure.com', 'almsearch.dev.azure.com'].includes(req.headers.host)) {
+    const authorization = req.headers.authorization ?? ''
+    const recorded = { method: req.method, host: req.headers.host, path: url.pathname, query: Object.fromEntries(url.searchParams),
+      auth: authorization.startsWith('Basic ') ? 'Basic' : authorization.startsWith('Bearer ') ? 'Bearer' : 'none',
+      canaryReceived: authorization === `Basic ${Buffer.from(':CANARY-ado-pat').toString('base64')}` }
+    requests.push(recorded)
+    const workItem = resources.get('ado-work-item') ?? { id: 42, rev: 2, fields: { 'System.Title': 'Synthetic work item', 'System.State': 'Active',
+      'System.WorkItemType': 'Task', 'System.Tags': 'synthetic', 'System.Description': 'Synthetic description',
+      'System.AssignedTo': { id: 'synthetic-user', displayName: 'Synthetic User' } },
+      relations: [{ rel: 'System.LinkTypes.Hierarchy-Reverse', url: 'https://dev.azure.com/synthetic-org/_apis/wit/workItems/41' }] }
+    const pr = resources.get('ado-pr') ?? { pullRequestId: 42, title: 'Synthetic PR', description: 'Synthetic description', status: 'active',
+      repository: { id: 'synthetic-repo', name: 'Synthetic Repo', project: { id: 'synthetic-project' } },
+      lastMergeSourceCommit: { commitId: 'a'.repeat(40) }, sourceRefName: 'refs/heads/feature', targetRefName: 'refs/heads/main',
+      reviewers: [{ id: '11111111-1111-1111-1111-111111111111', displayName: 'Synthetic Reviewer', vote: 0 }], autoCompleteSetBy: null }
+    const thread = resources.get('ado-thread') ?? { id: 5, status: 'fixed',
+      comments: [{ id: 1, content: 'Synthetic discussion', commentType: 'text' }] }
+    const refs = resources.get('ado-refs') ?? [{ name: 'refs/heads/main', objectId: 'a'.repeat(40) },
+      { name: 'refs/heads/feature-existing', objectId: 'b'.repeat(40) }]
+    const comments = resources.get('ado-comments') ?? []
+    const apiPath = url.pathname.slice(url.pathname.indexOf('/_apis/'))
+    const git = '/_apis/git/repositories/Synthetic%20Repo'
+    resources.set('ado-work-item', workItem)
+    resources.set('ado-pr', pr)
+    resources.set('ado-thread', thread)
+    resources.set('ado-refs', refs)
+    resources.set('ado-comments', comments)
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      if (body) recorded.body = JSON.parse(body)
+      if (url.pathname.endsWith('/_apis/projects') && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 'synthetic-project', name: 'Synthetic Project', state: 'wellFormed' }], count: 1 }))
+      } else if (url.pathname.endsWith('/_apis/connectionData') && req.method === 'GET') {
+        res.end(JSON.stringify({ authenticatedUser: { id: 'synthetic-user', providerDisplayName: 'Synthetic User' } }))
+      } else if (url.pathname.endsWith('/_apis/wit/wiql') && req.method === 'POST') {
+        res.end(JSON.stringify({ workItems: [{ id: workItem.id }] }))
+      } else if (url.pathname.endsWith('/_apis/wit/workitemsbatch') && req.method === 'POST') {
+        res.end(JSON.stringify({ value: [workItem] }))
+      } else if (apiPath === '/_apis/wit/workitems/$Task' && req.method === 'POST') {
+        mutations++
+        workItem.id = 43
+        for (const patch of recorded.body) workItem.fields[patch.path.slice('/fields/'.length)] = patch.value
+        res.end(JSON.stringify(workItem))
+      } else if (apiPath === '/_apis/wit/workItems/42/comments' && ['GET', 'POST'].includes(req.method)) {
+        if (req.method === 'POST') {
+          mutations++
+          const comment = { id: comments.length + 1, ...recorded.body }
+          comments.push(comment)
+          res.end(JSON.stringify(comment))
+        } else res.end(JSON.stringify({ comments }))
+      } else if (url.pathname.endsWith('/_apis/wit/workitems/42') && ['GET', 'PATCH'].includes(req.method)) {
+        if (req.method === 'PATCH') {
+          mutations++
+          for (const patch of recorded.body) {
+            if (patch.path.startsWith('/fields/')) workItem.fields[patch.path.slice('/fields/'.length)] = patch.value
+            if (patch.path === '/relations/-') workItem.relations.push(patch.value)
+          }
+        }
+        res.end(JSON.stringify(workItem))
+      } else if (url.pathname.endsWith('/pullrequests/42/threads/5/comments') && req.method === 'POST') {
+        mutations++
+        const comment = { id: thread.comments.length + 1, ...recorded.body }
+        thread.comments.push(comment)
+        res.end(JSON.stringify(comment))
+      } else if (apiPath === `${git}/pullrequests/42/threads/5` && ['GET', 'PATCH'].includes(req.method)) {
+        if (req.method === 'PATCH') { mutations++; Object.assign(thread, recorded.body) }
+        res.end(JSON.stringify(thread))
+      } else if (url.pathname.endsWith('/pullrequests/42/threads') && ['GET', 'POST'].includes(req.method)) {
+        if (req.method === 'POST') {
+          mutations++
+          Object.assign(thread, recorded.body)
+          res.end(JSON.stringify(thread))
+        } else res.end(JSON.stringify({ value: [thread] }))
+      } else if (apiPath.startsWith(`${git}/pullrequests/42/reviewers/`) && ['PUT', 'DELETE'].includes(req.method)) {
+        mutations++
+        const id = apiPath.split('/').at(-1)
+        pr.reviewers = pr.reviewers.filter(reviewer => reviewer.id !== id)
+        const reviewer = { id, displayName: 'Synthetic added reviewer', ...recorded.body }
+        if (req.method === 'PUT') pr.reviewers.push(reviewer)
+        res.end(JSON.stringify(reviewer))
+      } else if (apiPath === `${git}/pullrequests/42/reviewers` && req.method === 'GET') {
+        res.end(JSON.stringify({ value: pr.reviewers }))
+      } else if (apiPath === `${git}/pullrequests/42/statuses` && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ context: { name: 'Synthetic check' }, state: 'pending' }] }))
+      } else if (apiPath === '/_apis/policy/evaluations' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [] }))
+      } else if (apiPath === `${git}/pullrequests/42/iterations` && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 1 }] }))
+      } else if (apiPath === `${git}/pullrequests/42/iterations/1/changes` && req.method === 'GET') {
+        res.end(JSON.stringify({ changeEntries: [{ item: { path: '/synthetic.txt' }, changeType: 'edit' }], count: 1 }))
+      } else if ([`${git}/pullrequests`, '/_apis/git/pullrequests'].includes(apiPath) && ['GET', 'POST'].includes(req.method)) {
+        if (req.method === 'POST') {
+          mutations++
+          pr.pullRequestId = 43
+          Object.assign(pr, recorded.body)
+          res.end(JSON.stringify(pr))
+        } else res.end(JSON.stringify({ value: [pr], count: 1 }))
+      } else if (url.pathname.endsWith('/pullrequests/42') && ['GET', 'PATCH'].includes(req.method)) {
+        if (req.method === 'PATCH') {
+          mutations++
+          Object.assign(pr, recorded.body)
+        }
+        res.end(JSON.stringify(pr))
+      } else if (apiPath === '/_apis/pipelines' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 7, name: 'Synthetic pipeline' }] }))
+      } else if (apiPath === '/_apis/pipelines/7/runs' && req.method === 'POST') {
+        mutations++
+        resources.set('ado-build', { id: 10, definition: { name: 'Synthetic pipeline' }, status: 'inProgress',
+          sourceBranch: recorded.body.resources.repositories.self.refName })
+        res.end(JSON.stringify({ id: 10, name: 'Synthetic queued run', state: 'inProgress' }))
+      } else if (apiPath === '/_apis/build/builds' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [resources.get('ado-build') ??
+          { id: 8, definition: { name: 'Synthetic pipeline' }, status: 'completed', result: 'succeeded' }] }))
+      } else if (apiPath === '/_apis/build/builds/8' && req.method === 'GET') {
+        res.end(JSON.stringify({ id: 8, definition: { name: 'Synthetic pipeline' }, status: 'completed', result: 'succeeded' }))
+      } else if (apiPath === '/_apis/build/builds/8/timeline' && req.method === 'GET') {
+        res.end(JSON.stringify({ records: [{ id: 'synthetic-job', name: 'Synthetic job', type: 'Job', state: 'completed', result: 'succeeded' }] }))
+      } else if (apiPath === '/_apis/build/builds/8/logs' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 1 }] }))
+      } else if (apiPath === '/_apis/build/builds/8/logs/1' && req.method === 'GET') {
+        res.end('Synthetic build log')
+      } else if (apiPath === '/_apis/test/runs' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 9, name: 'Synthetic tests', totalTests: 1, unanalyzedTests: 1 }] }))
+      } else if (apiPath === '/_apis/test/Runs/9/results' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ testCaseTitle: 'Synthetic test case', outcome: 'Failed', errorMessage: 'Synthetic assertion failed' }] }))
+      } else if (apiPath === '/_apis/git/repositories' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 'synthetic-repo', name: 'Synthetic Repo', defaultBranch: 'refs/heads/main' }] }))
+      } else if (apiPath === `${git}/items` && req.method === 'GET') {
+        res.end(JSON.stringify({ path: '/synthetic.txt', content: 'Synthetic file content' }))
+      } else if (apiPath === `${git}/refs` && ['GET', 'POST'].includes(req.method)) {
+        if (req.method === 'POST') {
+          mutations++
+          for (const ref of recorded.body) {
+            const index = refs.findIndex(existing => existing.name === ref.name)
+            if (index >= 0) refs.splice(index, 1)
+            if (ref.newObjectId !== '0'.repeat(40)) refs.push({ name: ref.name, objectId: ref.newObjectId })
+          }
+          res.end(JSON.stringify({ value: recorded.body.map(ref => ({ ...ref, success: true })) }))
+        } else res.end(JSON.stringify({ value: refs.filter(ref => ref.name.startsWith(`refs/${url.searchParams.get('filter') ?? ''}`)) }))
+      } else if (url.pathname.endsWith('/_apis/redaction') && req.method === 'GET') {
+        res.end(JSON.stringify(url.searchParams.get('form') === 'basic'
+          ? { header: Buffer.from(':CANARY-ado-pat').toString('base64') } : { token: 'CANARY-ado-pat' }))
+      } else {
+        res.writeHead(404)
+        res.end(JSON.stringify({ message: 'Unknown fake Azure DevOps route' }))
+      }
+    })
+    return
+  }
   if (req.headers.host === 'synthetic.azurecr.io' && ['/oauth2/exchange', '/oauth2/token'].includes(url.pathname)) {
     let body = ''
     req.setEncoding('utf8')

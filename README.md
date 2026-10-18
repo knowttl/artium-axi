@@ -14,7 +14,7 @@ Administrators manage accounts, roles, encrypted service credentials and audit r
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
-Falcon, Vectra, Azure, Graph and LDAP are wired into the production server entry point.
+Falcon, Vectra, Azure, Graph, LDAP and Azure DevOps are wired into the production server entry point.
 See the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -209,6 +209,7 @@ The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-a
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
+| Azure DevOps (`ado-axi`) | Organization, optional default project and personal access token (PAT). | `project list --limit 1`. |
 
 #### Falcon
 
@@ -355,6 +356,29 @@ LDAP is read-only by design and has no editable native write settings.
 The [LDAP inventory](tools/inventories/ldap-axi.json) owns the supported commands, blocked overrides and resource requirements.
 Local fake-directory and offline profile checks do not establish live directory acceptance.
 
+#### Azure DevOps
+
+Artium uses the [pinned](tools/package.json) `@jeffreyhaen/ado-axi` release without upstream modifications.
+At `/admin/tools/ado-axi`, enter `org`, optional `project`, choose `auth=pat`, and paste the PAT itself into `token`.
+Organization-root URLs such as `https://dev.azure.com/<org>` and `https://<org>.visualstudio.com` normalize to the organization name.
+Artium encrypts the PAT in its credential store and injects it through a private per-call profile and environment variable.
+Do not enter a SecretRef or environment-variable name.
+Create a dedicated PAT scoped to the organization with Work Items, Code and Build read permissions as needed for the commands you use.
+Grant corresponding read-write permissions only for intended mutations; a write switch never grants Azure DevOps permissions.
+Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ado-axi project list --limit 1`.
+
+Writes are off by default; follow [write-access administration](docs/runbook.md#roles-credentials-and-health) to enable them.
+Artium classifies every command using the reviewed [ADO inventory](tools/inventories/ado-axi.json), which binds the routing review to upstream source digests.
+Artium manages `--org`, `--profile` and `--config`; those overrides and the top-level `config` and `update` commands are refused.
+Use `--project` to select another project within the managed organization.
+The `api` command accepts relative paths and GET only, even when writes are enabled; body flags and absolute URLs are refused.
+All commands refuse repeated flags, stdin and files.
+Use `pipeline watch --timeout 50` or less to stay within the runner's call timeout.
+Writes are journaled by Artium only; see [audit action classification](#audit-screen-and-api).
+For an interrupted write, run the returned read-back command and follow its inspection guidance before retrying.
+PAT authentication is available now; client ID and secret authentication is a separate integration phase, with no device flow.
+Local fake-service checks do not establish live organization acceptance.
+
 ### Build from source
 
 The source toolchain requires Node **24.11 or later** and **pnpm 10.22.0**.
@@ -436,7 +460,7 @@ Details read bundled manifests and stored health without fetching credentials or
 Discovery and administration show the server's bundled tool versions, as defined by the [API contract](src/shared/api.ts).
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
-For Falcon, Vectra, Azure, Graph and LDAP, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+For Falcon, Vectra, Azure, Graph, LDAP and Azure DevOps, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](#ldap).
 Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
@@ -533,7 +557,7 @@ Azure and Graph certificate editors accept one PEM file containing one certifica
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Falcon has guided fields even when its pinned package has no credential schema; its injection path stays unchanged.
 Browser saves keep native settings and retain blank stored secrets for the same identity.
-Changing mode, kind, authentication, tenant, client or origin requires new secrets.
+Identity changes require new secrets as defined by the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`).
 Select **Test after saving** to save and report a harmless credential check inline.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
@@ -655,6 +679,7 @@ Device approval and refusal emit `device-approve` and `device-deny` events, with
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
+ADO uses host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 For tools with native journals, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs also report `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 

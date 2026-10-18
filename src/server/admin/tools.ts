@@ -10,6 +10,7 @@ import { vectraCredentialSchema } from '../adapters/vectra.js'
 import { azCredentialSchema } from '../adapters/az.js'
 import { mgCredentialSchema } from '../adapters/mg.js'
 import { ldapCredentialSchema } from '../adapters/ldap.js'
+import { adoCredentialSchema } from '../adapters/ado.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -26,8 +27,9 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema }
+const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema }
 const publicFields = {
+  'ado-axi': ['org', 'project', 'auth'],
   'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion', 'caFile'],
   'falcon-axi': ['clientId', 'region', 'memberCid'],
   'vectra-axi': ['kind', 'apiVersion', 'origin', 'auth', 'clientId', 'applianceRelease', 'caBundle'],
@@ -35,6 +37,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'ado-axi': ['token'],
   'ldap-axi': ['bindPassword'],
   'falcon-axi': ['clientSecret'],
   'vectra-axi': ['token', 'clientSecret'],
@@ -172,7 +175,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       let next = value
       if (saving) {
         const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
-        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin'].every(key => stored[key] === value[key])
+        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org'].every(key => stored[key] === value[key])
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret']).map(field => field.name)
           ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}

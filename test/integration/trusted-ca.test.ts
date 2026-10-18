@@ -8,6 +8,7 @@ import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -24,6 +25,7 @@ test.each(toolSchema.options)('%s inherits central child trust and retains crede
   await withFakeService(async ({ directory }) => {
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
+      'ado-axi': { org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' },
       'falcon-axi': { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1' },
       'vectra-axi': { kind: 'qux', origin: 'https://appliance.test', apiVersion: '2.5', auth: 'token', token: 'CANARY-vectra', caBundle: pem },
       'az-axi': { ...identity, auth: 'secret', clientSecret: 'CANARY-azure' },
@@ -33,6 +35,7 @@ test.each(toolSchema.options)('%s inherits central child trust and retains crede
     const source = { getCredential: async () => credentials[tool] }
     const log = join(directory, 'writes.log')
     const adapters = {
+      'ado-axi': createAdoAdapter(source),
       'falcon-axi': createFalconAdapter(source, log),
       'vectra-axi': createVectraAdapter(source, log, profile('vectra-axi')),
       'az-axi': createAzAdapter(source, log, new AzureTokenCache(new FakeTokenTransport())),
@@ -40,7 +43,7 @@ test.each(toolSchema.options)('%s inherits central child trust and retains crede
       'ldap-axi': createLdapAdapter(source),
     }
     const args = { 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
-      'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'] }
+      'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
     const node = `const fs = require('node:fs'); console.log(JSON.stringify({

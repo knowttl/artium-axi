@@ -4,6 +4,7 @@ export const toolPaths = {
   'az-axi': '/opt/tools/node_modules/.bin/az-axi',
   'mg-axi': '/opt/tools/node_modules/.bin/mg-axi',
   'ldap-axi': '/opt/tools/node_modules/.bin/ldap-axi',
+  'ado-axi': '/opt/tools/node_modules/.bin/ado-axi',
 } as const
 export const toolSkillPaths = {
   'falcon-axi': '/opt/tools/skills/falcon-axi/SKILL.md',
@@ -11,6 +12,7 @@ export const toolSkillPaths = {
   'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/skills/az-axi/SKILL.md',
   'mg-axi': '/opt/tools/node_modules/@knowttl/mg-axi/skills/mg-axi/SKILL.md',
   'ldap-axi': '/opt/tools/node_modules/@knowttl/ldap-axi/skills/ldap-axi/SKILL.md',
+  'ado-axi': '/opt/tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
   'falcon-axi': '/opt/falcon-axi/lib/python3.11/site-packages/falcon_axi/axi-credential.schema.json',
@@ -18,6 +20,7 @@ export const toolCredentialSchemaPaths = {
   'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/axi-credential.schema.json',
   'mg-axi': '/opt/tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json',
   'ldap-axi': '/opt/tools/node_modules/@knowttl/ldap-axi/axi-credential.schema.json',
+  'ado-axi': undefined,
 } as const
 export const runtimePath = '/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'
 export const serverDefaults = { host: '0.0.0.0', port: 8080, database: '/data/artium.db', temporaryDirectory: '/tmp/artium-calls' } as const

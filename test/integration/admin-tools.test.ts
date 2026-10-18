@@ -9,6 +9,7 @@ import { createVectraAdapter, vectraCredentialSchema } from '../../src/server/ad
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
@@ -42,6 +43,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'ado-axi': { org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' },
   'ldap-axi': { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' },
   'mg-axi': { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-graph' },
   'falcon-axi': { clientId: 'synthetic-client', clientSecret: 'CANARY-secret', region: 'us-2' },
@@ -581,6 +583,34 @@ test('save removes omitted optional non-secret fields', async () => {
   expect(store.readCredential(store.findCredential('falcon-axi')!)).toEqual(values['falcon-axi'])
 })
 
+test('ADO retains its PAT only for the same organization and exposes a secret-free editor', async () => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const adapter = createAdoAdapter(new EmbeddedSecretSource(store))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'ado-axi'")
+  await replace('ado-axi')
+  const saved = await save('ado-axi', { org: 'https://dev.azure.com/synthetic-org/', auth: 'pat', project: 'Other Project' }, 1)
+  expect(saved.status).toBe(200)
+  expect(store.readCredential(store.findCredential('ado-axi')!)).toEqual({ ...values['ado-axi'], project: 'Other Project' })
+  expect(JSON.stringify(await saved.json())).not.toContain(values['ado-axi'].token)
+  await failure(await save('ado-axi', { org: 'other-org', auth: 'pat' }, 2), 'INVALID_INPUT')
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/ado-axi',
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('data-profile-field="org"')
+  expect(page.body).toContain('data-profile-field="token"')
+  expect(page.body).not.toContain(values['ado-axi'].token)
+})
+
 test.each([
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
     auth: 'certificate', privateKey: '-----BEGIN PRIVATE KEY-----\nCANARY-key-line-1\nCANARY-key-line-2\n-----END PRIVATE KEY-----\n',
@@ -711,6 +741,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'az-axi', version: '0.1.8', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.7', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.1.4', health: { status: 'disabled' } },
+    { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

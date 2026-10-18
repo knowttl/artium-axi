@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import './ldap-inventory.mjs'
+import './ado-inventory.mjs'
 
 const root = new URL('../tools/', import.meta.url)
 const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))

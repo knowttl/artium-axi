@@ -13,7 +13,7 @@ import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 
-const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'] }
+const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'] }
 
 // Manual tests and background reads share exclusion, runner admission and cache writes.
 export class ToolHealth {
@@ -116,7 +116,7 @@ export class ToolHealth {
         if (!background) await preflight(tool, credential)
         const prepared = await adapter.prepare(args, reference)
         secrets.push(...prepared.secrets)
-        journal = await prepareRunJournal(prepared.environment, tool)
+        journal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
         // Per-tool accounting leaves background reads governed by the global slots.
         const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
           prepared.limits, {}, prepared.files, () => {

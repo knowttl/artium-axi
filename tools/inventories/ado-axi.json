@@ -1,0 +1,1064 @@
+{
+  "generatedBy": "scripts/ado-inventory.mjs",
+  "tool": "ado-axi",
+  "version": "0.4.6",
+  "integrity": "sha512-DThi4K9uO/jz93QQMBXtpnCXeHaYsOWSt6TFdYGhnqDN8aScow3bwbhVTIg4KEMVT0KHPYPdH00V9UOPX0c2fA==",
+  "parserEvidence": "Reviewed published dispatch switches, aliases and command flag constants",
+  "sources": [
+    {
+      "path": "dist/bin/ado-axi.js",
+      "sha256": "d3786fe4009b1543c1118eb94dc1c84130806cc7d5e09d674eccdad3eb2351cf"
+    },
+    {
+      "path": "dist/lib/auth.js",
+      "sha256": "287d52a41b3412a8c716fa39bbf1c2a1fa0f5dd18728e23bbedc9cc1fd20e947"
+    },
+    {
+      "path": "dist/lib/client.js",
+      "sha256": "de6ffea225b2ffc3ff31de67431dfd20625f1d42e9575ffa05d79bcdeb534feb"
+    },
+    {
+      "path": "dist/lib/args.js",
+      "sha256": "f61e2fd78a259f8bcf1e1a3d89933e1c123778bcc63f3c667efba11a2915c758"
+    },
+    {
+      "path": "dist/lib/argv.js",
+      "sha256": "3c5015cd2ecde9249714f97c59bb365e1f8242573c643ca608bf3863126bcc81"
+    },
+    {
+      "path": "dist/lib/config.js",
+      "sha256": "32afbb32fa0f06056436e0d856d0f251c407f31850ff7d9a89dc57ff2c43ce8d"
+    },
+    {
+      "path": "dist/lib/adoUrl.js",
+      "sha256": "d75adff40b6c501e3f3c8bef747a53d128b597ec24da692e7ddec00f4658c4cc"
+    },
+    {
+      "path": "dist/lib/stdin.js",
+      "sha256": "5cd2b7c7aedf02df9778f6566a19bc837cfba367a7e25c4fe626f8ec0077d959"
+    },
+    {
+      "path": "dist/lib/context.js",
+      "sha256": "0ddc87da536069a2399545bd0f98860e3fad64d32fd78242ca7fcb500a301276"
+    },
+    {
+      "path": "dist/commands/api.js",
+      "sha256": "538d9d4139d88f52eb07a7bb753695a0e81013b7834fd948a1c84b2e9f9914ff"
+    },
+    {
+      "path": "dist/commands/config.js",
+      "sha256": "653a3fec29463b38c59039bf29d3d08f02cb9018e2f2eaf6ad147888eab6d665"
+    },
+    {
+      "path": "dist/commands/doctor.js",
+      "sha256": "106f5e1d7f29735f0905096add34939826a831e93719fedeee5e8b535fd98731"
+    },
+    {
+      "path": "dist/commands/home.js",
+      "sha256": "b5913e4c692e2ec6b63e004e457a97381c445c91185a400db13649df1e6d50a7"
+    },
+    {
+      "path": "dist/commands/pipeline.js",
+      "sha256": "152885bd4f9dc67855b64fbbca8e5b9e0d46d07ec6b5abc3a393ed29b620bc3b"
+    },
+    {
+      "path": "dist/commands/pr.js",
+      "sha256": "7b4f81ce93f18c1079294e71237be8e85a4c71313ae0bceac50b0245324d8772"
+    },
+    {
+      "path": "dist/commands/ref.js",
+      "sha256": "b87a5c738721b8d6f453044258a6e95eaea067e4c2dd5321f605c79aa6411d09"
+    },
+    {
+      "path": "dist/commands/repo.js",
+      "sha256": "8d446c3bc69a6a5bf36dca02a5e05748098a78269d9078f90da9169b15a5049d"
+    },
+    {
+      "path": "dist/commands/test.js",
+      "sha256": "b151392b7a6ae7b9cba8031da66b86dfc3811b01413ee25b4a4f0ef7cd5fa384"
+    },
+    {
+      "path": "dist/commands/workItem.js",
+      "sha256": "38adf6d7b86ff4809cd3a8402ad894286f6f23e750fdbf303d4a4abb31215058"
+    },
+    {
+      "path": "axi-sdk-js/dist/cli.js",
+      "sha256": "7bda640cc33a6f5226e60b7df2ef7ea8c765431c0e89a267273993370bdd8121"
+    }
+  ],
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "org",
+      "profile",
+      "config"
+    ],
+    "blockedCommands": [
+      "config",
+      "update"
+    ],
+    "nativeWrites": "host-classified",
+    "inputs": {
+      "stdin": "unsupported",
+      "files": "unsupported"
+    }
+  },
+  "aliases": {
+    "wi": "work-item",
+    "workitem": "work-item",
+    "work-items": "work-item",
+    "prs": "pr",
+    "pipelines": "pipeline",
+    "tests": "test",
+    "repos": "repo",
+    "refs": "ref",
+    "projects": "project"
+  },
+  "discovery": {
+    "commands": [
+      "work-item",
+      "pr",
+      "pipeline",
+      "test",
+      "repo",
+      "ref",
+      "project",
+      "api",
+      "doctor"
+    ],
+    "example": [
+      "project",
+      "list",
+      "--limit",
+      "1"
+    ],
+    "help": "ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\napi accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. For pipeline watch use --timeout 50 or less.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "work-item list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "state": "value",
+        "type": "value",
+        "assigned-to": "value",
+        "iteration": "value",
+        "area": "value",
+        "tag": "value",
+        "search": "value",
+        "query": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "work-item get",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "comments": "boolean",
+        "relations": "boolean"
+      },
+      "positionals": 1,
+      "aliases": [
+        "work-item view"
+      ]
+    },
+    {
+      "command": "work-item create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "type": "value",
+        "title": "value",
+        "description": "value",
+        "description-format": "value",
+        "assigned-to": "value",
+        "area": "value",
+        "iteration": "value",
+        "parent": "value",
+        "tags": "value",
+        "set": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "work-item update",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "title": "value",
+        "state": "value",
+        "assigned-to": "value",
+        "area": "value",
+        "iteration": "value",
+        "description": "value",
+        "description-format": "value",
+        "tags": "value",
+        "add-tags": "value",
+        "remove-tags": "value",
+        "set": "value",
+        "reason": "value",
+        "if-rev": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "work-item comment",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "body": "value",
+        "format": "value"
+      },
+      "positionals": 2,
+      "aliases": []
+    },
+    {
+      "command": "work-item link list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "work-item links list"
+      ]
+    },
+    {
+      "command": "work-item link add",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "parent": "value",
+        "child": "value",
+        "related": "value",
+        "pr": "value",
+        "commit": "value",
+        "branch": "value",
+        "repo": "value",
+        "comment": "value",
+        "if-rev": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "work-item links add"
+      ]
+    },
+    {
+      "command": "pr list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "status": "value",
+        "creator": "value",
+        "reviewer": "value",
+        "target": "value",
+        "source": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pr get",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "id": "value",
+        "threads": "boolean",
+        "commits": "boolean"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pr view",
+        "pr comments",
+        "pr threads"
+      ]
+    },
+    {
+      "command": "pr create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "source": "value",
+        "target": "value",
+        "title": "value",
+        "description": "value",
+        "reviewers": "value",
+        "work-items": "value",
+        "draft": "boolean",
+        "auto-complete": "boolean"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pr update",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "title": "value",
+        "description": "value",
+        "draft": "boolean",
+        "auto-complete": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr complete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "squash": "boolean",
+        "delete-source-branch": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr abandon",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr checks",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr diff",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pr changes"
+      ]
+    },
+    {
+      "command": "pr reviewers",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "reviewer": "value",
+        "required": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr reviewer list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "reviewer": "value",
+        "required": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr reviewer add",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "reviewer": "value",
+        "required": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr reviewer remove",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "reviewer": "value",
+        "required": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr approve",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "vote": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pr vote"
+      ]
+    },
+    {
+      "command": "pr comment",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "body": "value",
+        "thread": "value",
+        "file": "value",
+        "line": "value"
+      },
+      "positionals": 2,
+      "aliases": []
+    },
+    {
+      "command": "pr thread list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pr thread resolve",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "thread": "value",
+        "status": "value",
+        "id": "value"
+      },
+      "positionals": 2,
+      "aliases": []
+    },
+    {
+      "command": "pr thread reopen",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "thread": "value",
+        "status": "value",
+        "id": "value"
+      },
+      "positionals": 2,
+      "aliases": []
+    },
+    {
+      "command": "pr thread reply",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "thread": "value",
+        "body": "value",
+        "status": "value",
+        "id": "value",
+        "resolve": "boolean"
+      },
+      "positionals": 3,
+      "aliases": []
+    },
+    {
+      "command": "pipeline list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "name": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline runs",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "pipeline": "value",
+        "branch": "value",
+        "status": "value",
+        "result": "value",
+        "requested-for": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline run",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "pipeline": "value",
+        "branch": "value",
+        "variables": "value",
+        "parameters": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline logs",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "log": "value",
+        "tail": "value",
+        "failed-only": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline timeline",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline steps"
+      ]
+    },
+    {
+      "command": "pipeline watch",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "interval": "value",
+        "timeout": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "test results",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "run": "value",
+        "outcome": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "test failures"
+      ]
+    },
+    {
+      "command": "repo list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "name": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo branches",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "limit": "value",
+        "name": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "repo file",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "path": "value",
+        "ref": "value",
+        "commit": "value",
+        "limit": "value"
+      },
+      "positionals": 2,
+      "aliases": [
+        "repo cat"
+      ]
+    },
+    {
+      "command": "ref list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "name": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "ref create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "name": "value",
+        "source": "value",
+        "source-object-id": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "ref delete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "name": "value",
+        "old-object-id": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "project list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "name": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "api",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "method": "value",
+        "body": "value",
+        "query": "value",
+        "api-version": "value",
+        "host": "value",
+        "limit": "value",
+        "content-type": "value",
+        "no-project": "boolean",
+        "raw": "boolean"
+      },
+      "positionals": 2,
+      "aliases": []
+    },
+    {
+      "command": "config",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "config list",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "config show",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "config path",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "config init",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "config add",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "update",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    }
+  ]
+}

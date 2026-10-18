@@ -8,6 +8,7 @@ import type { ToolName } from './store/credential-store.js'
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
+  'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
   'az-axi': { sha256: '6bf268e08b707f5e0f41ac3a5d1f4fefdef515f0f710b2e1139dee1e2e517161', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: '0fef685ec7e7cc955a2d024901b4f25802c4b73240a561cce97567c68818430f', sections: ['Safety'] },
   'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
@@ -27,7 +28,12 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       return source.slice(start, end === -1 ? undefined : end).trim()
     })
     let body = sections.join('\n\n')
-    if (tool === 'az-axi') {
+    if (tool === 'ado-axi') {
+      body = body.replace(/\n### Safe shell input\n[\s\S]*?(?=\n### |\n## |$)/, '')
+        .replace(/\n### Git Bash repository paths\n[\s\S]*?(?=\n### |\n## |$)/, '')
+        .replaceAll('--timeout 1800', '--timeout 50')
+      body += '\n\n## Managed access\n\nArtium manages the organization, profile, config and PAT.\nWrites are off by default and journaled by Artium only.\nThe api command accepts relative paths and GET only, without body flags.\nStdin and files are unsupported; pass comment and description text as flag values.\nFor pipeline watch, use --timeout 50 or less.\n'
+    } else if (tool === 'az-axi') {
       body = body.replace(' Launch agents that must never write with `AZ_AXI_READ_ONLY=1`.', '')
     } else if (tool === 'vectra-axi') {
       body = body.replace('the profile must hand-enable the operation in its `writes` scope, and `VECTRA_AXI_READ_ONLY=1` forces read-only for the whole process.', 'the administrator must enable the operation in its managed write scope.')
@@ -58,6 +64,7 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
     const invocation = `artium-axi ${tool}`
     let content = `${frontmatter}\n# ${tool}\n\nRun every command through \`${invocation}\` after signing in to Artium.\nArtium supplies the managed credentials and connection settings on the server.\nDo not install the upstream CLI, configure local credentials, select a profile or tenant, or run standalone login/setup commands.\nAdministrators control tool access and write permissions.\nRun \`artium-axi tools\` for current access and \`${invocation} ${toolManifests[tool].discovery.example.join(' ')} --help\` for command guidance.\n\n${commands ? commands + '\n\n' : ''}${body}\n`
     content = content.replaceAll(`npx -y @knowttl/${tool}`, invocation)
+    if (tool === 'ado-axi') content = content.replace(/^ado-axi(?=\s|$)/gm, invocation).replaceAll('MSYS_NO_PATHCONV=1 ado-axi', invocation)
     // Bare upstream commands occur in tables and inline examples after a backtick.
     content = content.replaceAll('`' + tool, '`' + invocation)
     content = content.replace(/\]\(\.\.\/\.\.\/([^)]*)\)/g, `](https://github.com/knowttl/${tool}/blob/v${toolManifests[tool].version}/$1)`)
