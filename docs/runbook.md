@@ -2,7 +2,7 @@
 
 ## Scope and prerequisites
 
-This runbook covers local operation of the packaged server and client, and npm client releases.
+This runbook covers local operation of the packaged server and client, npm client releases and GHCR server-image releases.
 Exercise changes first in disposable Linux stores with synthetic identities, canary credentials and fake upstream services.
 Live host provisioning, proxy deployment, client installation and live adapter acceptance belong to the owner and have not been exercised here.
 The local rehearsal and its limitations are recorded in [S49 verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s49.md).
@@ -50,13 +50,44 @@ Review and merge that PR to create the GitHub release and trigger publication fr
 The [release configuration](../release-please-config.json) and [version manifest](../.release-please-manifest.json) own release naming and version tracking.
 The publish job installs frozen dependencies, runs `pnpm check`, then stages the client with `pnpm build:npm` and publishes `@knowttl/artium-axi` with public access and provenance.
 It skips publication when no release was created or the staged version already exists on npm.
-This workflow releases the client CLI and embedded skill; server deployment remains a separate operation.
+After npm publication succeeds, the release-only image job builds the same release tag's Dockerfile for Linux amd64 and publishes `ghcr.io/knowttl/artium-axi:<release-tag>`.
+It preserves the pinned upstream tools and bundled client; server deployment remains a separate operation.
+The image carries OCI version, source and checked-out revision labels, BuildKit provenance and a GitHub build-provenance attestation bound to the pushed digest.
+The image job exposes the digest as an output and records the immutable `ghcr.io/knowttl/artium-axi@sha256:...` identity, tag and revision in the workflow summary.
+Use that digest for deployments and rollback records; version tags can move on a rerun.
 
 Before the first automated release, the owner must enable GitHub Actions, allow GitHub Actions to create pull requests, and configure the npm package's GitHub Actions trusted publisher for `knowttl/artium-axi` and workflow filename `release-please.yml`, without an environment name.
 The workflow uses `GITHUB_TOKEN` for release management and OIDC for npm publication; no npm publish token is required.
+The owner must also permit this repository's Actions token to write GHCR packages and attestations and issue OIDC tokens.
+Repository or organization Actions policy must allow the image job's `packages: write`, `attestations: write` and `id-token: write` permissions.
+For an existing GHCR package, grant this repository Actions access before release; set package visibility deliberately if public pulls are intended.
+Only the image job receives `packages: write` and `attestations: write`; it authenticates to GHCR with `GITHUB_TOKEN` and needs no registry password secret.
 Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../README.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
 Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
-Hosted release handling, npm trusted-publisher configuration and actual publication remain unverified by local checks.
+Hosted release handling, npm trusted-publisher configuration, GHCR permissions and actual publication remain unverified by local checks.
+An image-job failure emits a setup reminder; inspect the failed step and resolve permissions or build failures before accepting the release.
+
+### Verify a later published image
+
+After an authorized release, record its tag, source commit and image digest from the successful workflow run.
+Require successful npm publication, image push and attestation steps before accepting the release.
+Resolve the version tag with `docker buildx imagetools inspect ghcr.io/knowttl/artium-axi:<release-tag>` and compare its digest with the workflow's recorded digest.
+Pull by that recorded digest and inspect its labels:
+
+```sh
+docker pull ghcr.io/knowttl/artium-axi@sha256:<recorded-digest>
+docker image inspect ghcr.io/knowttl/artium-axi@sha256:<recorded-digest> --format '{{json .Config.Labels}}'
+gh attestation verify oci://ghcr.io/knowttl/artium-axi@sha256:<recorded-digest> \
+  --repo knowttl/artium-axi \
+  --signer-workflow knowttl/artium-axi/.github/workflows/release-please.yml
+```
+
+Require `org.opencontainers.image.version` to match the release version without its `v` prefix, `org.opencontainers.image.source` to equal `https://github.com/knowttl/artium-axi`, and `org.opencontainers.image.revision` to equal the release tag's commit.
+Check the verified attestation's source repository and commit against that same tag and commit, rather than accepting any attestation from the repository.
+The attestation subject must match the recorded image digest; a missing or failed attestation is an incomplete release even if the image push succeeded.
+The attestation verification follows [GitHub's container verification guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
+Retain the successful verification output and immutable image identity with the release's local container and hygiene evidence.
+These are future owner release checks, not evidence that this change published or verified a hosted image.
 
 ## Proxy and certificate trust
 
