@@ -6,7 +6,7 @@ Reproduce the authentication, doctor, Azure input, audit-redaction and unknown-f
 Run the affected suites, including browser authentication and Azure recovery, with:
 
 ```sh
-pnpm exec vitest run test/cli.test.ts test/integration/api.test.ts test/integration/browser-auth.test.ts test/integration/azure.test.ts src/server/adapters/az.test.ts src/server/auth/attempts.test.ts
+pnpm exec vitest run test/cli.test.ts test/integration/api.test.ts test/integration/browser-auth.test.ts test/integration/azure-write-recovery.test.ts test/integration/azure-read-format.test.ts src/server/adapters/az.test.ts src/server/auth/attempts.test.ts
 pnpm lint
 pnpm build
 docker compose -f compose.example.yaml config --quiet
