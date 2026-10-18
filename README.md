@@ -808,12 +808,14 @@ It refuses unverified host platforms.
 | `pnpm test` | Inventory/schema freshness checks and the full Vitest suite. |
 | `pnpm build` | Server compilation and standalone client bundle. |
 | `pnpm test:security` | Tests whose names contain `security`. |
-| `pnpm test:containers` | Mandatory fake-only runner, walking-skeleton, Graph headless and fake-service container acceptance. |
+| `pnpm test:containers` | Fake-only runner, walking-skeleton, Graph headless and fake-service container acceptance for container-relevant changes and every release. |
 | `pnpm test:browser` | Real admin pages in an isolated Chrome session through `chrome-devtools-axi`, against the local fake browser harness. |
 | `pnpm test:containers --measure-cache` | The container block plus an identical-input warm runner build measurement. |
 | `pnpm errors:generate` | Regenerate the error reference after changing the catalogue. |
 
 The container block builds before probing, emits head/input/output evidence and timings, and removes its uniquely owned test images and private BuildKit cache.
+Run it when changes touch `Dockerfile`, `.dockerignore`, `scripts/`, `tools/`, `bin/`, `test/fake-service/`, `test/runner/`, `test/walking-skeleton/`, `src/server/`, `package.json` or `pnpm-lock.yaml`, and always before a release.
+Changes limited to `src/cli/`, docs, workflows or skills do not require container acceptance.
 Do not touch shared Docker resources or use real service credentials.
 Changed relevant inputs invalidate earlier container evidence.
 Upstream pins and integrity records live in [tools/package.json](tools/package.json), [tools/integrity.json](tools/integrity.json) and [tools/falcon-source.json](tools/falcon-source.json).

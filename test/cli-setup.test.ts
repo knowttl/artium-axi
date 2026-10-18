@@ -84,19 +84,21 @@ test.each([
 test.each([
   ['claude', '.claude/skills'], ['codex', '.agents/skills'], ['opencode', '.config/opencode/skills'],
   ['pi', '.pi/agent/skills'],
-].flatMap(([host, location]) => ['artium-axi', ...toolSchema.options].map(tool => ({ host, location, tool }))))
-('installed $host $tool invocation executes from a replacement-sensitive bundle path', async ({ host, location, tool }) => {
+].map(([host, location]) => ({ host, location })))
+('installed $host invocations execute from a replacement-sensitive bundle path', async ({ host, location }) => {
   const target = home()
   granted = [...toolSchema.options]
   expect(await cli(target, ['setup', '--host', host])).toMatchObject({ code: 0 })
-  const content = read(join(target, location, tool, 'SKILL.md'))
-  expect(content).toContain('in place of `artium-axi` in every example')
-  const invocation = content.match(/```sh\n([^\n]+)\n```/)![1]
-  const result = await execute(process.platform === 'win32' ? 'powershell.exe' : 'sh',
-    process.platform === 'win32' ? ['-NoProfile', '-Command', `${invocation} --help`] : ['-c', `${invocation} --help`],
-    { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, HOME: target, USERPROFILE: target } })
-  expect(result.stderr).toBe('')
-  expect(result.stdout).toContain('usage: artium-axi')
+  for (const tool of ['artium-axi', ...toolSchema.options]) {
+    const content = read(join(target, location, tool, 'SKILL.md'))
+    expect(content).toContain('in place of `artium-axi` in every example')
+    const invocation = content.match(/```sh\n([^\n]+)\n```/)![1]
+    const result = await execute(process.platform === 'win32' ? 'powershell.exe' : 'sh',
+      process.platform === 'win32' ? ['-NoProfile', '-Command', `${invocation} --help`] : ['-c', `${invocation} --help`],
+      { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, HOME: target, USERPROFILE: target } })
+    expect(result.stderr).toBe('')
+    expect(result.stdout).toContain('usage: artium-axi')
+  }
 })
 
 test.each([false, true])('Claude setup uses the active configuration directory with hook=%s', async hook => {

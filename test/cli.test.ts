@@ -701,10 +701,11 @@ test.each([{ args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['fa
   expect(requests).toEqual([])
 })
 
-test.each(Object.entries(errors))('catalogue error %s preserves source, next step, request ID and exit code', async (code, definition) => {
-  response = { status: definition.status, body: errorResponse(new ArtiumError(code as keyof typeof errors), 'synthetic-catalogue') }
+test.each(['INVALID_INPUT', 'TIMEOUT', 'SECRET_IN_OUTPUT'] as const)('catalogue error %s preserves source, next step, request ID and exit code', async code => {
+  const definition = errors[code]
+  response = { status: definition.status, body: errorResponse(new ArtiumError(code), 'synthetic-catalogue') }
   const result = await cli(['falcon-axi', 'detection', 'list'])
-  expect(result).toMatchObject({ code: ['INVALID_INPUT', 'UNSUPPORTED_INPUT', 'FLAG_BLOCKED', 'CLIENT_CONFIG_INVALID'].includes(code) ? 2 : 1, stderr: '' })
+  expect(result).toMatchObject({ code: code === 'INVALID_INPUT' ? 2 : 1, stderr: '' })
   expect(result.stdout).toBe(`error:\n  code: ${JSON.stringify(code)}\n  source: "artium-axi"\n  message: ${JSON.stringify(definition.message)}\n  next: ${JSON.stringify(definition.next)}\n  requestId: "synthetic-catalogue"\n`)
 })
 

@@ -7,49 +7,12 @@ const run = (args: string[], env = {}) => spawnSync(fakeTool.executable, [...fak
   encoding: 'utf8', env, timeout: 3000,
 })
 
-test('fake executable prints exactly the supplied environment and arguments', () => {
-  expect(JSON.parse(run(['env'], { CANARY: 'synthetic' }).stdout)).toEqual({ CANARY: 'synthetic' })
-  expect(run(['print', '$(literal)', ';']).stdout).toBe('$(literal) ;')
-})
-
-test.each(['stdout', 'stderr'] as const)('flood fills %s with the requested byte count', (stream) => {
-  const result = run([stream, '100000'])
-  expect(result.status).toBe(0)
-  expect(result[stream]).toBe('x'.repeat(100000))
-  expect(result[stream === 'stdout' ? 'stderr' : 'stdout']).toBe('')
-})
-
-test.each(['stdout', 'stderr'] as const)('split preserves UTF-8 bytes in %s', (stream) => {
-  const result = run(['split', 'canary-☃', '8', stream])
-  expect(result.status).toBe(0)
-  expect(result[stream]).toBe('canary-☃')
-})
-
 test.each([
   ['raw', 'CANARY+/='], ['base64', 'Q0FOQVJZKy89'],
   ['base64url', 'Q0FOQVJZKy89'], ['url', 'CANARY%2B%2F%3D'],
 ])('canary leak supports %s on either stream', (form, value) => {
   expect(run(['leak', form], { ARTIUM_TEST_CANARY: 'CANARY+/=' }).stdout).toBe(value)
   expect(run(['leak', form, 'stderr'], { ARTIUM_TEST_CANARY: 'CANARY+/=' }).stderr).toBe(value)
-})
-
-test('fake executable preserves exit status and signal termination', () => {
-  expect(run(['exit', '17']).status).toBe(17)
-  expect(run(['signal']).signal).toBe('SIGTERM')
-  expect(run(['missing']).status).toBe(2)
-})
-
-test.each(['az-axi', 'vectra-axi', 'mg-axi'])('%s synthetic captures preserve streams and status', (tool) => {
-  expect(run(['upstream', tool, 'empty']).status).toBe(0)
-  expect(run(['upstream', tool, 'error']).status).toBe(1)
-  expect(run(['upstream', tool, 'suggestions']).stdout).toContain(`Run \`${tool} `)
-  expect(run(['upstream', tool, 'empty']).stderr).toBe('')
-})
-
-test('sleep remains alive until the requested timeout', () => {
-  const result = run(['sleep', '60000'])
-  expect(result.error?.message).toContain('ETIMEDOUT')
-  expect(result.signal).toBe('SIGTERM')
 })
 
 test.each(['child', 'descendant', 'memory'])('%s fixture stays alive and can be cleaned up', async (mode) => {

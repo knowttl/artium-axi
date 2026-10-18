@@ -16,6 +16,7 @@ const productionTag = process.argv[process.argv.indexOf('--production') + 1]
 const image = cli ? process.argv[process.argv.indexOf('--cli') + 1] : runner ? process.argv[process.argv.indexOf('--runner') + 1] : production ? productionTag ?? 'artium-axi:local' : process.env.ARTIUM_TEST_IMAGE ?? 'artium-test-node24'
 if (runner && (!image || image.startsWith('--'))) throw new Error('--runner requires an image tag')
 const directory = mkdtempSync(join(root, '.tmp-image-'))
+const exportPath = `/tmp/artium-test-image-${randomUUID()}.tar`
 const docker = args => {
   const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 300_000 })
   if (result.error || result.status !== 0) throw new Error(result.error?.message ?? result.stderr)
@@ -35,7 +36,7 @@ try {
     // The private BuildKit worker keeps cache on tmpfs. Removing it cannot prune another build.
     attempted = true
     docker(['run', '--detach', '--pull', 'never', '--privileged', '--name', builder,
-    '--cpus', '2', '--memory', large ? '4g' : '1g', '--tmpfs', `/var/lib/buildkit:rw,exec,size=${large ? 3221225472 : 536870912}`,
+    '--cpus', '6', '--memory', large ? '4g' : '1g', '--tmpfs', `/var/lib/buildkit:rw,exec,size=${large ? 3221225472 : 536870912}`,
     '--mount', `type=bind,src=${cli ? join(root, 'test/walking-skeleton') : production || runner ? root : join(root, 'test/fake-service')},dst=/context,readonly`,
       'moby/buildkit:buildx-stable-1', `--oci-worker-snapshotter=${large ? 'overlayfs' : 'native'}`])
   }
@@ -44,10 +45,10 @@ try {
   docker(['exec', builder, 'buildctl', '--wait', '--timeout', '60', 'build',
     '--frontend', 'dockerfile.v0', '--local', `context=${context}`, '--local', `dockerfile=${context}`,
     ...(runner ? ['--opt', 'filename=test/runner/Dockerfile'] : []),
-    '--output', `type=docker,name=${image},dest=/tmp/artium-test-image.tar`])
+    '--output', `type=docker,name=${image},dest=${exportPath}`])
   console.log(`image-build: ${JSON.stringify({ image, builder, elapsedMs: Math.round(performance.now() - started) })}`)
   const archive = join(directory, 'image.tar')
-  docker(['cp', `${builder}:/tmp/artium-test-image.tar`, archive])
+  docker(['cp', `${builder}:${exportPath}`, archive])
   docker(['load', '--input', archive])
   docker(['image', 'inspect', image, '--format', '{{.Id}}'])
   console.log(`image: ${image}`)

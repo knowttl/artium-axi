@@ -12,6 +12,11 @@ const docker = vi.hoisted(() => ({
   used: [] as string[],
   removedImages: [] as string[],
   exportedImage: '',
+  orchestration: false,
+  commands: [] as string[],
+  walking: undefined as EventEmitter | undefined,
+  walkingStarted: undefined as (() => void) | undefined,
+  runnerStatus: 0,
 }))
 
 vi.mock('node:child_process', async importOriginal => ({
@@ -70,7 +75,19 @@ vi.mock('node:child_process', async importOriginal => ({
     }
     return result
   },
-  spawn: () => {
+  spawn: (bin: string, args: string[]) => {
+    if (docker.orchestration) {
+      const child = new EventEmitter()
+      if (bin === 'docker' && args[0] === 'run') docker.resources.add(`container:${args[args.indexOf('--name') + 1]}`)
+      if (bin === process.execPath) docker.commands.push(args[0])
+      if (args[0] === 'scripts/walking-skeleton.mjs') {
+        docker.walking = child
+        docker.walkingStarted!()
+      } else {
+        queueMicrotask(() => child.emit('close', args[0] === 'scripts/runner-container-check.mjs' ? docker.runnerStatus : 0))
+      }
+      return child
+    }
     const logs = new EventEmitter() as EventEmitter & { stdout: EventEmitter; kill: () => void }
     logs.stdout = new EventEmitter()
     logs.kill = () => { queueMicrotask(() => logs.emit('close')) }
@@ -93,6 +110,11 @@ beforeEach(() => {
   docker.used = []
   docker.removedImages = []
   docker.exportedImage = ''
+  docker.orchestration = false
+  docker.commands = []
+  docker.walking = undefined
+  docker.walkingStarted = undefined
+  docker.runnerStatus = 0
 })
 
 const originalArgv = process.argv
@@ -106,6 +128,7 @@ afterEach(() => {
 const harness = new URL('../scripts/fake-services.mjs', import.meta.url).href
 const builder = new URL('../scripts/build-fake-service-image.mjs', import.meta.url).href
 const runnerHarness = new URL('../scripts/runner-container-check.mjs', import.meta.url).href
+const containerHarness = new URL('../scripts/container-checks.mjs', import.meta.url).href
 
 test.each([
   [harness, 'container:version', true],
@@ -184,5 +207,26 @@ test('runner waits for a slow builder to finish before probing and cleaning up',
   expect(docker.used).toEqual([docker.built[0], docker.built[0]])
   expect(docker.removedImages).toEqual(docker.built)
   expect(docker.images.size).toBe(0)
+  expect(docker.resources.size).toBe(0)
+})
+
+test.each([0, 1])('container phases overlap and wait before cleanup when runner exits %s', async status => {
+  docker.orchestration = true
+  docker.runnerStatus = status
+  const walkingStarted = new Promise<void>(resolve => { docker.walkingStarted = resolve })
+  const checks = import(containerHarness)
+  await walkingStarted
+  try {
+    expect(docker.commands).toEqual([
+      'scripts/build.mjs', 'scripts/runner-container-check.mjs', 'scripts/walking-skeleton.mjs',
+      'scripts/build-fake-service-image.mjs', 'scripts/build-fake-service-image.mjs',
+    ])
+    expect(docker.resources.size).toBe(1)
+    expect(docker.removed).toEqual([])
+  } finally {
+    docker.walking!.emit('close', 0)
+    await checks
+  }
+  expect(process.exitCode).toBe(status === 0 ? undefined : 1)
   expect(docker.resources.size).toBe(0)
 })
