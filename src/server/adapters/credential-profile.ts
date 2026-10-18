@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { Ajv, type ValidateFunction } from 'ajv'
 import { Ajv2020 } from 'ajv/dist/2020.js'
-import addFormats from 'ajv-formats'
+import addFormats, { type FormatName } from 'ajv-formats'
 import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
 import { toolCredentialSchemaPaths } from '../config.js'
@@ -11,16 +11,11 @@ import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
 import { toolAllowsWrites } from '../../shared/api.js'
+import { CredentialInput, standardCredentialFormats } from './credential-input.js'
+export { isCanonicalHttpsOrigin } from './credential-input.js'
 
 type Schema = Record<string, any>
 export interface ProfileField { name: string, schema: Schema, required: boolean }
-
-export function isCanonicalHttpsOrigin(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' && value === url.origin && !url.username && !url.password
-  } catch { return false }
-}
 
 export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, source: SecretSource,
   writeLog: string, profile: CredentialProfile | undefined,
@@ -56,6 +51,7 @@ export class CredentialProfile {
   private readonly secrets = new Set<string>()
   private readonly validateInput: ValidateFunction
   private readonly validateProfile: (value: unknown) => boolean
+  private readonly input: CredentialInput
 
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
@@ -92,38 +88,39 @@ export class CredentialProfile {
           ? { properties: { [field]: { not: { pattern: '\\s' } } } } : {}) },
       }]
     }
-    const options = { strict: false, validateFormats: true }
+    const options = { strict: false, validateFormats: true, allErrors: true }
     const create = () => {
       const ajv = String(schema.$schema).includes('2020-12') ? new Ajv2020(options) : new Ajv(options)
-      addFormats.default(ajv)
+      addFormats.default(ajv, { formats: Object.keys(standardCredentialFormats) as FormatName[] })
       return ajv
     }
     const host = create()
-    host.addFormat('canonical-https-origin', { type: 'string', validate: isCanonicalHttpsOrigin })
-    host.addFormat('ldap-url', { type: 'string', validate: (value: string) => {
-      try {
-        const url = new URL(value)
-        return ['ldap:', 'ldaps:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password
-          && !url.search && !url.hash && ['', '/'].includes(url.pathname)
-      } catch { return false }
-    } })
     host.addKeyword({ keyword: 'x-secret', schemaType: 'boolean', errors: false,
       validate: (secret: boolean, value: unknown, _schema: unknown, context?: { instancePath: string }) => {
         if (secret && typeof value === 'string' && context) this.secrets.add(context.instancePath)
         return true
       } })
-    this.validateInput = host.compile(this.inputSchema)
+    this.input = new CredentialInput(this.inputSchema, host)
+    this.validateInput = this.input.validate
     this.validateProfile = create().compile(schema)
     this.credentialSchema = z.custom<Record<string, unknown>>(value => {
       return Boolean(value && typeof value === 'object' && !Array.isArray(value))
     }, 'Invalid credential profile').superRefine((value, context) => {
       this.secrets.clear()
       if (this.validateInput(value)) return
-      const issue = this.validateInput.errors?.find(error => error.instancePath === '/startTls' && error.keyword === 'const')
-      context.addIssue(issue
-        ? { code: 'custom', path: ['startTls'], message: `startTls must be ${issue.params.allowedValue} for this URL.` }
-        : { code: 'custom', message: 'Invalid credential profile' })
+      for (const issue of this.input.reasons()) context.addIssue({ code: 'custom', ...issue })
     })
+  }
+
+  normalizeInput(value: Record<string, unknown>) {
+    return this.input.normalize(value)
+  }
+
+  parseInput(value: Record<string, unknown>) {
+    const normalized = this.normalizeInput(value)
+    const result = this.credentialSchema.safeParse(normalized.value)
+    if (!result.success) throw new ArtiumError('INVALID_INPUT', result.error.issues.map(issue => issue.message).join(' '))
+    return { value: result.data, normalizations: normalized.normalizations }
   }
 
   private hostSchema(schema: Schema, secretProperties: Schema = schema?.properties ?? {}): Schema {

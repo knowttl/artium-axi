@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3'
 import { certificateFields } from './certificate.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import type { z } from 'zod'
+import { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
   nativeSettingsSchemas, toolSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
@@ -49,8 +49,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const result = schema.safeParse(value)
     if (!result.success) {
-      const issue = result.error.issues.find(issue => issue.path.length === 1 && issue.path[0] === 'startTls')
-      throw new ArtiumError('INVALID_INPUT', issue?.message)
+      const issues = result.error.issues.filter(issue => issue.code === 'custom')
+      throw new ArtiumError('INVALID_INPUT', issues.length ? issues.map(issue => issue.message).join(' ') : undefined)
     }
     return result.data
   }
@@ -143,8 +143,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const tool = toolName(request)
     const input = parse(route.input, request.body)
     const saving = route === adminToolRoutes.save
-    let value = saving ? parse(adminToolRoutes.save.input, request.body).value
-      : parse(schemaFor(tool), input.value) as Record<string, unknown>
+    let value = parse(z.record(z.string(), z.unknown()), input.value)
+    const profile = credentialProfiles[tool]
     if (saving && Object.hasOwn(value, 'certificatePem')) {
       try {
         if (value.auth !== 'certificate' || !['az-axi', 'mg-axi'].includes(tool) || typeof value.certificatePem !== 'string') throw new Error('Invalid certificate input')
@@ -154,6 +154,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       } catch { throw new ArtiumError('INVALID_INPUT', 'The PEM must contain one certificate and its matching unencrypted private key.', 'Choose a matching certificate and key, then save again.') }
     }
     if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
+    const normalized = profile ? (saving ? profile.normalizeInput(value) : profile.parseInput(value)) : undefined
+    const normalizations = normalized?.normalizations ?? []
+    if (normalized) value = normalized.value
+    else if (!saving) value = parse(schemaFor(tool), value) as Record<string, unknown>
     let replacement: CredentialReference | undefined
     const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
@@ -177,7 +181,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
         .run(JSON.stringify(settings), toolManifests[tool].version, now, actor, tool)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
-      return readCredential(tool)
+      return { ...readCredential(tool), ...(normalizations.length ? { normalizations } : {}) }
     }).value
     invalidate(replacement)
     await health.refresh(tool, true)

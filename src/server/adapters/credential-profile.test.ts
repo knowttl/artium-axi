@@ -6,9 +6,108 @@ import schema from '../../../test/fixtures/axi-credential.schema.json' with { ty
 import azSchema from '../../../test/fixtures/az-credential.schema.json' with { type: 'json' }
 import { CredentialProfile, loadCredentialProfile } from './credential-profile.js'
 import { createMgAdapter } from './mg.js'
+import { formatNames } from 'ajv-formats/dist/formats.js'
+import { credentialFormats, standardCredentialFormats } from './credential-input.js'
 
 const identity = { mode: 'application', tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222' }
 const credential = { ...identity, auth: 'client-secret', clientSecret: 'CANARY-host-secret' }
+
+test('every custom credential format explicitly declares its normalization policy', () => {
+  for (const format of Object.values(credentialFormats)) {
+    expect(typeof format.normalize === 'function' || format.normalize === 'none').toBe(true)
+  }
+  expect(Object.keys(standardCredentialFormats).sort()).toEqual([...formatNames].sort())
+  expect(new Set(Object.values(standardCredentialFormats))).toEqual(new Set(['none']))
+})
+
+test.each([
+  ['https://appliance.test/', 'https://appliance.test', 'canonicalized format'],
+  ['https://appliance.test:443', 'https://appliance.test', 'canonicalized format'],
+  ['https://Appliance.Test', 'https://appliance.test', 'canonicalized format'],
+  [' https://appliance.test ', 'https://appliance.test', 'removed surrounding whitespace'],
+  ['HTTPS://Appliance.Test:443/', 'https://appliance.test', 'canonicalized format'],
+])('normalizes rejected origin %j at the save boundary', (origin, expected, reason) => {
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const input = { kind: 'qux', apiVersion: '2.5', auth: 'token', origin, token: 'CANARY-token' }
+  expect(profile.credentialSchema.safeParse(input).success).toBe(false)
+  const normalized = profile.parseInput(input)
+  expect(normalized.value).toEqual({ ...input, origin: expected })
+  expect(normalized.normalizations).toEqual([{ field: 'origin', reason }])
+  expect(profile.parseInput(normalized.value)).toEqual({ value: normalized.value, normalizations: [] })
+  expect(input.origin).toBe(origin)
+})
+
+test.each([' CANARY-token', 'CANARY-token ', 'CANARY-token\n'])('normalizes rejected token ends without reporting secret material', token => {
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const result = profile.parseInput({ kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token })
+  expect(result.value.token).toBe('CANARY-token')
+  expect(result.normalizations).toEqual([{ field: 'token', reason: 'removed surrounding whitespace' }])
+  expect(JSON.stringify(result.normalizations)).not.toContain('CANARY')
+})
+
+test.each(['https://appliance.test/path', 'https://appliance.test?query', 'http://appliance.test',
+  'https://CANARY-user:CANARY-password@appliance.test', 'https://applia\nnce.test', 'https://appliance.test\\'])('rejects ambiguous origin %j with a safe field reason', origin => {
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  expect(() => profile.parseInput({ kind: 'qux', apiVersion: '2.5', auth: 'token', origin, token: 'CANARY-token' }))
+    .toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('origin') }))
+  try { profile.parseInput({ kind: 'qux', apiVersion: '2.5', auth: 'token', origin, token: 'CANARY-token' }) }
+  catch (error) { expect(String(error)).not.toContain('CANARY') }
+})
+
+test('valid values stay byte for byte unchanged even when another field needs normalization', () => {
+  const profile = new CredentialProfile(schema)
+  const input = { ...credential, tenantId: ` ${identity.tenantId} `, clientSecret: ' CANARY secret\r\n' }
+  const result = profile.parseInput(input)
+  expect(result.value).toEqual({ ...input, tenantId: identity.tenantId })
+  expect(result.normalizations).toEqual([{ field: 'tenantId', reason: 'removed surrounding whitespace' }])
+  expect(profile.parseInput(result.value)).toEqual({ value: result.value, normalizations: [] })
+})
+
+test.each([
+  [{ type: 'string', pattern: '^\\S+$' }, ' synthetic ', 'synthetic'],
+  [{ enum: ['simple'] }, ' simple\n', 'simple'],
+  [{ type: 'string', contentMediaType: 'application/x-pem-file', pattern: '^-----BEGIN [\\s\\S]*-----END KEY-----$' },
+    ' \r\n-----BEGIN KEY-----\r\nCANARY interior line\r\n-----END KEY-----\r\n',
+    '-----BEGIN KEY-----\nCANARY interior line\n-----END KEY-----'],
+])('uses generic schema rules for %j', (field, input, expected) => {
+  const profile = new CredentialProfile({ type: 'object', properties: { value: field } })
+  const result = profile.parseInput({ value: input })
+  expect(result.value.value).toBe(expected)
+  expect(result.normalizations).toHaveLength(1)
+  expect(profile.parseInput(result.value).normalizations).toEqual([])
+})
+
+test.each(['ldaps://DIRECTORY.test:636/', 'ldap://directory.test/', 'ldaps://directory.test:636'])('preserves already valid LDAP URL %j', url => {
+  const profile = loadCredentialProfile('ldap-axi', join(process.cwd(), 'tools/node_modules/@knowttl/ldap-axi/axi-credential.schema.json'))!
+  const value = { url, auth: 'simple', bindDn: 'uid=synthetic', bindPassword: 'CANARY password', startTls: url.startsWith('ldap:') }
+  expect(profile.parseInput(value)).toEqual({ value, normalizations: [] })
+})
+
+test.each([
+  [' LDAPS://DIRECTORY.test:636/ ', 'ldaps://directory.test'],
+  [' LDAP://DIRECTORY.test:389/ ', 'ldap://directory.test'],
+])('canonicalizes rejected LDAP URL %j using its registered format', (url, expected) => {
+  const profile = loadCredentialProfile('ldap-axi', join(process.cwd(), 'tools/node_modules/@knowttl/ldap-axi/axi-credential.schema.json'))!
+  const result = profile.parseInput({ url, auth: 'simple', bindDn: 'uid=synthetic', bindPassword: 'CANARY password', startTls: expected.startsWith('ldap:') })
+  expect(result.value.url).toBe(expected)
+  expect(result.normalizations).toEqual([{ field: 'url', reason: 'canonicalized format' }])
+  expect(profile.parseInput(result.value)).toEqual({ value: result.value, normalizations: [] })
+})
+
+test('boolean input is never coerced from a string', () => {
+  const profile = new CredentialProfile({ type: 'object', properties: { enabled: { type: 'boolean' } } })
+  expect(profile.parseInput({ enabled: true })).toEqual({ value: { enabled: true }, normalizations: [] })
+  expect(() => profile.parseInput({ enabled: ' true ' })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
+    message: 'enabled must be boolean.' }))
+})
+
+test('conditional missing-secret errors name the required field and selector without values', () => {
+  const profile = new CredentialProfile(schema)
+  expect(() => profile.parseInput(identity)).toThrow(expect.objectContaining({ message: expect.stringContaining('auth') }))
+  expect(() => profile.parseInput({ ...identity, auth: 'client-secret' }))
+    .toThrow(expect.objectContaining({ message: expect.stringContaining('clientSecret is required for the selected auth') }))
+  expect(() => profile.parseInput({ ...identity, auth: 'federated', token: 'CANARY interior whitespace' })).not.toThrow()
+})
 let directory: string
 beforeEach(() => { directory = mkdtempSync(join(tmpdir(), 'artium-profile-')) })
 afterEach(() => { rmSync(directory, { recursive: true, force: true }) })
