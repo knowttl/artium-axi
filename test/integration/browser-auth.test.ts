@@ -16,6 +16,8 @@ import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+import { withFakeService } from '../fake-service/fixture.js'
+import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 
 let directory: string
 let db: Database.Database
@@ -67,6 +69,25 @@ async function signIn(secret = password) {
   expect(response.statusCode).toBe(303)
   return response
 }
+
+test('administrators can inspect the loaded trusted CA metadata on Tools', async () => {
+  await withFakeService(async ({ directory: certs }) => {
+    await app.close()
+    const bundle = loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(certs, 'ca.crt') })!
+    app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls'), bundle), environment: {},
+      adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+    expect((await request('GET', '/admin/tools')).statusCode).toBe(303)
+    await signIn()
+    const response = await request('GET', '/admin/tools')
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toContain('Read-only startup configuration')
+    expect(response.body).toContain(bundle.certificates[0].subject)
+    expect(response.body).toContain(bundle.certificates[0].issuer)
+    expect(response.body).toContain(bundle.certificates[0].expiresAt)
+    expect(response.body).toContain(bundle.certificates[0].fingerprint)
+    expect(response.body).not.toContain('BEGIN CERTIFICATE')
+  })
+})
 
 test('browser sign-in creates an opaque secure server session and sign-out revokes it with audit', async () => {
   const response = await signIn()

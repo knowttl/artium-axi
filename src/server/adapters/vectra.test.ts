@@ -21,7 +21,7 @@ test.each(variants)('preparation keeps the native %j profile and secrets separat
   const profile = JSON.parse(call.files[0].content as string).profiles.artium
   expect(profile).toMatchObject({ kind: credential.kind, auth: credential.auth, apiVersion: credential.apiVersion,
     origin: credential.origin, writes, caBundle: 'vectra-ca.pem' })
-  expect(call.files[1]).toEqual({ name: 'vectra-ca.pem', content: 'CANARY-CA' })
+  expect(call.files[1]).toEqual({ name: 'vectra-ca.pem', content: 'CANARY-CA', appendTrustedCa: true })
   expect(call.environment.VECTRA_AXI_READ_ONLY).toBe('false')
   expect(call.environment[profile.tokenEnv ?? profile.secretEnv]).toBe(credential.auth === 'token' ? credential.token : credential.clientSecret)
   expect(call.files[0].content).not.toMatch(/CANARY-vectra/)

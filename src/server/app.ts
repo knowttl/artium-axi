@@ -209,7 +209,7 @@ export function createApp(options: {
   registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles }, options.providerCredentials)
   registerUsersPage(app, db)
   registerRolesPages(app, db)
-  registerAdminPages(app, db, credentialProfiles)
+  registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)

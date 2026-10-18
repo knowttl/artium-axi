@@ -20,16 +20,21 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       ARTIUM_AXI_MASTER_KEY_FILE: /run/secrets/artium_master_key
+      # Optional upstream private CAs or TLS inspection: uncomment this and both CA-secret entries.
+      # ARTIUM_AXI_EXTRA_CA_FILE: /run/secrets/artium_extra_ca
       # First start only: uncomment these settings and both password-secret entries below.
       # Remove them after the administrator has been created.
       # ARTIUM_AXI_ADMIN_USERNAME: synthetic-admin
       # ARTIUM_AXI_ADMIN_PASSWORD_FILE: /run/secrets/artium_bootstrap_password
     secrets:
       - artium_master_key
+      # - artium_extra_ca
       # - artium_bootstrap_password
 secrets:
   artium_master_key:
     file: ./private/artium_master_key
+  # artium_extra_ca:
+  #   file: ./private/artium_extra_ca.pem
   # artium_bootstrap_password:
   #   file: ./private/artium_bootstrap_password
 volumes:

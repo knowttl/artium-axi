@@ -8,6 +8,7 @@ import type { CredentialProfile } from './credential-profile.js'
 export interface TemporaryFile {
   name: string
   content: string | Uint8Array
+  appendTrustedCa?: boolean
 }
 
 export interface PreparedCall {

@@ -18,14 +18,14 @@ test.each([
   const call = await createLdapAdapter({ getCredential: async () => value }).prepare(['user', 'list', '--limit', '1'], reference)
   expect(call.environment).toEqual({ ARTIUM_SECRET_0: credential.bindPassword })
   expect(call.secrets).toEqual([credential.bindPassword])
-  expect(JSON.parse(call.files[0].content as string)).toEqual({ version: 1, defaultProfile: 'artium',
-    profiles: { artium: { ...value, bindPassword: { env: 'ARTIUM_SECRET_0' } } } })
+  expect(JSON.parse(call.files[1].content as string)).toEqual({ version: 1, defaultProfile: 'artium',
+    profiles: { artium: { ...value, caFile: 'ldap-axi/ldap-ca.pem', bindPassword: { env: 'ARTIUM_SECRET_0' } } } })
   expect(JSON.stringify(call.files)).not.toContain(credential.bindPassword)
 })
 
 test('materializes CA contents beside the profile with a path relative to the isolated runner', async () => {
   const call = await createLdapAdapter({ getCredential: async () => ({ ...credential, caFile: 'CANARY-ca-pem\nsynthetic-ca-line\n' }) }).prepare([], reference)
-  expect(call.files[0]).toEqual({ name: 'ldap-axi/ldap-ca.pem', content: 'CANARY-ca-pem\nsynthetic-ca-line\n' })
+  expect(call.files[0]).toEqual({ name: 'ldap-axi/ldap-ca.pem', content: 'CANARY-ca-pem\nsynthetic-ca-line\n', appendTrustedCa: true })
   expect(JSON.parse(call.files[1].content as string).profiles.artium.caFile).toBe('ldap-axi/ldap-ca.pem')
 })
 
