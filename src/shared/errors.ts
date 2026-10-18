@@ -91,7 +91,7 @@ export class ArtiumError extends Error {
   }
 }
 
-// Only the administrator credential-test boundary may serialize this detail.
+// Only administrator credential-test and cached-health responses may serialize this detail.
 export interface Diagnostic {
   stage: 'configuration' | 'token acquisition' | 'DNS' | 'TCP' | 'TLS' | 'authentication' | 'tool run'
   message: string
