@@ -197,7 +197,7 @@ export const diagnosticSchema = z.strictObject({
   message: z.string().max(4096), toolCode: z.string().max(80).optional(), providerCode: z.string().max(80).optional(), hint: z.string().max(4096).optional(),
   host: z.string().max(4096).optional(), issuer: z.string().max(4096).optional(),
   trust: z.enum(['self-signed', 'untrusted']).optional(), checkedAt: z.number().int().optional(),
-  credentialRevision: z.number().int().optional(),
+  credentialRevision: z.number().int().nullable().optional(),
 })
 export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
   diagnostic: diagnosticSchema.optional(),

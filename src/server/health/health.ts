@@ -74,10 +74,14 @@ export class ToolHealth {
       if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
       if (this.active.has(tool)) throw new ArtiumError('TOO_MANY_CALLS')
     } catch (error) {
-      const errorCode = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
+      const failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
+      const errorCode = failure.code
+      const checkedAt = Date.now()
+      failure.diagnostic = safeDiagnostic({ stage: 'configuration', message: errors[errorCode].message,
+        checkedAt, credentialRevision: reference?.revision ?? null }, [])
       audit.record({ ...context, event: background ? 'health-check' : 'credential-test', action: background ? healthDefaults.actor : undefined, outcome: errorCode,
-        checkedAt: Date.now(), credentialRevision: reference?.revision ?? null, errorCode })
-      throw error
+        checkedAt, credentialRevision: reference?.revision ?? null, errorCode })
+      throw failure
     }
     this.active.add(tool)
     const args = healthReads[tool]
@@ -119,7 +123,7 @@ export class ToolHealth {
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes
-        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode)
+        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode, tool)
       } catch (error) {
         failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
         const runnerError = error instanceof RunnerError ? error : undefined

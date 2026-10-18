@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, createSecureContext, TLSSocket } from 'node:tls'
@@ -9,6 +9,10 @@ import { createTestCertificates } from '../../../test/fake-service/certificates.
 import { healthEndpoints, preflight, preflightEndpoint } from './preflight.js'
 
 const dns = vi.hoisted(() => ({ lookup: vi.fn() }))
+const tls = vi.hoisted(() => ({ roots: [] as string[] }))
+vi.mock('node:tls', async importOriginal => ({
+  ...await importOriginal<typeof import('node:tls')>(), rootCertificates: tls.roots,
+}))
 vi.mock('node:dns/promises', async importOriginal => {
   const original = await importOriginal<typeof import('node:dns/promises')>()
   return { ...original, lookup: dns.lookup.mockImplementation(original.lookup) }
@@ -18,6 +22,9 @@ let directory: string
 beforeAll(() => {
   directory = mkdtempSync(join(tmpdir(), 'artium-preflight-'))
   createTestCertificates(directory, ['localhost'])
+  tls.roots.push(readFileSync(join(directory, 'ca.crt'), 'utf8'))
+  mkdirSync(join(directory, 'extra'))
+  createTestCertificates(join(directory, 'extra'), ['extra.synthetic.invalid'])
   execFileSync('openssl', ['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-leaf',
     '-keyout', 'invalid-ca.key', '-out', 'invalid-ca.csr'], { cwd: directory, stdio: 'pipe' })
   execFileSync('openssl', ['ca', '-batch', '-notext', '-rand_serial', '-config', 'authority.cnf',
@@ -115,6 +122,17 @@ test('LDAP preflight negotiates StartTLS and verifies TLS before any bind', asyn
       caBundle: readFileSync(join(directory, 'ca.crt'), 'utf8') })).resolves.toBeUndefined()
     expect(request).toBe('301d02010177188016312e332e362e312e342e312e313436362e3230303337')
     expect(version).toBe('TLSv1.2')
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test('a configured private CA preserves trust in the default roots', async () => {
+  const server = createServer({ key: readFileSync(join(directory, 'server.key')),
+    cert: readFileSync(join(directory, 'server.crt')) })
+  server.on('tlsClientError', () => {})
+  await new Promise<void>(resolve => server.listen(0, resolve))
+  try {
+    await expect(preflight('vectra-axi', { origin: `https://localhost:${(server.address() as { port: number }).port}`,
+      caBundle: readFileSync(join(directory, 'extra', 'ca.crt'), 'utf8') })).resolves.toBeUndefined()
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 

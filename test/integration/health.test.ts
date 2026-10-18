@@ -8,6 +8,7 @@ import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
+import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -50,6 +51,43 @@ afterEach(async () => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test.each([
+  { name: 'unconfigured credential', code: 'CREDENTIAL_NOT_CONFIGURED', revision: null, arrange: async () => {
+    db.exec('DELETE FROM credentials')
+    return async () => {}
+  } },
+  { name: 'missing adapter with a credential', code: 'TOOL_DISABLED', revision: 1, arrange: async () => {
+    health = new ToolHealth(db, new Audit(db), runner, [], store)
+    return async () => {}
+  } },
+  { name: 'missing adapter without a credential', code: 'TOOL_DISABLED', revision: null, arrange: async () => {
+    db.exec('DELETE FROM credentials')
+    health = new ToolHealth(db, new Audit(db), runner, [], store)
+    return async () => {}
+  } },
+  { name: 'pending check', code: 'TOO_MANY_CALLS', revision: 1, arrange: async () => {
+    let started!: () => void
+    let release!: (value: typeof result) => void
+    const admitted = new Promise<void>(resolve => { started = resolve })
+    const held = new Promise<typeof result>(resolve => { release = resolve })
+    vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held })
+    const pending = health.check('falcon-axi', 'synthetic-development-user', 'held-check', null)
+    await admitted
+    return async () => { release(result); await pending }
+  } },
+] as const)('$name admission returns safe configuration diagnostics', async ({ code, revision, arrange }) => {
+  const cleanup = await arrange()
+  try {
+    await expect(health.check('falcon-axi', 'synthetic-development-user', 'admission-test', null)).rejects.toMatchObject({
+      code, diagnostic: { stage: 'configuration', message: errors[code].message,
+        checkedAt: expect.any(Number), credentialRevision: revision },
+    })
+    const audit = db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE request_id = 'admission-test'").get()
+    expect(audit).toEqual({ checked_at: expect.any(Number), credential_revision: revision, error_code: code })
+    expect(JSON.stringify(audit)).not.toContain('CANARY-secret')
+  } finally { await cleanup() }
 })
 
 test('scheduled checks never overlap a pending check and manual tests share that exclusion', async () => {

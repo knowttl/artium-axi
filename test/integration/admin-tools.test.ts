@@ -20,7 +20,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import type { MutableCredentialStore, ToolName } from '../../src/server/store/credential-store.js'
-import { adminCredentialSchema, adminToolSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
+import { adminCredentialSchema, adminToolSchema, errorResponseSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
 import { toolsView, toolView } from '../../src/cli/views.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
@@ -117,6 +117,10 @@ const diagnosticCases = [
   { code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', text: 'code: TLS_FAILED\nmessage: TLS certificate verification failed' },
   { code: 'TOOL_REJECTED_INPUT', stage: 'configuration', text: 'code: INVALID_CONFIG\nmessage: Invalid configuration combination' },
   { code: 'TOOL_FAILED', stage: 'tool run', text: 'code: API_ERROR\nmessage: Synthetic upstream failure' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: OPERATION_TIMEOUT\nmessage: the operation deadline elapsed' },
+  { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: ACCESS_DENIED\nmessage: API access was denied' },
+  { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: AUTH_EXPIRED\nmessage: API credential has expired' },
 ] as const
 
 test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)(
@@ -157,6 +161,23 @@ test('preflight failure is redacted in the response and cached administrator hea
   const listing = await request('GET', '')
   expect(await listing.text()).not.toContain('CANARY-secret')
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-secret')
+})
+
+test('Graph sign-in failure retains the native message and token-acquisition stage', async () => {
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'mg-writes.log'))
+  adapters.push(adapter)
+  await replace('mg-axi')
+  const text = 'code: AUTH_REQUIRED\nmessage: Application authentication failed for the configured identity; no user or device-code fallback was attempted'
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+  const response = await request('POST', '/mg-axi/test', {})
+  const body = errorResponseSchema.parse(await response.json())
+  expect(body).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'AUTH_REQUIRED',
+    stage: 'token acquisition', message: text, checkedAt: expect.any(Number), credentialRevision: 1 } } })
+  const cached = (await (await request('GET', '')).json()).tools.find((tool: { name: string }) => tool.name === 'mg-axi')
+  expect(cached.health.diagnostic).toEqual(body.error.diagnostic)
+  expect(JSON.stringify(body)).not.toContain(values['mg-axi'].clientSecret)
 })
 
 test('invalid stored credentials name the field without its value', async () => {
@@ -873,7 +894,10 @@ test.each([
     WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id`).all()).toEqual(evidence)
 })
 test('unconfigured test admission records safe evidence without a credential revision', async () => {
-  await failure(await request('POST', '/falcon-axi/test', {}), 'CREDENTIAL_NOT_CONFIGURED')
+  const response = await request('POST', '/falcon-axi/test', {})
+  expect(response.status).toBe(errors.CREDENTIAL_NOT_CONFIGURED.status)
+  expect(errorResponseSchema.parse(await response.json())).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED',
+    diagnostic: { stage: 'configuration', checkedAt: expect.any(Number), credentialRevision: null } } })
   expect(db.prepare('SELECT checked_at, credential_revision, error_code FROM audit').get())
     .toEqual({ checked_at: expect.any(Number), credential_revision: null, error_code: 'CREDENTIAL_NOT_CONFIGURED' })
 })

@@ -1,5 +1,6 @@
 import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/errors.js'
 import { SecretScanner } from '../runner/scan.js'
+import type { ToolName } from '../store/credential-store.js'
 
 export const diagnosticLimit = 4096
 export const certificateErrorCodePattern = new RegExp(`\\b(?:${[
@@ -40,7 +41,7 @@ export function diagnosticError(code: ErrorCode, detail: Diagnostic): ArtiumErro
   return error
 }
 
-export function toolFailure(stdout: string, stderr: string, exitCode: number): ArtiumError {
+export function toolFailure(stdout: string, stderr: string, exitCode: number, tool?: ToolName): ArtiumError {
   const text = [stderr, stdout].filter(Boolean).join('\n')
   const toolCode = /^\s*(?:code|error_code):\s*["']?([A-Za-z][A-Za-z0-9_]{0,79})["']?\s*$/mi.exec(text)?.[1]
     ?? /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
@@ -53,10 +54,11 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number): A
     code = 'UPSTREAM_TLS_FAILED'; stage = 'TLS'
   } else if (/ENOTFOUND|EAI_AGAIN|DNS|name resolution/i.test(text)) {
     code = 'UPSTREAM_NETWORK_FAILED'; stage = 'DNS'
-  } else if (/ECONN|ETIMEDOUT|NETWORK|timed? ?out|socket hang up|fetch failed/i.test(text)) {
+  } else if (/^(SERVER_UNREACHABLE|OPERATION_TIMEOUT)$/.test(toolCode ?? '') || /ECONN|ETIMEDOUT|NETWORK|timed? ?out|socket hang up|fetch failed/i.test(text)) {
     code = 'UPSTREAM_NETWORK_FAILED'; stage = 'TCP'
-  } else if (/AADSTS|invalid_client|AUTH.*FAIL|AuthenticationError|InvalidAuthenticationToken|UNAUTHORIZED|FORBIDDEN|invalid.credentials|invalid password|invalidCredentials|\b401\b|\b403\b/i.test(text)) {
-    code = 'UPSTREAM_AUTH_FAILED'; stage = 'authentication'
+  } else if (/^(AUTH_REQUIRED|AUTH_EXPIRED|ACCESS_DENIED|PASSWORD_EXPIRED|ACCOUNT_DISABLED|ACCOUNT_EXPIRED|ACCOUNT_LOCKED|INSUFFICIENT_ACCESS|STRONGER_AUTH_REQUIRED|GSSAPI_CREDENTIAL_UNAVAILABLE|GSSAPI_NEGOTIATION_FAILED)$/.test(toolCode ?? '')
+    || /AADSTS|invalid_client|AUTH.*FAIL|AuthenticationError|InvalidAuthenticationToken|UNAUTHORIZED|FORBIDDEN|invalid.credentials|invalid password|invalidCredentials|\b401\b|\b403\b/i.test(text)) {
+    code = 'UPSTREAM_AUTH_FAILED'; stage = tool === 'mg-axi' && toolCode === 'AUTH_REQUIRED' && !/\b401\b/.test(text) ? 'token acquisition' : 'authentication'
   } else if (exitCode === 2 || /INVALID_(?:INPUT|CONFIG|ARGUMENT)|CONFIG.*INVALID|cannot be combined|unknown (?:flag|option)|required field/i.test(text)) {
     code = 'TOOL_REJECTED_INPUT'; stage = 'configuration'
   }

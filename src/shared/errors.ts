@@ -102,7 +102,7 @@ export interface Diagnostic {
   issuer?: string
   trust?: 'self-signed' | 'untrusted'
   checkedAt?: number
-  credentialRevision?: number
+  credentialRevision?: number | null
 }
 
 export function errorResponse(error: ArtiumError, requestId: string) {
