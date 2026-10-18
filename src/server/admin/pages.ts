@@ -9,6 +9,7 @@ import { adminRead, apiForm, changed, revision, timestamp } from './forms.js'
 import { credentialFields, editorProfile } from './credential-form.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
+import type { TrustedCertificate } from '../trusted-ca.js'
 
 const settingsGuide = {
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
@@ -23,7 +24,7 @@ const testGuide = {
 }
 
 export function registerAdminPages(app: FastifyInstance, db: Database.Database,
-  credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = {}): void {
+  credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = {}, trustedCertificates: readonly TrustedCertificate[] = []): void {
   app.get('/admin/credentials', async (request, reply) => {
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     return reply.redirect('/admin/tools')
@@ -35,7 +36,10 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const name = (request.params as { tool?: string }).tool
     if (!name) {
       const rows = tools.map(tool => `<tr><td><a href="/admin/tools/${tool.name}">${escape(tool.name)}</a></td><td>${escape(tool.version)}</td><td>${tool.enabled ? 'Enabled' : 'Disabled'}</td><td>${tool.readOnly ? 'Read-only' : 'Writes enabled'}</td><td>${escape(tool.health.status)}</td><td>${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
-      return browserPage(reply, 'Tools', `<section><h2>Tools</h2><p>Open a tool to configure credentials, settings and access.</p><div class="table-scroll"><table><caption>Installed tools</caption><thead><tr><th>Tool</th><th>Version</th><th>Status</th><th>Writes</th><th>Health</th><th>Last checked</th></tr></thead><tbody>${rows}</tbody></table></div></section>`, current)
+      const trust = trustedCertificates.length
+        ? `<div class="table-scroll"><table><caption>Server-wide trusted CA bundle</caption><thead><tr><th>Subject</th><th>Issuer</th><th>Expiry (UTC)</th><th>SHA-256 fingerprint</th></tr></thead><tbody>${trustedCertificates.map(certificate => `<tr><td>${escape(certificate.subject)}</td><td>${escape(certificate.issuer)}</td><td>${escape(certificate.expiresAt)}</td><td><code>${escape(certificate.fingerprint)}</code></td></tr>`).join('')}</tbody></table></div>`
+        : '<p>No server-wide extra CA bundle is configured.</p>'
+      return browserPage(reply, 'Tools', `<section><h2>Tools</h2><p>Open a tool to configure credentials, settings and access.</p><div class="table-scroll"><table><caption>Installed tools</caption><thead><tr><th>Tool</th><th>Version</th><th>Status</th><th>Writes</th><th>Health</th><th>Last checked</th></tr></thead><tbody>${rows}</tbody></table></div></section><section><h2>Trusted upstream certificates</h2><p>Read-only startup configuration. An operator changes ARTIUM_AXI_EXTRA_CA_FILE and restarts the server to update trust.</p>${trust}</section>`, current)
     }
     const parsed = toolSchema.safeParse(name)
     if (!parsed.success) throw new ArtiumError('NOT_FOUND')

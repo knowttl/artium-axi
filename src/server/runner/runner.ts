@@ -3,6 +3,8 @@ import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
+import { getCACertificates } from 'node:tls'
+import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
 import { runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
@@ -45,14 +47,16 @@ export class Runner {
   private readonly active = new Map<symbol, { userId: string, controller: AbortController, result: Promise<RunnerResult> }>()
   private closed = false
 
-  private constructor(private readonly root: string) {}
+  private constructor(private readonly root: string, private readonly trustedCa?: TrustedCaBundle) {}
 
-  static async create(root = join(tmpdir(), 'artium-calls')): Promise<Runner> {
+  get trustedCertificates(): readonly TrustedCertificate[] { return this.trustedCa?.certificates ?? [] }
+
+  static async create(root = join(tmpdir(), 'artium-calls'), trustedCa?: TrustedCaBundle): Promise<Runner> {
     await mkdir(root, { recursive: true, mode: 0o700 })
     for (const entry of await readdir(root)) {
       if (entry.startsWith('artium-call-')) await rm(join(root, entry), { recursive: true, force: true })
     }
-    return new Runner(root)
+    return new Runner(root, trustedCa)
   }
 
   run(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits = {}, input: RunnerInput = {}, files: readonly TemporaryFile[] = [], beforeSpawn?: () => void): Promise<RunnerResult> {
@@ -70,7 +74,7 @@ export class Runner {
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn)
+    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa)
       .finally(() => this.active.delete(key))
     this.active.set(key, { userId, controller, result })
     return result
@@ -105,6 +109,7 @@ async function execute(
   input: RunnerInput = {},
   files: readonly TemporaryFile[] = [],
   beforeSpawn?: () => void,
+  trustedCa?: TrustedCaBundle,
 ): Promise<RunnerResult> {
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
@@ -126,7 +131,10 @@ async function execute(
     try {
       await Promise.all(Object.values(directories).map(path => mkdir(path, { mode: 0o700 })))
       const names = new Set<string>()
-      for (const file of files) {
+      const trustFile = 'artium-trusted-ca.pem'
+      const materialized = trustedCa ? [...files, { name: trustFile,
+        content: [...getCACertificates('default'), trustedCa.pem].join('\n') }] : files
+      for (const file of materialized) {
         if (!file.name.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) || names.has(file.name)) {
           throw new Error('Invalid adapter file name')
         }
@@ -136,7 +144,11 @@ async function execute(
         await chmod(dirname(target), 0o700)
         const temporary = `${target}.tmp`
         const handle = await open(temporary, 'wx', 0o600)
-        try { await handle.writeFile(file.content); await handle.sync() }
+        try {
+          await handle.writeFile(file.appendTrustedCa && trustedCa
+            ? Buffer.concat([Buffer.from(file.content), Buffer.from('\n' + trustedCa.pem)]) : file.content)
+          await handle.sync()
+        }
         finally { await handle.close() }
         await rename(temporary, target)
       }
@@ -165,6 +177,10 @@ async function execute(
         cwd: directories.XDG_CONFIG_HOME,
         env: {
           ...environment,
+          ...(trustedCa ? {
+            NODE_EXTRA_CA_CERTS: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
+            REQUESTS_CA_BUNDLE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
+          } : {}),
           PATH: runtimePath,
           ...directories,
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}`,

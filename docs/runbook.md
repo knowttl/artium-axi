@@ -127,6 +127,33 @@ For a private CA, use curl's `--cacert` on both downloads and set `ARTIUM_AXI_CA
 Never bypass certificate verification.
 The checksum comes from the same trusted server and detects corruption or mixed releases; it does not establish trust in an unknown server.
 
+## TLS inspection and private upstream CAs
+
+Set `ARTIUM_AXI_EXTRA_CA_FILE` to a readable PEM bundle when upstream HTTPS or LDAPS certificates chain to a private CA, including a network TLS-inspection CA.
+Obtain the public CA certificates and confirm their SHA-256 fingerprints through a trusted operator channel.
+The file must contain one or more PEM certificates and whitespace only, with no private keys.
+Mount it read-only and make it readable by container UID 10001, using the commented CA secret entries in `compose.example.yaml`.
+Use the file's path inside the container for the setting.
+
+The server refuses startup for unreadable, empty or malformed bundles and for any bundle containing a private key.
+It warns on expired certificates and certificates expiring within 30 days; an expired certificate is not made valid by trusting it.
+Warnings identify fingerprints and never print PEM contents.
+After startup, open **Tools** in the administration UI to inspect the loaded subject, issuer, expiry and SHA-256 fingerprint of every certificate.
+This view is read-only and shows the loaded snapshot.
+Replace the mounted file and restart the server to rotate trust; replacing the file alone does not reload it.
+
+The server adds the bundle to its default Node TLS trust before outbound connections, including global `fetch`, SSO discovery and Azure token acquisition.
+The runner supplies `NODE_EXTRA_CA_CERTS` and `REQUESTS_CA_BUNDLE` centrally on every call through private temporary files.
+The Requests bundle includes the server's default Node public roots as well as the additional CAs, since Requests replaces its default certifi bundle when this variable is set.
+LDAP and Vectra credential-specific CA files receive the server bundle too, preserving those credential-specific CAs as an additive option.
+Certificate verification and hostname verification remain enabled.
+With the setting absent, the server and child runtimes retain their default trust.
+
+This setting trusts upstream services from the server and its tools.
+The CLI's separate `ARTIUM_AXI_CA_FILE` setting trusts the Artium server from a client.
+If an inspected upstream still fails, confirm the intended issuer and fingerprint with the network operator and check certificate validity and the hostname.
+Do not disable verification; a temporary network-policy exemption is an alternative while the correct CA is provisioned.
+
 ## CLI launchers and password changes
 
 Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.

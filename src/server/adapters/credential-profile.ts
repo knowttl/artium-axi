@@ -202,11 +202,11 @@ export class CredentialProfile {
     // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
     const files: PreparedCall['files'] = []
     if (tool === 'vectra-axi' && typeof parsed.value.caBundle === 'string') {
-      files.push({ name: 'vectra-axi/vectra-ca.pem', content: parsed.value.caBundle })
+      files.push({ name: 'vectra-axi/vectra-ca.pem', content: parsed.value.caBundle, appendTrustedCa: true })
       parsed.value.caBundle = 'vectra-ca.pem'
     }
-    if (tool === 'ldap-axi' && typeof parsed.value.caFile === 'string') {
-      files.push({ name: 'ldap-axi/ldap-ca.pem', content: parsed.value.caFile })
+    if (tool === 'ldap-axi') {
+      files.push({ name: 'ldap-axi/ldap-ca.pem', content: typeof parsed.value.caFile === 'string' ? parsed.value.caFile : '', appendTrustedCa: true })
       parsed.value.caFile = 'ldap-axi/ldap-ca.pem'
     }
     return { environment, secrets, files: [...files, { name: `${tool}/config.json`, content: JSON.stringify({

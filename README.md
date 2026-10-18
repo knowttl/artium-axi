@@ -736,6 +736,7 @@ Missing or closed descriptors, invalid JSON and mismatched server bindings fail 
 | `ARTIUM_AXI_DATABASE_FILE` | SQLite database path; default `/data/artium.db`. |
 | `ARTIUM_AXI_MASTER_KEY_FILE` | Initial or explicit master-key file containing exactly 32 raw bytes; takes precedence over other key sources. |
 | `ARTIUM_AXI_MASTER_KEY` | Alternative canonical base64 encoding of exactly 32 key bytes. |
+| `ARTIUM_AXI_EXTRA_CA_FILE` | Optional readable PEM bundle of public CA certificates for upstream TLS, including TLS inspection; mounted read-only. Loaded at startup; see the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas). |
 | `ARTIUM_AXI_ADMIN_USERNAME` | First-start local administrator username. |
 | `ARTIUM_AXI_ADMIN_PASSWORD_FILE` | UTF-8 file containing the exact first-start password, without an added newline. |
 | `ARTIUM_AXI_TRUSTED_PROXIES` | Comma-separated verified proxy source IP addresses; default trusts none. |

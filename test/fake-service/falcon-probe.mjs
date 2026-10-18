@@ -6,9 +6,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { prepareFalcon, falconManifest } from '../../dist/src/server/adapters/falcon.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
+import { loadTrustedCa } from '../../dist/src/server/trusted-ca.js'
 
 const directory = await mkdtemp(join(tmpdir(), 'artium-falcon-probe-'))
-const runner = await Runner.create(join(directory, 'calls'))
+const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: '/test-ca.crt' }))
 const configuration = { clientIdFile: join(directory, 'id'), clientSecretFile: join(directory, 'secret'), region: 'us-1' }
 try {
   assert.ok(!(await readFile('/proc/net/route', 'utf8')).split('\n').slice(1)
@@ -21,6 +22,12 @@ try {
   }))
   await writeFile(configuration.clientIdFile, 'CANARY-falcon-id\n', { mode: 0o600 })
   await writeFile(configuration.clientSecretFile, 'CANARY-falcon-secret\n', { mode: 0o600 })
+  const untrusted = await Runner.create(join(directory, 'untrusted'))
+  try {
+    const call = await prepareFalcon(['detection', 'list', '--limit', '1'], configuration)
+    const result = await untrusted.run('synthetic-user', call.executable, call.args, call.environment, call.secrets, call.limits)
+    assert.notEqual(result.exitCode, 0, 'Pinned Falcon must refuse the untrusted private CA')
+  } finally { await untrusted.shutdown() }
   // Execute the pinned parser, rather than treating source text as behavioral evidence.
   const parserEvidence = execFileSync('/opt/falcon-axi/bin/python', ['-c', `
 import json
@@ -43,7 +50,7 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
     assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_AXI_READ_ONLY', 'FALCON_CLIENT_ID', 'FALCON_CLIENT_SECRET'])
     assert.equal(prepared.environment.FALCON_AXI_READ_ONLY, 'true')
     return runner.run('synthetic-user', prepared.executable, prepared.args,
-      { ...prepared.environment, REQUESTS_CA_BUNDLE: '/test-ca.crt' }, prepared.secrets, prepared.limits)
+      prepared.environment, prepared.secrets, prepared.limits)
   }
   const evidence = async () => (await fetch('https://api.crowdstrike.com/__evidence')).json()
   for (const settings of [configuration, { ...configuration, memberCid: 'synthetic-member' }]) {

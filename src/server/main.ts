@@ -19,9 +19,12 @@ import { EmbeddedSecretSource } from './store/secret-source.js'
 import { EnvironmentKeyProvider, saveMasterKey } from './store/key-provider.js'
 import { acquireMaintenanceLock } from './store/maintenance-lock.js'
 import { ArtiumError, errorResponse } from '../shared/errors.js'
+import { installTrustedCa, loadTrustedCa } from './trusted-ca.js'
 
 async function main() {
   checkAuthSettings(process.env)
+  const trustedCa = loadTrustedCa()
+  installTrustedCa(trustedCa)
   const database = resolve(process.env.ARTIUM_AXI_DATABASE_FILE ?? serverDefaults.database)
   const release = acquireMaintenanceLock(database)
   let db: ReturnType<typeof openStore> | undefined
@@ -34,7 +37,7 @@ async function main() {
     await bootstrapAdministrator(db)
     const connection = db
     const store = createCredentialStore(db, provider)
-    runner = await Runner.create(serverDefaults.temporaryDirectory)
+    runner = await Runner.create(serverDefaults.temporaryDirectory, trustedCa)
     const audit = new Audit(db)
     const source = new EmbeddedSecretSource(store)
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')

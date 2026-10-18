@@ -8,6 +8,7 @@ import { AzureTokenCache } from '/work/dist/src/server/adapters/azure-token-cach
 import { loadCredentialProfile } from '/work/dist/src/server/adapters/credential-profile.js'
 import { FakeTokenTransport, azureTestTenant } from '/work/dist/test/fixtures/azure-token-transport.js'
 import { Runner } from '/work/dist/src/server/runner/runner.js'
+import { loadTrustedCa } from '/work/dist/src/server/trusted-ca.js'
 import { createApp } from '/work/dist/src/server/app.js'
 import { Audit } from '/work/dist/src/server/audit/audit.js'
 import { openStore } from '/work/dist/src/server/store/db.js'
@@ -23,15 +24,15 @@ const credential = { auth: 'secret', tenantId: azureTestTenant,
 const network = new FakeTokenTransport()
 const writeLog = join(directory, 'tool-logs', 'az-axi', 'writes.log')
 const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(network))
-const runner = await Runner.create(join(directory, 'calls'))
+const trustedCa = loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: '/test-ca.crt' })
+const runner = await Runner.create(join(directory, 'calls'), trustedCa)
 const binary = '/work/tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js'
 const { decode } = await import(createRequire(realpathSync(binary)).resolve('@toon-format/toon'))
 const evidence = async () => (await fetch('https://management.azure.com/__evidence')).json()
 const run = async (args, input = {}, selected = adapter) => {
   const call = await selected.prepare(args, reference, input)
-  // The CA is test infrastructure. The adapter still supplies only its production environment.
   return runner.run('synthetic-user', process.execPath, [binary, ...call.args],
-    { ...call.environment, NODE_EXTRA_CA_CERTS: '/test-ca.crt' }, call.secrets, call.limits,
+    call.environment, call.secrets, call.limits,
     { ...input, fileArguments: call.fileArguments?.map(index => index + 1) }, call.files)
 }
 try {
@@ -39,13 +40,12 @@ try {
     new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
   await seedToolUser(db)
   db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
-  const apiRunner = await Runner.create(join(directory, 'api-calls'))
+  const apiRunner = await Runner.create(join(directory, 'api-calls'), trustedCa)
   const nativeApiAdapter = createAzAdapter({ getCredential: async () => credential }, writeLog,
     new AzureTokenCache(new FakeTokenTransport()))
   const apiAdapter = { ...nativeApiAdapter, async prepare(...args) {
     const call = await nativeApiAdapter.prepare(...args)
-    return { ...call, executable: process.execPath, args: [binary, ...call.args],
-      environment: { ...call.environment, NODE_EXTRA_CA_CERTS: '/test-ca.crt' } }
+    return { ...call, executable: process.execPath, args: [binary, ...call.args] }
   } }
   const app = createApp({ db, audit: new Audit(db), runner: apiRunner, adapters: [apiAdapter],
     resolver: { resolve: async () => reference }, environment: {} })
