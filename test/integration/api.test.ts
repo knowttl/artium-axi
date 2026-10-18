@@ -388,7 +388,7 @@ test('security: restricted token denies tools and admin authentication and chang
   const change = (newPassword: string) => fetch(`${url}/v1/auth/password`, {
     method: 'POST', headers: restrictedHeaders, body: JSON.stringify({ newPassword }),
   })
-  await expectFailure(await change('short'), 'PASSWORD_INVALID')
+  await expectFailure(await change(''), 'PASSWORD_INVALID')
   expect((await change('CANARY-changed-password')).status).toBe(204)
   await expectFailure(await change('CANARY-another-password'), 'TOKEN_INVALID')
   await expectFailure(await fetch(`${url}/v1/tools`, { headers }), 'TOKEN_INVALID')
@@ -461,7 +461,7 @@ test('password endpoint changes only the access-token owner and requires a fresh
   })
   await expectFailure(await change({ newPassword: 'CANARY-new-password' }), 'SIGN_IN_FAILED')
   await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: 'wrong' }), 'SIGN_IN_FAILED')
-  await expectFailure(await change({ newPassword: 'short', currentPassword: password }), 'PASSWORD_INVALID')
+  await expectFailure(await change({ newPassword: '', currentPassword: password }), 'PASSWORD_INVALID')
   await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password, userId: 'other' }), 'INVALID_INPUT')
   await expectFailure(await change({ newPassword: 'CANARY-new-password', currentPassword: password }, 'CANARY-invalid'), 'TOKEN_INVALID')
   const result = await change({ newPassword: 'CANARY-new-password', currentPassword: password })

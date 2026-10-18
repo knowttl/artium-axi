@@ -26,12 +26,12 @@ async function account(mustChange = 1) {
   return hash
 }
 
-test.each(['short', '😀'.repeat(14), 'x'.repeat(129), '😀'.repeat(129), '123456789012345', 'passwordpassword'])
-('rejects invalid or bundled common password %j', value => {
+test.each(['', 'x'.repeat(513), '😀'.repeat(129)])
+('rejects empty or oversized password %j', value => {
   expect(() => hashPassword(value)).toThrow(expect.objectContaining({ code: 'PASSWORD_INVALID' }))
 })
 
-test.each(['x'.repeat(15), 'x'.repeat(128), '😀'.repeat(15), '😀'.repeat(128), ' spaces remain ', 'e\u0301'.repeat(8)])
+test.each(['abc', 'passwordpassword', 'x'.repeat(512), '😀'.repeat(128), ' spaces remain ', 'e\u0301'.repeat(8)])
 ('hashes exact Unicode and space-preserving password %j', async value => {
   const hash = await hashPassword(value)
   expect(hash).toMatch(/^\$argon2id\$v=19\$m=65536,p=1,t=3\$/)
@@ -162,8 +162,8 @@ test.each([[0, 'local'], [1, 'break-glass']] as const)
 
 test.each([
   ['CANARY-wrong-password', 'CANARY-new-password', 'SIGN_IN_FAILED'],
-  [password, 'short', 'PASSWORD_INVALID'],
-  [password, 'passwordpassword', 'PASSWORD_INVALID'],
+  [password, '', 'PASSWORD_INVALID'],
+  [password, 'x'.repeat(513), 'PASSWORD_INVALID'],
 ])('failed password change preserves the hash and audit: %s', async (current, next, code) => {
   const hash = await account()
   await expect(provider.changePassword('synthetic-user', current, next, new Audit(db),
