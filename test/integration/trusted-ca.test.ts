@@ -64,7 +64,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       expect(output.node).toContain(pem)
       expect(output.python).toBe(output.node)
       expect(output.node.match(/BEGIN CERTIFICATE/g).length).toBeGreaterThan(1)
-      for (const content of output.files) expect(content).toBe(pem + '\n' + pem)
+      for (const content of output.files) expect(content).toBe(pem + '\n' + output.node)
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await runner.shutdown() }
   })

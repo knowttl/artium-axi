@@ -17,6 +17,9 @@ import { certificateInspectionSchema } from '../../src/shared/api.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
+import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -313,6 +316,36 @@ test.each(['node', 'python'] as const)('%s uses a fetched intermediate without a
   setDefaultCACertificates(defaults)
   bytes = 0
   expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
+})
+
+test.each(['ldap-axi', 'vectra-axi'] as const)('%s explicit CA files retain default roots after automatic intermediate repair', async tool => {
+  serve('leaf')
+  setDefaultCACertificates([...defaults, pem('ca')])
+  const adapter = tool === 'ldap-axi'
+    ? createLdapAdapter({ getCredential: async () => ({ url: endpoint.replace('https:', 'ldaps:'),
+      auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap' }) })
+    : createVectraAdapter({ getCredential: async () => ({ kind: 'qux', apiVersion: '2.5', origin: endpoint,
+      auth: 'token', token: 'CANARY-vectra', caBundle: pem('self-signed') }) }, join(directory, 'writes.log'),
+    loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!)
+  const call = await adapter.prepare(tool === 'ldap-axi' ? ['auth', 'status'] : ['health', 'list'],
+    { id: 'synthetic-credential', tool, revision: 1 })
+  const files = call.files.filter(file => file.appendTrustedCa)
+  expect(files).toHaveLength(1)
+  const args = ['-e', `const fs = require('node:fs');
+    require('node:https').get(${JSON.stringify(endpoint)}, {
+      ca: fs.readFileSync(${JSON.stringify(files[0].name)}), agent: false
+    }, response => response.pipe(process.stdout)).on('error', error => { console.error(error.code); process.exitCode = 1 })`]
+  const run = () => runner.run('synthetic-development-user', process.execPath, args, call.environment, call.secrets,
+    { ...call.limits, credentialTrust: readCredentialTrust(db, store.findCredential('vectra-axi')!) }, {}, call.files)
+  expect((await run()).exitCode).not.toBe(0)
+  expect((await inspect()).repairAvailable).toBe(true)
+  const passed = await run()
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  expect(passed.stdout).toBe('ok')
+  setDefaultCACertificates(defaults)
+  bytes = 0
+  expect((await run()).exitCode).not.toBe(0)
   expect(bytes).toBe(0)
 })
 

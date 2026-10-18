@@ -120,7 +120,8 @@ async function execute(
   pathPrefix?: string,
 ): Promise<RunnerResult> {
   const credentialTrust = limits.credentialTrust ?? []
-  const trustPem = [trustedCa?.pem, ...credentialTrust.map(certificate => certificate.pem)].filter(Boolean).join('\n')
+  const extraTrustPem = [trustedCa?.pem, ...credentialTrust.map(certificate => certificate.pem)].filter(Boolean).join('\n')
+  const trustPem = extraTrustPem ? [...getCACertificates('default'), extraTrustPem].join('\n') : ''
   const pins = credentialTrust.filter(certificate => certificate.mode === 'pin').map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
     return { hostname: endpoint.hostname, port: endpoint.port,
@@ -148,7 +149,7 @@ async function execute(
       const names = new Set<string>()
       const trustFile = 'artium-trusted-ca.pem'
       const materialized: readonly TemporaryFile[] = [...files,
-        ...(trustPem ? [{ name: trustFile, content: [...getCACertificates('default'), trustPem].join('\n') }] : []),
+        ...(trustPem ? [{ name: trustFile, content: trustPem }] : []),
         ...(credentialTrust.length ? [
           { name: 'artium-certificate-pins.json', content: JSON.stringify(pins) },
           { name: 'artium-tls.cjs', content: nodeTrustBootstrap },
