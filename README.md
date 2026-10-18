@@ -231,7 +231,8 @@ For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clie
 Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
 Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
 See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.5#configuration) for deployment-specific requirements.
-If the deployment uses a private CA, paste its PEM contents into `caBundle`; enter no server file path.
+For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
+For shared trust across tools, follow the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas).
 Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
 Save, run **Test credential**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
 
@@ -340,7 +341,8 @@ At `/admin/tools/ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn
 Use `ldaps://<directory-host>:636` with `startTls` left at the default (unset) or explicitly `false`, or `ldap://<directory-host>:389` with `startTls=true`.
 Saving an `ldaps://` URL with `startTls=true` is rejected with `INVALID_INPUT` and the message `startTls must be false for this URL.`
 Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
-If a private CA is required, supply its PEM contents in `caFile`, not a server file path.
+For a credential-specific private CA, supply its PEM contents in `caFile`, not a server file path.
+For shared trust across tools, follow the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas).
 The multi-line `caFile` editor preserves newlines through saving and private CA file materialization for each call.
 Artium's CLI has no credential-save command.
 Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
@@ -515,7 +517,7 @@ Credential editors pre-fill non-secret values and never return stored secrets.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 For Vectra, `origin` must be a canonical HTTPS origin, without a path, credentials or an explicit default port.
-Enter PEM contents in `caBundle`, not a server file path; Artium writes a private CA file for each call.
+See [Vectra credential setup](#vectra) for private CA input and shared trust.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
 Azure and Graph certificate editors accept one PEM file containing one certificate and its matching unencrypted private key and calculate the fingerprint automatically.
