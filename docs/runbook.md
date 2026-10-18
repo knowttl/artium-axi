@@ -198,7 +198,7 @@ Preflight sends no credentials.
 The first failed stage and host appear in the administrator test response and cached health on `/admin/tools`, with the tool's error text and hint when available.
 TLS diagnostics include the presented issuer and whether the chain is self-signed or untrusted.
 Check the configured upstream CA bundle when a TLS failure occurs; additional trusted-CA support is tracked in issue #99.
-Azure and Graph provider codes such as `AADSTS7000215` (invalid secret), `AADSTS7000222` (expired secret), `AADSTS700016` (application not found) and `AADSTS90002` (unknown tenant) identify the configuration to repair.
+Azure provider codes such as `AADSTS7000215` (invalid secret), `AADSTS7000222` (expired secret), `AADSTS700016` (application not found) and `AADSTS90002` (unknown tenant) identify the configuration to repair.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
 Diagnostic text is held only in server memory for the current cached check; after a restart, rerun Test credential for the detail accompanying a persisted category.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.

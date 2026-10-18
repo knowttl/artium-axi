@@ -121,6 +121,8 @@ const diagnosticCases = [
   { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: OPERATION_TIMEOUT\nmessage: the operation deadline elapsed' },
   { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: ACCESS_DENIED\nmessage: API access was denied' },
   { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: AUTH_EXPIRED\nmessage: API credential has expired' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'token acquisition', text: 'code: AUTH_EXCHANGE_FAILED\nmessage: OAuth credential exchange could not complete' },
+  { code: 'TOOL_FAILED', stage: 'token acquisition', text: 'code: AUTH_EXCHANGE_FAILED\nmessage: OAuth credential exchange failed' },
 ] as const
 
 test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)(

@@ -149,6 +149,23 @@ test('listing reads a failed stored check without preparing or running a platfor
   expect(run).not.toHaveBeenCalled()
 })
 
+test.each([
+  ['OAuth credential exchange could not complete', 'UPSTREAM_NETWORK_FAILED'],
+  ['OAuth credential exchange failed', 'TOOL_FAILED'],
+])('background health retains the token-exchange category for %s', async (message, code) => {
+  const text = `code: AUTH_EXCHANGE_FAILED\nmessage: ${message}`
+  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+  await health.refresh('falcon-axi')
+  const cached = db.prepare('SELECT status, error_code, checked_at FROM tool_health').get() as {
+    status: string, error_code: string, checked_at: number,
+  }
+  expect(cached).toMatchObject({ status: 'error', error_code: code })
+  expect(health.diagnostic('falcon-axi', 1, cached.checked_at)).toMatchObject({
+    stage: 'token acquisition', toolCode: 'AUTH_EXCHANGE_FAILED', message: text, credentialRevision: 1,
+  })
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(message)
+})
+
 test('replacement during a check queues one fresh check and never caches the old revision', async () => {
   let release!: (value: typeof result) => void
   let started!: () => void

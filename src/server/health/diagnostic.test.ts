@@ -24,6 +24,9 @@ test('preserves emitted provider and tool codes with mapped advice', () => {
 test.each([
   ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
   ['OPERATION_TIMEOUT', 'the operation deadline elapsed', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
+  ['AUTH_EXCHANGE_FAILED', 'OAuth credential exchange could not complete', 'UPSTREAM_NETWORK_FAILED', 'token acquisition'],
+  ['AUTH_EXCHANGE_FAILED', 'OAuth credential exchange failed', 'TOOL_FAILED', 'token acquisition'],
+  ['AUTH_FAILED', 'OAuth client credentials were rejected', 'UPSTREAM_AUTH_FAILED', 'authentication'],
   ['ACCESS_DENIED', 'API access was denied', 'UPSTREAM_AUTH_FAILED', 'authentication'],
   ['AUTH_EXPIRED', 'API credential has expired', 'UPSTREAM_AUTH_FAILED', 'authentication'],
   ['AUTH_REQUIRED', 'The profile secret reference is unset or empty', 'UPSTREAM_AUTH_FAILED', 'authentication'],
