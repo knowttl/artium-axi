@@ -185,6 +185,37 @@ The CLI's separate `ARTIUM_AXI_CA_FILE` setting trusts the Artium server from a 
 If an inspected upstream still fails, confirm the intended issuer and fingerprint with the network operator and check certificate validity and the hostname.
 Do not disable verification; a temporary network-policy exemption is an alternative while the correct CA is provisioned.
 
+### Trusting one tool from the administration UI
+
+After a credential test reports a TLS verification failure, open the tool’s **Inspect certificate** window.
+Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
+For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
+Administration capability and recent identity confirmation are required.
+
+Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
+Compare the fingerprint with the appliance’s own display through a trusted channel.
+Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
+The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
+**Trust certificate for this tool** is the single trust confirmation; no certificate file or private key is accepted by this flow.
+
+Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
+A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
+The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
+Trust does not disable hostname or date verification.
+Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
+
+If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
+Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
+Artium saves the intermediate without confirmation only after another handshake validates the chain to a root the server already trusts.
+The window reports this repair; retry the credential test afterward.
+An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
+
+The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
+Re-inspect the saved endpoint for rotation, and use **Remove trust** to remove a stored certificate.
+These changes take effect on subsequent calls and survive server restarts.
+Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
+
 ## CLI launchers and password changes
 
 Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.

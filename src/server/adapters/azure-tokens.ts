@@ -3,6 +3,8 @@ import type { INetworkModule, NodeAuthOptions } from '@azure/msal-node'
 import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
 import { azureAdvice, certificateErrorCodePattern, diagnosticError, safeDiagnostic } from '../health/diagnostic.js'
+import type { CredentialTrust } from '../store/trusted-certificates.js'
+import { credentialFetch } from '../credential-tls.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const identity = { tenantId: z.uuid(), clientId: z.uuid() }
@@ -33,7 +35,8 @@ export interface AzureToken {
 }
 
 // One acquisition, with no persistent cache.
-export async function mintAzureToken(value: unknown, resource: AzureResource, networkClient?: INetworkModule, signal?: AbortSignal): Promise<AzureToken> {
+export async function mintAzureToken(value: unknown, resource: AzureResource, networkClient?: INetworkModule, signal?: AbortSignal,
+  trust: readonly CredentialTrust[] = []): Promise<AzureToken> {
   let transportFailure: unknown
   const secrets: string[] = []
   try {
@@ -55,9 +58,10 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
         return jwt
       }
     }
-    if (!networkClient && signal) {
+    if (!networkClient && (signal || trust.length)) {
       const request = async <T>(url: string, method: string, options?: import('@azure/msal-node').NetworkRequestOptions) => {
-        const response = await fetch(url, { method, headers: options?.headers, body: options?.body, signal })
+        const init = { method, headers: options?.headers, body: options?.body, signal }
+        const response = trust.length ? await credentialFetch(url, init, trust) : await fetch(url, init)
         let body: T
         try { body = await response.json() as T } catch (error) {
           if (!(error instanceof SyntaxError)) throw error

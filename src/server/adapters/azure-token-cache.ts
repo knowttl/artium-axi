@@ -4,11 +4,13 @@ import { ArtiumError, errors } from '../../shared/errors.js'
 import { safeDiagnostic } from '../health/diagnostic.js'
 import { azureAudiences, azureCredentialSchema, mintAzureToken } from './azure-tokens.js'
 import type { AzureCredential, AzureResource, AzureToken } from './azure-tokens.js'
+import type { CredentialTrust } from '../store/trusted-certificates.js'
 
 export interface AzureTokenIdentity {
   id: string
   revision: number
   credential: AzureCredential
+  trust?: readonly CredentialTrust[]
 }
 
 export interface AzureResourcePlan {
@@ -65,12 +67,12 @@ export class AzureTokenCache {
     const resources = [...new Set([...plan.required, ...plan.optional])]
     if (resources.some(resource => !Object.hasOwn(azureAudiences, resource))) throw new ArtiumError('CREDENTIAL_INVALID')
     const tokens = await Promise.all(resources.map(async resource => {
-      const key = JSON.stringify([identity.id, identity.revision, credential.data.tenantId, credential.data.clientId, resource])
+      const key = JSON.stringify([identity.id, identity.revision, credential.data.tenantId, credential.data.clientId, resource, identity.trust ?? []])
       let entry = current.entries.get(key)
       if (!entry) { entry = {}; current.entries.set(key, entry) }
       try {
         if (!entry.token || entry.token.expiresAt - Date.now() < 300_000) {
-          entry.pending ??= this.mint(credential.data, resource).then(token => {
+          entry.pending ??= this.mint(credential.data, resource, identity.trust).then(token => {
             if (this.identities.get(identity.id) !== current) throw new ArtiumError('REVISION_CONFLICT')
             entry.token = token
             return token
@@ -87,7 +89,7 @@ export class AzureTokenCache {
     return Object.fromEntries(tokens.filter(token => token !== undefined))
   }
 
-  private async mint(credential: AzureCredential, resource: AzureResource): Promise<AzureToken> {
+  private async mint(credential: AzureCredential, resource: AzureResource, trust?: readonly CredentialTrust[]): Promise<AzureToken> {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout>
     const deadline = new Promise<never>((_, reject) => {
@@ -97,7 +99,7 @@ export class AzureTokenCache {
       for (let attempt = 0; attempt < 3; attempt++) {
         if (controller.signal.aborted) throw new ArtiumError('UPSTREAM_NETWORK_FAILED')
         try {
-          const token = await mintAzureToken(credential, resource, this.networkClient, controller.signal)
+          const token = await mintAzureToken(credential, resource, this.networkClient, controller.signal, trust)
           if (token.expiresAt <= Date.now()) throw new ArtiumError('UPSTREAM_AUTH_FAILED')
           return token
         } catch (error) {

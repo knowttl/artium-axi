@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export function createTestCertificates(directory, hosts) {
@@ -35,4 +35,42 @@ extendedKeyUsage = serverAuth
     '-keyout', join(directory, 'server.key'), '-out', join(directory, 'server.csr')])
   openssl(['ca', '-batch', '-notext', '-rand_serial', '-config', 'authority.cnf',
     '-extensions', 'server', '-in', 'server.csr', '-out', 'server.crt', ...validity])
+}
+
+export function createInspectionCertificates(directory, issuerUrl) {
+  createTestCertificates(directory, ['localhost'])
+  const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+  writeFileSync(join(directory, 'inspection.cnf'), readFileSync(join(directory, 'authority.cnf'), 'utf8') + `
+[inspection-server]
+subjectAltName = DNS:localhost
+basicConstraints = CA:FALSE
+extendedKeyUsage = serverAuth
+authorityInfoAccess = caIssuers;URI:${issuerUrl}
+[mismatch-server]
+subjectAltName = DNS:other.synthetic.test
+basicConstraints = CA:FALSE
+extendedKeyUsage = serverAuth
+[non-http-server]
+subjectAltName = DNS:localhost
+basicConstraints = CA:FALSE
+extendedKeyUsage = serverAuth
+authorityInfoAccess = caIssuers;URI:ftp://issuer.synthetic.test/intermediate
+`)
+  openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Artium synthetic intermediate',
+    '-keyout', 'intermediate.key', '-out', 'intermediate.csr'])
+  const ca = ['ca', '-batch', '-notext', '-rand_serial', '-config', 'inspection.cnf']
+  const validity = ['-startdate', '20200101000000Z', '-enddate', '20991231235959Z']
+  openssl([...ca, '-extensions', 'root', '-in', 'intermediate.csr', '-out', 'intermediate.crt', ...validity])
+  openssl([...ca, '-extensions', 'inspection-server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/CN=synthetic-leaf', '-in', 'server.csr', '-out', 'leaf.crt', ...validity])
+  openssl([...ca, '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/CN=rotated.synthetic.test', '-in', 'server.csr', '-out', 'rotated.crt', ...validity])
+  openssl([...ca, '-extensions', 'server', '-subj', '/CN=expired.synthetic.test', '-in', 'server.csr',
+    '-out', 'expired.crt', '-startdate', '20200101000000Z', '-enddate', '20210101000000Z'])
+  openssl([...ca, '-extensions', 'mismatch-server', '-subj', '/CN=other.synthetic.test', '-in', 'server.csr',
+    '-out', 'mismatch.crt', ...validity])
+  openssl([...ca, '-extensions', 'non-http-server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/CN=non-http.synthetic.test', '-in', 'server.csr', '-out', 'non-http.crt', ...validity])
+  openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
+    '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
 }

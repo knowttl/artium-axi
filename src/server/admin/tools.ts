@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3'
 import { certificateFields } from './certificate.js'
+import { registerCertificateAdmin } from './certificates.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
@@ -48,6 +49,7 @@ const legacySecretFields = {
 export function registerToolAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, options: ToolAdminOptions): void {
   const { adapters, store, health, credentialProfiles } = options
+  registerCertificateAdmin(app, db, audit, authorize, store)
   const schemaFor = (tool: ToolName) => credentialProfiles[tool]?.credentialSchema ?? credentialSchemas[tool]
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const result = schema.safeParse(value)

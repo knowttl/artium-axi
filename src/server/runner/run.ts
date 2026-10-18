@@ -9,6 +9,7 @@ import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult } from './runner.js'
+import { readCredentialTrust } from '../store/trusted-certificates.js'
 
 export interface RunContext {
   requestId: string
@@ -50,7 +51,7 @@ export async function runTool<Credential>(
     write = prepared.write
     journal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect)
     result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
-      prepared.secrets, { ...prepared.limits, signal: context.signal },
+      prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined

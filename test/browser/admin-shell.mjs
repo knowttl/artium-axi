@@ -377,6 +377,51 @@ const toolCredentials = [
   { tool: 'ldap-axi', fields: { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-ldap-password' }, secret: 'bindPassword', settings: {} },
 ]
 
+test('certificate inspection reviews the saved endpoint and trusts it in one confirmation', () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/tools/vectra-axi');
+    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
+      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    }
+    await page.fill('[data-profile-field=origin]', base);
+    await page.fill('[data-profile-field=token]', 'CANARY-certificate-review');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    await page.click('form[data-test-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    check(await page.eval(() => document.querySelector('[data-certificate-details]').innerText.includes('Hostname: localhost')), 'Saved hostname missing');
+    check(await page.eval(() => document.querySelector('[data-certificate-details] input[readonly]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256)}, 'Incorrect full fingerprint');
+    check(await page.eval(() => document.querySelector('#certificate-inspection').innerText.includes('interception')), 'Network-path warning missing');
+    check(await page.eval(() => document.querySelector('#certificate-inspection').scrollWidth <= document.querySelector('#certificate-inspection').clientWidth), 'Certificate dialog overflows the narrow screen');
+    await page.click('[data-trust-certificate] button');
+    await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Trusted fingerprint overflows the narrow screen');
+    check(await page.eval(() => !document.querySelector('#confirmation[open]')), 'Trust requires an extra confirmation');
+    check(await page.eval(async () => {
+      const result = await (await fetch('/v1/admin/tools/vectra-axi/certificates')).json();
+      const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
+      return result.certificates.length === 1 && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
+    }), 'Trust or fingerprint audit missing');
+    await page.click('form[data-test-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Credential test did not pass after trust');
+    await page.click('form[data-method=DELETE][action$="/certificates"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-inspect-certificate][hidden]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('No certificates trusted')), 'Removed trust remains displayed');
+  `)
+})
+
 test('credential diagnostics show the admission failure before saving', () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi');

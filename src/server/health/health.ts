@@ -12,6 +12,7 @@ import type { Audit } from '../audit/audit.js'
 import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
+import { readCredentialTrust } from '../store/trusted-certificates.js'
 
 const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'] }
 
@@ -113,13 +114,14 @@ export class ToolHealth {
           const path = issue?.path.filter(key => typeof key === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)).join('.')
           throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: `Invalid credential field: ${path || 'profile'}.` })
         }
-        if (!background) await preflight(tool, credential)
+        const credentialTrust = readCredentialTrust(db, reference)
+        if (!background) await preflight(tool, credential, credentialTrust)
         const prepared = await adapter.prepare(args, reference)
         secrets.push(...prepared.secrets)
         journal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
         // Per-tool accounting leaves background reads governed by the global slots.
         const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
-          prepared.limits, {}, prepared.files, () => {
+          { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
             authorize?.()
             if (background && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')

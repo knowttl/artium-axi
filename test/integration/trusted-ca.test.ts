@@ -21,7 +21,7 @@ const identity = { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222
 const profile = (tool: 'mg-axi' | 'vectra-axi') => loadCredentialProfile(tool,
   join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
 
-test.each(toolSchema.options)('%s inherits central child trust and retains credential-specific CAs', async tool => {
+test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const).map(source => ({ tool, source }))))('$tool inherits $source child trust and retains credential-specific CAs', async ({ tool, source: trustSource }) => {
   await withFakeService(async ({ directory }) => {
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
@@ -45,7 +45,7 @@ test.each(toolSchema.options)('%s inherits central child trust and retains crede
     const args = { 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
       'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
-    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)
     const node = `const fs = require('node:fs'); console.log(JSON.stringify({
       node: fs.readFileSync(process.env.NODE_EXTRA_CA_CERTS, 'utf8'),
       python: fs.readFileSync(process.env.REQUESTS_CA_BUNDLE, 'utf8'),
@@ -56,7 +56,9 @@ test.each(toolSchema.options)('%s inherits central child trust and retains crede
       const result = await runner.run('synthetic-user', tool === 'falcon-axi' ? '/usr/bin/python3' : process.execPath,
         tool === 'falcon-axi' ? ['-c', python] : ['-e', node],
         { ...call.environment, ARTIUM_TEST_CA_FILES: JSON.stringify(call.files.filter(file => file.appendTrustedCa).map(file => file.name)) },
-        call.secrets, call.limits, {}, call.files)
+        call.secrets, { ...call.limits, ...(trustSource === 'credential' ? { credentialTrust: [{
+          endpoint: 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: 'pin' as const,
+        }] } : {}) }, {}, call.files)
       expect(result.exitCode, result.stderr).toBe(0)
       const output = JSON.parse(result.stdout)
       expect(output.node).toContain(pem)
