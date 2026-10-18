@@ -19,7 +19,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       auth: authorization.startsWith('Basic ') ? 'Basic' : authorization.startsWith('Bearer ') ? 'Bearer' : 'none',
       canaryReceived: authorization === `Basic ${Buffer.from(':CANARY-ado-pat').toString('base64')}` }
     requests.push(recorded)
-    const workItem = { id: 42, rev: 2, fields: { 'System.Title': 'Synthetic work item', 'System.State': 'Active', 'System.WorkItemType': 'Task' } }
+    const workItem = resources.get('ado-work-item') ?? { id: 42, rev: 2, fields: { 'System.Title': 'Synthetic work item', 'System.State': 'Active',
+      'System.WorkItemType': 'Task', 'System.Tags': 'synthetic', 'System.Description': 'Synthetic description',
+      'System.AssignedTo': { id: 'synthetic-user', displayName: 'Synthetic User' } } }
+    const pr = resources.get('ado-pr') ?? { pullRequestId: 42, title: 'Synthetic PR', description: 'Synthetic description', status: 'active',
+      repository: { id: 'synthetic-repo', name: 'Synthetic Repo' }, reviewers: [], autoCompleteSetBy: null }
+    const thread = resources.get('ado-thread') ?? { id: 5, status: 'active', comments: [] }
     let body = ''
     req.setEncoding('utf8')
     req.on('data', chunk => { body += chunk })
@@ -34,8 +39,29 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       } else if (url.pathname.endsWith('/_apis/wit/workitemsbatch') && req.method === 'POST') {
         res.end(JSON.stringify({ value: [workItem] }))
       } else if (url.pathname.endsWith('/_apis/wit/workitems/42') && ['GET', 'PATCH'].includes(req.method)) {
-        if (req.method === 'PATCH') mutations++
+        if (req.method === 'PATCH') {
+          mutations++
+          for (const patch of recorded.body) {
+            if (patch.path.startsWith('/fields/')) workItem.fields[patch.path.slice('/fields/'.length)] = patch.value
+          }
+          resources.set('ado-work-item', workItem)
+        }
         res.end(JSON.stringify(workItem))
+      } else if (url.pathname.endsWith('/pullrequests/42/threads/5/comments') && req.method === 'POST') {
+        mutations++
+        const comment = { id: thread.comments.length + 1, ...recorded.body }
+        thread.comments.push(comment)
+        resources.set('ado-thread', thread)
+        res.end(JSON.stringify(comment))
+      } else if (url.pathname.endsWith('/pullrequests/42/threads') && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [thread] }))
+      } else if (url.pathname.endsWith('/pullrequests/42') && ['GET', 'PATCH'].includes(req.method)) {
+        if (req.method === 'PATCH') {
+          mutations++
+          Object.assign(pr, recorded.body)
+          resources.set('ado-pr', pr)
+        }
+        res.end(JSON.stringify(pr))
       } else if (url.pathname.endsWith('/_apis/redaction') && req.method === 'GET') {
         res.end(JSON.stringify(url.searchParams.get('form') === 'basic'
           ? { header: Buffer.from(':CANARY-ado-pat').toString('base64') } : { token: 'CANARY-ado-pat' }))

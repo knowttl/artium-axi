@@ -79,6 +79,47 @@ test.each([
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
 })
 
+test.each([
+  ['pr', 'update', '42', '--description', ''], ['pr', 'update', '42', '--description='],
+  ['work-item', 'update', '42', '--tags', ''], ['work-item', 'update', '42', '--description', ''],
+  ['work-item', 'update', '42', '--assigned-to', ''],
+].map(args => [args]))('preserves explicit empty update values: %j', async args => {
+  const call = await adapter(true).prepare(args, reference)
+  expect(call.effect).toBe('write')
+  expect(call.args.at(-1)).toBe('')
+})
+
+test.each([
+  { args: ['work-item', 'create', '--type', 'Task', '--title', 'Synthetic title'],
+    check: ['work-item', 'list', '--state', 'all', '--limit', '1000', '--search', 'Synthetic title', '--type', 'Task'] },
+  { args: ['work-item', 'update', '42', '--set', '{"Custom.Value":"changed"}'],
+    check: ['api', '_apis/wit/workitems/42', '--no-project', '--query', '$expand=all', '--full'] },
+  { args: ['work-item', 'links', 'add', '42', '--related', '43'],
+    check: ['api', '_apis/wit/workitems/42', '--no-project', '--query', '$expand=all', '--full'] },
+  { args: ['wi', 'comment', '42', '--body', 'Synthetic comment'],
+    check: ['api', '_apis/wit/workItems/42/comments', '--api-version', '7.1-preview.4', '--query', '$order=desc&$top=200', '--full'] },
+  { args: ['pr', 'create', '--repo', 'Synthetic Repo', '--source', 'feature', '--target', 'main', '--title', 'Synthetic PR'],
+    check: ['pr', 'list', '--status', 'all', '--limit', '1000', '--repo', 'Synthetic Repo', '--source', 'feature', '--target', 'main'] },
+  ...['update', 'complete', 'abandon', 'approve', 'vote'].map(operation => ({
+    args: ['prs', operation, '42'], check: ['api', '_apis/git/pullrequests/42', '--full', '--no-project'],
+  })),
+  ...['add', 'remove'].map(operation => ({ args: ['pr', 'reviewer', operation, '42', '--repo', 'Synthetic Repo'],
+    check: ['api', '_apis/git/repositories/Synthetic%20Repo/pullrequests/42', '--full'] })),
+  { args: ['pr', 'comment', '42', '--body', 'Synthetic comment'], check: ['pr', 'get', '42', '--threads', '--full'] },
+  ...['resolve', 'reopen', 'reply'].map(operation => ({ args: ['pr', 'thread', operation, '--id', '42', '--thread', '5'],
+    check: ['pr', 'get', '42', '--threads', '--full'] })),
+  { args: ['pipeline', 'run', '7', '--branch', 'feature'],
+    check: ['pipeline', 'runs', '--limit', '1000', '--pipeline', '7', '--branch', 'feature'] },
+  { args: ['pipelines', 'run', '--pipeline', '7', '--branch', 'refs/heads/feature'],
+    check: ['pipeline', 'runs', '--limit', '1000', '--pipeline', '7', '--branch', 'refs/heads/feature'] },
+  ...['create', 'delete'].map(operation => ({ args: ['refs', operation, '--repo', 'Synthetic Repo', '--name', 'feature'],
+    check: ['ref', 'list', '--full', '--repo', 'Synthetic Repo', '--name', 'feature'] })),
+])('provides an operation-specific recovery read for $args', async ({ args, check }) => {
+  const call = await adapter(true).prepare([...args, '--project', 'Other Project'], reference)
+  expect(call.write?.checkArgs).toEqual([...check, '--project', 'Other Project'])
+  expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
+})
+
 test.each([{ stdin: '' }, { stdin: '{}' }, { files: [{ name: 'body', contentBase64: 'eA==' }] }])('refuses stdin and files: %j', async input => {
   const getCredential = vi.fn()
   await expect(createAdoAdapter({ getCredential }).prepare(['api', '_apis/projects'], reference, input))

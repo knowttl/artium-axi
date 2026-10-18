@@ -2,9 +2,11 @@ import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
+import { decode } from '@toon-format/toon'
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { createApp } from '../../src/server/app.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import type { PreparedCall } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -14,6 +16,54 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+
+async function runPinned(runner: Runner, port: number, call: PreparedCall) {
+  return runner.run('synthetic-user', process.execPath, [
+    '--import', fileURLToPath(new URL('../fake-service/ado-transport.mjs', import.meta.url)),
+    fileURLToPath(new URL('../../tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args,
+  ], { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files)
+}
+
+test.each([
+  { args: ['pr', 'update', '42', '--description', ''], expected: { description: '' } },
+  { args: ['work-item', 'update', '42', '--tags', ''], expected: { fields: { 'System.Tags': '' } } },
+  { args: ['work-item', 'update', '42', '--description='], expected: { fields: { 'System.Description': '' } } },
+  { args: ['wi', 'update', '42', '--assigned-to', ''], expected: { fields: { 'System.AssignedTo': '' } } },
+  { args: ['work-item', 'update', '42', '--set', '{"Custom.Value":"changed"}'], expected: { fields: { 'Custom.Value': 'changed' } } },
+  { args: ['pr', 'update', '42', '--auto-complete'], expected: { autoCompleteSetBy: { id: 'synthetic-user' } } },
+])('the pinned binary recovery read exposes the updated state for $args', async ({ args, expected }) => {
+  await withFakeService(async ({ directory, port }) => {
+    const adapter = createAdoAdapter({ getCredential: async () => ({ org: 'synthetic-org', project: 'Synthetic Project',
+      auth: 'pat', token: 'CANARY-ado-pat', allowWrites: true }) })
+    const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    try {
+      const call = await adapter.prepare(args, reference)
+      expect(await runPinned(runner, port, call)).toMatchObject({ exitCode: 0 })
+      const check = await adapter.prepare(call.write!.checkArgs, reference)
+      const result = await runPinned(runner, port, check)
+      expect(result.exitCode, result.stdout).toBe(0)
+      expect(decode(result.stdout)).toMatchObject({ response: expected })
+    } finally { await runner.shutdown() }
+  })
+})
+
+test('the pinned binary recovery read includes the full posted thread reply', async () => {
+  await withFakeService(async ({ directory, port }) => {
+    const adapter = createAdoAdapter({ getCredential: async () => ({ org: 'synthetic-org', project: 'Synthetic Project',
+      auth: 'pat', token: 'CANARY-ado-pat', allowWrites: true }) })
+    const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    const body = 'Synthetic reply '.repeat(100) + 'complete reply marker'
+    try {
+      const call = await adapter.prepare(['pr', 'thread', 'reply', '42', '--thread', '5', '--body', body], reference)
+      expect(await runPinned(runner, port, call)).toMatchObject({ exitCode: 0 })
+      const result = await runPinned(runner, port, await adapter.prepare(call.write!.checkArgs, reference))
+      expect(result.exitCode, result.stdout).toBe(0)
+      expect(result.stdout).toContain(body)
+    } finally { await runner.shutdown() }
+  })
+})
 
 test('a managed PAT can be saved, tested and used with write gating through the pinned binary', async () => {
   await withFakeService(async ({ directory, port, send }) => {

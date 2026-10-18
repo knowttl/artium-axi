@@ -38,7 +38,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
     if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     const boolean = knownFlags[name] === 'boolean'
     const value = inline ?? (boolean ? ['true', 'false'].includes(args[index + 1]) ? args[++index] : 'true' : args[++index])
-    if (!value || value.startsWith('--') || boolean && !['true', 'false'].includes(value)) throw new ArtiumError('INVALID_INPUT')
+    if (value === undefined || value.startsWith('--') || boolean && !['true', 'false'].includes(value)) throw new ArtiumError('INVALID_INPUT')
     flags.set(name, value)
   }
   const aliases: Record<string, string> = inventory.aliases
@@ -82,11 +82,49 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
 function readBack(call: ReturnType<typeof adoArguments>): PreparedCall['write'] {
   const [group, operation] = call.command.split(' ')
   const id = call.positionals[0] ?? call.flags.get('id')
-  const checkArgs = group === 'work-item' ? operation === 'create' || !id ? ['work-item', 'list'] : ['work-item', 'get', id]
-    : group === 'pr' ? operation === 'create' || !id ? ['pr', 'list'] : ['pr', 'get', id]
-    : group === 'pipeline' ? ['pipeline', 'runs'] : ['ref', 'list']
-  for (const name of ['project', 'repo']) if (call.flags.has(name) && (name !== 'repo' || group !== 'work-item')) checkArgs.push(`--${name}`, call.flags.get(name)!)
-  return { operation: call.command, target: id ?? 'new resource', checkArgs }
+  const repo = call.flags.get('repo')
+  let checkArgs: string[]
+  let selectors: string[] = []
+  let afterCheck: string | undefined
+  if (group === 'work-item') {
+    if (operation === 'create' || !id) {
+      checkArgs = ['work-item', 'list', '--state', 'all', '--limit', '1000']
+      if (call.flags.has('title')) checkArgs.push('--search', call.flags.get('title')!)
+      selectors = ['type']
+    } else if (operation === 'comment') {
+      checkArgs = ['api', `_apis/wit/workItems/${encodeURIComponent(id)}/comments`, '--api-version', '7.1-preview.4',
+        '--query', '$order=desc&$top=200', '--full']
+      afterCheck = 'Inspect complete comment text and follow any continuation token before retrying'
+    } else {
+      checkArgs = ['api', `_apis/wit/workitems/${encodeURIComponent(id)}`, '--no-project', '--query', '$expand=all', '--full']
+    }
+  } else if (group === 'pr') {
+    if (operation === 'create' || !id) {
+      checkArgs = ['pr', 'list', '--status', 'all', '--limit', '1000']
+      selectors = ['repo', 'source', 'target']
+    } else if (['comment', 'thread'].includes(operation)) {
+      checkArgs = ['pr', 'get', id, '--threads', '--full']
+      selectors = ['repo']
+    } else {
+      checkArgs = ['api', repo ? `_apis/git/repositories/${encodeURIComponent(repo)}/pullrequests/${encodeURIComponent(id)}`
+        : `_apis/git/pullrequests/${encodeURIComponent(id)}`, '--full']
+      if (!repo) checkArgs.push('--no-project')
+    }
+  } else if (group === 'pipeline') {
+    checkArgs = ['pipeline', 'runs', '--limit', '1000']
+    const pipeline = call.flags.get('pipeline') ?? id
+    if (pipeline) checkArgs.push('--pipeline', pipeline)
+    selectors = ['branch']
+  } else {
+    checkArgs = ['ref', 'list', '--full']
+    selectors = ['repo', 'name']
+  }
+  for (const name of [...selectors, 'project']) if (call.flags.has(name)) checkArgs.push(`--${name}`, call.flags.get(name)!)
+  if (operation === 'create' || group === 'pipeline' || group === 'ref') {
+    afterCheck = 'Results may be limited; absence from this read does not prove the write failed. Inspect matching resources and any further pages before retrying'
+  }
+  return { operation: call.command, target: id ?? call.flags.get('name') ?? 'new resource', checkArgs,
+    ...(afterCheck ? { afterCheck } : {}) }
 }
 
 export function createAdoAdapter(source: SecretSource): Adapter<unknown> {
