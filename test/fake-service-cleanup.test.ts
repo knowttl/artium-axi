@@ -19,6 +19,12 @@ const docker = vi.hoisted(() => ({
   runnerStatus: 0,
 }))
 
+// Fake build processes cannot supply compiled output for filesystem evidence.
+vi.mock('../scripts/build-inputs.mjs', () => ({
+  buildInputs: () => ({ head: 'synthetic-head', inputs: 'synthetic-inputs', node: process.version }),
+  digest: () => 'synthetic-output',
+}))
+
 vi.mock('node:child_process', async importOriginal => ({
   ...await importOriginal<typeof import('node:child_process')>(),
   spawnSync: (bin: string, args: string[], options: { timeout?: number }) => {
@@ -210,7 +216,8 @@ test('runner waits for a slow builder to finish before probing and cleaning up',
   expect(docker.resources.size).toBe(0)
 })
 
-test.each([0, 1])('container phases overlap and wait before cleanup when runner exits %s', async status => {
+test.each([{ status: 0, expected: undefined }, { status: 1, expected: 1 }])
+('container phases overlap and wait before cleanup when runner exits $status', async ({ status, expected }) => {
   docker.orchestration = true
   docker.runnerStatus = status
   const walkingStarted = new Promise<void>(resolve => { docker.walkingStarted = resolve })
@@ -227,6 +234,6 @@ test.each([0, 1])('container phases overlap and wait before cleanup when runner 
     docker.walking!.emit('close', 0)
     await checks
   }
-  expect(process.exitCode).toBe(status === 0 ? undefined : 1)
+  expect(process.exitCode).toBe(expected)
   expect(docker.resources.size).toBe(0)
 })
