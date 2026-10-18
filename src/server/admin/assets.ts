@@ -136,7 +136,11 @@ const savedTest = sessionStorage.getItem('credential-test:' + location.pathname)
 if (savedTest) {
   sessionStorage.removeItem('credential-test:' + location.pathname);
   const result = document.querySelector('[data-test-result]');
-  if (result) result.textContent = savedTest;
+  if (result) {
+    const saved = JSON.parse(savedTest);
+    result.textContent = saved.message;
+    if (saved.health) renderTestHealth(result.closest('section'), saved.health);
+  }
 }
 
 function confirmChange(consequence) {
@@ -246,10 +250,30 @@ function reauthenticate(csrf) {
   });
 }
 
-async function confirmTestResponse(response) {
-  const health = await response.json();
+async function readTestResponse(response) {
+  const result = await response.json();
+  if (!response.ok) {
+    const error = result.error;
+    return { error, health: { status: 'error', checkedAt: error.diagnostic?.checkedAt ?? null,
+      errorCode: error.code, diagnostic: error.diagnostic } };
+  }
+  const health = result;
   if (health.status !== 'ok' || !Number.isInteger(health.checkedAt) ||
       !Number.isInteger(health.credentialRevision) || health.errorCode !== null) throw new Error();
+  return { health };
+}
+
+function renderTestHealth(section, health) {
+  section.querySelector('[id^=status-]').textContent = health.status;
+  section.querySelector('[data-test-checklist]').textContent =
+    (health.status === 'ok' ? 'Done' : 'To do') + ': Pass Test credential below';
+  const checked = section.querySelector('[data-check-time]');
+  checked.textContent = health.checkedAt === null ? 'Not checked' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  checked.title = health.checkedAt === null ? '' : new Date(health.checkedAt).toISOString();
+  section.querySelector('[data-check-error]').textContent = health.errorCode || '';
+  const detail = health.diagnostic;
+  section.querySelector('[data-check-diagnostic]').textContent = detail
+    ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\\n') : '';
 }
 
 let pendingAction = false;
@@ -323,45 +347,30 @@ document.addEventListener('submit', async event => {
     if (response.ok && form.dataset.saveTool) {
       if (!form.querySelector('[data-save-and-test]').checked) { location.reload(); return; }
       let result = 'Saved. Test could not complete. Run Test credential again.';
+      let health;
       try {
         const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/test', { method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
         if (tested.redirected) { location.assign(tested.url); return; }
-        if (tested.ok) await confirmTestResponse(tested);
+        const current = await readTestResponse(tested);
+        health = current.health;
         result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
-        if (!tested.ok) { const { error } = await tested.json(); result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
+        if (current.error) { const error = current.error; result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
       } catch { /* The credential is saved even when its test cannot complete. */ }
-      sessionStorage.setItem('credential-test:' + location.pathname, result);
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: result, health }));
       location.reload();
       return;
     }
     if (testResult) {
-      if (response.ok) await confirmTestResponse(response);
+      const current = await readTestResponse(response);
       testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
+      renderTestHealth(form.closest('section'), current.health);
+      if (current.error) showError(message, current.error);
+      return;
     }
     if (!response.ok) {
       const result = await response.json();
       showError(message, result.error);
-      if (!testResult) return;
-    }
-    if (testResult) {
-      try {
-        const refreshed = await fetch('/v1/admin/tools');
-        if (refreshed.redirected) { location.assign(refreshed.url); return; }
-        if (!refreshed.ok) throw new Error();
-        const data = await refreshed.json();
-        const tool = data.tools.find(tool => tool.name === form.dataset.testTool);
-        document.getElementById('status-' + tool.name).textContent = tool.health.status;
-        form.closest('section').querySelector('[data-test-checklist]').textContent =
-          (tool.health.checkedAt !== null && tool.health.errorCode === null ? 'Done' : 'To do') + ': Pass Test credential below';
-        const checked = form.closest('section').querySelector('[data-check-time]');
-        checked.textContent = tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-        checked.title = tool.health.checkedAt === null ? '' : new Date(tool.health.checkedAt).toISOString();
-        form.closest('section').querySelector('[data-check-error]').textContent = tool.health.errorCode || '';
-        const detail = tool.health.diagnostic;
-        form.closest('section').querySelector('[data-check-diagnostic]').textContent = detail
-          ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\\n') : '';
-      } catch { message.textContent += ' Tool health could not refresh. Reload the page to check the current status.'; }
       return;
     }
     if (form.dataset.successUrl) location.assign(form.dataset.successUrl);

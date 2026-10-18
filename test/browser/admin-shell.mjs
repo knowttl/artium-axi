@@ -377,6 +377,53 @@ const toolCredentials = [
   { tool: 'ldap-axi', fields: { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-ldap-password' }, secret: 'bindPassword', settings: {} },
 ]
 
+test('credential diagnostics show the admission failure before saving', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form[data-test-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-check-diagnostic]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('configuration')), 'Missing admission stage');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('No credential is configured for the tool.')), 'Missing admission diagnostic');
+    check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'CREDENTIAL_NOT_CONFIGURED'), 'Missing current failure category');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test failed.'), 'Missing failed test result');
+  `)
+})
+
+for (const action of ['save', 'test']) {
+  test('credential diagnostics retain the current ' + action + ' response over cached health', () => {
+    browser(`
+      await page.open(base + '/admin/tools/falcon-axi');
+      await page.eval(() => {
+        const original = window.fetch.bind(window);
+        window.fetch = async (url, options) => {
+          if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
+          return Response.json({ error: { code: 'TOO_MANY_CALLS', message: 'A check is already running.', next: 'Try again later.',
+            diagnostic: { stage: 'configuration', message: 'This credential check was not admitted.', checkedAt: 1700000000000,
+              credentialRevision: 1 } } }, { status: 429 });
+        };
+      });
+      if (${JSON.stringify(action)} === 'save') {
+        await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
+        await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
+        await page.fill('[data-profile-field="region"]', 'us-1');
+        await page.click('[data-save-and-test]');
+        await page.click('form[data-save-tool] button');
+      } else {
+        await page.click('form[data-test-tool] button');
+      }
+      await page.wait('#confirmation[open]');
+      await page.click('#confirmation button[value=confirmed]');
+      await page.wait('[data-check-diagnostic]:not(:empty)');
+      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration\\nThis credential check was not admitted.'), 'Current test diagnostic was replaced');
+      check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
+      check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
+      check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.startsWith('To do:')), 'Failed test marked the checklist complete');
+    `)
+  })
+}
+
 for (const action of ['save', 'test']) {
   for (const outcome of ['redirect', 'html', 'invalid-health', 'ok']) {
     test(action + ' credential test validates ' + outcome + ' response', () => {
