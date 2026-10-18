@@ -63,8 +63,11 @@ try {
     }
     const list = readFileSync(listPath)
     // Unicode simple case folding is context-independent and preserves original match offsets.
-    terms = [...new Set(list.toString('utf8').split(/\r?\n/).map(term => term.trim()).filter(Boolean))]
-      .map(term => new RegExp(RegExp.escape(term), 'giu'))
+    for (const term of list.toString('utf8').split(/\r?\n/).map(term => term.trim()).filter(Boolean)) {
+      if (!terms.some(existing => new RegExp(`^(?:${existing.source})$`, 'iu').test(term))) {
+        terms.push(new RegExp(RegExp.escape(term), 'giu'))
+      }
+    }
     if (!terms.length) throw new Error('deny list must contain at least one nonempty term')
     for (const asset of assets) {
       const assetRelative = relative(realpathSync(asset), realpathSync(listPath))

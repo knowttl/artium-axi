@@ -112,6 +112,22 @@ test('security hygiene refuses an empty deny list', () => {
   })
 })
 
+test.each([
+  ['SYNTHETIC-TERM', 'synthetic-term'],
+  ['SYNTHETIC-οσ', 'synthetic-Ος'],
+  ['SYNTHETIC-K', 'synthetic-K'],
+])('security hygiene ignores case-equivalent duplicates of %s', (term, duplicate) => {
+  fixture((_directory, list, candidate) => {
+    writeFileSync(list, ` ${term} \n${duplicate}\n${term}-OTHER\n\n`)
+    writeFileSync(join(candidate, 'sample.txt'), `${duplicate} ${term}-OTHER`)
+    const result = check(candidate, list)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('"sample.txt":1:1 term=1')
+    expect(result.stdout).toContain(`"sample.txt":1:${duplicate.length + 2} term=2`)
+    expect(result.stdout).toContain('hygiene: fail files=1 matches=3')
+  })
+})
+
 test('security hygiene fails when the deny list cannot be read', () => {
   fixture((directory, _list, candidate) => {
     expect(check(candidate, join(directory, 'missing.txt')).status).toBe(1)
