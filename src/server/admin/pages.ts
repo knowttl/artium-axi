@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { adminToolRoutes, toolSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import type { Diagnostic } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
@@ -23,6 +24,10 @@ const testGuide = {
   'mg-axi': 'Graph entra user list --limit 1', 'ldap-axi': 'LDAP auth status',
 }
 
+function diagnosticText(detail?: Diagnostic): string {
+  return detail ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\n') : ''
+}
+
 export function registerAdminPages(app: FastifyInstance, db: Database.Database,
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = {}, trustedCertificates: readonly TrustedCertificate[] = []): void {
   app.get('/admin/credentials', async (request, reply) => {
@@ -35,7 +40,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
     const name = (request.params as { tool?: string }).tool
     if (!name) {
-      const rows = tools.map(tool => `<tr><td><a href="/admin/tools/${tool.name}">${escape(tool.name)}</a></td><td>${escape(tool.version)}</td><td>${tool.enabled ? 'Enabled' : 'Disabled'}</td><td>${tool.readOnly ? 'Read-only' : 'Writes enabled'}</td><td>${escape(tool.health.status)}</td><td>${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
+      const rows = tools.map(tool => `<tr><td><a href="/admin/tools/${tool.name}">${escape(tool.name)}</a></td><td>${escape(tool.version)}</td><td>${tool.enabled ? 'Enabled' : 'Disabled'}</td><td>${tool.readOnly ? 'Read-only' : 'Writes enabled'}</td><td>${escape(tool.health.status)} ${escape(tool.health.errorCode ?? '')}<pre>${escape(diagnosticText(tool.health.diagnostic))}</pre></td><td>${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
       const trust = trustedCertificates.length
         ? `<div class="table-scroll"><table><caption>Server-wide trusted CA bundle</caption><thead><tr><th>Subject</th><th>Issuer</th><th>Expiry (UTC)</th><th>SHA-256 fingerprint</th></tr></thead><tbody>${trustedCertificates.map(certificate => `<tr><td>${escape(certificate.subject)}</td><td>${escape(certificate.issuer)}</td><td>${escape(certificate.expiresAt)}</td><td><code>${escape(certificate.fingerprint)}</code></td></tr>`).join('')}</tbody></table></div>`
         : '<p>No server-wide extra CA bundle is configured.</p>'
@@ -53,7 +58,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const tested = db.prepare(`SELECT 1 FROM tool_health WHERE tool = ? AND credential_revision = ? AND status = 'ok'`).get(tool.name, credential.revision)
     let content = `<p><a href="/admin/tools">All tools</a></p><section><h2>${escape(tool.name)}</h2><p>Version ${escape(tool.version)} | ${tool.enabled ? 'Enabled' : 'Disabled'} | Status: <span id="status-${tool.name}">${escape(tool.health.status)}</span></p>
       <p>Write access: ${tool.readOnly ? 'Read-only' : 'Writes enabled'}. Writes default to off. Set allowWrites to true in native settings to enable writes for Azure, nested inside writes for Graph and Vectra with the operations allow-list. Falcon's current pin and LDAP remain read-only.</p>
-      <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p>
+      <p>Last checked: <span data-check-time>${timestamp(tool.health.checkedAt, 'Not checked')}</span>. <span data-check-error>${escape(tool.health.errorCode ?? '')}</span></p><pre data-check-diagnostic>${escape(diagnosticText(tool.health.diagnostic))}</pre>
       <details open><summary>Setup checklist</summary><ol>${[
         [credential.configured, 'Save a credential below'], [Boolean(tested), 'Pass Test credential below', 'data-test-checklist'],
         [tool.enabled, 'Enable this tool'], [roles.length > 0, 'Grant this tool to a role on Roles'],

@@ -60,7 +60,7 @@ export function createLdapAdapter(source: SecretSource,
     validateArgs: (args, input) => { ldapArguments(args, input) },
     async prepare(args, reference, input) {
       const normalized = ldapArguments(args, input)
-      if (reference.tool !== 'ldap-axi') throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== 'ldap-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       return { executable: toolPaths['ldap-axi'], args: normalized,
         ...profile.prepare('ldap-axi', await source.getCredential(reference), undefined, true),
         limits: { timeoutMs: runnerLimits.timeoutMs } }

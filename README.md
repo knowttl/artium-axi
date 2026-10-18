@@ -541,6 +541,7 @@ See [credential rotation](docs/runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
 Use **Test credential** for a current fixed read before enabling a configured tool.
+For failed tests, follow the [credential diagnostic guidance](docs/runbook.md#scripted-administrator-sessions) and the [error reference](docs/errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](#microsoft-graph) and obtain the required permission results and maintainer approval before enabling Graph on a running installation.
 

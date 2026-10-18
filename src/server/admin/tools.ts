@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
   nativeSettingsSchemas, toolSchema, toolAllowsWrites } from '../../shared/api.js'
-import { ArtiumError } from '../../shared/errors.js'
+import { ArtiumError, errorResponse, errors } from '../../shared/errors.js'
 import { falconCredentialSchema } from '../adapters/falcon.js'
 import { vectraCredentialSchema } from '../adapters/vectra.js'
 import { azCredentialSchema } from '../adapters/az.js'
@@ -60,7 +60,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     return parsed.data.tool
   }
   function credentialStore(): MutableCredentialStore {
-    if (!store) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!store) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     return store
   }
   function readTool(tool: ToolName): z.infer<typeof adminToolSchema> {
@@ -69,15 +69,18 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       { name: ToolName, enabled: number, nativeSettings: string, revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     const credential = db.prepare('SELECT revision FROM credentials WHERE tool = ?').get(tool) as { revision: number } | undefined
-    const cached = db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
-      error_code AS errorCode FROM tool_health WHERE tool = ? AND credential_revision = ?`).get(tool, credential?.revision ?? 0) as z.infer<typeof healthSchema> | undefined
+    const stored = healthSchema.safeParse(db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
+      error_code AS errorCode FROM tool_health WHERE tool = ? AND credential_revision = ?`).get(tool, credential?.revision ?? 0))
+    // Cached categories from an older catalogue require a fresh test after upgrade.
+    const cached = stored.success ? stored.data : undefined
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !credential ? 'unconfigured' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
     const nativeSettings = JSON.parse(row.nativeSettings)
     const readOnly = !toolAllowsWrites(tool, nativeSettings)
+    const diagnostic = options.health.diagnostic(tool, health.credentialRevision, health.checkedAt)
     return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
-      nativeSettings, readOnly, health: { ...health, readOnly } })
+      nativeSettings, readOnly, health: { ...health, readOnly, ...(diagnostic ? { diagnostic } : {}) } })
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
     readTool(tool)
@@ -187,10 +190,17 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     await health.refresh(tool, true)
     return result
   } })
-  app.route({ method: adminToolRoutes.test.method, url: adminToolRoutes.test.path, handler: async request => {
+  app.route({ method: adminToolRoutes.test.method, url: adminToolRoutes.test.path, handler: async (request, reply) => {
     const actor = authorize(request)
     const tool = toolName(request)
     parse(adminToolRoutes.test.input, request.body ?? {})
-    return health.check(tool, actor, request.id, request.ip, () => { authorize(request) })
+    try { return await health.check(tool, actor, request.id, request.ip, () => { authorize(request) }) }
+    catch (error) {
+      authorize(request)
+      if (!(error instanceof ArtiumError)) throw error
+      const response = errorResponse(error, request.id)
+      return reply.code(errors[error.code].status).send({ error: { ...response.error,
+        ...(error.diagnostic ? { diagnostic: error.diagnostic } : {}) } })
+    }
   } })
 }

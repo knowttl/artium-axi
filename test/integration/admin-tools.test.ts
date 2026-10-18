@@ -5,9 +5,12 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
-import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { createVectraAdapter, vectraCredentialSchema } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
+import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { preflight } from '../../src/server/health/preflight.js'
+import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -17,7 +20,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import type { MutableCredentialStore, ToolName } from '../../src/server/store/credential-store.js'
-import { adminCredentialSchema, adminToolSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
+import { adminCredentialSchema, adminToolSchema, errorResponseSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
 import { toolsView, toolView } from '../../src/cli/views.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
@@ -105,6 +108,160 @@ afterEach(async () => {
   db.close()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+const diagnosticCases = [
+  { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: AUTH_FAILED\nmessage: Invalid credentials\nhint: Check the credential.' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'DNS', text: 'code: ENOTFOUND\nmessage: DNS lookup failed for synthetic.invalid' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: ECONNREFUSED\nmessage: TCP connection refused' },
+  { code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', text: 'code: TLS_FAILED\nmessage: TLS certificate verification failed' },
+  { code: 'TOOL_REJECTED_INPUT', stage: 'configuration', text: 'code: INVALID_CONFIG\nmessage: Invalid configuration combination' },
+  { code: 'TOOL_FAILED', stage: 'tool run', text: 'code: API_ERROR\nmessage: Synthetic upstream failure' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: OPERATION_TIMEOUT\nmessage: the operation deadline elapsed' },
+  { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: ACCESS_DENIED\nmessage: API access was denied' },
+  { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: AUTH_EXPIRED\nmessage: API credential has expired' },
+  { code: 'UPSTREAM_NETWORK_FAILED', stage: 'token acquisition', text: 'code: AUTH_EXCHANGE_FAILED\nmessage: OAuth credential exchange could not complete' },
+  { code: 'TOOL_FAILED', stage: 'token acquisition', text: 'code: AUTH_EXCHANGE_FAILED\nmessage: OAuth credential exchange failed' },
+] as const
+
+test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)(
+  '%s administrator sees each tool failure category and diagnostic; users and audit see no detail', async tool => {
+    if (tool === 'mg-axi') adapters.push(createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'mg-writes.log')))
+    if (tool === 'ldap-axi') adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
+    await replace(tool)
+    const adapter = adapters.find(adapter => adapter.name === tool)!
+    const prepare = adapter.prepare.bind(adapter)
+    const mocked = vi.spyOn(adapter, 'prepare')
+    for (const { code, stage, text } of diagnosticCases) {
+      mocked.mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
+        executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+      const tested = await request('POST', `/${tool}/test`, {})
+      expect(tested.status).toBe(503)
+      expect(await tested.json()).toMatchObject({ error: { code, diagnostic: { stage, message: text,
+        checkedAt: expect.any(Number), credentialRevision: 1 } } })
+      const listed = await request('GET', '')
+      const cached = (await listed.json()).tools.find((entry: { name: string }) => entry.name === tool)
+      expect(cached.health).toMatchObject({ errorCode: code, diagnostic: { stage, message: text } })
+      const ordinary = await request('POST', `/${tool}/test`, {}, await adminHeaders('synthetic-ordinary'))
+      expect(ordinary.status).toBe(403)
+      expect(await ordinary.text()).not.toContain(text)
+    }
+    const auditText = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+    expect(auditText).not.toContain('Synthetic upstream failure')
+    expect(auditText).not.toContain('Check the credential.')
+  })
+
+test('preflight failure is redacted in the response and cached administrator health', async () => {
+  await replace('falcon-axi')
+  vi.mocked(preflight).mockRejectedValueOnce(diagnosticError('UPSTREAM_TLS_FAILED', {
+    stage: 'TLS', host: 'synthetic.invalid', message: 'CANARY-secret', hint: 'Untrusted chain.' }))
+  const response = await request('POST', '/falcon-axi/test', {})
+  const body = await response.json()
+  expect(body).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED' } })
+  expect(body.error.diagnostic).toBeUndefined()
+  const listing = await request('GET', '')
+  expect(await listing.text()).not.toContain('CANARY-secret')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-secret')
+})
+
+test('Graph sign-in failure retains the native message and token-acquisition stage', async () => {
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'mg-writes.log'))
+  adapters.push(adapter)
+  await replace('mg-axi')
+  const text = 'code: AUTH_REQUIRED\nmessage: Application authentication failed for the configured identity; no user or device-code fallback was attempted'
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+  const response = await request('POST', '/mg-axi/test', {})
+  const body = errorResponseSchema.parse(await response.json())
+  expect(body).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'AUTH_REQUIRED',
+    stage: 'token acquisition', message: text, checkedAt: expect.any(Number), credentialRevision: 1 } } })
+  const cached = (await (await request('GET', '')).json()).tools.find((tool: { name: string }) => tool.name === 'mg-axi')
+  expect(cached.health.diagnostic).toEqual(body.error.diagnostic)
+  expect(JSON.stringify(body)).not.toContain(values['mg-axi'].clientSecret)
+})
+
+test.each([
+  { tool: 'falcon-axi', value: { ...values['falcon-axi'], clientSecret: 123 }, field: 'clientSecret' },
+  { tool: 'vectra-axi', value: { ...values['vectra-axi'], token: 123 }, field: 'token' },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', origin: values['vectra-axi'].origin,
+    auth: 'oauth', clientId: 'synthetic-client', clientSecret: 123 }, field: 'clientSecret' },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', origin: values['vectra-axi'].origin,
+    auth: 'oauth', clientId: 'synthetic-client', clientSecret: 123 }, field: 'clientSecret' },
+] as const)('$tool invalid stored credentials name $field without its value', async ({ tool, value, field }) => {
+  if (tool === 'vectra-axi') adapters.find(adapter => adapter.name === tool)!.credentialSchema = vectraCredentialSchema
+  store.replaceCredential(tool, value, 0, actor, Date.now())
+  const response = await request('POST', `/${tool}/test`, {})
+  expect(response.status).toBe(errors.CREDENTIAL_INVALID.status)
+  expect(await response.json()).toMatchObject({ error: { code: 'CREDENTIAL_INVALID', diagnostic: {
+    stage: 'configuration', message: `Invalid credential field: ${field}.`, credentialRevision: 1,
+  } } })
+})
+
+test('ordinary tool callers receive an upstream category without administrator diagnostics', async () => {
+  store.replaceCredential('az-axi', values['az-axi'], 0, actor, Date.now())
+  network.status = 400
+  network.response = { error: 'invalid_client', error_description: 'AADSTS7000222: CANARY-PROVIDER-BODY' }
+  const response = await fetch(`${url}/v1/tools/az-axi/run`, { method: 'POST',
+    headers: await adminHeaders('synthetic-ordinary'), body: JSON.stringify({ args: ['account', 'list'] }) })
+  const body = await response.json()
+  expect(body).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED' } })
+  expect(body.error.diagnostic).toBeUndefined()
+  expect(JSON.stringify(body)).not.toContain('AADSTS7000222')
+  expect(JSON.stringify(body)).not.toContain('CANARY-PROVIDER-BODY')
+})
+
+test.each([
+  { name: 'stall', code: 'UPSTREAM_NETWORK_FAILED', elapsed: 10_000, configure: (transport: FakeTokenTransport) => {
+    transport.sendPostRequestAsync = () => new Promise(() => {})
+  } },
+  { name: 'network failure', code: 'UPSTREAM_NETWORK_FAILED', elapsed: 750, configure: (transport: FakeTokenTransport) => {
+    transport.failure = `CANARY-NETWORK-FAILURE ${values['az-axi'].clientSecret}`
+  } },
+  { name: 'expired token', code: 'UPSTREAM_AUTH_FAILED', elapsed: 0, configure: (transport: FakeTokenTransport) => {
+    transport.response = { ...transport.response, expires_in: -1 }
+  } },
+  { name: 'service outage', code: 'TOOL_FAILED', elapsed: 0, configure: (transport: FakeTokenTransport) => {
+    transport.status = 503
+    transport.response = { error: 'temporarily_unavailable',
+      error_description: `${values['az-axi'].clientSecret} CANARY-RAW-SERVICE-RESPONSE` }
+  } },
+])('token $name has safe administrator diagnostics in the test response and cached health', async ({ code, elapsed, configure }) => {
+  store.replaceCredential('az-axi', values['az-axi'], 0, actor, Date.now())
+  configure(network)
+  let started!: () => void
+  const acquiring = new Promise<void>(resolve => { started = resolve })
+  const post = network.sendPostRequestAsync.bind(network)
+  vi.spyOn(network, 'sendPostRequestAsync').mockImplementation((url, options) => { started(); return post(url, options) })
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  try {
+    const pending = app.inject({ method: 'POST', url: '/v1/admin/tools/az-axi/test', headers, payload: {} }).then(response => response)
+    await acquiring
+    await vi.advanceTimersByTimeAsync(elapsed)
+    const tested = await pending
+    expect(tested.statusCode).toBe(503)
+    const diagnostic = { stage: 'token acquisition', host: 'login.microsoftonline.com',
+      checkedAt: Date.now(), credentialRevision: 1 }
+    expect(tested.json()).toMatchObject({ error: { code, diagnostic } })
+    const listing = await app.inject({ method: 'GET', url: '/v1/admin/tools', headers })
+    const cached = listing.json().tools.find((tool: { name: string }) => tool.name === 'az-axi')
+    expect(cached.health).toMatchObject({ errorCode: code, diagnostic })
+    const evidence = tested.body + listing.body + JSON.stringify(db.prepare('SELECT * FROM audit').all())
+    expect(evidence).not.toContain(values['az-axi'].clientSecret)
+    expect(evidence).not.toContain('CANARY-AZURE-ACCESS-TOKEN')
+    expect(evidence).not.toContain('CANARY-NETWORK-FAILURE')
+    expect(evidence).not.toContain('CANARY-RAW-SERVICE-RESPONSE')
+  } finally { vi.useRealTimers() }
+})
+
+test('a retired cached category requires a fresh test without breaking administrator listing', async () => {
+  await replace('falcon-axi')
+  db.prepare("UPDATE tool_health SET status = 'error', error_code = ?").run('RETIRED_CATEGORY')
+  const response = await request('GET', '')
+  expect(response.status).toBe(200)
+  const tool = (await response.json()).tools.find((entry: { name: string }) => entry.name === 'falcon-axi')
+  expect(tool.health).toMatchObject({ status: 'unknown', checkedAt: null, credentialRevision: null, errorCode: null })
 })
 
 test.each([
@@ -311,7 +468,7 @@ test.each([
   expect(adminCredentialSchema.parse(await response.json())).toEqual({ tool: 'mg-axi', configured: true,
     metadata: {}, revision: 1, updatedAt: 123, updatedBy: actor })
   await expect(adapter.prepare(['entra', 'user', 'list'], store.findCredential('mg-axi')!))
-    .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
   await failure(await request('PUT', '/mg-axi/credential', { value, expectedRevision: 1, expectedToolRevision: 1 }), 'INVALID_INPUT')
 
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
@@ -412,7 +569,7 @@ test('save replaces supplied secrets and evicts old Azure tokens', async () => {
   await adapters[2].prepare(['account', 'list'], old)
   const { subscriptions: _subscriptions, allowWrites: _allowWrites, ...value } = values['az-axi']
   expect((await save('az-axi', { ...value, clientSecret: 'CANARY-rotated' }, 1)).status).toBe(200)
-  await expect(adapters[2].prepare(['account', 'list'], old)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(adapters[2].prepare(['account', 'list'], old)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
   await adapters[2].prepare(['account', 'list'], store.findCredential('az-axi')!)
   expect(network.requests.map(entry => entry.form.get('client_secret'))).toEqual(['CANARY-azure', 'CANARY-rotated'])
   expect(store.readCredential(store.findCredential('az-axi')!)).toEqual({ ...values['az-axi'], clientSecret: 'CANARY-rotated' })
@@ -750,9 +907,9 @@ test('Azure replacement immediately evicts old tokens and refuses a previously r
   expect(network.requests).toHaveLength(1)
   await replace('az-axi', { ...values['az-axi'], clientSecret: 'CANARY-new-azure' }, 1)
   expect(store.readCredential(old)).toBeUndefined()
-  await expect(adapters[2].prepare(['account', 'list'], old)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(adapters[2].prepare(['account', 'list'], old)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
   await expect(cache.acquire({ id: old.id, revision: old.revision!, credential: values['az-axi'] }, { required: ['arm'], optional: [] }))
-    .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
   await adapters[2].prepare(['account', 'list'], store.findCredential('az-axi')!)
   expect(network.requests.map(entry => entry.form.get('client_secret'))).toEqual(['CANARY-azure', 'CANARY-new-azure'])
 })
@@ -788,9 +945,12 @@ test.each([
     WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id`).all()).toEqual(evidence)
 })
 test('unconfigured test admission records safe evidence without a credential revision', async () => {
-  await failure(await request('POST', '/falcon-axi/test', {}), 'CREDENTIAL_UNAVAILABLE')
+  const response = await request('POST', '/falcon-axi/test', {})
+  expect(response.status).toBe(errors.CREDENTIAL_NOT_CONFIGURED.status)
+  expect(errorResponseSchema.parse(await response.json())).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED',
+    diagnostic: { stage: 'configuration', checkedAt: expect.any(Number), credentialRevision: null } } })
   expect(db.prepare('SELECT checked_at, credential_revision, error_code FROM audit').get())
-    .toEqual({ checked_at: expect.any(Number), credential_revision: null, error_code: 'CREDENTIAL_UNAVAILABLE' })
+    .toEqual({ checked_at: expect.any(Number), credential_revision: null, error_code: 'CREDENTIAL_NOT_CONFIGURED' })
 })
 test('manual test rejects caller-selected arguments before credential retrieval', async () => {
   const read = vi.spyOn(store, 'readCredential')
@@ -890,7 +1050,7 @@ test.each([
   { method: 'GET', path: '/unknown/credential', body: undefined, code: 'NOT_FOUND' },
   { method: 'PUT', path: '/falcon-axi/credential', body: { value: { clientSecret: 'CANARY-secret' }, expectedRevision: 0, expectedToolRevision: 1 }, code: 'INVALID_INPUT' },
   { method: 'PUT', path: '/vectra-axi/credential', body: { value: { ...values['vectra-axi'], executable: '/synthetic' }, expectedRevision: 0, expectedToolRevision: 1 }, code: 'INVALID_INPUT' },
-  { method: 'POST', path: '/falcon-axi/test', body: {}, code: 'CREDENTIAL_UNAVAILABLE' },
+  { method: 'POST', path: '/falcon-axi/test', body: {}, code: 'CREDENTIAL_NOT_CONFIGURED' },
 ] as const)('$method $path returns $code without leaking the submitted value', async route => {
   await failure(await request(route.method, route.path, route.body), route.code)
   expect(db.prepare('SELECT * FROM credentials').all()).toEqual([])
@@ -915,7 +1075,7 @@ test('Azure replacement discards an in-flight old-revision acquisition', async (
   const post = network.sendPostRequestAsync.bind(network)
   vi.spyOn(network, 'sendPostRequestAsync').mockImplementationOnce(async (url, options) => { started(); await held; return post(url, options) })
   const pending = adapters[2].prepare(['account', 'list'], old)
-  const rejected = expect(pending).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  const rejected = expect(pending).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
   try {
     await posted
     await replace('az-axi', { ...values['az-axi'], clientSecret: 'CANARY-new-azure' }, 1)
@@ -946,13 +1106,13 @@ test('manual tests never overlap for one tool and reject a credential replaced d
     await replace('falcon-axi', { ...values['falcon-axi'], clientSecret: 'CANARY-new' }, 1)
     db.exec("UPDATE tools SET enabled = 0 WHERE name = 'falcon-axi'")
   } finally { release() }
-  await failure(await pending, 'CREDENTIAL_UNAVAILABLE')
+  await failure(await pending, 'REVISION_CONFLICT')
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
 })
 test.each([
-  { mode: 'exit', args: ['3'], code: 'CREDENTIAL_UNAVAILABLE' },
+  { mode: 'exit', args: ['3'], code: 'TOOL_FAILED' },
   { mode: 'leak', args: ['raw'], code: 'SECRET_IN_OUTPUT' },
 ] as const)('manual test $mode stores a safe failure without upstream output or secrets', async ({ mode, args, code }) => {
   await replace('falcon-axi')

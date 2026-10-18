@@ -377,6 +377,53 @@ const toolCredentials = [
   { tool: 'ldap-axi', fields: { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-ldap-password' }, secret: 'bindPassword', settings: {} },
 ]
 
+test('credential diagnostics show the admission failure before saving', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form[data-test-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-check-diagnostic]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('configuration')), 'Missing admission stage');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('No credential is configured for the tool.')), 'Missing admission diagnostic');
+    check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'CREDENTIAL_NOT_CONFIGURED'), 'Missing current failure category');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test failed.'), 'Missing failed test result');
+  `)
+})
+
+for (const action of ['save', 'test']) {
+  test('credential diagnostics retain the current ' + action + ' response over cached health', () => {
+    browser(`
+      await page.open(base + '/admin/tools/falcon-axi');
+      await page.eval(() => {
+        const original = window.fetch.bind(window);
+        window.fetch = async (url, options) => {
+          if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
+          return Response.json({ error: { code: 'TOO_MANY_CALLS', message: 'A check is already running.', next: 'Try again later.',
+            diagnostic: { stage: 'configuration', message: 'This credential check was not admitted.', checkedAt: 1700000000000,
+              credentialRevision: 1 } } }, { status: 429 });
+        };
+      });
+      if (${JSON.stringify(action)} === 'save') {
+        await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
+        await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
+        await page.fill('[data-profile-field="region"]', 'us-1');
+        await page.click('[data-save-and-test]');
+        await page.click('form[data-save-tool] button');
+      } else {
+        await page.click('form[data-test-tool] button');
+      }
+      await page.wait('#confirmation[open]');
+      await page.click('#confirmation button[value=confirmed]');
+      await page.wait('[data-check-diagnostic]:not(:empty)');
+      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration\\nThis credential check was not admitted.'), 'Current test diagnostic was replaced');
+      check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
+      check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
+      check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.startsWith('To do:')), 'Failed test marked the checklist complete');
+    `)
+  })
+}
+
 for (const action of ['save', 'test']) {
   for (const outcome of ['redirect', 'html', 'invalid-health', 'ok']) {
     test(action + ' credential test validates ' + outcome + ' response', () => {
@@ -490,14 +537,25 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
   browser(`check(await page.eval(() => JSON.stringify(JSON.parse(document.querySelector('[name=nativeSettings]').value))) === ${JSON.stringify(JSON.stringify(entry.settings))}, 'Credential save changed native settings');`)
 })
 
-test('credential save shows normalization notices and canonical public values after reload', () => {
+for (const saveAndTest of [false, true]) {
+test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalization notices and canonical public values after reload', () => {
   browser(`
     await page.open(base + '/admin/tools/vectra-axi');
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (url, options) => {
+        if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/test') return original(url, options);
+        return Response.json({ error: { code: 'UPSTREAM_NETWORK_FAILED', message: 'The upstream service could not be reached.',
+          next: 'Check the diagnostic host and stage.', diagnostic: { stage: 'DNS', host: 'appliance.example',
+            message: 'Synthetic DNS failure.', checkedAt: 1700000000000, credentialRevision: 1 } } }, { status: 503 });
+      };
+    });
     for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
       await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
     }
     await page.fill('[data-profile-field=origin]', 'https://Appliance.Example:443/');
     await page.fill('[data-profile-field=token]', ' CANARY-normalized-token ');
+    if (${saveAndTest}) await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
@@ -505,9 +563,12 @@ test('credential save shows normalization notices and canonical public values af
     check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === ''), 'Stored secret was displayed');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');
+    if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Synthetic DNS failure.')), 'Current diagnostic missing');
     check(await page.eval(() => !document.querySelector('main').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
   `)
 })
+}
 
 test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stored credential and delivered files', async () => {
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'

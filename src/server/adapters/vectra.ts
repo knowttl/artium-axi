@@ -63,9 +63,9 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     validateArgs: (args, input) => { vectraArguments(args, input) },
     async prepare(args, reference, input) {
       const normalized = vectraArguments(args, input)
-      if (reference.tool !== 'vectra-axi') throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== 'vectra-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = vectraCredentialSchema.safeParse(await source.getCredential(reference))
-      if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const { caBundle, ...credential } = parsed.data
       const { token, ...tokenProfile } = credential.auth === 'token' ? credential : { token: undefined }
       const { clientSecret, ...oauthProfile } = credential.auth === 'oauth' ? credential : { clientSecret: undefined }

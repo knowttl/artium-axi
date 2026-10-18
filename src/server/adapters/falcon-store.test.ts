@@ -60,12 +60,12 @@ test.each([['--region=us-1'], ['--member-cid', 'other'], ['--'], ['auth', 'login
 
 test.each([{}, { ...credential, clientSecret: '' }, { ...credential, clientSecret: 7 }])('invalid stored Falcon credential is unavailable', async value => {
   const source = new EmbeddedSecretSource(new FakeCredentialStore([{ reference, value }]))
-  await expect(createFalconAdapter(source).prepare([], reference)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(createFalconAdapter(source).prepare([], reference)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
 })
 
 test('Falcon refuses an identity selected for another tool before retrieval', async () => {
   const getCredential = vi.fn()
   await expect(createFalconAdapter({ getCredential }).prepare([], { ...reference, tool: 'vectra-axi' }))
-    .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
   expect(getCredential).not.toHaveBeenCalled()
 })

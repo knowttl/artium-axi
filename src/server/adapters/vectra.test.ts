@@ -36,7 +36,7 @@ test.each([
 ])('invalid credential fails safely: %j', async credential => {
   expect(vectraCredentialSchema.safeParse(credential).success).toBe(false)
   await expect(createVectraAdapter({ getCredential: async () => credential }, '/data/writes.log')
-    .prepare([], reference)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .prepare([], reference)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
 })
 
 test('unsafe overrides and local management fail before retrieving a credential', async () => {

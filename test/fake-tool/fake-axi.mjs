@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 
 const [mode, ...args] = process.argv.slice(2)
 const modes = ['env', 'print', 'sleep', 'stdout', 'stderr', 'memory', 'child',
-  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream', 'hosted-profile']
+  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream', 'hosted-profile', 'failure']
 const hold = () => setInterval(() => {}, 60_000)
 const ready = async value => {
   const path = process.env.ARTIUM_TEST_READY_FILE
@@ -106,6 +106,10 @@ try {
       else hold()
       break
     }
+    case 'failure':
+      process.stderr.write(args[0])
+      process.exitCode = Number(args[1] ?? 1)
+      break
     case 'exit': {
       const code = number(args[0], 0)
       if (code > 255) throw new Error('Exit code must be at most 255')

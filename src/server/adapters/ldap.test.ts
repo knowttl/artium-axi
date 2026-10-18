@@ -43,7 +43,7 @@ test.each([
 ])('refuses unusable hosted bind credentials: %j', async value => {
   expect(ldapCredentialSchema.safeParse(value).success).toBe(false)
   await expect(createLdapAdapter({ getCredential: async () => value }).prepare([], reference))
-    .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
 })
 
 test('hosted LDAP credential fields exclude the ignored flavor selector', () => {
@@ -88,7 +88,7 @@ test.each([
 test('a reference for another tool cannot retrieve LDAP credentials', async () => {
   const getCredential = vi.fn()
   await expect(createLdapAdapter({ getCredential }).prepare([], { ...reference, tool: 'mg-axi' }))
-    .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
   expect(getCredential).not.toHaveBeenCalled()
 })
 

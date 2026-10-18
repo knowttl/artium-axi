@@ -554,7 +554,7 @@ test.each([
   try {
     const result = await cli(['doctor'])
     expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
-      /^pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "CREDENTIAL_UNAVAILABLE"\n/) })
+      /^pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
     doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.3.0' }] }
@@ -667,7 +667,7 @@ test.each([
   { path: '/health/live', code: 'SERVER_UNAVAILABLE', diagnostic: 'server address' },
   { path: '/v1/me', code: 'TOKEN_INVALID', diagnostic: 'token' },
   { path: '/v1/me', code: 'CLI_OUTDATED', diagnostic: 'CLI version' },
-  { path: '/v1/tools', code: 'CREDENTIAL_UNAVAILABLE', diagnostic: 'tools' },
+  { path: '/v1/tools', code: 'CREDENTIAL_INVALID', diagnostic: 'tools' },
 ] as const)('doctor emits the catalogue error for $diagnostic failures', async ({ path, code, diagnostic }) => {
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
@@ -688,9 +688,9 @@ test.each([
 })
 
 test.each([
-  { status: 'unconfigured', code: 'CREDENTIAL_UNAVAILABLE' },
+  { status: 'unconfigured', code: 'CREDENTIAL_NOT_CONFIGURED' },
   { status: 'unknown', code: 'SERVER_UNAVAILABLE' },
-  { status: 'error', code: 'CREDENTIAL_UNAVAILABLE' },
+  { status: 'error', code: 'TOOL_FAILED' },
   { status: 'disabled', code: 'TOOL_DISABLED' },
 ] as const)('doctor maps cached $status health to $code', async ({ status, code }) => {
   doctorResponses = {

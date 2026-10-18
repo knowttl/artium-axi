@@ -86,7 +86,7 @@ describe('Azure resource token cache', () => {
     const network = new FakeTokenTransport()
     expect(() => azureCommandResources('api', { resource: 'custom' })).toThrow()
     await expect(new AzureTokenCache(network).acquire(identity, { required: ['arm', 'custom' as AzureResource], optional: [] }))
-      .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+      .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
     expect(network.requests).toHaveLength(0)
   })
 
@@ -115,7 +115,7 @@ describe('Azure resource token cache', () => {
     const result = await cache.acquire({ ...identity, revision: 2 }, plan)
     expect(result.arm?.accessToken).toBe('CANARY-REPLACED')
     expect(result.graph?.accessToken).toBe('CANARY-REPLACED')
-    await expect(cache.acquire(identity, plan)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    await expect(cache.acquire(identity, plan)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
     expect(network.requests).toHaveLength(4)
   })
 
@@ -131,7 +131,7 @@ describe('Azure resource token cache', () => {
     const cache = new AzureTokenCache(network)
     const plan = azureCommandResources('group list')
     const old = cache.acquire(identity, plan)
-    const rejected = expect(old).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    const rejected = expect(old).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
     cache.replace(identity.id, 2)
     const replacement: AzureTokenIdentity = { ...identity, revision: 2,
       credential: { ...identity.credential, auth: 'secret', clientSecret: 'CANARY-REPLACEMENT-SECRET' } }
@@ -162,7 +162,7 @@ describe('Azure resource token cache', () => {
     const cache = new AzureTokenCache(network)
     const plan = azureCommandResources('group list')
     const result = cache.acquire(identity, plan)
-    const rejected = expect(result).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    const rejected = expect(result).rejects.toMatchObject({ code: 'UPSTREAM_NETWORK_FAILED' })
     await vi.advanceTimersByTimeAsync(10_000)
     await rejected
     release()
@@ -186,7 +186,7 @@ describe('Azure resource token cache', () => {
     })
     try {
       const result = new AzureTokenCache().acquire(identity, azureCommandResources('group list'))
-      const rejected = expect(result).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+      const rejected = expect(result).rejects.toMatchObject({ code: 'UPSTREAM_NETWORK_FAILED' })
       await vi.advanceTimersByTimeAsync(10_000)
       await rejected
       expect(aborted).toBe(true)

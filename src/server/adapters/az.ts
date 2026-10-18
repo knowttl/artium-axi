@@ -183,12 +183,12 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
     validateArgs: (args, input) => { azArguments(args, input) },
     async prepare(args, reference, input) {
       const normalized = azArguments(args, input)
-      if (reference.tool !== 'az-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== 'az-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
       if (normalized.write && source.getSettings && !toolAllowsWrites('az-axi', source.getSettings(reference))) {
         throw new ArtiumError('FLAG_BLOCKED')
       }
       const parsed = azCredentialSchema.safeParse(await source.getCredential(reference))
-      if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const { tenantId, clientId, auth, subscriptions, managementGroup, workspaces, description, allowWrites } = parsed.data
       if (normalized.write && allowWrites !== true) throw new ArtiumError('FLAG_BLOCKED')
       const credential = auth === 'secret'

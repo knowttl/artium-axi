@@ -192,7 +192,15 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   }
   return settings.allowWrites === true
 }
+export const diagnosticSchema = z.strictObject({
+  stage: z.enum(['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'tool run']),
+  message: z.string().max(4096), toolCode: z.string().max(80).optional(), providerCode: z.string().max(80).optional(), hint: z.string().max(4096).optional(),
+  host: z.string().max(4096).optional(), issuer: z.string().max(4096).optional(),
+  trust: z.enum(['self-signed', 'untrusted']).optional(), checkedAt: z.number().int().optional(),
+  credentialRevision: z.number().int().nullable().optional(),
+})
 export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
+  diagnostic: diagnosticSchema.optional(),
   readOnly: z.boolean().default(true),
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
@@ -397,6 +405,7 @@ export const errorResponseSchema = z.strictObject({
     message: z.string().min(1).refine(value => !/[\r\n\0]/.test(value)),
     next: z.string().min(1),
     requestId: z.string().min(1),
+    diagnostic: diagnosticSchema.optional(),
   }),
 })
 export const runResponseSchema = z.union([runSuccessSchema, errorResponseSchema])

@@ -15,7 +15,7 @@ export class EmbeddedSecretSource implements SecretSource {
 
   async getCredential(reference: CredentialReference): Promise<unknown> {
     const credential = this.store.readCredential(reference)
-    if (credential === undefined) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (credential === undefined) throw new ArtiumError('REVISION_CONFLICT')
     return credential
   }
 }

@@ -173,7 +173,7 @@ test('doctor shows a failed tool after a manual test of a wrong fake credential'
   const response = await app.inject({ method: 'POST', url: '/v1/admin/tools/falcon-axi/test',
     headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {} })
   expect(response.statusCode).toBe(503)
-  expect(response.json()).toMatchObject({ error: { code: 'CREDENTIAL_UNAVAILABLE' } })
+  expect(response.json()).toMatchObject({ error: { code: 'TOOL_FAILED' } })
   expect(await cli(['doctor'])).toMatchObject({ code: 2, stdout: expect.stringMatching(
     /^pass: server address\nfail: certificate \(test HTTP\)\npass: token\npass: CLI version\nfail: falcon-axi \(error\)\nerror:\n  code: "CLIENT_CONFIG_INVALID"\n/) })
 })

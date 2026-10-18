@@ -51,9 +51,9 @@ export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool
     validateArgs: validateFalconArgs,
     async prepare(args, reference) {
       validateFalconArgs(args)
-      if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = falconCredentialSchema.safeParse(await source.getCredential(reference))
-      if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       return { ...prepareCredential(args, parsed.data), files: [] }
     },
   }, source, writeLog, profile, args => ({ args: [...args] }),
@@ -76,11 +76,11 @@ export function validateFalconArgs(args: readonly string[]): void {
 export async function prepareFalcon(args: readonly string[], configuration: FalconCredentialFiles) {
   validateFalconArgs(args)
   const parsed = falconCredentialFiles.safeParse(configuration)
-  if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+  if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
   const { clientIdFile, clientSecretFile, region, memberCid } = parsed.data
   const [clientId, clientSecret] = await Promise.all([readFile(clientIdFile, 'utf8'), readFile(clientSecretFile, 'utf8')])
     .then(values => values.map(value => value.trim()))
-    .catch(() => { throw new ArtiumError('CREDENTIAL_UNAVAILABLE') })
-  if (!clientId || !clientSecret) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    .catch(() => { throw new ArtiumError('CREDENTIAL_INVALID') })
+  if (!clientId || !clientSecret) throw new ArtiumError('CREDENTIAL_INVALID')
   return prepareCredential(args, { clientId, clientSecret, region, memberCid })
 }

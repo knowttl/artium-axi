@@ -2,12 +2,17 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
+import { diagnosticError } from '../../src/server/health/diagnostic.js'
+import { preflight } from '../../src/server/health/preflight.js'
+import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -16,6 +21,7 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { toolsResponseSchema } from '../../src/shared/api.js'
 import { cliVersion } from '../../src/shared/version.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { fakeTool } from '../fake-tool/tool.js'
 
 let directory: string
 let db: Database.Database
@@ -50,6 +56,43 @@ afterEach(async () => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test.each([
+  { name: 'unconfigured credential', code: 'CREDENTIAL_NOT_CONFIGURED', revision: null, arrange: async () => {
+    db.exec('DELETE FROM credentials')
+    return async () => {}
+  } },
+  { name: 'missing adapter with a credential', code: 'TOOL_DISABLED', revision: 1, arrange: async () => {
+    health = new ToolHealth(db, new Audit(db), runner, [], store)
+    return async () => {}
+  } },
+  { name: 'missing adapter without a credential', code: 'TOOL_DISABLED', revision: null, arrange: async () => {
+    db.exec('DELETE FROM credentials')
+    health = new ToolHealth(db, new Audit(db), runner, [], store)
+    return async () => {}
+  } },
+  { name: 'pending check', code: 'TOO_MANY_CALLS', revision: 1, arrange: async () => {
+    let started!: () => void
+    let release!: (value: typeof result) => void
+    const admitted = new Promise<void>(resolve => { started = resolve })
+    const held = new Promise<typeof result>(resolve => { release = resolve })
+    vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held })
+    const pending = health.check('falcon-axi', 'synthetic-development-user', 'held-check', null)
+    await admitted
+    return async () => { release(result); await pending }
+  } },
+] as const)('$name admission returns safe configuration diagnostics', async ({ code, revision, arrange }) => {
+  const cleanup = await arrange()
+  try {
+    await expect(health.check('falcon-axi', 'synthetic-development-user', 'admission-test', null)).rejects.toMatchObject({
+      code, diagnostic: { stage: 'configuration', message: errors[code].message,
+        checkedAt: expect.any(Number), credentialRevision: revision },
+    })
+    const audit = db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE request_id = 'admission-test'").get()
+    expect(audit).toEqual({ checked_at: expect.any(Number), credential_revision: revision, error_code: code })
+    expect(JSON.stringify(audit)).not.toContain('CANARY-secret')
+  } finally { await cleanup() }
 })
 
 test('scheduled checks never overlap a pending check and manual tests share that exclusion', async () => {
@@ -109,6 +152,114 @@ test('listing reads a failed stored check without preparing or running a platfor
   expect(response.json()).toMatchObject({ tools: [{ name: 'falcon-axi', status: 'error' }] })
   expect(prepare).not.toHaveBeenCalled()
   expect(run).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['OAuth credential exchange could not complete', 'UPSTREAM_NETWORK_FAILED'],
+  ['OAuth credential exchange failed', 'TOOL_FAILED'],
+])('background health retains the token-exchange category for %s', async (message, code) => {
+  const text = `code: AUTH_EXCHANGE_FAILED\nmessage: ${message}`
+  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+  await health.refresh('falcon-axi')
+  const cached = db.prepare('SELECT status, error_code, checked_at FROM tool_health').get() as {
+    status: string, error_code: string, checked_at: number,
+  }
+  expect(cached).toMatchObject({ status: 'error', error_code: code })
+  expect(health.diagnostic('falcon-axi', 1, cached.checked_at)).toMatchObject({
+    stage: 'token acquisition', toolCode: 'AUTH_EXCHANGE_FAILED', message: text, credentialRevision: 1,
+  })
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(message)
+})
+
+describe.each(['synthetic-development-user', healthDefaults.actor])('destination diagnostics for %s', actor => {
+  test.each(['ENETUNREACH', 'EHOSTUNREACH', 'response terminated before completion'])(
+    'Vectra native transport failure %s retains network detail', async cause => {
+      store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
+        auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
+      db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
+      const vectra = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+      const prepare = vectra.prepare.bind(vectra)
+      const text = `code: TRANSPORT_FAILED\nmessage: Request to https://appliance.test could not complete\nhint: ${cause}`
+      vi.spyOn(vectra, 'prepare').mockImplementation(async (args, reference) => ({ ...await prepare(args, reference),
+        executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+      health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
+      await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', host: 'appliance.test', toolCode: 'TRANSPORT_FAILED',
+          message: text, hint: cause, checkedAt: expect.any(Number), credentialRevision: 1 },
+      })
+      const cached = db.prepare("SELECT checked_at, error_code FROM tool_health WHERE tool = 'vectra-axi'").get() as {
+        checked_at: number, error_code: string,
+      }
+      expect(cached.error_code).toBe('UPSTREAM_NETWORK_FAILED')
+      expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ stage: 'TCP', host: 'appliance.test', message: text })
+      expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain('CANARY-VECTRA-TOKEN')
+      const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+      expect(audit).not.toContain(cause)
+      expect(audit).not.toContain('CANARY-VECTRA-TOKEN')
+    })
+
+  test.each([
+    { tool: 'ldap-axi', credential: { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+      bindPassword: 'CANARY-LDAP-PASSWORD' }, create: () => createLdapAdapter(new EmbeddedSecretSource(store)),
+    toolCode: 'SERVER_UNREACHABLE', message: 'could not connect to the directory',
+    code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', host: 'directory.test' },
+    { tool: 'ldap-axi', credential: { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+      bindPassword: 'CANARY-LDAP-PASSWORD' }, create: () => createLdapAdapter(new EmbeddedSecretSource(store)),
+    toolCode: 'TLS_UNTRUSTED', message: 'certificate verification failed',
+    code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'directory.test' },
+    { tool: 'vectra-axi', credential: { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token',
+      token: 'CANARY-VECTRA-TOKEN' },
+    create: () => createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
+    toolCode: 'TLS_TRUST_ERROR', message: 'certificate verification failed',
+    code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'appliance.test' },
+  ] as const)('$tool $toolCode retains the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
+    store.replaceCredential(tool, credential, 0, 'synthetic-development-user', Date.now())
+    health = new ToolHealth(db, new Audit(db), runner, [create()], store)
+    const text = `code: ${toolCode}\nmessage: ${message}`
+    vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+    await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
+      code, diagnostic: { stage, host, toolCode, message: text, checkedAt: expect.any(Number), credentialRevision: 1 },
+    })
+    const cached = db.prepare('SELECT checked_at FROM tool_health WHERE tool = ?').get(tool) as { checked_at: number }
+    expect(health.diagnostic(tool, 1, cached.checked_at)).toMatchObject({ host })
+    const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+    expect(audit).not.toContain(host)
+    expect(audit).not.toContain('CANARY-')
+    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain('CANARY-')
+  })
+})
+
+test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('preserves the specific preflight host for %s', async code => {
+  vi.mocked(preflight).mockRejectedValueOnce(diagnosticError(code, {
+    stage: 'TLS', host: 'specific-endpoint.test', message: 'Synthetic connection failure.',
+  }))
+  await expect(health.check('falcon-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
+    code, diagnostic: { host: 'specific-endpoint.test', checkedAt: expect.any(Number), credentialRevision: 1 },
+  })
+})
+
+test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('completes hostless preparation diagnostics for %s', async code => {
+  vi.spyOn(adapter, 'prepare').mockRejectedValueOnce(diagnosticError(code, { stage: 'TLS', message: 'Synthetic connection failure.' }))
+  await expect(health.check('falcon-axi', 'synthetic-development-user', 'prepare-host', null)).rejects.toMatchObject({
+    code, diagnostic: { host: 'api.us-2.crowdstrike.com', checkedAt: expect.any(Number), credentialRevision: 1 },
+  })
+})
+
+test.each([
+  ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED'],
+  ['TLS_UNTRUSTED', 'certificate verification failed', 'UPSTREAM_TLS_FAILED'],
+])('scans the configured host before returning or caching %s', async (toolCode, message, code) => {
+  store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+    bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
+  health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
+  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '',
+    stderr: `code: ${toolCode}\nmessage: ${message}`, exitCode: 1 })
+  await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({
+    code, diagnostic: undefined,
+  })
+  const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
+  expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
 })
 
 test('replacement during a check queues one fresh check and never caches the old revision', async () => {

@@ -4,6 +4,9 @@ Generated from `src/shared/errors.ts` by `pnpm errors:generate`.
 Do not edit manually.
 Artium errors use TOON on CLI stdout and JSON over HTTP.
 Completed upstream calls preserve stdout, stderr and the upstream exit code, with HTTP 200 and the upstream tool as source.
+Graph sign-in failures include the category, token-acquisition stage, check time, credential revision and redacted tool message in administrator credential diagnostics.
+They do not carry the provider (AADSTS) code because mg-axi does not expose it yet.
+Azure token-acquisition diagnostics retain supported provider codes.
 
 | Code | Source | HTTP | CLI exit | Message | Next step |
 |---|---|---|---|---|---|
@@ -56,9 +59,14 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | TOOL_DISABLED | artium-axi | 403 | 1 | The tool is disabled. | Ask the administrator to enable the tool. |
 | TOOL_NOT_GRANTED | artium-axi | 403 | 1 | The user has no role granting this tool. | Ask the administrator to assign a role granting the tool. |
 | MASTER_KEY_INVALID | artium-axi | 503 | 1 | The master key is missing or invalid. | Supply a 32-byte master key file or a base64 master key. |
-| CREDENTIAL_INVALID | artium-axi | 503 | 1 | A stored credential could not be authenticated or contains malformed JSON. | Restore the matching master key and an intact credential store containing valid credential JSON. |
+| CREDENTIAL_INVALID | artium-axi | 503 | 1 | The stored credential is invalid. | Ask an administrator to check the named field, matching master key and credential JSON, then save and test again. |
 | FLAG_BLOCKED | artium-axi | 400 | 2 | The arguments override the managed tool boundary. | Remove destination, tenant, credential or local configuration overrides. |
-| CREDENTIAL_UNAVAILABLE | artium-axi | 503 | 1 | The tool credential is unavailable. | Ask the administrator to check the tool configuration and stored credentials. |
+| CREDENTIAL_NOT_CONFIGURED | artium-axi | 503 | 1 | No credential is configured for the tool. | Ask an administrator to save a credential and run Test credential. |
+| UPSTREAM_AUTH_FAILED | artium-axi | 503 | 1 | The upstream service rejected the credential. | Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again. |
+| UPSTREAM_NETWORK_FAILED | artium-axi | 503 | 1 | The upstream service could not be reached. | Ask an administrator to check DNS, routing, firewall rules and the diagnostic host and stage. |
+| UPSTREAM_TLS_FAILED | artium-axi | 503 | 1 | The upstream certificate could not be verified. | Ask an administrator to check the host, certificate chain and trusted CA configuration. |
+| TOOL_REJECTED_INPUT | artium-axi | 503 | 1 | The tool rejected its configuration or arguments. | Ask an administrator to correct the field or combination named by the tool and test again. |
+| TOOL_FAILED | artium-axi | 503 | 1 | The tool exited unsuccessfully. | Ask an administrator to inspect the diagnostic message and hint from Test credential. |
 | INVALID_INPUT | artium-axi | 400 | 2 | The request input is invalid. | Check the request fields and content type. |
 | UNSUPPORTED_INPUT | artium-axi | 400 | 2 | The input file is not a matching upload. | Upload the file using a reviewed input-file flag. |
 | SECRET_IN_OUTPUT | artium-axi | 500 | 1 | A known secret was detected in tool output. | Check upstream output redaction before retrying. |

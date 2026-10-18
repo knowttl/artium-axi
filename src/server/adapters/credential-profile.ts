@@ -26,7 +26,7 @@ export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, 
     async prepare(args, reference, input) {
       adapter.validateArgs(args, input)
       const normalized = argumentsForCall(args, input)
-      if (reference.tool !== adapter.name) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== adapter.name) throw new ArtiumError('CREDENTIAL_INVALID')
       const value = await source.getCredential(reference)
       return { executable: adapter.executable, ...normalized,
         ...profile.prepare(adapter.name, value, writeLog, !toolAllowsWrites(adapter.name, value as Record<string, unknown>)), limits }
@@ -152,7 +152,7 @@ export class CredentialProfile {
 
   private parsed(value: unknown) {
     const parsed = this.credentialSchema.safeParse(value)
-    if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
     return { value: structuredClone(parsed.data), paths: [...this.secrets] }
   }
 
@@ -190,7 +190,7 @@ export class CredentialProfile {
       environment[name] = secret
       parent[key] = { env: name }
     }
-    if (!this.validateProfile(parsed.value)) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!this.validateProfile(parsed.value)) throw new ArtiumError('CREDENTIAL_INVALID')
     if (tool !== 'ldap-axi') {
       const prefix = tool.toUpperCase().replaceAll('-', '_')
       environment[`${prefix}_READ_ONLY`] = String(readOnly)

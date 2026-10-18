@@ -48,9 +48,14 @@ const definitions = {
   TOOL_DISABLED: { status: 403, message: 'The tool is disabled.', next: 'Ask the administrator to enable the tool.' },
   TOOL_NOT_GRANTED: { status: 403, message: 'The user has no role granting this tool.', next: 'Ask the administrator to assign a role granting the tool.' },
   MASTER_KEY_INVALID: { status: 503, message: 'The master key is missing or invalid.', next: 'Supply a 32-byte master key file or a base64 master key.' },
-  CREDENTIAL_INVALID: { status: 503, message: 'A stored credential could not be authenticated or contains malformed JSON.', next: 'Restore the matching master key and an intact credential store containing valid credential JSON.' },
+  CREDENTIAL_INVALID: { status: 503, message: 'The stored credential is invalid.', next: 'Ask an administrator to check the named field, matching master key and credential JSON, then save and test again.' },
   FLAG_BLOCKED: { status: 400, message: 'The arguments override the managed tool boundary.', next: 'Remove destination, tenant, credential or local configuration overrides.' },
-  CREDENTIAL_UNAVAILABLE: { status: 503, message: 'The tool credential is unavailable.', next: 'Ask the administrator to check the tool configuration and stored credentials.' },
+  CREDENTIAL_NOT_CONFIGURED: { status: 503, message: 'No credential is configured for the tool.', next: 'Ask an administrator to save a credential and run Test credential.' },
+  UPSTREAM_AUTH_FAILED: { status: 503, message: 'The upstream service rejected the credential.', next: 'Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again.' },
+  UPSTREAM_NETWORK_FAILED: { status: 503, message: 'The upstream service could not be reached.', next: 'Ask an administrator to check DNS, routing, firewall rules and the diagnostic host and stage.' },
+  UPSTREAM_TLS_FAILED: { status: 503, message: 'The upstream certificate could not be verified.', next: 'Ask an administrator to check the host, certificate chain and trusted CA configuration.' },
+  TOOL_REJECTED_INPUT: { status: 503, message: 'The tool rejected its configuration or arguments.', next: 'Ask an administrator to correct the field or combination named by the tool and test again.' },
+  TOOL_FAILED: { status: 503, message: 'The tool exited unsuccessfully.', next: 'Ask an administrator to inspect the diagnostic message and hint from Test credential.' },
   INVALID_INPUT: { status: 400, message: 'The request input is invalid.', next: 'Check the request fields and content type.' },
   UNSUPPORTED_INPUT: { status: 400, message: 'The input file is not a matching upload.', next: 'Upload the file using a reviewed input-file flag.' },
   SECRET_IN_OUTPUT: { status: 500, message: 'A known secret was detected in tool output.', next: 'Check upstream output redaction before retrying.' },
@@ -76,6 +81,7 @@ export const errors = Object.fromEntries(Object.entries(definitions).map(([code,
   }
 
 export class ArtiumError extends Error {
+  diagnostic?: Diagnostic
   readonly source: 'artium-axi'
   readonly next: string
   constructor(readonly code: ErrorCode, message: string = errors[code].message, next: string = errors[code].next, readonly requestId?: string) {
@@ -83,6 +89,20 @@ export class ArtiumError extends Error {
     this.source = errors[code].source
     this.next = next
   }
+}
+
+// Only administrator credential-test and cached-health responses may serialize this detail.
+export interface Diagnostic {
+  stage: 'configuration' | 'token acquisition' | 'DNS' | 'TCP' | 'TLS' | 'authentication' | 'tool run'
+  message: string
+  toolCode?: string
+  providerCode?: string
+  hint?: string
+  host?: string
+  issuer?: string
+  trust?: 'self-signed' | 'untrusted'
+  checkedAt?: number
+  credentialRevision?: number | null
 }
 
 export function errorResponse(error: ArtiumError, requestId: string) {
