@@ -33,9 +33,11 @@ Commit the changes before starting:
 
 ```sh
 no-mistakes doctor
-no-mistakes axi run --intent "Describe the requested outcome and acceptance criteria" --wait 8m
+no-mistakes axi run --intent "Describe the requested outcome and acceptance criteria" --skip ci --wait 8m
 ```
 
+Keep the run in the foreground.
+If the wait returns before completion, reattach with bare `no-mistakes axi run`.
 Read each gate and follow its instructions until the pipeline reports checks passed.
 Product and scope decisions require owner approval.
 The repository declares `no_ci: true`: there is no hosted test CI, and local no-mistakes validation is the change gate.
@@ -43,10 +45,7 @@ Release automation is separate from local acceptance.
 
 ## Container acceptance
 
-Run `pnpm test:containers` when a change touches `Dockerfile`, `.dockerignore`, `scripts/`, `tools/`, `bin/`, `test/fake-service/`, `test/runner/`, `test/walking-skeleton/`, `src/server/`, `package.json` or `pnpm-lock.yaml`.
-CLI, documentation, workflow and skill-only changes are exempt unless they also touch a required path.
-Always run container acceptance for the final release candidate, including version-only releases, before merging its release PR.
-The [gate configuration](.no-mistakes.yaml) owns these requirements.
+Run `pnpm test:containers` when required by the [gate configuration](.no-mistakes.yaml), which owns the triggering paths, exemptions and release requirements.
 
 Docker must support a private privileged BuildKit worker and its task-owned tmpfs cache.
 If the host forbids privileged containers, record acceptance as unverified and arrange a permitted host before delivery when the check is required.

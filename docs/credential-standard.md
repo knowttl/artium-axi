@@ -7,7 +7,7 @@ Round 2 added the owner's requirement that credential storage work the same on W
 Round 3 recorded all six board decisions:
 
 - D1 (standard): C.
-- D2 (vendor-native env names): rename to `P_*`, with one-release aliases.
+- D2 (vendor-native env names): rename to `P_*`, with aliases governed by the [compatibility policy](../CONTRIBUTING.md#compatibility-policy).
 - D3 (stored secrets): a protected `credentials.json` only.
 - D4 (legacy paths): a **hard cut**.
 - D5 (azure-axi): an ambient-credential tool.
@@ -66,7 +66,7 @@ The key words MUST, SHOULD and MAY are used as described in RFC 2119.
    Any other value MUST be rejected with `CONFIG_INVALID`, so the check fails closed.
 6. Names that a third-party SDK reads by itself are kept unchanged.
    Examples are `AZURE_*` via `@azure/identity` and `AZURE_FEDERATED_TOKEN_FILE`.
-7. Existing vendor-native names stay accepted as deprecated aliases for one minor release, with a stderr notice `[D2]`.
+7. Existing vendor-native names stay accepted as deprecated aliases under the [compatibility policy](../CONTRIBUTING.md#compatibility-policy), with a stderr notice `[D2]`.
    Only env var names get this transition; file locations are a hard cut (section 1.8).
    This covers `FALCON_CLIENT_ID`, `FALCON_CLIENT_SECRET`, `FALCON_MEMBER_CID`, `FALCON_BASE_URL`, `FALCON_PROXY_URL` and `CONTROLLER_*`.
 
@@ -195,7 +195,7 @@ macOS and WSL follow the Linux rules.
    - `config path`.
 2. A tool that has a live check keeps `doctor` as its one bounded live read.
 3. `auth login` and `auth logout` exist only under section 6.
-   mg-axi's top-level `login` becomes `auth login`, with the old verb kept as an alias for one minor release.
+   mg-axi's top-level `login` becomes `auth login`, with the old verb kept as an alias under the [compatibility policy](../CONTRIBUTING.md#compatibility-policy).
 4. No command prompts unless it is `auth login`.
    No command opens a browser unless it is `auth login`.
 

@@ -40,7 +40,7 @@ pnpm test:containers
 
 The Compose validation creates no stack and reads no secret contents.
 Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
-Check the [container-test prerequisites](../README.md#development--testing) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
+Check the [container-test prerequisites](../CONTRIBUTING.md#container-acceptance) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
 Do not use real adapter credentials or globally prune Docker resources.
 
 ## npm client releases
@@ -54,7 +54,7 @@ This workflow releases the client CLI and embedded skill; server deployment rema
 
 Before the first automated release, the owner must enable GitHub Actions, allow GitHub Actions to create pull requests, and configure the npm package's GitHub Actions trusted publisher for `knowttl/artium-axi` and workflow filename `release-please.yml`, without an environment name.
 The workflow uses `GITHUB_TOKEN` for release management and OIDC for npm publication; no npm publish token is required.
-Before merging every release PR, require passing local container acceptance and private hygiene evidence for the release candidate using [Development / testing](../README.md#development--testing), even when the release PR changes only version metadata.
+Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../README.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
 Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
 Hosted release handling, npm trusted-publisher configuration and actual publication remain unverified by local checks.
 
