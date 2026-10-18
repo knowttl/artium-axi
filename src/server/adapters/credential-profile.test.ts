@@ -108,6 +108,46 @@ test('conditional missing-secret errors name the required field and selector wit
     .toThrow(expect.objectContaining({ message: expect.stringContaining('clientSecret is required for the selected auth') }))
   expect(() => profile.parseInput({ ...identity, auth: 'federated', token: 'CANARY interior whitespace' })).not.toThrow()
 })
+
+test.each([
+  [{ unexpected: 'CANARY-unsupported-value' }, 'unexpected is an unsupported field.'],
+  [{ pageSize: 0 }, 'pageSize must be >= 1.'],
+  [{ pageSize: 1001 }, 'pageSize must be <= 1000.'],
+])('reports safe LDAP field diagnostics for %j', (fields, message) => {
+  const profile = loadCredentialProfile('ldap-axi', join(process.cwd(), 'tools/node_modules/@knowttl/ldap-axi/axi-credential.schema.json'))!
+  const value = { url: 'ldaps://directory.test', auth: 'simple', bindDn: 'uid=synthetic', bindPassword: 'CANARY-password', ...fields }
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message }))
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+})
+
+test.each([
+  ['minimum', 0, '>='],
+  ['maximum', 2, '<='],
+  ['exclusiveMinimum', 1, '>'],
+  ['exclusiveMaximum', 1, '<'],
+])('reports the numeric %s bound', (keyword, value, comparison) => {
+  const profile = new CredentialProfile({ type: 'object', properties: { value: { type: 'number', [keyword]: 1 } } })
+  expect(() => profile.parseInput({ value })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
+    message: `value must be ${comparison} 1.` }))
+})
+
+test.each(['oneOf', 'anyOf'])('preserves %s conflicts alongside concrete field diagnostics', keyword => {
+  const { oneOf, ...common } = schema
+  const profile = new CredentialProfile({ ...common, [keyword]: oneOf })
+  const value = { ...credential, privateKey: 'CANARY-key', tenantId: 'CANARY-invalid-tenant' }
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  if (result.success) throw new Error('Expected invalid credential')
+  expect(result.error.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({ path: ['tenantId'], message: 'tenantId must match the uuid format.' }),
+    expect.objectContaining({ path: [], message: expect.stringMatching(/auth.*clientSecret.*privateKey.*must satisfy the selected credential field combination/) }),
+  ]))
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
+    message: expect.stringContaining('must satisfy the selected credential field combination') }))
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+})
 let directory: string
 beforeEach(() => { directory = mkdtempSync(join(tmpdir(), 'artium-profile-')) })
 afterEach(() => { rmSync(directory, { recursive: true, force: true }) })

@@ -136,6 +136,7 @@ export class CredentialInput {
       const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
       const schema = this.resolve(error.schemaPath.replace(/^.*?#/, '').replace(/\/[^/]+$/, ''))
       if (error.keyword === 'required') path.push(error.params.missingProperty)
+      if (error.keyword === 'additionalProperties') path.push(error.params.additionalProperty)
       const field = path.join('.') || 'credential'
       let rule = 'does not satisfy the credential rules'
       if (error.keyword === 'required') rule = 'is required'
@@ -146,7 +147,10 @@ export class CredentialInput {
       if (error.keyword === 'enum' || error.keyword === 'const') rule = 'must match an allowed choice'
       if (error.keyword === 'not' && schema?.not?.pattern === '\\s') rule = 'must not contain whitespace'
       if (error.keyword === 'const' && typeof schema?.const === 'boolean') rule = `must be ${schema.const} for this URL`
-      if (error.keyword === 'additionalProperties') rule = 'contains an unsupported field'
+      if (['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'].includes(error.keyword)) {
+        rule = `must be ${error.params.comparison} ${error.params.limit}`
+      }
+      if (error.keyword === 'additionalProperties') rule = 'is an unsupported field'
       const branch = error.schemaPath.match(/^(.*?)\/(then|else)\//)
       if (branch && !(error.keyword === 'const' && typeof schema?.const === 'boolean')) {
         const condition = this.resolve(`${branch[1].replace(/^.*?#/, '')}/if`)
@@ -157,12 +161,15 @@ export class CredentialInput {
     }
     const concrete = errors.filter(error => !['if', 'oneOf', 'anyOf'].includes(error.keyword)
       && !/\/(oneOf|anyOf)\//.test(error.schemaPath))
-    if (concrete.length) return concrete.map(reason)
+    const reasons = concrete.map(reason)
+    const alternatives = errors.filter(error => ['oneOf', 'anyOf'].includes(error.keyword)
+      || /\/(oneOf|anyOf)\//.test(error.schemaPath))
+    if (!alternatives.length) return reasons
     // Conflicting alternatives name only schema-owned fields, never values.
-    const fields = [...new Set(errors.flatMap(error => {
+    const fields = [...new Set(alternatives.flatMap(error => {
       const node = this.resolve(error.schemaPath.replace(/^.*?#/, '').replace(/\/[^/]+$/, ''))
       return [...Object.keys(node?.properties ?? {}), ...node?.required ?? []]
     }))]
-    return [{ path: [], message: `${fields.join(', ') || 'credential'} must satisfy the selected credential field combination.` }]
+    return [...reasons, { path: [], message: `${fields.join(', ') || 'credential'} must satisfy the selected credential field combination.` }]
   }
 }
