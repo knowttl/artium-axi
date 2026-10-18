@@ -27,7 +27,7 @@ function verificationCode(error: unknown): string {
 }
 
 // The handshake sends no application data or credentials. Each stage has a deadline.
-export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000): Promise<void> {
+export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2'): Promise<void> {
   const host = endpoint.hostname.replace(/^\[|\]$/g, '')
   const port = Number(endpoint.port || (endpoint.protocol === 'ldaps:' ? 636 : endpoint.protocol === 'ldap:' ? 389 : 443))
   let addresses: LookupAddress[]
@@ -77,20 +77,24 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
           else reject(new Error('StartTLS was rejected'))
         }
         const onError = (error: Error) => { cleanup(); reject(error) }
-        const onClose = () => onError(new Error('StartTLS connection closed'))
+        const onClose = () => onError(Object.assign(new Error('StartTLS connection closed'), { code: 'ECONNRESET' }))
         const cleanup = () => { socket.off('data', onData); socket.off('error', onError); socket.off('close', onClose) }
         socket.on('data', onData).once('error', onError).once('close', onClose)
         socket.write(Buffer.from('301d02010177188016312e332e362e312e342e312e313436362e3230303337', 'hex'))
       })
-    } catch {
+    } catch (error) {
       socket.destroy()
+      const code = verificationCode(error)
+      if (code !== 'CONNECTION_FAILED') throw diagnosticError('UPSTREAM_NETWORK_FAILED', {
+        stage: 'TLS', host, message: `LDAP StartTLS connection failed for ${host}: ${code}.` })
       throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host, message: `LDAP StartTLS negotiation failed for ${host}.`, hint: 'Check that the directory supports StartTLS on this port.' })
     }
   }
   // Node verifies chain and hostname even with rejectUnauthorized=false. Retain the
   // peer certificate for the diagnostic, then require authorized before success.
   // No application bytes or credentials are sent on this socket.
-  const secure = connectTls({ socket, host, servername: isIP(host) ? undefined : host, rejectUnauthorized: false, ...(ca ? { ca } : {}) })
+  const secure = connectTls({ socket, host, servername: isIP(host) ? undefined : host, rejectUnauthorized: false,
+    ...(ca ? { ca } : {}), ...(maxVersion ? { maxVersion } : {}) })
   try {
     await new Promise<void>((resolve, reject) => {
       secure.setTimeout(timeoutMs, () => secure.destroy(Object.assign(new Error(), { code: 'ETIMEDOUT' })))
@@ -116,6 +120,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>): Promise<void> {
   const ca = credential.caBundle ?? credential.caFile
   for (const endpoint of healthEndpoints(tool, credential)) {
-    await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined)
+    await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,
+      tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined)
   }
 }

@@ -3,10 +3,10 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, createSecureContext, TLSSocket } from 'node:tls'
-import { createServer as createTcpServer } from 'node:net'
+import { createServer as createTcpServer, type Socket } from 'node:net'
 import { afterAll, beforeAll, expect, test, vi } from 'vitest'
 import { createTestCertificates } from '../../../test/fake-service/certificates.mjs'
-import { healthEndpoints, preflightEndpoint } from './preflight.js'
+import { healthEndpoints, preflight, preflightEndpoint } from './preflight.js'
 
 const dns = vi.hoisted(() => ({ lookup: vi.fn() }))
 vi.mock('node:dns/promises', async importOriginal => {
@@ -95,6 +95,7 @@ test('verifies a TLS chain, reports untrusted chains and sends no application by
 
 test('LDAP preflight negotiates StartTLS and verifies TLS before any bind', async () => {
   let request = ''
+  let version: string | null = null
   const secureContext = createSecureContext({ key: readFileSync(join(directory, 'server.key')),
     cert: readFileSync(join(directory, 'server.crt')) })
   const server = createTcpServer(socket => {
@@ -102,6 +103,7 @@ test('LDAP preflight negotiates StartTLS and verifies TLS before any bind', asyn
       request = chunk.toString('hex')
       socket.write(Buffer.from('300c02010178070a010004000400', 'hex'))
       const secure = new TLSSocket(socket, { isServer: true, secureContext })
+      secure.on('secure', () => { version = secure.getProtocol() })
       secure.on('error', () => {})
       secure.on('end', () => secure.end())
     })
@@ -109,8 +111,41 @@ test('LDAP preflight negotiates StartTLS and verifies TLS before any bind', asyn
   await new Promise<void>(resolve => server.listen(0, resolve))
   const endpoint = new URL(`ldap://localhost:${(server.address() as { port: number }).port}`)
   try {
-    await expect(preflightEndpoint(endpoint, readFileSync(join(directory, 'ca.crt'), 'utf8'))).resolves.toBeUndefined()
+    await expect(preflight('ldap-axi', { url: endpoint.href, startTls: true, tlsMaxVersion: '1.2',
+      caBundle: readFileSync(join(directory, 'ca.crt'), 'utf8') })).resolves.toBeUndefined()
     expect(request).toBe('301d02010177188016312e332e362e312e342e312e313436362e3230303337')
+    expect(version).toBe('TLSv1.2')
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test('LDAPS preflight respects the stored TLS version limit', async () => {
+  let version: string | null = null
+  const server = createServer({ key: readFileSync(join(directory, 'server.key')),
+    cert: readFileSync(join(directory, 'server.crt')) }, socket => { version = socket.getProtocol() })
+  await new Promise<void>(resolve => server.listen(0, resolve))
+  try {
+    await expect(preflight('ldap-axi', { url: `ldaps://localhost:${(server.address() as { port: number }).port}`,
+      tlsMaxVersion: '1.2', caBundle: readFileSync(join(directory, 'ca.crt'), 'utf8') })).resolves.toBeUndefined()
+    expect(version).toBe('TLSv1.2')
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test.each([
+  { name: 'timeout', respond: (_socket: Socket) => {}, code: 'UPSTREAM_NETWORK_FAILED', message: 'ETIMEDOUT' },
+  { name: 'reset', respond: (socket: Socket) => socket.resetAndDestroy(), code: 'UPSTREAM_NETWORK_FAILED', message: 'ECONNRESET' },
+  { name: 'close', respond: (socket: Socket) => socket.end(), code: 'UPSTREAM_NETWORK_FAILED', message: 'ECONNRESET' },
+  { name: 'rejection', respond: (socket: Socket) => socket.end(Buffer.from('300c02010178070a013504000400', 'hex')),
+    code: 'UPSTREAM_TLS_FAILED', message: 'StartTLS negotiation failed' },
+  { name: 'malformed response', respond: (socket: Socket) => socket.end(Buffer.from([0, 0])),
+    code: 'UPSTREAM_TLS_FAILED', message: 'StartTLS negotiation failed' },
+])('classifies LDAP StartTLS $name without discarding the failure stage', async ({ respond, code, message }) => {
+  const server = createTcpServer(socket => socket.once('data', () => respond(socket)))
+  await new Promise<void>(resolve => server.listen(0, resolve))
+  try {
+    await expect(preflightEndpoint(new URL(`ldap://localhost:${(server.address() as { port: number }).port}`),
+      undefined, 50)).rejects.toMatchObject({
+      code, diagnostic: { stage: 'TLS', host: 'localhost', message: expect.stringContaining(message) },
+    })
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 

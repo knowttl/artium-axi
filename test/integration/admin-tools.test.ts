@@ -180,6 +180,43 @@ test('ordinary tool callers receive an upstream category without administrator d
   expect(JSON.stringify(body)).not.toContain('CANARY-PROVIDER-BODY')
 })
 
+test.each([
+  { name: 'stall', code: 'UPSTREAM_NETWORK_FAILED', elapsed: 10_000, configure: (transport: FakeTokenTransport) => {
+    transport.sendPostRequestAsync = () => new Promise(() => {})
+  } },
+  { name: 'network failure', code: 'UPSTREAM_NETWORK_FAILED', elapsed: 750, configure: (transport: FakeTokenTransport) => {
+    transport.failure = `CANARY-NETWORK-FAILURE ${values['az-axi'].clientSecret}`
+  } },
+  { name: 'expired token', code: 'UPSTREAM_AUTH_FAILED', elapsed: 0, configure: (transport: FakeTokenTransport) => {
+    transport.response = { ...transport.response, expires_in: -1 }
+  } },
+])('token $name has safe administrator diagnostics in the test response and cached health', async ({ code, elapsed, configure }) => {
+  store.replaceCredential('az-axi', values['az-axi'], 0, actor, Date.now())
+  configure(network)
+  let started!: () => void
+  const acquiring = new Promise<void>(resolve => { started = resolve })
+  const post = network.sendPostRequestAsync.bind(network)
+  vi.spyOn(network, 'sendPostRequestAsync').mockImplementation((url, options) => { started(); return post(url, options) })
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  try {
+    const pending = app.inject({ method: 'POST', url: '/v1/admin/tools/az-axi/test', headers, payload: {} }).then(response => response)
+    await acquiring
+    await vi.advanceTimersByTimeAsync(elapsed)
+    const tested = await pending
+    expect(tested.statusCode).toBe(503)
+    const diagnostic = { stage: 'token acquisition', host: 'login.microsoftonline.com',
+      checkedAt: Date.now(), credentialRevision: 1 }
+    expect(tested.json()).toMatchObject({ error: { code, diagnostic } })
+    const listing = await app.inject({ method: 'GET', url: '/v1/admin/tools', headers })
+    const cached = listing.json().tools.find((tool: { name: string }) => tool.name === 'az-axi')
+    expect(cached.health).toMatchObject({ errorCode: code, diagnostic })
+    const evidence = tested.body + listing.body + JSON.stringify(db.prepare('SELECT * FROM audit').all())
+    expect(evidence).not.toContain(values['az-axi'].clientSecret)
+    expect(evidence).not.toContain('CANARY-AZURE-ACCESS-TOKEN')
+    expect(evidence).not.toContain('CANARY-NETWORK-FAILURE')
+  } finally { vi.useRealTimers() }
+})
+
 test('a retired cached category requires a fresh test without breaking administrator listing', async () => {
   await replace('falcon-axi')
   db.prepare("UPDATE tool_health SET status = 'error', error_code = ?").run('RETIRED_CATEGORY')

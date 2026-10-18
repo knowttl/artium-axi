@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
-import { ArtiumError } from '../../shared/errors.js'
+import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
 import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
 import { preflight } from './preflight.js'
@@ -127,7 +127,10 @@ export class ToolHealth {
         outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
       }
       const checkedAt = Date.now()
-      const diagnostic = safeDiagnostic(failure?.diagnostic && { ...failure.diagnostic, checkedAt, credentialRevision: reference.revision }, secrets)
+      const diagnostic = safeDiagnostic(failure && {
+        ...(failure.diagnostic ?? { stage: 'tool run', message: errors[failure.code].message }),
+        checkedAt, credentialRevision: reference.revision,
+      }, secrets)
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,

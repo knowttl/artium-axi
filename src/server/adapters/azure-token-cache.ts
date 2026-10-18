@@ -1,6 +1,7 @@
 import type { INetworkModule } from '@azure/msal-node'
 import inventory from '../../../tools/inventories/az-axi.json' with { type: 'json' }
-import { ArtiumError } from '../../shared/errors.js'
+import { ArtiumError, errors } from '../../shared/errors.js'
+import { safeDiagnostic } from '../health/diagnostic.js'
 import { azureAudiences, azureCredentialSchema, mintAzureToken } from './azure-tokens.js'
 import type { AzureCredential, AzureResource, AzureToken } from './azure-tokens.js'
 
@@ -107,6 +108,12 @@ export class AzureTokenCache {
       throw new ArtiumError('UPSTREAM_NETWORK_FAILED')
     }
     try { return await Promise.race([attempts(), deadline]) }
+    catch (error) {
+      if (error instanceof ArtiumError) error.diagnostic = safeDiagnostic(error.diagnostic ?? {
+        stage: 'token acquisition', host: 'login.microsoftonline.com', message: errors[error.code].message,
+      }, [credential.auth === 'secret' ? credential.clientSecret : credential.privateKey])
+      throw error
+    }
     finally { clearTimeout(timer!) }
   }
 }
