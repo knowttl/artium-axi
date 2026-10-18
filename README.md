@@ -372,7 +372,8 @@ After signing in, run `node dist/cli/artium-axi.mjs setup --host codex` to insta
 The root package remains private for server development; `pnpm build:npm` stages the separate public client package in `dist/npm` using the root package version.
 Run `npm pack --dry-run ./dist/npm` to inspect the client tarball before release.
 Only the bundled CLI, skill, README, LICENSE, NOTICE and client package metadata are included.
-See [npm client releases](docs/runbook.md#npm-client-releases) for automated publishing and owner setup.
+Release automation also publishes the pinned server image to `ghcr.io/knowttl/artium-axi:<release-tag>` with OCI labels and provenance.
+See [release publishing](docs/runbook.md#npm-client-releases) for owner setup and image digest and attestation verification before deployment.
 
 ## Usage
 

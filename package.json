@@ -32,11 +32,13 @@
     "hygiene:check": "node scripts/hygiene-check.mjs"
   },
   "devDependencies": {
+    "@actions/expressions": "0.3.61",
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "22.20.5",
     "esbuild": "0.28.2",
     "typescript": "5.9.3",
-    "vitest": "4.1.0"
+    "vitest": "4.1.0",
+    "yaml": "2.9.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
