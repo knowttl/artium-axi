@@ -209,6 +209,7 @@ describe('Azure token authentication', () => {
     ['storage', 'https://storage.azure.com//.default'],
     ['vault', 'https://vault.azure.net//.default'],
     ['registry', 'https://containerregistry.azure.net/.default'],
+    ['devops', '499b84ac-1321-427f-aa17-267ca6975798/.default'],
   ] as const)('requests only the fixed %s scope', async (resource, scope) => {
     const network = new FakeTokenTransport()
     await mintAzureToken(secretCredential, resource, network)
@@ -219,7 +220,7 @@ describe('Azure token authentication', () => {
     const network = new FakeTokenTransport()
     await expect(mintAzureToken(secretCredential, 'custom' as AzureResource, network)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
     expect(network.requests).toHaveLength(0)
-    expect(Object.keys(azureAudiences)).toEqual(['arm', 'logs', 'graph', 'storage', 'vault', 'registry'])
+    expect(Object.keys(azureAudiences)).toEqual(['arm', 'logs', 'graph', 'storage', 'vault', 'registry', 'devops'])
   })
 
   it.each([

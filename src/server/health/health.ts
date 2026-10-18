@@ -125,7 +125,7 @@ export class ToolHealth {
               throw new ArtiumError('TOOL_DISABLED')
             }
             if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
-          })
+          }, prepared.pathPrefix)
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes

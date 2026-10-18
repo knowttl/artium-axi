@@ -1,0 +1,20 @@
+#!/bin/sh
+export LC_ALL=C
+if [ "$#" -eq 6 ] && [ "$1" = account ] && [ "$2" = get-access-token ] &&
+  [ "$3" = --resource ] && [ "$4" = 499b84ac-1321-427f-aa17-267ca6975798 ] &&
+  [ "$5" = --output ] && [ "$6" = json ]; then
+  case "${ARTIUM_SECRET_0-}" in
+    ''|*[!A-Za-z0-9._-]*) ;;
+    *)
+      case "${ARTIUM_ADO_EXPIRES_ON-}" in
+        ''|*[!0-9.\ :_-]*) ;;
+        *)
+          printf '{"accessToken":"%s","expiresOn":"%s","tokenType":"Bearer"}\n' "$ARTIUM_SECRET_0" "$ARTIUM_ADO_EXPIRES_ON"
+          exit 0
+          ;;
+      esac
+      ;;
+  esac
+fi
+printf '%s\n' 'Unsupported token request.' >&2
+exit 2

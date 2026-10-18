@@ -12,6 +12,9 @@ tools/node_modules
 !skill/**
 !bin/
 !bin/artium-axi-server
+!libexec/
+!libexec/ado-axi/
+!libexec/ado-axi/az
 !scripts/
 !scripts/native-smoke.mjs
 !scripts/falcon-smoke.mjs

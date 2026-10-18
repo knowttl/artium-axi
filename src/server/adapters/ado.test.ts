@@ -9,9 +9,14 @@ import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
 import { prepareRunJournal } from './run-journal.js'
 import { adoCredentialSchema, adoProfile, createAdoAdapter } from './ado.js'
+import { AzureTokenCache } from './azure-token-cache.js'
+import { adoPathPrefix } from '../config.js'
+import { FakeTokenTransport, azureTestTenant, azureTestToken } from '../../../test/fixtures/azure-token-transport.js'
 
 const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
 const credential = { org: 'synthetic-org', project: 'Synthetic Project', auth: 'pat', token: 'CANARY-ado-pat' }
+const serviceCredential = { org: 'synthetic-org', auth: 'client-secret', tenantId: azureTestTenant,
+  clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-ado-client-secret' }
 const adapter = (allowWrites = false) => createAdoAdapter({ getCredential: async () => ({ ...credential, allowWrites }) })
 
 test.each(['org', 'profile', 'config'].flatMap(flag => [
@@ -105,6 +110,43 @@ test('materializes an isolated PAT profile and registers both raw and Basic cred
   expect(call.secrets).toEqual([credential.token, Buffer.from(`:${credential.token}`).toString('base64')])
   expect(JSON.stringify(call.files)).not.toContain(credential.token)
   expect(call.args).toEqual(['project', 'list', '--project', 'Other Project'])
+  expect(call.pathPrefix).toBeUndefined()
+})
+
+test('mints and reuses a DevOps token with an isolated az profile and invalidates on replacement', async () => {
+  const network = new FakeTokenTransport()
+  const adapter = createAdoAdapter({ getCredential: async () => serviceCredential }, new AzureTokenCache(network))
+  const call = await adapter.prepare(['project', 'list'], reference)
+  expect(call.environment).toEqual({ ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: azureTestToken,
+    ARTIUM_ADO_EXPIRES_ON: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/) })
+  expect(call.pathPrefix).toBe(adoPathPrefix)
+  expect(JSON.parse(call.files[0].content as string)).toEqual({ defaultProfile: 'artium', profiles: {
+    artium: { org: serviceCredential.org, auth: 'az' },
+  } })
+  expect(call.secrets).toEqual([serviceCredential.clientSecret, azureTestToken])
+  await adapter.prepare(['project', 'list'], reference)
+  expect(network.requests).toHaveLength(1)
+  expect(network.requests[0].form.get('scope')).toBe('499b84ac-1321-427f-aa17-267ca6975798/.default')
+  adapter.invalidateCredential!({ ...reference, revision: 2 })
+  await expect(adapter.prepare([], reference)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
+  await adapter.prepare([], { ...reference, revision: 2 })
+  expect(network.requests).toHaveLength(2)
+})
+
+test.each([
+  { ...serviceCredential, token: credential.token }, { ...serviceCredential, clientId: 'invalid' },
+  { ...serviceCredential, tenantId: 'invalid' }, { ...serviceCredential, clientSecret: '' },
+  { ...serviceCredential, clientSecret: '   ' }, { ...serviceCredential, clientSecret: undefined },
+  { ...credential, tenantId: azureTestTenant }, { ...credential, clientSecret: 'CANARY-extra' },
+])('refuses mixed or incomplete authentication fields: %j', value => {
+  expect(adoCredentialSchema.safeParse(value).success).toBe(false)
+})
+
+test('requires a revision for client-secret acquisition', async () => {
+  const network = new FakeTokenTransport()
+  const adapter = createAdoAdapter({ getCredential: async () => serviceCredential }, new AzureTokenCache(network))
+  await expect(adapter.prepare([], { ...reference, revision: undefined })).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
+  expect(network.requests).toEqual([])
 })
 
 test.each([

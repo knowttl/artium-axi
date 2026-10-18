@@ -35,7 +35,7 @@ export function editorProfile(tool: ToolName, profile?: CredentialProfile): Cred
 }
 
 const fieldHelp: Record<string, string> = {
-  org: 'Azure DevOps organization name or organization-root HTTPS URL. Changing it requires a new PAT.',
+  org: 'Azure DevOps organization name or organization-root HTTPS URL. Changing it requires new secrets.',
   project: 'Optional default Azure DevOps project.',
   tenantId: 'Directory tenant ID (UUID). Changing it requires new secrets.',
   clientId: 'Application client ID. Changing it requires new secrets.',

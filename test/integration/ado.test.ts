@@ -1,12 +1,13 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { decode } from '@toon-format/toon'
 import inventory from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { createApp } from '../../src/server/app.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { PreparedCall } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -17,12 +18,18 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
+
+// Exercise the shipped stand-in from the checkout without requiring an image install.
+vi.mock('../../src/server/config.js', async importOriginal => ({
+  ...await importOriginal<typeof import('../../src/server/config.js')>(), adoPathPrefix: join(process.cwd(), 'libexec/ado-axi'),
+}))
 
 async function runPinned(runner: Runner, port: number, call: PreparedCall) {
   return runner.run('synthetic-user', process.execPath, [
     '--import', fileURLToPath(new URL('../fake-service/ado-transport.mjs', import.meta.url)),
     fileURLToPath(new URL('../../tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args,
-  ], { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files)
+  ], { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files, undefined, call.pathPrefix)
 }
 
 test('every classified route, alias and default dispatches through the pinned binary', async () => {
@@ -293,12 +300,17 @@ test('the pinned binary recovery read includes the full posted thread reply', as
   })
 })
 
-test('a managed PAT can be saved, tested and used with write gating through the pinned binary', async () => {
+test.each([
+  { value: { auth: 'pat', token: 'CANARY-ado-pat' }, header: 'Basic', secret: 'CANARY-ado-pat' },
+  { value: { auth: 'client-secret', tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222',
+    clientSecret: 'CANARY-ado-client-secret' }, header: 'Bearer', secret: 'CANARY-AZURE-ACCESS-TOKEN' },
+])('managed $value.auth credentials can be saved, tested and used with write gating through the pinned binary', async ({ value, header, secret }) => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     const store = createCredentialStore(db, provider)
-    const adapter = createAdoAdapter(new EmbeddedSecretSource(store))
+    const network = new FakeTokenTransport()
+    const adapter = createAdoAdapter(new EmbeddedSecretSource(store), new AzureTokenCache(network))
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -321,21 +333,28 @@ test('a managed PAT can be saved, tested and used with write gating through the 
       const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
       headers['x-artium-reauth-ticket'] = reauth.json().ticket
       const saved = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/ado-axi/credential', headers,
-        payload: { value: { org: 'https://dev.azure.com/synthetic-org/', project: 'Synthetic Project', auth: 'pat', token: 'CANARY-ado-pat' },
+        payload: { value: { org: 'https://dev.azure.com/synthetic-org/', project: 'Synthetic Project', ...value },
           expectedRevision: 0, expectedToolRevision: 1 } })
       expect(saved.statusCode, saved.body).toBe(200)
-      expect(saved.json()).toMatchObject({ metadata: { org: 'synthetic-org', auth: 'pat' }, normalizations: [{ field: 'org' }] })
-      expect(saved.body).not.toContain('CANARY-ado-pat')
+      expect(saved.json()).toMatchObject({ metadata: { org: 'synthetic-org', auth: value.auth }, normalizations: [{ field: 'org' }] })
+      expect(saved.body).not.toContain('CANARY-')
       const checked = await app.inject({ method: 'POST', url: '/v1/admin/tools/ado-axi/test', headers, payload: {} })
       expect(checked.statusCode, checked.body).toBe(200)
       expect(checked.json()).toMatchObject({ status: 'ok', readOnly: true })
       expect(JSON.parse(await send('/__evidence')).requests).toContainEqual(expect.objectContaining({
-        host: 'dev.azure.com', path: '/synthetic-org/_apis/projects', auth: 'Basic', canaryReceived: true,
+        host: 'dev.azure.com', path: '/synthetic-org/_apis/projects', auth: header, canaryReceived: true,
       }))
       const enabled = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/ado-axi', headers,
         payload: { enabled: true, expectedRevision: 2 } })
       expect(enabled.statusCode, enabled.body).toBe(200)
       const run = (args: string[], input = {}) => app.inject({ method: 'POST', url: '/v1/tools/ado-axi/run', headers, payload: { args, ...input } })
+      await send('/__ado/reset', 'POST')
+      for (const flag of ['org', 'profile', 'config']) {
+        for (const args of [[`--${flag}`, 'other', 'project', 'list'], ['project', 'list', `--${flag}=other`]]) {
+          expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+        }
+      }
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
       const result = await run(['projects', 'list', '--limit', '1'])
       expect(result.statusCode, result.body).toBe(200)
       expect(result.json()).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('Synthetic Project') })
@@ -353,22 +372,27 @@ test('a managed PAT can be saved, tested and used with write gating through the 
       expect((await run(['api', '_apis/projects'], { stdin: '{}' })).json()).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT' } })
       const redacted = await run(['api', '_apis/redaction'])
       expect(redacted.json()).toMatchObject({ error: { code: 'SECRET_IN_OUTPUT' } })
-      expect(redacted.body).not.toContain('CANARY-ado-pat')
+      expect(redacted.body).not.toContain(secret)
       expect(redacted.body).not.toContain(Buffer.from(':CANARY-ado-pat').toString('base64'))
       const evidence = JSON.parse(await send('/__evidence'))
       expect(evidence.mutations).toBe(1)
       expect(evidence.requests).toEqual(expect.arrayContaining([
-        expect.objectContaining({ method: 'GET', path: '/synthetic-org/_apis/projects', auth: 'Basic', canaryReceived: true }),
-        expect.objectContaining({ method: 'POST', path: '/synthetic-org/Synthetic%20Project/_apis/wit/wiql', auth: 'Basic', canaryReceived: true }),
-        expect.objectContaining({ method: 'PATCH', path: '/synthetic-org/_apis/wit/workitems/42', auth: 'Basic', canaryReceived: true,
+        expect.objectContaining({ method: 'GET', path: '/synthetic-org/_apis/projects', auth: header, canaryReceived: true }),
+        expect.objectContaining({ method: 'POST', path: '/synthetic-org/Synthetic%20Project/_apis/wit/wiql', auth: header, canaryReceived: true }),
+        expect.objectContaining({ method: 'PATCH', path: '/synthetic-org/_apis/wit/workitems/42', auth: header, canaryReceived: true,
           body: [{ op: 'add', path: '/fields/System.Title', value: 'Synthetic changed title' }] }),
       ]))
       const audit = db.prepare("SELECT action, arguments FROM audit WHERE tool = 'ado-axi' AND event = 'run-terminal'").all()
       expect(audit).toContainEqual(expect.objectContaining({ action: 'write' }))
       expect(audit).toContainEqual(expect.objectContaining({ action: 'read' }))
-      expect(JSON.stringify(audit)).not.toContain('CANARY-ado-pat')
+      expect(JSON.stringify(audit)).not.toContain(secret)
       expect(JSON.stringify(audit)).not.toContain(Buffer.from(':CANARY-ado-pat').toString('base64'))
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
+      // Enabling writes replaces the credential revision and invalidates its token.
+      expect(network.requests).toHaveLength(value.auth === 'pat' ? 0 : 2)
+      if (value.auth === 'client-secret') {
+        expect(network.requests.map(request => request.form.get('scope'))).toEqual(Array(2).fill('499b84ac-1321-427f-aa17-267ca6975798/.default'))
+      }
     } finally { await app.close(); db.close() }
   })
 })

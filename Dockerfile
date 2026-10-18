@@ -19,6 +19,7 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY skill ./skill
 COPY bin ./bin
+COPY --chmod=0755 libexec/ado-axi/az ./libexec/ado-axi/az
 COPY tools/inventories ./tools/inventories
 COPY scripts/build-cli.mjs ./scripts/build-cli.mjs
 COPY scripts/native-smoke.mjs ./scripts/native-smoke.mjs

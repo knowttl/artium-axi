@@ -32,7 +32,7 @@ export function buildInputs() {
   return {
     head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     inputs: digest(['package.json', 'pnpm-lock.yaml', 'tsconfig.json', 'vitest.config.ts',
-      'src/', 'test/', 'scripts/', 'tools/', 'bin/', 'skill/', 'Dockerfile', '.dockerignore',
+      'src/', 'test/', 'scripts/', 'tools/', 'bin/', 'libexec/', 'skill/', 'Dockerfile', '.dockerignore',
       'node_modules/zod/', 'node_modules/typescript/', 'node_modules/esbuild/']),
     node: process.version,
   }
