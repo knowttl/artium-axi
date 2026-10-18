@@ -195,12 +195,15 @@ Scripts use the JSON API over the same trusted HTTPS origin; see the [shared con
 Test credential performs credential validation followed by DNS, TCP and verified TLS preflight for the health read destinations before running the tool.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
-The administrator test response and tool page show the current failure's stage, host when available, and the tool's error text and hint when available.
+The administrator test response and tool page show the current failure's stage and the tool's error text and hint when available.
+Network and TLS diagnostics name the destination host for both manual tests and background checks; background checks run the tool without preflight.
 Checks admitted to run also update revision-bound cached health on `/admin/tools`, except for transient admission or authorization failures.
 Failures before admission, including missing credentials, overlapping checks and unavailable adapters, return configuration-stage diagnostics without replacing cached health; an absent credential revision is `null`.
 Preflight certificate-verification diagnostics identify the chain as self-signed or untrusted and include the presented issuer when available.
 For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas).
 Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
+Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
+These Azure diagnostics never include raw response bodies.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
 Cached diagnostic text is held only in server memory; after a restart, rerun Test credential for the detail accompanying a persisted category.
 The browser temporarily holds the save-and-test result in session storage to display it after reloading the tool page.
