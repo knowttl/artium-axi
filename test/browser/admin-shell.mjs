@@ -541,6 +541,15 @@ for (const saveAndTest of [false, true]) {
 test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalization notices and canonical public values after reload', () => {
   browser(`
     await page.open(base + '/admin/tools/vectra-axi');
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (url, options) => {
+        if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/test') return original(url, options);
+        return Response.json({ error: { code: 'UPSTREAM_NETWORK_FAILED', message: 'The upstream service could not be reached.',
+          next: 'Check the diagnostic host and stage.', diagnostic: { stage: 'DNS', host: 'appliance.example',
+            message: 'Synthetic DNS failure.', checkedAt: 1700000000000, credentialRevision: 1 } } }, { status: 503 });
+      };
+    });
     for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
       await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
     }
@@ -554,7 +563,8 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === ''), 'Stored secret was displayed');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test passed.' : 'Saved.')})), 'Save result missing');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');
+    if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Synthetic DNS failure.')), 'Current diagnostic missing');
     check(await page.eval(() => !document.querySelector('main').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
   `)
 })
