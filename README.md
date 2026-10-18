@@ -224,7 +224,7 @@ Falcon's fixed `auth status` test reports local credential resolution, so also r
 
 #### Vectra
 
-Obtain the deployment's canonical HTTPS origin, without a path or trailing slash.
+Obtain the deployment's HTTPS origin; see [credential editor guidance](#browser-administration) for accepted input.
 For QUX, select `kind=qux`, `apiVersion=2.5` and either `auth=token` with `token`, or `auth=oauth` with `clientId` and `clientSecret`.
 QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optional release metadata.
 For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
@@ -516,7 +516,11 @@ Archived users cannot be enabled through the UI or API; use Disable for temporar
 Credential editors pre-fill non-secret values and never return stored secrets.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
-For Vectra, `origin` must be a canonical HTTPS origin, without a path, credentials or an explicit default port.
+Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
+Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.
+For Vectra, `origin` accepts surrounding whitespace, a trailing slash, uppercase scheme or host and an explicit default port, saving a canonical HTTPS origin.
+Paths, queries, fragments, embedded credentials and HTTP origins remain invalid.
+Rejected profile input returns `INVALID_INPUT` with field or field-combination guidance, without echoing submitted values.
 See [Vectra credential setup](#vectra) for private CA input and shared trust.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
@@ -526,6 +530,7 @@ Falcon has guided fields even when its pinned package has no credential schema; 
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Changing mode, kind, authentication, tenant, client or origin requires new secrets.
 Select **Test after saving** to save and report a harmless credential check inline.
+After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](docs/runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.

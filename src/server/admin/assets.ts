@@ -321,7 +321,12 @@ document.addEventListener('submit', async event => {
       return;
     }
     if (response.ok && form.dataset.saveTool) {
-      if (!form.querySelector('[data-save-and-test]').checked) { location.reload(); return; }
+      const saved = await response.json();
+      const normalized = (saved.normalizations || []).map(change => change.field + ': ' + change.reason + '.').join(' ');
+      if (!form.querySelector('[data-save-and-test]').checked) {
+        sessionStorage.setItem('credential-test:' + location.pathname, 'Saved.' + (normalized ? ' ' + normalized : ''));
+        location.reload(); return;
+      }
       let result = 'Saved. Test could not complete. Run Test credential again.';
       try {
         const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/test', { method: 'POST',
@@ -331,7 +336,7 @@ document.addEventListener('submit', async event => {
         result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
         if (!tested.ok) { const { error } = await tested.json(); result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
       } catch { /* The credential is saved even when its test cannot complete. */ }
-      sessionStorage.setItem('credential-test:' + location.pathname, result);
+      sessionStorage.setItem('credential-test:' + location.pathname, result + (normalized ? ' ' + normalized : ''));
       location.reload();
       return;
     }
