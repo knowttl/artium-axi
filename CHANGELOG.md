@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.0.6](https://github.com/knowttl/artium-axi/compare/v0.0.5...v0.0.6) (2026-10-18)
+
+
+### Features
+
+* add managed Azure DevOps integration with PAT authentication ([#116](https://github.com/knowttl/artium-axi/issues/116)) ([3846bad](https://github.com/knowttl/artium-axi/commit/3846badacc43ad86d8614ff59310eb4ec45c95df))
+* **release:** publish server image to GHCR with provenance ([#115](https://github.com/knowttl/artium-axi/issues/115)) ([aa0e959](https://github.com/knowttl/artium-axi/commit/aa0e95984466663de2b621adecb210abcab2647d))
+* **server:** add administrator credential diagnostics ([#110](https://github.com/knowttl/artium-axi/issues/110)) ([3f30b38](https://github.com/knowttl/artium-axi/commit/3f30b383984ae8080ddc6adcba86b2ffc389cd70))
+* **server:** support shared upstream CA bundles ([#106](https://github.com/knowttl/artium-axi/issues/106)) ([739b385](https://github.com/knowttl/artium-axi/commit/739b3856a26524683a3a170333b229bd58f45e8e))
+
+
+### Bug Fixes
+
+* **cli:** bound doctor diagnostics and stop unreachable probes ([#112](https://github.com/knowttl/artium-axi/issues/112)) ([06399dd](https://github.com/knowttl/artium-axi/commit/06399dd5bb377978dfab12f57d7fcdf27b0d3e97))
+* **cli:** make usage errors actionable and focus command help ([#113](https://github.com/knowttl/artium-axi/issues/113)) ([1ba8616](https://github.com/knowttl/artium-axi/commit/1ba8616d1907b3d82589381c77c3dab9411577c0))
+* normalize credential input and report field validation errors ([#109](https://github.com/knowttl/artium-axi/issues/109)) ([aa9c4ca](https://github.com/knowttl/artium-axi/commit/aa9c4cacf0a913aa92917d6aa01292827af76ee0))
+* report precise credential validation reasons ([#114](https://github.com/knowttl/artium-axi/issues/114)) ([f7b2716](https://github.com/knowttl/artium-axi/commit/f7b271615cce5b6a603d060e51f67ff5571ef5b1))
+
 ## [0.0.5](https://github.com/knowttl/artium-axi/compare/v0.0.4...v0.0.5) (2026-10-18)
 
 
