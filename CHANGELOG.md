@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.5](https://github.com/knowttl/artium-axi/compare/v0.0.4...v0.0.5) (2026-10-18)
+
+
+### Bug Fixes
+
+* correct Unicode case matching in hygiene checks ([#96](https://github.com/knowttl/artium-axi/issues/96)) ([8a1e49f](https://github.com/knowttl/artium-axi/commit/8a1e49fb5bb9f5bf53aef8391d611f315bbc92d8))
+* reject StartTLS for LDAPS credential profiles ([#102](https://github.com/knowttl/artium-axi/issues/102)) ([829d8a6](https://github.com/knowttl/artium-axi/commit/829d8a6af12c30b87886da974ee583592766a02e))
+* remove local password complexity restrictions ([#97](https://github.com/knowttl/artium-axi/issues/97)) ([3de8738](https://github.com/knowttl/artium-axi/commit/3de87386fbf03e4589ff5548c912803a8b514610))
+
 ## [0.0.4](https://github.com/knowttl/artium-axi/compare/v0.0.3...v0.0.4) (2026-10-17)
 
 
