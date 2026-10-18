@@ -1,4 +1,4 @@
-import type { Ajv, ErrorObject, ValidateFunction } from 'ajv'
+import type { Ajv, ValidateFunction } from 'ajv'
 import type { FormatName } from 'ajv-formats'
 
 type Schema = Record<string, any>
@@ -53,6 +53,7 @@ export interface InputNormalization { field: string, reason: string }
 // subtree is returned immediately, including whitespace in accepted secrets.
 export class CredentialInput {
   private readonly validators = new Map<string, ValidateFunction>()
+  private readonly selectorValidators = new Map<string, ValidateFunction>()
   readonly validate: ValidateFunction
 
   constructor(private readonly schema: Schema, private readonly ajv: Ajv) {
@@ -137,86 +138,152 @@ export class CredentialInput {
   }
 
   reasons(value: Record<string, unknown>): { path: string[], message: string }[] {
-    const errors = this.validate.errors ?? []
-    const fieldsIn = (schema: Schema, path: string[]): string[] => {
-      if (!schema || typeof schema !== 'object') return []
-      const names = new Set<string>([...schema?.required ?? [], ...Object.keys(schema?.properties ?? {})])
-      const fields = [...names].flatMap(name => {
-        const nested = fieldsIn(schema?.properties?.[name], [...path, name])
-        return nested.length ? nested : [[...path, name].join('.')]
-      })
-      return [...fields, ...['allOf', 'oneOf', 'anyOf'].flatMap(keyword =>
-        (schema?.[keyword] ?? []).flatMap((branch: Schema) => fieldsIn(branch, path))),
-        ...['not', 'if', 'then', 'else'].flatMap(keyword => fieldsIn(schema[keyword], path))]
+    const reasons: { path: string[], message: string }[] = []
+    const escape = (name: string) => name.replaceAll('~', '~0').replaceAll('/', '~1')
+    const add = (path: string[], rule: string, field = path.join('.') || 'credential') => {
+      reasons.push({ path, message: `${field} ${rule}.` })
     }
-    const reason = (error: ErrorObject) => {
-      const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
-      const schema = this.resolve(error.schemaPath.replace(/^.*?#/, '').replace(/\/[^/]+$/, ''))
-      if (error.keyword === 'required') path.push(error.params.missingProperty)
-      if (error.keyword === 'additionalProperties') path.push(error.params.additionalProperty)
-      let field = path.join('.') || 'credential'
-      let rule = 'does not satisfy the credential rules'
-      if (error.keyword === 'required') rule = 'is required'
-      if (error.keyword === 'type') rule = `must be ${schema?.type ?? 'the expected type'}`
-      if (error.keyword === 'format') rule = credentialFormats[error.params.format]?.reason ?? `must match the ${error.params.format} format`
-      if (error.keyword === 'pattern') rule = 'must match the required character pattern'
-      if (error.keyword === 'not') rule = 'must not match the excluded rule'
-      if (error.keyword === 'minLength') rule = `must have a length >= ${error.params.limit}`
-      if (error.keyword === 'maxLength') rule = `must have a length <= ${error.params.limit}`
-      if (error.keyword === 'minItems') rule = `must contain at least ${error.params.limit} item${error.params.limit === 1 ? '' : 's'}`
-      if (error.keyword === 'maxItems') rule = `must contain at most ${error.params.limit} item${error.params.limit === 1 ? '' : 's'}`
-      if (error.keyword === 'uniqueItems') rule = 'must contain unique items'
-      if (error.keyword === 'enum' || error.keyword === 'const') rule = 'must match an allowed choice'
-      if (error.keyword === 'not' && schema?.not?.pattern === '\\s') rule = 'must not contain whitespace'
-      if (error.keyword === 'not') {
-        const fields = [...new Set(fieldsIn(schema?.not, path))]
-        if (fields.length) {
-          field = fields.join(', ')
-          rule = 'must not be used in this field combination'
+    // Read conflict names from the rules that actually matched the exclusion,
+    // including referenced and nested alternatives, rather than all possible fields.
+    const fieldsIn = (pointer: string, input: any, path: string[], depth = 0): string[] => {
+      if (depth > 64) return []
+      const schema = this.resolve(pointer)
+      if (!schema || typeof schema !== 'object') return []
+      const fields: string[] = []
+      if (schema.$ref?.startsWith('#/')) fields.push(...fieldsIn(schema.$ref.slice(1), input, path, depth + 1))
+      for (const name of new Set<string>([...schema.required ?? [], ...Object.keys(schema.properties ?? {})])) {
+        if (!input || !Object.hasOwn(input, name)) continue
+        const nested = schema.properties?.[name]
+          ? fieldsIn(`${pointer}/properties/${escape(name)}`, input[name], [...path, name], depth + 1) : []
+        fields.push(...nested.length ? nested : [[...path, name].join('.')])
+      }
+      for (const keyword of ['allOf', 'oneOf', 'anyOf']) {
+        for (const [index] of (schema[keyword] ?? []).entries()) {
+          const child = `${pointer}/${keyword}/${index}`
+          if (this.validator(child)(input)) fields.push(...fieldsIn(child, input, path, depth + 1))
         }
       }
-      if (error.keyword === 'const' && typeof schema?.const === 'boolean' && /\/(then|else)\//.test(error.schemaPath)) rule = `must be ${schema.const} for this URL`
-      if (['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'].includes(error.keyword)) {
-        rule = `must be ${error.params.comparison} ${error.params.limit}`
+      if (schema.not) fields.push(...fieldsIn(`${pointer}/not`, input, path, depth + 1))
+      if (schema.if) {
+        fields.push(...fieldsIn(`${pointer}/if`, input, path, depth + 1))
+        const branch = this.validator(`${pointer}/if`)(input) ? 'then' : 'else'
+        if (schema[branch]) fields.push(...fieldsIn(`${pointer}/${branch}`, input, path, depth + 1))
       }
-      if (error.keyword === 'additionalProperties') rule = 'is an unsupported field'
-      if (error.keyword === 'propertyNames' || error.propertyName !== undefined) rule = 'must use property names that satisfy the schema'
-      const branch = error.schemaPath.match(/^(.*?)\/(then|else)\//)
-      if (branch && !(error.keyword === 'const' && typeof schema?.const === 'boolean')) {
-        const condition = this.resolve(`${branch[1].replace(/^.*?#/, '')}/if`)
-        const selectors = Object.keys(condition?.properties ?? {})
-        if (selectors.length) rule += ` for the selected ${selectors.join(', ')}`
-      }
-      return { path, message: `${field} ${rule}.` }
+      return [...new Set(fields)]
     }
-    const conflictsIn = (pointer: string, path: string[], input: unknown): string[] => {
+    // Only constraints with different choices across branches select an identity.
+    // A shared constraint (for example allowDeviceCode: false) is still reported
+    // as an error in the selected branch, rather than disqualifying that branch.
+    const selectorsIn = (pointer: string, path: string[] = [], depth = 0): Map<string, string> => {
+      const selectors = new Map<string, string>()
+      if (depth > 64) return selectors
       const schema = this.resolve(pointer)
-      const matched = ['allOf', 'oneOf', 'anyOf'].flatMap(keyword =>
-        (schema[keyword] ?? []).flatMap((_: Schema, index: number) => {
-          const child = `${pointer}/${keyword}/${index}`
-          return this.validator(child)(input) ? conflictsIn(child, path, input) : []
-        }))
-      return matched.length ? matched : fieldsIn(schema, path)
-    }
-    const concrete = errors.filter(error => !['if', 'oneOf', 'anyOf'].includes(error.keyword)
-      && !/\/(oneOf|anyOf)\//.test(error.schemaPath))
-    const reasons = concrete.map(reason)
-    const alternatives = errors.filter(error => ['oneOf', 'anyOf'].includes(error.keyword)
-      && !/\/(oneOf|anyOf)\//.test(error.schemaPath))
-    for (const error of alternatives) {
-      const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
-      const pointer = error.schemaPath.replace(/^.*?#/, '')
-      const node = this.resolve(pointer.replace(/\/[^/]+$/, ''))
-      const candidates = node[error.keyword].map((_: Schema, index: number) =>
-        errors.filter(issue => issue.schemaPath.startsWith(`${error.schemaPath}/${index}/`)))
-        .filter((issues: ErrorObject[]) => issues.length && issues.every(issue => issue.keyword === 'not'))
-      let fields: string[] = []
-      if (candidates.length === 1) {
-        const input = path.reduce<any>((input, key) => input?.[key], value)
-        fields = candidates[0].flatMap((issue: ErrorObject) => conflictsIn(issue.schemaPath.replace(/^.*?#/, ''), path, input))
+      if (!schema || typeof schema !== 'object') return selectors
+      for (const keyword of ['const', 'enum', 'type']) {
+        if (schema[keyword] !== undefined) selectors.set(JSON.stringify([path, keyword]), JSON.stringify(schema[keyword]))
       }
-      reasons.push({ path, message: `${[...new Set(fields)].join(', ') || path.join('.') || 'credential'} must satisfy the selected credential field combination.` })
+      const merge = (child: string, childPath = path) => {
+        for (const [key, rule] of selectorsIn(child, childPath, depth + 1)) selectors.set(key, rule)
+      }
+      if (schema.$ref?.startsWith('#/')) merge(schema.$ref.slice(1))
+      for (const name of Object.keys(schema.properties ?? {})) merge(`${pointer}/properties/${escape(name)}`, [...path, name])
+      for (const [index] of (schema.allOf ?? []).entries()) merge(`${pointer}/allOf/${index}`)
+      return selectors
     }
-    return reasons
+    const visit = (pointer: string, input: any, path: string[], selected = false, condition = '', depth = 0): void => {
+      const validate = this.validator(pointer)
+      if (validate(input)) return
+      if (depth > 64) { add(path, 'must satisfy the selected credential field combination'); return }
+      const schema = this.resolve(pointer)
+      const before = reasons.length
+      // Capture local failures before child validators replace their error lists.
+      // AJV remains the authority for keyword semantics (Unicode lengths, equality,
+      // numeric bounds); the walker owns traversal and branch-specific reporting.
+      const local = (validate.errors ?? []).filter(error => error.instancePath === ''
+        && error.schemaPath.split('#').pop() === `${pointer}/${error.keyword}`)
+      for (const error of local) {
+        const { keyword, params } = error
+        const target = [...path]
+        if (keyword === 'required') target.push(params.missingProperty)
+        if (keyword === 'additionalProperties') target.push(params.additionalProperty)
+        let rule: string | undefined
+        if (keyword === 'required') rule = 'is required'
+        if (keyword === 'type') rule = `must be ${schema.type}`
+        if (keyword === 'format') rule = credentialFormats[params.format]?.reason ?? `must match the ${params.format} format`
+        if (keyword === 'pattern') rule = 'must match the required character pattern'
+        if (keyword === 'minLength') rule = `must have a length >= ${params.limit}`
+        if (keyword === 'maxLength') rule = `must have a length <= ${params.limit}`
+        if (keyword === 'minItems') rule = `must contain at least ${params.limit} item${params.limit === 1 ? '' : 's'}`
+        if (keyword === 'maxItems') rule = `must contain at most ${params.limit} item${params.limit === 1 ? '' : 's'}`
+        if (keyword === 'uniqueItems') rule = 'must contain unique items'
+        if (keyword === 'enum' || keyword === 'const') rule = 'must match an allowed choice'
+        if (['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'].includes(keyword)) rule = `must be ${params.comparison} ${params.limit}`
+        if (keyword === 'additionalProperties') rule = 'is an unsupported field'
+        if (keyword === 'propertyNames') rule = 'must use property names that satisfy the schema'
+        if (keyword === 'false schema') rule = 'is not permitted by the schema'
+        if (keyword === 'not') {
+          const fields = fieldsIn(`${pointer}/not`, input, path)
+          if (fields.length) {
+            add(path, selected ? 'must satisfy the selected credential field combination' : 'must not be used in this field combination', fields.join(', '))
+            continue
+          }
+          rule = schema.not.pattern === '\\s' ? 'must not contain whitespace' : 'must not match the excluded rule'
+        }
+        if (rule) {
+          if (condition) rule = keyword === 'const' && typeof schema.const === 'boolean'
+            ? `must be ${schema.const} ${condition === 'url' ? 'for this URL' : `for the selected ${condition}`}`
+            : `${rule} for the selected ${condition}`
+          add(target, rule)
+        }
+      }
+      if (schema.$ref?.startsWith('#/')) visit(schema.$ref.slice(1), input, path, selected, condition, depth + 1)
+      if (input && typeof input === 'object' && !Array.isArray(input)) {
+        for (const name of Object.keys(input)) {
+          const child = Object.hasOwn(schema.properties ?? {}, name) ? `properties/${escape(name)}`
+            : typeof schema.additionalProperties === 'object' ? 'additionalProperties' : undefined
+          if (child) visit(`${pointer}/${child}`, input[name], [...path, name], selected, condition, depth + 1)
+        }
+      }
+      if (Array.isArray(input) && schema.items && !Array.isArray(schema.items)) {
+        input.forEach((item, index) => visit(`${pointer}/items`, item, [...path, String(index)], selected, condition, depth + 1))
+      }
+      for (const [index] of (schema.allOf ?? []).entries()) visit(`${pointer}/allOf/${index}`, input, path, selected, condition, depth + 1)
+      if (schema.if) {
+        const branch = this.validator(`${pointer}/if`)(input) ? 'then' : 'else'
+        if (schema[branch]) visit(`${pointer}/${branch}`, input, path, selected, Object.keys(schema.if.properties ?? {}).join(', '), depth + 1)
+      }
+      for (const keyword of ['oneOf', 'anyOf']) {
+        if (!schema[keyword]) continue
+        const branches = schema[keyword].map((_: Schema, index: number) => `${pointer}/${keyword}/${index}`) as string[]
+        const passing = branches.filter(child => this.validator(child)(input))
+        if (passing.length === 1 || (keyword === 'anyOf' && passing.length)) continue
+        const selectors = branches.map(child => selectorsIn(child))
+        const choices = new Map<string, Set<string>>()
+        for (const branch of selectors) for (const [key, rule] of branch) {
+          if (!choices.has(key)) choices.set(key, new Set())
+          choices.get(key)!.add(rule)
+        }
+        const candidates = branches.filter((_, index) => [...selectors[index]].every(([key, rule]) => {
+          if (choices.get(key)!.size < 2) return true
+          const [parts, keyword] = JSON.parse(key) as [string[], string]
+          const value = parts.reduce((node, name) => node?.[name], input)
+          if (value === undefined) return true
+          const selector = JSON.stringify([keyword, rule])
+          let validate = this.selectorValidators.get(selector)
+          if (!validate) {
+            validate = this.ajv.compile({ [keyword]: JSON.parse(rule) })
+            this.selectorValidators.set(selector, validate)
+          }
+          return validate(value)
+        }))
+        if (!passing.length && candidates.length === 1) visit(candidates[0], input, path, true, condition, depth + 1)
+        else add(path, 'must satisfy the selected credential field combination')
+      }
+      // Diagnostics must never turn a validator rejection into accepted input,
+      // including when a future profile introduces a new schema keyword.
+      if (reasons.length === before) add(path, 'must satisfy the credential schema')
+    }
+    visit('', value, [])
+    return reasons.filter((reason, index) => reasons.findIndex(other => JSON.stringify(other) === JSON.stringify(reason)) === index)
   }
 }

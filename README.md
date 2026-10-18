@@ -523,7 +523,9 @@ Profile-backed credential saves normalize safe differences only when the schema 
 Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.
 For Vectra, `origin` accepts surrounding whitespace, a trailing slash, uppercase scheme or host and an explicit default port, saving a canonical HTTPS origin.
 Paths, queries, fragments, embedded credentials and HTTP origins remain invalid.
-Rejected profile input returns `INVALID_INPUT` with field or field-combination guidance, without echoing submitted values.
+Rejected profile input returns `INVALID_INPUT` with field names and failing schema constraints, including string lengths, array bounds, uniqueness and unsupported fields, without echoing submitted values.
+When the authentication branch is identifiable, guidance reports its failures and conflicting field names without instructions from other branches; independent errors are reported together.
+Ambiguous alternatives receive field-combination guidance.
 See [Vectra credential setup](#vectra) for private CA input and shared trust.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
