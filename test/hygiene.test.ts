@@ -134,6 +134,32 @@ test('security hygiene redacts restricted file names', () => {
   })
 })
 
+test('security hygiene matches and redacts dotted capital I without shifting columns', () => {
+  fixture((_directory, list, candidate) => {
+    writeFileSync(list, 'SYNTHETIC-İ\n')
+    writeFileSync(join(candidate, 'İ-prefix SYNTHETIC-İ.txt'), 'İ-prefix SYNTHETIC-İ\n')
+    const result = check(candidate, list)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('match: "[redacted]":1:10 term=1')
+    expect(result.stdout).toContain('hygiene: fail files=1 matches=2')
+    expect(result.stdout).not.toContain('SYNTHETIC-İ')
+    expect(result.stdout).not.toContain('synthetic-i\u0307')
+  })
+})
+
+test('security hygiene matches and redacts Greek final sigma', () => {
+  fixture((_directory, list, candidate) => {
+    writeFileSync(list, 'SYNTHETIC-οσ\n')
+    writeFileSync(join(candidate, 'SYNTHETIC-Ος.txt'), 'SYNTHETIC-ΟΣx\n')
+    const result = check(candidate, list)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('match: "[redacted]":1:1 term=1')
+    expect(result.stdout).toContain('hygiene: fail files=1 matches=2')
+    expect(result.stdout).not.toContain('SYNTHETIC-Ος')
+    expect(result.stdout).not.toContain('synthetic-ος')
+  })
+})
+
 test.each(['candidate', 'release'])('security hygiene conceals Unicode matches in %s paths', location => {
   fixture((directory, list, candidate) => {
     const release = join(directory, 'release')
