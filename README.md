@@ -337,7 +337,8 @@ The native Kerberos provider and its installation script are unnecessary for thi
 
 Obtain a dedicated directory identity with read access only, its bind DN and password, and a directory URL whose certificate can be verified.
 At `/admin/tools/ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn` and the password value in `bindPassword`.
-Use `ldaps://<directory-host>:636`, or `ldap://<directory-host>:389` with `startTls=true`.
+Use `ldaps://<directory-host>:636` with `startTls` left at the default (unset) or explicitly `false`, or `ldap://<directory-host>:389` with `startTls=true`.
+Saving an `ldaps://` URL with `startTls=true` is rejected with `INVALID_INPUT` and the message `startTls must be false for this URL.`
 Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
 If a private CA is required, supply its PEM contents in `caFile`, not a server file path.
 The multi-line `caFile` editor preserves newlines through saving and private CA file materialization for each call.
