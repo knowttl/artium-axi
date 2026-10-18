@@ -55,6 +55,7 @@ export function commandHelp(command: HelpCommand): string {
 // Tool arguments belong to the upstream parser, except in local prefix help.
 export function validateArguments(args: string[], prefixHelp: boolean) {
   const command = args[0]
+  if (command === 'tools') args = [...args.filter(arg => arg !== '--help'), ...args.filter(arg => arg === '--help')]
   const rootFlags = '--help, --version, --managed-session (before the command)'
   const rootCommands = Object.keys(commands).filter(name => name !== 'home' && name !== 'managed-session' && name !== 'tools show').join(', ')
   function fail(token: string | undefined, level: string, choices: string): never {

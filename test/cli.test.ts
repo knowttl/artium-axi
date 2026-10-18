@@ -739,11 +739,31 @@ test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['
   })
 
 test.each([
+  ['--help', 'tools', 'show'],
+  ['tools', '--help', 'show'],
+  ['tools', 'show', '--help'],
+  ['--help', 'tools', 'show', 'falcon-axi'],
+  ['tools', '--help', 'show', 'falcon-axi'],
+  ['tools', 'show', '--help', 'falcon-axi'],
+  ['tools', 'show', 'falcon-axi', '--help'],
+].flatMap(args => [{ args }, { args: ['--managed-session', ...args] }]))(
+  'tools show help accepts every help position offline: $args', async ({ args }) => {
+    requests = []
+    const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+    expect(result).toMatchObject({ code: 0, stderr: '' })
+    expect(result.stdout).toContain('usage: artium-axi tools show <tool>')
+    expect(requests).toEqual([])
+  })
+
+test.each([
   { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, falcon-axi, vectra-axi, ldap-axi, az-axi, mg-axi' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi' },
   { args: ['tools', 'show', 'falcon-axi', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
+  { args: ['tools', '--help', 'show', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
+  { args: ['tools', '--help', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi' },
+  { args: ['tools', '--help', 'show', '--help'], token: '--help', choices: 'Valid flags for tools show: --help' },
   { args: ['whoami', '--oops'], token: '--oops', choices: 'Valid flags for whoami: --help' },
   { args: ['doctor', 'extra'], token: 'extra', choices: 'Valid flags for doctor: --help' },
   { args: ['logout', '--oops'], token: '--oops', choices: 'Valid flags for logout: --help' },
