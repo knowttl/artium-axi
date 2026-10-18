@@ -295,7 +295,9 @@
         "limit": "value"
       },
       "positionals": 1,
-      "aliases": []
+      "aliases": [
+        "work-item links list"
+      ]
     },
     {
       "command": "work-item link add",
@@ -319,7 +321,9 @@
         "if-rev": "value"
       },
       "positionals": 1,
-      "aliases": []
+      "aliases": [
+        "work-item links add"
+      ]
     },
     {
       "command": "pr list",

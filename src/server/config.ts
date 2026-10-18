@@ -14,12 +14,13 @@ export const toolSkillPaths = {
   'ldap-axi': '/opt/tools/node_modules/@knowttl/ldap-axi/skills/ldap-axi/SKILL.md',
   'ado-axi': '/opt/tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md',
 } as const
-export const toolCredentialSchemaPaths: Partial<Record<keyof typeof toolPaths, string>> = {
+export const toolCredentialSchemaPaths = {
   'falcon-axi': '/opt/falcon-axi/lib/python3.11/site-packages/falcon_axi/axi-credential.schema.json',
   'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json',
   'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/axi-credential.schema.json',
   'mg-axi': '/opt/tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json',
   'ldap-axi': '/opt/tools/node_modules/@knowttl/ldap-axi/axi-credential.schema.json',
+  'ado-axi': undefined,
 } as const
 export const runtimePath = '/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'
 export const serverDefaults = { host: '0.0.0.0', port: 8080, database: '/data/artium.db', temporaryDirectory: '/tmp/artium-calls' } as const

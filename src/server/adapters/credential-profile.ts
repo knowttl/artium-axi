@@ -36,7 +36,7 @@ export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, 
 // Only the pinned package is consulted. Missing schemas retain the legacy adapter;
 // invalid schemas fail startup rather than silently downgrading credential handling.
 export function loadCredentialProfile(tool: ToolName, file = toolCredentialSchemaPaths[tool]): CredentialProfile | undefined {
-  if (!file) return
+  if (file === undefined) return
   let content: string
   try { content = readFileSync(file, 'utf8') }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw new ArtiumError('CREDENTIAL_INVALID') }

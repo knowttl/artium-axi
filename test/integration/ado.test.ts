@@ -82,7 +82,8 @@ test('a managed PAT can be saved, tested and used with write gating through the 
       expect(evidence.requests).toEqual(expect.arrayContaining([
         expect.objectContaining({ method: 'GET', path: '/synthetic-org/_apis/projects', auth: 'Basic', canaryReceived: true }),
         expect.objectContaining({ method: 'POST', path: '/synthetic-org/Synthetic%20Project/_apis/wit/wiql', auth: 'Basic', canaryReceived: true }),
-        expect.objectContaining({ method: 'PATCH', path: '/synthetic-org/Synthetic%20Project/_apis/wit/workitems/42', auth: 'Basic', canaryReceived: true }),
+        expect.objectContaining({ method: 'PATCH', path: '/synthetic-org/_apis/wit/workitems/42', auth: 'Basic', canaryReceived: true,
+          body: [{ op: 'add', path: '/fields/System.Title', value: 'Synthetic changed title' }] }),
       ]))
       const audit = db.prepare("SELECT action, arguments FROM audit WHERE tool = 'ado-axi' AND event = 'run-terminal'").all()
       expect(audit).toContainEqual(expect.objectContaining({ action: 'write' }))

@@ -810,13 +810,13 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, falcon-axi, vectra-axi, ldap-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, falcon-axi, vectra-axi, ldap-axi, ado-axi, az-axi, mg-axi' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
-  { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi' },
+  { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
   { args: ['tools', 'show', 'falcon-axi', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
   { args: ['tools', '--help', 'show', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
-  { args: ['tools', '--help', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi' },
+  { args: ['tools', '--help', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
   { args: ['tools', '--help', 'show', '--help'], token: '--help', choices: 'Valid flags for tools show: --help' },
   { args: ['whoami', '--oops'], token: '--oops', choices: 'Valid flags for whoami: --help' },
   { args: ['doctor', 'extra'], token: 'extra', choices: 'Valid flags for doctor: --help' },

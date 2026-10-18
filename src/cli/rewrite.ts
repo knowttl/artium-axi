@@ -38,7 +38,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
-  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples): )?/, ''))
+  if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples|Usage): )?/, ''))
     || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let unknownOutcome = false
@@ -61,7 +61,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   }
   catch { return output }
   for (const span of [...spans].reverse()) {
-    const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples):/m.test(span.value))
+    const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value))
     if (value === span.value) continue
     output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
@@ -144,13 +144,14 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   if (tool === 'ado-axi') {
     const guidance = 'Artium manages the organization, profile, config and PAT. api accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. Use pipeline watch --timeout 50 or less.'
-    if (/^(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {
+    if (/^(?:Usage: |(?:Run|Use) [`'"]?)?(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {
       help = 'ado-axi api [GET] <relative-path> [--method GET] [--query <query>] [--api-version <version>] [--host dev|vsrm|vssps|almsearch] [--no-project] [--raw] [--limit <n>] [--full] [--fields <fields>]\n'
     }
     help = help.replace(/\n"built-in":\n[\s\S]*$/, '')
-      .split('\n').filter(line => /^\s*(?:artium-axi )?ado-axi (?!config\b|update\b)/.test(line)
+      .split('\n').filter(line => /^\s*(?:(?:Run|Use) [`'"]?|Usage: )?(?:artium-axi )?ado-axi (?!config\b|update\b)/.test(line)
         || !/(?:\bado-axi (?:config|update)\b|\baz (?:CLI )?login\b|\baz login\b|\bADO_[A-Z_]+\b|\bPAT\b.*\benv\b|stdin|piped|--profile|--org\b|--config\b|^\s*update\s)/i.test(line))
       .map(line => line.replace(/<path\|url>/g, '<relative-path>').replace(/--timeout 1800/g, '--timeout 50')
+        .replace('raw REST escape hatch for everything else', 'GET-only REST calls')
         .replace(/ \| config\b/g, '')).join('\n')
     if (!help.trim()) help = guidance
     else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'

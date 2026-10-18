@@ -50,6 +50,7 @@ it('opens an unconfigured store with every supported tool disabled', () => {
   const db = openStore(file, provider)
   try {
     expect(db.prepare('SELECT name, enabled, pinned_version FROM tools ORDER BY name').all()).toEqual([
+      { name: 'ado-axi', enabled: 0, pinned_version: '' },
       { name: 'az-axi', enabled: 0, pinned_version: '' },
       { name: 'falcon-axi', enabled: 0, pinned_version: '' },
       { name: 'ldap-axi', enabled: 0, pinned_version: '' },

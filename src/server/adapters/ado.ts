@@ -44,10 +44,9 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   const aliases: Record<string, string> = inventory.aliases
   positionals[0] = aliases[positionals[0]] ?? positionals[0] ?? 'home'
   if (['config', 'update'].includes(positionals[0])) throw new ArtiumError('FLAG_BLOCKED')
-  if (positionals[0] === 'work-item' && positionals[1] === 'links') positionals[1] = 'link'
   if (['work-item', 'pr', 'pipeline', 'repo', 'ref', 'project'].includes(positionals[0]) && positionals.length === 1) positionals.push('list')
   if (positionals[0] === 'test' && (!positionals[1] || /^\d+$/.test(positionals[1]))) positionals.splice(1, 0, 'results')
-  if (positionals[0] === 'work-item' && positionals[1] === 'link' || positionals[0] === 'pr' && positionals[1] === 'thread') {
+  if (positionals[0] === 'work-item' && ['link', 'links'].includes(positionals[1]) || positionals[0] === 'pr' && positionals[1] === 'thread') {
     if (!positionals[2] || /^\d+$/.test(positionals[2])) positionals.splice(2, 0, 'list')
   }
   if (positionals[0] === 'pr' && positionals[1] === 'reviewer' && !positionals[2]) positionals.push('list')
