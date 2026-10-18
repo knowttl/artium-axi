@@ -460,10 +460,11 @@ test('device approval requires a fresh SSO sign-in, displays the request and iss
   expect(browser.page.headers['content-security-policy']).toContain("script-src 'self'")
   expect((await app.inject({ method: 'POST', url: '/device', headers: browser.headers,
     payload: { _csrf: browser.csrf, code: device.userCode, decision: 'approve' } })).statusCode).toBe(200)
+  const issuedAt = Date.now()
+  vi.spyOn(Date, 'now').mockReturnValue(issuedAt)
   const tokens = await app.inject({ method: 'POST', url: '/v1/auth/device/poll', payload: { deviceCode: device.deviceCode } })
   expect(tokens.json()).toMatchObject({ status: 'authenticated' })
-  expect(tokens.json().familyExpiresAt - Date.now()).toBeGreaterThan(tokenDefaults.ssoFamilyMs - 1000)
-  expect(tokens.json().familyExpiresAt - Date.now()).toBeLessThanOrEqual(tokenDefaults.ssoFamilyMs)
+  expect(tokens.json().familyExpiresAt).toBe(issuedAt + tokenDefaults.ssoFamilyMs)
   expect(verifyAccessToken(db, tokens.json().accessToken)).toBe('synthetic-browser-sso')
   expect((await app.inject({ method: 'POST', url: '/v1/auth/device/poll', payload: { deviceCode: device.deviceCode } })).json().error.code).toBe('DEVICE_CODE_INVALID')
   expect(db.prepare("SELECT client_address, arguments FROM audit WHERE event = 'device-approve'").get())
