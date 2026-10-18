@@ -747,8 +747,6 @@ test.each([
   { args: ['whoami', '--oops'], token: '--oops', choices: 'Valid flags for whoami: --help' },
   { args: ['doctor', 'extra'], token: 'extra', choices: 'Valid flags for doctor: --help' },
   { args: ['logout', '--oops'], token: '--oops', choices: 'Valid flags for logout: --help' },
-  { args: ['login', '--user'], token: '--user', choices: 'Valid flags for login: --help, --sso, --username, --password-stdin' },
-  { args: ['passwd', '--oops'], token: '--oops', choices: 'Valid flags for passwd: --help, --password-stdin' },
   { args: ['setup', '--host', 'missing'], token: 'missing', choices: 'Valid hosts: claude, codex, opencode, pi' },
   { args: ['setup', '--oops'], token: '--oops', choices: 'Valid flags for setup: --help, --host, --hook, --force' },
 ])('usage errors identify the token and command-level choices: $args', async ({ args, token, choices }) => {
@@ -757,6 +755,26 @@ test.each([
   expect(result).toMatchObject({ code: 2, stderr: '' })
   expect(result.stdout).toContain(token)
   expect(result.stdout).toContain(choices)
+  expect(requests).toEqual([])
+})
+
+test.each([
+  ['login', '--username', 'synthetic-user'],
+  ['passwd'],
+  ['--managed-session', 'login', '--username', 'synthetic-user'],
+  ['--managed-session', 'passwd'],
+  ['--help', 'login', '--username', 'synthetic-user'],
+  ['--help', 'passwd'],
+  ['--managed-session', '--help', 'login', '--username', 'synthetic-user'],
+  ['--managed-session', '--help', 'passwd'],
+].flatMap(args => ['CANARY-password', '-CANARY-password', '--CANARY-password', '--password=CANARY-password']
+  .map(password => ({ args: [...args, password] }))))('credential usage errors never echo rejected input: $args', async ({ args }) => {
+  requests = []
+  const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 2, stderr: '' })
+  expect(result.stdout).toContain('Password arguments are refused.')
+  expect(result.stdout).toContain('Valid flags for')
+  expect(result.stdout + result.stderr).not.toContain('CANARY-password')
   expect(requests).toEqual([])
 })
 

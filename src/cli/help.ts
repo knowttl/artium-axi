@@ -61,7 +61,7 @@ export function validateArguments(args: string[], prefixHelp: boolean) {
     const kind = token?.startsWith('-') ? 'flag' : 'argument'
     // Positional sign-in input may be a password; report its position, never its value.
     const message = token === undefined ? `Missing argument for ${level}.` :
-      (command === 'login' || command === 'passwd') && kind === 'argument' ? `Unexpected positional argument at position ${args.indexOf(token) + 1} for ${level}. Password arguments are refused.` :
+      (command === 'login' || command === 'passwd') ? `Unexpected argument at position ${args.indexOf(token) + 1} for ${level}. Password arguments are refused.` :
         `Unknown or unexpected ${kind} ${JSON.stringify(kind === 'flag' ? token.split('=')[0] : token)} for ${level}.`
     throw new ArtiumError('INVALID_INPUT', message, choices)
   }
