@@ -48,7 +48,7 @@ const fieldHelp: Record<string, string> = {
   mode: 'Application uses a service identity; delegated uses a supplied user token.',
   kind: 'Qux supports token or OAuth; Rux requires OAuth. Qux uses API 2.5 and Rux uses 3.4.',
   apiVersion: 'Use 2.5 for Qux or 3.4 for Rux.', pageSize: 'Optional number of directory entries per page.',
-  startTls: 'Required for ldap:// URLs; LDAPS is already encrypted.', tlsMaxVersion: 'Optional TLS maximum version.',
+  startTls: 'Required for ldap:// URLs; leave at the default for ldaps:// URLs, which are already encrypted.', tlsMaxVersion: 'Optional TLS maximum version.',
   applianceRelease: 'Optional release label for Qux appliances.',
 }
 

@@ -12,6 +12,7 @@ const parserScript = 'import { parse } from "./tools/node_modules/@knowttl/ldap-
 
 test.each([
   credential,
+  { ...credential, startTls: false },
   { ...credential, url: 'ldap://directory.test:389', startTls: true },
 ])('prepares a stored bind identity using SecretRefs and verified TLS: %j', async value => {
   const call = await createLdapAdapter({ getCredential: async () => value }).prepare(['user', 'list', '--limit', '1'], reference)
@@ -34,6 +35,7 @@ test.each([
   { ...credential, bindPassword: '   ' }, { ...credential, bindPassword: { env: 'OTHER' } },
   { ...credential, url: 'ldap://directory.test:389' },
   { ...credential, url: 'ldap://directory.test:389', startTls: false },
+  { ...credential, startTls: true },
   { ...credential, url: 'ldaps://reader:password@directory.test:636' },
   { ...credential, url: 'ldaps://' }, { ...credential, url: 'ldaps://directory.test/base' },
   { ...credential, gssapiService: 'ldap@directory.test' }, { ...credential, keytab: '/private/keytab' },
