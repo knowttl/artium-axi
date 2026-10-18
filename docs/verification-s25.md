@@ -12,7 +12,7 @@ Cache keys include credential ID, revision, tenant, client ID and resource.
 Concurrent callers share the same pending mint, and tokens refresh below five minutes remaining.
 Each acquisition has a ten-second deadline covering MSAL discovery, token requests and at most three attempts, with 250 ms and 500 ms backoff.
 The production network transport receives an abort signal for the whole acquisition.
-Acquisition failures return safe upstream authentication, network or TLS categories; optional resource failures omit that resource from the result.
+See the [error reference](errors.md) for acquisition failure categories; optional resource failures omit that resource from the result.
 `replace(id, newRevision)` evicts every resource entry for the old revision when the revision increases; equal or older revisions do not change the cache.
 Acquiring a newer revision also performs this eviction, and stale callers and late completions cannot return or repopulate old tokens.
 The future credential-replacement producer must call `replace` when it commits replacement.
