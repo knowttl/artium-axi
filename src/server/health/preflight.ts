@@ -102,7 +102,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   } catch (error) {
     const code = verificationCode(error)
     const certificate = secure.getPeerCertificate()
-    if (!certificateErrorCodePattern.test(code)) {
+    if (!secure.authorizationError && !certificateErrorCodePattern.test(code)) {
       throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TLS', host, message: `TLS connection failed for ${host}: ${code}.` })
     }
     const issuer = certificate?.issuer ? Object.entries(certificate.issuer).map(([key, value]) => `${key}=${value}`).join(', ') : undefined

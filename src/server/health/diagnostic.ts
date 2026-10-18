@@ -2,7 +2,18 @@ import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/error
 import { SecretScanner } from '../runner/scan.js'
 
 export const diagnosticLimit = 4096
-export const certificateErrorCodePattern = /\b(?:CERT_[A-Z_]+|[A-Z_]+_CERT(?:_[A-Z_]+)?|CERTIFICATE_VERIFY_FAILED|SELF_SIGNED[A-Z_]*|UNABLE_TO_VERIFY[A-Z_]*)\b/
+export const certificateErrorCodePattern = new RegExp(`\\b(?:${[
+  'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED', 'CERT_CHAIN_TOO_LONG',
+  'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
+  'CRL_NOT_YET_VALID', 'CRL_HAS_EXPIRED', 'CRL_SIGNATURE_FAILURE',
+  'UNABLE_TO_GET_ISSUER_CERT', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_CRL',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_DECRYPT_CERT_SIGNATURE',
+  'UNABLE_TO_DECRYPT_CRL_SIGNATURE', 'UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY',
+  'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'ERR_TLS_CERT_ALTNAME_INVALID',
+  'INVALID_CA', 'PATH_LENGTH_EXCEEDED', 'HOSTNAME_MISMATCH', 'INVALID_PURPOSE',
+  'ERROR_IN_CERT_NOT_BEFORE_FIELD', 'ERROR_IN_CERT_NOT_AFTER_FIELD',
+  'ERROR_IN_CRL_LAST_UPDATE_FIELD', 'ERROR_IN_CRL_NEXT_UPDATE_FIELD',
+].join('|')})\\b`)
 export const azureAdvice: Record<string, string> = {
   AADSTS7000215: 'The client secret is invalid. Save the secret value, then test again.',
   AADSTS7000222: 'The client secret expired. Create and save a replacement secret.',

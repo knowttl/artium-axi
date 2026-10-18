@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,6 +18,12 @@ let directory: string
 beforeAll(() => {
   directory = mkdtempSync(join(tmpdir(), 'artium-preflight-'))
   createTestCertificates(directory, ['localhost'])
+  execFileSync('openssl', ['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-leaf',
+    '-keyout', 'invalid-ca.key', '-out', 'invalid-ca.csr'], { cwd: directory, stdio: 'pipe' })
+  execFileSync('openssl', ['ca', '-batch', '-notext', '-rand_serial', '-config', 'authority.cnf',
+    '-cert', 'server.crt', '-keyfile', 'server.key', '-extensions', 'server',
+    '-in', 'invalid-ca.csr', '-out', 'invalid-ca.crt', '-startdate', '20200101000000Z',
+    '-enddate', '20991231235959Z'], { cwd: directory, stdio: 'pipe' })
 })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
@@ -104,5 +111,30 @@ test('LDAP preflight negotiates StartTLS and verifies TLS before any bind', asyn
   try {
     await expect(preflightEndpoint(endpoint, readFileSync(join(directory, 'ca.crt'), 'utf8'))).resolves.toBeUndefined()
     expect(request).toBe('301d02010177188016312e332e362e312e342e312e313436362e3230303337')
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test('reports a non-CA issuer as a certificate failure with issuer and trust details', async () => {
+  const server = createServer({ key: readFileSync(join(directory, 'invalid-ca.key')),
+    cert: readFileSync(join(directory, 'invalid-ca.crt'), 'utf8') + readFileSync(join(directory, 'server.crt'), 'utf8') })
+  server.on('tlsClientError', () => {})
+  await new Promise<void>(resolve => server.listen(0, resolve))
+  try {
+    await expect(preflightEndpoint(new URL(`https://localhost:${(server.address() as { port: number }).port}`),
+      readFileSync(join(directory, 'ca.crt'), 'utf8'))).rejects.toMatchObject({
+      code: 'UPSTREAM_TLS_FAILED', diagnostic: { stage: 'TLS', host: 'localhost', toolCode: 'INVALID_PURPOSE',
+        issuer: 'CN=localhost', trust: 'untrusted' },
+    })
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test('keeps a stalled TLS handshake in the network category', async () => {
+  const server = createTcpServer(socket => socket.resume())
+  await new Promise<void>(resolve => server.listen(0, resolve))
+  try {
+    await expect(preflightEndpoint(new URL(`https://localhost:${(server.address() as { port: number }).port}`),
+      undefined, 50)).rejects.toMatchObject({
+      code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TLS', host: 'localhost' },
+    })
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
