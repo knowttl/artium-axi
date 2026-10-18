@@ -58,7 +58,8 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
       const request = async <T>(url: string, method: string, options?: import('@azure/msal-node').NetworkRequestOptions) => {
         const response = await fetch(url, { method, headers: options?.headers, body: options?.body, signal })
         let body: T
-        try { body = await response.json() as T } catch {
+        try { body = await response.json() as T } catch (error) {
+          if (!(error instanceof SyntaxError)) throw error
           throw Object.assign(new Error('Invalid identity provider response'), { status: response.status })
         }
         if (!response.ok && ![400, 401, 403].includes(response.status)) {

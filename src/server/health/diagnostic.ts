@@ -26,13 +26,19 @@ export const azureAdvice: Record<string, string> = {
 // Scan the complete detail before bounding it, including fields other than message.
 export function safeDiagnostic(detail: Diagnostic | undefined, secrets: readonly string[]): Diagnostic | undefined {
   if (!detail || new SecretScanner(secrets.filter(Boolean)).scan('stderr', Buffer.from(JSON.stringify(detail)))) return
-  let remaining = diagnosticLimit
-  return Object.fromEntries(Object.entries(detail).map(([key, value]) => {
-    if (typeof value !== 'string') return [key, value]
-    const bounded = value.slice(0, remaining)
-    remaining -= bounded.length
-    return [key, bounded]
-  })) as unknown as Diagnostic
+  const bounded = { ...detail }
+  if (bounded.host !== undefined) bounded.host = bounded.host.slice(0, 1024)
+  if (bounded.toolCode !== undefined) bounded.toolCode = bounded.toolCode.slice(0, 80)
+  if (bounded.providerCode !== undefined) bounded.providerCode = bounded.providerCode.slice(0, 80)
+  let remaining = diagnosticLimit - [bounded.stage, bounded.trust, bounded.host, bounded.toolCode, bounded.providerCode]
+    .reduce<number>((total, value) => total + (value?.length ?? 0), 0)
+  const textFields = (['message', 'hint', 'issuer'] as const).filter(key => bounded[key] !== undefined)
+    .sort((a, b) => bounded[a]!.length - bounded[b]!.length)
+  for (const [index, key] of textFields.entries()) {
+    bounded[key] = bounded[key]!.slice(0, Math.floor(remaining / (textFields.length - index)))
+    remaining -= bounded[key]!.length
+  }
+  return bounded
 }
 
 export function diagnosticError(code: ErrorCode, detail: Diagnostic): ArtiumError {

@@ -1,17 +1,27 @@
 import { expect, test } from 'vitest'
+import { diagnosticSchema } from '../../shared/api.js'
 import { safeDiagnostic, toolFailure } from './diagnostic.js'
 
 const secret = 'CANARY-diagnostic-secret'
-test.each(['message', 'hint', 'host', 'issuer', 'toolCode'])(
+test.each(['message', 'hint', 'host', 'issuer', 'toolCode', 'providerCode'])(
   'drops the whole diagnostic when %s contains a known secret', field => {
     expect(safeDiagnostic({ stage: 'TLS', message: 'Synthetic failure', [field]: secret }, [secret])).toBeUndefined()
   })
 
-test('scans beyond the retained diagnostic length', () => {
-  expect(safeDiagnostic({ stage: 'tool run', message: 'x'.repeat(5000) + secret }, [secret])).toBeUndefined()
+test.each(['message', 'hint', 'issuer'])('scans %s beyond the retained diagnostic length', field => {
+  expect(safeDiagnostic({ stage: 'tool run', message: 'Synthetic failure', [field]: 'x'.repeat(5000) + secret }, [secret])).toBeUndefined()
   const safe = safeDiagnostic({ stage: 'tool run', message: 'x'.repeat(5000) }, [secret])!
   expect(safe.stage).toBe('tool run')
   expect(safe.message.length).toBeLessThanOrEqual(4096)
+})
+
+test('shares the text budget while preserving destination and trust', () => {
+  const bounded = safeDiagnostic({ stage: 'TLS', message: 'm'.repeat(5000), hint: 'h'.repeat(5000),
+    issuer: 'i'.repeat(5000), host: 'appliance.test', trust: 'self-signed' }, [])!
+  expect(bounded).toMatchObject({ stage: 'TLS', host: 'appliance.test', trust: 'self-signed',
+    message: expect.stringMatching(/^m+$/), hint: expect.stringMatching(/^h+$/), issuer: expect.stringMatching(/^i+$/) })
+  expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
+  expect(Object.values(bounded).join('').length).toBeLessThanOrEqual(4096)
 })
 
 test('preserves emitted provider and tool codes with mapped advice', () => {
@@ -19,6 +29,19 @@ test('preserves emitted provider and tool codes with mapped advice', () => {
     code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'AUTH_FAILED', providerCode: 'AADSTS7000222',
       hint: expect.stringContaining('secret expired') },
   })
+})
+
+test.each(['message', 'issuer'] as const)('retains structured context when %s exceeds the diagnostic budget', field => {
+  const detail = { stage: 'TLS' as const, message: 'Certificate verification failed', hint: 'Check the trusted CA',
+    issuer: 'CN=synthetic issuer', [field]: 'x'.repeat(5000), host: 'appliance.test',
+    toolCode: 'TLS_UNTRUSTED', providerCode: 'AADSTS700027', trust: 'untrusted' as const,
+    checkedAt: 123, credentialRevision: 2 }
+  const bounded = safeDiagnostic(detail, [])!
+  expect(bounded).toMatchObject({ stage: 'TLS', host: 'appliance.test', toolCode: 'TLS_UNTRUSTED',
+    providerCode: 'AADSTS700027', trust: 'untrusted', hint: 'Check the trusted CA', checkedAt: 123, credentialRevision: 2 })
+  expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
+  expect(Object.values(bounded).filter(value => typeof value === 'string').join('').length).toBeLessThanOrEqual(4096)
+  expect(safeDiagnostic(Object.fromEntries(Object.entries(detail).reverse()) as typeof detail, [])).toEqual(bounded)
 })
 
 test.each([

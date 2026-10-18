@@ -142,6 +142,9 @@ describe('Azure token authentication', () => {
   })
 
   it.each([
+    ['GET', 200, '<html>CANARY-RAW-RESPONSE</html>', 'TOOL_FAILED'],
+    ['GET', 503, '', 'TOOL_FAILED'],
+    ['GET', 429, '<html>CANARY-RAW-RESPONSE</html>', 'TOOL_FAILED'],
     ['POST', 503, `<html>${secretCredential.clientSecret} CANARY-RAW-RESPONSE</html>`, 'TOOL_FAILED'],
     ['POST', 503, '', 'TOOL_FAILED'],
     ['POST', 429, '', 'TOOL_FAILED'],
@@ -167,6 +170,22 @@ describe('Azure token authentication', () => {
       expect(error).toMatchObject({ code, diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' } })
       expect(JSON.stringify(error)).not.toContain('CANARY-RAW-RESPONSE')
       expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
+    } finally { fetch.mockRestore() }
+  })
+
+  it.each(['GET', 'POST'])('keeps production %s body-read transport failures distinct from malformed JSON', async method => {
+    const network = new FakeTokenTransport()
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
+      if (options?.method === method) return new Response(new ReadableStream({
+        start(controller) { controller.error(new TypeError('terminated', { cause: { code: 'ECONNRESET' } })) },
+      }), { status: 200 })
+      const response = await network.sendGetRequestAsync(String(input))
+      return Response.json(response.body, { status: response.status })
+    })
+    try {
+      await expect(mintAzureToken(secretCredential, 'arm', undefined, new AbortController().signal)).rejects.toMatchObject({
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' },
+      })
     } finally { fetch.mockRestore() }
   })
 
