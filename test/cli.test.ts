@@ -20,10 +20,11 @@ const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
 const bundle = join(directory, 'artium-axi.mjs')
 const clockBundle = join(directory, 'artium-axi-clock.mjs')
+const windowsBundle = join(directory, 'artium-axi-windows.mjs')
 const stalls = new EventEmitter()
 let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string }
-let requests: { path: string, token?: string, body: unknown, version?: string }[]
+let requests: { path: string, token?: string, body: unknown, version?: string }[] = []
 let doctorResponses: Record<string, typeof response> | undefined
 let responseSequence: typeof response[] | undefined
 const server = createServer()
@@ -31,6 +32,9 @@ const server = createServer()
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
   copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: windowsBundle, bundle: true,
+    platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' },
+    banner: { js: "Object.defineProperty(process, 'platform', { value: 'win32' })" } })
   await build({ entryPoints: ['src/cli/main.ts'], outfile: clockBundle, bundle: true,
     platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' }, inject: ['test/cli-clock.ts'] })
   createTestCertificates(directory, ['localhost'])
@@ -237,6 +241,7 @@ test.each([false, true])('managed SSO returns the first session privately withou
 
 test.each([
   { args: ['--password', 'CANARY-password'] },
+  { args: ['--password=CANARY-password'] },
   { args: ['CANARY-password'] },
   { args: [], environment: { ARTIUM_AXI_PASSWORD: 'CANARY-password' } },
   { args: ['--password-stdin'], environment: { ARTIUM_AXI_PASSWORD: 'CANARY-password' } },
@@ -768,20 +773,111 @@ test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['
     requests = []
     const result = await cli([...command, '--help'], { ARTIUM_AXI_URL: undefined })
     expect(result).toMatchObject({ code: 0, stderr: '' })
-    expect(result.stdout).toMatch(/^usage: artium-axi[^\n]*\npurpose: [^\n]+\nflags\[\d+\]:\n(?:  [^\n]+\n)+example: artium-axi[^\n]*\n$/)
+    expect(result.stdout).toMatch(/^purpose: [^\n]+\nusage: artium-axi[^\n]*\n/)
+    expect(result.stdout).toContain('flags[')
+    expect(result.stdout).toContain('example: artium-axi')
     expect(result.stdout).toContain('"--help (default false)"')
     expect(requests).toEqual([])
   })
 
 test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'],
-  ['falcon-axi'], ['vectra-axi'], ['ldap-axi']].map(command => ({ command })))(
+  ['falcon-axi'], ['vectra-axi'], ['ldap-axi'], ['az-axi'], ['mg-axi']].map(command => ({ command })))(
   'prefix help uses the local layout without configuration or network: $command', async ({ command }) => {
     requests = []
     const result = await cli(['--help', ...command], { ARTIUM_AXI_URL: undefined })
     expect(result).toMatchObject({ code: 0, stderr: '' })
-    expect(result.stdout).toMatch(/^usage: artium-axi[^\n]*\npurpose: [^\n]+\nflags\[\d+\]:\n(?:  [^\n]+\n)+example: artium-axi[^\n]*\n$/)
+    expect(result.stdout).toMatch(/^purpose: [^\n]+\nusage: artium-axi[^\n]*\n/)
+    expect(result.stdout).toContain('flags[')
+    expect(result.stdout).toContain('example: artium-axi')
     expect(requests).toEqual([])
   })
+
+test.each([
+  ['--help', 'tools', 'show'],
+  ['tools', '--help', 'show'],
+  ['tools', 'show', '--help'],
+  ['--help', 'tools', 'show', 'falcon-axi'],
+  ['tools', '--help', 'show', 'falcon-axi'],
+  ['tools', 'show', '--help', 'falcon-axi'],
+  ['tools', 'show', 'falcon-axi', '--help'],
+].flatMap(args => [{ args }, { args: ['--managed-session', ...args] }]))(
+  'tools show help accepts every help position offline: $args', async ({ args }) => {
+    requests = []
+    const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+    expect(result).toMatchObject({ code: 0, stderr: '' })
+    expect(result.stdout).toContain('usage: artium-axi tools show <tool>')
+    expect(requests).toEqual([])
+  })
+
+test.each([
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, falcon-axi, vectra-axi, ldap-axi, az-axi, mg-axi' },
+  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
+  { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
+  { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi' },
+  { args: ['tools', 'show', 'falcon-axi', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
+  { args: ['tools', '--help', 'show', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
+  { args: ['tools', '--help', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi' },
+  { args: ['tools', '--help', 'show', '--help'], token: '--help', choices: 'Valid flags for tools show: --help' },
+  { args: ['whoami', '--oops'], token: '--oops', choices: 'Valid flags for whoami: --help' },
+  { args: ['doctor', 'extra'], token: 'extra', choices: 'Valid flags for doctor: --help' },
+  { args: ['logout', '--oops'], token: '--oops', choices: 'Valid flags for logout: --help' },
+  { args: ['setup', '--host', 'missing'], token: 'missing', choices: 'Valid hosts: claude, codex, opencode, pi' },
+  { args: ['setup', '--oops'], token: '--oops', choices: 'Valid flags for setup: --help, --host, --hook, --force' },
+])('usage errors identify the token and command-level choices: $args', async ({ args, token, choices }) => {
+  requests = []
+  const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 2, stderr: '' })
+  expect(result.stdout).toContain(token)
+  expect(result.stdout).toContain(choices)
+  expect(requests).toEqual([])
+})
+
+test.each([
+  ['login', '--username', 'synthetic-user'],
+  ['passwd'],
+  ['--managed-session', 'login', '--username', 'synthetic-user'],
+  ['--managed-session', 'passwd'],
+  ['--help', 'login', '--username', 'synthetic-user'],
+  ['--help', 'passwd'],
+  ['--managed-session', '--help', 'login', '--username', 'synthetic-user'],
+  ['--managed-session', '--help', 'passwd'],
+].flatMap(args => ['CANARY-password', '-CANARY-password', '--CANARY-password', '--password=CANARY-password']
+  .map(password => ({ args: [...args, password] }))))('credential usage errors never echo rejected input: $args', async ({ args }) => {
+  requests = []
+  const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 2, stderr: '' })
+  expect(result.stdout).toContain('Password arguments are refused.')
+  expect(result.stdout).toContain('Valid flags for')
+  expect(result.stdout + result.stderr).not.toContain('CANARY-password')
+  expect(requests).toEqual([])
+})
+
+test('ordinary help shows command purposes and keeps pipe details in managed and login help', async () => {
+  const home = await cli(['--help'], { ARTIUM_AXI_URL: undefined })
+  expect(home.stdout).toContain('commands[')
+  expect(home.stdout).toContain('whoami,"Show your identity')
+  expect(home.stdout).not.toContain('fd 3')
+  const leaf = await cli(['whoami', '--help'], { ARTIUM_AXI_URL: undefined })
+  expect(leaf.stdout).not.toContain('fd 3')
+})
+
+test.each([
+  ['--managed-session', '--help'], ['login', '--help'], ['--managed-session', 'login', '--help'],
+].map(args => ({ args })))('protocol help needs no private descriptors or configuration: $args', async ({ args }) => {
+  const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('fd 3')
+  expect(result.stdout).toContain('fd 4')
+})
+
+test('configuration errors reserve APPDATA advice for Windows', async () => {
+  const ordinary = await cli(['whoami'], { ARTIUM_AXI_URL: 'invalid' })
+  expect(ordinary).toMatchObject({ code: 2, stderr: '' })
+  expect(ordinary.stdout).not.toContain('APPDATA')
+  await expect(execute(process.execPath, [windowsBundle, 'whoami'], { cwd: directory, timeout: 10_000,
+    env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url } })).rejects.toMatchObject({ code: 2, stderr: '',
+    stdout: expect.stringContaining('Set APPDATA to your writable roaming configuration folder') })
+})
 
 test.each([
   ['--help', 'missing'], ['--unknown', 'falcon-axi'], ['--help', '--unknown', 'falcon-axi'],

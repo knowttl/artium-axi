@@ -30,7 +30,7 @@ const definitions = {
   MAINTENANCE_BUSY: { status: 503, message: 'The store is held by another server or maintenance process.', next: 'Stop the server and wait for maintenance to finish before retrying.' },
   MAINTENANCE_UNAVAILABLE: { status: 503, message: 'The store maintenance lock is unavailable.', next: 'Check data-volume capacity and permissions.' },
   ROTATION_FAILED: { status: 500, message: 'Master key rotation did not complete.', next: 'Keep both keys. Inspect the durable key_rotations receipt and restart with its latest new_key_id, or the old key if no rotation committed.' },
-  CLIENT_CONFIG_INVALID: { status: 400, message: 'The CLI server configuration is invalid.', next: 'Set ARTIUM_AXI_URL to an HTTPS URL; optionally set ARTIUM_AXI_CA_FILE. Windows requires APPDATA.' },
+  CLIENT_CONFIG_INVALID: { status: 400, message: 'The CLI server configuration is invalid.', next: 'Set ARTIUM_AXI_URL to an HTTPS URL; optionally set ARTIUM_AXI_CA_FILE.' },
   SESSION_STORAGE_UNAVAILABLE: { status: 500, message: 'Secure CLI session storage is unavailable.', next: 'Check your configuration folder permissions and capacity, then sign in again.' },
   SESSION_SERVER_MISMATCH: { status: 400, message: 'The stored session belongs to a different server.', next: 'Restore ARTIUM_AXI_URL or use artium-axi logout before signing in to the new server.' },
   SESSION_BUSY: { status: 503, message: 'Another CLI process holds the session lock.', next: 'Wait for the other CLI process. If all CLI processes exited, remove the session.lock directory in your artium-axi configuration folder.' },

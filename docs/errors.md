@@ -38,7 +38,7 @@ Completed upstream calls preserve stdout, stderr and the upstream exit code, wit
 | MAINTENANCE_BUSY | artium-axi | 503 | 1 | The store is held by another server or maintenance process. | Stop the server and wait for maintenance to finish before retrying. |
 | MAINTENANCE_UNAVAILABLE | artium-axi | 503 | 1 | The store maintenance lock is unavailable. | Check data-volume capacity and permissions. |
 | ROTATION_FAILED | artium-axi | 500 | 1 | Master key rotation did not complete. | Keep both keys. Inspect the durable key_rotations receipt and restart with its latest new_key_id, or the old key if no rotation committed. |
-| CLIENT_CONFIG_INVALID | artium-axi | 400 | 2 | The CLI server configuration is invalid. | Set ARTIUM_AXI_URL to an HTTPS URL; optionally set ARTIUM_AXI_CA_FILE. Windows requires APPDATA. |
+| CLIENT_CONFIG_INVALID | artium-axi | 400 | 2 | The CLI server configuration is invalid. | Set ARTIUM_AXI_URL to an HTTPS URL; optionally set ARTIUM_AXI_CA_FILE. |
 | SESSION_STORAGE_UNAVAILABLE | artium-axi | 500 | 1 | Secure CLI session storage is unavailable. | Check your configuration folder permissions and capacity, then sign in again. |
 | SESSION_SERVER_MISMATCH | artium-axi | 400 | 1 | The stored session belongs to a different server. | Restore ARTIUM_AXI_URL or use artium-axi logout before signing in to the new server. |
 | SESSION_BUSY | artium-axi | 503 | 1 | Another CLI process holds the session lock. | Wait for the other CLI process. If all CLI processes exited, remove the session.lock directory in your artium-axi configuration folder. |
