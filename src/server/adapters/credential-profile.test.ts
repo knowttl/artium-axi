@@ -142,7 +142,7 @@ test.each(['oneOf', 'anyOf'])('preserves %s conflicts alongside concrete field d
   if (result.success) throw new Error('Expected invalid credential')
   expect(result.error.issues).toEqual(expect.arrayContaining([
     expect.objectContaining({ path: ['tenantId'], message: 'tenantId must match the uuid format.' }),
-    expect.objectContaining({ path: [], message: expect.stringMatching(/^(?=.*auth)(?=.*clientSecret)(?=.*privateKey).*must satisfy the selected credential field combination/) }),
+    expect.objectContaining({ path: [], message: 'privateKey must satisfy the selected credential field combination.' }),
   ]))
   expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
     message: expect.stringContaining('must satisfy the selected credential field combination') }))
@@ -219,8 +219,8 @@ test.each([
   ['not', { type: 'object', not: { required: ['first', 'second'] } }, { first: 'CANARY-a', second: 'CANARY-b' },
     'value.first, value.second must not be used in this field combination.'],
   ['allOf', { allOf: [{ type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must have a length <= 2.'],
-  ['oneOf', { oneOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must have a length >= 20.'],
-  ['anyOf', { anyOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must have a length <= 2.'],
+  ['oneOf', { oneOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must satisfy the selected credential field combination.'],
+  ['anyOf', { anyOf: [{ type: 'string', minLength: 20 }, { type: 'string', maxLength: 2 }] }, 'CANARY-value', 'value must satisfy the selected credential field combination.'],
   ['if/then', { type: 'object', if: { required: ['enabled'], properties: { enabled: { const: true } } }, then: { required: ['target'] } },
     { enabled: true }, 'value.target is required for the selected enabled.'],
 ] as const)('reports the %s rejection without input values', (_keyword, field, value, message) => {
@@ -254,25 +254,39 @@ test.each([
 
 test.each([
   ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token', tokenEnv: 'SYNTHETIC_ENV' },
-    'token', 'tokenEnv'],
+    'token, tokenEnv'],
   ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token', clientSecret: 'CANARY-secret' },
-    'token', 'clientSecret'],
+    'clientSecret'],
   ['vectra-axi', { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic', clientSecret: 'CANARY-secret', secretEnv: 'SYNTHETIC_ENV' },
-    'clientSecret', 'secretEnv'],
-  ['mg-axi', { ...credential, privateKey: 'CANARY-key' }, 'clientSecret', 'privateKey'],
-  ['mg-axi', { ...credential, token: 'CANARY-token' }, 'clientSecret', 'token'],
-  ['mg-axi', { ...credential, thumbprintSha256: 'a'.repeat(64) }, 'clientSecret', 'thumbprintSha256'],
-  ['mg-axi', { ...identity, auth: 'certificate', privateKey: 'CANARY-key', thumbprintSha256: 'a'.repeat(64), token: 'CANARY-token' }, 'privateKey', 'token'],
-  ['mg-axi', { ...identity, auth: 'federated', token: 'CANARY-token', privateKey: 'CANARY-key' }, 'token', 'privateKey'],
-] as const)('names published %s alternative conflicts for %j', (tool, value, first, second) => {
+    'clientSecret, secretEnv'],
+  ['mg-axi', { ...credential, privateKey: 'CANARY-key' }, 'privateKey'],
+  ['mg-axi', { ...credential, token: 'CANARY-token' }, 'token'],
+  ['mg-axi', { ...credential, thumbprintSha256: 'a'.repeat(64) }, 'thumbprintSha256'],
+  ['mg-axi', { ...identity, auth: 'certificate', privateKey: 'CANARY-key', thumbprintSha256: 'a'.repeat(64), token: 'CANARY-token' }, 'token'],
+  ['mg-axi', { ...identity, auth: 'federated', token: 'CANARY-token', privateKey: 'CANARY-key' }, 'privateKey'],
+  ['mg-axi', { ...identity, mode: 'delegated', token: 'CANARY-token', privateKey: 'CANARY-key' }, 'privateKey'],
+] as const)('reports only the selected %s alternative conflict for %j', (tool, value, fields) => {
   const profile = loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
   const result = profile.credentialSchema.safeParse(value)
   expect(result.success).toBe(false)
   if (result.success) throw new Error('Expected invalid credential')
-  const combination = result.error.issues.find(issue => issue.message.endsWith('must satisfy the selected credential field combination.'))
-  expect(combination?.message).toContain(first)
-  expect(combination?.message).toContain(second)
+  expect(result.error.issues.map(issue => issue.message)).toEqual([`${fields} must satisfy the selected credential field combination.`])
   expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  expect(JSON.stringify(result)).not.toContain('CANARY')
+})
+
+test.each([
+  ['https://appliance.test', []],
+  [false, ['origin must be string.']],
+] as const)('keeps independent errors alongside the Vectra conflict for origin %j', (origin, independent) => {
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const value = { kind: 'qux', apiVersion: '2.5', auth: 'token', origin, token: 'CANARY-token', tokenEnv: 'SYNTHETIC_ENV' }
+  const messages = [...independent, 'token, tokenEnv must satisfy the selected credential field combination.']
+  const result = profile.credentialSchema.safeParse(value)
+  expect(result.success).toBe(false)
+  if (result.success) throw new Error('Expected invalid credential')
+  expect(result.error.issues.map(issue => issue.message)).toEqual(messages)
+  expect(() => profile.parseInput(value)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: messages.join(' ') }))
   expect(JSON.stringify(result)).not.toContain('CANARY')
 })
 let directory: string

@@ -136,7 +136,7 @@ export class CredentialInput {
     return { value: normalized, normalizations }
   }
 
-  reasons(): { path: string[], message: string }[] {
+  reasons(value: Record<string, unknown>): { path: string[], message: string }[] {
     const errors = this.validate.errors ?? []
     const fieldsIn = (schema: Schema, path: string[]): string[] => {
       if (!schema || typeof schema !== 'object') return []
@@ -189,17 +189,34 @@ export class CredentialInput {
       }
       return { path, message: `${field} ${rule}.` }
     }
-    const concrete = errors.filter(error => !['if', 'oneOf', 'anyOf'].includes(error.keyword))
+    const conflictsIn = (pointer: string, path: string[], input: unknown): string[] => {
+      const schema = this.resolve(pointer)
+      const matched = ['allOf', 'oneOf', 'anyOf'].flatMap(keyword =>
+        (schema[keyword] ?? []).flatMap((_: Schema, index: number) => {
+          const child = `${pointer}/${keyword}/${index}`
+          return this.validator(child)(input) ? conflictsIn(child, path, input) : []
+        }))
+      return matched.length ? matched : fieldsIn(schema, path)
+    }
+    const concrete = errors.filter(error => !['if', 'oneOf', 'anyOf'].includes(error.keyword)
+      && !/\/(oneOf|anyOf)\//.test(error.schemaPath))
     const reasons = concrete.map(reason)
-    const alternatives = errors.filter(error => ['oneOf', 'anyOf'].includes(error.keyword))
-    if (!alternatives.length) return reasons
-    // Conflicting alternatives name only schema-owned fields, never values.
-    const fields = [...new Set(alternatives.flatMap(error => {
-      const node = this.resolve(error.schemaPath.replace(/^.*?#/, '').replace(/\/[^/]+$/, ''))
+    const alternatives = errors.filter(error => ['oneOf', 'anyOf'].includes(error.keyword)
+      && !/\/(oneOf|anyOf)\//.test(error.schemaPath))
+    for (const error of alternatives) {
       const path = error.instancePath.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
-      const fields: string[] = node[error.keyword].flatMap((branch: Schema) => fieldsIn(branch, path))
-      return fields.length ? fields : [path.join('.') || 'credential']
-    }))]
-    return [...reasons, { path: [], message: `${fields.join(', ') || 'credential'} must satisfy the selected credential field combination.` }]
+      const pointer = error.schemaPath.replace(/^.*?#/, '')
+      const node = this.resolve(pointer.replace(/\/[^/]+$/, ''))
+      const candidates = node[error.keyword].map((_: Schema, index: number) =>
+        errors.filter(issue => issue.schemaPath.startsWith(`${error.schemaPath}/${index}/`)))
+        .filter((issues: ErrorObject[]) => issues.length && issues.every(issue => issue.keyword === 'not'))
+      let fields: string[] = []
+      if (candidates.length === 1) {
+        const input = path.reduce<any>((input, key) => input?.[key], value)
+        fields = candidates[0].flatMap((issue: ErrorObject) => conflictsIn(issue.schemaPath.replace(/^.*?#/, ''), path, input))
+      }
+      reasons.push({ path, message: `${[...new Set(fields)].join(', ') || path.join('.') || 'credential'} must satisfy the selected credential field combination.` })
+    }
+    return reasons
   }
 }

@@ -108,7 +108,7 @@ export class CredentialProfile {
     }, 'Invalid credential profile').superRefine((value, context) => {
       this.secrets.clear()
       if (this.validateInput(value)) return
-      for (const issue of this.input.reasons()) context.addIssue({ code: 'custom', ...issue })
+      for (const issue of this.input.reasons(value)) context.addIssue({ code: 'custom', ...issue })
     })
   }
 
