@@ -12,7 +12,7 @@ test('embedded source retrieves the selected credential from its store', async (
 
 test('missing credential is unavailable', async () => {
   const source = new EmbeddedSecretSource(new FakeCredentialStore())
-  await expect(source.getCredential(reference)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(source.getCredential(reference)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
 })
 
 test.each([
@@ -20,5 +20,5 @@ test.each([
   { ...reference, tool: 'vectra-axi' as const },
 ])('missing credential is unavailable for %j', async selected => {
   const source = new EmbeddedSecretSource(new FakeCredentialStore([{ reference, value: {} }]))
-  await expect(source.getCredential(selected)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(source.getCredential(selected)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
 })

@@ -220,7 +220,7 @@ function seedAudit() {
   audit.record({ event: 'admin-change', userId: administrator, tool: null, outcome: 'success',
     requestId: 'first', clientAddress: null, action: 'create-user', targetId: 'synthetic-new' })
   audit.record({ event: 'credential-test', userId: 'synthetic-ordinary', tool: 'falcon-axi', outcome: 'failure',
-    requestId: 'second', clientAddress: null, checkedAt: null, credentialRevision: 1, errorCode: 'CREDENTIAL_UNAVAILABLE' })
+    requestId: 'second', clientAddress: null, checkedAt: null, credentialRevision: 1, errorCode: 'CREDENTIAL_INVALID' })
   new Audit(db, () => Date.parse('2026-01-02T00:00:00Z')).record({ event: 'denial', userId: administrator,
     tool: 'vectra-axi', outcome: 'TOOL_NOT_GRANTED', requestId: 'third', clientAddress: null })
 }

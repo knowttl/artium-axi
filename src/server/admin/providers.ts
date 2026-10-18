@@ -51,7 +51,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       ...(row.kind === 'entra' ? { tenantId: row.issuer.split('/')[3] } : {}) })
   }
   function store(): ProviderCredentials {
-    if (!credentials) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!credentials) throw new ArtiumError('CREDENTIAL_INVALID')
     return credentials
   }
   function readCredential(id: string) {

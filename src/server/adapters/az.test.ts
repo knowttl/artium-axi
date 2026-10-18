@@ -268,7 +268,7 @@ test('certificate preparation keeps the key and exact assertion in the scan set'
 test('invalid profile or missing revision fails safely', async () => {
   expect(azCredentialSchema.safeParse({ ...credential, tokenEnv: { arm: 'OTHER' } }).success).toBe(false)
   await expect(createAzAdapter({ getCredential: async () => credential }, writeLog)
-    .prepare(['sub', 'list'], { id: reference.id, tool: reference.tool })).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    .prepare(['sub', 'list'], { id: reference.id, tool: reference.tool })).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
 })
 
 test.each([[['sub', 'list', '--help']], [['home', '--help']], [['--help']], [['--version']]])('local call %j does not mint a token', async args => {

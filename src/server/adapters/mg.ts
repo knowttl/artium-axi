@@ -65,9 +65,9 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     validateArgs: (args, input) => { mgArguments(args, input) },
     async prepare(args, reference, input) {
       const normalized = mgArguments(args, input)
-      if (reference.tool !== 'mg-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== 'mg-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = mgCredentialSchema.safeParse(await source.getCredential(reference))
-      if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const credential = parsed.data
       const { tenantId, clientId, preview = false, writes } = credential
       const secret = credential.auth === 'secret' ? credential.clientSecret : credential.privateKey

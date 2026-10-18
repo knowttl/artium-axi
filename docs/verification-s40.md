@@ -12,7 +12,8 @@ The CLI's multi-step `run` command lost its bridge with `socket hang up` and res
 Individual commands completed acceptance successfully.
 
 Browser acceptance set and replaced Falcon and Vectra canaries.
-Both Test buttons displayed `Test passed.` with status `ok` for valid canaries and `Test failed.` with status `error` and `CREDENTIAL_UNAVAILABLE` for the invalid canary.
+Both Test buttons displayed `Test passed.` with status `ok` for valid canaries and `Test failed.` with status `error` for the invalid canary.
+Credential tests now distinguish invalid configuration, upstream authentication, network, TLS and tool failures, with redacted diagnostic detail restricted to administrators.
 After replacement, browser evaluation found no stored canary in rendered HTML and all credential editors blank.
 The Vectra native settings editor rejected malformed JSON locally and empty operations through the API, then saved and displayed `writes: { allowWrites: true, operations: ["notes.set"] }` at revision 5.
 The browser confirmed no Azure enable control.

@@ -10,7 +10,7 @@ export class SharedIdentityResolver implements IdentityResolver {
 
   async resolve(_userId: string, tool: ToolName): Promise<CredentialReference> {
     const reference = this.store.findCredential(tool)
-    if (!reference) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     return reference
   }
 }

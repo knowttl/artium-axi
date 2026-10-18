@@ -52,12 +52,12 @@ test.each([undefined, 'synthetic-member'])('preparation adds the managed region 
 
 test.each(['', '\n', '   '])('empty secret file %j is unavailable', async value => {
   await writeFile(configuration.clientSecretFile, value)
-  await expect(prepareFalcon([], configuration)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(prepareFalcon([], configuration)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
 })
 
 test('unreadable secret file produces safe credential diagnostics', async () => {
   const failure = await prepareFalcon([], { ...configuration, clientSecretFile: join(directory, 'missing') }).catch(error => error)
-  expect(failure).toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  expect(failure).toMatchObject({ code: 'CREDENTIAL_INVALID' })
   expect(String(failure)).not.toContain(directory)
 })
 

@@ -56,13 +56,13 @@ export class AzureTokenCache {
 
   async acquire(identity: AzureTokenIdentity, plan: AzureResourcePlan): Promise<Partial<Record<AzureResource, AzureToken>>> {
     const credential = azureCredentialSchema.safeParse(identity.credential)
-    if (!credential.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!credential.success) throw new ArtiumError('CREDENTIAL_INVALID')
     this.replace(identity.id, identity.revision)
     const current = this.identities.get(identity.id)!
-    if (current.revision !== identity.revision) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (current.revision !== identity.revision) throw new ArtiumError('REVISION_CONFLICT')
     const required = new Set(plan.required)
     const resources = [...new Set([...plan.required, ...plan.optional])]
-    if (resources.some(resource => !Object.hasOwn(azureAudiences, resource))) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (resources.some(resource => !Object.hasOwn(azureAudiences, resource))) throw new ArtiumError('CREDENTIAL_INVALID')
     const tokens = await Promise.all(resources.map(async resource => {
       const key = JSON.stringify([identity.id, identity.revision, credential.data.tenantId, credential.data.clientId, resource])
       let entry = current.entries.get(key)
@@ -70,7 +70,7 @@ export class AzureTokenCache {
       try {
         if (!entry.token || entry.token.expiresAt - Date.now() < 300_000) {
           entry.pending ??= this.mint(credential.data, resource).then(token => {
-            if (this.identities.get(identity.id) !== current) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+            if (this.identities.get(identity.id) !== current) throw new ArtiumError('REVISION_CONFLICT')
             entry.token = token
             return token
           }).finally(() => { entry.pending = undefined })
@@ -82,7 +82,7 @@ export class AzureTokenCache {
         return undefined
       }
     }))
-    if (this.identities.get(identity.id) !== current) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (this.identities.get(identity.id) !== current) throw new ArtiumError('REVISION_CONFLICT')
     return Object.fromEntries(tokens.filter(token => token !== undefined))
   }
 
@@ -90,21 +90,21 @@ export class AzureTokenCache {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout>
     const deadline = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => { controller.abort(); reject(new ArtiumError('CREDENTIAL_UNAVAILABLE')) }, 10_000)
+      timer = setTimeout(() => { controller.abort(); reject(new ArtiumError('UPSTREAM_NETWORK_FAILED')) }, 10_000)
     })
     const attempts = async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
-        if (controller.signal.aborted) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+        if (controller.signal.aborted) throw new ArtiumError('UPSTREAM_NETWORK_FAILED')
         try {
           const token = await mintAzureToken(credential, resource, this.networkClient, controller.signal)
-          if (token.expiresAt <= Date.now()) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+          if (token.expiresAt <= Date.now()) throw new ArtiumError('UPSTREAM_AUTH_FAILED')
           return token
-        } catch {
-          if (attempt === 2 || controller.signal.aborted) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+        } catch (error) {
+          if (attempt === 2 || controller.signal.aborted || error instanceof ArtiumError && error.code !== 'UPSTREAM_NETWORK_FAILED') throw error
           await new Promise(resolve => setTimeout(resolve, 250 * 2 ** attempt))
         }
       }
-      throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      throw new ArtiumError('UPSTREAM_NETWORK_FAILED')
     }
     try { return await Promise.race([attempts(), deadline]) }
     finally { clearTimeout(timer!) }

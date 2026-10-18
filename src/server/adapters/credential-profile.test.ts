@@ -71,7 +71,7 @@ test.each([' CANARY-token', 'CANARY-token ', 'CANARY token', 'CANARY-token\n', '
   const value = { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token }
   expect(profile.credentialSchema.safeParse(value).success).toBe(false)
   expect(() => profile.prepare('vectra-axi', value, join(directory, 'writes.log'), false))
-    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_UNAVAILABLE' }))
+    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
 })
 
 test('published Vectra retains whitespace in OAuth secret material', () => {
@@ -101,7 +101,7 @@ test.each(['https://appliance.test:443', 'https://APPLIANCE.test', 'https://appl
   const value = { kind: 'qux', apiVersion: '2.5', auth: 'token', origin, token: 'CANARY-token' }
   expect(profile.credentialSchema.safeParse(value).success).toBe(false)
   expect(() => profile.prepare('vectra-axi', value, join(directory, 'writes.log'), false))
-    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_UNAVAILABLE' }))
+    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
 })
 
 test('uses SHA-256 certificate fields in the migrated adapter while retaining argument policy', async () => {
@@ -129,7 +129,7 @@ test('validates the materialized SecretRef against the shipped schema', () => {
   const invalid = structuredClone(schema)
   invalid.$defs.secret.oneOf[0].properties!.env!.pattern = '^OTHER_'
   expect(() => new CredentialProfile(invalid).prepare('mg-axi', credential, join(directory, 'writes.log'), false))
-    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_UNAVAILABLE' }))
+    .toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
 })
 
 test('accepts all approved flat az token fields without translating their names', () => {

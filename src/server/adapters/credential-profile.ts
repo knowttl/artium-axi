@@ -31,7 +31,7 @@ export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, 
     async prepare(args, reference, input) {
       adapter.validateArgs(args, input)
       const normalized = argumentsForCall(args, input)
-      if (reference.tool !== adapter.name) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (reference.tool !== adapter.name) throw new ArtiumError('CREDENTIAL_INVALID')
       const value = await source.getCredential(reference)
       return { executable: adapter.executable, ...normalized,
         ...profile.prepare(adapter.name, value, writeLog, !toolAllowsWrites(adapter.name, value as Record<string, unknown>)), limits }
@@ -120,9 +120,11 @@ export class CredentialProfile {
       this.secrets.clear()
       if (this.validateInput(value)) return
       const issue = this.validateInput.errors?.find(error => error.instancePath === '/startTls' && error.keyword === 'const')
+      const invalid = this.validateInput.errors?.find(error => error.instancePath || error.params.missingProperty)
+      const field = invalid?.instancePath.split('/')[1] || invalid?.params.missingProperty
       context.addIssue(issue
         ? { code: 'custom', path: ['startTls'], message: `startTls must be ${issue.params.allowedValue} for this URL.` }
-        : { code: 'custom', message: 'Invalid credential profile' })
+        : { code: 'custom', path: field && Object.hasOwn(this.inputSchema.properties ?? {}, field) ? [field] : [], message: 'Invalid credential profile' })
     })
   }
 
@@ -155,7 +157,7 @@ export class CredentialProfile {
 
   private parsed(value: unknown) {
     const parsed = this.credentialSchema.safeParse(value)
-    if (!parsed.success) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
     return { value: structuredClone(parsed.data), paths: [...this.secrets] }
   }
 
@@ -193,7 +195,7 @@ export class CredentialProfile {
       environment[name] = secret
       parent[key] = { env: name }
     }
-    if (!this.validateProfile(parsed.value)) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+    if (!this.validateProfile(parsed.value)) throw new ArtiumError('CREDENTIAL_INVALID')
     if (tool !== 'ldap-axi') {
       const prefix = tool.toUpperCase().replaceAll('-', '_')
       environment[`${prefix}_READ_ONLY`] = String(readOnly)

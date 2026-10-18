@@ -13,5 +13,5 @@ test.each(['synthetic-analyst', 'synthetic-administrator'])('shared identity sel
 
 test('tool without a shared identity is unavailable', async () => {
   const resolver = new SharedIdentityResolver(new FakeCredentialStore())
-  await expect(resolver.resolve('synthetic-user', 'az-axi')).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+  await expect(resolver.resolve('synthetic-user', 'az-axi')).rejects.toMatchObject({ code: 'CREDENTIAL_NOT_CONFIGURED' })
 })

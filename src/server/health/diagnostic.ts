@@ -1,0 +1,52 @@
+import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/errors.js'
+import { SecretScanner } from '../runner/scan.js'
+
+export const diagnosticLimit = 4096
+export const azureAdvice: Record<string, string> = {
+  AADSTS7000215: 'The client secret is invalid. Save the secret value, then test again.',
+  AADSTS7000222: 'The client secret expired. Create and save a replacement secret.',
+  AADSTS700016: 'The application was not found in the tenant. Check tenantId and clientId.',
+  AADSTS90002: 'The tenant was not found. Check tenantId.',
+  AADSTS700027: 'The client certificate signature was rejected. Check the registered certificate and matching private key.',
+}
+
+// Scan the complete detail before bounding it, including fields other than message.
+export function safeDiagnostic(detail: Diagnostic | undefined, secrets: readonly string[]): Diagnostic | undefined {
+  if (!detail || new SecretScanner(secrets.filter(Boolean)).scan('stderr', Buffer.from(JSON.stringify(detail)))) return
+  let remaining = diagnosticLimit
+  return Object.fromEntries(Object.entries(detail).map(([key, value]) => {
+    if (typeof value !== 'string') return [key, value]
+    const bounded = value.slice(0, remaining)
+    remaining -= bounded.length
+    return [key, bounded]
+  })) as unknown as Diagnostic
+}
+
+export function diagnosticError(code: ErrorCode, detail: Diagnostic): ArtiumError {
+  const error = new ArtiumError(code)
+  error.diagnostic = detail
+  return error
+}
+
+export function toolFailure(stdout: string, stderr: string, exitCode: number): ArtiumError {
+  const text = [stderr, stdout].filter(Boolean).join('\n')
+  const toolCode = /^\s*(?:code|error_code):\s*["']?([A-Za-z][A-Za-z0-9_]{0,79})["']?\s*$/mi.exec(text)?.[1]
+    ?? /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
+  const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
+  const hint = /^\s*(?:hint|next):\s*(.+)$/mi.exec(text)?.[1] ?? (providerCode ? azureAdvice[providerCode] : undefined)
+  const message = text.trim() || `Tool exited with status ${exitCode}.`
+  let code: ErrorCode = 'TOOL_FAILED'
+  let stage: Diagnostic['stage'] = 'tool run'
+  if (/TLS.*(?:FAIL|ERROR)|ERR_TLS|CERT_HAS_EXPIRED|CERTIFICATE_VERIFY|SELF_SIGNED|UNABLE_TO_VERIFY|certificate verification/i.test(text)) {
+    code = 'UPSTREAM_TLS_FAILED'; stage = 'TLS'
+  } else if (/ENOTFOUND|EAI_AGAIN|DNS|name resolution/i.test(text)) {
+    code = 'UPSTREAM_NETWORK_FAILED'; stage = 'DNS'
+  } else if (/ECONN|ETIMEDOUT|NETWORK|timed? ?out|socket hang up|fetch failed/i.test(text)) {
+    code = 'UPSTREAM_NETWORK_FAILED'; stage = 'TCP'
+  } else if (/AADSTS|invalid_client|AUTH.*FAIL|AuthenticationError|InvalidAuthenticationToken|UNAUTHORIZED|FORBIDDEN|invalid.credentials|invalid password|invalidCredentials|\b401\b|\b403\b/i.test(text)) {
+    code = 'UPSTREAM_AUTH_FAILED'; stage = 'authentication'
+  } else if (exitCode === 2 || /INVALID_(?:INPUT|CONFIG|ARGUMENT)|CONFIG.*INVALID|cannot be combined|unknown (?:flag|option)|required field/i.test(text)) {
+    code = 'TOOL_REJECTED_INPUT'; stage = 'configuration'
+  }
+  return diagnosticError(code, { stage, message, ...(toolCode ? { toolCode } : {}), ...(providerCode ? { providerCode } : {}), ...(hint ? { hint } : {}) })
+}

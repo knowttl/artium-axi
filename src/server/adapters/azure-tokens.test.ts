@@ -65,7 +65,7 @@ describe('Azure token authentication', () => {
   it('refuses an unusable private key before sending a token request', async () => {
     const network = new FakeTokenTransport()
     await expect(mintAzureToken({ ...certificateCredential, privateKey: 'CANARY-INVALID-PRIVATE-KEY' }, 'arm', network))
-      .rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+      .rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
     expect(network.requests).toHaveLength(0)
   })
 
@@ -76,7 +76,7 @@ describe('Azure token authentication', () => {
     }
     const error = await mintAzureToken(certificateCredential, 'arm', network).catch(error => error as ArtiumError)
     expect(error).toBeInstanceOf(ArtiumError)
-    expect(errorResponse(error as ArtiumError, 'synthetic-request')).toEqual(errorResponse(new ArtiumError('CREDENTIAL_UNAVAILABLE'), 'synthetic-request'))
+    expect(errorResponse(error as ArtiumError, 'synthetic-request')).toEqual(errorResponse(new ArtiumError('UPSTREAM_NETWORK_FAILED'), 'synthetic-request'))
     expect((error as ArtiumError).cause).toBeUndefined()
   })
 
@@ -85,10 +85,28 @@ describe('Azure token authentication', () => {
     network.status = 400
     network.response = { error: 'invalid_client', error_description: 'AADSTS700027: CANARY-SIGNATURE-REJECTED' }
     await expect(mintAzureToken(certificateCredential, 'arm', network)).rejects.toMatchObject({
-      code: 'CREDENTIAL_UNAVAILABLE', message: new ArtiumError('CREDENTIAL_UNAVAILABLE').message,
+      code: 'UPSTREAM_AUTH_FAILED', message: new ArtiumError('UPSTREAM_AUTH_FAILED').message,
+      diagnostic: { stage: 'token acquisition', toolCode: 'AADSTS700027' },
     })
     expect(network.requests).toHaveLength(1)
     expect(network.requests[0].form.has('client_assertion')).toBe(true)
+  })
+
+  it.each([
+    ['AADSTS7000215', 'secret is invalid'],
+    ['AADSTS7000222', 'secret expired'],
+    ['AADSTS700016', 'application was not found'],
+    ['AADSTS90002', 'tenant was not found'],
+  ])('keeps %s and actionable advice without forwarding the provider body', async (code, advice) => {
+    const network = new FakeTokenTransport()
+    network.status = 400
+    network.response = { error: 'invalid_client', error_description: `${code}: ${secretCredential.clientSecret} CANARY-RAW-RESPONSE` }
+    const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
+    expect(error).toMatchObject({ code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: code,
+      hint: expect.stringContaining(advice) } })
+    expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
+    expect(JSON.stringify(error)).not.toContain('CANARY-RAW-RESPONSE')
+    expect(errorResponse(error as ArtiumError, 'synthetic')).not.toHaveProperty('error.diagnostic')
   })
 
   it.each([
@@ -106,7 +124,7 @@ describe('Azure token authentication', () => {
 
   it('refuses an unknown resource before any token request', async () => {
     const network = new FakeTokenTransport()
-    await expect(mintAzureToken(secretCredential, 'custom' as AzureResource, network)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    await expect(mintAzureToken(secretCredential, 'custom' as AzureResource, network)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
     expect(network.requests).toHaveLength(0)
     expect(Object.keys(azureAudiences)).toEqual(['arm', 'logs', 'graph', 'storage', 'vault', 'registry'])
   })
@@ -120,7 +138,7 @@ describe('Azure token authentication', () => {
   ])('rejects malformed or mixed credentials', async credential => {
     expect(azureCredentialSchema.safeParse(credential).success).toBe(false)
     const network = new FakeTokenTransport()
-    await expect(mintAzureToken(credential, 'arm', network)).rejects.toMatchObject({ code: 'CREDENTIAL_UNAVAILABLE' })
+    await expect(mintAzureToken(credential, 'arm', network)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
     expect(network.requests).toHaveLength(0)
   })
 
@@ -131,7 +149,7 @@ describe('Azure token authentication', () => {
       const network = new FakeTokenTransport()
       network.failure = `CANARY-DIAGNOSTIC ${secretCredential.clientSecret}`
       await expect(mintAzureToken(secretCredential, 'arm', network)).rejects.toMatchObject({
-        code: 'CREDENTIAL_UNAVAILABLE', message: new ArtiumError('CREDENTIAL_UNAVAILABLE').message,
+        code: 'UPSTREAM_NETWORK_FAILED', message: new ArtiumError('UPSTREAM_NETWORK_FAILED').message,
       })
       expect(stdout).not.toHaveBeenCalled()
       expect(stderr).not.toHaveBeenCalled()

@@ -42,7 +42,7 @@ export async function doctor(createClient = () => new Client(), write = (text: s
       const parsed = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET'))
       if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
       for (const tool of parsed.data.tools) line(tool.name, tool.status === 'ok', tool.status,
-        new ArtiumError(tool.status === 'unconfigured' || tool.status === 'error' ? 'CREDENTIAL_UNAVAILABLE' : tool.status === 'disabled' ? 'TOOL_DISABLED' : 'SERVER_UNAVAILABLE'))
+        new ArtiumError(tool.status === 'unconfigured' ? 'CREDENTIAL_NOT_CONFIGURED' : tool.status === 'error' ? 'TOOL_FAILED' : tool.status === 'disabled' ? 'TOOL_DISABLED' : 'SERVER_UNAVAILABLE'))
     } catch (error) {
       const cause = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE')
       line('tools', false, cause.code, cause)

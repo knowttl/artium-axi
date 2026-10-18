@@ -358,6 +358,9 @@ document.addEventListener('submit', async event => {
         checked.textContent = tool.health.checkedAt === null ? 'Not checked' : new Date(tool.health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
         checked.title = tool.health.checkedAt === null ? '' : new Date(tool.health.checkedAt).toISOString();
         form.closest('section').querySelector('[data-check-error]').textContent = tool.health.errorCode || '';
+        const detail = tool.health.diagnostic;
+        form.closest('section').querySelector('[data-check-diagnostic]').textContent = detail
+          ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\\n') : '';
       } catch { message.textContent += ' Tool health could not refresh. Reload the page to check the current status.'; }
       return;
     }

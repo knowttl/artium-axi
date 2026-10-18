@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import type { Diagnostic } from '../../shared/errors.js'
+import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
+import { preflight } from './preflight.js'
 import type { Adapter } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import { falconManifest } from '../adapters/falcon.js'
@@ -19,6 +22,12 @@ export class ToolHealth {
   private pending = new Set<Promise<unknown>>()
   private closed = false
   private readonly replaced = new Set<ToolName>()
+  private readonly diagnostics = new Map<ToolName, Diagnostic>()
+
+  diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null): Diagnostic | undefined {
+    const detail = this.diagnostics.get(tool)
+    return detail?.credentialRevision === revision && detail?.checkedAt === checkedAt ? detail : undefined
+  }
 
   constructor(private readonly db: Database.Database, private readonly audit: Audit,
     private readonly runner: Runner, private readonly adapters: readonly Adapter<unknown>[],
@@ -62,7 +71,7 @@ export class ToolHealth {
     try {
       reference = store?.findCredential(tool)
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
-      if (!reference) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+      if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
       if (this.active.has(tool)) throw new ArtiumError('TOO_MANY_CALLS')
     } catch (error) {
       const errorCode = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
@@ -78,11 +87,25 @@ export class ToolHealth {
     let durationMs = 0
     let outputBytes = { stdout: 0, stderr: 0 }
     let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
+    let secrets: string[] = []
     try {
       audit.record({ ...context, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args),
         checkedAt: started, credentialRevision: reference.revision ?? null, errorCode: null })
       try {
+        const credential = store!.readCredential(reference) as Record<string, unknown> | undefined
+        if (!credential) throw new ArtiumError('REVISION_CONFLICT')
+        // Include schema-declared secrets, including custom profile fields, before preflight.
+        const secretFields = new Set(adapter.credentialProfile?.fields().filter(field => field.schema['x-secret']).map(field => field.name))
+        secrets = Object.entries(credential).filter(([key]) => secretFields.has(key) || /secret|password|privateKey|token|assertion/i.test(key))
+          .flatMap(([, value]) => typeof value === 'string' && value ? [value] : [])
+        const parsed = adapter.credentialSchema.safeParse(credential)
+        if (!parsed.success) {
+          const path = parsed.error.issues[0]?.path.filter(key => typeof key === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)).join('.')
+          throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: `Invalid credential field: ${path || 'profile'}.` })
+        }
+        if (!background) await preflight(tool, credential)
         const prepared = await adapter.prepare(args, reference)
+        secrets.push(...prepared.secrets)
         journal = await prepareRunJournal(prepared.environment, tool)
         // Per-tool accounting leaves background reads governed by the global slots.
         const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
@@ -91,20 +114,23 @@ export class ToolHealth {
             if (background && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')
             }
-            if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_UNAVAILABLE')
+            if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
           })
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes
-        if (exitCode !== 0) failure = new ArtiumError('CREDENTIAL_UNAVAILABLE')
+        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode)
       } catch (error) {
         failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
         const runnerError = error instanceof RunnerError ? error : undefined
         durationMs = runnerError?.durationMs ?? Date.now() - started
         outputBytes = runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }
       }
+      const checkedAt = Date.now()
+      const diagnostic = safeDiagnostic(failure?.diagnostic && { ...failure.diagnostic, checkedAt, credentialRevision: reference.revision }, secrets)
+      if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
-      const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt: Date.now(),
+      const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,
         readOnly: !toolAllowsWrites(tool, JSON.parse(settings.native_settings)),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
@@ -117,6 +143,8 @@ export class ToolHealth {
             ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
             status = excluded.status, error_code = excluded.error_code`)
             .run(tool, reference.revision, health.checkedAt, health.status, health.errorCode)
+          this.diagnostics.delete(tool)
+          if (diagnostic) this.diagnostics.set(tool, diagnostic)
         }
       })
       if (failure) throw failure
