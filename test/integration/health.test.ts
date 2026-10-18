@@ -21,6 +21,7 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { toolsResponseSchema } from '../../src/shared/api.js'
 import { cliVersion } from '../../src/shared/version.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { fakeTool } from '../fake-tool/tool.js'
 
 let directory: string
 let db: Database.Database
@@ -171,6 +172,32 @@ test.each([
 })
 
 describe.each(['synthetic-development-user', healthDefaults.actor])('destination diagnostics for %s', actor => {
+  test.each(['ENETUNREACH', 'EHOSTUNREACH', 'response terminated before completion'])(
+    'Vectra native transport failure %s retains network detail', async cause => {
+      store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
+        auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
+      db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
+      const vectra = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+      const prepare = vectra.prepare.bind(vectra)
+      const text = `code: TRANSPORT_FAILED\nmessage: Request to https://appliance.test could not complete\nhint: ${cause}`
+      vi.spyOn(vectra, 'prepare').mockImplementation(async (args, reference) => ({ ...await prepare(args, reference),
+        executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+      health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
+      await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', host: 'appliance.test', toolCode: 'TRANSPORT_FAILED',
+          message: text, hint: cause, checkedAt: expect.any(Number), credentialRevision: 1 },
+      })
+      const cached = db.prepare("SELECT checked_at, error_code FROM tool_health WHERE tool = 'vectra-axi'").get() as {
+        checked_at: number, error_code: string,
+      }
+      expect(cached.error_code).toBe('UPSTREAM_NETWORK_FAILED')
+      expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ stage: 'TCP', host: 'appliance.test', message: text })
+      expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain('CANARY-VECTRA-TOKEN')
+      const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+      expect(audit).not.toContain(cause)
+      expect(audit).not.toContain('CANARY-VECTRA-TOKEN')
+    })
+
   test.each([
     { tool: 'ldap-axi', credential: { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
       bindPassword: 'CANARY-LDAP-PASSWORD' }, create: () => createLdapAdapter(new EmbeddedSecretSource(store)),

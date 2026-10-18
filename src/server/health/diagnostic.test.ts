@@ -24,6 +24,11 @@ test('preserves emitted provider and tool codes with mapped advice', () => {
 test.each([
   ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
   ['OPERATION_TIMEOUT', 'the operation deadline elapsed', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
+  ['TRANSPORT_FAILED', 'ENETUNREACH', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
+  ['TRANSPORT_FAILED', 'EHOSTUNREACH', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
+  ['TRANSPORT_FAILED', 'response terminated before completion', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
+  ['TRANSPORT_FAILED', 'getaddrinfo ENOTFOUND appliance.test', 'UPSTREAM_NETWORK_FAILED', 'DNS'],
+  ['TRANSPORT_FAILED', 'certificate verification failed', 'UPSTREAM_TLS_FAILED', 'TLS'],
   ['AUTH_EXCHANGE_FAILED', 'OAuth credential exchange could not complete', 'UPSTREAM_NETWORK_FAILED', 'token acquisition'],
   ['AUTH_EXCHANGE_FAILED', 'OAuth credential exchange failed', 'TOOL_FAILED', 'token acquisition'],
   ['AUTH_FAILED', 'OAuth client credentials were rejected', 'UPSTREAM_AUTH_FAILED', 'authentication'],
