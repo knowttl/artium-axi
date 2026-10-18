@@ -57,7 +57,17 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
     if (!networkClient && signal) {
       const request = async <T>(url: string, method: string, options?: import('@azure/msal-node').NetworkRequestOptions) => {
         const response = await fetch(url, { method, headers: options?.headers, body: options?.body, signal })
-        return { status: response.status, headers: Object.fromEntries(response.headers), body: await response.json() as T }
+        let body: T
+        try { body = await response.json() as T } catch {
+          throw Object.assign(new Error('Invalid identity provider response'), { status: response.status })
+        }
+        if (!response.ok && ![400, 401, 403].includes(response.status)) {
+          const errorCode = (body as { error?: unknown } | null)?.error
+          throw Object.assign(new Error('Identity provider HTTP failure'), {
+            status: response.status, ...(typeof errorCode === 'string' ? { errorCode } : {}),
+          })
+        }
+        return { status: response.status, headers: Object.fromEntries(response.headers), body }
       }
       networkClient = {
         sendGetRequestAsync: (url, options) => request(url, 'GET', options),
@@ -98,7 +108,7 @@ function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
   const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const host = 'login.microsoftonline.com'
   const toolCode = providerCode ?? (/^[a-z][a-z0-9_]{0,79}$/.test(fields?.errorCode ?? '') ? fields.errorCode : undefined)
-  if (fields?.status === 429 || fields?.status !== undefined && fields.status >= 500 && fields.status <= 599
+  if (fields?.status !== undefined && ![400, 401, 403].includes(fields.status)
     || ['temporarily_unavailable', 'server_error'].includes(fields?.errorCode ?? '')) return diagnosticError('TOOL_FAILED', {
     stage: 'token acquisition', host, message: 'The identity provider service could not complete token acquisition.',
     ...(toolCode ? { toolCode } : {}), hint: 'Try again later and check identity provider service availability.' })
@@ -106,7 +116,7 @@ function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
   if (verificationCode || /certificate verification|ERR_TLS/i.test(text)) return diagnosticError('UPSTREAM_TLS_FAILED', {
     stage: 'TLS', host, message: `TLS certificate verification failed contacting ${host}.`,
     ...(verificationCode ? { toolCode: verificationCode } : {}), hint: 'Check the certificate chain and upstream trusted-CA configuration.' })
-  if (transport || /network|ENOTFOUND|ECONN|ETIMEDOUT|EAI_AGAIN|timeout|aborted/i.test(text)) return diagnosticError('UPSTREAM_NETWORK_FAILED', {
+  if (transport && fields?.status === undefined || /network|ENOTFOUND|ECONN|ETIMEDOUT|EAI_AGAIN|timeout|aborted/i.test(text)) return diagnosticError('UPSTREAM_NETWORK_FAILED', {
     stage: /ENOTFOUND|EAI_AGAIN|DNS/i.test(text) ? 'DNS' : 'token acquisition', host,
     message: `Token acquisition could not reach ${host}.`, hint: 'Check DNS, routing, firewall rules and timeouts.' })
   if (/key|PEM|DECODER|crypto/i.test(text) && !providerCode) return diagnosticError('CREDENTIAL_INVALID', {

@@ -5,6 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
@@ -164,6 +165,37 @@ test.each([
     stage: 'token acquisition', toolCode: 'AUTH_EXCHANGE_FAILED', message: text, credentialRevision: 1,
   })
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(message)
+})
+
+test.each(['synthetic-development-user', healthDefaults.actor])('LDAP network failures retain the configured host for %s', async actor => {
+  store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+    bindPassword: 'CANARY-LDAP-PASSWORD' }, 0, 'synthetic-development-user', Date.now())
+  const ldap = createLdapAdapter(new EmbeddedSecretSource(store))
+  health = new ToolHealth(db, new Audit(db), runner, [ldap], store)
+  const text = 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory'
+  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+  await expect(health.check('ldap-axi', actor, 'ldap-network', null)).rejects.toMatchObject({
+    code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', host: 'directory.test', message: text,
+      checkedAt: expect.any(Number), credentialRevision: 1 },
+  })
+  const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
+  expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toMatchObject({ host: 'directory.test' })
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
+  expect(JSON.stringify(health.diagnostic('ldap-axi', 1, cached.checked_at))).not.toContain('CANARY-LDAP-PASSWORD')
+})
+
+test('scans the configured host before returning or caching a network diagnostic', async () => {
+  store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+    bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
+  health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
+  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '',
+    stderr: 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory', exitCode: 1 })
+  await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({
+    code: 'UPSTREAM_NETWORK_FAILED', diagnostic: undefined,
+  })
+  const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
+  expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
 })
 
 test('replacement during a check queues one fresh check and never caches the old revision', async () => {

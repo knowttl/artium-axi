@@ -142,6 +142,49 @@ describe('Azure token authentication', () => {
   })
 
   it.each([
+    ['POST', 503, `<html>${secretCredential.clientSecret} CANARY-RAW-RESPONSE</html>`, 'TOOL_FAILED'],
+    ['POST', 503, '', 'TOOL_FAILED'],
+    ['POST', 429, '', 'TOOL_FAILED'],
+    ['POST', 429, '<html>CANARY-RAW-RESPONSE</html>', 'TOOL_FAILED'],
+    ['POST', 502, '', 'TOOL_FAILED'],
+    ['POST', 503, '{"error":"temporarily_unavailable"}', 'TOOL_FAILED'],
+    ['POST', 500, '{"error":"server_error"}', 'TOOL_FAILED'],
+    ['POST', 400, '', 'UPSTREAM_AUTH_FAILED'],
+    ['POST', 400, '{"error":"temporarily_unavailable"}', 'TOOL_FAILED'],
+    ['POST', 401, '<html>CANARY-RAW-RESPONSE</html>', 'UPSTREAM_AUTH_FAILED'],
+    ['POST', 403, '', 'UPSTREAM_AUTH_FAILED'],
+    ['POST', 400, '{"error":"invalid_client","error_description":"AADSTS7000215: CANARY-RAW-RESPONSE"}', 'UPSTREAM_AUTH_FAILED'],
+    ['POST', 200, '<html>CANARY-RAW-RESPONSE</html>', 'TOOL_FAILED'],
+  ] as const)('classifies production %s HTTP %s responses independently of body format', async (method, status, body, code) => {
+    const network = new FakeTokenTransport()
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
+      if (options?.method === method) return new Response(body, { status })
+      const response = await network.sendGetRequestAsync(String(input))
+      return Response.json(response.body, { status: response.status })
+    })
+    try {
+      const error = await mintAzureToken(secretCredential, 'arm', undefined, new AbortController().signal).catch(error => error as ArtiumError)
+      expect(error).toMatchObject({ code, diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' } })
+      expect(JSON.stringify(error)).not.toContain('CANARY-RAW-RESPONSE')
+      expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
+    } finally { fetch.mockRestore() }
+  })
+
+  it('keeps production transport failures distinct from HTTP failures', async () => {
+    const network = new FakeTokenTransport()
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
+      if (options?.method === 'POST') throw new TypeError('fetch failed', { cause: { code: 'ECONNREFUSED' } })
+      const response = await network.sendGetRequestAsync(String(input))
+      return Response.json(response.body, { status: response.status })
+    })
+    try {
+      await expect(mintAzureToken(secretCredential, 'arm', undefined, new AbortController().signal)).rejects.toMatchObject({
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' },
+      })
+    } finally { fetch.mockRestore() }
+  })
+
+  it.each([
     ['arm', 'https://management.azure.com//.default'],
     ['logs', 'https://api.loganalytics.io/.default'],
     ['graph', 'https://graph.microsoft.com/.default'],

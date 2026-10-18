@@ -4,7 +4,7 @@ import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
 import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
-import { preflight } from './preflight.js'
+import { healthEndpoints, preflight } from './preflight.js'
 import type { Adapter } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import { falconManifest } from '../adapters/falcon.js'
@@ -128,7 +128,13 @@ export class ToolHealth {
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes
-        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode, tool)
+        if (exitCode !== 0) {
+          failure = toolFailure(result.stdout, result.stderr, exitCode, tool)
+          if (failure.code === 'UPSTREAM_NETWORK_FAILED' && failure.diagnostic && !failure.diagnostic.host) {
+            const endpoints = healthEndpoints(tool, credential)
+            failure.diagnostic.host = (failure.diagnostic.stage === 'token acquisition' ? endpoints[0] : endpoints.at(-1))?.hostname
+          }
+        }
       } catch (error) {
         failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
         const runnerError = error instanceof RunnerError ? error : undefined
