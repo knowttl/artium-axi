@@ -1,8 +1,9 @@
+import type { LookupAddress } from 'node:dns'
 import { lookup } from 'node:dns/promises'
 import { connect, isIP } from 'node:net'
 import { connect as connectTls } from 'node:tls'
 import type { ToolName } from '../store/credential-store.js'
-import { diagnosticError } from './diagnostic.js'
+import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
 
 // Destinations for the inventory health reads, in connection order.
 // Configured origins are validated by the adapter schema before this boundary.
@@ -14,7 +15,8 @@ export function healthEndpoints(tool: ToolName, credential: Record<string, unkno
   const regions: Record<string, string> = { 'us-1': 'api.crowdstrike.com', 'us-2': 'api.us-2.crowdstrike.com',
     'eu-1': 'api.eu-1.crowdstrike.com', 'us-gov-1': 'api.laggar.gcw.crowdstrike.com',
     'us-gov-2': 'api.us-gov-2.crowdstrike.mil' }
-  const host = regions[String(credential.region)]
+  const region = String(credential.region)
+  const host = Object.entries(regions).find(([name, host]) => region === name || region === `https://${host}` || region === `https://${host}/`)?.[1]
   if (!host) throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: 'Invalid credential field: region.' })
   return [new URL(`https://${host}`)]
 }
@@ -28,17 +30,17 @@ function verificationCode(error: unknown): string {
 export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000): Promise<void> {
   const host = endpoint.hostname.replace(/^\[|\]$/g, '')
   const port = Number(endpoint.port || (endpoint.protocol === 'ldaps:' ? 636 : endpoint.protocol === 'ldap:' ? 389 : 443))
-  let address: string
+  let addresses: LookupAddress[]
   let timer: NodeJS.Timeout | undefined
   try {
-    const result = await Promise.race([lookup(host), new Promise<never>((_, reject) => {
+    addresses = await Promise.race([lookup(host, { all: true }), new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(Object.assign(new Error(), { code: 'ETIMEDOUT' })), timeoutMs)
     })])
-    address = result.address
   } catch (error) {
     throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'DNS', host, message: `DNS lookup failed for ${host}: ${verificationCode(error)}.` })
   } finally { clearTimeout(timer) }
-  const socket = connect({ host: address, port })
+  const socket = connect({ host, port, autoSelectFamily: true,
+    lookup: (_hostname, _options, callback) => callback(null, addresses) })
   try {
     await new Promise<void>((resolve, reject) => {
       socket.setTimeout(timeoutMs, () => socket.destroy(Object.assign(new Error(), { code: 'ETIMEDOUT' })))
@@ -100,7 +102,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   } catch (error) {
     const code = verificationCode(error)
     const certificate = secure.getPeerCertificate()
-    if (!/CERT|TLS_CERT|SELF_SIGNED|UNABLE_TO_VERIFY/.test(code)) {
+    if (!certificateErrorCodePattern.test(code)) {
       throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TLS', host, message: `TLS connection failed for ${host}: ${code}.` })
     }
     const issuer = certificate?.issuer ? Object.entries(certificate.issuer).map(([key, value]) => `${key}=${value}`).join(', ') : undefined

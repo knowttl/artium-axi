@@ -20,3 +20,13 @@ test('preserves Graph provider and tool codes with mapped advice', () => {
       hint: expect.stringContaining('secret expired') },
   })
 })
+
+test.each([
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_ISSUER_CERT', 'CERT_NOT_YET_VALID',
+  'CERT_HAS_EXPIRED', 'CERTIFICATE_VERIFY_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID',
+  'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+])('classifies tool certificate failure %s as TLS', code => {
+  expect(toolFailure('', `code: ${code}`, 1)).toMatchObject({
+    code: 'UPSTREAM_TLS_FAILED', diagnostic: { stage: 'TLS', toolCode: code },
+  })
+})

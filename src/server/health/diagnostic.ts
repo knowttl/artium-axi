@@ -2,6 +2,7 @@ import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/error
 import { SecretScanner } from '../runner/scan.js'
 
 export const diagnosticLimit = 4096
+export const certificateErrorCodePattern = /\b(?:CERT_[A-Z_]+|[A-Z_]+_CERT(?:_[A-Z_]+)?|CERTIFICATE_VERIFY_FAILED|SELF_SIGNED[A-Z_]*|UNABLE_TO_VERIFY[A-Z_]*)\b/
 export const azureAdvice: Record<string, string> = {
   AADSTS7000215: 'The client secret is invalid. Save the secret value, then test again.',
   AADSTS7000222: 'The client secret expired. Create and save a replacement secret.',
@@ -37,7 +38,7 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number): A
   const message = text.trim() || `Tool exited with status ${exitCode}.`
   let code: ErrorCode = 'TOOL_FAILED'
   let stage: Diagnostic['stage'] = 'tool run'
-  if (/TLS.*(?:FAIL|ERROR)|ERR_TLS|CERT_HAS_EXPIRED|CERTIFICATE_VERIFY|SELF_SIGNED|UNABLE_TO_VERIFY|certificate verification/i.test(text)) {
+  if (certificateErrorCodePattern.test(text) || /TLS.*(?:FAIL|ERROR)|ERR_TLS|certificate verification/i.test(text)) {
     code = 'UPSTREAM_TLS_FAILED'; stage = 'TLS'
   } else if (/ENOTFOUND|EAI_AGAIN|DNS|name resolution/i.test(text)) {
     code = 'UPSTREAM_NETWORK_FAILED'; stage = 'DNS'

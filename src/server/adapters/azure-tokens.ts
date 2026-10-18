@@ -2,7 +2,7 @@ import { ClientAssertion, ConfidentialClientApplication, CryptoProvider } from '
 import type { INetworkModule, NodeAuthOptions } from '@azure/msal-node'
 import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
-import { azureAdvice, diagnosticError, safeDiagnostic } from '../health/diagnostic.js'
+import { azureAdvice, certificateErrorCodePattern, diagnosticError, safeDiagnostic } from '../health/diagnostic.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const identity = { tenantId: z.uuid(), clientId: z.uuid() }
@@ -97,8 +97,10 @@ function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
   const text = [fields?.errorCode, fields?.errorMessage, fields?.message, fields?.code, fields?.cause?.code].join(' ')
   const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const host = 'login.microsoftonline.com'
-  if (/CERT_HAS_EXPIRED|CERTIFICATE_VERIFY_FAILED|certificate verification|ERR_TLS|SELF_SIGNED|UNABLE_TO_VERIFY/i.test(text)) return diagnosticError('UPSTREAM_TLS_FAILED', {
-    stage: 'TLS', host, message: `TLS certificate verification failed contacting ${host}.`, hint: 'Check the certificate chain and upstream trusted-CA configuration.' })
+  const verificationCode = certificateErrorCodePattern.exec(text)?.[0]
+  if (verificationCode || /certificate verification|ERR_TLS/i.test(text)) return diagnosticError('UPSTREAM_TLS_FAILED', {
+    stage: 'TLS', host, message: `TLS certificate verification failed contacting ${host}.`,
+    ...(verificationCode ? { toolCode: verificationCode } : {}), hint: 'Check the certificate chain and upstream trusted-CA configuration.' })
   if (transport || /network|ENOTFOUND|ECONN|ETIMEDOUT|EAI_AGAIN|timeout|aborted/i.test(text)) return diagnosticError('UPSTREAM_NETWORK_FAILED', {
     stage: /ENOTFOUND|EAI_AGAIN|DNS/i.test(text) ? 'DNS' : 'token acquisition', host,
     message: `Token acquisition could not reach ${host}.`, hint: 'Check DNS, routing, firewall rules and timeouts.' })

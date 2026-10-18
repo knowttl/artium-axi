@@ -156,6 +156,22 @@ describe('Azure token authentication', () => {
     } finally { stdout.mockRestore(); stderr.mockRestore() }
   })
 
+  it.each([
+    'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_ISSUER_CERT', 'CERT_NOT_YET_VALID',
+    'CERT_HAS_EXPIRED', 'CERTIFICATE_VERIFY_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID',
+    'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  ])('preserves TLS verification code %s from token transport failures', async code => {
+    const network = new FakeTokenTransport()
+    network.sendPostRequestAsync = async () => {
+      throw new Error(`fetch failed ${secretCredential.clientSecret}`, { cause: { code } })
+    }
+    const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
+    expect(error).toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: {
+      stage: 'TLS', host: 'login.microsoftonline.com', toolCode: code,
+    } })
+    expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
+  })
+
   it('keeps token and assertion values out of files during authentication', async () => {
     const harness = join(directory, 'azure-auth.cjs')
     await build({ entryPoints: ['test/fake-service/azure-auth.ts'], bundle: true, platform: 'node',
