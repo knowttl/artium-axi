@@ -149,8 +149,9 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     }
     help = help.replace(/\n"built-in":\n[\s\S]*$/, '')
       .split('\n').filter(line => /^\s*(?:(?:Run|Use) [`'"]?|Usage: )?(?:artium-axi )?ado-axi (?!config\b|update\b)/.test(line)
-        || !/(?:\bado-axi (?:config|update)\b|\baz (?:CLI )?login\b|\baz login\b|\bADO_[A-Z_]+\b|\bPAT\b.*\benv\b|stdin|piped|--profile|--org\b|--config\b|^\s*update\s)/i.test(line))
+        || !/(?:\bado-axi (?:config|update)\b|\baz (?:CLI )?login\b|\baz login\b|\bADO_[A-Z_]+\b|\bPAT\b.*\benv\b|stdin|piped|--profile|--org\b|--config\b)/i.test(line))
       .map(line => line.replace(/<path\|url>/g, '<relative-path>').replace(/--timeout 1800/g, '--timeout 50')
+        .replace(/^([ \t]*MSYS_NO_PATHCONV=1 )ado-axi(?=\s|$)/, '$1artium-axi ado-axi')
         .replace('raw REST escape hatch for everything else', 'GET-only REST calls')
         .replace(/ \| config\b/g, '')).join('\n')
     if (!help.trim()) help = guidance

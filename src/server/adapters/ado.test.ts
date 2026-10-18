@@ -147,15 +147,25 @@ test('refuses an absent host classification', async () => {
   await expect(prepareRunJournal({}, 'ado-axi')).rejects.toThrow('Missing host-classified effect')
 })
 
-test.each(['--help', 'work-item', 'pr', 'pipeline', 'test', 'repo', 'ref', 'project', 'api', 'doctor'])(
+test.each(['--help', 'work-item', 'work-item update', 'wi update', 'pr', 'pr update', 'prs update', 'pipeline', 'test', 'repo', 'ref', 'project', 'api', 'doctor'])(
   'rewrites published %s help to managed guidance', command => {
-    const args = command === '--help' ? [command] : [command, '--help']
+    const args = command === '--help' ? [command] : [...command.split(' '), '--help']
     const result = spawnSync(process.execPath, ['tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', ...args], { encoding: 'utf8' })
     expect(result.status, result.stderr).toBe(0)
     const output = rewriteSuggestions(result.stdout, 'ado-axi')
     expect(output).toContain('Artium manages the organization')
     expect(output).not.toMatch(/--(?:org|profile|config)\b|ado-axi config|ado-axi update|az (?:CLI )?login|piped stdin|--timeout 1800/)
     expect(output).toContain('artium-axi ado-axi')
+    expect(output).not.toContain('"built-in":')
+    expect(output).not.toContain('update --check')
+    if (['work-item', 'work-item update', 'wi update'].includes(command)) {
+      expect(output).toContain('update  <id> [--state <state>] [--title "..."] [--assigned-to <user>] [--area <path>]')
+    }
+    if (['pr', 'pr update', 'prs update'].includes(command)) {
+      expect(output).toContain('update  <id> [--title "..."] [--description "..."] [--draft true|false] [--auto-complete true|false]')
+      expect(output).toContain('MSYS_NO_PATHCONV=1 artium-axi ado-axi pr comment 812 --file /src/File.cs --line 10 --body "..."  # Git Bash')
+      expect(output).not.toContain('MSYS_NO_PATHCONV=1 ado-axi')
+    }
     expect(rewriteSuggestions(output, 'ado-axi')).toBe(output)
   })
 
@@ -172,6 +182,16 @@ test.each(['json', 'toon'])('rewrites %s suggestions without touching data field
   expect(parsed.body).toBe(document.body)
   expect(parsed.help[0]).toBe('Run `artium-axi ado-axi project list`')
   expect(parsed.help.slice(1)).toEqual(Array(3).fill(expect.stringContaining('Artium manages the organization')))
+  expect(rewriteSuggestions(output, 'ado-axi')).toBe(output)
+})
+
+test.each(['json', 'toon'])('preserves the Git Bash assignment in %s command suggestions', format => {
+  const example = 'MSYS_NO_PATHCONV=1 ado-axi pr comment 812 --file /src/File.cs --line 10'
+  const document = { body: example, help: [example] }
+  const original = format === 'json' ? JSON.stringify(document) : encode(document) + '\n'
+  const output = rewriteSuggestions(original, 'ado-axi')
+  expect(format === 'json' ? JSON.parse(output) : decode(output)).toEqual({ body: example,
+    help: ['MSYS_NO_PATHCONV=1 artium-axi ado-axi pr comment 812 --file /src/File.cs --line 10'] })
   expect(rewriteSuggestions(output, 'ado-axi')).toBe(output)
 })
 
