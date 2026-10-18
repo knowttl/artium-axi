@@ -5,7 +5,7 @@
 This runbook covers local operation of the packaged server and client, and npm client releases.
 Exercise changes first in disposable Linux stores with synthetic identities, canary credentials and fake upstream services.
 Live host provisioning, proxy deployment, client installation and live adapter acceptance belong to the owner and have not been exercised here.
-The local rehearsal and its limitations are recorded in [S49 verification](verification-s49.md).
+The local rehearsal and its limitations are recorded in [S49 verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s49.md).
 The [README](../README.md), [Dockerfile](../Dockerfile), [Compose example](../compose.example.yaml) and [server configuration](../src/server/config.ts) own installation, packaging and executable defaults.
 
 The Linux deployment host needs Docker with Compose, space for persistent SQLite data and protected backups, and a trusted HTTPS reverse proxy.
@@ -182,7 +182,7 @@ Browser users sign in at `/login`, change temporary passwords at `/password`, an
 See [browser administration](../README.md#browser-administration) for `/account` usage and session management.
 The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
 
-See [host verification](verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
+See [host verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
 Windows/macOS launchers and live client trust remain unexercised owner acceptance.
 Follow [client settings](../README.md#client-settings) for default session-file protection and `SESSION_BUSY` recovery, or [externally managed client sessions](../README.md#externally-managed-client-sessions) when the caller owns token custody.
 An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.
