@@ -88,7 +88,9 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
 }
 
 async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
-  const path = new URL(env.ARTIUM_AXI_URL!).pathname + (args[0] === 'tools' ? '/v1/tools' : '/v1/tools/falcon-axi/run')
+  const diagnostic = args[0] === 'doctor'
+  const deadline = diagnostic ? 5_000 : DEFAULT_REQUEST_DEADLINE_MS
+  const path = new URL(env.ARTIUM_AXI_URL!).pathname + (diagnostic ? '/health/live' : args[0] === 'tools' ? '/v1/tools' : '/v1/tools/falcon-axi/run')
   const stalled = once(stalls, path)
   const child = fork(clockBundle, args, { cwd: directory, env, silent: true, execArgv: [], signal: AbortSignal.timeout(10_000) })
   const closed = once(child, 'close')
@@ -104,18 +106,18 @@ async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
   try {
     const [[timer], [connection]] = await Promise.race([Promise.all([scheduled, stalled, receivedHeaders]), unexpectedExit])
     const { socket, closed: socketClosed } = connection as { socket: TLSSocket, closed: Promise<unknown> }
-    expect(timer.delay).toBe(DEFAULT_REQUEST_DEADLINE_MS)
+    expect(timer.delay).toBe(deadline)
     expect(DEFAULT_REQUEST_DEADLINE_MS).toBe(90_000)
     expect(socket.encrypted).toBe(true)
     let advanced = once(messages, 'advanced')
-    child.send({ advance: DEFAULT_REQUEST_DEADLINE_MS - 1 })
-    expect((await Promise.race([advanced, unexpectedExit]))[0]).toEqual({ event: 'advanced', elapsed: 89_999, pending: 1 })
+    child.send({ advance: deadline - 1 })
+    expect((await Promise.race([advanced, unexpectedExit]))[0]).toEqual({ event: 'advanced', elapsed: deadline - 1, pending: 1 })
     expect(socket.destroyed).toBe(false)
     expect(stdout).toBe('')
     expect(child.exitCode).toBeNull()
     advanced = once(messages, 'advanced')
     child.send({ advance: 1 })
-    expect((await Promise.race([advanced, unexpectedExit]))[0]).toEqual({ event: 'advanced', elapsed: 90_000, pending: 0 })
+    expect((await Promise.race([advanced, unexpectedExit]))[0]).toEqual({ event: 'advanced', elapsed: deadline, pending: 0 })
     await Promise.race([socketClosed, unexpectedExit])
     expect(socket.destroyed).toBe(true)
     expect(child.exitCode).toBeNull()
@@ -555,6 +557,56 @@ test.each([
   } finally { doctorResponses = undefined }
 })
 
+test.each(['stall-headers', 'stall-body'])('doctor bounds %s and stops after address failure', async stall => {
+  requests = []
+  response = { status: 200, body: {} }
+  const result = await cli(['doctor'], { ARTIUM_AXI_URL: `${url}/${stall}` }, true)
+  expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
+    /^fail: server address \(SERVER_UNAVAILABLE\)\npass: certificate\nerror:\n  code: "SERVER_UNAVAILABLE"\n/) })
+  expect(requests.map(request => request.path)).toEqual([`/${stall}/health/live`])
+})
+
+test('doctor continues authentication checks when the reachable server rejects the token', async () => {
+  requests = []
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 401, body: errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-unauthorized') },
+  }
+  try {
+    expect(await cli(['doctor'])).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
+      /^pass: server address\npass: certificate\nfail: token\npass: CLI version\nerror:\n  code: "TOKEN_INVALID"\n/) })
+    expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me'])
+    expect(requests.map(request => request.token)).toEqual([undefined, undefined, 'Bearer CANARY-cli-token'])
+  } finally { doctorResponses = undefined }
+})
+
+test('managed doctor refreshes privately and completes its diagnostic probes', async () => {
+  requests = []
+  const me = { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+    roles: [], accessExpiresAt: Date.now() + 3600_000 }
+  responseSequence = [
+    { status: 200, body: { status: 'ok' } },
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-version') },
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 200, body: rotatedTokens },
+    { status: 200, body: me },
+    { status: 200, body: { tools: [] } },
+  ]
+  try {
+    expect(await managedCli(['doctor'], { existing: true })).toEqual({ code: 0, stderr: '',
+      stdout: 'pass: server address\npass: certificate\npass: token\npass: CLI version\n',
+      rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
+    expect(requests.map(request => ({ path: request.path, token: request.token }))).toEqual([
+      { path: '/health/live', token: undefined },
+      { path: '/v1/me', token: undefined },
+      { path: '/v1/me', token: `Bearer ${managedTokens.accessToken}` },
+      { path: '/v1/auth/refresh', token: undefined },
+      { path: '/v1/me', token: `Bearer ${rotatedTokens.accessToken}` },
+      { path: '/v1/tools', token: `Bearer ${rotatedTokens.accessToken}` },
+    ])
+  } finally { responseSequence = undefined }
+})
+
 test('doctor reports all prerequisite failures for an invalid server address', async () => {
   const result = await cli(['doctor'], { ARTIUM_AXI_URL: 'invalid' })
   expect(result).toMatchObject({ code: 2, stderr: '', stdout: expect.stringMatching(
@@ -564,12 +616,14 @@ test('doctor reports all prerequisite failures for an invalid server address', a
   expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.CLIENT_CONFIG_INVALID.next)}\n`)
 })
 
-test('doctor retains the certificate error after continuing its prerequisite checks', async () => {
+test('doctor stops at the certificate error before authenticated probes', async () => {
+  requests = []
   const result = await cli(['doctor'], { ARTIUM_AXI_CA_FILE: undefined })
   expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining('fail: certificate (CERTIFICATE_INVALID)\n') })
   expect(result.stdout).toContain('error:\n  code: "CERTIFICATE_INVALID"\n  source: "artium-axi"\n')
   expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.CERTIFICATE_INVALID.message)}\n`)
   expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.CERTIFICATE_INVALID.next)}\n`)
+  expect(requests).toEqual([])
 })
 
 test('doctor reports an unverified certificate when the HTTPS connection is refused', async () => {

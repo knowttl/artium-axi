@@ -2,28 +2,32 @@ import { meResponseSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { Client } from './http.js'
 
-export async function doctor(createClient = () => new Client(), write = (text: string) => { process.stdout.write(text) }): Promise<void> {
+const DIAGNOSTIC_REQUEST_DEADLINE_MS = 5_000
+
+export async function doctor(createClient = (deadline: number) => new Client(process.env, undefined, deadline), write = (text: string) => { process.stdout.write(text) }): Promise<void> {
   let failure: ArtiumError | undefined
   const line = (name: string, pass: boolean, detail?: string, error?: ArtiumError) => {
     if (!pass) failure ??= error ?? new ArtiumError('INVALID_RESPONSE')
     write(`${pass ? 'pass' : 'fail'}: ${name}${detail ? ` (${detail})` : ''}\n`)
   }
   let client: Client
-  try { client = createClient() }
+  try { client = createClient(DIAGNOSTIC_REQUEST_DEADLINE_MS) }
   catch (error) {
     for (const name of ['server address', 'certificate', 'token', 'CLI version']) line(name, false, 'CLIENT_CONFIG_INVALID')
     throw error
   }
+  let addressOk = false
   try {
     const live = await client.request('/health/live', 'GET')
-    const ok = !!live && typeof live === 'object' && 'status' in live && live.status === 'ok'
-    line('server address', ok)
+    addressOk = !!live && typeof live === 'object' && 'status' in live && live.status === 'ok'
+    line('server address', addressOk)
     line('certificate', client.certificateVerified, client.certificateVerified ? undefined : 'test HTTP', new ArtiumError('CLIENT_CONFIG_INVALID'))
   } catch (error) {
     const cause = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE')
     line('server address', cause.code === 'CERTIFICATE_INVALID', cause.code, cause)
     line('certificate', client.certificateVerified, client.certificateVerified ? undefined : cause.code, cause)
   }
+  if (!addressOk && failure) throw failure
   let versionOk = true
   let versionError: ArtiumError | undefined
   try { await client.request('/v1/me', 'GET') }
