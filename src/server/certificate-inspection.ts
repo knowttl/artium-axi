@@ -3,6 +3,7 @@ import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
 import { isIP } from 'node:net'
 import { inspectEndpoint } from './health/preflight.js'
+import { certificateEndpoint } from './certificate-endpoint.js'
 
 const issuerTimeoutMs = 3000
 const issuerMaxBytes = 128 * 1024
@@ -72,7 +73,7 @@ async function fetchIssuer(leaf: X509Certificate): Promise<X509Certificate | und
 }
 
 export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2') {
-  const host = endpoint.hostname.replace(/^\[|\]$/g, '')
+  const { hostname: host, href } = certificateEndpoint(endpoint)
   const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion)
   if (!presented.chain.length) throw new Error('The endpoint presented no certificate')
   const leaf = presented.chain[0]
@@ -107,7 +108,7 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
   else if (presented.verificationError === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') reason = 'The server sent no intermediate and its issuer could not be verified.'
   else if (presented.verificationError) reason = 'The certificate was issued by a CA this server does not trust.'
   const anchor = intermediate ?? presented.chain.find((certificate, index) => index > 0 && certificate.ca) ?? leaf
-  return { hostname: host, endpoint: endpoint.href, chain, warnings, reason,
+  return { hostname: host, endpoint: href, chain, warnings, reason,
     verificationError: presented.verificationError ?? null, repairAvailable: Boolean(intermediate),
     anchor: certificateDetails(anchor, host), pem: anchor.toString(), leafPem: leaf.toString() }
 }

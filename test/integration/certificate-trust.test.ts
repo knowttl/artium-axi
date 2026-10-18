@@ -266,6 +266,42 @@ test.each(['node', 'python'] as const)('%s rejects a different valid leaf under 
   expect(bytes).toBe(0)
 })
 
+test.each(['node', 'python'] as const)('%s enforces legacy mixed-case LDAP endpoint pins', async runtime => {
+  serve('leaf', true)
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  db.prepare('UPDATE trusted_certificates SET endpoint = ?, pem = ?').run(
+    `LDAPS://LOCALHOST:${new URL(endpoint).port}`, pem('ca'))
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  serve('rotated', true)
+  bytes = 0
+  const rejected = await runtimeCall(runtime)
+  expect(rejected.exitCode).not.toBe(0)
+  expect(rejected.stderr).toMatch(/fingerprint changed|CERTIFICATE_PIN_MISMATCH/)
+  expect(bytes).toBe(0)
+})
+
+test('LDAP preflight and rotation inspection match equivalent saved endpoints', async () => {
+  serve('leaf', true)
+  const url = `LDAPS://LOCALHOST:${new URL(endpoint).port}`
+  const reference = store.replaceCredential('ldap-axi', { url }, 0, 'synthetic-development-user', Date.now())
+  const ldapRequest = (path: string, payload: Record<string, unknown>) => app.inject({
+    method: 'POST', url: '/v1/admin/tools/ldap-axi/certificates' + path, headers, payload })
+  const previous = certificateInspectionSchema.parse((await ldapRequest('/inspect', {})).json())
+  expect((await ldapRequest('/trust', { inspectionId: previous.inspectionId })).statusCode).toBe(200)
+  db.prepare('UPDATE trusted_certificates SET endpoint = ? WHERE credential_id = ?').run(url, reference.id)
+  const trust = readCredentialTrust(db, reference)
+  const credential = { url: url.toLowerCase() + '/' }
+  await expect(preflight('ldap-axi', credential, trust)).resolves.toBeUndefined()
+  serve('rotated', true)
+  await expect(preflight('ldap-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  const changed = certificateInspectionSchema.parse((await ldapRequest('/inspect', {})).json())
+  expect(changed.previousFingerprints).toEqual([previous.chain[0].fingerprint])
+  expect(changed.warnings).toEqual(expect.arrayContaining([expect.stringContaining('different fingerprint')]))
+  expect(bytes).toBe(0)
+})
+
 test.each(['node', 'python'] as const)('%s uses a fetched intermediate without adding a new trust anchor', async runtime => {
   serve('leaf')
   setDefaultCACertificates([...defaults, pem('ca')])

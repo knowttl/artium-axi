@@ -12,6 +12,7 @@ import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
 import type { TemporaryFile } from '../adapters/types.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 
 export interface RunnerLimits {
@@ -121,9 +122,8 @@ async function execute(
   const credentialTrust = limits.credentialTrust ?? []
   const trustPem = [trustedCa?.pem, ...credentialTrust.map(certificate => certificate.pem)].filter(Boolean).join('\n')
   const pins = credentialTrust.filter(certificate => certificate.mode === 'pin').map(certificate => {
-    const endpoint = new URL(certificate.endpoint)
-    return { hostname: endpoint.hostname.replace(/^\[|\]$/g, ''),
-      port: Number(endpoint.port || (endpoint.protocol === 'ldaps:' ? 636 : endpoint.protocol === 'ldap:' ? 389 : 443)),
+    const endpoint = certificateEndpoint(certificate.endpoint)
+    return { hostname: endpoint.hostname, port: endpoint.port,
       fingerprint: certificate.leafFingerprint }
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream

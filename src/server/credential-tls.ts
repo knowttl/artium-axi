@@ -2,6 +2,7 @@ import { request } from 'node:https'
 import { checkServerIdentity, getCACertificates } from 'node:tls'
 import type { ConnectionOptions } from 'node:tls'
 import type { CredentialTrust } from './store/trusted-certificates.js'
+import { certificateEndpoint } from './certificate-endpoint.js'
 
 export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: string): ConnectionOptions {
   return { rejectUnauthorized: true,
@@ -22,7 +23,7 @@ export function credentialFetch(url: string, init: { method: string, headers?: R
   trust: readonly CredentialTrust[]): Promise<Response> {
   const endpoint = new URL(url)
   if (endpoint.protocol !== 'https:') return Promise.reject(new Error('TLS is required'))
-  const scoped = trust.filter(certificate => new URL(certificate.endpoint).origin === endpoint.origin)
+  const scoped = trust.filter(certificate => certificateEndpoint(certificate.endpoint).href === certificateEndpoint(endpoint).href)
   return new Promise((resolve, reject) => {
     const outgoing = request(endpoint, { ...init, ...credentialTlsOptions(scoped), agent: false }, incoming => {
       const chunks: Buffer[] = []

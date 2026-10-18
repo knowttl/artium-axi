@@ -1,6 +1,7 @@
 import { X509Certificate } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { certificateDetails } from '../certificate-inspection.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
 import type { CredentialReference } from './credential-store.js'
 
 export interface CredentialTrust {
@@ -21,8 +22,8 @@ export function credentialCertificates(db: Database.Database, credentialId: stri
     .all(credentialId) as { id: string, endpoint: string, pem: string, leaf_pem: string,
       mode: 'pin' | 'intermediate', created_at: number }[]
   return rows.map(row => {
-    const hostname = new URL(row.endpoint).hostname.replace(/^\[|\]$/g, '')
-    return { id: row.id, endpoint: row.endpoint, mode: row.mode, createdAt: row.created_at,
+    const { hostname, href } = certificateEndpoint(row.endpoint)
+    return { id: row.id, endpoint: href, mode: row.mode, createdAt: row.created_at,
       certificate: certificateDetails(new X509Certificate(row.pem), hostname),
       leaf: certificateDetails(new X509Certificate(row.leaf_pem), hostname) }
   })

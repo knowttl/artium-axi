@@ -5,6 +5,7 @@ import { connect, isIP } from 'node:net'
 import { connect as connectTls } from 'node:tls'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { credentialTlsOptions } from '../credential-tls.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
 import type { ToolName } from '../store/credential-store.js'
 import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
 
@@ -34,8 +35,7 @@ function verificationCode(error: unknown): string {
 export async function inspectEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2',
   trust: readonly CredentialTrust[] = []):
 Promise<{ chain: X509Certificate[], verificationError?: string }> {
-  const host = endpoint.hostname.replace(/^\[|\]$/g, '')
-  const port = Number(endpoint.port || (endpoint.protocol === 'ldaps:' ? 636 : endpoint.protocol === 'ldap:' ? 389 : 443))
+  const { hostname: host, port } = certificateEndpoint(endpoint)
   let addresses: LookupAddress[]
   let timer: NodeJS.Timeout | undefined
   try {
@@ -149,6 +149,6 @@ export async function preflight(tool: ToolName, credential: Record<string, unkno
   for (const endpoint of healthEndpoints(tool, credential)) {
     await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,
       tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
-      trust.filter(certificate => certificate.endpoint === endpoint.href))
+      trust.filter(certificate => certificateEndpoint(certificate.endpoint).href === certificateEndpoint(endpoint).href))
   }
 }

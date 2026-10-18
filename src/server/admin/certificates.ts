@@ -6,6 +6,7 @@ import { adminCertificateRoutes, adminToolParamsSchema, certificateInspectionSch
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import { inspectCertificate } from '../certificate-inspection.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
 import { healthEndpoints } from '../health/preflight.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
@@ -62,7 +63,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined)
     authorize(request)
     current(reference)
-    const previousFingerprints = credentialCertificates(db, reference.id).filter(pin => pin.endpoint === endpoint.href
+    const previousFingerprints = credentialCertificates(db, reference.id).filter(pin => pin.endpoint === certificateEndpoint(endpoint).href
       && pin.leaf.fingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leaf.fingerprint)
     if (previousFingerprints.length) inspection.warnings.push('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
     for (const [id, item] of pending) if (item.expiresAt <= Date.now()) pending.delete(id)
