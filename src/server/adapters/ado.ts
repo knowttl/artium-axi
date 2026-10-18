@@ -73,7 +73,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   // Put positionals before flags so upstream's greedy boolean parser cannot
   // consume a command or ID as a flag value. SDK help detection needs --help.
-  const normalized = [...positionals, ...[...flags].flatMap(([name, value]) =>
+  const normalized = route.command === 'home' && flags.get('help') === 'true' ? ['--help'] : [...positionals, ...[...flags].flatMap(([name, value]) =>
     routeFlags[name] === 'boolean' ? [name === 'help' && value === 'true' ? '--help' : `--${name}=${value}`] : [`--${name}`, value])]
   return { args: normalized, command: route.command, effect: flags.get('help') === 'true' ? 'read' : route.effect,
     positionals: rest, flags }

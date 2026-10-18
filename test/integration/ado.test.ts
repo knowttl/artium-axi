@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 import { decode } from '@toon-format/toon'
+import inventory from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { createApp } from '../../src/server/app.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
@@ -23,6 +24,182 @@ async function runPinned(runner: Runner, port: number, call: PreparedCall) {
     fileURLToPath(new URL('../../tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args,
   ], { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files)
 }
+
+test('every classified route, alias and default dispatches through the pinned binary', async () => {
+  const org = '/synthetic-org'
+  const project = `${org}/Synthetic%20Project`
+  const git = `${project}/_apis/git/repositories/Synthetic%20Repo`
+  const pr = `${git}/pullrequests/42`
+  const wi = `${org}/_apis/wit/workitems/42`
+  const reviewer = '11111111-1111-1111-1111-111111111111'
+  const added = '22222222-2222-2222-2222-222222222222'
+  const repo = ['--repo', 'Synthetic Repo']
+  const routes: { command: string, values: string[], method: string, path: string, result: unknown,
+    body?: unknown, query?: Record<string, string>, recovery?: unknown }[] = [
+    { command: 'home', values: [], method: 'POST', path: `${org}/_apis/wit/workitemsbatch`,
+      result: { 'my-work-items': [{ id: 42 }], 'active-pull-requests': [{ id: 42 }], 'recent-runs': [{ id: 8 }] } },
+    { command: 'doctor', values: [], method: 'GET', path: `${org}/_apis/connectionData`,
+      result: { status: 'all profiles authenticated', profiles: [{ status: 'ok', identity: 'Synthetic User' }] } },
+    { command: 'work-item list', values: [], method: 'POST', path: `${project}/_apis/wit/wiql`,
+      result: { 'work-items': [{ id: 42, title: 'Synthetic work item' }] } },
+    { command: 'work-item get', values: ['42'], method: 'GET', path: wi,
+      result: { 'work-item': { id: 42, description: 'Synthetic description' } } },
+    { command: 'work-item create', values: ['--type', 'Task', '--title', 'Synthetic created item'], method: 'POST',
+      path: `${project}/_apis/wit/workitems/$Task`, body: [{ op: 'add', path: '/fields/System.Title', value: 'Synthetic created item' }],
+      result: { created: { id: 43, title: 'Synthetic created item' } }, recovery: { 'work-items': [{ id: 43, title: 'Synthetic created item' }] } },
+    { command: 'work-item update', values: ['42', '--title', 'Synthetic updated item'], method: 'PATCH', path: wi,
+      body: [{ op: 'add', path: '/fields/System.Title', value: 'Synthetic updated item' }],
+      result: { updated: { id: 42, title: 'Synthetic updated item' } }, recovery: { response: { fields: { 'System.Title': 'Synthetic updated item' } } } },
+    { command: 'work-item comment', values: ['42', '--body', 'Synthetic comment'], method: 'POST',
+      path: `${project}/_apis/wit/workItems/42/comments`, body: { text: 'Synthetic comment' },
+      result: { comment: { id: 1, posted: true } }, recovery: { response: { comments: [{ text: 'Synthetic comment' }] } } },
+    { command: 'work-item link list', values: ['42'], method: 'GET', path: wi,
+      result: { links: [{ target: 41, type: 'parent' }] } },
+    { command: 'work-item link add', values: ['42', '--related', '43'], method: 'PATCH', path: `${project}/_apis/wit/workitems/42`,
+      body: [{ op: 'add', path: '/relations/-', value: { rel: 'System.LinkTypes.Related',
+        url: 'https://dev.azure.com/synthetic-org/_apis/wit/workItems/43', attributes: {} } }],
+      result: { linked: { target: '43', type: 'related' } },
+      recovery: { response: { relations: expect.arrayContaining([expect.objectContaining({ rel: 'System.LinkTypes.Related' })]) } } },
+    { command: 'pr list', values: [], method: 'GET', path: `${project}/_apis/git/pullrequests`,
+      result: { 'pull-requests': [{ id: 42, title: 'Synthetic PR' }] } },
+    { command: 'pr get', values: ['42'], method: 'GET', path: `${org}/_apis/git/pullrequests/42`,
+      result: { 'pull-request': { id: 42, title: 'Synthetic PR' } } },
+    { command: 'pr create', values: [...repo, '--source', 'feature', '--title', 'Synthetic created PR'], method: 'POST', path: `${git}/pullrequests`,
+      body: { title: 'Synthetic created PR', sourceRefName: 'refs/heads/feature', targetRefName: 'refs/heads/main' },
+      result: { created: { id: 43, title: 'Synthetic created PR' } }, recovery: { 'pull-requests': [{ id: 43, title: 'Synthetic created PR' }] } },
+    { command: 'pr update', values: ['42', '--title', 'Synthetic updated PR'], method: 'PATCH', path: pr,
+      body: { title: 'Synthetic updated PR' }, result: { updated: { title: 'Synthetic updated PR' } },
+      recovery: { response: { title: 'Synthetic updated PR' } } },
+    { command: 'pr complete', values: ['42'], method: 'PATCH', path: pr,
+      body: { status: 'completed', lastMergeSourceCommit: { commitId: 'a'.repeat(40) },
+        completionOptions: { mergeStrategy: 'noFastForward', deleteSourceBranch: false, bypassPolicy: false } },
+      result: { completion: { id: 42, outcome: 'completed' } }, recovery: { response: { status: 'completed' } } },
+    { command: 'pr abandon', values: ['42'], method: 'PATCH', path: pr, body: { status: 'abandoned' },
+      result: { abandoned: { id: 42 } }, recovery: { response: { status: 'abandoned' } } },
+    { command: 'pr checks', values: ['42'], method: 'GET', path: `${pr}/statuses`,
+      result: { actionable: [{ name: 'Synthetic check', result: 'pending' }] } },
+    { command: 'pr diff', values: ['42'], method: 'GET', path: `${pr}/iterations/1/changes`,
+      result: { changes: [{ path: '/synthetic.txt', change: 'edit' }] } },
+    { command: 'pr reviewers', values: ['42'], method: 'GET', path: `${pr}/reviewers`,
+      result: { reviewers: [{ id: reviewer, name: 'Synthetic Reviewer' }] } },
+    { command: 'pr reviewer list', values: ['42'], method: 'GET', path: `${pr}/reviewers`,
+      result: { reviewers: [{ id: reviewer, name: 'Synthetic Reviewer' }] } },
+    { command: 'pr reviewer add', values: ['42', '--reviewer', added], method: 'PUT', path: `${pr}/reviewers/${added}`,
+      body: { vote: 0, isRequired: false }, result: { reviewer: { id: added, added: true } },
+      recovery: { response: { reviewers: expect.arrayContaining([expect.objectContaining({ id: added })]) } } },
+    { command: 'pr reviewer remove', values: ['42', '--reviewer', reviewer], method: 'DELETE', path: `${pr}/reviewers/${reviewer}`,
+      result: { reviewer: { id: reviewer, removed: true } }, recovery: { response: { reviewers: [] } } },
+    { command: 'pr approve', values: ['42'], method: 'PUT', path: `${pr}/reviewers/synthetic-user`, body: { vote: 10 },
+      result: { vote: { result: 'approved' } },
+      recovery: { response: { reviewers: expect.arrayContaining([expect.objectContaining({ id: 'synthetic-user', vote: 10 })]) } } },
+    { command: 'pr comment', values: ['42', '--body', 'Synthetic PR comment'], method: 'POST', path: `${pr}/threads`,
+      body: { comments: [{ parentCommentId: 0, content: 'Synthetic PR comment', commentType: 'text' }], status: 'active' },
+      result: { comment: { thread: 5, posted: true } }, recovery: { threads: [{ comments: expect.stringContaining('Synthetic PR comment') }] } },
+    { command: 'pr thread list', values: ['42'], method: 'GET', path: `${pr}/threads`,
+      result: { threads: [{ id: 5, last: expect.stringContaining('Synthetic discussion') }] } },
+    { command: 'pr thread resolve', values: ['42', '--thread', '5', '--status', 'closed'], method: 'PATCH', path: `${pr}/threads/5`,
+      body: { status: 'closed' }, result: { thread: { id: 5, status: 'closed' } }, recovery: { threads: [{ id: 5, status: 'closed' }] } },
+    { command: 'pr thread reopen', values: ['42', '--thread', '5'], method: 'PATCH', path: `${pr}/threads/5`,
+      body: { status: 'active' }, result: { thread: { id: 5, status: 'active' } }, recovery: { threads: [{ id: 5, status: 'active' }] } },
+    { command: 'pr thread reply', values: ['42', '--thread', '5', '--body', 'Synthetic reply'], method: 'POST', path: `${pr}/threads/5/comments`,
+      body: { content: 'Synthetic reply', commentType: 'text' }, result: { reply: { thread: 5, posted: true } },
+      recovery: { threads: [{ comments: expect.stringContaining('Synthetic reply') }] } },
+    { command: 'pipeline list', values: [], method: 'GET', path: `${project}/_apis/pipelines`,
+      result: { pipelines: [{ id: 7, name: 'Synthetic pipeline' }] } },
+    { command: 'pipeline runs', values: [], method: 'GET', path: `${project}/_apis/build/builds`,
+      result: { runs: [{ id: 8, pipeline: 'Synthetic pipeline' }] } },
+    { command: 'pipeline run', values: ['--pipeline', '7', '--branch', 'main'], method: 'POST', path: `${project}/_apis/pipelines/7/runs`,
+      body: { resources: { repositories: { self: { refName: 'refs/heads/main' } } } }, result: { queued: { run: 10, pipeline: '7' } },
+      recovery: { runs: [{ id: 10, branch: 'main', status: 'inProgress' }] } },
+    { command: 'pipeline logs', values: ['8'], method: 'GET', path: `${project}/_apis/build/builds/8/logs/1`,
+      result: { content: 'Synthetic build log' } },
+    { command: 'pipeline timeline', values: ['8'], method: 'GET', path: `${project}/_apis/build/builds/8/timeline`,
+      result: { jobs: [{ name: 'Synthetic job', result: 'succeeded' }] } },
+    { command: 'pipeline watch', values: ['8', '--timeout', '1'], method: 'GET', path: `${project}/_apis/build/builds/8`,
+      result: { run: { id: 8, outcome: 'success', polls: 1 } } },
+    { command: 'test results', values: ['8'], method: 'GET', path: `${project}/_apis/test/Runs/9/results`,
+      result: { failures: [{ test: 'Synthetic test case', outcome: 'Failed' }] } },
+    { command: 'repo list', values: [], method: 'GET', path: `${project}/_apis/git/repositories`,
+      result: { repos: [{ name: 'Synthetic Repo', default: 'main' }] } },
+    { command: 'repo branches', values: repo, method: 'GET', path: `${git}/refs`,
+      result: { branches: [{ name: 'main' }, { name: 'feature-existing' }] } },
+    { command: 'repo file', values: ['/synthetic.txt', ...repo], method: 'GET', path: `${git}/items`, query: { path: '/synthetic.txt' },
+      result: { content: 'Synthetic file content' } },
+    { command: 'ref list', values: repo, method: 'GET', path: `${git}/refs`,
+      result: { refs: [{ name: 'main' }, { name: 'feature-existing' }] } },
+    { command: 'ref create', values: [...repo, '--name', 'feature-new', '--source-object-id', 'a'.repeat(40)], method: 'POST', path: `${git}/refs`,
+      body: [{ name: 'refs/heads/feature-new', oldObjectId: '0'.repeat(40), newObjectId: 'a'.repeat(40) }],
+      result: { created: { name: 'feature-new', object: 'a'.repeat(40) } }, recovery: { refs: [{ name: 'feature-new', object: 'a'.repeat(40) }] } },
+    { command: 'ref delete', values: [...repo, '--name', 'feature-existing'], method: 'POST', path: `${git}/refs`,
+      body: [{ name: 'refs/heads/feature-existing', oldObjectId: 'b'.repeat(40), newObjectId: '0'.repeat(40) }],
+      result: { deleted: { name: 'feature-existing' } }, recovery: { refs: '0 branch refs found in Synthetic Project/Synthetic Repo' } },
+    { command: 'project list', values: [], method: 'GET', path: `${org}/_apis/projects`,
+      result: { projects: [{ name: 'Synthetic Project' }] } },
+    { command: 'api', values: ['_apis/projects', '--no-project'], method: 'GET', path: `${org}/_apis/projects`,
+      result: { value: [{ id: 'synthetic-project', name: 'Synthetic Project' }] } },
+  ]
+  expect(routes.map(row => row.command).sort()).toEqual(inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command).sort())
+  const cases = routes.flatMap(row => {
+    const route = inventory.commands.find(route => route.command === row.command)!
+    const aliases = [...route.aliases, ...Object.entries(inventory.aliases)
+      .filter(([, group]) => row.command.startsWith(`${group} `)).map(([alias]) => row.command.replace(/^\S+/, alias))]
+    return [row, ...aliases.map(command => ({ ...row, command,
+      ...(['pr comments', 'pr threads'].includes(command)
+        ? { path: `${pr}/threads`, result: { threads: [{ comments: expect.stringContaining('Synthetic discussion') }] } } : {}) }))]
+      .map(entry => ({ ...entry, effect: route.effect }))
+  })
+  const defaults = [
+    ['home', ''], ['work-item list', 'work-item'], ['pr list', 'pr'], ['pipeline list', 'pipeline'],
+    ['repo list', 'repo'], ['ref list', 'ref'], ['project list', 'project'], ['test results', 'test'],
+    ['work-item link list', 'work-item link'], ['work-item link list', 'work-item links'], ['pr thread list', 'pr thread'],
+  ].map(([canonical, command]) => ({ ...cases.find(row => row.command === canonical)!, command }))
+  await withFakeService(async ({ directory, port, send }) => {
+    const adapter = (allowWrites: boolean) => createAdoAdapter({ getCredential: async () => ({ org: 'synthetic-org',
+      project: 'Synthetic Project', auth: 'pat', token: 'CANARY-ado-pat', allowWrites }) })
+    const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    try {
+      for (const row of [...cases, ...defaults]) {
+        await send('/__ado/reset', 'POST')
+        const args = [...row.command.split(' ').filter(Boolean), ...row.values]
+        if (row.effect === 'write') {
+          await expect(adapter(false).prepare(args, reference), row.command).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+          expect(JSON.parse(await send('/__evidence')).requests, row.command).toEqual([])
+        }
+        const call = await adapter(true).prepare(args, reference)
+        expect(call.effect, row.command).toBe(row.effect)
+        const result = await runPinned(runner, port, call)
+        expect(result.exitCode, `${row.command}: ${result.stdout}`).toBe(0)
+        expect(decode(result.stdout), row.command).toMatchObject(row.result)
+        const evidence = JSON.parse(await send('/__evidence'))
+        expect(evidence.requests, row.command).toContainEqual(expect.objectContaining({
+          method: row.method, path: row.path, auth: 'Basic', canaryReceived: true,
+          ...(row.body ? { body: expect.objectContaining(row.body) } : {}),
+          ...(row.query ? { query: expect.objectContaining(row.query) } : {}),
+        }))
+        expect(evidence.mutations > 0, row.command).toBe(row.effect === 'write')
+        if (row.recovery) {
+          const check = await adapter(false).prepare(call.write!.checkArgs, reference)
+          expect(check.effect, row.command).toBe('read')
+          const recovered = await runPinned(runner, port, check)
+          expect(recovered.exitCode, `${row.command}: ${recovered.stdout}`).toBe(0)
+          expect(decode(recovered.stdout), row.command).toMatchObject(row.recovery)
+        }
+      }
+      await send('/__ado/reset', 'POST')
+      for (const route of inventory.commands.filter(route => route.effect === 'blocked')) {
+        await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+      }
+      for (const args of [['--help'], ['home', '--help'], ['--project', 'Other Project', '--help'],
+        ['--help', '--project=Other Project'], ['--version'], ['-v'], ['pr', 'reviewer', '--help'], ['pr', 'update', '42', '--help']]) {
+        const result = await runPinned(runner, port, await adapter(false).prepare(args, reference))
+        expect(result.exitCode, result.stdout).toBe(0)
+        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.4.6')
+      }
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
+    } finally { await runner.shutdown() }
+  })
+}, 180_000)
 
 test.each([
   { args: ['pr', 'update', '42', '--description', ''], expected: { description: '' } },

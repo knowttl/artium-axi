@@ -13,37 +13,6 @@ import { adoCredentialSchema, adoProfile, createAdoAdapter } from './ado.js'
 const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
 const credential = { org: 'synthetic-org', project: 'Synthetic Project', auth: 'pat', token: 'CANARY-ado-pat' }
 const adapter = (allowWrites = false) => createAdoAdapter({ getCredential: async () => ({ ...credential, allowWrites }) })
-const argv = (command: string) => command === 'api' ? ['api', '_apis/projects'] : command.split(' ')
-
-test.each(inventory.commands.filter(route => route.effect !== 'blocked'))('classifies $command as $effect', async route => {
-  const call = await adapter(true).prepare(argv(route.command), reference)
-  expect(call.effect).toBe(route.effect)
-  expect(Boolean(call.write)).toBe(route.effect === 'write')
-})
-
-test.each(inventory.commands.filter(route => route.effect === 'blocked'))('always blocks $command', async route => {
-  await expect(adapter(true).prepare(argv(route.command), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-})
-
-test.each(inventory.commands.filter(route => route.effect === 'write'))('gates $command with the administrator switch', async route => {
-  await expect(adapter().prepare(argv(route.command), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  expect((await adapter(true).prepare(argv(route.command), reference)).write?.checkArgs.length).toBeGreaterThan(1)
-})
-
-test.each(inventory.commands.filter(route => route.effect !== 'blocked').flatMap(route => {
-  const aliases = Object.entries(inventory.aliases).filter(([, group]) => route.command.startsWith(`${group} `))
-    .map(([alias]) => route.command.replace(/^\S+/, alias))
-  return [...route.aliases, ...aliases].map(command => ({ command, effect: route.effect }))
-}))('classifies alias $command as $effect', async ({ command, effect }) => {
-  expect((await adapter(true).prepare(argv(command), reference)).effect).toBe(effect)
-})
-
-test.each([
-  [], ['work-item'], ['pr'], ['pipeline'], ['repo'], ['ref'], ['project'], ['test', '42'],
-  ['work-item', 'links', '42'], ['pr', 'thread', '42'], ['pr', 'reviewer', '--help'], ['--help'], ['--version'], ['-v'],
-].map(args => [args]))('permits default reads and local help: %j', async args => {
-  expect((await adapter().prepare(args, reference)).effect).toBe('read')
-})
 
 test.each(['org', 'profile', 'config'].flatMap(flag => [
   [`--${flag}`, 'other', 'project', 'list'], [`--${flag}=other`, 'project', 'list'],
