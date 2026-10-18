@@ -201,6 +201,57 @@ test('every classified route, alias and default dispatches through the pinned bi
   })
 }, 180_000)
 
+test('explicit text flag values reach the pinned binary unchanged', async () => {
+  const text = '---\nSummary\r\nValue=kept\u2028Final paragraph'
+  const org = '/synthetic-org'
+  const project = `${org}/Synthetic%20Project`
+  const pr = `${project}/_apis/git/repositories/Synthetic%20Repo/pullrequests`
+  const descriptionPatch = expect.arrayContaining([{ op: 'add', path: '/fields/System.Description', value: text }])
+  const rows = [
+    { args: ['work-item', 'create', '--type', 'Task', '--title', 'Synthetic item'], flag: 'description', text,
+      method: 'POST', path: `${project}/_apis/wit/workitems/$Task`, body: descriptionPatch },
+    { args: ['work-item', 'update', '42'], flag: 'description', text,
+      method: 'PATCH', path: `${org}/_apis/wit/workitems/42`, body: descriptionPatch },
+    { args: ['work-item', 'comment', '42'], flag: 'body', text,
+      method: 'POST', path: `${project}/_apis/wit/workItems/42/comments`, body: { text } },
+    { args: ['pr', 'create', '--repo', 'Synthetic Repo', '--source', 'feature', '--title', 'Synthetic PR'], flag: 'description', text,
+      method: 'POST', path: pr, body: expect.objectContaining({ description: text }) },
+    { args: ['pr', 'update', '42'], flag: 'description', text,
+      method: 'PATCH', path: `${pr}/42`, body: { description: text } },
+    { args: ['pr', 'comment', '42'], flag: 'body', text,
+      method: 'POST', path: `${pr}/42/threads`, body: expect.objectContaining({ comments: [{ parentCommentId: 0, content: text, commentType: 'text' }] }) },
+    { args: ['pr', 'thread', 'reply', '42', '--thread', '5'], flag: 'body', text,
+      method: 'POST', path: `${pr}/42/threads/5/comments`, body: { content: text, commentType: 'text' } },
+    { args: ['pr', 'update', '42'], flag: 'title', text: '--help',
+      method: 'PATCH', path: `${pr}/42`, body: { title: '--help' } },
+    { args: ['work-item', 'update', '42'], flag: 'title', text: 'First line\nSecond line',
+      method: 'PATCH', path: `${org}/_apis/wit/workitems/42`,
+      body: [{ op: 'add', path: '/fields/System.Title', value: 'First line\nSecond line' }] },
+    { args: ['pr', 'update', '42'], flag: 'description', text: '--title=literal',
+      method: 'PATCH', path: `${pr}/42`, body: { description: '--title=literal' } },
+  ]
+  await withFakeService(async ({ directory, port, send }) => {
+    const adapter = createAdoAdapter({ getCredential: async () => ({ org: 'synthetic-org', project: 'Synthetic Project',
+      auth: 'pat', token: 'CANARY-ado-pat', allowWrites: true }) })
+    const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    try {
+      for (const row of rows) {
+        for (const flags of [[`--${row.flag}`, row.text], [`--${row.flag}=${row.text}`]]) {
+          await send('/__ado/reset', 'POST')
+          const args = [...row.args, ...flags]
+          const call = await adapter.prepare(args, reference)
+          const result = await runPinned(runner, port, call)
+          expect(result.exitCode, `${JSON.stringify(args)}: ${result.stdout}`).toBe(0)
+          expect(JSON.parse(await send('/__evidence')).requests, JSON.stringify(args)).toContainEqual(expect.objectContaining({
+            method: row.method, path: row.path, body: row.body,
+          }))
+        }
+      }
+    } finally { await runner.shutdown() }
+  })
+}, 60_000)
+
 test.each([
   { args: ['pr', 'update', '42', '--description', ''], expected: { description: '' } },
   { args: ['work-item', 'update', '42', '--tags', ''], expected: { fields: { 'System.Tags': '' } } },

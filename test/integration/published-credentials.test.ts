@@ -22,7 +22,8 @@ test.each(['dev', 'vsrm', 'vssps', 'almsearch'])('published ADO uses PAT Basic a
         { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files))
         .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([
-        { method: 'GET', host: host === 'dev' ? 'dev.azure.com' : `${host}.dev.azure.com`, path: '/synthetic-org/_apis/redaction', auth: 'Basic', canaryReceived: true },
+        { method: 'GET', host: host === 'dev' ? 'dev.azure.com' : `${host}.dev.azure.com`, path: '/synthetic-org/_apis/redaction',
+          query: { form: 'basic', 'api-version': '7.1' }, auth: 'Basic', canaryReceived: true },
       ])
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await runner.shutdown() }
