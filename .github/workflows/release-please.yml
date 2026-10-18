@@ -111,3 +111,8 @@ jobs:
           REVISION: ${{ steps.revision.outputs.sha }}
         run: |
           printf 'Image: `%s@%s`\nTag: `%s`\nRevision: `%s`\n' "$IMAGE" "$DIGEST" "$TAG" "$REVISION" >> "$GITHUB_STEP_SUMMARY"
+      - name: Explain incomplete image publication
+        if: ${{ failure() }}
+        run: |
+          echo '::error::Server image publication is incomplete. Check the failed step. Before the first release, the repository owner must allow Actions packages: write, attestations: write and id-token: write; grant this repository Actions access to any existing GHCR package; and select public package visibility if public pulls are required. See docs/runbook.md for release setup and verification.'
+          exit 1

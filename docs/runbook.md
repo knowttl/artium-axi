@@ -59,11 +59,13 @@ Use that digest for deployments and rollback records; version tags can move on a
 Before the first automated release, the owner must enable GitHub Actions, allow GitHub Actions to create pull requests, and configure the npm package's GitHub Actions trusted publisher for `knowttl/artium-axi` and workflow filename `release-please.yml`, without an environment name.
 The workflow uses `GITHUB_TOKEN` for release management and OIDC for npm publication; no npm publish token is required.
 The owner must also permit this repository's Actions token to write GHCR packages and attestations and issue OIDC tokens.
+Repository or organization Actions policy must allow the image job's `packages: write`, `attestations: write` and `id-token: write` permissions.
 For an existing GHCR package, grant this repository Actions access before release; set package visibility deliberately if public pulls are intended.
 Only the image job receives `packages: write` and `attestations: write`; it authenticates to GHCR with `GITHUB_TOKEN` and needs no registry password secret.
 Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../README.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
 Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
 Hosted release handling, npm trusted-publisher configuration, GHCR permissions and actual publication remain unverified by local checks.
+An image-job failure emits a setup reminder; inspect the failed step and resolve permissions or build failures before accepting the release.
 
 ### Verify a later published image
 

@@ -61,7 +61,7 @@ test('the release tag supplies both checkouts and the image version, with an imm
   expect(evaluate(attestation.with!['subject-digest'] as string, context)).toBe(`sha256:${'a'.repeat(64)}`)
   expect(attestation.with!['push-to-registry']).toBe(true)
   expect(evaluate(image.outputs!.digest, context)).toBe(`sha256:${'a'.repeat(64)}`)
-  const summary = image.steps.at(-1)!
+  const summary = image.steps.find(step => step.env?.DIGEST)!
   expect(evaluate(summary.env!.DIGEST, context)).toBe(`sha256:${'a'.repeat(64)}`)
 })
 
