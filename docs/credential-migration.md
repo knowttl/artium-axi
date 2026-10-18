@@ -24,5 +24,5 @@ The current Vectra, Graph, Az and LDAP [pins](../tools/package.json) ship the ca
 Az's brokered token profile and schema-absent fallback both use the per-resource SecretRefs defined in the [credential standard](credential-standard.md#per-tool-host-facing-schemas).
 See [credential editor guidance](../README.md#browser-administration) for Vectra origin and CA inputs.
 [Published-credential tests](../test/integration/published-credentials.test.ts) exercise artium-written SecretRefs and private per-call configuration: Vectra contacts a fake HTTPS appliance; Graph uses the published CLI and secret resolver with fake credential acquisition and transport.
-See [Graph headless verification](verification-s50.md) for the generated schema and acquisition probe.
+See [Graph headless verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s50.md) for the generated schema and acquisition probe.
 Falcon and AWX follow; azure-axi follows last.

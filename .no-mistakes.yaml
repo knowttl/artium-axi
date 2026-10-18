@@ -25,7 +25,8 @@ review:
 document:
   instructions: |
     README.md owns the generic introduction, installation and quick start.
-    docs/architecture.md owns the clean architecture and supported capability boundaries.
+    README.md owns the supported capability boundaries.
+    CONTRIBUTING.md owns local validation, container acceptance and compatibility policy.
     docs/runbook.md owns deployment, bootstrap, recovery, rotation, retention and rollback.
     src/shared/api.ts owns API contracts and src/shared/errors.ts owns the error catalogue.
     src/server/config.ts owns executable defaults. Generated references cite these owners.
@@ -33,7 +34,7 @@ document:
     docs/errors.md and other generated references are rebuilt, never edited manually.
     AGENTS.md owns concise development instructions and pointers, not duplicate design prose.
     Private plans, probes and employer policy exceptions stay outside this code repository.
-    Preserve the distinction between local evidence and unverified captain live acceptance.
+    Preserve the distinction between local evidence and unverified owner live acceptance.
     Do not run tests or dependency installs again during documentation housekeeping.
 
 test:
