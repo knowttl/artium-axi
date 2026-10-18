@@ -53,6 +53,7 @@ export interface InputNormalization { field: string, reason: string }
 // subtree is returned immediately, including whitespace in accepted secrets.
 export class CredentialInput {
   private readonly validators = new Map<string, ValidateFunction>()
+  private readonly selectorValidators = new Map<string, ValidateFunction>()
   readonly validate: ValidateFunction
 
   constructor(private readonly schema: Schema, private readonly ajv: Ajv) {
@@ -267,7 +268,13 @@ export class CredentialInput {
           const [parts, keyword] = JSON.parse(key) as [string[], string]
           const value = parts.reduce((node, name) => node?.[name], input)
           if (value === undefined) return true
-          return this.ajv.validate({ [keyword]: JSON.parse(rule) }, value)
+          const selector = JSON.stringify([keyword, rule])
+          let validate = this.selectorValidators.get(selector)
+          if (!validate) {
+            validate = this.ajv.compile({ [keyword]: JSON.parse(rule) })
+            this.selectorValidators.set(selector, validate)
+          }
+          return validate(value)
         }))
         if (!passing.length && candidates.length === 1) visit(candidates[0], input, path, true, condition, depth + 1)
         else add(path, 'must satisfy the selected credential field combination')
