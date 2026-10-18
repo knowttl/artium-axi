@@ -537,6 +537,29 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
   browser(`check(await page.eval(() => JSON.stringify(JSON.parse(document.querySelector('[name=nativeSettings]').value))) === ${JSON.stringify(JSON.stringify(entry.settings))}, 'Credential save changed native settings');`)
 })
 
+for (const saveAndTest of [false, true]) {
+test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalization notices and canonical public values after reload', () => {
+  browser(`
+    await page.open(base + '/admin/tools/vectra-axi');
+    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
+      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    }
+    await page.fill('[data-profile-field=origin]', 'https://Appliance.Example:443/');
+    await page.fill('[data-profile-field=token]', ' CANARY-normalized-token ');
+    if (${saveAndTest}) await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value === 'https://appliance.example'), 'Stored canonical origin missing');
+    check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === ''), 'Stored secret was displayed');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test passed.' : 'Saved.')})), 'Save result missing');
+    check(await page.eval(() => !document.querySelector('main').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
+  `)
+})
+}
+
 test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stored credential and delivered files', async () => {
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'

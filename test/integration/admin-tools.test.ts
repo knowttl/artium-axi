@@ -371,10 +371,10 @@ test.each([
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate', thumbprintSha256: 'a'.repeat(64) } },
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'federated' } },
   { tool: 'mg-axi', value: { mode: 'delegated', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId } },
-  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY-token\n' } },
-  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test:443', token: 'CANARY-token' } },
-  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test:443', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
-  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', auth: 'oauth', origin: 'https://appliance.test:443', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY interior token\n' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test/path', token: 'CANARY-token' } },
+  { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'http://appliance.test', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
+  { tool: 'vectra-axi', value: { kind: 'rux', apiVersion: '3.4', auth: 'oauth', origin: 'https://appliance.test?query', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
 ] as const)('published $tool rejects unusable replacement without overwriting credentials', async ({ tool, value }) => {
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
@@ -394,6 +394,40 @@ test.each([
   expect(store.findCredential(tool)).toEqual(reference)
   expect(store.readCredential(reference)).toEqual(original)
   expect(db.prepare("SELECT revision FROM tools WHERE name = ?").get(tool)).toEqual({ revision: 1 })
+})
+
+test.each(['PUT', 'PATCH'])('%s credential normalizes safe input and reports changes without secrets', async method => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
+  const adapter = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('vectra-axi')
+  const logged = vi.spyOn(app.log, 'error')
+  const value = { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: ' HTTPS://Appliance.Test:443/ ', token: ' CANARY-normalized-token\n' }
+  const response = await request(method, '/vectra-axi/credential', { value, expectedRevision: 0, expectedToolRevision: 1 })
+  expect(response.status).toBe(200)
+  const saved = await response.json()
+  expect(saved.metadata.origin).toBe('https://appliance.test')
+  expect(saved.normalizations).toEqual(expect.arrayContaining([
+    { field: 'origin', reason: 'canonicalized format' },
+    { field: 'token', reason: 'removed surrounding whitespace' },
+  ]))
+  expect(store.readCredential(store.findCredential('vectra-axi')!)).toEqual({ ...value,
+    origin: 'https://appliance.test', token: 'CANARY-normalized-token' })
+  expect(JSON.stringify(saved)).not.toContain('CANARY')
+  const rejected = await request(method, '/vectra-axi/credential', {
+    value: { ...value, origin: 'https://CANARY-user:CANARY-password@appliance.test/path' },
+    expectedRevision: 1, expectedToolRevision: 2,
+  })
+  expect(rejected.status).toBe(400)
+  const error = await rejected.json()
+  expect(error.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('origin') })
+  expect(JSON.stringify(error)).not.toContain('CANARY')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY')
+  expect(JSON.stringify(logged.mock.calls)).not.toContain('CANARY')
 })
 
 test.each([

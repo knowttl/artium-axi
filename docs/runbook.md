@@ -5,7 +5,7 @@
 This runbook covers local operation of the packaged server and client, and npm client releases.
 Exercise changes first in disposable Linux stores with synthetic identities, canary credentials and fake upstream services.
 Live host provisioning, proxy deployment, client installation and live adapter acceptance belong to the owner and have not been exercised here.
-The local rehearsal and its limitations are recorded in [S49 verification](verification-s49.md).
+The local rehearsal and its limitations are recorded in [S49 verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s49.md).
 The [README](../README.md), [Dockerfile](../Dockerfile), [Compose example](../compose.example.yaml) and [server configuration](../src/server/config.ts) own installation, packaging and executable defaults.
 
 The Linux deployment host needs Docker with Compose, space for persistent SQLite data and protected backups, and a trusted HTTPS reverse proxy.
@@ -40,7 +40,7 @@ pnpm test:containers
 
 The Compose validation creates no stack and reads no secret contents.
 Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
-Check the [container-test prerequisites](../README.md#development--testing) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
+Check the [container-test prerequisites](../CONTRIBUTING.md#container-acceptance) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
 Do not use real adapter credentials or globally prune Docker resources.
 
 ## npm client releases
@@ -54,7 +54,7 @@ This workflow releases the client CLI and embedded skill; server deployment rema
 
 Before the first automated release, the owner must enable GitHub Actions, allow GitHub Actions to create pull requests, and configure the npm package's GitHub Actions trusted publisher for `knowttl/artium-axi` and workflow filename `release-please.yml`, without an environment name.
 The workflow uses `GITHUB_TOKEN` for release management and OIDC for npm publication; no npm publish token is required.
-Before merging every release PR, require passing local container acceptance and private hygiene evidence for the release candidate using [Development / testing](../README.md#development--testing), even when the release PR changes only version metadata.
+Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../README.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
 Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
 Hosted release handling, npm trusted-publisher configuration and actual publication remain unverified by local checks.
 
@@ -182,7 +182,7 @@ Browser users sign in at `/login`, change temporary passwords at `/password`, an
 See [browser administration](../README.md#browser-administration) for `/account` usage and session management.
 The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
 
-See [host verification](verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
+See [host verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
 Windows/macOS launchers and live client trust remain unexercised owner acceptance.
 Follow [client settings](../README.md#client-settings) for default session-file protection and `SESSION_BUSY` recovery, or [externally managed client sessions](../README.md#externally-managed-client-sessions) when the caller owns token custody.
 An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.

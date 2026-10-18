@@ -15,7 +15,7 @@ The client follows AXI (Agent eXperience Interface) conventions for discovery, h
 
 **Status: under construction.**
 Falcon, Vectra, Azure, Graph and LDAP are wired into the production server entry point.
-See the [evidence ledger](docs/evidence-ledger.md) for the acceptance boundaries.
+See the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
 
@@ -96,7 +96,7 @@ artium-axi setup --host claude --hook
 ```
 
 Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
-See [host paths and configuration overrides](docs/verification-s45.md) for installation locations.
+See [host paths and configuration overrides](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for installation locations.
 Setup requires the configured server URL and an authenticated account.
 It fetches reviewed adaptations of the server's pinned upstream skills; command examples run through `artium-axi <tool>` using Artium-managed credentials.
 Skills include granted tools that are disabled; running those tools still returns `TOOL_DISABLED`.
@@ -111,7 +111,7 @@ Artium-managed skills for tools no longer granted are retained and reported, not
 Unmanaged standalone skills outside the current grants are left untouched and unreported.
 Output lists one installed, unchanged or retained row per skill.
 Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
-See [host verification](docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.
+See [host verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.
 
 ## Other ways to install
 
@@ -224,7 +224,7 @@ Falcon's fixed `auth status` test reports local credential resolution, so also r
 
 #### Vectra
 
-Obtain the deployment's canonical HTTPS origin, without a path or trailing slash.
+Obtain the deployment's HTTPS origin; see [credential editor guidance](#browser-administration) for accepted input.
 For QUX, select `kind=qux`, `apiVersion=2.5` and either `auth=token` with `token`, or `auth=oauth` with `clientId` and `clientSecret`.
 QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optional release metadata.
 For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
@@ -326,7 +326,7 @@ For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and 
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
 Save, run **Test credential**, follow the [activation requirements](#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
 Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
-See the [evidence ledger](docs/evidence-ledger.md) for recorded local and captain live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
+See the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md) for recorded local and owner live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
 
 #### LDAP
 
@@ -516,7 +516,11 @@ Archived users cannot be enabled through the UI or API; use Disable for temporar
 Credential editors pre-fill non-secret values and never return stored secrets.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
-For Vectra, `origin` must be a canonical HTTPS origin, without a path, credentials or an explicit default port.
+Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
+Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.
+For Vectra, `origin` accepts surrounding whitespace, a trailing slash, uppercase scheme or host and an explicit default port, saving a canonical HTTPS origin.
+Paths, queries, fragments, embedded credentials and HTTP origins remain invalid.
+Rejected profile input returns `INVALID_INPUT` with field or field-combination guidance, without echoing submitted values.
 See [Vectra credential setup](#vectra) for private CA input and shared trust.
 The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
@@ -526,6 +530,7 @@ Falcon has guided fields even when its pinned package has no credential schema; 
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Changing mode, kind, authentication, tenant, client or origin requires new secrets.
 Select **Test after saving** to save and report a harmless credential check inline.
+After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](docs/runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
@@ -554,7 +559,7 @@ Multiple enabled providers appear on both the sign-in page and CLI approval page
 Assign generic-provider users direct artium roles or configure claim rules for tool access.
 Generic rules accept any exact top-level claim name, such as `groups` or `custom.claim`, and match a string or a string in an array against the case-sensitive rule value.
 Dots are literal claim-name characters, not nested paths; numbers, booleans and objects do not match.
-See [generic OIDC verification](docs/verification-p5a.md) for the approved scope split, fake-provider evidence and pending maintainer live acceptance.
+See [generic OIDC verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p5a.md) for the approved scope split, fake-provider evidence and pending maintainer live acceptance.
 
 Provider credentials use the encrypted store; their secrets are never returned in pages, API metadata or audit records.
 Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
@@ -576,13 +581,13 @@ The users table and signed-in header identify designated accounts.
 Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
 When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
 Fresh installations designate no accounts automatically and keep providers disabled.
-See [break-glass verification](docs/verification-p3c2.md) for local-password policy evidence and [P3 activation verification](docs/verification-p3c2b.md) for activation and complete fake-provider browser acceptance.
+See [break-glass verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c2.md) for local-password policy evidence and [P3 activation verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c2b.md) for activation and complete fake-provider browser acceptance.
 On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
 Generic provider pages offer the same rule editor with a claim-name field.
 Each rule's Who matches link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
 Counts refresh on page reload and include matches for new rules before the next role sync.
 These saved claims are not a live directory query; users without recorded sign-in claims are unknown.
-See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility and [claim-rule verification](docs/verification-p5b.md) for local evidence and pending maintainer live acceptance.
+See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility and [claim-rule verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p5b.md) for local evidence and pending maintainer live acceptance.
 The target role supplies tool access; rules never grant administrator capability.
 Create roles and grant their tools on **Roles** first.
 Every rule change requires the [confirmation described under browser administration](#browser-administration) and is audited atomically; stale edits require reloading the page.
@@ -604,7 +609,7 @@ Claiming atomically binds the immutable provider identity, consumes the invitati
 Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
-See [browser SSO protocol verification](docs/verification-p3b.md) and [SSO reauthentication verification](docs/verification-p3c.md) and [P3 activation verification](docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
+See [browser SSO protocol verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3b.md) and [SSO reauthentication verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c.md) and [P3 activation verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
 For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
 Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and UTC time before choosing **Approve**.
 Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
@@ -618,7 +623,7 @@ Approve the returned code through `/device` after a fresh provider sign-in as th
 Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }`, waiting the returned `intervalMs` milliseconds between polls, until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
 Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
 Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
-See [CLI device sign-in verification](docs/verification-p4a.md) for recorded fake-provider evidence and bearer reauthentication coverage.
+See [CLI device sign-in verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p4a.md) for recorded fake-provider evidence and bearer reauthentication coverage.
 
 ### Audit screen and API
 
@@ -790,12 +795,14 @@ The runner uses argument arrays without a shell, a restricted child environment,
 Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.
 Exact-value scanning cannot identify unknown tokens minted upstream.
 Heap and address-space limits are not complete process isolation: descendants starting a new session escape the runner's process group.
-See [runner verification and limitations](docs/verification-s09-10.md) and [secret-scanner evidence](docs/verification-s07.md).
+See [runner verification and limitations](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s09-10.md) and [secret-scanner evidence](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s07.md).
 
 ## Development & Testing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local no-mistakes delivery, container acceptance and the alias deprecation policy.
+
 Use Linux with the [source toolchain](#build-from-source), OpenSSL, Python 3, curl and sha256sum.
-Container acceptance additionally requires Docker and the BuildKit prerequisites described in the [container evidence](docs/verification-s20-21.md).
+Container acceptance additionally requires Docker and the BuildKit prerequisites described in the [container evidence](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s20-21.md).
 `pnpm test:containers` starts a private BuildKit worker with `--privileged`; hosts that forbid privileged containers cannot run this check and must record container acceptance as unverified.
 
 ```sh
@@ -805,7 +812,7 @@ pnpm test:containers
 ```
 
 `pnpm check` verifies generated error-reference freshness, strict type checking, parser/schema inventory freshness, the Vitest suite, compilation and the AXI/distribution checklist.
-See [checklist verification](docs/verification-s46.md) for the fake-only download, authentication, setup and first-call checks.
+See [checklist verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s46.md) for the fake-only download, authentication, setup and first-call checks.
 It refuses unverified host platforms.
 
 The [Vitest configuration](vitest.config.ts) separates unit and integration projects.
@@ -849,4 +856,4 @@ Symlinks, unreadable files and BOM-marked UTF-16/UTF-32 assets fail rather than 
 Diagnostics report location (with one-based columns in the original text's UTF-16 code units) and normalized entry number without secret excerpts, and redact labels whose paths match a term using the same folding rule.
 The scan cannot guarantee absence of unknown sensitive values and does not approve publication.
 
-Further operational guidance lives in the [runbook](docs/runbook.md); local implementation and deferred live acceptance are tracked in the [evidence ledger](docs/evidence-ledger.md).
+Further operational guidance lives in the [runbook](docs/runbook.md); local implementation and deferred live acceptance are tracked in the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md).

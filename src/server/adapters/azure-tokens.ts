@@ -14,7 +14,7 @@ export const azureCredentialSchema = z.discriminatedUnion('auth', [
 export type AzureCredential = z.infer<typeof azureCredentialSchema>
 
 // Pinned az-axi dist/lib/auth.js RESOURCE_URL; the pin is owned by tools/package.json.
-// F4 live scope acceptance is recorded in docs/evidence-ledger.md.
+// Live scope acceptance: https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md.
 export const azureAudiences = Object.freeze({
   arm: 'https://management.azure.com/',
   logs: 'https://api.loganalytics.io',

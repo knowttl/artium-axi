@@ -211,7 +211,9 @@ export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boo
   updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema })
 export const adminCredentialSchema = z.strictObject({ tool: toolSchema, configured: z.boolean(),
   metadata: z.record(z.string(), z.unknown()), revision: z.number().int().nonnegative(),
-  updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
+  updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(),
+  // Save/replacement reports name fields and changes, never submitted values.
+  normalizations: z.array(z.strictObject({ field: z.string(), reason: z.string() })).optional() })
 export const adminToolParamsSchema = z.strictObject({ tool: toolSchema })
 export const adminToolRoutes = {
   list: { method: 'GET', path: '/v1/admin/tools', input: z.strictObject({}),
@@ -235,6 +237,9 @@ export const adminToolRoutes = {
   // Both current revisions are required (credential revision 0 before first save);
   // stale edits fail with REVISION_CONFLICT without mutation.
   // PUT remains a complete replacement of credentials and native settings.
+  // Profile-backed saves and replacements normalize rejected input using schema
+  // rules before validation. Already valid values remain byte for byte unchanged.
+  // INVALID_INPUT names invalid fields and rules without echoing their values.
   save: { method: 'PATCH', path: '/v1/admin/tools/:tool/credential',
     input: z.strictObject({ value: z.record(z.string(), z.unknown()), expectedRevision: z.number().int().nonnegative(),
       expectedToolRevision: z.number().int().positive() }),
