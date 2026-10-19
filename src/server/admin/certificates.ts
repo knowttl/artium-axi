@@ -7,7 +7,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import { inspectCertificate } from '../certificate-inspection.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
-import { healthEndpoints } from '../health/preflight.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
 
@@ -57,7 +57,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const reference = credential(request)
     const value = store!.readCredential(reference) as Record<string, unknown> | undefined
     if (!value) throw new ArtiumError('REVISION_CONFLICT')
-    const endpoint = healthEndpoints(reference.tool, value)[endpointIndex]
+    const endpoint = toolEndpoints(reference.tool, value)[endpointIndex]
     if (!endpoint) throw new ArtiumError('INVALID_INPUT')
     const ca = value.caBundle ?? value.caFile
     const inspection = await inspectCertificate(endpoint, typeof ca === 'string' ? ca : undefined,

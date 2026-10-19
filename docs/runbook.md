@@ -201,6 +201,9 @@ The window highlights weak keys, validity and hostname problems, and fingerprint
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
 Each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
+Azure inspection includes login, ARM, Graph and Log Analytics.
+For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
+These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
 The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.

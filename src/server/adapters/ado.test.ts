@@ -11,7 +11,7 @@ import { prepareRunJournal } from './run-journal.js'
 import { adoCredentialSchema, adoProfile, createAdoAdapter } from './ado.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import { adoPathPrefix } from '../config.js'
-import { healthEndpoints } from '../health/preflight.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import { FakeTokenTransport, azureTestTenant, azureTestToken } from '../../../test/fixtures/azure-token-transport.js'
 
 const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
@@ -156,8 +156,9 @@ test('makes the ADO login endpoint inspectable and passes its scoped trust to to
   const cache = new AzureTokenCache(new FakeTokenTransport())
   const acquire = vi.spyOn(cache, 'acquire')
   const adapter = createAdoAdapter({ getCredential: async () => serviceCredential, getTrust: () => trust }, cache)
-  expect(healthEndpoints('ado-axi', serviceCredential).map(url => url.href)).toEqual([
-    'https://login.microsoftonline.com/', 'https://dev.azure.com/',
+  expect(toolEndpoints('ado-axi', serviceCredential).map(url => url.href)).toEqual([
+    'https://login.microsoftonline.com/', 'https://dev.azure.com/', 'https://vsrm.dev.azure.com/',
+    'https://vssps.dev.azure.com/', 'https://almsearch.dev.azure.com/',
   ])
   const call = await adapter.prepare(['project', 'list'], reference)
   expect(call.environment.ARTIUM_SECRET_0).toBe(azureTestToken)

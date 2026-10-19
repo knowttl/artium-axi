@@ -12,7 +12,7 @@ import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
-import { healthEndpoints } from '../health/preflight.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
@@ -20,7 +20,7 @@ const settingsGuide = {
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
   'falcon-axi': 'Optional allowWrites (boolean), saved for a future write-capable pin. The reviewed Falcon pin has no write commands and remains read-only even when this switch is true. Use {} to turn the switch off.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
-  'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean). Use {} to clear settings.',
+  'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
 const testGuide = {
   'ado-axi': 'Azure DevOps project list --limit 1',
@@ -82,7 +82,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const pins = credentialCertificates(db, reference.id)
       let endpoints: URL[] = []
       // An invalid saved credential must remain editable after a profile upgrade.
-      try { endpoints = healthEndpoints(tool.name, credential.metadata) } catch { /* Save a valid endpoint before inspecting. */ }
+      try { endpoints = toolEndpoints(tool.name, { ...credential.metadata, ...tool.nativeSettings }) } catch { /* Save a valid endpoint before inspecting. */ }
       content += `<section data-trusted-certificates><h2>Trusted certificates</h2><p>Trust is scoped to this tool’s saved credential. Inspect again when rotating a certificate.</p>`
       if (endpoints.length) content += form(api + '/certificates/inspect', 'POST', 'Inspect certificate',
         `<label>Saved TLS endpoint<select name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select></label>`, '',

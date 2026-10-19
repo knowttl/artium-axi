@@ -183,7 +183,12 @@ export const nativeSettingsSchemas = {
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
   'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
     managementGroup: z.string().min(1).optional(), workspaces: z.record(z.string().min(1), z.uuid()).optional(),
-    description: z.string().optional(), allowWrites: z.boolean().optional() }),
+    description: z.string().optional(), allowWrites: z.boolean().optional(),
+    tlsDestinations: z.strictObject({
+      storageAccounts: z.array(z.string().regex(/^[a-z0-9]{3,24}$/)).optional(),
+      keyVaults: z.array(z.string().regex(/^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$/).refine(name => !name.includes('--'))).optional(),
+      registries: z.array(z.string().regex(/^[a-zA-Z0-9]{5,50}$/)).optional(),
+    }).optional() }),
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false

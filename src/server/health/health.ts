@@ -4,7 +4,8 @@ import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
 import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
-import { healthEndpoints, preflight } from './preflight.js'
+import { preflight } from './preflight.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import type { Adapter } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import { falconManifest } from '../adapters/falcon.js'
@@ -145,8 +146,9 @@ export class ToolHealth {
       }
       if (failure && ['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'].includes(failure.code)
         && detail && !detail.host && credential) {
-        const endpoints = healthEndpoints(tool, credential)
-        detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints.at(-1))?.hostname
+        const endpoints = toolEndpoints(tool, credential)
+        detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints[
+          ['az-axi', 'mg-axi'].includes(tool) || tool === 'ado-axi' && credential.auth === 'client-secret' ? 1 : 0])?.hostname
       }
       const diagnostic = safeDiagnostic(detail, secrets)
       if (failure) failure.diagnostic = diagnostic

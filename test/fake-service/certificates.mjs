@@ -38,7 +38,7 @@ extendedKeyUsage = serverAuth
 }
 
 export function createInspectionCertificates(directory, issuerUrl) {
-  createTestCertificates(directory, ['localhost', 'login.synthetic.test', 'graph.synthetic.test'])
+  createTestCertificates(directory, ['localhost', 'login.synthetic.test', 'graph.synthetic.test', 'graph.microsoft.com', 'login.microsoftonline.com'])
   const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
   writeFileSync(join(directory, 'inspection.cnf'), readFileSync(join(directory, 'authority.cnf'), 'utf8') + `
 [inspection-server]

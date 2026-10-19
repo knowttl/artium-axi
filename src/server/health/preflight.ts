@@ -7,25 +7,8 @@ import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { credentialTlsOptions } from '../credential-tls.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
 import type { ToolName } from '../store/credential-store.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
-
-// Destinations for the inventory health reads, in connection order.
-// Configured origins are validated by the adapter schema before this boundary.
-export function healthEndpoints(tool: ToolName, credential: Record<string, unknown>): URL[] {
-  if (tool === 'ado-axi') return (credential.auth === 'client-secret'
-    ? ['https://login.microsoftonline.com', 'https://dev.azure.com'] : ['https://dev.azure.com']).map(url => new URL(url))
-  if (tool === 'vectra-axi') return [new URL(String(credential.origin))]
-  if (tool === 'ldap-axi') return [new URL(String(credential.url))]
-  if (tool === 'az-axi') return ['https://login.microsoftonline.com', 'https://management.azure.com'].map(url => new URL(url))
-  if (tool === 'mg-axi') return ['https://login.microsoftonline.com', 'https://graph.microsoft.com'].map(url => new URL(url))
-  const regions: Record<string, string> = { 'us-1': 'api.crowdstrike.com', 'us-2': 'api.us-2.crowdstrike.com',
-    'eu-1': 'api.eu-1.crowdstrike.com', 'us-gov-1': 'api.laggar.gcw.crowdstrike.com',
-    'us-gov-2': 'api.us-gov-2.crowdstrike.mil' }
-  const region = String(credential.region)
-  const host = Object.entries(regions).find(([name, host]) => region === name || region === `https://${host}` || region === `https://${host}/`)?.[1]
-  if (!host) throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: 'Invalid credential field: region.' })
-  return [new URL(`https://${host}`)]
-}
 
 function verificationCode(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code
@@ -147,7 +130,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
   const ca = credential.caBundle ?? credential.caFile
-  for (const endpoint of healthEndpoints(tool, credential)) {
+  for (const endpoint of toolEndpoints(tool, credential)) {
     await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,
       tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
       trust.filter(certificate => certificateEndpoint(certificate.endpoint).href === certificateEndpoint(endpoint).href))

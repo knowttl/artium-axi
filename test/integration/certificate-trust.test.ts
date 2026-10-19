@@ -1,4 +1,6 @@
 import { X509Certificate } from 'node:crypto'
+import * as dns from 'node:dns/promises'
+import * as net from 'node:net'
 import { once } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { createServer as createHttpServer } from 'node:http'
@@ -13,7 +15,8 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
-import { certificateInspectionSchema } from '../../src/shared/api.js'
+import { certificateInspectionSchema, nativeSettingsSchemas } from '../../src/shared/api.js'
+import { toolEndpoints } from '../../src/server/tool-endpoints.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
@@ -24,6 +27,14 @@ import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
 vi.unmock('../../src/server/health/preflight.js')
+vi.mock('node:dns/promises', async importOriginal => {
+  const original = await importOriginal<typeof import('node:dns/promises')>()
+  return { ...original, lookup: vi.fn(original.lookup) }
+})
+vi.mock('node:net', async importOriginal => {
+  const original = await importOriginal<typeof import('node:net')>()
+  return { ...original, connect: vi.fn(original.connect) }
+})
 
 let directory: string
 let db: Database.Database
@@ -374,6 +385,78 @@ test('server token transport isolates endpoints sharing a private root', async (
     expect(received).toBe(0)
     expect(await (await credentialFetch(otherEndpoint, { method: 'GET' }, [...trust, { ...trust[0], endpoint: otherEndpoint }])).text()).toBe('ok')
   } finally { await new Promise<void>(resolve => other.close(() => resolve())) }
+})
+
+test('az-axi Graph confirmation enables only the confirmed endpoint in the runner', async () => {
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('server') + pem('ca') })
+  const reference = store.replaceCredential('az-axi', { auth: 'secret', tenantId: '11111111-1111-4111-8111-111111111111',
+    clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-never-sent' }, 0, 'synthetic-development-user', Date.now())
+  const port = Number(new URL(endpoint).port)
+  const run = () => runner.run('synthetic-development-user', process.execPath, ['-e', `
+    const net = require('node:net');
+    const connect = net.Socket.prototype.connect;
+    net.Socket.prototype.connect = function(...args) {
+      const options = args[0];
+      if (options && typeof options === 'object' && Number(options.port) === 443) {
+        options.host = '127.0.0.1'; options.port = ${port};
+      }
+      return connect.apply(this, args);
+    };
+    const tls = require('node:tls');
+    const read = host => new Promise(resolve => {
+      const socket = tls.connect({ host, port: 443, servername: host }, () => socket.write('GET / HTTP/1.1\\r\\n\\r\\n'));
+      socket.on('data', () => {});
+      socket.once('end', () => resolve('accepted'));
+      socket.once('error', () => resolve('rejected'));
+    });
+    (async () => console.log(JSON.stringify([await read('graph.microsoft.com'), await read('login.microsoftonline.com') ])))();
+  `], {}, [], { timeoutMs: 5000, credentialTrust: readCredentialTrust(db, reference) })
+  expect(JSON.parse((await run()).stdout)).toEqual(['rejected', 'rejected'])
+  const connect = vi.mocked(net.connect).getMockImplementation()!
+  const originalLookup = vi.mocked(dns.lookup).getMockImplementation()!
+  const lookup = vi.mocked(dns.lookup).mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as never)
+  const local = vi.mocked(net.connect).mockImplementation(((options: net.NetConnectOpts) =>
+    connect({ ...options, host: '127.0.0.1', port })) as typeof net.connect)
+  let inspection
+  try {
+    const response = await app.inject({ method: 'POST', url: '/v1/admin/tools/az-axi/certificates/inspect', headers,
+      payload: { endpointIndex: 2 } })
+    expect(response.statusCode, response.body).toBe(200)
+    inspection = certificateInspectionSchema.parse(response.json())
+  } finally { lookup.mockImplementation(originalLookup); local.mockImplementation(connect) }
+  expect(inspection.hostname).toBe('graph.microsoft.com')
+  expect(bytes).toBe(0)
+  expect((await app.inject({ method: 'POST', url: '/v1/admin/tools/az-axi/certificates/trust', headers,
+    payload: { inspectionId: inspection.inspectionId } })).statusCode).toBe(200)
+  const confirmed = await run()
+  expect(confirmed.exitCode, confirmed.stdout + confirmed.stderr).toBe(0)
+  expect(JSON.parse(confirmed.stdout)).toEqual(['accepted', 'rejected'])
+})
+
+test('saved Azure service names supply inspection destinations without accepting request hosts', async () => {
+  const reference = store.replaceCredential('az-axi', {}, 0, 'synthetic-development-user', Date.now())
+  const settings = nativeSettingsSchemas['az-axi'].parse({ tlsDestinations: {
+    storageAccounts: ['synthetic'], keyVaults: ['synthetic-vault'], registries: ['syntheticregistry'],
+  } })
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(settings), reference.tool)
+  const saved = store.readCredential(reference) as Record<string, unknown>
+  expect(toolEndpoints('az-axi', saved).map(url => url.hostname)).toEqual([
+    'login.microsoftonline.com', 'management.azure.com', 'graph.microsoft.com', 'api.loganalytics.io',
+    'synthetic.blob.core.windows.net', 'synthetic-vault.vault.azure.net', 'syntheticregistry.azurecr.io',
+  ])
+  const response = await app.inject({ method: 'POST', url: '/v1/admin/tools/az-axi/certificates/inspect', headers,
+    payload: { endpointIndex: 4, hostname: 'arbitrary.synthetic.test' } })
+  expect(response.statusCode).toBe(400)
+  expect(bytes).toBe(0)
+})
+
+test.each([
+  { storageAccounts: ['synthetic.blob.core.windows.net'] }, { storageAccounts: ['synthetic/evil'] },
+  { keyVaults: ['synthetic.vault.azure.net'] }, { keyVaults: ['synthetic--vault'] },
+  { registries: ['synthetic.azurecr.io'] }, { registries: ['synthetic@evil'] },
+])('Azure inspection rejects invalid saved service names: %j', tlsDestinations => {
+  expect(nativeSettingsSchemas['az-axi'].safeParse({ tlsDestinations }).success).toBe(false)
+  expect(() => toolEndpoints('az-axi', { tlsDestinations })).toThrow()
 })
 
 test.each(['node', 'python'] as const)('%s enforces legacy mixed-case LDAP endpoint pins', async runtime => {
