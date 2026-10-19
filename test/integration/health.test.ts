@@ -204,7 +204,7 @@ test('repeated network failures back off to the interval and a success restores 
 test.each([
   { name: 'timeout', error: new RunnerError('TIMEOUT'), delay: healthDefaults.retryMs },
   { name: 'success', error: undefined, delay: healthDefaults.intervalMs },
-  { name: 'authentication failure', error: new RunnerError('AUTH_FAILED'), delay: healthDefaults.intervalMs },
+  { name: 'authentication failure', error: new RunnerError('UPSTREAM_AUTH_FAILED'), delay: healthDefaults.intervalMs },
   { name: 'admission rejection', error: new RunnerError('TOO_MANY_CALLS'), delay: healthDefaults.intervalMs },
 ])('the next check waits from completion after $name', async ({ error, delay }) => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
