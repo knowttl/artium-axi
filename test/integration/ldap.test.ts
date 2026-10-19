@@ -13,6 +13,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { loginResponseSchema } from '../../src/shared/api.js'
+import { decode } from '@toon-format/toon'
 
 let directory: string
 let db: Database.Database
@@ -75,13 +76,34 @@ test('LDAP credentials can be saved, tested, enabled and used for a granted read
     payload: { enabled: true, expectedRevision: 2 } })
   expect(enabled.statusCode, enabled.body).toBe(200)
   const available = await app.inject({ method: 'GET', url: '/v1/tools', headers })
-  expect(available.json().tools).toContainEqual({ name: 'ldap-axi', version: '0.1.5', status: 'ok', readOnly: true })
+  expect(available.json().tools).toContainEqual({ name: 'ldap-axi', version: '0.2.0', status: 'ok', readOnly: true })
   const result = await app.inject({ method: 'POST', url: '/v1/tools/ldap-axi/run', headers,
     payload: { args: ['user', 'list', '--limit', '1'] } })
   expect(result.statusCode, result.body).toBe(200)
   expect(result.json()).toMatchObject({ source: 'ldap-axi', exitCode: 0, stdout: expect.stringContaining('Synthetic User') })
   expect(db.prepare("SELECT action FROM audit WHERE tool = 'ldap-axi' AND event = 'run-terminal'").all())
     .toEqual([{ action: 'read' }, { action: 'read' }])
+  expect(readdirSync(join(directory, 'calls'))).toEqual([])
+})
+
+test.each([
+  { args: ['computer', 'list', '--limit', '1'], expected: { computers: [{ name: 'Synthetic Computer' }] },
+    auditArgs: ['computer', 'list', '--limit', '1'] },
+  { args: ['computer', 'show', 'synthetic-computer'], expected: { computer: { name: 'Synthetic Computer' } },
+    auditArgs: ['computer', 'show', '[redacted]'] },
+  { args: ['server'], expected: { flavor: 'ldapv3', tls_verified: true, root_dse: { namingContexts: ['ou=people'] } },
+    auditArgs: ['server'] },
+])('LDAP 0.2.0 serves an audited read for $args', async ({ args, expected, auditArgs }) => {
+  await configure()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ldap-axi'")
+  const result = await app.inject({ method: 'POST', url: '/v1/tools/ldap-axi/run', headers, payload: { args } })
+  expect(result.statusCode, result.body).toBe(200)
+  expect(result.json()).toMatchObject({ source: 'ldap-axi', exitCode: 0 })
+  expect(decode(result.json().stdout)).toMatchObject(expected)
+  expect(db.prepare("SELECT action FROM audit WHERE tool = 'ldap-axi' AND event = 'run-terminal'").all())
+    .toEqual([{ action: 'read' }])
+  expect(db.prepare("SELECT arguments FROM audit WHERE tool = 'ldap-axi' AND event = 'run-start'").get())
+    .toEqual({ arguments: JSON.stringify(auditArgs) })
   expect(readdirSync(join(directory, 'calls'))).toEqual([])
 })
 

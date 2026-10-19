@@ -15,8 +15,8 @@ importers:
         specifier: 0.1.10
         version: 0.1.10
       '@knowttl/ldap-axi':
-        specifier: 0.1.5
-        version: 0.1.5
+        specifier: 0.2.0
+        version: 0.2.0
       '@knowttl/mg-axi':
         specifier: 0.1.10
         version: 0.1.10
@@ -55,8 +55,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/ldap-axi@0.1.5':
-    resolution: {integrity: sha512-lNkO+hdMLAjlur1tqHUcRTaK9AJLfjm+oSa6LvN4u+VkrcyB6XB1MhgNmZd9P1j+VzCxTbywoTpm33EYt8cyyQ==}
+  '@knowttl/ldap-axi@0.2.0':
+    resolution: {integrity: sha512-w/gE4jHaUHE0iKh3ucDnDG0AVrhP0VwpFCEcw3wSTzLmTBMNZrJ9AFB06j2jnf4TFgK5+5NhF0EE0R69mv7crA==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
@@ -576,7 +576,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/ldap-axi@0.1.5':
+  '@knowttl/ldap-axi@0.2.0':
     dependencies:
       '@toon-format/toon': 2.3.1
       ldapts: 9.0.0

@@ -14,7 +14,7 @@ const overlays = {
   'az-axi': { sha256: '7d957ed28170171530c0c174ac27c0174b5500cd1797d18243324ef44fee033f', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: '0fef685ec7e7cc955a2d024901b4f25802c4b73240a561cce97567c68818430f', sections: ['Safety'] },
   'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
-  'ldap-axi': { sha256: 'cc21c3396ed8c23d752eb4fd3e670bd85250afc45ed8654111bf8f0972976ba2', sections: ['Workflow', 'Safety'] },
+  'ldap-axi': { sha256: '8b5c1df4b8ada76f628881dc738c61feb75a06453626c2a3fc5d018d81ea9f8c', sections: ['Workflow', 'Safety'] },
   'falcon-axi': { sha256: '6ca2729a523ca6468d97a84a0509a96a4c6e27c4431f7cec3eb493e2eabb43d6', sections: ['Read-only boundary', 'Orientation', 'Credentials and output'] },
 } as const
 

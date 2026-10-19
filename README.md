@@ -354,6 +354,8 @@ Enter the password itself in the form, never a SecretRef or password-file path.
 Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
 **Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
 LDAP is read-only by design and has no editable native write settings.
+LDAP 0.2.0 adds `computer list`, `computer show <identifier-or-dn>` and `server` reads through the same managed identity.
+Computer reads use AD machine accounts or the upstream's stated LDAPv3 device fallback; `server` reports advertised rootDSE capabilities and limits.
 The [LDAP inventory](tools/inventories/ldap-axi.json) owns the supported commands, blocked overrides and resource requirements.
 Local fake-directory and offline profile checks do not establish live directory acceptance.
 

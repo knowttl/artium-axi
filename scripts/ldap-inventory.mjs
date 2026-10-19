@@ -17,12 +17,14 @@ const unsafeOverrides = Object.keys(globals).filter(name => !['help', 'base'].in
 const commands = [
   { command: 'home', flags: globals, positionalInput: false },
   { command: 'auth status', flags: { ...globals, offline: 'boolean' }, positionalInput: false },
+  { command: 'server', flags: globals, positionalInput: false },
   { command: 'entry search', flags: { ...globals, filter: 'value', scope: 'value', attributes: 'value',
     'page-size': 'value', 'max-rows': 'value', all: 'boolean' }, positionalInput: false },
   { command: 'entry show', flags: { ...globals, attributes: 'value', 'page-size': 'value' }, positionalInput: true },
   ...Object.entries({ 'user list': schemas.userListSchema, 'user show': schemas.userShowSchema,
     'user groups': schemas.userGroupsSchema, 'group list': schemas.groupListSchema,
-    'group show': schemas.groupShowSchema, 'group members': schemas.groupMembersSchema }).map(([command, schema]) => {
+    'group show': schemas.groupShowSchema, 'group members': schemas.groupMembersSchema,
+    'computer list': schemas.computerListSchema, 'computer show': schemas.computerShowSchema }).map(([command, schema]) => {
     const combined = schemas.completeSchema(schema('ad'), schema('ldapv3'))
     return { command, flags: { ...globals,
       ...Object.fromEntries(combined.booleanFlags.map(name => [name, 'boolean'])),
@@ -36,12 +38,12 @@ const data = { generatedBy: 'scripts/ldap-inventory.mjs', tool: 'ldap-axi', ...p
     'dist/src/config.js', 'dist/src/secrets.js', 'dist/src/directory/auth.js', 'dist/src/directory/policy.js']
     .map(path => ({ path, sha256: createHash('sha256').update(readFileSync(new URL(path, packageRoot))).digest('hex') })),
   credentialSchema: JSON.parse(readFileSync(new URL('axi-credential.schema.json', packageRoot), 'utf8')),
-  adapterBoundary: { unsafeOverrides, blockedCommands: ['config', 'profile'],
+  adapterBoundary: { unsafeOverrides, blockedCommands: ['config', 'profile', 'setup'],
     sensitiveFlags: ['base', 'filter', 'name', 'sam', 'upn', 'uid'],
     authentication: 'Stored simple-bind identity over verified LDAPS or StartTLS; no ambient ticket or keytab',
     inputs: { stdin: 'unsupported', files: 'unsupported', caFile: 'stored PEM materialized privately by host' },
     resources: { nodeHeapMiB: 128 }, nativeWrites: 'read-only upstream design' },
-  discovery: { commands: ['entry', 'user', 'group', 'auth status'], example: ['user', 'list', '--limit', '1'],
+  discovery: { commands: ['entry', 'user', 'group', 'computer', 'auth status', 'server'], example: ['user', 'list', '--limit', '1'],
     help: schemas.commandHelp('user list', schemas.userListSchema('ad'), schemas.userListSchema('ldapv3'), ['help', 'base']) },
   suggestionFields: ['help'], format: 'TOON', commands }
 const destination = new URL('inventories/ldap-axi.json', root)

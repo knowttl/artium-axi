@@ -914,7 +914,7 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.10' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.10' },
-  { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.1.5' },
+  { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.2.0' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.6' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.7' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
