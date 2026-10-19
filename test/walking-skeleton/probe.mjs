@@ -23,10 +23,13 @@ const execute = async (bin, args, env = {}, input) => {
 const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
   XDG_CONFIG_HOME: join(directory, 'config') }
 // Parity permits the wrapper prefix and removal of managed flags from upstream help.
-const upstreamSuggestions = (text, removeRegion = false) => {
+const upstreamSuggestions = (text, removeManaged = false) => {
   if (/^(?:artium-axi )?(?:falcon|vectra)-axi(?:\s|$)/.test(text)) {
     const unwrapped = text.replace(/^([ \t]*)artium-axi ((?:falcon|vectra)-axi)/gm, '$1$2')
-    return removeRegion ? unwrapped.replace(/^  --help, --region <name\|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid$/gm, '  --help') : unwrapped
+    return removeManaged ? unwrapped
+      .replace(/^  --help, --region <name\|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid$/gm, '  --help')
+      .replace(/^  --config <path>, --profile <name>\n/gm, '')
+      .replace(/^  (?:profile|config|setup)\b[^\n]*\n/gm, '') : unwrapped
   }
   let help = false
   return text.split('\n').map(line => {
@@ -34,7 +37,8 @@ const upstreamSuggestions = (text, removeRegion = false) => {
     else if (line && !line.startsWith(' ')) help = false
     if (!help) return line
     const unwrapped = line.replaceAll('artium-axi falcon-axi', 'falcon-axi').replaceAll('artium-axi vectra-axi', 'vectra-axi')
-    return removeRegion ? unwrapped.replace(/ --region us-1(?=`)/g, '') : unwrapped
+    return removeManaged ? unwrapped.replace(/ --region us-1(?=`)/g, '')
+      .replace(/, --(?:region|allow-unknown-origin|member-cid|no-member-cid|config|profile)(?=,|"|$)/g, '') : unwrapped
   }).join('\n')
 }
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.

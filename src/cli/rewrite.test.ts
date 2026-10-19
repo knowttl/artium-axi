@@ -72,9 +72,17 @@ test.each(['json', 'toon'].flatMap(format => [false, true].map(multiline => ({ f
   })
 
 test.each(['plain', 'json', 'toon'])('Falcon %s root help hides managed flags in grouped rows', format => {
-  const input = 'falcon-axi 0.5.0\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n'
+  const input = 'falcon-axi 0.5.0\n  profile list   configured profiles\n  config path   configuration paths\n  setup hooks   local integrations\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n  --config <path>, --profile <name>\n'
   const expected = 'artium-axi falcon-axi 0.5.0\nGlobal flags:\n  --help\n'
   const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help }) : encode({ help })
+  expect(rewriteSuggestions(serialize(input), 'falcon-axi')).toBe(serialize(expected))
+  expect(rewriteSuggestions(serialize(expected), 'falcon-axi')).toBe(serialize(expected))
+})
+
+test.each(['json', 'toon'])('Falcon %s validation help hides managed flags and preserves native errors', format => {
+  const input = { code: 'VALIDATION_ERROR', help: ['valid flags for `detection list`: --help, --region, --allow-unknown-origin, --member-cid, --no-member-cid, --config, --profile, --limit'] }
+  const expected = { code: 'VALIDATION_ERROR', help: ['valid flags for `detection list`: --help, --limit'] }
+  const serialize = (value: typeof input) => format === 'json' ? JSON.stringify(value) : encode(value)
   expect(rewriteSuggestions(serialize(input), 'falcon-axi')).toBe(serialize(expected))
   expect(rewriteSuggestions(serialize(expected), 'falcon-axi')).toBe(serialize(expected))
 })
