@@ -28,7 +28,7 @@ For rootless Docker or user-namespace remapping, use the mapped host UID corresp
 See [master-key custody](#backup-restore-and-upgrade-rollback) for key formats and the saved local copy.
 The owner decides key creation; the synthetic key used in rehearsal is not a production provisioning recommendation.
 
-For source-based local rehearsal, use the [development prerequisites](../README.md#contributing).
+For source-based local rehearsal, use the [source toolchain](../README.md#build-from-source).
 From the repository root, run:
 
 ```sh
@@ -248,7 +248,7 @@ For an ordinary password change, confirm the current password through the hidden
 Clear temporary password environment values after use.
 Browser users sign in at `/login`, change temporary passwords at `/password`, and sign in again.
 See [browser administration](admin-guide.md#browser-administration) for `/account` usage and session management.
-The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
+See the administrator guide's [password rules](admin-guide.md#security-and-acceptance-boundaries); this runbook does not decide or waive the owner's Password and Secrets Standard.
 
 See [host verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
 Windows/macOS launchers and live client trust remain unexercised owner acceptance.
@@ -326,7 +326,7 @@ The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) ow
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
-See [README tool administration](../README.md) for native-settings guidance and the live-results and maintainer-approval requirements before enabling Graph on a running installation.
+See [browser administration](admin-guide.md#browser-administration) for native-settings guidance and the live-results and maintainer-approval requirements before enabling Graph on a running installation.
 
 Check liveness and readiness through the trusted endpoint:
 
@@ -367,10 +367,10 @@ See [backup retention](#backup-restore-and-upgrade-rollback) for audit data reta
 
 ## First administrator and offline recovery
 
-Use the first-start settings described in [README.md](../README.md).
+Use the [first-start settings](admin-guide.md#server-settings-and-custody) in the administrator guide.
 The username is trimmed and lowercased for lookup, must be nonempty without whitespace or control characters, and keeps the entered spelling as its display name.
 The canonical name `synthetic-development-user` remains reserved and cannot be used for bootstrap or recovery.
-Use the local password rules in [README.md](../README.md).
+Use the administrator guide's [local password rules](admin-guide.md#security-and-acceptance-boundaries).
 For a source-based disposable first start after building, prepare the protected synthetic files and empty data directory, then run from the repository root:
 
 ```sh
@@ -427,7 +427,7 @@ Recovery checks the mounted key against the store's active key ID, authenticates
 An unrelated key fails with `MASTER_KEY_INVALID` even if the store has no credentials or rotation history.
 An audit failure rolls back the entire recovery.
 After success, restart the server, sign in with the recovery password and change it.
-Use the CLI or browser sign-in and forced password-change flow in [README.md](../README.md).
+Use the [CLI quickstart](../README.md#verified-client) or the administrator guide's [browser sign-in and forced password-change flow](admin-guide.md#browser-administration).
 
 ## Offline master key rotation
 

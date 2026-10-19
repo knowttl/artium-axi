@@ -17,16 +17,7 @@ pnpm check
 
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist.
 It does not run container acceptance or the private hygiene check.
-Before publication, commit and build the candidate, set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to the absolute path of the private deny list outside the checkout, then run:
-
-```sh
-pnpm hygiene:check
-```
-
-Never copy the list or its terms into the repository or public review artifacts.
-Record only the list revision or SHA-256, candidate SHA and pass/fail result.
-Include intended release assets outside the checkout as additional arguments.
-See [private hygiene requirements](#private-hygiene-check) for scan coverage and refusal conditions.
+Before publication, follow the [private hygiene requirements](#private-hygiene-check).
 
 Every change ships from a feature branch through the local no-mistakes pipeline configured in [.no-mistakes.yaml](.no-mistakes.yaml).
 Commit the changes before starting:

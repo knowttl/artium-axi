@@ -165,7 +165,7 @@ Credential changes clear cached health, and background checks run every 15 minut
 Use **Test credential** for a current fixed read before enabling a configured tool.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
-For a new installation, follow [Graph credential setup](tool-credentials.md#microsoft-graph) and verify the required permissions against your intended operations before enabling Graph.
+For a new installation, follow [Graph credential setup](tool-credentials.md#microsoft-graph), verify the required permissions against your intended operations and obtain maintainer approval before enabling Graph on a running installation.
 
 ### Sign-in settings
 
