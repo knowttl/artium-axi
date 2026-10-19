@@ -160,7 +160,8 @@ The checksum comes from the same trusted server and detects corruption or mixed 
 
 ## TLS inspection and private upstream CAs
 
-Set `ARTIUM_AXI_EXTRA_CA_FILE` to a readable PEM bundle when upstream HTTPS or LDAPS certificates chain to a private CA, including a network TLS-inspection CA.
+For server-wide trust of private upstream CAs, including a network TLS-inspection CA, set `ARTIUM_AXI_EXTRA_CA_FILE` to a readable PEM bundle.
+For one tool credential, use the [administration UI flow below](#trusting-one-tool-from-the-administration-ui).
 Obtain the public CA certificates and confirm their SHA-256 fingerprints through a trusted operator channel.
 The file must contain one or more PEM certificates and whitespace only, with no private keys.
 Mount it read-only and make it readable by container UID 10001, using the commented CA secret entries in `compose.example.yaml`.
@@ -178,7 +179,7 @@ The runner supplies `NODE_EXTRA_CA_CERTS` and `REQUESTS_CA_BUNDLE` centrally on 
 The Requests bundle includes the server's default Node public roots as well as the additional CAs, since Requests replaces its default certifi bundle when this variable is set.
 LDAP and Vectra credential-specific CA files receive the server bundle too, preserving those credential-specific CAs as an additive option.
 Certificate verification and hostname verification remain enabled.
-With the setting absent, the server and child runtimes retain their default trust.
+With the setting absent, no server-wide trust is added; credential-specific trust still applies.
 
 This setting trusts upstream services from the server and its tools.
 The CLI's separate `ARTIUM_AXI_CA_FILE` setting trusts the Artium server from a client.
@@ -199,7 +200,7 @@ The window highlights weak keys, validity and hostname problems, and fingerprint
 **Trust certificate for this tool** is the single trust confirmation; no certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
-Each confirmed certificate applies only to the inspected endpoint; other endpoints of the same tool require their own confirmations.
+Each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
 The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
@@ -214,7 +215,7 @@ The window reports this repair; retry the credential test afterward.
 An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-Re-inspect the saved endpoint for rotation, and use **Remove trust** to remove a stored certificate.
+Re-inspect the saved endpoint for rotation, and use **Remove trust** to retire the old pin after confirming the replacement; confirmation alone keeps previously confirmed fingerprints trusted.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 
