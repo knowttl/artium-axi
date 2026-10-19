@@ -120,12 +120,12 @@ async function execute(
   pathPrefix?: string,
 ): Promise<RunnerResult> {
   const credentialTrust = limits.credentialTrust ?? []
-  const extraTrustPem = [trustedCa?.pem, ...credentialTrust.map(certificate => certificate.pem)].filter(Boolean).join('\n')
-  const trustPem = extraTrustPem ? [...getCACertificates('default'), extraTrustPem].join('\n') : ''
-  const pins = credentialTrust.filter(certificate => certificate.mode === 'pin').map(certificate => {
+  const trustPem = trustedCa || credentialTrust.length
+    ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : [])].join('\n') : ''
+  const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
     return { hostname: endpoint.hostname, port: endpoint.port,
-      fingerprint: certificate.leafFingerprint }
+      fingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs

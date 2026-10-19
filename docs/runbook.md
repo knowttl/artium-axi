@@ -199,6 +199,7 @@ The window highlights weak keys, validity and hostname problems, and fingerprint
 **Trust certificate for this tool** is the single trust confirmation; no certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
+Each confirmed certificate applies only to the inspected endpoint; other endpoints of the same tool require their own confirmations.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
 The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
@@ -208,6 +209,7 @@ Confirming an expired or hostname-mismatched certificate saves trust but does no
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
 Artium saves the intermediate without confirmation only after another handshake validates the chain to a root the server already trusts.
+Automatic repair preserves existing confirmed fingerprint pins; a changed leaf still requires confirmation.
 The window reports this repair; retry the credential test afterward.
 An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
 

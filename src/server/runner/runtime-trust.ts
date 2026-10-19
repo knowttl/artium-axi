@@ -13,12 +13,15 @@ tls.connect = function (...args) {
   const host = (options.servername || options.host || 'localhost').replace(/^\[|\]$/g, '').toLowerCase();
   const port = Number(options.port || options.socket?.remotePort || 443);
   const expected = pins.filter(pin => pin.hostname === host && pin.port === port);
+  const confirmed = expected.filter(pin => pin.mode === 'pin');
+  const ca = options.ca === undefined ? tls.getCACertificates('default') : [].concat(options.ca);
   const check = options.checkServerIdentity;
-  return original.call(this, { ...options, session: undefined, rejectUnauthorized: true, allowPartialTrustChain: expected.length > 0,
+  return original.call(this, { ...options, ca: [...ca, ...expected.map(pin => pin.pem)],
+    session: undefined, rejectUnauthorized: true, allowPartialTrustChain: confirmed.length > 0,
     checkServerIdentity(hostname, peer) {
       const error = tls.checkServerIdentity(hostname, peer) || check?.(hostname, peer);
       if (error) return error;
-      if (expected.length && !expected.some(pin => pin.fingerprint === peer.fingerprint256)) {
+      if (confirmed.length && !confirmed.some(pin => pin.fingerprint === peer.fingerprint256)) {
         return Object.assign(new Error('TLS certificate fingerprint changed. Ask an administrator to re-inspect the certificate.'), { code: 'CERTIFICATE_PIN_MISMATCH' });
       }
     }
@@ -37,11 +40,23 @@ _handshake = ssl.SSLSocket.do_handshake
 def _verified_wrap(self, sock, server_side=False, do_handshake_on_connect=True,
                    suppress_ragged_eofs=True, server_hostname=None, session=None):
     if not server_side:
-        self.verify_mode = ssl.CERT_REQUIRED
-        self.check_hostname = True
         host = (server_hostname or '').lower().strip('[]')
         port = sock.getpeername()[1]
-        if any(pin['hostname'] == host and pin['port'] == port for pin in _pins):
+        expected = [pin for pin in _pins if pin['hostname'] == host and pin['port'] == port]
+        if expected:
+            context = ssl.SSLContext(self.protocol)
+            context.options = self.options
+            context.minimum_version = self.minimum_version
+            context.maximum_version = self.maximum_version
+            context.verify_flags = self.verify_flags
+            context.set_ciphers(':'.join(cipher['name'] for cipher in self.get_ciphers()))
+            context.load_verify_locations(cadata=''.join(ssl.DER_cert_to_PEM_cert(cert) for cert in self.get_ca_certs(binary_form=True))
+                + ''.join(pin['pem'] for pin in expected))
+            self = context
+            session = None
+        self.verify_mode = ssl.CERT_REQUIRED
+        self.check_hostname = True
+        if any(pin['mode'] == 'pin' for pin in expected):
             self.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
         else:
             self.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
@@ -55,7 +70,7 @@ def _verified_handshake(self, *args, **kwargs):
         host = (self.server_hostname or '').lower().strip('[]')
         port = self.getpeername()[1]
         expected = [pin['fingerprint'].replace(':', '').upper() for pin in _pins
-                    if pin['hostname'] == host and pin['port'] == port]
+                    if pin['hostname'] == host and pin['port'] == port and pin['mode'] == 'pin']
         if expected and hashlib.sha256(self.getpeercert(binary_form=True)).hexdigest().upper() not in expected:
             self.close()
             raise ssl.SSLCertVerificationError('TLS certificate fingerprint changed. Ask an administrator to re-inspect the certificate.')

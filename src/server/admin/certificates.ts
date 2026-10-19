@@ -39,7 +39,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(credential_id, endpoint, leaf_fingerprint) DO UPDATE SET fingerprint = excluded.fingerprint,
-        pem = excluded.pem, leaf_pem = excluded.leaf_pem, mode = excluded.mode, created_at = excluded.created_at, created_by = excluded.created_by`)
+        pem = excluded.pem, leaf_pem = excluded.leaf_pem, mode = excluded.mode, created_at = excluded.created_at, created_by = excluded.created_by
+        WHERE trusted_certificates.mode <> 'pin' OR excluded.mode = 'pin'`)
         .run(randomUUID(), reference.id, inspection.endpoint, inspection.anchor.fingerprint, inspection.chain[0].fingerprint,
           inspection.pem, inspection.leafPem, mode, Date.now(), actor)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run(reference.tool)
@@ -63,9 +64,11 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined)
     authorize(request)
     current(reference)
-    const previousFingerprints = credentialCertificates(db, reference.id).filter(pin => pin.endpoint === certificateEndpoint(endpoint).href
-      && pin.leaf.fingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leaf.fingerprint)
+    const certificates = credentialCertificates(db, reference.id).filter(pin => pin.endpoint === certificateEndpoint(endpoint).href)
+    const previousFingerprints = certificates.filter(pin => pin.leaf.fingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leaf.fingerprint)
     if (previousFingerprints.length) inspection.warnings.push('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
+    const confirmed = certificates.filter(pin => pin.mode === 'pin')
+    if (confirmed.length && !confirmed.some(pin => pin.leaf.fingerprint === inspection.chain[0].fingerprint)) inspection.repairAvailable = false
     for (const [id, item] of pending) if (item.expiresAt <= Date.now()) pending.delete(id)
     if (pending.size >= 100) pending.delete(pending.keys().next().value!)
     const inspectionId = randomUUID()

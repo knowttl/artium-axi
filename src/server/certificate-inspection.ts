@@ -2,6 +2,7 @@ import { X509Certificate } from 'node:crypto'
 import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
 import { isIP } from 'node:net'
+import { getCACertificates } from 'node:tls'
 import { inspectEndpoint } from './health/preflight.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
 
@@ -81,10 +82,11 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
   if (presented.chain.length === 1 && ['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'].includes(presented.verificationError ?? '')) {
     const issuer = await fetchIssuer(leaf)
     if (issuer) {
-      // A candidate is never a new trust anchor: partial-chain trust is not enabled.
-      // Accept automatic repair only when Node verifies the chain to an existing root.
+      const trusted = [...getCACertificates('default'), ...(ca?.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [])]
+        .map(pem => new X509Certificate(pem).fingerprint256)
       const validated = await inspectEndpoint(endpoint, [ca, issuer.toString()].filter(Boolean).join('\n'), undefined, maxVersion)
-      if (!validated.verificationError && validated.chain[0]?.fingerprint256 === leaf.fingerprint256) intermediate = issuer
+      if (!validated.verificationError && validated.chain[0]?.fingerprint256 === leaf.fingerprint256
+        && trusted.includes(validated.chain.at(-1)?.fingerprint256 ?? '')) intermediate = issuer
     }
   }
   const chain = presented.chain.map(certificate => certificateDetails(certificate, host))

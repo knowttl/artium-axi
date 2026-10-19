@@ -34,7 +34,7 @@ let headers: Record<string, string>
 let endpoint: string
 let bytes = 0
 let issuerRequests = 0
-let issuerMode: 'valid' | 'redirect' | 'oversized' | 'unrelated' | 'stalled' = 'valid'
+let issuerMode: 'valid' | 'redirect' | 'oversized' | 'unrelated' | 'stalled' | 'root' = 'valid'
 const defaults = getCACertificates('default')
 const tlsServer = createServer(socket => socket.on('data', chunk => {
   bytes += chunk.length
@@ -45,7 +45,7 @@ const issuerServer = createHttpServer((_request, response) => {
   if (issuerMode === 'stalled') return
   if (issuerMode === 'redirect') { response.writeHead(302, { location: '/issuer' }).end(); return }
   response.end(issuerMode === 'oversized' ? Buffer.alloc(128 * 1024 + 1)
-    : new X509Certificate(pem(issuerMode === 'unrelated' ? 'self-signed' : 'intermediate')).raw)
+    : new X509Certificate(pem(issuerMode === 'unrelated' ? 'self-signed' : issuerMode === 'root' ? 'ca' : 'intermediate')).raw)
 })
 const pem = (name: string) => readFileSync(join(directory, name + '.crt'), 'utf8')
 const base = '/v1/admin/tools/vectra-axi/certificates'
@@ -194,6 +194,48 @@ test('a missing intermediate is fetched and saved automatically only when the ch
   expect(bytes).toBe(0)
 })
 
+test('an AIA-advertised private root requires administrator confirmation', async () => {
+  serve('root-issued')
+  issuerMode = 'root'
+  const result = await inspect()
+  expect(issuerRequests).toBe(1)
+  expect(result.repairAvailable).toBe(false)
+  expect((await request('GET')).json().certificates).toEqual([])
+  expect(db.prepare('SELECT action FROM audit').all()).toEqual([])
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+})
+
+test('automatic intermediate repair preserves an existing confirmed pin and requires confirmation for rotation', async () => {
+  serve('leaf', true)
+  const original = await inspect()
+  await request('POST', '/trust', { inspectionId: original.inspectionId })
+  const pin = db.prepare('SELECT * FROM trusted_certificates').get()
+  setDefaultCACertificates([...defaults, pem('ca')])
+  serve('leaf')
+  expect((await inspect()).repairAvailable).toBe(true)
+  expect(db.prepare('SELECT * FROM trusted_certificates').all()).toEqual([pin])
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+  expect((await runtimeCall('python')).exitCode).toBe(0)
+  serve('rotated-aia')
+  const rotated = await inspect()
+  expect(rotated.repairAvailable).toBe(false)
+  expect(rotated.previousFingerprints).toEqual([original.chain[0].fingerprint])
+  expect(db.prepare('SELECT * FROM trusted_certificates').all()).toEqual([pin])
+  bytes = 0
+  expect((await runtimeCall('node')).exitCode).not.toBe(0)
+  expect((await runtimeCall('python')).exitCode).not.toBe(0)
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust))
+    .rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toMatchObject({ code: 'CERTIFICATE_PIN_MISMATCH' })
+  expect(bytes).toBe(0)
+  expect((await request('POST', '/trust', { inspectionId: rotated.inspectionId })).statusCode).toBe(200)
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+  expect((await runtimeCall('python')).exitCode).toBe(0)
+})
+
 test.each(['redirect', 'oversized', 'unrelated', 'stalled'] as const)('AIA refuses %s issuer responses without adding trust', async mode => {
   serve('leaf')
   issuerMode = mode
@@ -267,6 +309,71 @@ test.each(['node', 'python'] as const)('%s rejects a different valid leaf under 
   expect(rejected.exitCode).not.toBe(0)
   expect(rejected.stderr).toMatch(/fingerprint changed|CERTIFICATE_PIN_MISMATCH/)
   expect(bytes).toBe(0)
+})
+
+test.each(['node', 'python'] as const)('%s isolates mg-axi login and Graph trust when both use the same private root', async runtime => {
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('server') + pem('ca') })
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  const reference = store.replaceCredential('mg-axi', {}, 0, 'synthetic-development-user', Date.now())
+  const port = Number(new URL(endpoint).port)
+  db.prepare('UPDATE trusted_certificates SET credential_id = ?, endpoint = ?').run(reference.id, `https://login.synthetic.test:${port}/`)
+  const args = runtime === 'node'
+    ? ['-e', `const tls = require('node:tls');
+      const connect = host => new Promise(resolve => {
+        const socket = tls.connect({ host: '127.0.0.1', port: ${port}, servername: host }, () => socket.write('GET / HTTP/1.1\\r\\n\\r\\n'));
+        socket.on('data', () => {});
+        socket.once('end', () => resolve('accepted'));
+        socket.once('error', () => resolve('rejected'));
+      });
+      (async () => console.log(JSON.stringify([await connect('login.synthetic.test'), await connect('graph.synthetic.test'), await connect('login.synthetic.test')])))();`]
+    : ['-c', `import json, os, socket, ssl
+context = ssl.create_default_context(cafile=os.environ['REQUESTS_CA_BUNDLE'])
+outcomes = []
+for host in ['login.synthetic.test', 'graph.synthetic.test', 'login.synthetic.test']:
+    try:
+        with socket.create_connection(('127.0.0.1', ${port}), timeout=3) as tcp:
+            with context.wrap_socket(tcp, server_hostname=host) as secure:
+                secure.sendall(b'GET / HTTP/1.1\\r\\n\\r\\n')
+                secure.recv(4096)
+        outcomes.append('accepted')
+    except ssl.SSLError:
+        outcomes.append('rejected')
+print(json.dumps(outcomes))`]
+  const run = () => runner.run('synthetic-development-user', runtime === 'node' ? process.execPath : '/usr/bin/python3',
+    args, {}, [], { timeoutMs: 5000, ...(runtime === 'python' ? { runtime: 'python' as const } : {}),
+      credentialTrust: readCredentialTrust(db, reference) })
+  bytes = 0
+  const isolated = await run()
+  expect(isolated.exitCode, isolated.stdout + isolated.stderr).toBe(0)
+  expect(JSON.parse(isolated.stdout)).toEqual(['accepted', 'rejected', 'accepted'])
+  expect(bytes).toBe(2 * Buffer.byteLength('GET / HTTP/1.1\r\n\r\n'))
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-graph-pin', credential_id, ?, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by
+    FROM trusted_certificates WHERE credential_id = ?`).run(`https://graph.synthetic.test:${port}/`, reference.id)
+  const confirmed = await run()
+  expect(confirmed.exitCode, confirmed.stdout + confirmed.stderr).toBe(0)
+  expect(JSON.parse(confirmed.stdout)).toEqual(['accepted', 'accepted', 'accepted'])
+})
+
+test('server token transport isolates endpoints sharing a private root', async () => {
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('server') + pem('ca') })
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  const trust = readCredentialTrust(db, store.findCredential('vectra-axi')!)
+  let received = 0
+  const other = createServer({ key: readFileSync(join(directory, 'server.key')), cert: pem('server') + pem('ca') },
+    socket => socket.on('data', chunk => { received += chunk.length; socket.end('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok') }))
+  other.on('tlsClientError', () => {})
+  other.listen(0, '127.0.0.1')
+  await once(other, 'listening')
+  const otherEndpoint = `https://localhost:${(other.address() as { port: number }).port}/`
+  try {
+    expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+    await expect(credentialFetch(otherEndpoint, { method: 'GET' }, trust)).rejects.toThrow()
+    expect(received).toBe(0)
+    expect(await (await credentialFetch(otherEndpoint, { method: 'GET' }, [...trust, { ...trust[0], endpoint: otherEndpoint }])).text()).toBe('ok')
+  } finally { await new Promise<void>(resolve => other.close(() => resolve())) }
 })
 
 test.each(['node', 'python'] as const)('%s enforces legacy mixed-case LDAP endpoint pins', async runtime => {
