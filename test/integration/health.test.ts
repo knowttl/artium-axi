@@ -211,16 +211,32 @@ test('background checks never hold more than the background slot cap', async () 
   health = new ToolHealth(db, new Audit(db), runner, [adapter, createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
     createLdapAdapter(new EmbeddedSecretSource(store))], store)
   const releases: (() => void)[] = []
-  const check = vi.spyOn(health, 'check').mockImplementation(() => new Promise(resolve => {
-    releases.push(() => resolve(undefined as never))
+  let secondStarted!: () => void
+  let thirdStarted!: () => void
+  const initialChecks = new Promise<void>(resolve => { secondStarted = resolve })
+  const deferredCheck = new Promise<void>(resolve => { thirdStarted = resolve })
+  const run = vi.spyOn(runner, 'run').mockImplementation(() => new Promise(resolve => {
+    releases.push(() => resolve(result))
+    if (releases.length === 2) secondStarted()
+    if (releases.length === 3) thirdStarted()
   }))
-  health.start()
-  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs * 5)
-  expect(check.mock.calls.map(call => call[0])).toEqual(['falcon-axi', 'vectra-axi'])
-  releases[0]()
-  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
-  expect(check.mock.calls.map(call => call[0])).toEqual(['falcon-axi', 'vectra-axi', 'ldap-axi'])
-  releases.slice(1).forEach(release => release())
+  try {
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs * 5)
+    await initialChecks
+    expect(run.mock.calls.map(call => call[0])).toEqual([
+      `${healthDefaults.actor}:falcon-axi`, `${healthDefaults.actor}:vectra-axi`,
+    ])
+    releases[0]()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await deferredCheck
+    expect(run.mock.calls.map(call => call[0])).toEqual([
+      `${healthDefaults.actor}:falcon-axi`, `${healthDefaults.actor}:vectra-axi`, `${healthDefaults.actor}:ldap-axi`,
+    ])
+  } finally {
+    releases.forEach(release => release())
+    await health.stop()
+  }
 })
 
 test('a credential change resets the backoff', async () => {
