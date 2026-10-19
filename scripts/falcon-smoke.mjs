@@ -30,7 +30,7 @@ try {
   const run = args => new Promise((resolve, reject) => {
     const child = spawn('/opt/falcon-axi/bin/falcon-axi', ['detection', 'list', '--region', origin, ...args], {
       env: { PATH: process.env.PATH, HOME: directory, REQUESTS_CA_BUNDLE: join(directory, 'ca.crt'),
-        FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret' },
+        FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret' },
       timeout: 15_000,
     })
     let output = ''

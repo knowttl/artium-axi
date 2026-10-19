@@ -23,7 +23,7 @@ test('Falcon prepares the persisted shared credential after database reopen', as
   const file = join(directory, 'artium.db')
   const db = openStore(file, provider)
   const row = encryptCredential(reference.id, reference.tool, Buffer.from(JSON.stringify(credential)), provider.getKey())
-  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('0.3.0', reference.tool)
+  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('0.5.0', reference.tool)
   db.prepare('INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag) VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag)').run(row)
   db.close()
   const reopened = openStore(file, provider)
@@ -38,15 +38,15 @@ test('Falcon prepares the persisted shared credential after database reopen', as
     expect(prepared).toEqual({
       executable: '/opt/falcon-axi/bin/falcon-axi',
       args: ['detection', 'list', '--help', '--region', 'us-2', '--member-cid', 'synthetic-member'],
-      environment: { FALCON_CLIENT_ID: credential.clientId, FALCON_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true' },
+      environment: { FALCON_AXI_CLIENT_ID: credential.clientId, FALCON_AXI_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true' },
       secrets: [credential.clientId, credential.clientSecret], files: [], limits: { runtime: 'python', timeoutMs: 60_000 },
     })
     const runner = await Runner.create(join(directory, 'calls'))
     try {
-      const result = await runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.FALCON_CLIENT_ID === "CANARY-falcon-id" && process.env.FALCON_CLIENT_SECRET === "CANARY-falcon-secret")'], prepared.environment, prepared.secrets)
+      const result = await runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.FALCON_AXI_CLIENT_ID === "CANARY-falcon-id" && process.env.FALCON_AXI_CLIENT_SECRET === "CANARY-falcon-secret")'], prepared.environment, prepared.secrets)
       expect(result.stdout).toBe('true\n')
       expect(result.exitCode).toBe(0)
-      await expect(runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.FALCON_CLIENT_SECRET)'], prepared.environment, prepared.secrets))
+      await expect(runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.FALCON_AXI_CLIENT_SECRET)'], prepared.environment, prepared.secrets))
         .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
     } finally { await runner.shutdown() }
   } finally { reopened.close() }

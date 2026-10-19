@@ -47,7 +47,7 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
   assert.deepEqual(JSON.parse(parserEvidence), recordedParser)
   const run = async (args, settings = configuration) => {
     const prepared = await prepareFalcon(args, settings)
-    assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_AXI_READ_ONLY', 'FALCON_CLIENT_ID', 'FALCON_CLIENT_SECRET'])
+    assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET', 'FALCON_AXI_READ_ONLY'])
     assert.equal(prepared.environment.FALCON_AXI_READ_ONLY, 'true')
     return runner.run('synthetic-user', prepared.executable, prepared.args,
       prepared.environment, prepared.secrets, prepared.limits)

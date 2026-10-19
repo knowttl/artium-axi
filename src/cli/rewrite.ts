@@ -135,9 +135,9 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     for (const match of span.value.matchAll(/(?<![^\s(])([`'"])([^\n]*?)(\1|(?=\n|$))/g)) {
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
-      if (!/^(?:artium-axi |npx -y @knowttl\/)?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       const preceding = span.value.slice(0, match.index!)
       if (/(?:^|\n)[ \t]*Valid flags for $/.test(preceding) && match[1] === '`' && match[3] === '`') continue
+      if (!/^(?:artium-axi |npx -y @knowttl\/)?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|Check current state before trying again:|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
       const wrapped = match[2].startsWith(`artium-axi ${tool}`)
       if (executable.test(match[2])) {
@@ -219,6 +219,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       return line
     })
     .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples|Usage): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`^Run ${tool}(?=\\s|$)`, 'gm'), `Run artium-axi ${tool}`)
     .replace(/^[ \t]*Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
       (match, separator) => separator ? `; artium-axi ${tool}` : match))
     .replace(new RegExp('`(?:npx -y @knowttl/)?' + tool + '(?=\\s|`)([^\\r\\n`]*`)', 'g'), '`artium-axi ' + tool + '$1')

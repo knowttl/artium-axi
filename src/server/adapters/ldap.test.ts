@@ -93,7 +93,7 @@ test('a reference for another tool cannot retrieve LDAP credentials', async () =
 })
 
 test('LDAP discovery advertises hosted reads without credential overrides', () => {
-  const output = toolView({ name: 'ldap-axi', status: 'unconfigured', version: '0.1.4' })
+  const output = toolView({ name: 'ldap-axi', status: 'unconfigured', version: '0.1.5' })
   expect(output).toContain('artium-axi ldap-axi user list --limit 1')
   expect(output).toContain('--fields')
   expect(output).not.toMatch(/--(?:auth|url|config|profile|ca-file|tls-no-verify)\b/)

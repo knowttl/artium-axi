@@ -47,7 +47,7 @@ test('Azure query help retains usable input examples with the hosted executable'
 })
 
 test('hosted discovery advertises only flags accepted by the managed adapter', () => {
-  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.8' })
+  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.10' })
   const help = JSON.parse(view.split('upstreamHelp: ')[1]) as string
   const flags = help.split('\n').find(line => line.startsWith('Flags: '))!.slice(7).split(', ')
   const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
@@ -86,7 +86,7 @@ test.each(['json', 'toon'])('Azure %s invalid-input help filters declarations wi
   expect(parsed.code).toBe('UNKNOWN_FLAG')
   expect(parsed.help.join('\n')).not.toMatch(/--(?:config|profile|tenant)\b/)
   expect(parsed.help.join('\n')).toContain('--subscription')
-  expect(parsed.help.join('\n')).toContain('Examples: artium-axi az-axi sub list; artium-axi az-axi sub list --subscription <id>')
+  expect(parsed.help.join('\n')).toContain('Run `artium-axi az-axi sub list --help` for usage')
   expect(parsed.data).toEqual(value.data)
   expect(rewriteSuggestions(output, 'az-axi')).toBe(output)
 })

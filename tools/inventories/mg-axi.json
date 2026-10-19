@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.7",
-  "integrity": "sha512-ojOqnpnnqA3EiyHD0QNxxW3BZpkOCw3oPuhORNFq+X8O9c2MxE1aqn1frTNY61CQ6qWr6Gn5Q+H8KVIWSC5xgg==",
+  "version": "0.1.10",
+  "integrity": "sha512-rsd8KjyXxojDF3Gu6C95xsJokATeEmUaIRO7Zcaw9h/sF9WLXpW/gh6tKB1niU2QTGe2tsZjPsqXvzpyG34UUA==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "fac4ecaed23f6f8fbea98b9d08ccb3768d7445944882d8bc997ec8f606554cf5",
+  "packageManifestSha256": "9526463c1fff30f32a30a58dffbbb2e3d6eaf21a3e06edb904f223d7a535da4d",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -154,11 +154,11 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "9b9b521411eee7b5fe8c74fec0f3b96be0ce2e9468ecabe457beb7f0f33ea937"
+        "sha256": "4f7710d0feb1bdaeaae1ae68f4e9e41d67f77f20620b824d2f44a95f2c63ee31"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "e03ae4a4816607c122c4c49907e3a10bb33cff09514d6af04628ee0dbdf833b5"
+        "sha256": "19485f95fc3eeb5447fe05a55eec028dcf5d3c4e17a12f3bee1e0cffc239f00d"
       },
       {
         "path": "dist/profiles.js",
@@ -230,11 +230,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "9b9b521411eee7b5fe8c74fec0f3b96be0ce2e9468ecabe457beb7f0f33ea937"
+        "sha256": "4f7710d0feb1bdaeaae1ae68f4e9e41d67f77f20620b824d2f44a95f2c63ee31"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "e03ae4a4816607c122c4c49907e3a10bb33cff09514d6af04628ee0dbdf833b5"
+        "sha256": "19485f95fc3eeb5447fe05a55eec028dcf5d3c4e17a12f3bee1e0cffc239f00d"
       }
     ]
   },

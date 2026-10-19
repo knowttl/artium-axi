@@ -12,17 +12,17 @@ importers:
         specifier: 0.4.6
         version: 0.4.6
       '@knowttl/az-axi':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.10
+        version: 0.1.10
       '@knowttl/ldap-axi':
-        specifier: 0.1.4
-        version: 0.1.4
-      '@knowttl/mg-axi':
-        specifier: 0.1.7
-        version: 0.1.7
-      '@knowttl/vectra-axi':
         specifier: 0.1.5
         version: 0.1.5
+      '@knowttl/mg-axi':
+        specifier: 0.1.10
+        version: 0.1.10
+      '@knowttl/vectra-axi':
+        specifier: 0.1.7
+        version: 0.1.7
       awx-axi:
         specifier: 0.1.7
         version: 0.1.7
@@ -50,23 +50,23 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@knowttl/az-axi@0.1.8':
-    resolution: {integrity: sha512-7SKu71YKa7wyszHu4onz+ETSAJ/PAuh2Ov3W7R+pRRhsSIQbemqGsqYAmda5d/8fx5oMohbj1chCQeTXlAOt9A==}
+  '@knowttl/az-axi@0.1.10':
+    resolution: {integrity: sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/ldap-axi@0.1.4':
-    resolution: {integrity: sha512-tHbXyEFQe+sRYbasVbuFUK93D8JTcp+zuxREbmW8wwqu7cG6Jz7gQRMIyCwjoBQLw2jhWwalJA5eQKlJszm/2A==}
+  '@knowttl/ldap-axi@0.1.5':
+    resolution: {integrity: sha512-lNkO+hdMLAjlur1tqHUcRTaK9AJLfjm+oSa6LvN4u+VkrcyB6XB1MhgNmZd9P1j+VzCxTbywoTpm33EYt8cyyQ==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/mg-axi@0.1.7':
-    resolution: {integrity: sha512-ojOqnpnnqA3EiyHD0QNxxW3BZpkOCw3oPuhORNFq+X8O9c2MxE1aqn1frTNY61CQ6qWr6Gn5Q+H8KVIWSC5xgg==}
+  '@knowttl/mg-axi@0.1.10':
+    resolution: {integrity: sha512-rsd8KjyXxojDF3Gu6C95xsJokATeEmUaIRO7Zcaw9h/sF9WLXpW/gh6tKB1niU2QTGe2tsZjPsqXvzpyG34UUA==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/vectra-axi@0.1.5':
-    resolution: {integrity: sha512-m+gE4qJm1xBCWqH3QAqkJJFwUcBRmZDUr3UB2TthzkIg+2oHheuCOuV8yGdelggLT74JLtv/wR416UFyFMjy8Q==}
+  '@knowttl/vectra-axi@0.1.7':
+    resolution: {integrity: sha512-7gop8tQkTohKKoldYuHZ9Kz2Eq/vQNBqW0OZV8HLSPEKc3OVhdFt00osRb1kwRjB1h1Vr/ku0H0IWoKOxxticQ==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -84,6 +84,9 @@ packages:
 
   '@toon-format/toon@2.3.1':
     resolution: {integrity: sha512-sWqEMeAJGMda9qRrfPKrX3C4c33CO9SJuvJzzrcBEn5sbDB+k6pSLkDsfN0rVnLQwR97MV3sDgVbcxQNsq8xVw==}
+
+  '@toon-format/toon@4.4.0':
+    resolution: {integrity: sha512-A6UcsVoWbNdhdLNhJbe6JpRlocmf/DZGG57fur3bd8oQtsjBaKWo2hHbOU2zTuy+byUmLIOyP1xJeitopCZzpQ==}
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
@@ -567,13 +570,13 @@ snapshots:
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/az-axi@0.1.8':
+  '@knowttl/az-axi@0.1.10':
     dependencies:
-      '@toon-format/toon': 2.3.1
+      '@toon-format/toon': 4.4.0
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/ldap-axi@0.1.4':
+  '@knowttl/ldap-axi@0.1.5':
     dependencies:
       '@toon-format/toon': 2.3.1
       ldapts: 9.0.0
@@ -583,14 +586,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@knowttl/mg-axi@0.1.7':
+  '@knowttl/mg-axi@0.1.10':
     dependencies:
       '@azure/msal-node': 7.0.1
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       open: 11.0.4
 
-  '@knowttl/vectra-axi@0.1.5':
+  '@knowttl/vectra-axi@0.1.7':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
@@ -616,6 +619,8 @@ snapshots:
     optional: true
 
   '@toon-format/toon@2.3.1': {}
+
+  '@toon-format/toon@4.4.0': {}
 
   abbrev@3.0.1:
     optional: true

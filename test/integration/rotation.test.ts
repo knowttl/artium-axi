@@ -43,7 +43,7 @@ test('all three adapters run with persisted credentials after offline rotation',
       const resolver = new SharedIdentityResolver(store)
       const falcon = await createFalconAdapter(source).prepare(['detection', 'list'], await resolver.resolve('synthetic-user', 'falcon-axi'))
       const falconResult = await runner.run('synthetic-user', process.execPath,
-        ['-e', 'console.log(process.env.FALCON_CLIENT_ID === "CANARY-falcon-id" && process.env.FALCON_CLIENT_SECRET === "CANARY-falcon-secret")'],
+        ['-e', 'console.log(process.env.FALCON_AXI_CLIENT_ID === "CANARY-falcon-id" && process.env.FALCON_AXI_CLIENT_SECRET === "CANARY-falcon-secret")'],
         falcon.environment, falcon.secrets)
       expect(falconResult).toMatchObject({ stdout: 'true\n', exitCode: 0 })
       const vectra = await createVectraAdapter(source, join(directory, 'tool-logs', 'vectra-axi', 'writes.log'))

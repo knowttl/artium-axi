@@ -11,11 +11,11 @@ import type { ToolName } from './store/credential-store.js'
 const overlays = {
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
-  'az-axi': { sha256: '6bf268e08b707f5e0f41ac3a5d1f4fefdef515f0f710b2e1139dee1e2e517161', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
+  'az-axi': { sha256: '7d957ed28170171530c0c174ac27c0174b5500cd1797d18243324ef44fee033f', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: '0fef685ec7e7cc955a2d024901b4f25802c4b73240a561cce97567c68818430f', sections: ['Safety'] },
   'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
   'ldap-axi': { sha256: 'cc21c3396ed8c23d752eb4fd3e670bd85250afc45ed8654111bf8f0972976ba2', sections: ['Workflow', 'Safety'] },
-  'falcon-axi': { sha256: '5299d997f1e1a515d9056c609fe3e27d10796db135295f2cc801226e5916d056', sections: ['Workflow', 'Pagination'] },
+  'falcon-axi': { sha256: '6ca2729a523ca6468d97a84a0509a96a4c6e27c4431f7cec3eb493e2eabb43d6', sections: ['Read-only boundary', 'Orientation', 'Credentials and output'] },
 } as const
 
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {
@@ -50,7 +50,8 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
     } else if (tool === 'ldap-axi') {
       body = body.replace('`group list`', '`artium-axi ldap-axi group list`').replace('`auth status --offline`', '`artium-axi ldap-axi auth status --offline`')
     } else if (tool === 'falcon-axi') {
-      body = body.replace('job with `search status`.', 'job with `artium-axi falcon-axi search status <id>`.')
+      body = body.split('\n').filter(line => !/^(Secrets belong|Use `--profile|Use `--member-cid)/.test(line)).join('\n')
+        .replaceAll('uvx falcon-axi', 'falcon-axi')
     }
     const registry = source.match(/<!-- command-registry:start -->\n([\s\S]*?)\n<!-- command-registry:end -->/)
     let commands = ''

@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.5",
-  "integrity": "sha512-m+gE4qJm1xBCWqH3QAqkJJFwUcBRmZDUr3UB2TthzkIg+2oHheuCOuV8yGdelggLT74JLtv/wR416UFyFMjy8Q==",
+  "version": "0.1.7",
+  "integrity": "sha512-7gop8tQkTohKKoldYuHZ9Kz2Eq/vQNBqW0OZV8HLSPEKc3OVhdFt00osRb1kwRjB1h1Vr/ku0H0IWoKOxxticQ==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "e00299251022c577215a6b8f38a583699eafb7bfbf04441135747a363f5b3a03",
+  "packageManifestSha256": "f9c6cbae6a861654398dd30d830ec5b048fad34f8b6bd5f8157dcf8a5cd3ed7e",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -120,7 +120,7 @@
     ],
     "help": {
       "command": "vectra-axi detection list",
-      "description": "List QUX detections with server-side filters and a bounded window",
+      "description": "List detections on QUX v2.5 or RUX v3.4 with server-side filters and a bounded window",
       "flags": {
         "--help": "Show concise help; default false",
         "--state <state>": "Filter by server-side detection state",
@@ -135,6 +135,7 @@
         "--max-id <id>": "Server-side maximum detection ID (non-negative integer)",
         "--limit <rows>": "Row window for this read; default 100",
         "--fields <list>": "Comma-separated projection over id,detection_type,state,threat,certainty",
+        "--all": "Traverse pages within 10 requests, 8 MiB, 60 seconds and 10000 rows; cannot combine with --limit",
         "--cursor <cursor>": "Resume a capped list with its original filters"
       },
       "combinations": [],
@@ -165,12 +166,16 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "6d7fa927fd2f6942a578def60f9e95ec994ec994fe70f7af6b19e52935b99c40"
+      "sha256": "9c0a3783a91fb0fd4c2a2f4df00e477b8abdc3ea3cefe80dc20e98b4cebf55fd"
     }
   },
   "flags": [
     {
       "name": "account",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "all",
       "disposition": "passthrough candidate"
     },
     {
@@ -481,6 +486,7 @@
         "max-id": "value",
         "limit": "value",
         "fields": "value",
+        "all": "boolean",
         "cursor": "value"
       }
     },
@@ -517,6 +523,7 @@
         "certainty-gte": "value",
         "tags": "value",
         "min-id": "value",
+        "all": "boolean",
         "max-id": "value",
         "limit": "value",
         "fields": "value",
@@ -542,6 +549,7 @@
         "certainty-gte": "value",
         "tags": "value",
         "min-id": "value",
+        "all": "boolean",
         "max-id": "value",
         "limit": "value",
         "fields": "value",
@@ -564,6 +572,7 @@
         "profile": "value",
         "config": "value",
         "type": "value",
+        "all": "boolean",
         "threat-gte": "value",
         "certainty-gte": "value",
         "tags": "value",

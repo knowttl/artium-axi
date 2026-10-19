@@ -39,14 +39,14 @@ beforeEach(async () => {
   environment = {}
   db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
   await seedToolUser(db)
-  db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.3.0' WHERE name = 'falcon-axi'")
+  db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.5.0' WHERE name = 'falcon-axi'")
   const runner = await Runner.create(join(directory, 'calls'))
   const adapter = createFalconAdapter({ getCredential })
   const prepare = adapter.prepare.bind(adapter)
   vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference) => {
     const prepared = await prepare(args, reference)
     return { ...prepared, executable: fakeTool.executable, args: [...fakeTool.args, ...args], limits: { timeoutMs: 5000 },
-      environment: { ...prepared.environment, ARTIUM_TEST_CANARY: prepared.environment.FALCON_CLIENT_SECRET } }
+      environment: { ...prepared.environment, ARTIUM_TEST_CANARY: prepared.environment.FALCON_AXI_CLIENT_SECRET } }
   })
   getCredential.mockClear()
   options = { db, runner, audit: new Audit(db), environment, adapters: [adapter],
@@ -477,7 +477,7 @@ test('password endpoint changes only the access-token owner and requires a fresh
 test('real requests list tools without retrieving credentials and preserve the completed upstream envelope', async () => {
   const listing = await fetch(`${url}/v1/tools`, { headers })
   expect(listing.status).toBe(200)
-  expect(toolsResponseSchema.parse(await listing.json())).toEqual({ tools: [{ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured', readOnly: true }] })
+  expect(toolsResponseSchema.parse(await listing.json())).toEqual({ tools: [{ name: 'falcon-axi', version: '0.5.0', status: 'unconfigured', readOnly: true }] })
   expect(getCredential).not.toHaveBeenCalled()
   const response = await run({ args: ['upstream', 'vectra-axi', 'error'] })
   expect(response.status).toBe(200)
@@ -775,14 +775,14 @@ test('the real server remains available after startup encounters a damaged nativ
       .toEqual(malformedJournals.map(({ content }) => content))
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
-    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.3.0', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.5.0', status: 'unconfigured', readOnly: true })
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
     const azureListing = await fetch(`${origin}/v1/tools`, { headers })
-    expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.8', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.10', status: 'unconfigured', readOnly: true })
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'mg-axi'")
     const graphListing = await fetch(`${origin}/v1/tools`, { headers })
     expect(graphListing.status, await graphListing.clone().text()).toBe(200)
-    expect(toolsResponseSchema.parse(await graphListing.json()).tools).toContainEqual({ name: 'mg-axi', version: '0.1.7', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await graphListing.json()).tools).toContainEqual({ name: 'mg-axi', version: '0.1.10', status: 'unconfigured', readOnly: true })
     expect(readFileSync(journal, 'utf8')).toBe(damaged)
   } finally {
     child.kill('SIGTERM')

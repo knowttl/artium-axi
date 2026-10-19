@@ -31,7 +31,7 @@ function prepareCredential(args: readonly string[], credential: FalconCredential
   return {
     executable: toolPaths['falcon-axi'],
     args: [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_CLIENT_ID: clientId, FALCON_CLIENT_SECRET: clientSecret,
+    environment: { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret,
       FALCON_AXI_READ_ONLY: String(!toolAllowsWrites('falcon-axi', credential)) },
     secrets: [clientId, clientSecret],
     limits: { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs },

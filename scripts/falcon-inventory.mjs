@@ -11,20 +11,19 @@ if (execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], { encoding: 'utf8' 
 }
 const parser = join(source, 'falcon_axi/cli.py')
 const data = JSON.parse(execFileSync('python3', ['-c', `
-import ast, json, sys
-tree = ast.parse(open(sys.argv[1]).read())
-values = {}
-for node in tree.body:
-    names = [target.id for target in node.targets if isinstance(target, ast.Name)] if isinstance(node, ast.Assign) else [node.target.id] if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) else []
-    for name in names:
-        if name in ('GLOBAL_FLAGS', 'COMMAND_FLAGS', 'VALUE_FLAGS'):
-            values[name] = ast.literal_eval(node.value.args[0] if isinstance(node.value, ast.Call) else node.value)
-print(json.dumps({ 'globalFlags': values['GLOBAL_FLAGS'], 'commands': values['COMMAND_FLAGS'], 'valueFlags': sorted(values['VALUE_FLAGS']) }))
-`, parser], { encoding: 'utf8' }))
+import json
+from falcon_axi.cli import GLOBAL_FLAGS, GLOBAL_VALUE_FLAGS
+from falcon_axi.commands import COMMAND_SPECS
+print(json.dumps({ 'globalFlags': GLOBAL_FLAGS, 'commands': {
+    name: { 'flags': spec.flags, 'valueFlags': [*GLOBAL_VALUE_FLAGS, *spec.value_flags] }
+    for name, spec in COMMAND_SPECS.items()
+} }))
+`], { encoding: 'utf8', env: { ...process.env, PYTHONPATH: source } }))
 const help = execFileSync('python3', ['-c', 'from falcon_axi.cli import help_text; print(help_text("detection list"), end="")'],
   { encoding: 'utf8', env: { ...process.env, PYTHONPATH: source } })
 const serverOwned = ['region', 'member-cid']
-const blocked = ['allow-unknown-origin', 'no-member-cid', 'profile']
+const blocked = ['allow-unknown-origin', 'no-member-cid', 'config', 'profile']
+const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout']
 const inventory = {
   generatedBy: 'scripts/falcon-inventory.mjs', tool: 'falcon-axi', ...pin,
   parser: { path: 'falcon_axi/cli.py', sha256: createHash('sha256').update(readFileSync(parser)).digest('hex'),
@@ -33,16 +32,18 @@ const inventory = {
   flags: data.globalFlags.map(name => ({ name, disposition: serverOwned.includes(name) ? 'server-owned'
     : blocked.includes(name) ? 'blocked' : 'passthrough' })),
   unsafeOverrides: [...serverOwned, ...blocked],
-  blockedCommands: ['login', 'setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout'],
-  commands: Object.entries(data.commands).map(([command, flags]) => ({ command,
-    flags: Object.fromEntries([...data.globalFlags, ...flags].map(name => [name, data.valueFlags.includes(name) ? 'value' : 'boolean'])),
+  blockedCommands,
+  commands: Object.entries(data.commands).map(([command, spec]) => ({ command,
+    flags: Object.fromEntries([...data.globalFlags, ...spec.flags].map(name => [name, spec.valueFlags.includes(name) ? 'value' : 'boolean'])),
     input: 'No file or raw URL input; cursors and queries remain native values' })),
-  environment: ['FALCON_CLIENT_ID', 'FALCON_CLIENT_SECRET'].map(name => ({ name, disposition: 'injected' }))
-    .concat(['FALCON_MEMBER_CID', 'FALCON_BASE_URL', 'FALCON_PROXY_URL', 'FALCON_AXI_CREDENTIALS_FILE']
+  environment: ['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET', 'FALCON_AXI_READ_ONLY'].map(name => ({ name, disposition: 'injected' }))
+    .concat(['FALCON_AXI_MEMBER_CID', 'FALCON_AXI_REGION', 'FALCON_AXI_PROXY_URL', 'FALCON_AXI_CONFIG', 'FALCON_AXI_PROFILE', 'FALCON_AXI_WRITE_LOG']
       .map(name => ({ name, disposition: 'never injected' }))),
   requirements: { runtime: 'python', timeoutMs: 60_000, temporaryFiles: [], nativeWrites: 'read-only upstream design' },
   healthRead: ['auth', 'status'], suggestionFields: ['help'],
-  discovery: { commands: [...new Set(Object.keys(data.commands).map(command => command.split(' ')[0]))],
+  discovery: { commands: [...new Set(Object.keys(data.commands)
+    .filter(command => !blockedCommands.includes(command) && !blockedCommands.includes(command.split(' ')[0]))
+    .map(command => command.split(' ')[0]))],
     example: ['detection', 'list'], help },
   acceptance: 'Local fake-only evidence; live region, read and search timing remain unverified',
 }

@@ -14,6 +14,18 @@ import { hostedArgs, subscription, withAzureGateway } from '../fixtures/azure-ga
 const apiTarget = `/subscriptions/${subscription}/resourceGroups/runner-timeout-api`
 const incidentTarget = `/subscriptions/${subscription}/resourceGroups/runner-timeout-recovery/providers/Microsoft.OperationalInsights/workspaces/synthetic workspace/providers/Microsoft.SecurityInsights/incidents/11111111-1111-4111-8111-111111111111`
 
+test('Azure paging flags reach the pinned CLI and remain audited reads', async () => {
+  await withAzureGateway(async ({ run, send, db }) => {
+    const response = await run(['account', 'list', '--all', '--max-rows', '1'])
+    expect(response.statusCode).toBe(200)
+    const result = runSuccessSchema.parse(response.json())
+    expect(result.exitCode, result.stdout).toBe(0)
+    expect(decode(result.stdout)).toMatchObject({ subscriptions: expect.stringContaining('0 subscriptions') })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
+  })
+})
+
 test.each([{ flags: ['--execute=false'] }, { flags: ['--execute', 'false'] }])('Azure preview $flags is audited as a read', async ({ flags }) => {
   await withAzureGateway(async ({ run, send, db }) => {
     const response = await run(['api', 'PATCH', apiTarget, '--api-version', '2022-12-01',
