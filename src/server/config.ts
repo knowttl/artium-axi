@@ -34,7 +34,7 @@ export const authDefaults = { windowMs: 900_000, usernameAttempts: 5, addressAtt
 export const browserDefaults = { idleMs: 1_800_000, absoluteMs: 43_200_000 } as const
 export const ssoDefaults = { transactionMs: 600_000, pendingLimit: 4096 } as const
 export const deviceDefaults = { lifetimeMs: 600_000, intervalMs: 5000, pendingLimit: 4096 } as const
-export const healthDefaults = { intervalMs: 900_000, actor: 'system:tool-health' } as const
+export const healthDefaults = { intervalMs: 900_000, retryMs: 60_000, tickMs: 10_000, backgroundCalls: 2, actor: 'system:tool-health' } as const
 export const runnerLimits = {
   globalCalls: 8,
   userCalls: 2,
