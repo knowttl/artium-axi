@@ -15,6 +15,7 @@ aside { flex: 0 0 190px; border-right: 1px solid #a5b4c3; }
 dialog { color: #203349; border: 2px solid #31577a; padding: 24px; width: 480px; max-width: calc(100% - 48px); box-sizing: border-box; max-height: calc(100% - 48px); overflow: auto; }
 dialog::backdrop { background: rgb(32 51 73 / 55%); }
 .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+#certificate-inspection, [data-trusted-certificates] { overflow-wrap: anywhere; }
 button:disabled { opacity: .6; cursor: wait; }
 a { color: #245781; } h1 { font-size: 32px; } h2 { font-size: 23px; margin-top: 0; }
 section { background: white; padding: 24px; margin: 24px 0; border-left: 4px solid #31577a; }
@@ -271,12 +272,60 @@ function renderTestHealth(section, health) {
   checked.textContent = health.checkedAt === null ? 'Not checked' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   checked.title = health.checkedAt === null ? '' : new Date(health.checkedAt).toISOString();
   section.querySelector('[data-check-error]').textContent = health.errorCode || '';
+  const inspect = document.querySelector('[data-inspect-certificate]');
+  if (inspect && health.errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
   const detail = health.diagnostic;
   section.querySelector('[data-check-diagnostic]').textContent = detail
     ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\\n') : '';
 }
 
 let pendingAction = false;
+function showCertificateInspection(result) {
+  const dialog = document.getElementById('certificate-inspection');
+  const details = dialog.querySelector('[data-certificate-details]');
+  dialog.querySelector('[data-certificate-error]').textContent = '';
+  details.replaceChildren();
+  const line = (parent, text, warning = false) => {
+    const element = document.createElement('p');
+    element.textContent = text;
+    if (warning) element.setAttribute('role', 'alert');
+    parent.append(element);
+  };
+  line(details, 'Hostname: ' + result.hostname);
+  line(details, result.reason);
+  for (const warning of result.warnings) line(details, warning, true);
+  for (const fingerprint of result.previousFingerprints) line(details, 'Previously trusted endpoint SHA-256: ' + fingerprint);
+  for (const certificate of result.chain) {
+    const section = document.createElement('section');
+    const heading = document.createElement('h3');
+    heading.textContent = certificate.subject;
+    section.append(heading);
+    line(section, 'Issuer: ' + certificate.issuer);
+    line(section, 'Names: ' + (certificate.subjectAlternativeNames || 'No subject alternative names'));
+    line(section, 'Hostname matches: ' + certificate.matchesHostname);
+    line(section, 'Valid from: ' + certificate.validFrom + '; expires: ' + certificate.expiresAt);
+    line(section, 'Expired: ' + certificate.expired + '; not yet valid: ' + certificate.notYetValid);
+    line(section, 'Key: ' + certificate.keyType + ' ' + (certificate.keyBits ?? 'unknown') + ' bits; signature: ' + certificate.signatureAlgorithm);
+    line(section, 'Self-signed: ' + certificate.selfSigned + '; CA: ' + certificate.ca);
+    const label = document.createElement('label');
+    label.textContent = 'SHA-256 fingerprint (select to copy)';
+    const fingerprint = document.createElement('input');
+    fingerprint.readOnly = true;
+    fingerprint.value = certificate.fingerprint;
+    fingerprint.addEventListener('click', () => fingerprint.select());
+    label.append(fingerprint);
+    section.append(label);
+    details.append(section);
+  }
+  if (result.anchor.fingerprint !== result.chain[0].fingerprint) {
+    line(details, 'Issuing CA to trust: ' + result.anchor.subject + '; SHA-256: ' + result.anchor.fingerprint);
+  }
+  const form = dialog.querySelector('[data-trust-certificate]');
+  form.elements.inspectionId.value = result.inspectionId;
+  form.hidden = result.repairAvailable;
+  dialog.querySelector('[data-close-certificate]').onclick = () => { dialog.close(); if (result.repairAvailable) location.reload(); };
+  dialog.showModal();
+}
 document.addEventListener('submit', async event => {
   const form = event.target;
   if (form.matches('[data-filters]')) {
@@ -292,7 +341,8 @@ document.addEventListener('submit', async event => {
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
-  const message = document.getElementById('message');
+  const message = form.hasAttribute('data-trust-certificate')
+    ? form.closest('dialog').querySelector('[data-certificate-error]') : document.getElementById('message');
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
@@ -333,6 +383,10 @@ document.addEventListener('submit', async event => {
       }
     }
     if (response.redirected) { location.assign(response.url); return; }
+    if (response.ok && form.hasAttribute('data-inspect-certificate')) {
+      showCertificateInspection(await response.json());
+      return;
+    }
     if (response.ok && form.hasAttribute('data-invitation-link')) {
       const result = await response.json();
       const dialog = document.getElementById('invitation-link');

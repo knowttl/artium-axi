@@ -158,7 +158,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
       if (clientSecret && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
       const minted = clientSecret ? (await cache.acquire({ id: reference.id, revision: reference.revision!, credential: {
         auth: 'secret', tenantId: value.tenantId as string, clientId: value.clientId as string, clientSecret: value.clientSecret as string,
-      } }, { required: ['devops'], optional: [] })).devops! : undefined
+      }, trust: source.getTrust?.(reference) }, { required: ['devops'], optional: [] })).devops! : undefined
       const token = minted?.accessToken ?? value.token as string
       return { executable: toolPaths['ado-axi'], args: call.args,
         environment: { ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: token,

@@ -183,7 +183,12 @@ export const nativeSettingsSchemas = {
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
   'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
     managementGroup: z.string().min(1).optional(), workspaces: z.record(z.string().min(1), z.uuid()).optional(),
-    description: z.string().optional(), allowWrites: z.boolean().optional() }),
+    description: z.string().optional(), allowWrites: z.boolean().optional(),
+    tlsDestinations: z.strictObject({
+      storageAccounts: z.array(z.string().regex(/^[a-z0-9]{3,24}$/)).optional(),
+      keyVaults: z.array(z.string().regex(/^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$/).refine(name => !name.includes('--'))).optional(),
+      registries: z.array(z.string().regex(/^[a-zA-Z0-9]{5,50}$/)).optional(),
+    }).optional() }),
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
@@ -216,6 +221,34 @@ export const adminCredentialSchema = z.strictObject({ tool: toolSchema, configur
   // Save/replacement reports name fields and changes, never submitted values.
   normalizations: z.array(z.strictObject({ field: z.string(), reason: z.string() })).optional() })
 export const adminToolParamsSchema = z.strictObject({ tool: toolSchema })
+export const certificateDetailsSchema = z.strictObject({
+  subject: z.string(), issuer: z.string(), subjectAlternativeNames: z.string(),
+  validFrom: z.string(), expiresAt: z.string(), fingerprint: z.string(),
+  matchesHostname: z.boolean(), expired: z.boolean(), notYetValid: z.boolean(), weakKey: z.boolean(),
+  keyType: z.string(), keyBits: z.number().nullable(), signatureAlgorithm: z.string(), selfSigned: z.boolean(), ca: z.boolean(),
+})
+export const certificateInspectionSchema = z.strictObject({
+  inspectionId: z.string(), credentialRevision: z.number().int(), hostname: z.string(), endpoint: z.string(),
+  chain: z.array(certificateDetailsSchema), anchor: certificateDetailsSchema, warnings: z.array(z.string()),
+  reason: z.string(), verificationError: z.string().nullable(), repairAvailable: z.boolean(),
+  previousFingerprints: z.array(z.string()),
+})
+export const trustedCredentialCertificateSchema = z.strictObject({
+  id: z.string(), endpoint: z.string(), certificate: certificateDetailsSchema, leaf: certificateDetailsSchema,
+  mode: z.enum(['pin', 'intermediate']), createdAt: z.number().int(),
+})
+// Inspection accepts only an inventory endpoint index, never a host or URL.
+// Trust accepts an actor-bound, five-minute inspection handle, never PEM or keys.
+export const adminCertificateRoutes = {
+  list: { method: 'GET', path: '/v1/admin/tools/:tool/certificates', input: z.strictObject({}),
+    response: z.strictObject({ certificates: z.array(trustedCredentialCertificateSchema) }) },
+  inspect: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/inspect',
+    input: z.strictObject({ endpointIndex: z.number().int().nonnegative().default(0) }), response: certificateInspectionSchema },
+  trust: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/trust',
+    input: z.strictObject({ inspectionId: z.string() }), response: z.strictObject({ trusted: z.literal(true) }) },
+  remove: { method: 'DELETE', path: '/v1/admin/tools/:tool/certificates',
+    input: z.strictObject({ id: z.string() }), response: z.strictObject({ removed: z.literal(true) }) },
+} as const
 export const adminToolRoutes = {
   list: { method: 'GET', path: '/v1/admin/tools', input: z.strictObject({}),
     response: z.strictObject({ tools: z.array(adminToolSchema) }), authorization: 'administrator-and-recent-auth', auditEvent: null },

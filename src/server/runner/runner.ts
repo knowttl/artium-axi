@@ -11,6 +11,9 @@ import { ArtiumError } from '../../shared/errors.js'
 import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
 import type { TemporaryFile } from '../adapters/types.js'
+import type { CredentialTrust } from '../store/trusted-certificates.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
+import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 
 export interface RunnerLimits {
   outputBytesPerStream?: number
@@ -18,6 +21,7 @@ export interface RunnerLimits {
   runtime?: 'python'
   nodeHeapMiB?: number
   signal?: AbortSignal
+  credentialTrust?: readonly CredentialTrust[]
 }
 
 export interface RunnerResult {
@@ -115,6 +119,14 @@ async function execute(
   trustedCa?: TrustedCaBundle,
   pathPrefix?: string,
 ): Promise<RunnerResult> {
+  const credentialTrust = limits.credentialTrust ?? []
+  const trustPem = trustedCa || credentialTrust.length
+    ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : [])].join('\n') : ''
+  const pins = credentialTrust.map(certificate => {
+    const endpoint = certificateEndpoint(certificate.endpoint)
+    return { hostname: endpoint.hostname, port: endpoint.port,
+      fingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
+  })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
   if (!Number.isSafeInteger(cap) || cap < 0) throw new RangeError('Output byte limit must be a non-negative integer')
@@ -136,8 +148,13 @@ async function execute(
       await Promise.all(Object.values(directories).map(path => mkdir(path, { mode: 0o700 })))
       const names = new Set<string>()
       const trustFile = 'artium-trusted-ca.pem'
-      const materialized = trustedCa ? [...files, { name: trustFile,
-        content: [...getCACertificates('default'), trustedCa.pem].join('\n') }] : files
+      const materialized: readonly TemporaryFile[] = [...files,
+        ...(trustPem ? [{ name: trustFile, content: trustPem }] : []),
+        ...(credentialTrust.length ? [
+          { name: 'artium-certificate-pins.json', content: JSON.stringify(pins) },
+          { name: 'artium-tls.cjs', content: nodeTrustBootstrap },
+          { name: 'sitecustomize.py', content: pythonTrustBootstrap },
+        ] : [])]
       for (const file of materialized) {
         if (!file.name.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) || names.has(file.name)) {
           throw new Error('Invalid adapter file name')
@@ -149,8 +166,8 @@ async function execute(
         const temporary = `${target}.tmp`
         const handle = await open(temporary, 'wx', 0o600)
         try {
-          await handle.writeFile(file.appendTrustedCa && trustedCa
-            ? Buffer.concat([Buffer.from(file.content), Buffer.from('\n' + trustedCa.pem)]) : file.content)
+          await handle.writeFile(file.appendTrustedCa && trustPem
+            ? Buffer.concat([Buffer.from(file.content), Buffer.from('\n' + trustPem)]) : file.content)
           await handle.sync()
         }
         finally { await handle.close() }
@@ -181,13 +198,17 @@ async function execute(
         cwd: directories.XDG_CONFIG_HOME,
         env: {
           ...environment,
-          ...(trustedCa ? {
+          ...(trustPem ? {
             NODE_EXTRA_CA_CERTS: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
             REQUESTS_CA_BUNDLE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
           } : {}),
+          ...(credentialTrust.length ? {
+            ARTIUM_CERTIFICATE_PINS: join(directories.XDG_CONFIG_HOME, 'artium-certificate-pins.json'),
+            PYTHONPATH: directories.XDG_CONFIG_HOME,
+          } : {}),
           PATH: pathPrefix ? `${pathPrefix}:${runtimePath}` : runtimePath,
           ...directories,
-          NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}`,
+          NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       })

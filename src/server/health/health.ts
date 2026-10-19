@@ -4,7 +4,8 @@ import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
 import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
-import { healthEndpoints, preflight } from './preflight.js'
+import { preflight } from './preflight.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import type { Adapter } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import { falconManifest } from '../adapters/falcon.js'
@@ -12,6 +13,7 @@ import type { Audit } from '../audit/audit.js'
 import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
+import { readCredentialTrust } from '../store/trusted-certificates.js'
 
 const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'] }
 
@@ -113,13 +115,14 @@ export class ToolHealth {
           const path = issue?.path.filter(key => typeof key === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)).join('.')
           throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: `Invalid credential field: ${path || 'profile'}.` })
         }
-        if (!background) await preflight(tool, credential)
+        const credentialTrust = readCredentialTrust(db, reference)
+        if (!background) await preflight(tool, credential, credentialTrust)
         const prepared = await adapter.prepare(args, reference)
         secrets.push(...prepared.secrets)
         journal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
         // Per-tool accounting leaves background reads governed by the global slots.
         const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
-          prepared.limits, {}, prepared.files, () => {
+          { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
             authorize?.()
             if (background && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')
@@ -143,8 +146,9 @@ export class ToolHealth {
       }
       if (failure && ['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'].includes(failure.code)
         && detail && !detail.host && credential) {
-        const endpoints = healthEndpoints(tool, credential)
-        detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints.at(-1))?.hostname
+        const endpoints = toolEndpoints(tool, credential)
+        detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints[
+          ['az-axi', 'mg-axi'].includes(tool) || tool === 'ado-axi' && credential.auth === 'client-secret' ? 1 : 0])?.hostname
       }
       const diagnostic = safeDiagnostic(detail, secrets)
       if (failure) failure.diagnostic = diagnostic

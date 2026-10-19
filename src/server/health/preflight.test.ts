@@ -6,7 +6,8 @@ import { createServer, createSecureContext, getCACertificates, setDefaultCACerti
 import { createServer as createTcpServer, type Socket } from 'node:net'
 import { afterAll, beforeAll, expect, test, vi } from 'vitest'
 import { createTestCertificates } from '../../../test/fake-service/certificates.mjs'
-import { healthEndpoints, preflight, preflightEndpoint } from './preflight.js'
+import { preflight, preflightEndpoint } from './preflight.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import { installTrustedCa, loadTrustedCa } from '../trusted-ca.js'
 
 const dns = vi.hoisted(() => ({ lookup: vi.fn() }))
@@ -44,10 +45,10 @@ test.each([
   ['falcon-axi', { region: 'https://api.us-2.crowdstrike.com/' }, ['https://api.us-2.crowdstrike.com/']],
   ['vectra-axi', { origin: 'https://synthetic.invalid' }, ['https://synthetic.invalid/']],
   ['ldap-axi', { url: 'ldaps://directory.test:636' }, ['ldaps://directory.test:636']],
-  ['az-axi', {}, ['https://login.microsoftonline.com/', 'https://management.azure.com/']],
+  ['az-axi', {}, ['https://login.microsoftonline.com/', 'https://management.azure.com/', 'https://graph.microsoft.com/', 'https://api.loganalytics.io/']],
   ['mg-axi', {}, ['https://login.microsoftonline.com/', 'https://graph.microsoft.com/']],
-] as const)('%s preflights the health destinations in connection order', (tool, credential, expected) => {
-  expect(healthEndpoints(tool, credential).map(url => url.href)).toEqual(expected)
+] as const)('%s selects its TLS destinations', (tool, credential, expected) => {
+  expect(toolEndpoints(tool, credential).map(url => url.href)).toEqual(expected)
 })
 
 test('names the DNS stage without opening a connection', async () => {

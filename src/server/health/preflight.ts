@@ -1,26 +1,14 @@
 import type { LookupAddress } from 'node:dns'
+import { X509Certificate } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { connect, isIP } from 'node:net'
-import { connect as connectTls, getCACertificates } from 'node:tls'
+import { connect as connectTls } from 'node:tls'
+import type { CredentialTrust } from '../store/trusted-certificates.js'
+import { credentialTlsOptions } from '../credential-tls.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
 import type { ToolName } from '../store/credential-store.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
-
-// Destinations for the inventory health reads, in connection order.
-// Configured origins are validated by the adapter schema before this boundary.
-export function healthEndpoints(tool: ToolName, credential: Record<string, unknown>): URL[] {
-  if (tool === 'ado-axi') return [new URL('https://dev.azure.com')]
-  if (tool === 'vectra-axi') return [new URL(String(credential.origin))]
-  if (tool === 'ldap-axi') return [new URL(String(credential.url))]
-  if (tool === 'az-axi') return ['https://login.microsoftonline.com', 'https://management.azure.com'].map(url => new URL(url))
-  if (tool === 'mg-axi') return ['https://login.microsoftonline.com', 'https://graph.microsoft.com'].map(url => new URL(url))
-  const regions: Record<string, string> = { 'us-1': 'api.crowdstrike.com', 'us-2': 'api.us-2.crowdstrike.com',
-    'eu-1': 'api.eu-1.crowdstrike.com', 'us-gov-1': 'api.laggar.gcw.crowdstrike.com',
-    'us-gov-2': 'api.us-gov-2.crowdstrike.mil' }
-  const region = String(credential.region)
-  const host = Object.entries(regions).find(([name, host]) => region === name || region === `https://${host}` || region === `https://${host}/`)?.[1]
-  if (!host) throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: 'Invalid credential field: region.' })
-  return [new URL(`https://${host}`)]
-}
 
 function verificationCode(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code
@@ -28,9 +16,10 @@ function verificationCode(error: unknown): string {
 }
 
 // The handshake sends no application data or credentials. Each stage has a deadline.
-export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2'): Promise<void> {
-  const host = endpoint.hostname.replace(/^\[|\]$/g, '')
-  const port = Number(endpoint.port || (endpoint.protocol === 'ldaps:' ? 636 : endpoint.protocol === 'ldap:' ? 389 : 443))
+export async function inspectEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2',
+  trust: readonly CredentialTrust[] = []):
+Promise<{ chain: X509Certificate[], verificationError?: string }> {
+  const { hostname: host, port } = certificateEndpoint(endpoint)
   let addresses: LookupAddress[]
   let timer: NodeJS.Timeout | undefined
   try {
@@ -94,8 +83,8 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   // Node verifies chain and hostname even with rejectUnauthorized=false. Retain the
   // peer certificate for the diagnostic, then require authorized before success.
   // No application bytes or credentials are sent on this socket.
-  const secure = connectTls({ socket, host, servername: isIP(host) ? undefined : host, rejectUnauthorized: false,
-    ...(ca ? { ca: [...getCACertificates('default'), ca] } : {}), ...(maxVersion ? { maxVersion } : {}) })
+  const secure = connectTls({ ...credentialTlsOptions(trust, ca), socket, host,
+    servername: isIP(host) ? undefined : host, rejectUnauthorized: false, ...(maxVersion ? { maxVersion } : {}) })
   try {
     await new Promise<void>((resolve, reject) => {
       secure.setTimeout(timeoutMs, () => secure.destroy(Object.assign(new Error(), { code: 'ETIMEDOUT' })))
@@ -103,7 +92,15 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
       secure.once('error', reject)
       secure.once('close', () => reject(Object.assign(new Error(), { code: 'ECONNRESET' })))
     })
-    if (!secure.authorized) throw Object.assign(new Error(), { code: secure.authorizationError })
+    const chain: X509Certificate[] = []
+    let peer = secure.getPeerCertificate(true)
+    const seen = new Set<string>()
+    while (peer?.raw && !seen.has(peer.fingerprint256)) {
+      seen.add(peer.fingerprint256)
+      chain.push(new X509Certificate(peer.raw))
+      peer = peer.issuerCertificate
+    }
+    return { chain, ...(!secure.authorized ? { verificationError: String(secure.authorizationError) } : {}) }
   } catch (error) {
     const code = verificationCode(error)
     const certificate = secure.getPeerCertificate()
@@ -118,10 +115,24 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   } finally { secure.destroy(); socket.destroy() }
 }
 
-export async function preflight(tool: ToolName, credential: Record<string, unknown>): Promise<void> {
+export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2',
+  trust: readonly CredentialTrust[] = []): Promise<void> {
+  const result = await inspectEndpoint(endpoint, ca, timeoutMs, maxVersion, trust)
+  if (!result.verificationError) return
+  const host = endpoint.hostname.replace(/^\[|\]$/g, '')
+  const code = result.verificationError
+  throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host,
+    message: `TLS verification failed for ${host}: ${code}.`, toolCode: code,
+    ...(result.chain[0] ? { issuer: result.chain[0].issuer.replaceAll('\n', ', ') } : {}),
+    trust: /SELF_SIGNED/.test(code) ? 'self-signed' : 'untrusted',
+    hint: 'Ask an administrator to inspect the presented certificate on the tool page.' })
+}
+
+export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
   const ca = credential.caBundle ?? credential.caFile
-  for (const endpoint of healthEndpoints(tool, credential)) {
+  for (const endpoint of toolEndpoints(tool, credential)) {
     await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,
-      tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined)
+      tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
+      trust.filter(certificate => certificateEndpoint(certificate.endpoint).href === certificateEndpoint(endpoint).href))
   }
 }

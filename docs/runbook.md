@@ -160,7 +160,8 @@ The checksum comes from the same trusted server and detects corruption or mixed 
 
 ## TLS inspection and private upstream CAs
 
-Set `ARTIUM_AXI_EXTRA_CA_FILE` to a readable PEM bundle when upstream HTTPS or LDAPS certificates chain to a private CA, including a network TLS-inspection CA.
+For server-wide trust of private upstream CAs, including a network TLS-inspection CA, set `ARTIUM_AXI_EXTRA_CA_FILE` to a readable PEM bundle.
+For one tool credential, use the [administration UI flow below](#trusting-one-tool-from-the-administration-ui).
 Obtain the public CA certificates and confirm their SHA-256 fingerprints through a trusted operator channel.
 The file must contain one or more PEM certificates and whitespace only, with no private keys.
 Mount it read-only and make it readable by container UID 10001, using the commented CA secret entries in `compose.example.yaml`.
@@ -178,12 +179,48 @@ The runner supplies `NODE_EXTRA_CA_CERTS` and `REQUESTS_CA_BUNDLE` centrally on 
 The Requests bundle includes the server's default Node public roots as well as the additional CAs, since Requests replaces its default certifi bundle when this variable is set.
 LDAP and Vectra credential-specific CA files receive the server bundle too, preserving those credential-specific CAs as an additive option.
 Certificate verification and hostname verification remain enabled.
-With the setting absent, the server and child runtimes retain their default trust.
+With the setting absent, no server-wide trust is added; credential-specific trust still applies.
 
 This setting trusts upstream services from the server and its tools.
 The CLI's separate `ARTIUM_AXI_CA_FILE` setting trusts the Artium server from a client.
 If an inspected upstream still fails, confirm the intended issuer and fingerprint with the network operator and check certificate validity and the hostname.
 Do not disable verification; a temporary network-policy exemption is an alternative while the correct CA is provisioned.
+
+### Trusting one tool from the administration UI
+
+After a credential test reports a TLS verification failure, select the affected **Saved TLS endpoint** on the tool page and choose **Inspect certificate**.
+Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
+For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
+Administration capability and recent identity confirmation are required.
+
+Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
+Compare the fingerprint with the appliance’s own display through a trusted channel.
+Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
+The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
+**Trust certificate for this tool** is the single trust confirmation; no certificate file or private key is accepted by this flow.
+
+Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
+Each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
+Azure inspection includes login, ARM, Graph and Log Analytics.
+For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
+These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
+A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
+The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
+Trust does not disable hostname or date verification.
+Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
+
+If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
+Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
+Artium saves the intermediate without confirmation only after another handshake validates the chain to a root the server already trusts.
+Automatic repair preserves existing confirmed fingerprint pins; a changed leaf still requires confirmation.
+The window reports this repair; retry the credential test afterward.
+An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
+
+The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
+Re-inspect the saved endpoint for rotation, and use **Remove trust** to retire the old pin after confirming the replacement; confirmation alone keeps previously confirmed fingerprints trusted.
+These changes take effect on subsequent calls and survive server restarts.
+Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 
 ## CLI launchers and password changes
 
@@ -223,7 +260,9 @@ An uncertain network outcome is never retried automatically; inspect audit and p
 There is no dedicated administrator CLI.
 Scripts use the JSON API over the same trusted HTTPS origin; see the [shared contracts](../src/shared/api.ts) for route bodies and revision fields.
 
-Test credential performs credential validation followed by DNS, TCP and verified TLS preflight for the health read destinations before running the tool.
+Test credential performs credential validation followed by DNS, TCP and verified TLS preflight for every endpoint in the [tool inventory](../src/server/tool-endpoints.ts) before running the tool.
+This includes Azure destinations derived from saved `tlsDestinations`; see [credential certificate trust](#trusting-one-tool-from-the-administration-ui) for configuration.
+A preflight failure at any inventory endpoint stops the test, even if the health read would use another endpoint.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
 The administrator test response and tool page show the current failure's stage and the tool's error text and hint when available.

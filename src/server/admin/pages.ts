@@ -11,6 +11,8 @@ import { credentialFields, editorProfile } from './credential-form.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
+import { credentialCertificates } from '../store/trusted-certificates.js'
+import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
@@ -18,7 +20,7 @@ const settingsGuide = {
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
   'falcon-axi': 'Optional allowWrites (boolean), saved for a future write-capable pin. The reviewed Falcon pin has no write commands and remains read-only even when this switch is true. Use {} to turn the switch off.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
-  'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean). Use {} to clear settings.',
+  'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
 const testGuide = {
   'ado-axi': 'Azure DevOps project list --limit 1',
@@ -75,6 +77,19 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     content += `<p>Test runs one harmless read: ${escape(testGuide[tool.name])}. It does not enable the tool or grant access.</p>`
     content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
     content += '<p data-test-result role="status"></p></section>'
+    if (credential.configured) {
+      const reference = db.prepare('SELECT id FROM credentials WHERE tool = ?').get(tool.name) as { id: string }
+      const pins = credentialCertificates(db, reference.id)
+      let endpoints: URL[] = []
+      // An invalid saved credential must remain editable after a profile upgrade.
+      try { endpoints = toolEndpoints(tool.name, { ...credential.metadata, ...tool.nativeSettings }) } catch { /* Save a valid endpoint before inspecting. */ }
+      content += `<section data-trusted-certificates><h2>Trusted certificates</h2><p>Trust is scoped to this tool’s saved credential. Inspect again when rotating a certificate.</p>`
+      if (endpoints.length) content += form(api + '/certificates/inspect', 'POST', 'Inspect certificate',
+        `<label>Saved TLS endpoint<select name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select></label>`, '',
+        `data-inspect-certificate${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length ? '' : ' hidden'}`)
+      content += pins.length ? `<ul>${pins.map(pin => `<li><strong>${escape(pin.endpoint)}</strong><p>${escape(pin.certificate.subject)}<br>SHA-256: <code>${escape(pin.certificate.fingerprint)}</code>${pin.leaf.fingerprint !== pin.certificate.fingerprint ? `<br>Endpoint SHA-256: <code>${escape(pin.leaf.fingerprint)}</code>` : ''}<br>Certificate expiry: ${escape(pin.certificate.expiresAt)}<br>Endpoint certificate expiry: ${escape(pin.leaf.expiresAt)}</p>${Date.parse(pin.leaf.expiresAt) <= Date.now() + 30 * 86400000 || Date.parse(pin.certificate.expiresAt) <= Date.now() + 30 * 86400000 ? '<p role="alert">A trusted certificate has expired or expires within 30 days. Re-inspect this endpoint for rotation.</p>' : ''}${form(api + '/certificates', 'DELETE', 'Remove trust', `<input type="hidden" name="id" value="${escape(pin.id)}">`, 'Remove this certificate from the tool credential’s trust?')}</li>`).join('')}</ul>` : '<p>No certificates trusted for this credential.</p>'
+      content += `</section><dialog id="certificate-inspection" aria-labelledby="certificate-inspection-title"><h2 id="certificate-inspection-title">Inspect certificate</h2><div data-certificate-details></div><p role="alert">Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.</p><p data-certificate-error role="alert"></p>${form(api + '/certificates/trust', 'POST', 'Trust certificate for this tool', '<input type="hidden" name="inspectionId">', '', 'data-trust-certificate')}<button type="button" data-close-certificate>Close</button></dialog>`
+    }
     content += `<section><h2>Native settings</h2><p>Saving settings keeps the credential. This replaces the settings object and clears cached health; {} clears settings. Write settings control what the tool may change.</p>` +
       form(api, 'PATCH', 'Save native settings', revision(tool.revision) + `<p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" rows="8" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label>`, 'Replace native settings while keeping the credential?') + '</section>'
     content += `<section><h2>Access</h2><p>Roles granting this tool:</p>${roles.length ? `<ul>${roles.map(role => `<li><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a></li>`).join('')}</ul>` : '<p>No roles grant this tool. Open a role and select this tool to give its members access.</p>'}<p><a href="/admin/roles">Manage role grants</a>. Assign roles on Users. Enabling alone does not grant access.</p></section>`

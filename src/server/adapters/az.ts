@@ -194,7 +194,8 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
       const credential = auth === 'secret'
         ? { tenantId, clientId, auth, clientSecret: parsed.data.clientSecret }
         : { tenantId, clientId, auth, privateKey: parsed.data.privateKey, thumbprintSha256: parsed.data.thumbprintSha256 }
-      const tokens = await cache.acquire({ id: reference.id, revision: reference.revision, credential }, normalized.resources)
+      const tokens = await cache.acquire({ id: reference.id, revision: reference.revision, credential,
+        trust: source.getTrust?.(reference) }, normalized.resources)
       const holders = Object.fromEntries(Object.keys(tokens).map((resource, index) => [resource, `ARTIUM_SECRET_${index}`]))
       const injection = profile ? profile.prepare('az-axi', Object.fromEntries(Object.entries({
         subscriptions, managementGroup, workspaces, description, allowWrites, auth: 'token', tenantId,

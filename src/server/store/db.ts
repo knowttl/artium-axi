@@ -10,6 +10,7 @@ import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialStore, MutableCredentialStore } from './credential-store.js'
 import { nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
+import { readCredentialTrust } from './trusted-certificates.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
 
@@ -59,6 +60,7 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
     }
   }).immediate()
   return {
+    readCredentialTrust: reference => readCredentialTrust(db, reference),
     readToolSettings(tool) {
       const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       return JSON.parse(row.native_settings)

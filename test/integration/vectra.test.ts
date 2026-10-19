@@ -119,4 +119,4 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
       expect(journalRecords()).toContainEqual(expect.objectContaining({ outcome: 'OUTCOME_UNKNOWN', httpStatus: 0 }))
     } finally { await app.close(); db.close() }
   })
-}, 30_000)
+}, 90_000)

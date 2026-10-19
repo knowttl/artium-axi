@@ -28,7 +28,7 @@ export type AuditEvent = Context & (
   | { event: 'device-approve' | 'device-deny', outcome: Outcome, requestingAddress: string }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
-  | { event: 'admin-change', outcome: Outcome, action: string, targetId: string }
+  | { event: 'admin-change', outcome: Outcome, action: string, targetId: string, subject?: string }
   | { event: 'invite-create' | 'invite-resend' | 'invite-revoke', outcome: Outcome, targetId: string }
   | { event: 'invite-claim' | 'identity-link', outcome: Outcome, targetId: string, providerId: string, subject: string }
   | { event: 'role-sync', outcome: Outcome, providerId: string, subject: string, added: string[], removed: string[] }
