@@ -187,6 +187,18 @@ test('AWX password sign-in stores only the minted token and later calls use bear
         payload: { inspectionId: inspected.json().inspectionId } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       await send('/__ado/reset', 'POST')
+      const beforeInvalid = revisions()
+      for (const method of ['PATCH', 'PUT'] as const) {
+        for (const invalid of [{ unsupported: true }, { signIn: 'unsupported' }]) {
+          const rejected = await save(method, { origin, signIn: 'password', username, password, ...invalid })
+          expect(rejected.statusCode, rejected.body).toBe(400)
+          expect(rejected.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+          absent(rejected.body)
+        }
+      }
+      expect(revisions()).toEqual(beforeInvalid)
+      expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin, token: 'CANARY-awx-token' })
+      expect(JSON.parse(await send('/__evidence')).requests.filter((request: { path: string }) => request.path === '/api/v2/tokens/')).toEqual([])
       const saved = await save('PATCH', { origin, signIn: 'password', username, password })
       expect(saved.statusCode, saved.body).toBe(200)
       absent(saved.body)

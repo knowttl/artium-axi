@@ -85,7 +85,7 @@ function transportFailure(error: unknown, secrets: readonly string[], host: stri
     { stage: 'token acquisition', ...where, message: 'The controller failed to mint a token.' })
 }
 
-export async function exchangeAwxPassword(value: Record<string, unknown>, trust: readonly CredentialTrust[]): Promise<Record<string, unknown>> {
+export async function exchangeAwxPassword(value: Record<string, unknown>, trust: readonly CredentialTrust[], validateInput: () => void): Promise<Record<string, unknown>> {
   const username = value.username
   const password = value.password
   const secrets: string[] = []
@@ -107,6 +107,7 @@ export async function exchangeAwxPassword(value: Record<string, unknown>, trust:
     throw failure('INVALID_INPUT', 'origin must be an HTTPS origin without a path, query, fragment or embedded credentials.',
       'Enter the controller HTTPS origin, for example https://controller.example.', secrets)
   }
+  validateInput()
   const origin = value.origin
   const host = new URL(origin).hostname
   const basic = Buffer.from(`${username}:${password}`).toString('base64')

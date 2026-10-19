@@ -179,7 +179,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
         if ((reference?.revision ?? 0) !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       }
-      value = await exchangeAwxPassword(value, reference ? readCredentialTrust(db, reference) : [])
+      value = await exchangeAwxPassword(value, reference ? readCredentialTrust(db, reference) : [], () => {
+        parse(schemaFor(tool), { ...value, signIn: value.signIn === undefined ? 'password' : value.signIn,
+          ...(saving ? readTool(tool).nativeSettings : {}) })
+      })
       if (!saving && profile) {
         const parsed = profile.parseInput(value)
         value = parsed.value
