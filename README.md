@@ -222,6 +222,8 @@ Grant additional scopes only for the domains you use, following the pinned [API 
 For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
+The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
+Starting and stopping NG-SIEM search jobs are its only tenant-side effects; these investigation operations remain available regardless of the saved write switch.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
 
 #### Vectra
@@ -463,7 +465,8 @@ artium-axi falcon-axi --help
 
 The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
-A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
+A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
+A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
