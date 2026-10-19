@@ -23,10 +23,13 @@ const execute = async (bin, args, env = {}, input) => {
 const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
   XDG_CONFIG_HOME: join(directory, 'config') }
 // Parity permits the wrapper prefix and removal of managed flags from upstream help.
-const upstreamSuggestions = (text, removeRegion = false) => {
+const upstreamSuggestions = (text, removeManaged = false) => {
   if (/^(?:artium-axi )?(?:falcon|vectra)-axi(?:\s|$)/.test(text)) {
     const unwrapped = text.replace(/^([ \t]*)artium-axi ((?:falcon|vectra)-axi)/gm, '$1$2')
-    return removeRegion ? unwrapped.replace(/^  --help, --region <name\|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid$/gm, '  --help') : unwrapped
+    return removeManaged ? unwrapped
+      .replace(/^  --help, --region <name\|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid$/gm, '  --help')
+      .replace(/^  --config <path>, --profile <name>\n/gm, '')
+      .replace(/^  (?:profile|config|setup)\b[^\n]*\n/gm, '') : unwrapped
   }
   let help = false
   return text.split('\n').map(line => {
@@ -34,7 +37,8 @@ const upstreamSuggestions = (text, removeRegion = false) => {
     else if (line && !line.startsWith(' ')) help = false
     if (!help) return line
     const unwrapped = line.replaceAll('artium-axi falcon-axi', 'falcon-axi').replaceAll('artium-axi vectra-axi', 'vectra-axi')
-    return removeRegion ? unwrapped.replace(/ --region us-1(?=`)/g, '') : unwrapped
+    return removeManaged ? unwrapped.replace(/ --region us-1(?=`)/g, '')
+      .replace(/, --(?:region|allow-unknown-origin|member-cid|no-member-cid|config|profile)(?=,|"|$)/g, '') : unwrapped
   }).join('\n')
 }
 // The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
@@ -101,7 +105,7 @@ try {
     assert.match(identity.stdout, /synthetic-admin/)
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)
-    assert.match(listing.stdout, /falcon-axi,unknown,"0.3.0"/)
+    assert.match(listing.stdout, /falcon-axi,unknown,"0.5.0"/)
     const home = await cli([])
     assert.equal(home.code, 0, home.stdout + home.stderr)
     assert.match(home.stdout, /user: "synthetic-admin"/)
@@ -121,7 +125,7 @@ try {
       const result = await cli(['falcon-axi', 'env'])
       assert.equal(result.code, 1)
       assert.match(result.stdout, /SECRET_IN_OUTPUT/)
-      assert.doesNotMatch(result.stdout, /CANARY-falcon|FALCON_CLIENT|stdout:|stderr:/)
+      assert.doesNotMatch(result.stdout, /CANARY-falcon|FALCON_(?:AXI_)?CLIENT|stdout:|stderr:/)
       assert.equal(result.stderr, '')
       assert.equal(process.version, 'v24.21.0')
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', canary: 'fake env emits injected secret; CLI receives SECRET_IN_OUTPUT without either stream' }))
@@ -130,7 +134,7 @@ try {
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], ['detection', 'list', '--limit', '1'],
         ['detection', 'list', '--filter', "hostname:'synthetic-empty'"], ['detection', 'list', '--unknown']]) {
         const local = await execute('/opt/falcon-axi/bin/falcon-axi', [...args, '--region', 'us-1'], {
-          FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
+          FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
         })
         const remote = await cli(['falcon-axi', ...args])
         assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
@@ -139,7 +143,7 @@ try {
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
       }
       const redaction = await execute('/opt/falcon-axi/bin/falcon-axi', ['detection', 'list', '--filter', "hostname:'synthetic-redaction'", '--region', 'us-1'], {
-        FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
+        FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
       })
       assert.equal(redaction.code, 0)
       console.log(JSON.stringify({ pinnedFalconRedaction: 'synthetic minted token echoed in display field',
@@ -196,9 +200,9 @@ try {
         assert.equal(statSync(dirname(log)).mode & 0o777, 0o700)
       }
       assert.equal(statSync(logs).mode & 0o777, 0o700)
-      console.log(JSON.stringify({ pinnedVectra: '0.1.5', profile: 'local and Artium parity', dryRun: 'zero mutations',
+      console.log(JSON.stringify({ pinnedVectra: '0.1.7', profile: 'local and Artium parity', dryRun: 'zero mutations',
         execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
-      console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.3.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
+      console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.5.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
     }
   } finally { await new Promise((resolve, reject) => proxy.close(error => error ? reject(error) : resolve())) }
 } finally { rmSync(directory, { recursive: true, force: true }) }

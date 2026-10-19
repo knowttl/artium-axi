@@ -61,9 +61,9 @@ try {
   for (const mode of ['distribution', 'pinned', 'canary']) {
     if (mode === 'canary') {
       const output = run('local-env', ['--rm', '--network', 'none', ...mounts,
-        '--env', 'FALCON_CLIENT_ID=CANARY-falcon-id', '--env', 'FALCON_CLIENT_SECRET=CANARY-falcon-secret',
+        '--env', 'FALCON_AXI_CLIENT_ID=CANARY-falcon-id', '--env', 'FALCON_AXI_CLIENT_SECRET=CANARY-falcon-secret',
         image, 'python3', '/work/test/fake-tool/environment.py', 'env'])
-      assert.equal(JSON.parse(output).FALCON_CLIENT_SECRET, 'CANARY-falcon-secret')
+      assert.equal(JSON.parse(output).FALCON_AXI_CLIENT_SECRET, 'CANARY-falcon-secret')
     }
     const volume = `${name}-${mode}-data`
     volumes.push(volume)

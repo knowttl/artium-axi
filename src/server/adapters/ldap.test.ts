@@ -53,7 +53,9 @@ test('hosted LDAP credential fields exclude the ignored flavor selector', () => 
 
 test.each([
   ...ldapManifest.unsafeOverrides.flatMap(flag => [['user', 'list', `--${flag}=other`], ['user', 'list', `--${flag}`, 'other']]),
-  ['config', 'path'], ['profile', 'list'], ['auth', 'login'], ['entry', 'delete', 'uid=person'],
+  ['config', 'path'], ['profile', 'list'], ['setup', '--help'], ['auth', 'login'], ['entry', 'delete', 'uid=person'],
+  ['server', '--url=ldaps://appliance.test'], ['server', '--auth', 'gssapi'],
+  ['computer', 'show', 'synthetic-computer', '--profile', 'other'],
 ].map(args => [args]))('refuses credential and connection overrides before secret retrieval: %j', async args => {
   const getCredential = vi.fn()
   await expect(createLdapAdapter({ getCredential }).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
@@ -93,9 +95,10 @@ test('a reference for another tool cannot retrieve LDAP credentials', async () =
 })
 
 test('LDAP discovery advertises hosted reads without credential overrides', () => {
-  const output = toolView({ name: 'ldap-axi', status: 'unconfigured', version: '0.1.4' })
+  const output = toolView({ name: 'ldap-axi', status: 'unconfigured', version: '0.2.0' })
   expect(output).toContain('artium-axi ldap-axi user list --limit 1')
   expect(output).toContain('--fields')
+  expect((decode(output) as { commands: string[] }).commands).toEqual(expect.arrayContaining(['computer', 'server']))
   expect(output).not.toMatch(/--(?:auth|url|config|profile|ca-file|tls-no-verify)\b/)
 })
 
@@ -123,7 +126,7 @@ test.each(['TOON', 'JSON'].flatMap(format => [true, false].map(configured => ({ 
     const original = parse(result.stdout)
     const output = rewriteSuggestions(result.stdout, 'ldap-axi')
     expect(parse(output)).toEqual({ ...original,
-      commands: ['entry search', 'entry show', 'user list', 'user show', 'user groups', 'group list', 'group show', 'group members', 'auth status'],
+      commands: ['entry search', 'entry show', 'user list', 'user show', 'user groups', 'group list', 'group show', 'group members', 'computer list', 'computer show', 'auth status', 'server'],
       help: [
         ...(configured ? ['Run `artium-axi ldap-axi auth status` to report the selected authentication and its transport'] : []),
         'Run `artium-axi ldap-axi entry search --help` to explore a directory safely',

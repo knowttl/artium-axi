@@ -135,9 +135,9 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     for (const match of span.value.matchAll(/(?<![^\s(])([`'"])([^\n]*?)(\1|(?=\n|$))/g)) {
       if (commandRanges.some(([start, end]) => match.index! >= start && match.index! < end)) continue
-      if (!/^(?:artium-axi |npx -y @knowttl\/)?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       const preceding = span.value.slice(0, match.index!)
-      if (/(?:^|\n)[ \t]*Valid flags for $/.test(preceding) && match[1] === '`' && match[3] === '`') continue
+      if (/(?:^|\n)[ \t]*[Vv]alid flags for $/.test(preceding) && match[1] === '`' && match[3] === '`') continue
+      if (!/^(?:artium-axi |npx -y @knowttl\/)?[^\s`'"]+-axi(?:\s|$)/.test(match[2])) return output
       if (!/(?:^|\n|\S[`'"])[ \t]*(?:(?:Run|Use|run|use|Verify with|If you're unsure, run|Check current state before trying again:|or(?:, if you're unsure, run)?)[ \t]+)?$/.test(preceding)) return output
       const wrapped = match[2].startsWith(`artium-axi ${tool}`)
       if (executable.test(match[2])) {
@@ -179,6 +179,9 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     if (!help.trim()) help = guidance
     else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
+  if (tool === 'falcon-axi') {
+    help = help.replace(new RegExp(`^  (?:${falcon.blockedCommands.join('|')})(?=\\s|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
+  }
   if (tool === 'ado-axi') {
     const guidance = 'Artium manages the organization, profile, config and PAT. api accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. Use pipeline watch --timeout 50 or less.'
     if (/^(?:Usage: |(?:Run|Use) [`'"]?)?(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {
@@ -206,7 +209,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       .replace(/^Example: /gm, 'Examples: ')
     if (!help.includes(ldapCredentialGuidance)) help = help.trimEnd() + '\n' + ldapCredentialGuidance + '\n'
   }
-  const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|Valid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
+  const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|[Vv]alid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
     (_, label: string, listed: string, ending: string) => {
       const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
       if (!retained && !label.trim()) return ''
@@ -219,6 +222,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       return line
     })
     .replace(new RegExp(`^([ \t]*(?:(?:Command|Native operation|Examples|Usage): )?)(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'gm'), `$1artium-axi ${tool}`)
+    .replace(new RegExp(`^Run ${tool}(?=\\s|$)`, 'gm'), `Run artium-axi ${tool}`)
     .replace(/^[ \t]*Examples:[^\r\n]*/gm, line => line.replace(new RegExp(`'[^']*'|"(?:\\\\.|[^"\\\\])*"|(; )(?:npx -y @knowttl/)?${tool}(?=\\s|$)`, 'g'),
       (match, separator) => separator ? `; artium-axi ${tool}` : match))
     .replace(new RegExp('`(?:npx -y @knowttl/)?' + tool + '(?=\\s|`)([^\\r\\n`]*`)', 'g'), '`artium-axi ' + tool + '$1')

@@ -12,13 +12,13 @@ export const ldapCredentialSchema = bundledProfile.credentialSchema
 
 function ldapArguments(args: readonly string[], input: RunnerInput = {}): string[] {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
-  const command = !args.length || args[0].startsWith('-') ? 'home' : args.slice(0, 2).join(' ')
+  const command = !args.length || args[0].startsWith('-') ? 'home' : args[0] === 'server' ? 'server' : args.slice(0, 2).join(' ')
   const route = inventory.commands.find(route => route.command === command)
   if (!route) throw new ArtiumError('FLAG_BLOCKED')
   const flags: Record<string, string | undefined> = route.flags
   const seen = new Set<string>()
   let positionals = 0
-  let index = command === 'home' ? 0 : 2
+  let index = command === 'home' ? 0 : command.split(' ').length
   if (route.positionalInput && args[index] !== undefined && !args[index].startsWith('-')) {
     positionals++
     index++
@@ -56,7 +56,7 @@ export function createLdapAdapter(source: SecretSource,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: ldapManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: ldapManifest.sensitiveFlags.map(name => `--${name}`),
-      positions: /^(entry show|user (show|groups)|group (show|members))$/.test(args.slice(0, 2).join(' ')) ? [2] : [] }),
+      positions: /^(entry show|user (show|groups)|group (show|members)|computer show)$/.test(args.slice(0, 2).join(' ')) ? [2] : [] }),
     validateArgs: (args, input) => { ldapArguments(args, input) },
     async prepare(args, reference, input) {
       const normalized = ldapArguments(args, input)

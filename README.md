@@ -218,10 +218,12 @@ In the Falcon console, open **Support and resources > API clients and keys** and
 Copy its client ID and secret and record its cloud region: `us-1`, `us-2`, `eu-1` or `us-gov-1`.
 At `/admin/tools/falcon-axi`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
 Grant `Alerts:read` for detection reads, including the first-call example.
-Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.3.0/README.md#api-client-permissions) and its offline `scopes` command.
+Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.5.0/README.md#api-client-permissions) and its offline `scopes` command.
 For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
+The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
+Starting and stopping NG-SIEM search jobs are its only tenant-side effects; these investigation operations remain available regardless of the saved write switch.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
 
 #### Vectra
@@ -232,7 +234,7 @@ QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optiona
 For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
 Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
 Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
-See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.5#configuration) for deployment-specific requirements.
+See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.7#configuration) for deployment-specific requirements.
 For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
 For shared trust across tools, follow the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas).
 Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
@@ -319,7 +321,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.7/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.10/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 
@@ -354,6 +356,8 @@ Enter the password itself in the form, never a SecretRef or password-file path.
 Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
 **Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
 LDAP is read-only by design and has no editable native write settings.
+LDAP 0.2.0 adds `computer list`, `computer show <identifier-or-dn>` and `server` reads through the same managed identity.
+Computer reads use AD machine accounts or the upstream's stated LDAPv3 device fallback; `server` reports advertised rootDSE capabilities and limits.
 The [LDAP inventory](tools/inventories/ldap-axi.json) owns the supported commands, blocked overrides and resource requirements.
 Local fake-directory and offline profile checks do not establish live directory acceptance.
 
@@ -461,7 +465,8 @@ artium-axi falcon-axi --help
 
 The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
-A bare Falcon or Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
+A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
+A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
@@ -587,7 +592,7 @@ The form exposes the schema's full requirements, including conditional requireme
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
 Azure and Graph certificate editors accept one PEM file containing one certificate and its matching unencrypted private key and calculate the fingerprint automatically.
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
-Falcon has guided fields even when its pinned package has no credential schema; its injection path stays unchanged.
+Falcon has guided fields; see its [current credential handling](docs/credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Identity changes require new secrets as defined by the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`).
 Select **Test after saving** to save and report a harmless credential check inline.

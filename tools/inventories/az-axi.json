@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.8",
-  "integrity": "sha512-7SKu71YKa7wyszHu4onz+ETSAJ/PAuh2Ov3W7R+pRRhsSIQbemqGsqYAmda5d/8fx5oMohbj1chCQeTXlAOt9A==",
+  "version": "0.1.10",
+  "integrity": "sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "091080afe20091aa16fcafd8b760891c14d37bccf5e8cd94044c4d43664fcd52",
+  "packageManifestSha256": "7ec6a1ca9fd18e24bf0405bb49702d6846e40bcb089b270e8bdafedf345d9545",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -180,7 +180,7 @@
       "sub",
       "list"
     ],
-    "help": "Command: az-axi sub list\nNative operation: az-axi account list; existing scope, defaults and TOON output apply.\nFlags: --subscription, --management-group, --help, --full, --fields, --limit\nShort flags where accepted: -h help, -s subscription, -g resource-group, -n name, -w workspace, -t timespan.\nLists accept comma-separated, space-separated and repeated values after the leaf path.\nBooleans accept bare flags or true/false. Conflicting scalar values are refused.\n\nLists live ARM subscriptions in selected scope (flags, environment, profile, else all accessible), resolving unambiguous names to IDs. This is not Azure CLI's cached account list. Legacy sub list still lists all visible subscriptions with inScope markers.\nDefault: name, id (subscription GUID), state, tenantId. --full adds ARM metadata and shows all fetched rows; --fields selects metadata. --limit defaults to 50. Paging stops at 100 pages with lower-bound counts. Management-group scope is unsupported.\nExamples: az-axi account list; az-axi account list -s <subscription> --full"
+    "help": "Command: az-axi sub list\nNative operation: az-axi account list; existing scope, defaults and TOON output apply.\nFlags: --subscription, --management-group, --help, --full, --fields, --limit, --all, --max-rows\nShort flags where accepted: -h help, -s subscription, -g resource-group, -n name, -w workspace, -t timespan.\nLists accept comma-separated, space-separated and repeated values after the leaf path.\nBooleans accept bare flags or true/false. Conflicting scalar values are refused.\n\nLists live ARM subscriptions in selected scope (flags, environment, profile, else all accessible), resolving unambiguous names to IDs. This is not Azure CLI's cached account list. Legacy sub list still lists all visible subscriptions with inScope markers.\nDefault: name, id (subscription GUID), state, tenantId. --full adds ARM metadata and shows all fetched rows; --fields selects metadata. --limit defaults to 50. Paging stops at 100 pages with lower-bound counts. Management-group scope is unsupported.\nExamples: az-axi account list; az-axi account list -s <subscription> --full\nFetch budget per subscription: 1000 rows by default; --all raises it to 10000 (Key Vault: at most 2500 scanned at 25/page). --max-rows <1..100000> overrides either row budget. Every walk stops at 100 pages. Budgets count rows before local filters. --limit controls display only (default 50); --full shows every fetched row and expands display only, never bypassing fetch budgets. Incomplete totals are lower bounds; narrow the scope or raise --max-rows to search further."
   },
   "adapterBoundary": {
     "unsafeOverrides": [
@@ -248,7 +248,7 @@
     "parserSources": [
       {
         "path": "dist/lib/args.js",
-        "sha256": "53cab64bb03136b4848e7edaefcba96367e90313e5e8abec3f78b981e4bc2cdb"
+        "sha256": "57a71a400717c895bab6d0c1c54b1664288aeb5f0c84cba740185772df15d977"
       },
       {
         "path": "dist/lib/argv.js",
@@ -256,18 +256,18 @@
       },
       {
         "path": "dist/lib/router.js",
-        "sha256": "4e1cea3e96ae3534b6a9f216eb843dbba2a1fef0afd61a980b97788e05b8b827"
+        "sha256": "aa3c51e9e6a1ed72b75e020836ab700d9d1b8a18b46b5bba6b580b535668ceb2"
       }
     ]
   },
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "bbac5a48899feab50be43ff3de937648277417fcc743f8995a640b31b54d7899"
+      "sha256": "e53b5e91dd69c4555960f7d69f0ea377090c8c80ecd38b200885ed31c69d3889"
     },
     {
       "path": "dist/lib/client.js",
-      "sha256": "35610f62a7c26df3e1f40bc731cdbf29a81cae366f057c94e3482d49f2a55f91"
+      "sha256": "322f09655f302f8f4292cbb6317ad192854ed412376ce9041126b25e24ed27ed"
     },
     {
       "path": "dist/lib/principals.js",
@@ -275,15 +275,15 @@
     },
     {
       "path": "dist/lib/storageMetadata.js",
-      "sha256": "a978c8327b4a19eec8ba8e5ded67618cb0b264d8f609604c5d197740421547a6"
+      "sha256": "81aa60a9bf81e0b909bac2353960d611d2b158756f3e27aead0a545b51c92065"
     },
     {
       "path": "dist/lib/keyvaultMetadata.js",
-      "sha256": "c558e1f3b9c74471a33dd205fe57600bed9aae4b528f9edda85204957a2225e8"
+      "sha256": "750de78eeb81f217b70d509e015cac2a40d789eefa3241ffddc131028493b446"
     },
     {
       "path": "dist/lib/acrMetadata.js",
-      "sha256": "c10565d7023cfefa71564411eec3ae97ea00c72e8c191e490d007ec65aa2a5dc"
+      "sha256": "b63a9506e13ccb09773ab91ae37ed2e1b53a77d4cb4243519fe07399f404327b"
     },
     {
       "path": "dist/commands/rbac.js",
@@ -295,7 +295,7 @@
     },
     {
       "path": "dist/commands/doctor.js",
-      "sha256": "3a1a24485171ad91d8a61f46d7539e96edeca82cf259881e5011c1a3fc6e9467"
+      "sha256": "3c5e9c56bf0371a3654c04c296291c8d8a95dc05f9c5679b5544e0b2c3a5c475"
     },
     {
       "path": "dist/commands/api.js",
@@ -489,6 +489,10 @@
     },
     {
       "name": "marker",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "max-rows",
       "disposition": "passthrough candidate"
     },
     {
@@ -902,7 +906,9 @@
         "help": "boolean",
         "full": "boolean",
         "fields": "list",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "flagAliases": {},
       "shortFlags": {
@@ -929,7 +935,9 @@
         "help": "boolean",
         "full": "boolean",
         "fields": "list",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "flagAliases": {},
       "shortFlags": {
@@ -1265,7 +1273,9 @@
         "help": "boolean",
         "full": "boolean",
         "fields": "list",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "flagAliases": {},
       "shortFlags": {
@@ -1322,6 +1332,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value",
         "resource-type": "value"
@@ -1993,6 +2005,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "workspace-name": "value",
         "resource-group": "value",
         "workspace": "value",
@@ -2221,6 +2235,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "workspace-name": "value",
         "resource-group": "value",
         "workspace": "value"
@@ -2288,6 +2304,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "workspace-name": "value",
         "resource-group": "value",
         "workspace": "value"
@@ -2539,6 +2557,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "account-name": "value",
         "auth-mode": "value",
         "prefix": "literal",
@@ -2601,6 +2621,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "account-name": "value",
         "auth-mode": "value",
         "container-name": "value",
@@ -2665,6 +2687,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "vault-name": "value",
         "expiring-within": "value"
       },
@@ -2694,6 +2718,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "vault-name": "value",
         "expiring-within": "value"
       },
@@ -2723,6 +2749,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "vault-name": "value",
         "expiring-within": "value"
       },
@@ -2752,6 +2780,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "name": "value",
         "marker": "literal"
       },
@@ -2782,6 +2812,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "name": "value",
         "repository": "value",
         "orderby": "value",
@@ -2844,6 +2876,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -2953,6 +2987,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3016,6 +3052,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3079,6 +3117,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3142,6 +3182,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3205,6 +3247,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3672,6 +3716,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -3704,6 +3750,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -3769,6 +3817,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -3834,6 +3884,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -3899,6 +3951,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -3964,6 +4018,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -4029,6 +4085,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -4094,6 +4152,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -4159,6 +4219,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -4224,6 +4286,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -4289,6 +4353,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "zone-name": "value",
         "name": "value"
@@ -4354,6 +4420,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -4449,6 +4517,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -4544,6 +4614,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },

@@ -14,7 +14,9 @@ const result = await run(process.argv.slice(2), { openDirectory: async options =
     async rootDSE() { return { flavor: 'ldapv3', attributes: { namingContexts: ['ou=people'], supportedExtension: [] } } },
     async *searchPages(request) {
       assert.equal(request.base, 'ou=people')
-      yield { entries: [{ dn: 'uid=synthetic,ou=people', attributes: { uid: ['synthetic'], cn: ['Synthetic User'] } }] }
+      yield { entries: request.filter.includes('(objectClass=device)')
+        ? [{ dn: 'cn=synthetic-computer,ou=people', attributes: { cn: ['Synthetic Computer'], objectClass: ['device'] } }]
+        : [{ dn: 'uid=synthetic,ou=people', attributes: { uid: ['synthetic'], cn: ['Synthetic User'] } }] }
     },
     async close() {},
   }

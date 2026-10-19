@@ -1,17 +1,17 @@
 {
   "generatedBy": "scripts/ldap-inventory.mjs",
   "tool": "ldap-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-tHbXyEFQe+sRYbasVbuFUK93D8JTcp+zuxREbmW8wwqu7cG6Jz7gQRMIyCwjoBQLw2jhWwalJA5eQKlJszm/2A==",
+  "version": "0.2.0",
+  "integrity": "sha512-w/gE4jHaUHE0iKh3ucDnDG0AVrhP0VwpFCEcw3wSTzLmTBMNZrJ9AFB06j2jnf4TFgK5+5NhF0EE0R69mv7crA==",
   "parserEvidence": "Installed pinned command schemas and reviewed CLI globals and entry routes",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "6e5ba775618ee8b5280afa7295c72dbe962a607aa1c9dc700ee49d529779dce8"
+      "sha256": "7ee133bf0333fe975c905418c9ecdd542836dab39f52aa5f7f630776d2bcc0b0"
     },
     {
       "path": "README.md",
-      "sha256": "6f6f7af1b1c67ff26b2d8a6c305a3377bb47885357a46b7d6e62824e3d9bf68b"
+      "sha256": "3a1eeda8c376c39853e4835acf2a1d61f76f23a555651417d0d691459fbb3139"
     },
     {
       "path": "axi-credential.schema.json",
@@ -19,11 +19,11 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "bd3d3c47cd1fbb490c6588a8888b5ae6fc1d5a117927500e3cd0f87bb1940e98"
+      "sha256": "2cb024b2848c2c9e27c292205b3ed86a829cfed21d52e8fea06ef544a039ec2a"
     },
     {
       "path": "dist/src/schema.js",
-      "sha256": "c7a397387ee24f8284c363408424278809dd9a6f75add0db7f8354d978b59ba6"
+      "sha256": "0d5946fa26efb55e8480e9a22f93cdb6b321c48697e77ca02c4c99630f11284f"
     },
     {
       "path": "dist/src/config.js",
@@ -158,7 +158,8 @@
     ],
     "blockedCommands": [
       "config",
-      "profile"
+      "profile",
+      "setup"
     ],
     "sensitiveFlags": [
       "base",
@@ -184,7 +185,9 @@
       "entry",
       "user",
       "group",
-      "auth status"
+      "computer",
+      "auth status",
+      "server"
     ],
     "example": [
       "user",
@@ -192,7 +195,7 @@
       "--limit",
       "1"
     ],
-    "help": "List user accounts.\nLDAPv3 users are inetOrgPerson or posixAccount entries; use ldap-axi entry search for account + simpleSecurityObject service accounts.\nUsage: ldap-axi user list [flags]\nFlags:\n  --help  show this help\n  --base  <dn> search base\n  --disabled  include disabled accounts (LDAPv3: permanent ppolicy locks)\n  --enabled  include enabled accounts (LDAPv3: exclude permanent ppolicy locks)\n  --locked  include current AD locks or recorded LDAPv3 ppolicy lock candidates\n  --all  read all pages up to --max-rows or --limit\n  --name  <pattern> match cn\n  --sam  <pattern> AD only: match sAMAccountName\n  --upn  <pattern> AD only: match userPrincipalName\n  --uid  <pattern> LDAPv3 only: match uid\n  --filter  <RFC4515> add a raw LDAP filter\n  --scope  <base|one|sub> search scope\n  --max-rows  <n> maximum output rows\n  --page-size  <1..1000> LDAP page size\n  --limit  <n> alias for bounded list output\n  --fields  <name,...> select output fields\n  --attributes  <name,...> request and emit raw attributes\nActive Directory fields: sam, upn, name, dn, enabled, locked, last_logon, object_sid, when_created\nActive Directory defaults: sam, name, enabled, last_logon\nLDAPv3 fields: uid, name, mail, enabled, locked, account_state, dn, entry_uuid, when_created\nLDAPv3 defaults: uid, name, mail, enabled, locked, account_state\nExamples:\n  ldap-axi user list --help\n  ldap-axi user list"
+    "help": "List user accounts.\nLDAPv3 users are inetOrgPerson or posixAccount entries; use ldap-axi entry search for account + simpleSecurityObject service accounts.\nUsage: ldap-axi user list [flags]\nFlags:\n  --help  show this help\n  --base  <dn> search base (default: environment, config, or server naming contexts)\n  --disabled  include disabled accounts (LDAPv3: permanent ppolicy locks)\n  --enabled  include enabled accounts (LDAPv3: exclude permanent ppolicy locks)\n  --locked  include current AD locks or recorded LDAPv3 ppolicy lock candidates\n  --all  read all pages up to --max-rows or --limit\n  --name  <pattern> match cn\n  --sam  <pattern> AD only: match sAMAccountName\n  --upn  <pattern> AD only: match userPrincipalName\n  --uid  <pattern> LDAPv3 only: match uid\n  --filter  <RFC4515> add a raw LDAP filter\n  --scope  <base|one|sub> search scope (default: sub)\n  --max-rows  <n> maximum output rows\n  --page-size  <1..1000> LDAP page size (default: AD 1000, LDAPv3 500; config overrides)\n  --limit  <n> alias for bounded list output\n  --fields  <name,...> select output fields\n  --attributes  <name,...> request and emit raw attributes\nActive Directory fields: sam, upn, name, dn, enabled, locked, last_logon, object_sid, when_created\nActive Directory defaults: sam, name, enabled, last_logon\nLDAPv3 fields: uid, name, mail, enabled, locked, account_state, dn, entry_uuid, when_created\nLDAPv3 defaults: uid, name, mail, enabled, locked, account_state\nExamples:\n  ldap-axi user list --disabled --max-rows 25\n  ldap-axi user list --name Alice --fields name,dn --limit 50"
   },
   "suggestionFields": [
     "help"
@@ -239,6 +242,27 @@
         "gssapi-service": "value",
         "gssapi-protection": "value",
         "offline": "boolean"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "server",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value"
       },
       "positionalInput": false
     },
@@ -452,6 +476,60 @@
         "max-rows": "value",
         "page-size": "value",
         "fields": "value"
+      },
+      "positionalInput": true
+    },
+    {
+      "command": "computer list",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "all": "boolean",
+        "name": "value",
+        "sam": "value",
+        "filter": "value",
+        "scope": "value",
+        "max-rows": "value",
+        "page-size": "value",
+        "limit": "value",
+        "fields": "value",
+        "attributes": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "computer show",
+      "flags": {
+        "help": "boolean",
+        "config": "value",
+        "url": "value",
+        "base": "value",
+        "start-tls": "boolean",
+        "ca-file": "value",
+        "ca-only": "boolean",
+        "tls-no-verify": "boolean",
+        "tls-max-version": "value",
+        "insecure-plaintext": "boolean",
+        "anonymous": "boolean",
+        "profile": "value",
+        "auth": "value",
+        "gssapi-service": "value",
+        "gssapi-protection": "value",
+        "fields": "value",
+        "attributes": "value"
       },
       "positionalInput": true
     }

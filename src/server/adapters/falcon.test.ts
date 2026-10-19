@@ -22,6 +22,7 @@ const blocked = [
   ['--allow-unknown-origin'], ['--allow-unknown-origin=false'],
   ['--no-member-cid'], ['--no-member-cid=false'],
   ['--profile', 'synthetic'], ['--profile=synthetic'],
+  ['--config', 'synthetic.json'], ['--config=synthetic.json'],
   ['--region=us-1', '--region=us-2'], ['--member-cid=one', '--member-cid=two'],
   ['--'], ['--', '--region=us-1'], ['--', '--member-cid=synthetic'],
 ]
@@ -33,7 +34,7 @@ test.each(blocked)('security refuses %j before reading credentials or calling th
   expect(run).not.toHaveBeenCalled()
 })
 
-test.each(['login', 'setup', 'config', 'profile', 'credentials', 'export', 'auth login', 'auth logout'])
+test.each(['setup', 'config', 'profile', 'credentials', 'export', 'auth login', 'auth logout'])
   ('security refuses local operation %s before credential access', async command => {
     await expect(prepareFalcon(command.split(' '), { ...configuration, clientIdFile: '/missing' }))
       .rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
@@ -45,7 +46,7 @@ test.each([undefined, 'synthetic-member'])('preparation adds the managed region 
   expect(result).toEqual({
     executable: '/opt/falcon-axi/bin/falcon-axi',
     args: [...args, '--region', 'us-2', ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_CLIENT_ID: 'CANARY-falcon-id', FALCON_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'true' },
+    environment: { FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'false' },
     secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 60_000 },
   })
 })
@@ -70,6 +71,13 @@ test('native help and unknown ordinary options remain upstream-owned', async () 
   expect(falconManifest.parser.shortFlags).toEqual({})
 })
 
+test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list'])
+  ('new read command %s keeps managed credentials and investigation operations enabled', async command => {
+    const prepared = await prepareFalcon(command.split(' '), configuration)
+    expect(prepared.args).toEqual([...command.split(' '), '--region', 'us-2'])
+    expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe('false')
+  })
+
 test('security prepared canaries reach only the trusted TLS fake through the real runner', async () => {
   await withFakeService(async ({ directory: certificates, port, send }) => {
     const runner = await Runner.create(join(directory, 'calls'))
@@ -77,7 +85,7 @@ test('security prepared canaries reach only the trusted TLS fake through the rea
       const prepared = await prepareFalcon(['detection', 'list'], configuration)
       const program = `
         const https = require('node:https'), fs = require('node:fs');
-        const body = new URLSearchParams({ client_id: process.env.FALCON_CLIENT_ID, client_secret: process.env.FALCON_CLIENT_SECRET }).toString();
+        const body = new URLSearchParams({ client_id: process.env.FALCON_AXI_CLIENT_ID, client_secret: process.env.FALCON_AXI_CLIENT_SECRET }).toString();
         const request = https.request({ hostname: 'localhost', port: ${port}, path: '/oauth2/token', method: 'POST',
           ca: fs.readFileSync(${JSON.stringify(join(certificates, 'ca.crt'))}), headers: { 'content-type': 'application/x-www-form-urlencoded' } }, response => {
           response.on('data', chunk => process.stdout.write(chunk));
@@ -92,7 +100,7 @@ test('security prepared canaries reach only the trusted TLS fake through the rea
   })
 })
 
-test.each(['FALCON_CLIENT_ID', 'FALCON_CLIENT_SECRET'])('security the runner suppresses injected %s', async name => {
+test.each(['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET'])('security the runner suppresses injected %s', async name => {
   const runner = await Runner.create(join(directory, 'calls'))
   try {
     const prepared = await prepareFalcon([], configuration)

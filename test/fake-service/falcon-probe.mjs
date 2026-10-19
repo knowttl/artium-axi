@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { prepareFalcon, falconManifest } from '../../dist/src/server/adapters/falcon.js'
+import { createFalconAdapter, prepareFalcon, falconManifest } from '../../dist/src/server/adapters/falcon.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
 import { loadTrustedCa } from '../../dist/src/server/trusted-ca.js'
 
@@ -47,12 +47,48 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
   assert.deepEqual(JSON.parse(parserEvidence), recordedParser)
   const run = async (args, settings = configuration) => {
     const prepared = await prepareFalcon(args, settings)
-    assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_AXI_READ_ONLY', 'FALCON_CLIENT_ID', 'FALCON_CLIENT_SECRET'])
-    assert.equal(prepared.environment.FALCON_AXI_READ_ONLY, 'true')
+    assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET', 'FALCON_AXI_READ_ONLY'])
+    assert.equal(prepared.environment.FALCON_AXI_READ_ONLY, 'false')
     return runner.run('synthetic-user', prepared.executable, prepared.args,
       prepared.environment, prepared.secrets, prepared.limits)
   }
   const evidence = async () => (await fetch('https://api.crowdstrike.com/__evidence')).json()
+  const adapter = createFalconAdapter({ getCredential: async () => ({
+    clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1',
+  }) })
+  for (const args of [
+    ['search', 'start', '--query', 'synthetic | head(1)'],
+    ['search', 'stop', 'synthetic-search'],
+    ['identity', 'activity', 'synthetic@example.test'],
+  ]) {
+    for (const prepared of [await prepareFalcon(args, configuration),
+      await adapter.prepare(args, { id: 'synthetic', tool: 'falcon-axi' })]) {
+      execFileSync('/opt/falcon-axi/bin/python', ['-c', `
+import json, sys
+from falcon_axi.cli import run
+from falcon_axi.core import CliError
+class RejectedAuthentication:
+    called = False
+    def request_oauth_token(self, args):
+        assert args.client_id == 'CANARY-falcon-id'
+        assert args.client_secret == 'CANARY-falcon-secret'
+        self.called = True
+        raise CliError('AUTH_FAILED', 'Synthetic rejection')
+call = json.load(sys.stdin)
+transport = RejectedAuthentication()
+env = call['environment']
+env['HOME'] = ${JSON.stringify(directory)}
+for file in call.get('files', []):
+    if file['name'] == 'falcon-axi/config.json':
+        env['FALCON_AXI_CONFIG'] = ${JSON.stringify(join(directory, 'config.json'))}
+        with open(env['FALCON_AXI_CONFIG'], 'w') as output:
+            output.write(file['content'])
+stdout, code = run(call['args'], transport=transport, env=env)
+assert transport.called, stdout
+assert code != 0 and 'AUTH_FAILED' in stdout, stdout
+`], { input: JSON.stringify(prepared), encoding: 'utf8' })
+    }
+  }
   for (const settings of [configuration, { ...configuration, memberCid: 'synthetic-member' }]) {
     const before = (await evidence()).requests.length
     const first = await run(['detection', 'list', '--limit', '1'], settings)
