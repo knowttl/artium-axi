@@ -88,6 +88,15 @@ test('managed credentials inject a token SecretRef without persisting the secret
   expect(toolAllowsWrites('awx-axi', {})).toBe(false)
 })
 
+test('password sign-in parses as host input and is not prepared as a controller credential', async () => {
+  const input = { origin: 'https://controller.example', signIn: 'password', username: 'synthetic-awx', password: 'CANARY-awx-password' }
+  expect(awxCredentialSchema.safeParse(input).success).toBe(true)
+  expect(awxProfile.metadata(input)).not.toHaveProperty('password')
+  expect(awxCredentialSchema.safeParse({ origin: 'https://controller.example', token: 'CANARY-awx-token', username: 'synthetic-awx' }).success).toBe(false)
+  const managed = createAwxAdapter({ getCredential: async () => input })
+  await expect(managed.prepare(['job', 'list'], reference)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
+})
+
 test.each([
   { origin: 'http://controller.example', token: 'CANARY-token' },
   { origin: 'https://controller.example/path', token: 'CANARY-token' },

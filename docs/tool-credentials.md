@@ -12,7 +12,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
-| AWX (`awx-axi`) | Controller HTTPS origin and an existing personal access token. | `job list --limit 1`; job read permissions are required. |
+| AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
 
 #### Falcon
 
@@ -192,9 +192,18 @@ Local fake-service checks do not establish live organization acceptance.
 #### AWX
 
 Artium bundles the [pinned](../tools/package.json) `awx-axi` package without upstream modifications.
-At `/admin/tools/awx-axi`, enter the controller HTTPS `origin` and paste an existing personal access token into `token`.
-Enter the token itself, never a SecretRef, environment-variable name, password or file path.
-Artium encrypts the token and injects a SecretRef through its private per-call profile; it does not mint or revoke AWX tokens.
+At `/admin/tools/awx-axi`, enter the controller HTTPS `origin`.
+Paste an existing personal access token into `token`, or choose password sign-in and enter a username and password.
+Password sign-in uses those values once.
+Artium POSTs `/api/v2/tokens/` over HTTPS with basic authentication, description `awx-axi` and scope `write`.
+It stores only the returned token in the existing token field and discards the password.
+The password is never persisted or logged, and it is registered for output redaction while it is in memory.
+A controller with basic authentication disabled returns a clear error and stores nothing from that attempt.
+Paste an existing token when basic authentication is disabled.
+Enter the token itself, never a SecretRef, environment-variable name or file path.
+Artium encrypts the token and injects a SecretRef through its private per-call profile.
+Ordinary requests use Bearer authentication only.
+Artium does not revoke AWX tokens.
 Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi awx-axi job list --limit 1`.
 **Test credential** reads one job using the managed token and reports structured authentication, network and TLS diagnostics.
 For a private certificate, inspect and trust it through the tool page; trust is scoped to the saved credential and host.

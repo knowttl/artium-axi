@@ -268,6 +268,7 @@ export const adminToolRoutes = {
   // certificate and matching unencrypted private key; the host derives the fingerprint.
   // Omitted optional non-secret fields are removed; explicit empty or null secrets are invalid.
   // Changing mode, kind, auth, tenantId, clientId, origin or org requires new secrets.
+  // AWX password sign-in exchanges the username and password for a token before storage and does not retain either.
   // Native settings are retained; edits belong to patch above and are rejected inside value here.
   // Both current revisions are required (credential revision 0 before first save);
   // stale edits fail with REVISION_CONFLICT without mutation.

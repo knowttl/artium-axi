@@ -278,6 +278,11 @@ See [Azure DevOps setup and supported boundaries](tool-credentials.md#azure-devo
 
 awx-axi uses its shipped token SecretRef schema without an authentication-kind translation.
 The host requires `origin` and `token`, restricts origins to HTTPS, and excludes upstream HTTP and TLS-verification bypass settings.
+An administrator can paste a personal access token or sign in once with a username and password.
+Password sign-in sends one HTTPS POST to `/api/v2/tokens/` with basic authentication, asks for description `awx-axi` and scope `write`, and stores only the returned token.
+The password is discarded, never written to the credential or logs, and registered for output redaction while it is in memory.
+Later calls use Bearer authentication only.
+A controller that has basic authentication disabled returns a clear error and stores nothing from that attempt.
 The shared profile writer injects the token and registers it for output scanning.
 Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
 See [AWX setup](tool-credentials.md#awx) for credential setup and the supported command boundary.

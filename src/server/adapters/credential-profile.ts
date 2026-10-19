@@ -58,13 +58,27 @@ export class CredentialProfile {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
     if (tool === 'awx-axi') {
-      this.inputSchema.required = ['origin', 'token']
+      // A stored credential is still origin plus token. Password sign-in is host-only input.
+      this.inputSchema.required = ['origin']
       this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin', title: 'Controller origin' }
+      this.inputSchema.properties.token = { ...this.inputSchema.properties.token, title: 'Personal access token',
+        description: 'Paste an existing personal access token. Leave blank to keep the stored token.' }
+      this.inputSchema.properties.signIn = { type: 'string', enum: ['token', 'password'], title: 'Sign-in',
+        description: 'Choose password to sign in with a username and password. Artium mints one personal access token and stores only that token. Choose token, or leave this blank, to paste or keep a token.' }
+      this.inputSchema.properties.username = { type: 'string', minLength: 1, title: 'Username',
+        description: 'Controller username. Used once to mint a token and not stored.' }
+      this.inputSchema.properties.password = { type: 'string', minLength: 1, pattern: '\\S', 'x-secret': true, 'x-ephemeral': true,
+        title: 'Password', description: 'Controller password. Used once to mint a token, then discarded. It is not stored or logged.' }
       delete this.inputSchema.properties.verifySsl
       delete this.inputSchema.properties.allowHttp
       delete this.inputSchema.if
       delete this.inputSchema.else
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow operational writes' }
+      this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
+        if: { required: ['signIn'], properties: { signIn: { const: 'password' } } },
+        then: { required: ['username', 'password'], not: { anyOf: [{ required: ['token'] }] } },
+        else: { required: ['token'], not: { anyOf: [{ required: ['username'] }, { required: ['password'] }] } },
+      }]
     }
     if (tool === 'falcon-axi') this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow writes' }
     if (tool === 'ldap-axi') {

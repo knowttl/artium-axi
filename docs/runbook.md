@@ -308,6 +308,8 @@ See [browser administration](admin-guide.md#browser-administration) for timestam
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
 On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
+AWX credential save can mint one personal access token from a username and password, then stores only that token.
+The password is not retained.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.
@@ -320,7 +322,8 @@ For credential rotation, obtain the replacement through the owner's approved pro
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
 Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
-Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
+AWX username-and-password sign-in mints a personal access token during credential save.
+Other upstream credential issuance, and revocation for every tool including AWX, remain live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
 The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) owns API request fields, retention, identity-change restrictions and revision requirements.
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.

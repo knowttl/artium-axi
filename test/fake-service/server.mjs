@@ -5,7 +5,22 @@ import { join } from 'node:path'
 const requests = []
 const resources = new Map()
 let mutations = 0
+let basicAuthEnabled = true
 const certs = process.argv[2] ?? '/certs'
+
+function authorizationScheme(header) {
+  if (typeof header !== 'string') return 'none'
+  if (header.startsWith('Basic ')) return 'Basic'
+  if (header.startsWith('Bearer ')) return 'Bearer'
+  return 'none'
+}
+
+function basicPassword(header) {
+  if (authorizationScheme(header) !== 'Basic') return ''
+  const decoded = Buffer.from(header.slice('Basic '.length), 'base64').toString('utf8')
+  const separator = decoded.indexOf(':')
+  return separator === -1 ? '' : decoded.slice(separator + 1)
+}
 const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
@@ -17,12 +32,47 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     resources.clear()
     requests.length = 0
     mutations = 0
+    basicAuthEnabled = true
     res.end('{}')
     return
   }
+  if (url.pathname === '/__awx/basic-auth' && req.method === 'POST') {
+    basicAuthEnabled = url.searchParams.get('enabled') !== 'false'
+    res.end('{}')
+    return
+  }
+  if (url.pathname === '/api/v2/tokens/' && req.method === 'POST') {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      let parsed = null
+      try { parsed = JSON.parse(body) } catch { parsed = null }
+      const recorded = { method: 'POST', path: url.pathname, auth: authorizationScheme(req.headers.authorization),
+        accept: req.headers.accept ?? null, contentType: req.headers['content-type'] ?? null }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) recorded.body = parsed
+      requests.push(recorded)
+      const expectedBody = recorded.body?.description === 'awx-axi' && recorded.body?.scope === 'write' && Object.keys(recorded.body).length === 2
+      const expectedAuthorization = `Basic ${Buffer.from('synthetic-awx:CANARY-awx-password').toString('base64')}`
+      if (!basicAuthEnabled) {
+        res.writeHead(401)
+        res.end(JSON.stringify({ detail: `Authentication credentials were not provided. ${basicPassword(req.headers.authorization)}` }))
+        return
+      }
+      if (req.headers.authorization !== expectedAuthorization || !expectedBody) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="api"' })
+        res.end(JSON.stringify({ detail: 'Invalid username/password.' }))
+        return
+      }
+      res.writeHead(201)
+      res.end(JSON.stringify({ id: 7, token: 'CANARY-awx-minted-token', scope: 'write', description: 'awx-axi' }))
+    })
+    return
+  }
   if (url.pathname.startsWith('/api/v2/')) {
-    const canaryReceived = req.headers.authorization === 'Bearer CANARY-awx-token'
-    requests.push({ method: req.method, path: url.pathname, auth: 'Bearer', canaryReceived })
+    const authorization = req.headers.authorization
+    const canaryReceived = authorization === 'Bearer CANARY-awx-token' || authorization === 'Bearer CANARY-awx-minted-token'
+    requests.push({ method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived })
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
     if (req.method !== 'GET') {
       mutations++
