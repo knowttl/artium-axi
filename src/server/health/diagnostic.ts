@@ -60,11 +60,11 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number, to
   if (toolCode === 'AUTH_EXCHANGE_FAILED') {
     stage = 'token acquisition'
     if (/OAuth credential exchange could not complete/.test(text)) code = 'UPSTREAM_NETWORK_FAILED'
-  } else if (certificateErrorCodePattern.test(text) || /TLS.*(?:FAIL|ERROR)|ERR_TLS|certificate verification/i.test(text)) {
+  } else if (toolCode === 'TLS_UNTRUSTED' || certificateErrorCodePattern.test(text) || /TLS.*(?:FAIL|ERROR)|ERR_TLS|certificate verification/i.test(text)) {
     code = 'UPSTREAM_TLS_FAILED'; stage = 'TLS'
   } else if (/ENOTFOUND|EAI_AGAIN|DNS|name resolution/i.test(text)) {
     code = 'UPSTREAM_NETWORK_FAILED'; stage = 'DNS'
-  } else if (/^(SERVER_UNREACHABLE|OPERATION_TIMEOUT|TRANSPORT_FAILED)$/.test(toolCode ?? '') || /ECONN|ETIMEDOUT|NETWORK|timed? ?out|socket hang up|fetch failed/i.test(text)) {
+  } else if (/^(SERVER_UNREACHABLE|CONTROLLER_UNREACHABLE|OPERATION_TIMEOUT|TRANSPORT_FAILED)$/.test(toolCode ?? '') || /ECONN|ETIMEDOUT|NETWORK|timed? ?out|socket hang up|fetch failed/i.test(text)) {
     code = 'UPSTREAM_NETWORK_FAILED'; stage = 'TCP'
   } else if (/^(AUTH_FAILED|AUTH_REQUIRED|AUTH_EXPIRED|ACCESS_DENIED|PASSWORD_EXPIRED|ACCOUNT_DISABLED|ACCOUNT_EXPIRED|ACCOUNT_LOCKED|INSUFFICIENT_ACCESS|STRONGER_AUTH_REQUIRED|GSSAPI_CREDENTIAL_UNAVAILABLE|GSSAPI_NEGOTIATION_FAILED)$/.test(toolCode ?? '')
     || /AADSTS|invalid_client|AuthenticationError|InvalidAuthenticationToken|UNAUTHORIZED|FORBIDDEN|invalid.credentials|invalid password|invalidCredentials|\b401\b|\b403\b/i.test(text)) {

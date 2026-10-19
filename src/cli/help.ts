@@ -27,6 +27,8 @@ const commands = {
     flags: ['Arguments after ldap-axi are forwarded upstream, including --help.'], example: `artium-axi ldap-axi ${ldap.discovery.example.join(' ')}` },
   'ado-axi': { usage: 'artium-axi ado-axi [<args>]', purpose: 'Run Azure DevOps commands with managed credentials.',
     flags: ['Arguments after ado-axi include --help. Organization and credentials are managed by Artium; api is GET only; writes are off by default.'], example: 'artium-axi ado-axi project list --limit 1' },
+  'awx-axi': { usage: 'artium-axi awx-axi [<args>]', purpose: 'Inspect AWX automation with managed credentials.',
+    flags: ['Arguments after awx-axi include --help. Operational writes are off by default; configuration, deletion and security writes are blocked.'], example: 'artium-axi awx-axi job list --limit 1' },
   'az-axi': { usage: 'artium-axi az-axi [<args>]', purpose: 'Run Azure commands with your managed identity.',
     flags: ['Arguments after az-axi are forwarded upstream, including --help.'], example: 'artium-axi az-axi sub list' },
   'mg-axi': { usage: 'artium-axi mg-axi [<args>]', purpose: 'Run Microsoft Graph commands with your managed identity.',

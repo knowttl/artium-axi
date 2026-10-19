@@ -43,6 +43,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'awx-axi': { origin: 'https://controller.example', token: 'CANARY-awx-token' },
   'ado-axi': { org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' },
   'ldap-axi': { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' },
   'mg-axi': { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-graph' },
@@ -750,6 +751,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'mg-axi', version: '0.1.7', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.1.4', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
+    { name: 'awx-axi', version: '0.1.7', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

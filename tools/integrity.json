@@ -1,4 +1,8 @@
 {
+  "awx-axi": {
+    "version": "0.1.7",
+    "integrity": "sha512-hZFvJnOhW+UZDeBTp+un1K1anUqEVC0njETANXbHjgXKwiGB3W1h5oEZzmf4fiPskZarr+ynlEaUaWafEHtnsA=="
+  },
   "@jeffreyhaen/ado-axi": {
     "version": "0.4.6",
     "integrity": "sha512-DThi4K9uO/jz93QQMBXtpnCXeHaYsOWSt6TFdYGhnqDN8aScow3bwbhVTIg4KEMVT0KHPYPdH00V9UOPX0c2fA=="

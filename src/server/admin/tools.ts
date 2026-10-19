@@ -12,6 +12,7 @@ import { azCredentialSchema } from '../adapters/az.js'
 import { mgCredentialSchema } from '../adapters/mg.js'
 import { ldapCredentialSchema } from '../adapters/ldap.js'
 import { adoCredentialSchema } from '../adapters/ado.js'
+import { awxCredentialSchema } from '../adapters/awx.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -28,8 +29,9 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema }
+const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema }
 const publicFields = {
+  'awx-axi': ['origin'],
   'ado-axi': ['org', 'project', 'auth', 'tenantId', 'clientId'],
   'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion', 'caFile'],
   'falcon-axi': ['clientId', 'region', 'memberCid'],
@@ -38,6 +40,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'awx-axi': ['token'],
   'ado-axi': ['token', 'clientSecret'],
   'ldap-axi': ['bindPassword'],
   'falcon-axi': ['clientSecret'],

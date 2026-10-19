@@ -20,6 +20,26 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end('{}')
     return
   }
+  if (url.pathname.startsWith('/api/v2/')) {
+    const canaryReceived = req.headers.authorization === 'Bearer CANARY-awx-token'
+    requests.push({ method: req.method, path: url.pathname, auth: 'Bearer', canaryReceived })
+    if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
+    if (req.method !== 'GET') {
+      mutations++
+      if (url.pathname === '/api/v2/jobs/42/cancel/') { res.writeHead(202); res.end('{}'); return }
+      res.writeHead(400); res.end('{}'); return
+    }
+    if (url.pathname === '/api/v2/jobs/42/cancel/') { res.end(JSON.stringify({ can_cancel: true })); return }
+    if (url.pathname === '/api/v2/me/') { res.end(JSON.stringify({ results: [{ username: 'synthetic-reader' }] })); return }
+    if (url.pathname === '/api/v2/jobs/42/') {
+      res.end(JSON.stringify({ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' })); return
+    }
+    if (url.pathname === '/api/v2/unified_jobs/' || url.pathname === '/api/v2/jobs/') {
+      res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
+    }
+    res.end(JSON.stringify({ count: 0, next: null, results: [] }))
+    return
+  }
   if (['dev.azure.com', 'vsrm.dev.azure.com', 'vssps.dev.azure.com', 'almsearch.dev.azure.com'].includes(req.headers.host)) {
     const authorization = req.headers.authorization ?? ''
     const recorded = { method: req.method, host: req.headers.host, path: url.pathname, query: Object.fromEntries(url.searchParams),
