@@ -310,6 +310,13 @@ On its admin tool page, save native settings with `allowWrites: true` for Falcon
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
 AWX credential save can mint one personal access token from a username and password, then stores only that token.
 The password is not retained.
+For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
+This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
+Choose **Inspect certificate** for that saved endpoint, compare the full SHA-256 fingerprint with the controller through the owner's approved channel, and approve scoped trust when required.
+Inspection accepts only the saved endpoint, sends no credentials, follows no redirects and retains the existing certificate-inspection timeouts.
+Then choose password sign-in, enter the username and password and choose **Save credential**.
+Until a token is saved, the credential remains unconfigured and ordinary calls cannot use the address-only record.
+The same sequence applies when switching controllers; the paste-a-token path remains available.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.

@@ -107,7 +107,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
   })
 }, 60_000)
 
-test('AWX password sign-in stores only the minted token and later calls use bearer authentication', async () => {
+test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps scoped trust and stores only the minted token', async initialMethod => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -151,13 +151,45 @@ test('AWX password sign-in stores only the minted token and later calls use bear
         return app.inject({ method, url: '/v1/admin/tools/awx-axi/credential', headers, payload: {
           value, expectedRevision: current.credential, expectedToolRevision: current.tool } })
       }
+      const saveOrigin = (address: string) => {
+        const current = revisions()
+        return app.inject({ method: 'PUT', url: '/v1/admin/tools/awx-axi/origin', headers, payload: {
+          origin: address, expectedRevision: current.credential, expectedToolRevision: current.tool } })
+      }
       const absent = (body: string) => {
         expect(body).not.toContain(password)
         expect(body).not.toContain(encoded)
         expect(body).not.toContain(username)
       }
-      const pasted = await save('PATCH', { origin, token: 'CANARY-awx-token' })
-      expect(pasted.statusCode, pasted.body).toBe(200)
+      const unsaved = await save(initialMethod, { origin, signIn: 'password', username, password })
+      expect(unsaved.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('Save the controller address') } })
+      expect(store.findCredential('awx-axi')).toBeUndefined()
+      for (const address of [`http://localhost:${port}`, `${origin}/api/v2`, `https://${username}:${password}@localhost:${port}`]) {
+        const invalidOrigin = await saveOrigin(address)
+        expect(invalidOrigin.statusCode, invalidOrigin.body).toBe(400)
+        absent(invalidOrigin.body)
+      }
+      const address = await saveOrigin(origin)
+      expect(address.statusCode, address.body).toBe(200)
+      expect(address.json()).toMatchObject({ configured: false, metadata: { origin } })
+      expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin })
+      const staleAddress = await app.inject({ method: 'PUT', url: '/v1/admin/tools/awx-axi/origin', headers, payload: {
+        origin, expectedRevision: 0, expectedToolRevision: revisions().tool } })
+      expect(staleAddress.json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+      const secretInAddress = await app.inject({ method: 'PUT', url: '/v1/admin/tools/awx-axi/origin', headers, payload: {
+        origin, password, expectedRevision: revisions().credential, expectedToolRevision: revisions().tool } })
+      expect(secretInAddress.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+      absent(secretInAddress.body)
+      const pendingSettings = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi', headers,
+        payload: { enabled: true, nativeSettings: {}, expectedRevision: revisions().tool } })
+      expect(pendingSettings.statusCode, pendingSettings.body).toBe(200)
+      expect(pendingSettings.json()).toMatchObject({ health: { status: 'unconfigured' } })
+      const pendingTools = await app.inject({ url: '/v1/tools', headers })
+      expect(pendingTools.json()).toMatchObject({ tools: [{ name: 'awx-axi', status: 'unconfigured' }] })
+      const pendingTest = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/test', headers, payload: {} })
+      expect(pendingTest.json()).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED' } })
+      const pendingRun = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args: ['job', 'list', '--limit', '1'] } })
+      expect(pendingRun.json()).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED' } })
       const both = await save('PATCH', { origin, signIn: 'password', username, password, token: 'CANARY-awx-token' })
       expect(both.statusCode, both.body).toBe(400)
       expect(both.body).toContain('Choose either a personal access token or a username and password.')
@@ -180,13 +212,21 @@ test('AWX password sign-in stores only the minted token and later calls use bear
       expect(untrusted.statusCode, untrusted.body).toBe(503)
       expect(untrusted.json()).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED' } })
       absent(untrusted.body)
-      expect(store.readCredential(store.findCredential('awx-axi')!)).toMatchObject({ token: 'CANARY-awx-token' })
+      expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin })
+      for (const payload of [{ endpointIndex: 0, origin: 'https://other.example' }, { endpointIndex: 0, host: 'other.example' }, { endpointIndex: 1 }]) {
+        const refused = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload })
+        expect(refused.statusCode, refused.body).toBe(400)
+      }
       const inspected = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
       expect(inspected.statusCode, inspected.body).toBe(200)
+      expect(inspected.json()).toMatchObject({ endpoint: `${origin}/`, hostname: 'localhost' })
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
       const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
         payload: { inspectionId: inspected.json().inspectionId } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       await send('/__ado/reset', 'POST')
+      const unsavedDestination = await save(initialMethod, { origin: `https://127.0.0.1:${port}`, signIn: 'password', username, password })
+      expect(unsavedDestination.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('Save the controller address') } })
       const beforeInvalid = revisions()
       for (const method of ['PATCH', 'PUT'] as const) {
         for (const invalid of [{ unsupported: true }, { signIn: 'unsupported' }]) {
@@ -197,9 +237,9 @@ test('AWX password sign-in stores only the minted token and later calls use bear
         }
       }
       expect(revisions()).toEqual(beforeInvalid)
-      expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin, token: 'CANARY-awx-token' })
+      expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin })
       expect(JSON.parse(await send('/__evidence')).requests.filter((request: { path: string }) => request.path === '/api/v2/tokens/')).toEqual([])
-      const saved = await save('PATCH', { origin, signIn: 'password', username, password })
+      const saved = await save(initialMethod, { origin, signIn: 'password', username, password })
       expect(saved.statusCode, saved.body).toBe(200)
       absent(saved.body)
       expect(saved.body).not.toContain(minted)
@@ -211,6 +251,11 @@ test('AWX password sign-in stores only the minted token and later calls use bear
       expect(replaced.statusCode, replaced.body).toBe(200)
       absent(replaced.body)
       expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin, token: minted })
+      const sameAddress = await saveOrigin(origin)
+      expect(sameAddress.json()).toMatchObject({ configured: true, metadata: { origin } })
+      expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin, token: minted })
+      const keptTrust = await app.inject({ url: '/v1/admin/tools/awx-axi/certificates', headers })
+      expect(keptTrust.json().certificates).toHaveLength(1)
       expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi', headers,
         payload: { enabled: true, expectedRevision: revisions().tool } })).statusCode).toBe(200)
       const read = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args: ['job', 'list', '--limit', '1'] } })
@@ -235,6 +280,30 @@ test('AWX password sign-in stores only the minted token and later calls use bear
       expect(denied.json().error.next).toContain('Paste an existing personal access token')
       absent(denied.body)
       expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin, token: stored })
+      const staleInspection = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
+      expect(staleInspection.statusCode, staleInspection.body).toBe(200)
+      await withFakeService(async destination => {
+        const changedOrigin = `https://localhost:${destination.port}`
+        const changed = await saveOrigin(changedOrigin)
+        expect(changed.json()).toMatchObject({ configured: false, metadata: { origin: changedOrigin } })
+        expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin: changedOrigin })
+        const pins = await app.inject({ url: '/v1/admin/tools/awx-axi/certificates', headers })
+        expect(pins.json()).toEqual({ certificates: [] })
+        const staleTrust = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
+          payload: { inspectionId: staleInspection.json().inspectionId } })
+        expect(staleTrust.json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+        const untrustedDestination = await save(initialMethod, { origin: changedOrigin, signIn: 'password', username, password })
+        expect(untrustedDestination.json()).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED' } })
+        const inspection = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
+        expect(inspection.json()).toMatchObject({ endpoint: `${changedOrigin}/` })
+        expect(JSON.parse(await destination.send('/__evidence')).requests).toEqual([])
+        const approval = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
+          payload: { inspectionId: inspection.json().inspectionId } })
+        expect(approval.statusCode, approval.body).toBe(200)
+        const signedIn = await save(initialMethod, { origin: changedOrigin, signIn: 'password', username, password })
+        expect(signedIn.statusCode, signedIn.body).toBe(200)
+        expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin: changedOrigin, token: minted })
+      })
       const recorded = JSON.stringify(db.prepare('SELECT * FROM audit').all()) + lines.join('\n')
       expect(recorded).not.toContain(password)
       expect(recorded).not.toContain(encoded)

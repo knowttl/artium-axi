@@ -71,6 +71,12 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       ].map(([done, label, attribute]) => `<li${attribute ? ' ' + attribute : ''}>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>${changed(db, tool)}`
     content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool', revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?')
     content += `<h3>Credential</h3><p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Secrets are never displayed.</p>${changed(db, credential)}`
+    if (tool.name === 'awx-axi') {
+      content += '<p>For password sign-in, save the controller address first. Inspect its certificate below and approve it if needed, then enter the username and password and save the credential. Changing the saved address removes the previous token and certificate trust.</p>'
+      content += form(api + '/origin', 'PUT', 'Save controller address', revision(credential.revision) +
+        `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}"><label>Controller HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? '')}"></label>`,
+        'Save this controller address without sending credentials? A changed address removes the previous token and certificate trust.')
+    }
     content += form(api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
       `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">` +
       credentialFields(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), credential.metadata, credential.configured) +
@@ -79,7 +85,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     content += `<p>Test runs one harmless read: ${escape(testGuide[tool.name])}. It does not enable the tool or grant access.</p>`
     content += form(api + '/test', 'POST', 'Test credential', '', 'Run one harmless read with this credential?', `data-test-tool="${tool.name}"`)
     content += '<p data-test-result role="status"></p></section>'
-    if (credential.configured) {
+    if (credential.configured || (tool.name === 'awx-axi' && credential.metadata.origin)) {
       const reference = db.prepare('SELECT id FROM credentials WHERE tool = ?').get(tool.name) as { id: string }
       const pins = credentialCertificates(db, reference.id)
       let endpoints: URL[] = []
@@ -88,7 +94,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       content += `<section data-trusted-certificates><h2>Trusted certificates</h2><p>Trust is scoped to this tool’s saved credential. Inspect again when rotating a certificate.</p>`
       if (endpoints.length) content += form(api + '/certificates/inspect', 'POST', 'Inspect certificate',
         `<label>Saved TLS endpoint<select name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select></label>`, '',
-        `data-inspect-certificate${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length ? '' : ' hidden'}`)
+        `data-inspect-certificate${tool.name === 'awx-axi' || tool.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length ? '' : ' hidden'}`)
       content += pins.length ? `<ul>${pins.map(pin => `<li><strong>${escape(pin.endpoint)}</strong><p>${escape(pin.certificate.subject)}<br>SHA-256: <code>${escape(pin.certificate.fingerprint)}</code>${pin.leaf.fingerprint !== pin.certificate.fingerprint ? `<br>Endpoint SHA-256: <code>${escape(pin.leaf.fingerprint)}</code>` : ''}<br>Certificate expiry: ${escape(pin.certificate.expiresAt)}<br>Endpoint certificate expiry: ${escape(pin.leaf.expiresAt)}</p>${Date.parse(pin.leaf.expiresAt) <= Date.now() + 30 * 86400000 || Date.parse(pin.certificate.expiresAt) <= Date.now() + 30 * 86400000 ? '<p role="alert">A trusted certificate has expired or expires within 30 days. Re-inspect this endpoint for rotation.</p>' : ''}${form(api + '/certificates', 'DELETE', 'Remove trust', `<input type="hidden" name="id" value="${escape(pin.id)}">`, 'Remove this certificate from the tool credential’s trust?')}</li>`).join('')}</ul>` : '<p>No certificates trusted for this credential.</p>'
       content += `</section><dialog id="certificate-inspection" aria-labelledby="certificate-inspection-title"><h2 id="certificate-inspection-title">Inspect certificate</h2><div data-certificate-details></div><p role="alert">Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.</p><p data-certificate-error role="alert"></p>${form(api + '/certificates/trust', 'POST', 'Trust certificate for this tool', '<input type="hidden" name="inspectionId">', '', 'data-trust-certificate')}<button type="button" data-close-certificate>Close</button></dialog>`
     }

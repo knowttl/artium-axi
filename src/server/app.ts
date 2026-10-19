@@ -28,6 +28,7 @@ import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
 import type { Runner } from './runner/runner.js'
 import type { MutableCredentialStore } from './store/credential-store.js'
+import { isAwxOriginOnly } from './store/credential-store.js'
 import { ToolHealth } from './health/health.js'
 import { acceptsCliVersion, cliVersion } from '../shared/version.js'
 import { toolManifests } from '../shared/tool-manifests.js'
@@ -128,8 +129,10 @@ export function createApp(options: {
         (SELECT status FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
           AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = tools.name) AS health
         FROM tools WHERE name = ?`).get(adapter.name) as { nativeSettings: string, configured: number, health: 'ok' | 'error' | null }
+      const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
+      const configured = Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
       return { name: adapter.name, version: toolManifests[adapter.name].version,
-        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: row.configured ? row.health ?? 'unknown' : 'unconfigured' }
+        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? row.health ?? 'unknown' : 'unconfigured' }
     })
     return toolsResponseSchema.parse({ tools })
   })

@@ -194,6 +194,8 @@ Local fake-service checks do not establish live organization acceptance.
 Artium bundles the [pinned](../tools/package.json) `awx-axi` package without upstream modifications.
 At `/admin/tools/awx-axi`, enter the controller HTTPS `origin`.
 Paste an existing personal access token into `token`, or choose password sign-in and enter a username and password.
+Before password sign-in, choose **Save controller address**, then **Inspect certificate** for that saved endpoint and approve scoped trust if needed.
+The address-only record stores no secret and remains unconfigured; changing the address removes the previous token and certificate trust.
 Password sign-in uses those values once.
 Artium POSTs `/api/v2/tokens/` over HTTPS with basic authentication, description `awx-axi` and scope `write`.
 It stores only the returned token in the existing token field and discards the password.

@@ -4,6 +4,10 @@ import type { CredentialTrust } from './trusted-certificates.js'
 
 export type ToolName = z.infer<typeof toolSchema>
 
+export function isAwxOriginOnly(tool: ToolName, value: unknown): boolean {
+  return tool === 'awx-axi' && value !== null && typeof value === 'object' && 'origin' in value && !('token' in value)
+}
+
 export interface CredentialReference {
   id: string
   tool: ToolName
