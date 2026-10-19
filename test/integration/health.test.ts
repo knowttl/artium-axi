@@ -14,7 +14,7 @@ import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
-import { Runner } from '../../src/server/runner/runner.js'
+import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -116,11 +116,44 @@ test('scheduled checks never overlap a pending check and manual tests share that
   expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
 })
 
-test('each enabled configured tool is checked every fifteen minutes and stopping cancels the schedule', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+test.each([
+  { name: 'startup check', retry: false },
+  { name: 'transient-failure retry', retry: true },
+])('a manual check cannot consume a pending $name', async ({ retry }) => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const failure = { ...result, stderr: 'connect ECONNREFUSED', exitCode: 1 }
   const run = vi.spyOn(runner, 'run').mockResolvedValue(result)
   health.start()
-  await vi.advanceTimersByTimeAsync(healthDefaults.intervalMs - 1)
+  if (retry) {
+    run.mockResolvedValueOnce(failure)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(healthDefaults.retryMs - healthDefaults.tickMs)
+  }
+  let started!: () => void
+  let release!: (value: typeof result) => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof result>(resolve => { release = resolve })
+  run.mockImplementationOnce(() => { started(); return held })
+  const manual = health.check('falcon-axi', 'synthetic-development-user', 'manual-overlap', null)
+  const completed = expect(manual).rejects.toMatchObject({ code: 'UPSTREAM_NETWORK_FAILED' })
+  await admitted
+  const calls = retry ? 2 : 1
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(calls)
+  release(failure)
+  await completed
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(calls + 1)
+  expect(run.mock.calls[calls][0]).toBe(`${healthDefaults.actor}:falcon-axi`)
+  expect(db.prepare('SELECT status FROM tool_health').get()).toEqual({ status: 'ok' })
+})
+
+test('the first check runs on the first tick after start and stopping cancels the schedule', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const run = vi.spyOn(runner, 'run').mockResolvedValue(result)
+  health.start()
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs - 1)
   expect(run).not.toHaveBeenCalled()
   await vi.advanceTimersByTimeAsync(1)
   expect(run).toHaveBeenCalledTimes(1)
@@ -129,6 +162,165 @@ test('each enabled configured tool is checked every fifteen minutes and stopping
   await health.stop()
   await vi.advanceTimersByTimeAsync(healthDefaults.intervalMs)
   expect(run).toHaveBeenCalledTimes(2)
+})
+
+test.each([
+  { name: 'a network failure', stderr: 'connect ECONNREFUSED', delay: healthDefaults.retryMs },
+  { name: 'a rejected credential', stderr: 'code: AUTH_FAILED', delay: healthDefaults.intervalMs },
+  { name: 'a TLS failure', stderr: 'code: TLS_UNTRUSTED', delay: healthDefaults.intervalMs },
+  { name: 'an unclassified failure', stderr: 'boom', delay: healthDefaults.intervalMs },
+])('after $name the next background check waits $delay ms', async ({ stderr, delay }) => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const run = vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stderr, exitCode: 1 })
+  health.start()
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(delay - healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(2)
+})
+
+test('repeated network failures back off to the interval and a success restores it', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const started: number[] = []
+  const run = vi.spyOn(runner, 'run').mockImplementation(async () => {
+    started.push(Date.now())
+    return { ...result, stderr: 'connect ETIMEDOUT', exitCode: 1 }
+  })
+  const origin = Date.now()
+  health.start()
+  await vi.advanceTimersByTimeAsync(healthDefaults.intervalMs * 3)
+  expect(started.map(at => at - origin)).toEqual([10_000, 70_000, 190_000, 430_000, 910_000, 1_810_000])
+  run.mockImplementation(async () => {
+    started.push(Date.now())
+    return result
+  })
+  await vi.advanceTimersByTimeAsync(healthDefaults.intervalMs * 2)
+  expect(started.slice(6).map(at => at - origin)).toEqual([2_710_000, 3_610_000])
+  expect(db.prepare('SELECT status FROM tool_health').get()).toEqual({ status: 'ok' })
+})
+
+test.each([
+  { name: 'timeout', error: new RunnerError('TIMEOUT'), delay: healthDefaults.retryMs },
+  { name: 'success', error: undefined, delay: healthDefaults.intervalMs },
+  { name: 'authentication failure', error: new RunnerError('UPSTREAM_AUTH_FAILED'), delay: healthDefaults.intervalMs },
+  { name: 'admission rejection', error: new RunnerError('TOO_MANY_CALLS'), delay: healthDefaults.intervalMs },
+])('the next check waits from completion after $name', async ({ error, delay }) => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  let started!: () => void
+  let finish!: () => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof result>((resolve, reject) => {
+    finish = () => { if (error) reject(error); else resolve(result) }
+  })
+  const run = vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held }).mockResolvedValue(result)
+  try {
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await admitted
+    await vi.advanceTimersByTimeAsync(60_000)
+    finish()
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(delay - healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(2)
+  } finally {
+    finish()
+    await health.stop()
+  }
+})
+
+test('credential saves defer background checks when both slots are occupied', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
+    auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
+  store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+    bindPassword: 'CANARY-LDAP-PASSWORD' }, 0, 'synthetic-development-user', Date.now())
+  db.exec("UPDATE tools SET enabled = 1 WHERE name IN ('vectra-axi', 'ldap-axi')")
+  health = new ToolHealth(db, new Audit(db), runner, [adapter, createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
+    createLdapAdapter(new EmbeddedSecretSource(store))], store)
+  const run = vi.spyOn(runner, 'run').mockResolvedValue(result)
+  await health.refresh('ldap-axi')
+  run.mockClear()
+  const releases: (() => void)[] = []
+  let secondStarted!: () => void
+  let thirdStarted!: () => void
+  const initialChecks = new Promise<void>(resolve => { secondStarted = resolve })
+  const deferredCheck = new Promise<void>(resolve => { thirdStarted = resolve })
+  run.mockImplementation(() => new Promise(resolve => {
+    releases.push(() => resolve(result))
+    if (releases.length === 2) secondStarted()
+    if (releases.length === 3) thirdStarted()
+  }))
+  try {
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs * 5)
+    await initialChecks
+    expect(run.mock.calls.map(call => call[0])).toEqual([
+      `${healthDefaults.actor}:falcon-axi`, `${healthDefaults.actor}:vectra-axi`,
+    ])
+    store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+      bindPassword: 'CANARY-LDAP-REPLACEMENT' }, 1, 'synthetic-development-user', Date.now())
+    expect(health.refresh('ldap-axi', true)).toBeUndefined()
+    expect(run).toHaveBeenCalledTimes(2)
+    releases[0]()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await deferredCheck
+    expect(run.mock.calls.map(call => call[0])).toEqual([
+      `${healthDefaults.actor}:falcon-axi`, `${healthDefaults.actor}:vectra-axi`, `${healthDefaults.actor}:ldap-axi`,
+    ])
+  } finally {
+    releases.forEach(release => release())
+    await health.stop()
+  }
+})
+
+test('a superseded failure cannot restore backoff after a credential change', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const failure = { ...result, stderr: 'connect ECONNREFUSED', exitCode: 1 }
+  let started!: () => void
+  let release!: (value: typeof result) => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof result>(resolve => { release = resolve })
+  const run = vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held }).mockResolvedValue(failure)
+  const pending = health.refresh('falcon-axi')
+  try {
+    await admitted
+    store.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-replacement', region: 'us-2' },
+      1, 'synthetic-development-user', Date.now())
+    health.refresh('falcon-axi', true)
+    release(failure)
+    await pending
+    await vi.advanceTimersByTimeAsync(0)
+    expect(run).toHaveBeenCalledTimes(2)
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.retryMs - healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(3)
+    expect(db.prepare('SELECT credential_revision, error_code FROM tool_health').get())
+      .toEqual({ credential_revision: 2, error_code: 'UPSTREAM_NETWORK_FAILED' })
+  } finally {
+    release(failure)
+    await pending
+    await health.stop()
+  }
+})
+
+test('a credential change resets the backoff', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const run = vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stderr: 'connect ETIMEDOUT', exitCode: 1 })
+  health.start()
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs + healthDefaults.retryMs * 3)
+  expect(run).toHaveBeenCalledTimes(3)
+  store.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-replacement', region: 'us-2' },
+    1, 'synthetic-development-user', Date.now())
+  await health.refresh('falcon-axi', true)
+  expect(run).toHaveBeenCalledTimes(4)
+  await vi.advanceTimersByTimeAsync(healthDefaults.retryMs + healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(5)
 })
 
 test.each(['disabled', 'unconfigured'] as const)('scheduled checks skip %s tools', async state => {

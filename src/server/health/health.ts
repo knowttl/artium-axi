@@ -26,6 +26,8 @@ export class ToolHealth {
   private closed = false
   private readonly replaced = new Set<ToolName>()
   private readonly diagnostics = new Map<ToolName, Diagnostic>()
+  private readonly due = new Map<ToolName, number>()
+  private readonly failures = new Map<ToolName, number>()
 
   diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null): Diagnostic | undefined {
     const detail = this.diagnostics.get(tool)
@@ -36,15 +38,33 @@ export class ToolHealth {
     private readonly runner: Runner, private readonly adapters: readonly Adapter<unknown>[],
     private readonly store?: MutableCredentialStore) {}
 
+  // Every tool is due on the first tick; the background slot cap staggers them.
   start(): void {
     this.timer = setInterval(() => {
-      for (const adapter of this.adapters) void this.refresh(adapter.name)
-    }, healthDefaults.intervalMs)
+      for (const adapter of this.adapters) {
+        if ((this.due.get(adapter.name) ?? 0) > Date.now()) continue
+        void this.refresh(adapter.name)
+      }
+    }, healthDefaults.tickMs)
     this.timer.unref()
+  }
+
+  // Only reachability failures retry early, so a rejected credential is never retried into an account lockout.
+  private reschedule(tool: ToolName, revision: CredentialReference['revision'], code: string | undefined): void {
+    if (this.store?.findCredential(tool)?.revision !== revision) return
+    const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
+    const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
+    if (failures) this.failures.set(tool, failures)
+    else this.failures.delete(tool)
+    const delay = failures === 0
+      ? healthDefaults.intervalMs
+      : Math.min(healthDefaults.retryMs * 2 ** (failures - 1), healthDefaults.intervalMs)
+    this.due.set(tool, Date.now() + delay)
   }
 
   refresh(tool: ToolName, replaced = false): Promise<unknown> | undefined {
     if (this.closed) return
+    if (replaced) this.failures.delete(tool)
     if (this.active.has(tool)) {
       if (replaced) this.replaced.add(tool)
       return
@@ -53,7 +73,15 @@ export class ToolHealth {
     if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) return
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
     if (!row?.enabled || !this.adapters.some(adapter => adapter.name === tool)) return
-    const pending = this.check(tool, healthDefaults.actor, randomUUID(), null).catch(() => {})
+    if (this.pending.size >= healthDefaults.backgroundCalls) {
+      this.due.set(tool, Date.now())
+      return
+    }
+    const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
+      .then(
+        () => this.reschedule(tool, reference.revision, undefined),
+        (error: unknown) => this.reschedule(tool, reference.revision, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'),
+      )
       .finally(() => this.pending.delete(pending))
     this.pending.add(pending)
     return pending

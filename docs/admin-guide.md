@@ -161,7 +161,8 @@ After saving, the page reports applied normalizations and reloads stored non-sec
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
-Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
+Credential changes clear cached health.
+See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for startup checks, recovery retries and concurrency limits.
 Use **Test credential** for a current fixed read before enabling a configured tool.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.

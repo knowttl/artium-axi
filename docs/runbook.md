@@ -353,7 +353,13 @@ curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
 These checks do not test remote services or reload the key.
 Use doctor for the [CLI diagnostics](client-reference.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
-Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
+Background checks for enabled configured tools become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
+Only reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
+Success resets the retry backoff; authentication, TLS, configuration and runner admission failures use the normal interval.
+Credential/settings replacement resets the backoff and requests a fresh check; results from a superseded credential revision cannot change the schedule or cached health.
+At most two background checks run at once, including replacement checks; work deferred by this cap stays due for a later tick.
+Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.
+The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
 Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
 ## Retention and export
