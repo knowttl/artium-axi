@@ -11,6 +11,7 @@ import { prepareRunJournal } from './run-journal.js'
 import { adoCredentialSchema, adoProfile, createAdoAdapter } from './ado.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import { adoPathPrefix } from '../config.js'
+import { healthEndpoints } from '../health/preflight.js'
 import { FakeTokenTransport, azureTestTenant, azureTestToken } from '../../../test/fixtures/azure-token-transport.js'
 
 const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
@@ -147,6 +148,20 @@ test('requires a revision for client-secret acquisition', async () => {
   const adapter = createAdoAdapter({ getCredential: async () => serviceCredential }, new AzureTokenCache(network))
   await expect(adapter.prepare([], { ...reference, revision: undefined })).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
   expect(network.requests).toEqual([])
+})
+
+test('makes the ADO login endpoint inspectable and passes its scoped trust to token acquisition', async () => {
+  const trust = [{ endpoint: 'https://login.microsoftonline.com/', pem: 'synthetic-certificate',
+    fingerprint: 'synthetic-anchor', leafFingerprint: 'synthetic-leaf', mode: 'pin' as const }]
+  const cache = new AzureTokenCache(new FakeTokenTransport())
+  const acquire = vi.spyOn(cache, 'acquire')
+  const adapter = createAdoAdapter({ getCredential: async () => serviceCredential, getTrust: () => trust }, cache)
+  expect(healthEndpoints('ado-axi', serviceCredential).map(url => url.href)).toEqual([
+    'https://login.microsoftonline.com/', 'https://dev.azure.com/',
+  ])
+  const call = await adapter.prepare(['project', 'list'], reference)
+  expect(call.environment.ARTIUM_SECRET_0).toBe(azureTestToken)
+  expect(acquire).toHaveBeenCalledWith(expect.objectContaining({ trust }), { required: ['devops'], optional: [] })
 })
 
 test.each([

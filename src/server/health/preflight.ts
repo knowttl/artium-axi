@@ -12,7 +12,8 @@ import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
 // Destinations for the inventory health reads, in connection order.
 // Configured origins are validated by the adapter schema before this boundary.
 export function healthEndpoints(tool: ToolName, credential: Record<string, unknown>): URL[] {
-  if (tool === 'ado-axi') return [new URL('https://dev.azure.com')]
+  if (tool === 'ado-axi') return (credential.auth === 'client-secret'
+    ? ['https://login.microsoftonline.com', 'https://dev.azure.com'] : ['https://dev.azure.com']).map(url => new URL(url))
   if (tool === 'vectra-axi') return [new URL(String(credential.origin))]
   if (tool === 'ldap-axi') return [new URL(String(credential.url))]
   if (tool === 'az-axi') return ['https://login.microsoftonline.com', 'https://management.azure.com'].map(url => new URL(url))
