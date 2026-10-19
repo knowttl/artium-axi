@@ -43,7 +43,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 | Microsoft Graph | 0.1.10 | Application identity; optional allow-listed writes |
 | LDAP | 0.2.0 | Verified TLS simple bind; read-only |
 | Azure DevOps | 0.4.6 | PAT or application identity |
-| AWX | 0.1.7 | Existing controller token; optional operational writes |
+| AWX | 0.1.7 | Pasted token or one-time password sign-in; optional operational writes |
 
 [Package pins](tools/package.json), [Falcon source pin](tools/falcon-source.json) and [reviewed inventories](tools/inventories) define the supported boundary.
 

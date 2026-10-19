@@ -58,7 +58,7 @@ export class CredentialProfile {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
     if (tool === 'awx-axi') {
-      // A stored credential is still origin plus token. Password sign-in is host-only input.
+      // A usable credential still requires origin plus token. Password sign-in is host-only input.
       this.inputSchema.required = ['origin']
       this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin', title: 'Controller origin' }
       this.inputSchema.properties.token = { ...this.inputSchema.properties.token, title: 'Personal access token',

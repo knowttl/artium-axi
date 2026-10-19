@@ -189,6 +189,8 @@ Do not disable verification; a temporary network-policy exemption is an alternat
 ### Trusting one tool from the administration UI
 
 After a credential test reports a TLS verification failure, select the affected **Saved TLS endpoint** on the tool page and choose **Inspect certificate**.
+AWX also allows inspection before a credential test or token save; first save the controller address as described in [the password sign-in flow](#roles-credentials-and-health).
+This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
@@ -308,15 +310,13 @@ See [browser administration](admin-guide.md#browser-administration) for timestam
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
 On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
-AWX credential save can mint one personal access token from a username and password, then stores only that token.
-The password is not retained.
 For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
-Choose **Inspect certificate** for that saved endpoint, compare the full SHA-256 fingerprint with the controller through the owner's approved channel, and approve scoped trust when required.
-Inspection accepts only the saved endpoint, sends no credentials, follows no redirects and retains the existing certificate-inspection timeouts.
+Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.
 Then choose password sign-in, enter the username and password and choose **Save credential**.
 Until a token is saved, the credential remains unconfigured and ordinary calls cannot use the address-only record.
 The same sequence applies when switching controllers; the paste-a-token path remains available.
+See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for the one-time token exchange and password handling.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.

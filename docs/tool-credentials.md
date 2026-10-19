@@ -194,21 +194,13 @@ Local fake-service checks do not establish live organization acceptance.
 Artium bundles the [pinned](../tools/package.json) `awx-axi` package without upstream modifications.
 At `/admin/tools/awx-axi`, enter the controller HTTPS `origin`.
 Paste an existing personal access token into `token`, or choose password sign-in and enter a username and password.
-Before password sign-in, choose **Save controller address**, then **Inspect certificate** for that saved endpoint and approve scoped trust if needed.
-The address-only record stores no secret and remains unconfigured; changing the address removes the previous token and certificate trust.
-Password sign-in uses those values once.
-Artium POSTs `/api/v2/tokens/` over HTTPS with basic authentication, description `awx-axi` and scope `write`.
-It stores only the returned token in the existing token field and discards the password.
-The password is never persisted or logged, and it is registered for output redaction while it is in memory.
-A controller with basic authentication disabled returns a clear error and stores nothing from that attempt.
-Paste an existing token when basic authentication is disabled.
+Follow the [runbook flow](runbook.md#roles-credentials-and-health) to save the address and approve certificate trust before password sign-in.
+See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for token exchange, password handling and controllers with basic authentication disabled.
 Enter the token itself, never a SecretRef, environment-variable name or file path.
 Artium encrypts the token and injects a SecretRef through its private per-call profile.
-Ordinary requests use Bearer authentication only.
-Artium does not revoke AWX tokens.
 Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi awx-axi job list --limit 1`.
 **Test credential** reads one job using the managed token and reports structured authentication, network and TLS diagnostics.
-For a private certificate, inspect and trust it through the tool page; trust is scoped to the saved credential and host.
+For private certificates and rotation, follow the [credential trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui).
 HTTP and TLS-verification bypasses are refused.
 
 Writes are off by default.

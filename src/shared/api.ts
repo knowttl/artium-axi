@@ -259,6 +259,10 @@ export const adminToolRoutes = {
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'update-tool' },
   credential: { method: 'GET', path: '/v1/admin/tools/:tool/credential', input: z.strictObject({}),
     response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
+  // Save a canonical HTTPS origin before AWX password sign-in, without sending secrets.
+  // A changed origin removes the token and scoped trust; the same origin retains both.
+  // An origin-only record permits certificate inspection but remains unconfigured for calls and tests.
+  // Both current revisions are required; saving advances both and clears cached health.
   saveOrigin: { method: 'PUT', path: '/v1/admin/tools/awx-axi/origin',
     input: z.strictObject({ origin: z.string(), expectedRevision: z.number().int().nonnegative(),
       expectedToolRevision: z.number().int().positive() }),
@@ -272,7 +276,9 @@ export const adminToolRoutes = {
   // certificate and matching unencrypted private key; the host derives the fingerprint.
   // Omitted optional non-secret fields are removed; explicit empty or null secrets are invalid.
   // Changing mode, kind, auth, tenantId, clientId, origin or org requires new secrets.
-  // AWX password sign-in exchanges the username and password for a token before storage and does not retain either.
+  // AWX PUT/PATCH accept signIn: 'password', username and password instead of token.
+  // Password sign-in requires origin to match the saved origin, exchanges the username and password
+  // for a token before storage and does not retain either. Token input and password input are exclusive.
   // Native settings are retained; edits belong to patch above and are rejected inside value here.
   // Both current revisions are required (credential revision 0 before first save);
   // stale edits fail with REVISION_CONFLICT without mutation.
