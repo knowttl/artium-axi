@@ -235,7 +235,7 @@ For each call, the host:
 4. Adds every secret value to its output scanner.
 5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
    LDAP is read-only by design and needs neither setting nor a write journal.
-   AWX receives `AWX_AXI_READ_ONLY` without a write-log override; see [host audit classification](../README.md#audit-screen-and-api).
+   AWX receives `AWX_AXI_READ_ONLY` without a write-log override; see [host audit classification](admin-guide.md#audit-screen-and-api).
 
 The shared profile writer owns schema validation and secret injection.
 Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
@@ -244,7 +244,7 @@ Per-tool policy covers the inventory, blocked commands and flags, and hosted res
 
 The current Falcon pin uses the environment credential channel through the [Falcon adapter](../src/server/adapters/falcon.ts), rather than the shared profile writer.
 The host injects `FALCON_AXI_CLIENT_ID` and `FALCON_AXI_CLIENT_SECRET`, sets `FALCON_AXI_READ_ONLY=false` regardless of the saved write switch, and supplies the managed region and optional member CID as arguments.
-This preserves the [supported Falcon investigation operations](../README.md#falcon); the inventory still declares the pin read-only.
+This preserves the [supported Falcon investigation operations](tool-credentials.md#falcon); the inventory still declares the pin read-only.
 The [Falcon inventory](../tools/inventories/falcon-axi.json) owns the blocked local configuration commands and credential overrides.
 
 mg-axi keeps the `mode` field.
@@ -265,7 +265,7 @@ Legacy `tokenEnv` keys are accepted for one release with a deprecation warning.
 These az-axi schema details were approved separately during implementation.
 
 The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the shipped credential schema; [credential-profile.ts](../src/server/adapters/credential-profile.ts) owns its hosted input restrictions and CA materialization.
-See [LDAP credential setup](../README.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
+See [LDAP credential setup](tool-credentials.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
 
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
 The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.
@@ -274,13 +274,13 @@ Each isolated call receives `ADO_AXI_CONFIG` pointing to a private profile file.
 PAT calls use `auth: "pat"` and `patEnv: "ARTIUM_SECRET_0"`; the PAT and its Basic authentication encoding are registered for redaction.
 Client-secret calls use `auth: "az"` without a tenant field and a restricted Artium-owned `az` stand-in on the per-call PATH.
 The shared Azure token cache acquires the DevOps audience token; the client secret and minted token are registered for redaction.
-See [Azure DevOps setup and supported boundaries](../README.md#azure-devops) for managed access and [audit action classification](../README.md#audit-screen-and-api) for host journaling.
+See [Azure DevOps setup and supported boundaries](tool-credentials.md#azure-devops) for managed access and [audit action classification](admin-guide.md#audit-screen-and-api) for host journaling.
 
 awx-axi uses its shipped token SecretRef schema without an authentication-kind translation.
 The host requires `origin` and `token`, restricts origins to HTTPS, and excludes upstream HTTP and TLS-verification bypass settings.
 The shared profile writer injects the token and registers it for output scanning.
 Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
-See [AWX setup](../README.md#awx) for credential setup and the supported command boundary.
+See [AWX setup](tool-credentials.md#awx) for credential setup and the supported command boundary.
 
 ## 10. Migration
 

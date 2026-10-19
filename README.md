@@ -1,51 +1,76 @@
-<h1 align="center">artium-axi</h1>
+# artium-axi
 
-<p align="center">
-  <img alt="Status" src="https://img.shields.io/badge/status-under%20construction-orange?style=flat-square" />
-  <img alt="Verified platform" src="https://img.shields.io/badge/verified%20platform-Linux-blue?style=flat-square" />
-  <a href="https://github.com/kunchenguid/axi"><img alt="AXI" src="https://img.shields.io/badge/AXI-Agent%20eXperience%20Interface-green?style=flat-square" /></a>
-</p>
+Managed command-line tools for agents and the humans running them, with one sign-in, role-based access and server-held service credentials.
 
-Managed command-line tools for agents, behind one artium sign-in.
+[![License: MIT](https://img.shields.io/github/license/knowttl/artium-axi)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@knowttl/artium-axi)](https://www.npmjs.com/package/@knowttl/artium-axi)
+[![Node](https://img.shields.io/badge/Node-%3E%3D24.11.0-green)](package.json)
+[![Release provenance](https://img.shields.io/badge/release-provenance-blue)](https://github.com/knowttl/artium-axi/attestations)
 
-artium-axi packages a server and CLI that give users role-based access to pinned upstream tools.
-The published Graph and Azure releases in [the upstream pins](tools/package.json) include their upstream live-test fixes.
-Administrators manage accounts, roles, encrypted service credentials and audit records through a browser.
-The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
+[Quickstart](#quickstart) • [Use with your agent](#use-with-your-agent) • [Features](#features) • [Safety](#safety) • [Configuration](#configuration) • [Commands](#commands)
 
-**Status: under construction.**
-Falcon, Vectra, Azure, Graph, LDAP, Azure DevOps and AWX are wired into the production server entry point.
-See the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md) for the acceptance boundaries.
-
-## Agent Ergonomics
-
-- Running without arguments shows identity, roles, available tools, cached health and pinned versions.
-- Tool lists show cached health, pinned versions and write-access status and suggest a detail view and first call.
-- Empty lists explain why no enabled tool is available and direct you to an administrator.
-- Local help works before sign-in and includes usage, purpose, flags and an example.
-- Artium errors use TOON on stdout; upstream calls preserve separate stdout, stderr and exit status.
-- Managed skills support Claude Code, Codex, OpenCode and Pi, with an optional Claude Code session hook.
-
-## Quick Start
-
-For a new server, follow [Set up a host](#set-up-a-host) first.
-For an existing server, obtain its trusted HTTPS URL and an account from its administrator, then continue below.
-The Linux client requires Node **24.11 or later**, curl and sha256sum on `PATH`.
-Windows and macOS execution, token storage and actual agent host loading remain unverified.
-
-### Download and first call
-
-Set the trusted HTTPS server URL before downloading:
-
-```sh
-export ARTIUM_AXI_URL='https://artium.example.com'
+```mermaid
+flowchart LR
+  Agent[Agent or human] --> CLI[Artium CLI]
+  CLI -->|HTTPS and Artium identity| Server[Artium server]
+  Admin[Administrator] -->|Browser administration| Server
+  Server --> Store[Encrypted credentials and audit]
+  Server --> Runner[Bounded tool runner]
+  Runner --> APIs[Vendor APIs]
 ```
 
-For a private CA, set `ARTIUM_AXI_CA_FILE` to its readable PEM file and add `--cacert "$ARTIUM_AXI_CA_FILE"` to **both** curl commands below.
-Keep certificate verification enabled.
-The bundle and checksum must come from the trusted server; the checksum detects corruption and mixed releases, not an untrusted server.
+## Why this exists
+
+Separate vendor CLIs require separate credentials and access controls on every agent host.
+Artium runs pinned tools on a shared server, checks each user's roles and supplies the service credential after audited admission.
+Agents keep a command-line interface with TOON discovery rather than implementing each vendor's REST authentication or an MCP integration.
+
+## Features
+
+- **Access:** local or browser SSO sign-in, role grants and session revocation.
+- **Credentials:** encrypted shared service identities, private per-call profiles and credential tests.
+- **Discovery:** available tools, cached health, pinned versions and contextual first-call suggestions.
+- **Agent setup:** managed skills for Claude Code, Codex, OpenCode and Pi; optional Claude Code session hook.
+- **Audit:** authentication, administration and tool-call records with filtered CSV/JSON-lines export.
+- **Limits:** reviewed command inventories, write switches, bounded runtime, output and concurrency.
+
+### Supported pinned tools
+| Tool | Version | Managed access |
+| --- | --- | --- |
+| Falcon | 0.5.0 | Read-only API client |
+| Vectra | 0.1.7 | Token or OAuth; optional allow-listed writes |
+| Azure | 0.1.10 | Application identity and resource-token broker |
+| Microsoft Graph | 0.1.10 | Application identity; optional allow-listed writes |
+| LDAP | 0.2.0 | Verified TLS simple bind; read-only |
+| Azure DevOps | 0.4.6 | PAT or application identity |
+| AWX | 0.1.7 | Existing controller token; optional operational writes |
+
+[Package pins](tools/package.json), [Falcon source pin](tools/falcon-source.json) and [reviewed inventories](tools/inventories) define the supported boundary.
+
+## Quickstart
+
+### Deploy a server with your agent
+Give this prompt to the agent helping you administer the server:
+
+> Deploy artium-axi on my Linux host.
+> Check Docker/Compose, host capacity, ports, DNS and the HTTPS/TLS plan first.
+> Use the repository's Compose file to build the server, or a published image only after verifying its release digest and provenance as described in the runbook.
+> Generate an exactly 32-byte random master key into a protected file, make it readable by container UID 10001, and keep an offline escrow copy separate from database backups.
+> Create the first administrator through the documented first-start password-file bootstrap, change its temporary password and remove bootstrap inputs.
+> Configure tool credentials through the administrator UI, test each credential, enable the intended tools and grant roles.
+> Run liveness, readiness and a permitted read for each enabled tool; report results and remaining limits without secrets.
+> Never ask me to paste passwords, tokens or keys into chat or command arguments.
+> Use hidden prompts, protected stdin or files with safe permissions for secrets.
+> Follow docs/admin-guide.md, docs/tool-credentials.md and docs/runbook.md for the exact steps.
+
+For manual deployment, follow the [administrator guide](docs/admin-guide.md#set-up-a-host).
+
+### Verified client
+Use Linux with Node **24.11.0+**, curl and sha256sum, and obtain the trusted HTTPS URL and account from your administrator.
+For a private CA, set `ARTIUM_AXI_CA_FILE` to a readable PEM file and add `--cacert "$ARTIUM_AXI_CA_FILE"` to both curl commands.
 
 ```sh
+export ARTIUM_AXI_URL='https://artium.example.test'
 mkdir -p "$HOME/.local/bin"
 cd "$HOME/.local/bin"
 curl --fail --output artium-axi.mjs "$ARTIUM_AXI_URL/cli/artium-axi.mjs" &&
@@ -57,870 +82,168 @@ rm artium-axi.mjs.sha256
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-**Stop if either download or checksum verification fails.**
-Do not launch the downloaded file after a failure.
-The executable is a standalone Node bundle; it needs no npm install or sibling assets.
-
-For an SSO account, follow [CLI SSO sign-in](#sign-in-settings), then continue with tool discovery below.
-For a local account, sign in using the hidden terminal password prompt, replacing the synthetic username with your account:
+Stop if a download or checksum fails.
+The checksum detects corruption and mixed releases; trust still comes from the HTTPS server.
 
 ```sh
 artium-axi login --username synthetic-user
-```
-
-If login reports `PASSWORD_CHANGE_REQUIRED`, change the temporary password and sign in again:
-
-```sh
-artium-axi passwd
-artium-axi login --username synthetic-user
-```
-
-Discover the tools granted to your account:
-
-```sh
-artium-axi
 artium-axi tools
 artium-axi tools show falcon-axi
 artium-axi falcon-axi detection list
 ```
 
-The Falcon example requires an enabled Falcon tool and a role granting access to it.
-Choose your first call from the example shown for an available tool.
+Replace the synthetic username with your account; login uses a hidden terminal password prompt.
+For `PASSWORD_CHANGE_REQUIRED`, run `artium-axi passwd`, then log in again.
+For SSO, use `artium-axi login --sso` and approve only the browser code matching your own terminal.
+The Falcon read requires an enabled tool, a role grant and API permissions; choose the example from an available tool's detail view.
 
-### Skill installation
+With no enabled tools granted, `artium-axi tools` succeeds with:
 
-Install the base skill and a skill for every tool granted to your signed-in account:
+```text
+tools: 0 available
+reason: No enabled runtime tool is available through your assigned roles.
+contact: Ask an administrator to check your role assignments and enabled tools.
+next[1]:
+  - artium-axi whoami
+```
+
+### npm client alternative
+The server download supplies its matching client; npm is an alternative client-only distribution.
+
+```sh
+npm install -g @knowttl/artium-axi
+export ARTIUM_AXI_URL='https://artium.example.test'
+artium-axi login --username synthetic-user
+```
+
+Login warns about version differences; minimum server API requirements still apply.
+Install `@knowttl/artium-axi@<server-version>` or download from the server to match it.
+
+### Build from source
+Use Node 24.11.0+, pnpm 10.22.0, OpenSSL, Python 3, curl and sha256sum on Linux.
+
+```sh
+git clone https://github.com/knowttl/artium-axi.git
+cd artium-axi
+pnpm install --frozen-lockfile
+pnpm build
+node dist/cli/artium-axi.mjs --help
+```
+
+Use `node dist/cli/artium-axi.mjs` in place of `artium-axi` for the same login and discovery steps.
+The root install also installs frozen upstream dependencies; native build approval is limited to argon2, better-sqlite3 and esbuild.
+`pnpm build:npm` stages the public client in `dist/npm`; `npm pack --dry-run ./dist/npm` inspects its contents.
+
+## Use with your agent
+
+After signing in, install the base skill and your granted tools' adapted skills:
 
 ```sh
 artium-axi setup --host claude --hook
 ```
 
 Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
-See [host paths and configuration overrides](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for installation locations.
-Setup requires the configured server URL and an authenticated account.
-It fetches reviewed adaptations of the server's pinned upstream skills; command examples run through `artium-axi <tool>` using Artium-managed credentials.
-Skills include granted tools that are disabled; running those tools still returns `TOOL_DISABLED`.
-Only Claude Code supports the optional `SessionStart` hook, which runs `tools` to supply session context.
-Unsupported hosts or hooks are refused before files are written.
+Only Claude Code supports the optional `SessionStart` hook, which injects the `tools` discovery output.
+Setup preserves unrelated settings and refuses edited/unmanaged skills unless `--force` is explicit.
+Re-run setup after moving the executable or changing grants; skills for removed grants are retained and reported.
+See [installation paths and manual removal](docs/client-reference.md#agent-installation) before uninstalling.
+Artium's authenticated setup fetches managed skills; a standalone skill installer does not configure this server account.
 
-Setup preserves unrelated settings and hooks and leaves unchanged managed files alone.
-It refuses to replace an edited or unmanaged skill unless `--force` is explicit.
-Setup checks every skill and hook setting before writing; a refusal leaves the installation unchanged.
-Re-run setup to add newly granted tools.
-Artium-managed skills for tools no longer granted are retained and reported, not deleted.
-Unmanaged standalone skills outside the current grants are left untouched and unreported.
-Output lists one installed, unchanged or retained row per skill.
-Keep the bundle at its installed path; rerun setup if it moves so recorded invocations are repaired.
-See [host verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for recorded discovery checks and outstanding acceptance.
+## Safety
 
-## Other ways to install
+All tools start disabled; write access defaults to off.
+Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
 
-### npm client
-
-Downloading the client and checksum from your server remains the recommended installation path because it supplies the matching version.
-As an alternative, install the client CLI and its embedded skill from npm with Node.js 24.11.0 or newer:
-
-```sh
-npm install -g @knowttl/artium-axi
-export ARTIUM_AXI_URL='https://artium.example'
-artium-axi login --username synthetic-user
-artium-axi setup --host codex
-```
-
-The npm package contains no server or upstream executables and needs no runtime npm dependencies.
-Login warns when client and server versions differ and continues signing in.
-Download the matching client and checksum from your server, or install its version with `npm install -g @knowttl/artium-axi@<server-version>`.
-Older servers without a version response header cannot supply this warning.
-A successful login does not bypass the [minimum CLI version requirements](src/shared/api.ts) for subsequent API calls.
-
-### Set up a host
-
-Give the setup agent the Linux host access, intended HTTPS hostname, DNS and certificate provisioning method, private CA bundle if applicable, and the protected data and backup locations.
-Also supply the first administrator's username and temporary password through protected input, a master-key custody decision, and credentials for each tool you want enabled from [Tool credentials](#tool-credentials).
-Upstream accounts are shared server-side service identities; users sign in with their own [artium accounts](#sign-in-settings).
-
-1. **Prepare the host.**
-   Install Git and Docker with Compose and reserve HTTPS port 443 for the reverse proxy.
-   The image supplies Node, Python and the pinned tools; see [Build from source](#build-from-source) for the source toolchain.
-   Allow package and image downloads during the build and runtime access to the enabled tools' upstream APIs and identity endpoints.
-   See [runbook prerequisites](docs/runbook.md#scope-and-prerequisites) for the runtime limits, writable data directory and UID 10001 ownership, including rootless UID mapping.
-
-2. **Obtain the source and build the image.**
-   Run from the checkout root:
-
-   ```sh
-   git clone https://github.com/knowttl/artium-axi.git
-   cd artium-axi
-   docker compose -f compose.example.yaml build
-   ```
-
-   Record the resulting immutable image identity for backups and rollback as described in the [runbook](docs/runbook.md#backup-restore-and-upgrade-rollback).
-
-3. **Prepare the master key and bootstrap administrator before starting.**
-   Place an owner-generated cryptographically random key containing exactly 32 raw bytes at `private/artium_master_key` and the temporary administrator password at `private/artium_bootstrap_password`, with no added newline.
-   Use the [password rules](#security-and-acceptance-boundaries) and [key custody guidance](docs/runbook.md#backup-restore-and-upgrade-rollback).
-   Follow the [secret ownership instructions](docs/runbook.md#scope-and-prerequisites) so both files are readable by container UID 10001 and protected from other users.
-   In [compose.example.yaml](compose.example.yaml), uncomment both first-start environment settings and both bootstrap-password secret entries, replacing `synthetic-admin` with your chosen username.
-   The master key alone cannot bootstrap a new store.
-   See [first-administrator setup](docs/runbook.md#first-administrator-and-offline-recovery) for the empty-store requirement and startup refusals.
-
-4. **Configure HTTPS.**
-   Follow the [runbook proxy example](docs/runbook.md#proxy-and-certificate-trust), including its static proxy IP, matching `ARTIUM_AXI_TRUSTED_PROXIES`, TLS mounts and forwarding-header replacement.
-   Save your Compose override as `compose.proxy.yaml` and provision its nginx configuration and certificates before starting.
-   Keep the HTTP listener inaccessible to clients and select an unused proxy subnet.
-
-5. **Start and check the server.**
-   With that override prepared, run:
-
-   ```sh
-   docker compose -f compose.example.yaml -f compose.proxy.yaml config --quiet
-   docker compose -f compose.example.yaml -f compose.proxy.yaml up -d
-   docker compose -f compose.example.yaml -f compose.proxy.yaml ps
-   ```
-
-   Require a healthy Artium service, then set `ARTIUM_AXI_URL` to the trusted HTTPS origin and run the [HTTPS liveness and readiness checks](docs/runbook.md#roles-credentials-and-health).
-   Both checks must return `status: ok`; they check the local server, not upstream credentials.
-   If startup fails, inspect service logs and resolve the reported configuration or store error before continuing.
-
-6. **Complete the first login.**
-   Open `https://<your-artium-host>/login`, enter the bootstrap account, change its temporary password at `/password`, and sign in again.
-   Remove the first-start environment settings and bootstrap-password secret entries from Compose after the administrator is created, remove the bootstrap-password file from its provisioning location, and recreate the service with the same `up -d` command.
-   Keep the master-key file and persistent data volume for subsequent starts.
-   Startup also saves the key beside the database, so protect the entire data volume as explained in [server custody](#server-settings-and-custody).
-
-7. **Configure tools and user access.**
-   Follow [Tool credentials](#tool-credentials) to save and test each credential, then follow the [activation requirements](#browser-administration) before enabling the tool at `/admin/tools`.
-   Create a role at `/admin/roles`, grant it the enabled tools, create local users at `/admin`, and assign that role to them.
-   Assign a tool role to your administrator too if that account will run CLI calls; administrator capability alone grants no tool access.
-   Finish with [Download and first call](#download-and-first-call) and [Skill installation](#skill-installation) on each agent host.
-
-Recovery, rotation, backups, retention and upgrades remain in the [operations runbook](docs/runbook.md).
-
-### Tool credentials
-
-Configure only the tools you intend to use.
-At `/admin/tools`, open the tool, save its credential, then use **Test credential** and follow the [activation requirements](#browser-administration) before enabling it.
-The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](#browser-administration) explains editor inputs, saving and health behavior.
-
-| Tool | Information to obtain | Fixed Artium credential test |
-| --- | --- | --- |
-| Falcon (`falcon-axi`) | Falcon API client ID, client secret, cloud region, optional Flight Control member CID. | `auth status`, followed by a permitted detection read to confirm API access. |
-| Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
-| Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
-| Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
-| LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
-| Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
-| AWX (`awx-axi`) | Controller HTTPS origin and an existing personal access token. | `job list --limit 1`; job read permissions are required. |
-
-#### Falcon
-
-In the Falcon console, open **Support and resources > API clients and keys** and create a dedicated API client.
-Copy its client ID and secret and record its cloud region: `us-1`, `us-2`, `eu-1` or `us-gov-1`.
-At `/admin/tools/falcon-axi`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
-Grant `Alerts:read` for detection reads, including the first-call example.
-Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.5.0/README.md#api-client-permissions) and its offline `scopes` command.
-For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
-NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
-These are optional domain requirements and do not justify granting other write or response scopes.
-The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
-Starting and stopping NG-SIEM search jobs are its only tenant-side effects; these investigation operations remain available regardless of the saved write switch.
-Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
-
-#### Vectra
-
-Obtain the deployment's HTTPS origin; see [credential editor guidance](#browser-administration) for accepted input.
-For QUX, select `kind=qux`, `apiVersion=2.5` and either `auth=token` with `token`, or `auth=oauth` with `clientId` and `clientSecret`.
-QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optional release metadata.
-For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
-Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
-Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
-See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.7#configuration) for deployment-specific requirements.
-For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
-For shared trust across tools, follow the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas).
-Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
-Save, run **Test credential**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
-
-#### Entra application registration for Azure and Graph
-
-In the [Entra admin center](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app), open **App registrations > New registration** and register an application in your organization directory.
-Record the **Directory (tenant) ID** as `tenantId` and **Application (client) ID** as `clientId` from Overview.
-Under **Certificates & secrets**, create a client secret and copy its **Value**, not its secret ID, before leaving the page.
-Alternatively upload a public certificate and retain its matching PEM private key and 64-hex-digit SHA-256 certificate thumbprint.
-No interactive user login or redirect URI is needed for these hosted application credentials.
-Azure RBAC roles and Graph API application permissions are separate grants; configuring one does not grant the other.
-You can use separate app registrations for the two tools or enter the same approved application identity separately in each editor.
-
-#### Azure
-
-In the Azure portal, select each subscription or narrower resource scope, open **Access control (IAM) > Add role assignment**, select the role, and assign it to the registered application's service principal.
-Have an administrator authorized to assign roles perform this step.
-
-| Role | Use |
+| Tool | Write capability and unlock |
 | --- | --- |
-| `Reader` | ARM inventory and metadata at the intended subscription/resource scope. |
-| `Log Analytics Reader` | Workspace query access when granting workspace-specific log reads. |
-| `Storage Blob Data Reader` | Blob data-plane reads; ARM `Reader` and `Contributor` alone do not supply these. |
-| `Key Vault Reader` | Secret, key and certificate metadata on RBAC-mode vaults, without secret values. |
-| `AcrPull` | Registry pull/catalogue access on RBAC-only registries. Not honored on ABAC-enabled registries. |
-| `Container Registry Repository Catalog Lister` | Catalogue listing on ABAC-enabled registries; lists all repositories and does not support ABAC conditions. |
-| `Container Registry Repository Reader` | Image, tag and metadata reads on ABAC-enabled registries; optional ABAC conditions restrict repositories. Does not grant catalogue listing. |
-| `Contributor` | Optional ARM writes at the intended scope, only when writes are wanted; this does not assign roles or grant blob/vault data-plane writes. |
+| Falcon, LDAP | Read-only inventories; Falcon's NG-SIEM search-job start/stop effects remain available regardless of its ineffective write switch. LDAP has no writes. |
+| Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
+| Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
+| Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |
+| AWX | Launch/cancel/relaunch, workflow approval/denial, project/inventory-source sync and notification tests with `allowWrites: true` and upstream `--confirm`; configuration, deletion and security writes stay blocked. |
 
-Check the registry's **Settings > Properties > Role assignment permissions mode** before choosing registry roles; see [Microsoft's registry permission guidance](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-abac-repository-permissions).
-On ABAC-enabled registries, ARM `Reader` and `Contributor` grant control-plane access only, so assign the catalogue and repository roles above for the reads you need.
-Access-policy-mode vaults require corresponding vault access policies instead of the RBAC-mode role.
+There is no universal Artium confirmation flag.
+Use authenticated tool help and the [write-access runbook](docs/runbook.md#roles-credentials-and-health) for operation-specific gates.
+After an unknown write outcome, inspect state using returned guidance before retrying.
 
-At `/admin/tools/az-axi`, choose authentication and enter the source identity in the guided credential fields.
-Save subscriptions and write settings separately in Native settings.
-The equivalent complete replacement API input has this shape, replacing every placeholder:
-
-```json
-{
-  "auth": "secret",
-  "tenantId": "<directory-tenant-UUID>",
-  "clientId": "<application-client-UUID>",
-  "clientSecret": "<client-secret-value>",
-  "subscriptions": ["<subscription-UUID>"],
-  "allowWrites": false
-}
-```
-
-For certificate authentication, set `auth` to `certificate` and replace `clientSecret` with `privateKey` and `thumbprintSha256`.
-Optionally add `workspaces` as a JSON object mapping friendly names to Log Analytics workspace customer-ID UUIDs, obtained from the workspace Overview page; these are not ARM resource IDs.
-Artium mints and injects resource-specific tokens, so supply the source identity rather than an access token or upstream token-profile JSON.
-Save, run **Test credential**, enable and grant the tool, then run `artium-axi az-axi account list`.
-Test each needed data-plane read separately using the enabled tool's help; a successful subscription list proves no blob, vault or registry access.
-For registry catalogue access, run `artium-axi az-axi acr repository list --name <registry>`; test any needed image, tag or metadata reads separately because catalogue listing does not grant repository reads on ABAC-enabled registries.
-Keep `allowWrites` false unless writes are wanted and the corresponding Azure roles are approved.
-
-#### Microsoft Graph
-
-On the app registration, open **API permissions > Add a permission > Microsoft Graph > Application permissions**.
-Add `User.Read.All` for Artium's credential test and first user read, then have an authorized administrator [grant tenant-wide admin consent](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/grant-admin-consent).
-Add only the application permissions for the additional command families you intend to use, and grant admin consent again after changes.
-Delegated permissions and interactive `User.Read` consent do not authorize this application flow.
-
-| Optional read area | Graph application permissions |
+| Initial read | Required upstream permission |
 | --- | --- |
-| Groups and memberships | `GroupMember.Read.All`; `Group.Read.All` for richer group properties, `Member.Read.Hidden` for hidden memberships. |
-| Applications, service principals and application consent | `Application.Read.All` |
-| Devices | `Device.Read.All` |
-| Organization metadata | `Organization.Read.All` |
-| Directory roles | `RoleManagement.Read.Directory` |
-| Conditional Access and policy reads | `Policy.Read.All` |
-| Sign-ins, directory audits and authentication registration reports | `AuditLog.Read.All`; provisioning logs also need `Directory.Read.All`. |
-| Risky users and service principals | `IdentityRiskyUser.Read.All`, `IdentityRiskyServicePrincipal.Read.All`, according to the command. |
-| Entitlement management | `EntitlementManagement.Read.All` |
-| User authentication methods | `UserAuthenticationMethod.Read.All` |
-| Access reviews | `AccessReview.Read.All` |
-| Directory role eligibility and assignment schedules | `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.Read.Directory` |
-| Privileged group eligibility | `PrivilegedEligibilitySchedule.Read.AzureADGroup` |
-| Cross-tenant information | `CrossTenantInformation.ReadBasic.All` |
-| Certificate authentication PKI | `PublicKeyInfrastructure.Read.All` |
-| Multitenant organization | `MultiTenantOrganization.ReadBasic.All` or `MultiTenantOrganization.Read.All`, according to the operation |
-| Identity providers | `IdentityProvider.Read.All` |
-| Lifecycle workflows | `LifecycleWorkflows.Read.All` |
+| Falcon detections | `Alerts:read` |
+| Vectra credential test | Health reads plus permissions for intended data |
+| Azure subscription list | Application access to intended subscriptions; data-plane roles separately |
+| Graph first-user read | Application `User.Read.All` with administrator consent |
+| LDAP | Bind identity with directory read access |
+| Azure DevOps project list | Identity permitted to view the organization/project |
+| AWX job list | Token identity with job read access |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.10/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
-Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
-Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
+See [tool credentials](docs/tool-credentials.md) for dedicated identities, permissions and safe credential entry.
+Artium stores shared service credentials encrypted with AES-256-GCM and never returns saved secrets to clients.
+The data volume also holds the plaintext master key beside SQLite: protect the entire volume and keep offline escrow separate.
+Linux client sessions use a mode-0700 directory and mode-0600 file under `${XDG_CONFIG_HOME:-~/.config}/artium-axi`.
+Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; password changes revoke sessions.
 
-In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
-For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
-Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
-Save, run **Test credential**, follow the [activation requirements](#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
-Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
-See the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md) for recorded local and owner live acceptance; credential setup instructions do not establish acceptance for a new host or every upstream operation.
-
-#### LDAP
-
-Artium uses the [pinned npm release](tools/package.json) of `@knowttl/ldap-axi` with stored simple-bind credentials, encrypted by the same credential store as the other tools.
-The user's ambient Kerberos ticket belongs to their local login and is unavailable inside Artium's server-side isolated runner.
-Artium therefore requires `auth=simple`; it does not accept a keytab or manage Kerberos ticket acquisition and renewal.
-This keeps the directory identity explicit and its password rotation within the existing credential replacement flow.
-The native Kerberos provider and its installation script are unnecessary for this authentication mode and remain disabled.
-
-Obtain a dedicated directory identity with read access only, its bind DN and password, and a directory URL whose certificate can be verified.
-At `/admin/tools/ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn` and the password value in `bindPassword`.
-Use `ldaps://<directory-host>:636` with `startTls` left at the default (unset) or explicitly `false`, or `ldap://<directory-host>:389` with `startTls=true`.
-Saving an `ldaps://` URL with `startTls=true` is rejected with `INVALID_INPUT` and the message `startTls must be false for this URL.`
-Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
-For a credential-specific private CA, supply its PEM contents in `caFile`, not a server file path.
-For shared trust across tools, follow the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas).
-The multi-line `caFile` editor preserves newlines through saving and private CA file materialization for each call.
-Artium's CLI has no credential-save command.
-Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
-Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
-
-Enter the password itself in the form, never a SecretRef or password-file path.
-Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
-**Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
-LDAP is read-only by design and has no editable native write settings.
-LDAP 0.2.0 adds `computer list`, `computer show <identifier-or-dn>` and `server` reads through the same managed identity.
-Computer reads use AD machine accounts or the upstream's stated LDAPv3 device fallback; `server` reports advertised rootDSE capabilities and limits.
-The [LDAP inventory](tools/inventories/ldap-axi.json) owns the supported commands, blocked overrides and resource requirements.
-Local fake-directory and offline profile checks do not establish live directory acceptance.
-
-#### Azure DevOps
-
-Artium uses the [pinned](tools/package.json) `@jeffreyhaen/ado-axi` release without upstream modifications.
-At `/admin/tools/ado-axi`, enter `org`, optional `project`, choose `auth=pat`, and paste the PAT itself into `token`.
-Organization-root URLs such as `https://dev.azure.com/<org>` and `https://<org>.visualstudio.com` normalize to the organization name.
-Artium encrypts the PAT in its credential store and injects it through a private per-call profile and environment variable.
-Do not enter a SecretRef or environment-variable name.
-Create a dedicated PAT scoped to the organization with Work Items, Code and Build read permissions as needed for the commands you use.
-Grant corresponding read-write permissions only for intended mutations; a write switch never grants Azure DevOps permissions.
-For service principal authentication, choose `auth=client-secret` and enter `tenantId`, `clientId` and `clientSecret` instead of `token`.
-Add the service principal as a user in the Azure DevOps organization, in the organization's Entra tenant, and grant the required project permissions before testing.
-Artium acquires and caches an Azure DevOps access token with client credentials and supplies it through a restricted per-call `az` stand-in.
-The stand-in answers only the pinned tool's Azure DevOps token request; no Azure CLI sign-in or device flow is used.
-Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ado-axi project list --limit 1`.
-
-Writes are off by default; follow [write-access administration](docs/runbook.md#roles-credentials-and-health) to enable them.
-Artium classifies every command using the reviewed [ADO inventory](tools/inventories/ado-axi.json), which binds the routing review to upstream source digests.
-Artium manages `--org`, `--profile` and `--config`; those overrides and the top-level `config` and `update` commands are refused.
-Use `--project` to select another project within the managed organization.
-The `api` command accepts relative paths and GET only, even when writes are enabled; body flags and absolute URLs are refused.
-All commands refuse repeated flags, stdin and files.
-Use `pipeline watch --timeout 50` or less to stay within the runner's call timeout.
-Writes are journaled by Artium only; see [audit action classification](#audit-screen-and-api).
-For an interrupted write, run the returned read-back command and follow its inspection guidance before retrying.
-Local fake-service checks do not establish live organization acceptance.
-
-#### AWX
-
-Artium bundles the [pinned](tools/package.json) `awx-axi` package without upstream modifications.
-At `/admin/tools/awx-axi`, enter the controller HTTPS `origin` and paste an existing personal access token into `token`.
-Enter the token itself, never a SecretRef, environment-variable name, password or file path.
-Artium encrypts the token and injects a SecretRef through its private per-call profile; it does not mint or revoke AWX tokens.
-Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi awx-axi job list --limit 1`.
-**Test credential** reads one job using the managed token and reports structured authentication, network and TLS diagnostics.
-For a private certificate, inspect and trust it through the tool page; trust is scoped to the saved credential and host.
-HTTP and TLS-verification bypasses are refused.
-
-Writes are off by default.
-The native setting `{"allowWrites": true}` permits only operational writes, which still require upstream `--confirm`: launching, canceling or relaunching runs, approving or denying workflow approvals, project and inventory-source syncs, and notification-template tests.
-Configuration writes, deletes and security writes are always blocked, including resource creation and editing, associations, role grants and token operations.
-Artium never enables AWX's separate configuration, deletion or security write gates.
-Token permissions remain an additional AWX-side limit; the write switch does not grant AWX permissions.
-The generated [AWX inventory](tools/inventories/awx-axi.json) classifies every command and records the reviewed upstream source digests.
-Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.
-Stdin, file uploads, server file paths and `@file` values are unsupported; use inline non-secret launch parameters.
-Use `job watch --timeout 50` or less to stay within the runner timeout.
-For an interrupted write, inspect current state using the returned read-back guidance before retrying.
-Local fake-service checks do not establish live controller acceptance.
-
-### Build from source
-
-The source toolchain requires Node **24.11 or later** and **pnpm 10.22.0**.
-From the repository root:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm build
-node dist/cli/artium-axi.mjs --help
-```
-
-The build produces the standalone `dist/cli/artium-axi.mjs`.
-Set `ARTIUM_AXI_URL` and use the same login and discovery commands with `node dist/cli/artium-axi.mjs` in place of `artium-axi`.
-After signing in, run `node dist/cli/artium-axi.mjs setup --host codex` to install your granted skills.
-The root package remains private for server development; `pnpm build:npm` stages the separate public client package in `dist/npm` using the root package version.
-Run `npm pack --dry-run ./dist/npm` to inspect the client tarball before release.
-Only the bundled CLI, skill, README, LICENSE, NOTICE and client package metadata are included.
-Release automation also publishes the pinned server image to `ghcr.io/knowttl/artium-axi:<release-tag>` with OCI labels and provenance.
-See [release publishing](docs/runbook.md#npm-client-releases) for owner setup and image digest and attestation verification before deployment.
-
-## Usage
-
-### Command surface and subcommands
-
-| Command | Purpose |
-| --- | --- |
-| `artium-axi` | Show identity, roles and available tools. |
-| `artium-axi --version` | Print only the client package version and a newline, then exit without configuration, sign-in or network access. |
-| `artium-axi login --username synthetic-user` | Sign in with a local account. |
-| `artium-axi login --sso` | Sign in through browser approval with an enabled SSO provider; works on headless and SSH hosts. |
-| `artium-axi passwd` | Change your password, then sign in again. |
-| `artium-axi whoami` | Show identity, roles, access expiry and server URL. |
-| `artium-axi tools` | List enabled runtime tools granted through your roles. |
-| `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
-| `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
-| `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
-| `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
-| `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
-| `artium-axi vectra-axi detection list` | Run a Vectra read through the managed adapter. |
-| `artium-axi mg-axi entra user list --limit 1` | Run a bounded Graph read through the managed adapter. |
-| `artium-axi ldap-axi user list --limit 1` | Run a bounded directory read through the managed adapter. |
-
-Add `--help` to a local command to inspect its accepted flags.
-Top-level help lists command purposes.
-Unknown or unexpected local commands, arguments and flags are rejected before configuration, private-channel reads or network access, with valid choices for the relevant command.
-Rejected tokens are named, except for `login` and `passwd` input, which is identified by position without printing its value because it may contain a password.
-Tool help has two boundaries:
-
-```sh
-artium-axi --help falcon-axi
-artium-axi falcon-axi --help
-```
-
-The first prints local Artium help without signing in or contacting the server.
-The second forwards `--help` through the authenticated upstream adapter.
-A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
-A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
-A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
-Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
-The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
-It captures bounded non-terminal stdin only for Azure `rg query` (also `graph query`), `logs query` (also `monitor log-analytics query`) and `api` calls.
-Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
-Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
-The API supports bounded stdin and named uploads through the [shared API contract](src/shared/api.ts).
-
-See [write-access administration](docs/runbook.md#roles-credentials-and-health) for per-tool switches, native write gates and the current Falcon limitation.
-Artium does not add a universal confirmation flag.
-
-Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.
-Artium also returns this error when its runner times out, cancels or receives a process signal after starting an executed Azure write; read timeouts remain `TIMEOUT`.
-Before submitting the write again, follow the returned read commands and inspect the changed state.
-Keep `--full` on recovery API GET commands so long changed values are not truncated, including both `Check current state before trying again` and `Verify with` suggestions.
-Runner-generated recovery for Sentinel incident updates and comment creation first resolves the incident ID with the suggested `incident show` command, then uses that ID in the suggested API GET to inspect all incident fields or the comments collection.
-
-### TOON output behavior
-
-Discovery and Artium errors use TOON.
-Tool listings include their count in the array header; an empty list returns `tools: 0 available` with a reason and next step.
-Details read bundled manifests and stored health without fetching credentials or executing upstream help.
-Discovery and administration show the server's bundled tool versions, as defined by the [API contract](src/shared/api.ts).
-
-Upstream calls preserve stdout, stderr and nonzero exit codes.
-For Falcon, Vectra, Azure, Graph, LDAP, Azure DevOps and AWX, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
-Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
-LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](#ldap).
-Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
-Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
-Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
-See the [generated error reference](docs/errors.md) for codes, HTTP status, CLI exit status and recovery steps.
-
-Doctor reads cached tool health rather than running a fresh platform test.
-Its certificate diagnostic reports whether the liveness request verified TLS, independently of the HTTP status or response body.
-If the connection or CA-file read fails before verification, the certificate remains unverified.
-Only `ok` passes; `unknown`, `unconfigured` and `error` require investigation.
-If the client reports `CLI_OUTDATED`, download the current bundle and checksum from the server again.
-
-### Browser administration
-
-Open `/login` through the trusted HTTPS proxy.
-Temporary passwords open `/password` and require a new login after changing them.
-Administrators land on `/admin`; ordinary users land on `/account` for tool access, CLI setup and session management.
-
-| Screen | Purpose |
-| --- | --- |
-| `/admin` | Search and filter the users table by source, status or role; create local users. |
-| `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
-| `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](#sign-in-settings) for usage and claim availability. |
-| `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
-| `/admin/tools` | Review installed tools, pinned versions and cached health. |
-| `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
-| `/admin/credentials` | Redirect to the merged tools index. |
-| `/admin/roles` | List roles and create a role. |
-| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete eligible roles. |
-| `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
-| `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](#sign-in-settings). |
-
-Administrator capability is separate from tool grants.
-Role changes apply on the next call, including calls using existing tokens.
-User detail combines grants from every assigned role and links each tool to its granting roles.
-User detail and role membership pages distinguish Direct assignments made by an administrator from Rule grants.
-Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
-The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](#sign-in-settings) for the available provider editor and current SSO limits.
-SSO accounts cannot be given a local password.
-Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
-Archived user detail allows retained direct assignments to be removed without restoring sign-in; the UI and API refuse new direct assignments, including reassigning a removed direct grant.
-See [Sign-in settings](#sign-in-settings) for removing rule-origin grants.
-Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
-Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
-Deletion removes its tool grants and records an audit event.
-User search matches literal text anywhere in a username or display name, ignoring case.
-The users and role members tables show matching totals; Next page retains the current filters.
-See the [shared API contracts](src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
-The last enabled administrator cannot be disabled, demoted or archived.
-Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
-Session revocation and administration changes commit with their audit records.
-After 15 minutes without identity confirmation, administration mutations require reauthentication.
-After a tool credential test fails TLS verification, an administrator can inspect its saved endpoint’s certificate and trust it for that credential in one confirmation.
-The UI shows full fingerprints, warnings, expiry and removable trust; hostname and validity verification remain enabled.
-A missing intermediate is fetched automatically only when its chain reaches an already-trusted root.
-See [credential certificate trust](docs/runbook.md#trusting-one-tool-from-the-administration-ui) for inspection, rotation and the network-path warning.
-Administration and account screens share a navigation menu.
-Signed-in screens have a header showing identity, sign-in source and sign-out.
-On administration screens, the header also shows the remaining confirmation window.
-Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
-SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
-For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
-Confirmation is refused if that claim is absent or stale.
-After confirming with the same identity, use **Continue to artium** to resume the pending action in the original window.
-Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
-Allow popups for artium if the browser blocks the confirmation window.
-Cancel keeps the entered values without submitting the change.
-SSO sign-out optionally also visits the provider's discovered end-session endpoint, when supported.
-After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
-The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
-Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
-Confirmation dialogs explain consequences before changes; each screen also has expandable help.
-Timestamps display in the browser's local time, with their UTC value available on hover.
-
-User detail and Account list active browser sessions and CLI token families.
-Revoke ends one whole family, including its access and refresh tokens; Sign out everywhere ends all sessions while allowing a new sign-in.
-Revoking your current browser session signs you out immediately.
-Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or the [recent confirmation required for administration](#browser-administration).
-Users with temporary passwords must change them first.
-Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
-Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
-
-Credential editors pre-fill non-secret values and never return stored secrets.
-Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](docs/credential-standard.md) profile schemas.
-Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
-Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
-Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.
-For Vectra, `origin` accepts surrounding whitespace, a trailing slash, uppercase scheme or host and an explicit default port, saving a canonical HTTPS origin.
-Paths, queries, fragments, embedded credentials and HTTP origins remain invalid.
-Rejected profile input returns `INVALID_INPUT` with field names and failing schema constraints, including string lengths, array bounds, uniqueness and unsupported fields, without echoing submitted values.
-When the authentication branch is identifiable, guidance reports its failures and conflicting field names without instructions from other branches; independent errors are reported together.
-Ambiguous alternatives receive field-combination guidance.
-See [Vectra credential setup](#vectra) for private CA input and shared trust.
-The form exposes the schema's full requirements, including conditional requirements for the chosen authentication kind.
-Azure uses guided source-identity fields because the host brokers resource tokens separately.
-Azure and Graph certificate editors accept one PEM file containing one certificate and its matching unencrypted private key and calculate the fingerprint automatically.
-See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
-Falcon has guided fields; see its [current credential handling](docs/credential-standard.md#per-tool-host-facing-schemas).
-Browser saves keep native settings and retain blank stored secrets for the same identity.
-Identity changes require new secrets as defined by the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`).
-Select **Test after saving** to save and report a harmless credential check inline.
-After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
-See the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
-See [credential rotation](docs/runbook.md#roles-credentials-and-health).
-Native settings also replace the entire object; `{}` clears it.
-Credential changes clear cached health, and background checks run every 15 minutes for enabled configured tools.
-Use **Test credential** for a current fixed read before enabling a configured tool.
-For failed tests, follow the [credential diagnostic guidance](docs/runbook.md#scripted-administrator-sessions) and the [error reference](docs/errors.md).
-Graph tests read at most one user through `entra user list --limit 1`.
-For a new installation, follow [Graph credential setup](#microsoft-graph) and obtain the required permission results and maintainer approval before enabling Graph on a running installation.
-
-### Sign-in settings
-
-Open **Sign-in settings** at `/admin/settings/sign-in` to add a single-tenant Entra ID provider using its name and directory tenant UUID.
-Open the provider to save its application client UUID and credential.
-Certificate authentication is preferred: paste or upload one PEM containing the certificate and matching unencrypted private key; Artium calculates the SHA-256 fingerprint.
-The application's public certificate registration is an owner setup step; saving here does not contact the provider.
-A client secret is also accepted, with an in-page warning recommending certificates.
-
-For another OpenID Connect provider, choose **Add OpenID Connect provider** and enter its name and exact HTTPS issuer URL.
-Discovery reads the issuer's OpenID configuration over verified TLS and rejects redirects and mismatched issuers.
-Register the provider page's exact callback URI in a confidential web application, then save its client ID and RSA certificate (`private_key_jwt`) or client secret (`client_secret_post` or `client_secret_basic`, selected from discovery with POST preferred).
-If discovery omits the supported client-authentication methods, secret authentication defaults to Basic.
-The provider must support authorization code with PKCE S256, RS256 ID tokens and scopes `openid profile`.
-Configure `preferred_username` for invitation claims and `auth_time` for fresh browser confirmation and CLI approval; generic confirmation requests use `prompt=login` and `max_age=0`.
-Generic identities bind to exact issuer and `sub`; Entra continues to bind to `tid` + `oid`.
-Multiple enabled providers appear on both the sign-in page and CLI approval page, each with its own callback and state binding.
-Assign generic-provider users direct artium roles or configure claim rules for tool access.
-Generic rules accept any exact top-level claim name, such as `groups` or `custom.claim`, and match a string or a string in an array against the case-sensitive rule value.
-Dots are literal claim-name characters, not nested paths; numbers, booleans and objects do not match.
-See [generic OIDC verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p5a.md) for the approved scope split, fake-provider evidence and pending maintainer live acceptance.
-
-Provider credentials use the encrypted store; their secrets are never returned in pages, API metadata or audit records.
-Non-secret fields are pre-filled; leave secrets blank to keep them for the same tenant, client and authentication method.
-Changing client or authentication requires a new secret; changing the provider tenant or issuer removes the old credential.
-Settings and credential saves require administrator capability and the [confirmation described under browser administration](#browser-administration), check revisions, and are audited.
-The [provider and role-rule API contracts](src/shared/api.ts) own the request and response fields.
-
-Providers start disabled.
-The provider page includes its setup guide, copy buttons for redirect and post-logout URIs, and an audited activation control requiring recent authentication.
-Activation requires a locally valid matching credential and an enabled, unlocked, unarchived break-glass local administrator with a permanent password.
-Test that emergency account in a separate browser before enabling SSO, then test an invitation claim and provider sign-in while keeping break-glass access open.
-Local checks cannot prove provider credential acceptance or access-policy configuration.
-Saving provider settings or credentials disables that provider; review and enable it again afterwards.
-Disabling all providers restores ordinary local password sign-in; existing artium sessions remain active.
-Local sign-in continues to work while all providers are disabled.
-On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
-Designation requires recent identity confirmation, checks the user revision and is audited.
-The users table and signed-in header identify designated accounts.
-Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
-When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
-Fresh installations designate no accounts automatically and keep providers disabled.
-See [break-glass verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c2.md) for local-password policy evidence and [P3 activation verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c2b.md) for activation and complete fake-provider browser acceptance.
-On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
-Generic provider pages offer the same rule editor with a claim-name field.
-Each rule's Who matches link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
-Counts refresh on page reload and include matches for new rules before the next role sync.
-These saved claims are not a live directory query; users without recorded sign-in claims are unknown.
-See the [upgrade runbook](docs/runbook.md#backup-restore-and-upgrade-rollback) for existing-identity compatibility and [claim-rule verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p5b.md) for local evidence and pending maintainer live acceptance.
-The target role supplies tool access; rules never grant administrator capability.
-Create roles and grant their tools on **Roles** first.
-Every rule change requires the [confirmation described under browser administration](#browser-administration) and is audited atomically; stale edits require reloading the page.
-At each SSO sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
-User details label Direct and Rule grants and identify the provider rule that supplied each rule grant.
-Deleting a rule or changing its provider, claim name, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
-Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected `preferred_username` (Entra sign-in username for Microsoft), direct roles and an expiry of 1 to 30 days (default 7).
-To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
-Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
-Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
-Artium does not send email and stores only the link token's hash.
-Resend replaces the old link and starts a new expiry period, including for expired invitations.
-**Revoke invitation** prevents claiming; claimed or revoked invitations cannot be resent.
-Every mutation requires administrator capability and the [confirmation described under browser administration](#browser-administration), checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
-Lists never return link tokens or hashes; expiry is evaluated when read.
-The [invitation API contracts](src/shared/api.ts) own the request and response fields.
-When a provider is enabled, its invitation link starts browser sign-in and requires an exact, case-sensitive match of the expected username.
-Claiming atomically binds the immutable provider identity, consumes the invitation, adds its direct roles and synchronizes that provider's rule roles.
-Linking preserves the existing user id, username, display name, administrator flag and history, removes the local password and revokes prior browser and CLI sessions.
-An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
-Claim, link, role-sync and sign-in audit events commit with the account and session changes.
-See [browser SSO protocol verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3b.md) and [SSO reauthentication verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c.md) and [P3 activation verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p3c2b.md) for fake-provider evidence and pending maintainer live acceptance.
-For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
-Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and UTC time before choosing **Approve**.
-Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
-Choose **This wasn't me** to deny an unexpected request.
-Codes expire after 10 minutes and can grant access only once.
-The CLI waits for approval, retries transient polling limits at the returned interval until code expiry, and stores the usual private artium tokens; run `artium-axi login --sso` again after its 8-hour family ends.
-No identity-provider public-client or device-code grant configuration is required; this is artium's own approval flow.
-Restarting artium invalidates pending approvals; run `login --sso` again.
-For bearer SSO reauthentication, send `POST /v1/auth/reauth` with your access token and JSON `{}`.
-Approve the returned code through `/device` after a fresh provider sign-in as the same user.
-Poll `/v1/auth/reauth` with the same access token and JSON `{ "deviceCode": "<deviceCode>" }`, waiting the returned `intervalMs` milliseconds between polls, until it returns a recent-auth `ticket` and `expiresAt` instead of `status: pending`.
-Send the ticket in `x-artium-reauth-ticket` on administration requests; it authorizes only the initiating CLI family and cannot extend its lifetime.
-Denial, expiry or revocation prevents ticket issuance; approval codes are single use.
-See [CLI device sign-in verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-p4a.md) for recorded fake-provider evidence and bearer reauthentication coverage.
-
-### Audit screen and API
-
-Audit supports user, tool, exact event, exact outcome and inclusive UTC From/To filters.
-Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
-Open an event in the table to inspect every persisted field.
-Pagination retains filters; starting a new search includes records inserted after the previous search began.
-
-`GET /v1/admin/audit` exposes the same records with `user`, `tool`, `event`, `outcome`, `from`, `to`, `limit` and `cursor` parameters.
-Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
-Apply filters, then use **Download CSV** or **Download JSON lines** to export every matching retained record, across all pages.
-`GET /v1/admin/audit/export?format=csv` (or `format=jsonl`) accepts the same filters, excluding `limit` and `cursor`.
-Exports are newest first and exclude records inserted after the download begins.
-Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
-CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
-An empty result produces a CSV header or an empty JSON-lines file.
-Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
-There is no audit mutation or deletion route.
-Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
-Successful local sign-in, password confirmation and password-change records include `authentication_method` as `local` or `break-glass`.
-These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.
-SSO reauthentication events include the authentication method, provider and validated subject.
-Device approval and refusal emit `device-approve` and `device-deny` events, with the requesting IP in `arguments.requestingAddress` and the approving or denying browser's IP in `client_address`.
-Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
-This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
-Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
-ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
-For tools with native journals, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs also report `unknown`.
-See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
+Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
+Audit excludes injected credentials, request bodies, stdin, uploads and output streams.
+The runner scans known secret encodings and discards output on a match; unknown upstream-minted tokens cannot be identified by exact-value scanning.
+Its restricted environment, private directories and process limits are not a complete sandbox; descendants starting a new session can escape process-group termination.
 
 ## Configuration
 
-### Client settings
-
-| Variable | Meaning |
+| Setting or flag | Purpose |
 | --- | --- |
-| `ARTIUM_AXI_URL` | Required HTTPS base URL without credentials, query or fragment. |
-| `ARTIUM_AXI_CA_FILE` | Optional readable PEM CA file added to Node's certificate trust. |
-| `ARTIUM_AXI_PASSWORD` | Ordinary login password source when `--password-stdin` is absent, before the terminal prompt; refused for [managed sign-in](#externally-managed-client-sessions). |
-| `ARTIUM_AXI_CURRENT_PASSWORD` | Current password for an ordinary password change, before the terminal prompt. |
-| `XDG_CONFIG_HOME` | Session-file base on Linux/macOS; otherwise `~/.config`. |
-| `APPDATA` | Session-file base on Windows, whose execution remains unverified. |
-| `ARTIUM_AXI_TEST_HTTP` | `1` permits loopback HTTP for tests only. |
+| `ARTIUM_AXI_URL` | Required trusted HTTPS origin |
+| `ARTIUM_AXI_CA_FILE` | Additional readable PEM trust bundle for the client |
+| `XDG_CONFIG_HOME` | Linux session-storage base, default `~/.config` |
+| `--password-stdin` | Login/new password via protected stdin |
+| `--host`, `--hook`, `--force` | Setup host, optional Claude hook, explicit skill replacement |
+| `--managed-session` | Caller-owned tokens through private pipes; see client reference |
+| `--help`, `--version` | Local discovery without sign-in |
 
-Use `login --password-stdin` or `passwd --password-stdin` to supply the login or new password through stdin.
-Stdin removes one final LF or CRLF and preserves all other spaces and Unicode.
-Password arguments are refused; tokens are never printed to stdout or stderr.
-Ordinary password changes also require the current password through the terminal prompt or `ARTIUM_AXI_CURRENT_PASSWORD`.
-Clear password environment values after use.
+See the [client reference](docs/client-reference.md) for password inputs, refresh behavior, uploads and managed sessions.
+Server settings, SSO and browser administration live in the [administrator guide](docs/admin-guide.md).
+Recovery, rotation, retention, backups and release gates live in the [operations runbook](docs/runbook.md).
 
-By default, sessions live in `artium-axi/session.json` under the applicable base directory and are bound to the normalized server URL.
-Callers that manage their own tokens can instead use [externally managed client sessions](#externally-managed-client-sessions).
-POSIX directories use mode 0700 and files mode 0600; Windows uses a restricted ACL and refuses storage if it cannot establish it.
-Do not export or share the session file.
-CLI processes serialize refreshes through `session.lock`; after `SESSION_BUSY`, remove that lock directory only when every CLI process has exited.
-Concurrent login or logout can produce `SESSION_CHANGED`; check the current session before repeating a command.
-Logout removes local tokens even if remote revocation fails, reporting `remoteRevocation: unverified` in that case.
+## Commands
 
-Certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`, and authenticated redirects are refused.
-Only an explicit pre-execution `TOKEN_EXPIRED` response permits one serialized refresh and retry.
-A network failure or uncertain command outcome is never retried automatically.
+This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --help` prints its complete current command list.
 
-### Externally managed client sessions
-
-Callers that keep credentials outside the CLI can opt in with one leading flag: `artium-axi --managed-session <command> <args>`.
-The caller supplies inherited pipes or sockets: fd 3 for session input on authenticated calls and fd 4 for private new-session and rotation output.
-Stdin remains available for tool input; stdout and stderr retain their normal command formats.
-Do not pass tokens in arguments or environment variables, connect fd 4 to a log or public output, or redirect either private channel to a disk file.
-The CLI refuses regular files as private channels and never reads, creates, locks, updates or deletes `session.json` in this mode.
-
-For authenticated calls, send one UTF-8 JSON object of at most 64 KiB to fd 3, then close the input pipe:
-
-```json
-{"serverUrl":"https://artium.example.test","accessToken":"CANARY-access","refreshToken":"CANARY-refresh"}
-```
-
-`serverUrl` must match the normalized `ARTIUM_AXI_URL`, allowing a final slash.
-`accessToken` is required and nonempty; `refreshToken` is optional and nonempty when supplied.
-The optional fields `status: "authenticated"`, `accessExpiresAt` and `familyExpiresAt` (integer Unix milliseconds) allow a rotation record to be reused as input; other fields are refused.
-The caller owns expiry policy, refresh serialization across processes and secure persistence.
-Managed mode supports `login`, the home view, `whoami`, `tools`, `tools show`, `doctor` and tool commands.
-`passwd`, `logout` and `setup` are refused before any network call; ordinary sign-in and its server-version warning remain unchanged without the flag.
-Help is available without private channels through `artium-axi --help`; use `artium-axi --managed-session --help` or `artium-axi login --help` for the pipe protocol.
-
-To obtain the first session, run `artium-axi --managed-session login --username <username> --password-stdin` with the password on protected inherited stdin, or `artium-axi --managed-session login --sso` for browser approval.
-Login does not read or require fd 3; it requires a writable private pipe or socket on fd 4 before contacting the server.
-Password arguments and `ARTIUM_AXI_PASSWORD` are refused, including when `--password-stdin` is present; unset that variable before managed sign-in.
-Password input follows the stdin rules in [client settings](#client-settings).
-SSO displays the approval URL and user code immediately so the user can approve while the CLI waits.
-Both sign-in methods return the new session as one newline-terminated JSON object on fd 4, using the same envelope shown below for rotations, and create nothing under the config or session paths.
-The login server-version warning still appears on stderr when versions differ.
-If a local account requires a password change, fd 4 instead receives `{serverUrl, status: "password-change-required", passwordChangeToken, passwordChangeExpiresAt}` and the command returns `PASSWORD_CHANGE_REQUIRED` (exit 1).
-That restricted record is not valid managed-session input; the caller must complete the password change through the server API and sign in again.
-
-Only an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
-Without a refresh token, or if refresh is refused, the CLI returns the authentication error for the caller to handle.
-Network failures and uncertain outcomes are never automatically retried.
-After a successful refresh, fd 4 receives one newline-terminated JSON object before the request is retried:
-
-```json
-{"serverUrl":"https://artium.example.test","status":"authenticated","accessToken":"CANARY-new-access","refreshToken":"CANARY-new-refresh","accessExpiresAt":1800000000000,"familyExpiresAt":1800003600000}
-```
-
-Every rotation is delivered even if the subsequent request fails; an authenticated invocation without rotation writes no record.
-Consume fd 4 concurrently with stdout and stderr, and retain new sessions and rotations regardless of the command's exit status.
-If new-session or rotation delivery fails, the CLI returns `INVALID_INPUT` (exit 2); the caller must recover the session.
-After failed rotation delivery, the CLI refuses to retry the request; do not reuse the consumed refresh token.
-Managed public output is buffered and scanned against supplied, newly issued and rotated tokens and their canonical encodings before printing; a match withholds both buffered streams and returns `SECRET_IN_OUTPUT`.
-SSO approval instructions are displayed before session issuance; managed password input and the private SSO device code are also checked against buffered output.
-
-Exit codes are 0 for success, 2 for invalid input, client configuration or private channels and refused commands, and 1 for authentication, server-binding, transport or output-scanning failures.
-Tool exit codes pass through as usual.
-Missing or closed descriptors, invalid JSON and mismatched server bindings fail before network access; no failure falls back to a session file.
-
-### Server settings and custody
-
-| Variable | Meaning |
+| Command | Purpose |
 | --- | --- |
-| `ARTIUM_AXI_DATABASE_FILE` | SQLite database path; default `/data/artium.db`. |
-| `ARTIUM_AXI_MASTER_KEY_FILE` | Initial or explicit master-key file containing exactly 32 raw bytes; takes precedence over other key sources. |
-| `ARTIUM_AXI_MASTER_KEY` | Alternative canonical base64 encoding of exactly 32 key bytes. |
-| `ARTIUM_AXI_EXTRA_CA_FILE` | Optional readable PEM bundle of public CA certificates for upstream TLS, including TLS inspection; mounted read-only. Loaded at startup; see the [private CA runbook](docs/runbook.md#tls-inspection-and-private-upstream-cas). |
-| `ARTIUM_AXI_ADMIN_USERNAME` | First-start local administrator username. |
-| `ARTIUM_AXI_ADMIN_PASSWORD_FILE` | UTF-8 file containing the exact first-start password, without an added newline. |
-| `ARTIUM_AXI_TRUSTED_PROXIES` | Comma-separated verified proxy source IP addresses; default trusts none. |
-| `ARTIUM_AXI_AUDIT_STDOUT` | `1` streams committed audit records as JSON lines; SQLite remains authoritative. |
+| `artium-axi` | Identity, roles and available tools |
+| `login --username <username>` / `login --sso` | Local password / browser approval |
+| `passwd` / `logout` | Change password / remove local tokens and attempt revocation |
+| `whoami` | Identity, roles, expiry and server |
+| `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
+| `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
+| `setup --host <host>` | Install managed skills and optional Claude hook |
+| `<tool> <args>` | Run any of the seven managed tools above |
+| `--managed-session --help` | Private-pipe session protocol |
 
-The server listens on HTTP port 8080 behind a trusted HTTPS reverse proxy.
-The [Compose example](compose.example.yaml) publishes only on host loopback and supplies a master-key secret, not bootstrap credentials.
-Follow the [first-administrator runbook](docs/runbook.md#first-administrator-and-offline-recovery) before starting a new store.
-All tools start disabled until configured.
-The proxy must replace incoming forwarding headers, and clients must not reach the HTTP listener directly.
-Public `/health/live` checks liveness; `/health/ready` checks local migration-table access, not upstream services.
+`artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
+The [full client reference](docs/client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
 
-Startup validates the store's key binding and every encrypted credential before listening.
-It saves the plaintext master key as canonical base64 in an owner-only `.env` beside the database, even when the key came from a mounted file.
-**The data volume therefore contains both the encrypted database and its decryption key.**
-Protect the whole volume and keep key escrow separate from database backups.
-With no explicit key source, later starts and maintenance commands read the saved key; no key is generated or uploaded.
-Invalid or mismatched keys fail startup.
-See [backup, restore, rotation and rollback](docs/runbook.md#backup-restore-and-upgrade-rollback) for matching-key recovery, backup retention and unresolved owner custody choices.
+### TOON output and errors
+Discovery and Artium errors use TOON on stdout; progress uses stderr.
+Upstream stdout, stderr and exit status pass through, with managed suggestions adapted to Artium commands.
+Artium exits 0 for success, 2 for usage/configuration errors and 1 for authentication/server/transport failures.
+See the generated [error catalogue](docs/errors.md) for actionable codes and retry guidance.
 
-### Security and acceptance boundaries
+## Platform limits
 
-Development and verification use only fakes, synthetic identities and canary credentials.
-Fake-service results do not establish live platform permissions or production readiness.
-Never put tokens or keys in arguments, source files, images or logs.
-The server refuses the removed development-authentication settings `ARTIUM_AXI_DEV` and `ARTIUM_AXI_DEV_TOKEN_FILE`.
+Linux client and Linux amd64 container paths have local fake-service acceptance.
+Windows/macOS execution, token storage and actual agent-host loading remain unverified.
+Local tests do not establish live vendor permissions or production host acceptance.
+LDAP uses simple bind over verified TLS; ambient Kerberos, per-user upstream credentials and external secret stores are unsupported.
+Azure has reviewed bounded input/upload support; ADO and AWX reject stdin and file uploads.
+See [adapter limits](docs/tool-credentials.md) and [deployment requirements](docs/runbook.md#scope-and-prerequisites).
 
-Local passwords use Argon2id and accept any non-empty password of at most 512 UTF-8 bytes, preserving spaces and Unicode.
-The byte cap bounds input to native hashing; there are no minimum-length, character-count or common-password rules.
-Access tokens last one hour within an 8-hour SSO CLI family or a 12-hour local CLI family; refresh-token reuse revokes the family.
-Password changes revoke existing CLI tokens and browser sessions.
-See [browser administration](#browser-administration) for session management and user archival.
-Sign-in limits and persistent account lockout are enforced by the [attempt boundary](src/server/auth/attempts.ts) and [configured defaults](src/server/config.ts).
-Successful login and reauthentication do not consume the per-username failed-attempt budget; the per-address budget still counts successful and failed attempts.
-Rate-limit refusals produce a `sign-in` audit record with outcome `AUTH_RATE_LIMITED` and no user identity.
-Browser sessions use Secure, HttpOnly, SameSite=Strict cookies and expire after 30 minutes idle or 12 hours overall; temporary-password sessions last 10 minutes.
-Browser mutations require same-origin requests and CSRF tokens.
+## Contributing
 
-Credentials are encrypted with AES-256-GCM and retrieved only after authorization and audited admission.
-Version 1 uses one shared service credential per tool; external secret sources and per-user credentials remain deferred.
-Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
-Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.
-Startup recovery records interrupted calls without replay.
-Native write journals complement Artium audit and isolate concurrent calls so reads do not inherit another call's write tag.
-See the [retention and export runbook](docs/runbook.md#retention-and-export) for journal locations, formats and cleanup.
+Use Linux and run `pnpm check`; every change uses local no-mistakes validation, with no hosted test CI.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for hygiene checks, conditional container acceptance and the mandatory release container gate.
 
-The runner uses argument arrays without a shell, a restricted child environment, private per-call directories and bounded concurrency, runtime and output.
-Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.
-Exact-value scanning cannot identify unknown tokens minted upstream.
-Heap and address-space limits are not complete process isolation: descendants starting a new session escape the runner's process group.
-See [runner verification and limitations](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s09-10.md) and [secret-scanner evidence](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s07.md).
+## License
 
-## Development & Testing
+[MIT](LICENSE).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local no-mistakes delivery, container acceptance and the alias deprecation policy.
-
-Use Linux with the [source toolchain](#build-from-source), OpenSSL, Python 3, curl and sha256sum.
-Container acceptance additionally requires Docker and the BuildKit prerequisites described in the [container evidence](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s20-21.md).
-`pnpm test:containers` starts a private BuildKit worker with `--privileged`; hosts that forbid privileged containers cannot run this check and must record container acceptance as unverified.
-
-```sh
-pnpm install --frozen-lockfile
-pnpm check
-pnpm test:containers
-```
-
-`pnpm check` verifies generated error-reference freshness, strict type checking, parser/schema inventory freshness, the Vitest suite, compilation and the AXI/distribution checklist.
-See [checklist verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s46.md) for the fake-only download, authentication, setup and first-call checks.
-It refuses unverified host platforms.
-
-The [Vitest configuration](vitest.config.ts) separates unit and integration projects.
-Only the integration project loads the [reduced-cost password hashing setup](test/fixtures/integration-setup.ts); local authentication unit tests and the native smoke retain production hashing costs, as does the dummy hash used for missing accounts.
-
-| Command | Scope |
-| --- | --- |
-| `pnpm lint` | Static TypeScript checking. |
-| `pnpm test` | Inventory/schema freshness checks and the full Vitest suite. |
-| `pnpm build` | Server compilation and standalone client bundle. |
-| `pnpm test:security` | Tests whose names contain `security`. |
-| `pnpm test:containers` | Fake-only runner, walking-skeleton, Graph headless and fake-service container acceptance. |
-| `pnpm test:browser` | Real admin pages in an isolated Chrome session through `chrome-devtools-axi`, against the local fake browser harness. |
-| `pnpm test:containers --measure-cache` | The container block plus an identical-input warm runner build measurement. |
-| `pnpm errors:generate` | Regenerate the error reference after changing the catalogue. |
-
-The container block builds before running independent acceptance phases concurrently, emits head/input/output evidence and timings, and waits for every phase before removing its uniquely owned test images and private BuildKit cache.
-The [gate configuration](.no-mistakes.yaml) owns the paths that require container acceptance and the CLI, documentation, workflow and skill-only exemptions.
-Every release requires container acceptance under the [release prerequisites](docs/runbook.md#npm-client-releases).
-Do not touch shared Docker resources or use real service credentials.
-Changed relevant inputs invalidate earlier container evidence.
-Upstream pins and integrity records live in [tools/package.json](tools/package.json), [tools/integrity.json](tools/integrity.json) and [tools/falcon-source.json](tools/falcon-source.json).
-The root install runs the frozen upstream install; native build approval is limited to argon2, better-sqlite3 and esbuild, with upstream build scripts disabled.
-
-### Private hygiene check
-
-Before publishing a candidate, commit and build it, then set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list **outside the checkout** and run:
-
-```sh
-pnpm hygiene:check
-```
-
-The UTF-8 list contains one literal term per line, matched after trimming whitespace using context-independent Unicode simple case folding; blanks and case-equivalent duplicates are ignored.
-Unset, unreadable, empty or in-tree lists fail.
-Never copy real terms or the list into this repository.
-Record only its revision or SHA-256, candidate commit and pass/fail result.
-
-The check scans tracked, untracked and ignored files, generated output and every commit message reachable from `HEAD`, excluding only `.git` metadata and installed `node_modules` directories.
-Supply intended release assets outside the checkout as additional `pnpm hygiene:check` arguments, keeping the list outside those directories too.
-Symlinks, unreadable files and BOM-marked UTF-16/UTF-32 assets fail rather than reducing coverage; convert unsupported encodings to UTF-8.
-Diagnostics report location (with one-based columns in the original text's UTF-16 code units) and normalized entry number without secret excerpts, and redact labels whose paths match a term using the same folding rule.
-The scan cannot guarantee absence of unknown sensitive values and does not approve publication.
-
-Further operational guidance lives in the [runbook](docs/runbook.md); local implementation and deferred live acceptance are tracked in the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md).
+If this project saved you time or helped your workflow, please consider giving it a ⭐ on GitHub to help others find it!

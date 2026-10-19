@@ -26,14 +26,14 @@ pnpm hygiene:check
 Never copy the list or its terms into the repository or public review artifacts.
 Record only the list revision or SHA-256, candidate SHA and pass/fail result.
 Include intended release assets outside the checkout as additional arguments.
-See [private hygiene requirements](README.md#private-hygiene-check) for scan coverage and refusal conditions.
+See [private hygiene requirements](#private-hygiene-check) for scan coverage and refusal conditions.
 
 Every change ships from a feature branch through the local no-mistakes pipeline configured in [.no-mistakes.yaml](.no-mistakes.yaml).
 Commit the changes before starting:
 
 ```sh
 no-mistakes doctor
-no-mistakes axi run --intent "Describe the requested outcome and acceptance criteria" --skip ci --wait 8m
+no-mistakes axi run --intent "Describe the requested outcome and acceptance criteria" --wait 8m
 ```
 
 Keep the run in the foreground.
@@ -72,6 +72,26 @@ See the [release runbook](docs/runbook.md#npm-client-releases) for release evide
 Deprecated aliases remain supported for one minor release after deprecation, then are removed.
 Document the replacement and deprecation in user-facing migration guidance so callers can migrate during that window.
 This policy does not introduce new aliases or remove existing ones in this change.
+
+## Private hygiene check
+
+Before publishing a candidate, commit and build it, then set `ARTIUM_AXI_HYGIENE_DENY_LIST_FILE` to an absolute path to the private deny list **outside the checkout** and run:
+
+```sh
+pnpm hygiene:check
+```
+
+The UTF-8 list contains one literal term per line, matched after trimming whitespace using context-independent Unicode simple case folding; blanks and case-equivalent duplicates are ignored.
+Unset, unreadable, empty or in-tree lists fail.
+Never copy real terms or the list into this repository.
+Record only its revision or SHA-256, candidate commit and pass/fail result.
+
+The check scans tracked, untracked and ignored files, generated output and every commit message reachable from `HEAD`, excluding only `.git` metadata and installed `node_modules` directories.
+Supply intended release assets outside the checkout as additional `pnpm hygiene:check` arguments, keeping the list outside those directories too.
+Symlinks, unreadable files and BOM-marked UTF-16/UTF-32 assets fail rather than reducing coverage; convert unsupported encodings to UTF-8.
+Diagnostics report location (with one-based columns in the original text's UTF-16 code units) and normalized entry number without secret excerpts, and redact labels whose paths match a term using the same folding rule.
+The scan cannot guarantee absence of unknown sensitive values and does not approve publication.
+
 
 ## Historical verification records
 
