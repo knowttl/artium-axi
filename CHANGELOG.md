@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.8](https://github.com/knowttl/artium-axi/compare/v0.0.7...v0.0.8) (2026-10-19)
+
+
+### Features
+
+* **server:** add AWX password sign-in and controller trust setup ([#124](https://github.com/knowttl/artium-axi/issues/124)) ([7d7336f](https://github.com/knowttl/artium-axi/commit/7d7336fcf1255061aa599fafb7db014d0c6a649a))
+
+
+### Bug Fixes
+
+* **server:** recover tool health after transient failures and check shortly after startup ([#126](https://github.com/knowttl/artium-axi/issues/126)) ([c87f742](https://github.com/knowttl/artium-axi/commit/c87f74230f339943d4d0bfdd998db3e753e8612c))
+
 ## [0.0.7](https://github.com/knowttl/artium-axi/compare/v0.0.6...v0.0.7) (2026-10-19)
 
 
