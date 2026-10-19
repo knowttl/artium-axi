@@ -340,8 +340,7 @@
         "template": "value",
         "failed": "boolean",
         "since": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -386,8 +385,7 @@
         "failed": "boolean",
         "host": "value",
         "task": "value",
-        "limit": "value",
-        "type": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [
@@ -717,8 +715,7 @@
         "help": "boolean",
         "project": "value",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -1144,8 +1141,7 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -1556,8 +1552,7 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -1599,8 +1594,7 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -1643,8 +1637,7 @@
         "search": "value",
         "template": "value",
         "status": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -1787,8 +1780,7 @@
         "help": "boolean",
         "search": "value",
         "organization": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -1896,8 +1888,7 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -2063,8 +2054,7 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -2913,8 +2903,7 @@
         "template": "value",
         "enabled": "boolean",
         "disabled": "boolean",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3015,8 +3004,7 @@
         "search": "value",
         "organization": "value",
         "type": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3134,8 +3122,7 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3169,8 +3156,7 @@
         "inventory-update": "value",
         "ad-hoc": "value",
         "system-job": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3288,8 +3274,7 @@
         "search": "value",
         "type": "value",
         "organization": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3326,8 +3311,7 @@
         "team": "value",
         "user": "value",
         "credential": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3455,8 +3439,7 @@
         "help": "boolean",
         "search": "value",
         "organization": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],
@@ -3601,8 +3584,7 @@
         "help": "boolean",
         "search": "value",
         "type": "value",
-        "limit": "value",
-        "fields": "value"
+        "limit": "value"
       },
       "positionals": {
         "names": [],

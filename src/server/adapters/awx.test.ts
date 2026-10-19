@@ -15,6 +15,9 @@ import { createAwxAdapter, awxCredentialSchema, awxProfile } from './awx.js'
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
 const adapter = (allowWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites }) })
+const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
+  'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
+  'notification-template', 'activity-stream', 'team', 'role']
 
 test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command is refused regardless of write access', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
@@ -38,6 +41,22 @@ test('a dry-run remains a read even when confirm is present', async () => {
   const call = await adapter().prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
   expect(call.effect).toBe('read')
   expect(call.write).toBeUndefined()
+})
+
+test.each(fixedSchemaLists)('%s list refuses unsupported field projection', command => {
+  expect(() => adapter().validateArgs([command, 'list', '--fields', 'id,name'])).toThrow()
+  expect(() => adapter().validateArgs([command, 'list', '--fields=id,name'])).toThrow()
+})
+
+test('job events refuses the ignored run type selector', () => {
+  expect(() => adapter().validateArgs(['job', 'events', '42', '--type', 'workflow'])).toThrow()
+  expect(() => adapter().validateArgs(['job', 'events', '42', '--type=workflow'])).toThrow()
+})
+
+test('job events preserves implemented filters', async () => {
+  const call = await adapter().prepare(['job', 'events', '42', '--failed', '--host', 'synthetic', '--task', 'setup', '--limit', '10'], reference)
+  expect(call.args).toEqual(['job', 'events', '42', '--failed', '--host=synthetic', '--task=setup', '--limit=10'])
+  expect(call.effect).toBe('read')
 })
 
 test.each([
@@ -125,6 +144,22 @@ test('managed job stdout help advertises implemented output modes', () => {
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain('artium-axi awx-axi job stdout <id> [--tail <n> | --lines <a-b>]')
   expect(help).not.toMatch(/--(?:download|full|ansi)\b/)
+})
+
+test.each(fixedSchemaLists)('%s list help advertises fixed output without field projection', command => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', command, 'list', '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain(`artium-axi awx-axi ${command} list`)
+  expect(help).not.toContain('--fields')
+})
+
+test('job events help omits the ignored run type selector', () => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'events', '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('artium-axi awx-axi job events <id>')
+  expect(help).not.toContain('--type')
 })
 
 test('oversized job stdout suggests managed events instead of a download', async () => {

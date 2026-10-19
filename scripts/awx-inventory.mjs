@@ -31,7 +31,9 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const command = `${domain.name} ${route.name}`
   return { command, effect: read ? 'read' : operationalWrites.includes(command) ? 'write' : 'blocked',
     flags: { help: 'boolean', ...Object.fromEntries(route.flags
-      .filter(flag => command !== 'job stdout' || !['download', 'full', 'ansi'].includes(flag.name))
+      .filter(flag => flag.name !== 'fields'
+        && (command !== 'job stdout' || !['download', 'full', 'ansi'].includes(flag.name))
+        && (command !== 'job events' || flag.name !== 'type'))
       .map(flag => [flag.name, flag.takesValue ? 'value' : 'boolean'])) },
     positionals: route.positionals }
 }))
