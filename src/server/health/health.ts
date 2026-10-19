@@ -42,7 +42,6 @@ export class ToolHealth {
   start(): void {
     this.timer = setInterval(() => {
       for (const adapter of this.adapters) {
-        if (this.pending.size >= healthDefaults.backgroundCalls) return
         if ((this.due.get(adapter.name) ?? 0) > Date.now()) continue
         void this.refresh(adapter.name)
       }
@@ -51,11 +50,8 @@ export class ToolHealth {
   }
 
   // Only reachability failures retry early, so a rejected credential is never retried into an account lockout.
-  private reschedule(tool: ToolName, started: number, code: string | undefined): void {
-    if (code === 'TOO_MANY_CALLS') {
-      this.due.set(tool, started + healthDefaults.retryMs)
-      return
-    }
+  private reschedule(tool: ToolName, revision: CredentialReference['revision'], code: string | undefined): void {
+    if (this.store?.findCredential(tool)?.revision !== revision) return
     const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
     const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
     if (failures) this.failures.set(tool, failures)
@@ -63,7 +59,7 @@ export class ToolHealth {
     const delay = failures === 0
       ? healthDefaults.intervalMs
       : Math.min(healthDefaults.retryMs * 2 ** (failures - 1), healthDefaults.intervalMs)
-    this.due.set(tool, started + delay)
+    this.due.set(tool, Date.now() + delay)
   }
 
   refresh(tool: ToolName, replaced = false): Promise<unknown> | undefined {
@@ -77,11 +73,14 @@ export class ToolHealth {
     if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) return
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
     if (!row?.enabled || !this.adapters.some(adapter => adapter.name === tool)) return
-    const started = Date.now()
+    if (this.pending.size >= healthDefaults.backgroundCalls) {
+      this.due.set(tool, Date.now())
+      return
+    }
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
       .then(
-        () => this.reschedule(tool, started, undefined),
-        (error: unknown) => this.reschedule(tool, started, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'),
+        () => this.reschedule(tool, reference.revision, undefined),
+        (error: unknown) => this.reschedule(tool, reference.revision, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'),
       )
       .finally(() => this.pending.delete(pending))
     this.pending.add(pending)

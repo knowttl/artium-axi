@@ -14,7 +14,7 @@ import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
-import { Runner } from '../../src/server/runner/runner.js'
+import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -201,7 +201,38 @@ test('repeated network failures back off to the interval and a success restores 
   expect(db.prepare('SELECT status FROM tool_health').get()).toEqual({ status: 'ok' })
 })
 
-test('background checks never hold more than the background slot cap', async () => {
+test.each([
+  { name: 'timeout', error: new RunnerError('TIMEOUT'), delay: healthDefaults.retryMs },
+  { name: 'success', error: undefined, delay: healthDefaults.intervalMs },
+  { name: 'authentication failure', error: new RunnerError('AUTH_FAILED'), delay: healthDefaults.intervalMs },
+  { name: 'admission rejection', error: new RunnerError('TOO_MANY_CALLS'), delay: healthDefaults.intervalMs },
+])('the next check waits from completion after $name', async ({ error, delay }) => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  let started!: () => void
+  let finish!: () => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof result>((resolve, reject) => {
+    finish = () => { if (error) reject(error); else resolve(result) }
+  })
+  const run = vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held }).mockResolvedValue(result)
+  try {
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await admitted
+    await vi.advanceTimersByTimeAsync(60_000)
+    finish()
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(delay - healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(2)
+  } finally {
+    finish()
+    await health.stop()
+  }
+})
+
+test('credential saves defer background checks when both slots are occupied', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
   store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
     auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
@@ -210,12 +241,15 @@ test('background checks never hold more than the background slot cap', async () 
   db.exec("UPDATE tools SET enabled = 1 WHERE name IN ('vectra-axi', 'ldap-axi')")
   health = new ToolHealth(db, new Audit(db), runner, [adapter, createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
     createLdapAdapter(new EmbeddedSecretSource(store))], store)
+  const run = vi.spyOn(runner, 'run').mockResolvedValue(result)
+  await health.refresh('ldap-axi')
+  run.mockClear()
   const releases: (() => void)[] = []
   let secondStarted!: () => void
   let thirdStarted!: () => void
   const initialChecks = new Promise<void>(resolve => { secondStarted = resolve })
   const deferredCheck = new Promise<void>(resolve => { thirdStarted = resolve })
-  const run = vi.spyOn(runner, 'run').mockImplementation(() => new Promise(resolve => {
+  run.mockImplementation(() => new Promise(resolve => {
     releases.push(() => resolve(result))
     if (releases.length === 2) secondStarted()
     if (releases.length === 3) thirdStarted()
@@ -227,6 +261,10 @@ test('background checks never hold more than the background slot cap', async () 
     expect(run.mock.calls.map(call => call[0])).toEqual([
       `${healthDefaults.actor}:falcon-axi`, `${healthDefaults.actor}:vectra-axi`,
     ])
+    store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
+      bindPassword: 'CANARY-LDAP-REPLACEMENT' }, 1, 'synthetic-development-user', Date.now())
+    expect(health.refresh('ldap-axi', true)).toBeUndefined()
+    expect(run).toHaveBeenCalledTimes(2)
     releases[0]()
     await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
     await deferredCheck
@@ -235,6 +273,38 @@ test('background checks never hold more than the background slot cap', async () 
     ])
   } finally {
     releases.forEach(release => release())
+    await health.stop()
+  }
+})
+
+test('a superseded failure cannot restore backoff after a credential change', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const failure = { ...result, stderr: 'connect ECONNREFUSED', exitCode: 1 }
+  let started!: () => void
+  let release!: (value: typeof result) => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof result>(resolve => { release = resolve })
+  const run = vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held }).mockResolvedValue(failure)
+  const pending = health.refresh('falcon-axi')
+  try {
+    await admitted
+    store.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-replacement', region: 'us-2' },
+      1, 'synthetic-development-user', Date.now())
+    health.refresh('falcon-axi', true)
+    release(failure)
+    await pending
+    await vi.advanceTimersByTimeAsync(0)
+    expect(run).toHaveBeenCalledTimes(2)
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.retryMs - healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(3)
+    expect(db.prepare('SELECT credential_revision, error_code FROM tool_health').get())
+      .toEqual({ credential_revision: 2, error_code: 'UPSTREAM_NETWORK_FAILED' })
+  } finally {
+    release(failure)
+    await pending
     await health.stop()
   }
 })
