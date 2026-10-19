@@ -28,7 +28,7 @@ For rootless Docker or user-namespace remapping, use the mapped host UID corresp
 See [master-key custody](#backup-restore-and-upgrade-rollback) for key formats and the saved local copy.
 The owner decides key creation; the synthetic key used in rehearsal is not a production provisioning recommendation.
 
-For source-based local rehearsal, use the [development prerequisites](../README.md#development--testing).
+For source-based local rehearsal, use the [source toolchain](../README.md#build-from-source).
 From the repository root, run:
 
 ```sh
@@ -62,7 +62,7 @@ The owner must also permit this repository's Actions token to write GHCR package
 Repository or organization Actions policy must allow the image job's `packages: write`, `attestations: write` and `id-token: write` permissions.
 For an existing GHCR package, grant this repository Actions access before release; set package visibility deliberately if public pulls are intended.
 Only the image job receives `packages: write` and `attestations: write`; it authenticates to GHCR with `GITHUB_TOKEN` and needs no registry password secret.
-Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../README.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
+Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../CONTRIBUTING.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
 Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
 Hosted release handling, npm trusted-publisher configuration, GHCR permissions and actual publication remain unverified by local checks.
 An image-job failure emits a setup reminder; inspect the failed step and resolve permissions or build failures before accepting the release.
@@ -224,9 +224,9 @@ Use the server-wide bundle above for organization-wide inspection CAs instead of
 
 ## CLI launchers and password changes
 
-Follow the [Linux download and launcher installation](../README.md#download-and-first-call), including both downloads and checksum verification before executing the bundle.
+Follow the [Linux download and launcher installation](../README.md#verified-client), including both downloads and checksum verification before executing the bundle.
 Keep Node on PATH and retain the installed launcher path; rerun setup if the bundle moves.
-Install agent skills using the [skill installation guidance](../README.md#skill-installation) for your host.
+Install agent skills using the [skill installation guidance](../README.md#use-with-your-agent) for your host.
 With that installation and trust configured, the following commands are the local-account operator checks:
 
 ```sh
@@ -247,12 +247,12 @@ Change the password, then log in again; a password change revokes existing sessi
 For an ordinary password change, confirm the current password through the hidden prompt or `ARTIUM_AXI_CURRENT_PASSWORD`, and supply the new password on stdin or at the prompt.
 Clear temporary password environment values after use.
 Browser users sign in at `/login`, change temporary passwords at `/password`, and sign in again.
-See [browser administration](../README.md#browser-administration) for `/account` usage and session management.
-The implementation's current password validation is documented in the README; this runbook does not decide or waive the owner's Password and Secrets Standard.
+See [browser administration](admin-guide.md#browser-administration) for `/account` usage and session management.
+See the administrator guide's [password rules](admin-guide.md#security-and-acceptance-boundaries); this runbook does not decide or waive the owner's Password and Secrets Standard.
 
 See [host verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s45.md) for local skill discovery evidence and outstanding host acceptance.
 Windows/macOS launchers and live client trust remain unexercised owner acceptance.
-Follow [client settings](../README.md#client-settings) for default session-file protection and `SESSION_BUSY` recovery, or [externally managed client sessions](../README.md#externally-managed-client-sessions) when the caller owns token custody.
+Follow [client settings](client-reference.md#client-settings) for default session-file protection and `SESSION_BUSY` recovery, or [externally managed client sessions](client-reference.md#externally-managed-client-sessions) when the caller owns token custody.
 An uncertain network outcome is never retried automatically; inspect audit and platform state before deciding whether to repeat a call.
 
 ## Scripted administrator sessions
@@ -285,7 +285,7 @@ Require an `authenticated` response; a `password-change-required` response must 
 Keep the returned `accessToken` and `refreshToken` private and out of logs.
 Then send `POST /v1/auth/reauth` with `Authorization: Bearer <accessToken>` and JSON `{ "password": "<password>" }` from the same protected input source.
 The response contains `ticket` and `expiresAt` (Unix milliseconds).
-SSO administrators instead follow the README's [CLI sign-in and bearer reauthentication instructions](../README.md#sign-in-settings) to obtain artium tokens and a recent-auth ticket through browser approval.
+SSO administrators instead follow the administrator guide's [CLI sign-in and bearer reauthentication instructions](admin-guide.md#sign-in-settings) to obtain artium tokens and a recent-auth ticket through browser approval.
 Send both `Authorization: Bearer <accessToken>` and `x-artium-reauth-ticket: <ticket>` on every `/v1/admin/...` request, including reads such as `GET /v1/admin/users` and `GET /v1/admin/audit`.
 With curl, provide sensitive headers through a protected configuration file or stdin with `--config -`, rather than command arguments.
 Bearer sessions do not use browser CSRF tokens.
@@ -295,19 +295,19 @@ Access tokens last one hour; `POST /v1/auth/refresh` takes `{ "refreshToken": "<
 Replace both stored tokens atomically and never reuse a consumed refresh token.
 The ticket remains usable through a refresh of its own family, but cannot authorize another login session.
 At completion, send `POST /v1/auth/logout` with the refresh token as the bearer credential, then discard local tokens, tickets and temporary inputs.
-See [authentication limits](../README.md#security-and-acceptance-boundaries) for how successful authentication and failures affect the attempt budgets.
+See [authentication limits](admin-guide.md#security-and-acceptance-boundaries) for how successful authentication and failures affect the attempt budgets.
 
 ## Roles, credentials and health
 
-Follow [browser administration](../README.md#browser-administration) to create local users, edit role grants and assign roles through the user detail pages.
+Follow [browser administration](admin-guide.md#browser-administration) to create local users, edit role grants and assign roles through the user detail pages.
 Grant changes apply on the next call, including calls using existing tokens.
 Users with no enabled granted tools receive an explanatory empty list.
 Review actor, change time and revision before saving; reload stale forms instead of overwriting newer edits.
-See [browser administration](../README.md#browser-administration) for timestamp display and inline identity confirmation.
+See [browser administration](admin-guide.md#browser-administration) for timestamp display and inline identity confirmation.
 
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
 On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
-See the [AWX supported boundary](../README.md#awx) before enabling its write switch.
+See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.
@@ -317,7 +317,7 @@ The reviewed Falcon pin has no write commands; enabling its saved switch leaves 
 The Falcon switch is available for a future write-capable pin, which requires a separate review and upgrade.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
-Follow the [credential editor guidance](../README.md#browser-administration) for guided fields and combined certificate PEM uploads.
+Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
 Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
@@ -326,7 +326,7 @@ The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) ow
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
 Failure to commit the audit event rolls back the local replacement.
 Rotate upstream credentials separately from the offline database master key.
-See [README tool administration](../README.md) for native-settings guidance and the live-results and maintainer-approval requirements before enabling Graph on a running installation.
+See [browser administration](admin-guide.md#browser-administration) for native-settings guidance and the live-results and maintainer-approval requirements before enabling Graph on a running installation.
 
 Check liveness and readiness through the trusted endpoint:
 
@@ -342,7 +342,7 @@ curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
 These checks do not test remote services or reload the key.
-Use doctor for the [CLI diagnostics](../README.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
+Use doctor for the [CLI diagnostics](client-reference.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
 Background checks run every 15 minutes and after credential/settings replacement, with one check per tool at a time.
 Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
@@ -357,7 +357,7 @@ Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; inve
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
 AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.
 There is no audit deletion endpoint or general export CLI.
-See [Audit screen and API usage](../README.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
+See [Audit screen and API usage](admin-guide.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
 
 For continuous export, set `ARTIUM_AXI_AUDIT_STDOUT=1` in the server environment and send its committed JSON-line records, containing exactly the persisted fields, to the owner's protected collector before retention expires.
 SQLite remains authoritative if the optional stream fails; monitor collector failures and reconcile retained records through the audit API.
@@ -367,10 +367,10 @@ See [backup retention](#backup-restore-and-upgrade-rollback) for audit data reta
 
 ## First administrator and offline recovery
 
-Use the first-start settings described in [README.md](../README.md).
+Use the [first-start settings](admin-guide.md#server-settings-and-custody) in the administrator guide.
 The username is trimmed and lowercased for lookup, must be nonempty without whitespace or control characters, and keeps the entered spelling as its display name.
 The canonical name `synthetic-development-user` remains reserved and cannot be used for bootstrap or recovery.
-Use the local password rules in [README.md](../README.md).
+Use the administrator guide's [local password rules](admin-guide.md#security-and-acceptance-boundaries).
 For a source-based disposable first start after building, prepare the protected synthetic files and empty data directory, then run from the repository root:
 
 ```sh
@@ -427,7 +427,7 @@ Recovery checks the mounted key against the store's active key ID, authenticates
 An unrelated key fails with `MASTER_KEY_INVALID` even if the store has no credentials or rotation history.
 An audit failure rolls back the entire recovery.
 After success, restart the server, sign in with the recovery password and change it.
-Use the CLI or browser sign-in and forced password-change flow in [README.md](../README.md).
+Use the [CLI quickstart](../README.md#verified-client) or the administrator guide's [browser sign-in and forced password-change flow](admin-guide.md#browser-administration).
 
 ## Offline master key rotation
 
@@ -542,19 +542,19 @@ Table rebuilds and master-key validation share one transaction; a failure rolls 
 The migration checks foreign keys before committing and enables enforcement before exposing the connection.
 Reopening an upgraded store does not reapply migrations or enable SSO providers.
 Migration 017 adds break-glass designation, defaulting existing accounts to undesignated and preserving their sessions.
-See [Sign-in settings](../README.md#sign-in-settings) for designation and session-revocation behaviour.
+See [Sign-in settings](admin-guide.md#sign-in-settings) for designation and session-revocation behaviour.
 Migration 014 adds encrypted provider credential storage without rewriting existing identity or tool data.
 Provider credentials participate in startup authentication, offline master-key rotation, backup and restore with the same AES-256-GCM format as tool credentials.
-Follow [Sign-in settings](../README.md#sign-in-settings) for provider setup and credential replacement rules.
+Follow [Sign-in settings](admin-guide.md#sign-in-settings) for provider setup and credential replacement rules.
 Migration 016 adds a sign-in identity reference to browser sessions without backfilling existing sessions.
 Existing SSO sessions must sign in again before SSO confirmation or optional provider sign-out can work.
-Local sessions follow the [local-password policy](../README.md#sign-in-settings) for confirmation.
+Local sessions follow the [local-password policy](admin-guide.md#sign-in-settings) for confirmation.
 Migration 018 adds last-successful-sign-in role claims and their observation time to identities without backfilling existing identities.
 Existing identities remain unknown to Who matches counts until their next successful sign-in, even if they already hold rule-origin grants.
 Migration 019 converts the saved role-value arrays into named claim maps under `roles`, preserving observation times, rules and grants.
 Other generic-provider claims become available after the next successful sign-in.
 The [populated-copy migration regression](../src/server/store/provider-credentials.test.ts) checks preservation, repeat migration and foreign keys without changing the original store.
-See [Sign-in settings](../README.md#sign-in-settings) for match-count interpretation.
+See [Sign-in settings](admin-guide.md#sign-in-settings) for match-count interpretation.
 
 The interim master-key location is an owner-only `.env` in the directory of `ARTIUM_AXI_DATABASE_FILE`; [server configuration](../src/server/config.ts) owns the default database path.
 After validating the database key, server startup atomically replaces this file, saving the plaintext key as canonical base64 in `ARTIUM_AXI_MASTER_KEY` with mode 0600 and preserving unrelated settings.
