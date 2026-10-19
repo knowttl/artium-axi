@@ -51,6 +51,9 @@ const fieldHelp: Record<string, string> = {
   thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
   thumbprint: 'SHA-1 certificate fingerprint (40 hexadecimal characters). A combined PEM upload calculates it.',
   auth: 'Choose authentication first. Changing it requires new secrets.',
+  signIn: 'Choose password to sign in with a username and password. Artium mints one personal access token and stores only that token. Choose token, or leave this blank, to paste or keep a token.',
+  username: 'Controller username. Used once to mint a token and not stored.',
+  password: 'Controller password. Used once to mint a token, then discarded. It is not stored or logged.',
   mode: 'Application uses a service identity; delegated uses a supplied user token.',
   kind: 'Qux supports token or OAuth; Rux requires OAuth. Qux uses API 2.5 and Rux uses 3.4.',
   apiVersion: 'Use 2.5 for Qux or 3.4 for Rux.', pageSize: 'Optional number of directory entries per page.',
@@ -61,9 +64,10 @@ const fieldHelp: Record<string, string> = {
 export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
   const excluded = new Set([...(tool ? Object.keys(nativeSettingsSchemas[tool].shape) : []), 'tokenEnv', 'secretEnv'])
   const fields = profile.fields().filter(field => !excluded.has(field.name))
-    .sort((a, b) => Number(['mode', 'auth', 'kind'].includes(b.name)) - Number(['mode', 'auth', 'kind'].includes(a.name)))
+    .sort((a, b) => Number(['signIn', 'mode', 'auth', 'kind'].includes(b.name)) - Number(['signIn', 'mode', 'auth', 'kind'].includes(a.name)))
     .map(({ name, schema, required }) => {
     const secret = schema['x-secret'] === true
+    const ephemeral = schema['x-ephemeral'] === true
     const value = secret ? undefined : metadata[name]
     const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
     const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
@@ -81,7 +85,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     } else {
       input = `<input ${attributes} data-profile-type="${schema.type === 'string' ? 'string' : 'json'}" type="${schema.type === 'string' ? 'text' : 'number'}" value="${escape(value ?? '')}"${schema.type === 'number' ? ' step="any"' : ''}>`
     }
-    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}><label>${label}${input}</label><p>${escape(fieldHelp[name] ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
+    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p>${escape(fieldHelp[name] ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
   return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin or organization requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
     <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>

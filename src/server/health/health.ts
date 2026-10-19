@@ -14,6 +14,7 @@ import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
+import { isAwxOriginOnly } from '../store/credential-store.js'
 
 const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'], 'awx-axi': ['job', 'list', '--limit', '1'] }
 
@@ -48,7 +49,8 @@ export class ToolHealth {
       if (replaced) this.replaced.add(tool)
       return
     }
-    if (!this.store?.findCredential(tool)) return
+    const reference = this.store?.findCredential(tool)
+    if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) return
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
     if (!row?.enabled || !this.adapters.some(adapter => adapter.name === tool)) return
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null).catch(() => {})
@@ -101,6 +103,7 @@ export class ToolHealth {
       try {
         credential = store!.readCredential(reference) as Record<string, unknown> | undefined
         if (!credential) throw new ArtiumError('REVISION_CONFLICT')
+        if (isAwxOriginOnly(tool, credential)) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
         // Include schema-declared secrets, including custom profile fields, before preflight.
         const secretFields = new Set(adapter.credentialProfile?.fields().filter(field => field.schema['x-secret']).map(field => field.name))
         secrets = Object.entries(credential).filter(([key]) => secretFields.has(key) || /secret|password|privateKey|token|assertion/i.test(key))

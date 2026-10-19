@@ -13,6 +13,7 @@ import { mgCredentialSchema } from '../adapters/mg.js'
 import { ldapCredentialSchema } from '../adapters/ldap.js'
 import { adoCredentialSchema } from '../adapters/ado.js'
 import { awxCredentialSchema } from '../adapters/awx.js'
+import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -20,6 +21,9 @@ import type { Audit } from '../audit/audit.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
+import { readCredentialTrust } from '../store/trusted-certificates.js'
+import { isAwxOriginOnly } from '../store/credential-store.js'
+import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
 
 export interface ToolAdminOptions {
   adapters: readonly Adapter<unknown>[]
@@ -81,7 +85,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       error_code AS errorCode FROM tool_health WHERE tool = ? AND credential_revision = ?`).get(tool, credential?.revision ?? 0))
     // Cached categories from an older catalogue require a fresh test after upgrade.
     const cached = stored.success ? stored.data : undefined
-    const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !credential ? 'unconfigured' : 'unknown'
+    const reference = tool === 'awx-axi' ? store?.findCredential(tool) : undefined
+    const configured = Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
+    const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
     const nativeSettings = JSON.parse(row.nativeSettings)
@@ -96,9 +102,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       { revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     const reference = store?.findCredential(tool)
     const value = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
-    const metadata = reference && credentialProfiles[tool] ? credentialProfiles[tool].metadata(value)
+    const originOnly = isAwxOriginOnly(tool, value)
+    const metadata = reference && credentialProfiles[tool] && !originOnly ? credentialProfiles[tool].metadata(value)
       : Object.fromEntries(publicFields[tool].filter(field => value[field] !== undefined).map(field => [field, value[field]]))
-    return adminCredentialSchema.parse({ tool, configured: Boolean(row), revision: 0, updatedAt: null, updatedBy: null, ...row, metadata })
+    return adminCredentialSchema.parse({ tool, configured: Boolean(row) && !originOnly, revision: 0, updatedAt: null, updatedBy: null, ...row, metadata })
   }
   function splitSettings(tool: ToolName, value: Record<string, unknown>) {
     const keys = Object.keys(nativeSettingsSchemas[tool].shape)
@@ -118,6 +125,32 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     parse(adminToolRoutes.credential.input, request.query)
     return readCredential(toolName(request))
   } })
+  app.route({ method: adminToolRoutes.saveOrigin.method, url: adminToolRoutes.saveOrigin.path, handler: async request => {
+    const actor = authorize(request)
+    const input = parse(adminToolRoutes.saveOrigin.input, request.body)
+    if (!isCanonicalHttpsOrigin(input.origin)) throw new ArtiumError('INVALID_INPUT',
+      'origin must be an HTTPS origin without a path, query, fragment or embedded credentials.')
+    const tool = 'awx-axi'
+    let replacement: CredentialReference | undefined
+    const result = audit.change({ event: 'admin-change', action: adminToolRoutes.saveOrigin.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
+      authorize(request)
+      const current = readTool(tool)
+      if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const reference = credentialStore().findCredential(tool)
+      const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
+      const sameOrigin = stored.origin === input.origin
+      const value = sameOrigin ? splitSettings(tool, stored).credential : { origin: input.origin }
+      const now = Date.now()
+      replacement = credentialStore().replaceCredential(tool, value, input.expectedRevision, actor, now)
+      if (!sameOrigin) db.prepare('DELETE FROM trusted_certificates WHERE credential_id = ?').run(replacement.id)
+      db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
+      db.prepare('UPDATE tools SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?').run(now, actor, tool)
+      return readCredential(tool)
+    }).value
+    invalidate(replacement)
+    return result
+  } })
   app.route({ method: adminToolRoutes.patch.method, url: adminToolRoutes.patch.path, handler: async request => {
     const actor = authorize(request)
     const tool = toolName(request)
@@ -136,7 +169,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         if (reference) {
           const value = credentialStore().readCredential(reference) as Record<string, unknown>
           const credential = splitSettings(tool, value).credential
-          parse(schemaFor(tool), { ...credential, ...settings })
+          if (!isAwxOriginOnly(tool, credential)) parse(schemaFor(tool), { ...credential, ...settings })
           replacement = credentialStore().replaceCredential(tool, credential, reference.revision!, actor, now)
         }
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
@@ -165,10 +198,31 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       } catch { throw new ArtiumError('INVALID_INPUT', 'The PEM must contain one certificate and its matching unencrypted private key.', 'Choose a matching certificate and key, then save again.') }
     }
     if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
-    const normalized = profile ? (saving ? profile.normalizeInput(value) : profile.parseInput(value)) : undefined
-    const normalizations = normalized?.normalizations ?? []
+    const awx = tool === 'awx-axi'
+    const normalized = profile ? (saving || awx ? profile.normalizeInput(value) : profile.parseInput(value)) : undefined
+    const normalizations = [...normalized?.normalizations ?? []]
     if (normalized) value = normalized.value
     else if (!saving) value = parse(schemaFor(tool), value) as Record<string, unknown>
+    if (awx) {
+      const reference = credentialStore().findCredential(tool)
+      if (awxPasswordRequested(value)) {
+        const current = readTool(tool)
+        if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
+        if ((reference?.revision ?? 0) !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      }
+      value = await exchangeAwxPassword(value, reference ? readCredentialTrust(db, reference) : [], () => {
+        const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : undefined
+        if (stored?.origin !== value.origin) throw new ArtiumError('INVALID_INPUT',
+          'Save the controller address before signing in with a username and password.')
+        parse(schemaFor(tool), { ...value, signIn: value.signIn === undefined ? 'password' : value.signIn,
+          ...(saving ? readTool(tool).nativeSettings : {}) })
+      })
+      if (!saving && profile) {
+        const parsed = profile.parseInput(value)
+        value = parsed.value
+        normalizations.push(...parsed.normalizations)
+      }
+    }
     let replacement: CredentialReference | undefined
     const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
@@ -181,8 +235,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       if (saving) {
         const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
         const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org'].every(key => stored[key] === value[key])
-        const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret']).map(field => field.name)
-          ?? legacySecretFields[tool]
+        const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
+          .map(field => field.name) ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}
         next = parse(schemaFor(tool), { ...retained, ...value, ...current.nativeSettings }) as Record<string, unknown>
       }

@@ -189,6 +189,8 @@ Do not disable verification; a temporary network-policy exemption is an alternat
 ### Trusting one tool from the administration UI
 
 After a credential test reports a TLS verification failure, select the affected **Saved TLS endpoint** on the tool page and choose **Inspect certificate**.
+AWX also allows inspection before a credential test or token save; first save the controller address as described in [the password sign-in flow](#roles-credentials-and-health).
+This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
@@ -308,6 +310,13 @@ See [browser administration](admin-guide.md#browser-administration) for timestam
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
 On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
+For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
+This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
+Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.
+Then choose password sign-in, enter the username and password and choose **Save credential**.
+Until a token is saved, the credential remains unconfigured and ordinary calls cannot use the address-only record.
+The same sequence applies when switching controllers; the paste-a-token path remains available.
+See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for the one-time token exchange and password handling.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.
@@ -320,7 +329,8 @@ For credential rotation, obtain the replacement through the owner's approved pro
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
 Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
-Upstream credential issuance and revocation are live-only owner steps and are not exercised here.
+AWX username-and-password sign-in mints a personal access token during credential save.
+Other upstream credential issuance, and revocation for every tool including AWX, remain live-only owner steps and are not exercised here.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
 The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) owns API request fields, retention, identity-change restrictions and revision requirements.
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.

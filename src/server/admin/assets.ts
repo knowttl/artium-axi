@@ -75,7 +75,7 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   const schema = JSON.parse(editor.dataset.schema);
   const identity = JSON.parse(editor.dataset.identity);
   const inputs = [...editor.querySelectorAll('[data-profile-field]')];
-  const selectors = ['mode', 'kind', 'auth', 'apiVersion'];
+  const selectors = ['mode', 'kind', 'auth', 'apiVersion', 'signIn'];
   function values() {
     return Object.fromEntries(inputs.map(input => {
       let value = input.value || null;
@@ -103,7 +103,13 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
       }
     }
     for (const branch of schema.allOf || []) {
-      if (branch.if && matches(branch.if, current)) for (const key of branch.then?.required || []) required.add(key);
+      if (!branch.if) continue;
+      const chosen = matches(branch.if, current) ? branch.then : branch.else;
+      if (!chosen) continue;
+      for (const key of chosen.required || []) required.add(key);
+      for (const rule of chosen.not ? chosen.not.anyOf || [chosen.not] : []) {
+        if (rule.required?.length === 1) forbidden.add(rule.required[0]);
+      }
     }
     // A delegated Graph token has no application authentication selector.
     if (current.mode === 'delegated') forbidden.add('auth');
@@ -117,7 +123,7 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
       const wrapper = input.closest('[data-credential-field]');
       wrapper.hidden = forbidden.has(key);
       input.disabled = wrapper.hidden;
-      input.required = !input.disabled && required.has(key) && !(wrapper.hasAttribute('data-secret') && sameIdentity) &&
+      input.required = !input.disabled && required.has(key) && !(wrapper.hasAttribute('data-secret') && !wrapper.hasAttribute('data-ephemeral') && sameIdentity) &&
         !(combined && ['privateKey', 'thumbprint', 'thumbprintSha256'].includes(key));
       const stored = wrapper.querySelector('[data-stored-secret]');
       if (stored) stored.textContent = sameIdentity ? 'Stored when configured. Leave blank to keep; enter a value to replace.' : 'Identity changed. Enter a new secret before saving.';
