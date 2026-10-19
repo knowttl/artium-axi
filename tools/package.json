@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.22.0",
   "dependencies": {
+    "awx-axi": "0.1.7",
     "@jeffreyhaen/ado-axi": "0.4.6",
     "@knowttl/az-axi": "0.1.8",
     "@knowttl/vectra-axi": "0.1.5",

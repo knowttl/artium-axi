@@ -15,6 +15,7 @@ import { credentialCertificates } from '../store/trusted-certificates.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
+  'awx-axi': 'Optional allowWrites (boolean), off by default, enables operational actions only (launch, cancel, sync, approval and notification tests). Configuration, deletion and security writes are always blocked. Use {} to turn writes off.',
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
@@ -23,6 +24,7 @@ const settingsGuide = {
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
 const testGuide = {
+  'awx-axi': 'AWX job list --limit 1',
   'ado-axi': 'Azure DevOps project list --limit 1',
   'falcon-axi': 'Falcon auth status', 'vectra-axi': 'Vectra health list', 'az-axi': 'Azure account list',
   'mg-axi': 'Graph entra user list --limit 1', 'ldap-axi': 'LDAP auth status',

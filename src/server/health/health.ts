@@ -15,7 +15,7 @@ import { RunnerError, type Runner } from '../runner/runner.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 
-const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'] }
+const healthReads = { 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'], 'awx-axi': ['job', 'list', '--limit', '1'] }
 
 // Manual tests and background reads share exclusion, runner admission and cache writes.
 export class ToolHealth {

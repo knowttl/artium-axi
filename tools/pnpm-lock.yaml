@@ -23,6 +23,9 @@ importers:
       '@knowttl/vectra-axi':
         specifier: 0.1.5
         version: 0.1.5
+      awx-axi:
+        specifier: 0.1.7
+        version: 0.1.7
 
 packages:
 
@@ -106,8 +109,17 @@ packages:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
 
+  awx-axi@0.1.7:
+    resolution: {integrity: sha512-hZFvJnOhW+UZDeBTp+un1K1anUqEVC0njETANXbHjgXKwiGB3W1h5oEZzmf4fiPskZarr+ynlEaUaWafEHtnsA==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   axi-sdk-js@0.1.13:
     resolution: {integrity: sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA==}
+    engines: {node: '>=20'}
+
+  axi-sdk-js@0.1.8:
+    resolution: {integrity: sha512-N8Qd/9sVBpG8QRVSw0lLevdFuaBfjHHPdcbcj8DCuxr68sA1/c5KCnGEDqO7lI3kt52/bgymCZajmpTqz/rLOw==}
     engines: {node: '>=20'}
 
   balanced-match@1.0.2:
@@ -517,6 +529,11 @@ packages:
     resolution: {integrity: sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw==}
     engines: {node: '>=18'}
 
+  yaml@2.8.2:
+    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
@@ -620,7 +637,17 @@ snapshots:
   ansi-styles@6.2.3:
     optional: true
 
+  awx-axi@0.1.7:
+    dependencies:
+      '@toon-format/toon': 2.3.1
+      axi-sdk-js: 0.1.8
+      yaml: 2.8.2
+
   axi-sdk-js@0.1.13:
+    dependencies:
+      '@toon-format/toon': 2.3.1
+
+  axi-sdk-js@0.1.8:
     dependencies:
       '@toon-format/toon': 2.3.1
 
@@ -1106,5 +1133,7 @@ snapshots:
 
   yallist@5.0.0:
     optional: true
+
+  yaml@2.8.2: {}
 
   zod@4.3.6: {}

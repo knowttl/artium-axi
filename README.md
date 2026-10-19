@@ -14,7 +14,7 @@ Administrators manage accounts, roles, encrypted service credentials and audit r
 The client follows AXI (Agent eXperience Interface) conventions for discovery, help and structured errors.
 
 **Status: under construction.**
-Falcon, Vectra, Azure, Graph, LDAP and Azure DevOps are wired into the production server entry point.
+Falcon, Vectra, Azure, Graph, LDAP, Azure DevOps and AWX are wired into the production server entry point.
 See the [evidence ledger](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/evidence-ledger.md) for the acceptance boundaries.
 
 ## Agent Ergonomics
@@ -210,6 +210,7 @@ The [credential standard](docs/credential-standard.md#9-hosted-contract-artium-a
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
+| AWX (`awx-axi`) | Controller HTTPS origin and an existing personal access token. | `job list --limit 1`; job read permissions are required. |
 
 #### Falcon
 
@@ -381,6 +382,29 @@ Use `pipeline watch --timeout 50` or less to stay within the runner's call timeo
 Writes are journaled by Artium only; see [audit action classification](#audit-screen-and-api).
 For an interrupted write, run the returned read-back command and follow its inspection guidance before retrying.
 Local fake-service checks do not establish live organization acceptance.
+
+#### AWX
+
+Artium bundles the [pinned](tools/package.json) `awx-axi` package without upstream modifications.
+At `/admin/tools/awx-axi`, enter the controller HTTPS `origin` and paste an existing personal access token into `token`.
+Enter the token itself, never a SecretRef, environment-variable name, password or file path.
+Artium encrypts the token and injects a SecretRef through its private per-call profile; it does not mint or revoke AWX tokens.
+Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi awx-axi job list --limit 1`.
+**Test credential** reads one job using the managed token and reports structured authentication, network and TLS diagnostics.
+For a private certificate, inspect and trust it through the tool page; trust is scoped to the saved credential and host.
+HTTP and TLS-verification bypasses are refused.
+
+Writes are off by default.
+The native setting `{"allowWrites": true}` permits only operational writes, which still require upstream `--confirm`: launching, canceling or relaunching runs, approving or denying workflow approvals, project and inventory-source syncs, and notification-template tests.
+Configuration writes, deletes and security writes are always blocked, including resource creation and editing, associations, role grants and token operations.
+Artium never enables AWX's separate configuration, deletion or security write gates.
+Token permissions remain an additional AWX-side limit; the write switch does not grant AWX permissions.
+The generated [AWX inventory](tools/inventories/awx-axi.json) classifies every command and records the reviewed upstream source digests.
+Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.
+Stdin, file uploads, server file paths and `@file` values are unsupported; use inline non-secret launch parameters.
+Use `job watch --timeout 50` or less to stay within the runner timeout.
+For an interrupted write, inspect current state using the returned read-back guidance before retrying.
+Local fake-service checks do not establish live controller acceptance.
 
 ### Build from source
 

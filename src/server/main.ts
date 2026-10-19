@@ -6,6 +6,7 @@ import { createAzAdapter } from './adapters/az.js'
 import { createMgAdapter } from './adapters/mg.js'
 import { createLdapAdapter } from './adapters/ldap.js'
 import { createAdoAdapter } from './adapters/ado.js'
+import { createAwxAdapter } from './adapters/awx.js'
 import { AzureTokenCache } from './adapters/azure-token-cache.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { retainRunJournals } from './adapters/run-journal.js'
@@ -51,7 +52,8 @@ async function main() {
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'), azureTokens),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
-        createLdapAdapter(source), createAdoAdapter(source, azureTokens)] })
+        createLdapAdapter(source), createAdoAdapter(source, azureTokens),
+        createAwxAdapter(source, join(dirname(database), 'tool-logs', 'awx-axi', 'writes.log'))] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }

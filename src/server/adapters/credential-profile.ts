@@ -57,6 +57,15 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'awx-axi') {
+      this.inputSchema.required = ['origin', 'token']
+      this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin', title: 'Controller origin' }
+      delete this.inputSchema.properties.verifySsl
+      delete this.inputSchema.properties.allowHttp
+      delete this.inputSchema.if
+      delete this.inputSchema.else
+      this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow operational writes' }
+    }
     if (tool === 'falcon-axi') this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow writes' }
     if (tool === 'ldap-axi') {
       this.inputSchema.required = [...new Set([...this.inputSchema.required ?? [], 'auth', 'bindDn', 'bindPassword'])]
@@ -180,8 +189,8 @@ export class CredentialProfile {
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
     if (tool !== 'ldap-axi' && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
-    // Falcon's administrator switch is host policy, not an upstream profile field.
-    if (tool === 'falcon-axi') delete parsed.value.allowWrites
+    // These administrator switches are host policy, not upstream profile fields.
+    if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
     const environment: Record<string, string> = {}
     const secrets: string[] = []
     for (const path of parsed.paths) {

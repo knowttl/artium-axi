@@ -2,12 +2,14 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { ArtiumError } from '../shared/errors.js'
 import { toolManifests } from '../shared/tool-manifests.js'
+import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { toolSkillPaths } from './config.js'
 import type { ToolName } from './store/credential-store.js'
 
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
+  'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
   'az-axi': { sha256: '6bf268e08b707f5e0f41ac3a5d1f4fefdef515f0f710b2e1139dee1e2e517161', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: '0fef685ec7e7cc955a2d024901b4f25802c4b73240a561cce97567c68818430f', sections: ['Safety'] },
@@ -21,14 +23,18 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
     const source = readFileSync(path, 'utf8')
     const overlay = overlays[tool]
     if (createHash('sha256').update(source).digest('hex') !== overlay.sha256) throw new Error('Unreviewed skill')
-    const frontmatter = source.match(/^---\n[\s\S]*?\n---\n/)![0]
+    let frontmatter = source.match(/^---\n[\s\S]*?\n---\n/)![0]
     const sections = overlay.sections.map(title => {
       const start = source.indexOf(`\n## ${title}\n`)
       const end = source.indexOf('\n## ', start + 1)
       return source.slice(start, end === -1 ? undefined : end).trim()
     })
     let body = sections.join('\n\n')
-    if (tool === 'ado-axi') {
+    if (tool === 'awx-axi') {
+      frontmatter = frontmatter.replace(/^description:.*$/m, 'description: Inspect AWX resources and perform administrator-enabled operational actions through Artium. Configuration, deletion and security writes are blocked.')
+      body = body.replaceAll('npx -y awx-axi', 'artium-axi awx-axi')
+      body += '\n\n## Managed commands\n\nOperational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Artium manages the HTTPS origin and token; administrators inspect certificates and trust per host in the tool page.\nUse job list and job show to inspect runs, job stdout for output, and job watch --timeout 50 for bounded polling.\nRead commands: ' + awxInventory.commands.filter(route => route.effect === 'read').map(route => '`' + route.command + '`').join(', ') + '.\nOperational commands: ' + awxInventory.commands.filter(route => route.effect === 'write').map(route => '`' + route.command + '`').join(', ') + '.\n'
+    } else if (tool === 'ado-axi') {
       body = body.replace(/\n### Safe shell input\n[\s\S]*?(?=\n### |\n## |$)/, '')
         .replace(/\n### Git Bash repository paths\n[\s\S]*?(?=\n### |\n## |$)/, '')
         .replaceAll('--timeout 1800', '--timeout 50')

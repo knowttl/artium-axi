@@ -10,7 +10,7 @@ export type RunAction = 'read' | 'write' | 'unknown'
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
 
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
-  if (tool === 'ado-axi') {
+  if (tool === 'ado-axi' || tool === 'awx-axi') {
     if (!effect) throw new TypeError('Missing host-classified effect')
     return { environment, action: async (succeeded: boolean): Promise<RunAction> => effect === 'read' ? 'read' : succeeded ? 'write' : 'unknown' }
   }

@@ -270,6 +270,13 @@ Client-secret calls use `auth: "az"` without a tenant field and a restricted Art
 The shared Azure token cache acquires the DevOps audience token; the client secret and minted token are registered for redaction.
 See [Azure DevOps setup and supported boundaries](../README.md#azure-devops) for managed access and [audit action classification](../README.md#audit-screen-and-api) for host journaling.
 
+awx-axi uses its shipped token SecretRef schema without an authentication-kind translation.
+The host requires `origin` and `token`, restricts origins to HTTPS, and excludes upstream HTTP and TLS-verification bypass settings.
+The shared profile writer injects the token and registers it for output scanning.
+Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
+Only operational writes can be enabled; configuration, deletion and security gates remain disabled.
+See [AWX setup](../README.md#awx) for credential setup and the supported command boundary.
+
 ## 10. Migration
 
 The per-tool migration and suggested order are in [credential-migration.md](credential-migration.md), section "Migration path per tool".

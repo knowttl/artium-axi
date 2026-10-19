@@ -60,6 +60,10 @@ try {
       recoveryContainers.push(adoPackage)
       await command('docker', ['run', '--name', adoPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/ado-axi', image, '--version'])
+      const awxPackage = `${builder}-awx-package`
+      recoveryContainers.push(awxPackage)
+      await command('docker', ['run', '--name', awxPackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/awx-axi', image, '--version'])
       const adoToken = `${builder}-ado-token`
       recoveryContainers.push(adoToken)
       await command('docker', ['run', '--name', adoToken, '--pull', 'never', '--network', 'none', '--read-only',

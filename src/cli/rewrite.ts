@@ -5,8 +5,10 @@ import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json'
 import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
+import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'awx-axi': awx.adapterBoundary.unsafeOverrides,
   'falcon-axi': falcon.unsafeOverrides,
   'vectra-axi': vectra.adapterBoundary.unsafeOverrides,
   'az-axi': az.adapterBoundary.unsafeOverrides,
@@ -35,6 +37,18 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
+  if (tool === 'awx-axi' && output.startsWith('bin: awx-axi\n')) {
+    return encode({ bin: 'artium-axi awx-axi', description: 'Inspect AWX automation with managed credentials.',
+      usage: 'artium-axi awx-axi <command> [args] [flags]', commands: awx.discovery.commands,
+      help: [awx.discovery.help] }) + '\n'
+  }
+  const awxGroup = tool === 'awx-axi' && /^([a-z-]+): [^\n]+\n/.exec(output)?.[1]
+  if (awxGroup && awx.discovery.commands.includes(awxGroup)) {
+    return encode({ command: `artium-axi awx-axi ${awxGroup}`,
+      commands: awx.commands.filter(route => route.effect !== 'blocked' && route.command.startsWith(awxGroup + ' ')).map(route =>
+        `artium-axi awx-axi ${route.command}${route.positionals.names.map(name => ` <${name}>`).join('')}`),
+      help: ['Run a command with --help for its flags.', awx.discovery.help] }) + '\n'
+  }
   const flags = managedFlags[tool]
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
@@ -142,6 +156,13 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'awx-axi') {
+    const guidance = 'Artium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Ask an administrator to update the managed credential.'
+    help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))
+      .map(line => line.replace(/--timeout (?:600|3600)/g, '--timeout 50')).join('\n')
+    if (!help.trim()) help = guidance
+    else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
+  }
   if (tool === 'ado-axi') {
     const guidance = 'Artium manages the organization, profile, config and PAT. api accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. Use pipeline watch --timeout 50 or less.'
     if (/^(?:Usage: |(?:Run|Use) [`'"]?)?(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {

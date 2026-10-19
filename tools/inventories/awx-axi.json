@@ -1,0 +1,3784 @@
+{
+  "generatedBy": "scripts/awx-inventory.mjs",
+  "tool": "awx-axi",
+  "version": "0.1.7",
+  "integrity": "sha512-hZFvJnOhW+UZDeBTp+un1K1anUqEVC0njETANXbHjgXKwiGB3W1h5oEZzmf4fiPskZarr+ynlEaUaWafEHtnsA==",
+  "parserEvidence": "Published domain registry, reviewed plan effects and transport safety gates",
+  "sources": [
+    {
+      "path": "dist/bin/awx-axi.js",
+      "sha256": "fcbb252a6acc98ec8401a9768f6c2c61f46e3788eb0b4974ec96fb2fcb95c379"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "a53f9f52a3f5e85e9dd336a0341cd25a16b69725ce3f1ddaf671215923e2d024"
+    },
+    {
+      "path": "dist/commands/auth.js",
+      "sha256": "5ccc0c9a226ab900bcc89a55aa71b22b64a41069e9f64d73c2c1fece79190a68"
+    },
+    {
+      "path": "dist/commands/home.js",
+      "sha256": "e777630af6fba303968b3cf0fbf7ed8b6d5ac095fbd3f6409a1b4262375bbea3"
+    },
+    {
+      "path": "dist/commands/setup.js",
+      "sha256": "1eb8493b36d922d9e6ce3ad62072328c194f8345e9a572a9219538093246d0cc"
+    },
+    {
+      "path": "dist/core/auth.js",
+      "sha256": "154de0a41b56e4aa82df170319b439bc77f4367254d3df934c13c28f678262c4"
+    },
+    {
+      "path": "dist/core/controller-discovery.js",
+      "sha256": "8a2ec9f13b91ca32f6c3068bda4059b9236e23bfde1425a35f6cfa0384a5b236"
+    },
+    {
+      "path": "dist/core/errors.js",
+      "sha256": "1727d3b326fbe02e27554acf7c3249ce7aa9d80c95c2bf98d311349c4325b3ff"
+    },
+    {
+      "path": "dist/core/flags.js",
+      "sha256": "ae72d1964d63ef9fab92bb5ff561f584432c14b8d216b5f2e2b5967333b25fbb"
+    },
+    {
+      "path": "dist/core/mutations.js",
+      "sha256": "52489be750ac5d37bf23b41f519c038b529805d3d48c508c719a750894415b22"
+    },
+    {
+      "path": "dist/core/output.js",
+      "sha256": "b8d4dc8dff76151b2af0e25caf5946c97ba98f8eb21939aab49ed1222d7c16dd"
+    },
+    {
+      "path": "dist/core/paginate.js",
+      "sha256": "cd5b17961f1671e204a8087b96ef8a15dc8c4994b486f0b3027734c560e648b2"
+    },
+    {
+      "path": "dist/core/poll.js",
+      "sha256": "13031768ef8ba87306e0dd38159e2b32a5b3541bcf99785e7bdcfe60340028de"
+    },
+    {
+      "path": "dist/core/private-file.js",
+      "sha256": "eedc2a13e5e4470eb22b8e3d500cd971b376c57fff9220c12c4d507ceeb240f6"
+    },
+    {
+      "path": "dist/core/profiles.js",
+      "sha256": "72b3bfe669c5471222efb6a457d25daff793375399c406f47a112fc76b291dc4"
+    },
+    {
+      "path": "dist/core/redact.js",
+      "sha256": "dd8de047c53d06808f90f9c51324b737a51d83768c16d4e69f9af64f56bdf602"
+    },
+    {
+      "path": "dist/core/registry.js",
+      "sha256": "a1818f532b67b39c6402d694b982b688234fdfdec4df51782ef30783b7afe488"
+    },
+    {
+      "path": "dist/core/resolve.js",
+      "sha256": "04f423ff03641e02a0cd679b638c651a6cd31615fedaec6f7f2f4561ad1e33d0"
+    },
+    {
+      "path": "dist/core/tls-fetch.js",
+      "sha256": "80104192d2ed2c645bf15ec9a2169e2b765b6bf6d9aad60a22cafaa331ffbe74"
+    },
+    {
+      "path": "dist/core/transport.js",
+      "sha256": "142d2104e9025b7e37c6df2cbae818b9ab7743f31cee6a2cbd1d8ee6697c02de"
+    },
+    {
+      "path": "dist/domains/activity-stream/index.js",
+      "sha256": "b5e7094013f5626affc0bf756b96ad3edce3d1720d0698238bc703e749e8571a"
+    },
+    {
+      "path": "dist/domains/ad-hoc/index.js",
+      "sha256": "8fdaf507ab0b4b4f7e9ae7713e36ae318d55882276cfe9e82dfdeff65417266d"
+    },
+    {
+      "path": "dist/domains/approval/index.js",
+      "sha256": "139356c4fa1289f2694d55248b7f12e8b0267fa5acd39edb05b0f3ac4da0f64e"
+    },
+    {
+      "path": "dist/domains/credential/index.js",
+      "sha256": "554a36457a4d264f2361da766350ec6696aaace78280e978f56b6fb577447f6b"
+    },
+    {
+      "path": "dist/domains/execution-environment/index.js",
+      "sha256": "d068ff30cdf0eff1d8af2a53a564ed26e2843c544cd1d0d5c2643e8a9f07bdca"
+    },
+    {
+      "path": "dist/domains/group/index.js",
+      "sha256": "6415d7548cc0220f423dd5da887b0fc6975be3cdb8367ed5df74f7af375fc5ef"
+    },
+    {
+      "path": "dist/domains/host/index.js",
+      "sha256": "2faf483f269b39a12f759f46ff520ee97ac1009448062ccfb333c5a26ecd4591"
+    },
+    {
+      "path": "dist/domains/inventory-source/index.js",
+      "sha256": "1015ff818f4051828cd089ff603f6a1fe28ddb672061be021372c93f68053f56"
+    },
+    {
+      "path": "dist/domains/inventory/index.js",
+      "sha256": "8363397bbb0b9f90617442ae980d9900b536f7c17dec35d1b931c71546603f31"
+    },
+    {
+      "path": "dist/domains/job/index.js",
+      "sha256": "5a5c76bc626d83dc286b737416b8f44c0b5bf53b419f39cc07bb61ef65ae00bd"
+    },
+    {
+      "path": "dist/domains/notification-template/index.js",
+      "sha256": "8b6faa1fd012db6d2c66246dea378d8360aaa36dc1accfed367cb39f4679721a"
+    },
+    {
+      "path": "dist/domains/notification/index.js",
+      "sha256": "4825216f22fb565de502165455dd23a3126573dcff584d5cf97915123680d3cf"
+    },
+    {
+      "path": "dist/domains/organization/index.js",
+      "sha256": "d79160904aca5909b3e83cee7a43d751566a49fcba7fd63595d2d10ecb473289"
+    },
+    {
+      "path": "dist/domains/project/index.js",
+      "sha256": "8dcb5a74ed19511e9c53cfe0d9c67efe3cf78861019a559c60c19914d8d7cde2"
+    },
+    {
+      "path": "dist/domains/role/index.js",
+      "sha256": "63df014ea35ce97855e19fba126ccef8971756b2cc707a9c442f3fd6c094bdc9"
+    },
+    {
+      "path": "dist/domains/schedule/index.js",
+      "sha256": "bcab018cfa8b38fa9c4b3509ba1ec1c10c4e4d10e3887e500e00baa794bbc8a6"
+    },
+    {
+      "path": "dist/domains/system-job-template/index.js",
+      "sha256": "d9c8efd7b12054715e2a110bffa726dcb1bd34120521725c505b1179d7a49b45"
+    },
+    {
+      "path": "dist/domains/system-job/index.js",
+      "sha256": "59e45fa7495ae48f1e9d8e551a80673cbfbe880d4c78c4221a168709a8247cff"
+    },
+    {
+      "path": "dist/domains/team/index.js",
+      "sha256": "fd47ffaa541b5deede3994d16be4ad6683a2a8b0883d99846475f2e924453797"
+    },
+    {
+      "path": "dist/domains/template/index.js",
+      "sha256": "30801bdd67e37b105eefd4df3e7c0ece4a7257258e9087bf444a3383e12c93c8"
+    },
+    {
+      "path": "dist/domains/user/index.js",
+      "sha256": "b85dc53d942ffc9ed062bf948565c69d4cb046f718bb65118e3e27ce7533217c"
+    },
+    {
+      "path": "dist/domains/workflow/index.js",
+      "sha256": "d5734a2b8f937fca7e0660f8c2942fbcc0e543c105c4be5a16b3f3787e6530af"
+    },
+    {
+      "path": "dist/skill.js",
+      "sha256": "65fe6713e288b6263bc74331969db46c39bd7d798b816266512de456427626a7"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "awx-axi credential profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "origin"
+    ],
+    "properties": {
+      "origin": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://[^/\\\\\\s?#@]+/?$",
+        "description": "Origin without userinfo, path, query or fragment. HTTP requires allowHttp: true."
+      },
+      "verifySsl": {
+        "type": "boolean",
+        "default": true
+      },
+      "allowHttp": {
+        "type": "boolean",
+        "default": false
+      },
+      "token": {
+        "x-secret": true,
+        "default": {
+          "stored": true
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])",
+                "description": "Absolute local path; UNC and device paths are forbidden on Windows."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "stored"
+            ],
+            "properties": {
+              "stored": {
+                "const": true
+              }
+            }
+          }
+        ]
+      }
+    },
+    "if": {
+      "properties": {
+        "allowHttp": {
+          "const": true
+        }
+      },
+      "required": [
+        "allowHttp"
+      ]
+    },
+    "else": {
+      "properties": {
+        "origin": {
+          "pattern": "^https://"
+        }
+      }
+    }
+  },
+  "skillSha256": "b3e128cd347128b36f949cf5641a4a1e3eeac47866e469d74d467f068cfb99c5",
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "verify-ssl",
+      "allow-http"
+    ],
+    "blockedCommands": [
+      "auth login",
+      "auth logout",
+      "setup",
+      "config",
+      "profile",
+      "update"
+    ],
+    "nativeWrites": "host-classified",
+    "inputs": {
+      "stdin": "unsupported",
+      "files": "unsupported"
+    }
+  },
+  "discovery": {
+    "commands": [
+      "job",
+      "template",
+      "workflow",
+      "organization",
+      "system-job-template",
+      "system-job",
+      "credential",
+      "approval",
+      "ad-hoc",
+      "project",
+      "inventory",
+      "host",
+      "group",
+      "inventory-source",
+      "schedule",
+      "execution-environment",
+      "user",
+      "notification",
+      "notification-template",
+      "activity-stream",
+      "team",
+      "role",
+      "auth status",
+      "doctor"
+    ],
+    "example": [
+      "job",
+      "list",
+      "--limit",
+      "1"
+    ],
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the HTTPS origin and token. Operational writes require administrator allowWrites and --confirm. Configuration, deletion and security writes are blocked. No stdin or files. Use job watch --timeout 50 or less.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "job list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "status": "value",
+        "type": "value",
+        "template": "value",
+        "failed": "boolean",
+        "since": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "job show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "type": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job stdout",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "tail": "value",
+        "lines": "value",
+        "full": "boolean",
+        "download": "value",
+        "ansi": "boolean",
+        "type": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job events",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "failed": "boolean",
+        "host": "value",
+        "task": "value",
+        "limit": "value",
+        "type": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job hosts",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job launch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "limit": "value",
+        "tags": "value",
+        "skip-tags": "value",
+        "extra-vars": "value",
+        "inventory": "value",
+        "scm-branch": "value",
+        "verbosity": "value",
+        "job-type": "value",
+        "diff": "boolean",
+        "credential-passwords-file": "value",
+        "wait": "boolean",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job cancel",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean",
+        "type": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job relaunch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "failed-only": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean",
+        "type": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "job watch",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "timeout": "value",
+        "interval": "value",
+        "type": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template object-roles",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template credential-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template credential-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template instance-group-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template instance-group-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template label-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template label-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template notification-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template notification-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "inventory": "value",
+        "project": "value",
+        "playbook": "value",
+        "description": "value",
+        "execution-environment": "value",
+        "extra-vars": "value",
+        "limit": "value",
+        "verbosity": "value",
+        "job-type": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "template edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "inventory": "value",
+        "project": "value",
+        "playbook": "value",
+        "description": "value",
+        "execution-environment": "value",
+        "extra-vars": "value",
+        "limit": "value",
+        "verbosity": "value",
+        "job-type": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template copy",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "project": "value",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "template show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template survey",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "template launch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "limit": "value",
+        "tags": "value",
+        "skip-tags": "value",
+        "extra-vars": "value",
+        "inventory": "value",
+        "scm-branch": "value",
+        "verbosity": "value",
+        "job-type": "value",
+        "diff": "boolean",
+        "credential-passwords-file": "value",
+        "wait": "boolean",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow object-roles",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "template": "value",
+        "inventory": "value",
+        "extra-vars": "value",
+        "limit": "value",
+        "scm-branch": "value",
+        "job-type": "value",
+        "job-tags": "value",
+        "skip-tags": "value",
+        "verbosity": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "template": "value",
+        "inventory": "value",
+        "extra-vars": "value",
+        "limit": "value",
+        "scm-branch": "value",
+        "job-type": "value",
+        "job-tags": "value",
+        "skip-tags": "value",
+        "verbosity": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-link",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "on": "value",
+        "to": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-unlink",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "on": "value",
+        "to": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-credential-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-credential-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-label-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-label-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-instance-group-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-instance-group-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow node-add-approval",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "description": "value",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<node-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow notification-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow notification-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow label-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow label-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow copy",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "description": "value",
+        "extra-vars": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "workflow edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "description": "value",
+        "extra-vars": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "workflow show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow survey",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow launch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "extra-vars": "value",
+        "limit": "value",
+        "scm-branch": "value",
+        "wait": "boolean",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow nodes",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<run-id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow template-nodes",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "workflow template-node",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "description": "value",
+        "max-hosts": "value",
+        "default-environment": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "organization edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "description": "value",
+        "max-hosts": "value",
+        "default-environment": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization notification-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization notification-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization user-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization user-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization admin-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization admin-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization team-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "team": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization team-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "team": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization instance-group-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization instance-group-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization execution-environment-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "execution-environment": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization execution-environment-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "execution-environment": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization notification-template-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization notification-template-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization galaxy-credential-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization galaxy-credential-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "organization list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "organization show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "system-job-template launch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "extra-vars": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "system-job-template list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "system-job-template show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "system-job cancel",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "system-job list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "template": "value",
+        "status": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "system-job show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "system-job events",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "failed": "boolean",
+        "host": "value",
+        "task": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "system-job notifications",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "credential object-roles",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "credential copy",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "credential create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "credential-type": "value",
+        "organization": "value",
+        "description": "value",
+        "inputs-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "credential edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "credential-type": "value",
+        "organization": "value",
+        "description": "value",
+        "inputs-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "credential delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "credential list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "organization": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "credential show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "approval list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "include-decided": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "approval show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "approval approve",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "approval deny",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "ad-hoc launch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "inventory": "value",
+        "module-name": "value",
+        "module": "value",
+        "module-args": "value",
+        "args": "value",
+        "credential": "value",
+        "limit": "value",
+        "extra-vars": "value",
+        "verbosity": "value",
+        "wait": "boolean",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<inventory>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "ad-hoc list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "ad-hoc show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "ad-hoc events",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "host": "value",
+        "task": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "ad-hoc stdout",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "tail": "value",
+        "lines": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project copy",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project notification-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project notification-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "scm-type": "value",
+        "scm-url": "value",
+        "scm-branch": "value",
+        "credential": "value",
+        "description": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "project edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "scm-type": "value",
+        "scm-url": "value",
+        "scm-branch": "value",
+        "credential": "value",
+        "description": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "project show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project playbooks",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project updates",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project roles",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "project sync",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "wait": "boolean",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory host-bulk-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "inventory": "value",
+        "hosts-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory host-bulk-delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "hosts-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory group-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "inventory": "value",
+        "description": "value",
+        "variables": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory group-edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "description": "value",
+        "variables": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory group-delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory group-add-host",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "host": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory group-remove-host",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "host": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory group-add-child",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "child": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory group-remove-child",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "child": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory source-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "inventory": "value",
+        "source": "value",
+        "source-project": "value",
+        "credential": "value",
+        "source-vars": "value",
+        "update-on-launch": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory source-edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "source": "value",
+        "source-project": "value",
+        "credential": "value",
+        "source-vars": "value",
+        "update-on-launch": "boolean",
+        "no-update-on-launch": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory source-delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory source-credential-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory source-credential-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory source-notification-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory source-notification-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "event": "value",
+        "notification-template": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "kind": "value",
+        "host-filter": "value",
+        "description": "value",
+        "variables": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "host-filter": "value",
+        "description": "value",
+        "variables": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory sync",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "wait": "boolean",
+        "timeout": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory host-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "inventory": "value",
+        "description": "value",
+        "variables": "value",
+        "enabled": "boolean",
+        "disabled": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory host-edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "inventory": "value",
+        "description": "value",
+        "variables": "value",
+        "enabled": "boolean",
+        "disabled": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory host-delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory groups",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory hosts",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "facts": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory sources",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory updates",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "status": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory constructed-list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory constructed-show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "host list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "name": "value",
+        "inventory": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "host show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "group list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "name": "value",
+        "inventory": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "group show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "inventory-source list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "name": "value",
+        "inventory": "value",
+        "source": "value",
+        "status": "value",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "inventory-source show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule credential-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule credential-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "credential": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule label-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule label-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "label": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule instance-group-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule instance-group-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "instance-group": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "template": "value",
+        "rrule": "value",
+        "description": "value",
+        "inventory": "value",
+        "limit": "value",
+        "extra-vars": "value",
+        "job-tags": "value",
+        "skip-tags": "value",
+        "enabled": "boolean",
+        "disabled": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "schedule edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "template": "value",
+        "rrule": "value",
+        "description": "value",
+        "inventory": "value",
+        "limit": "value",
+        "extra-vars": "value",
+        "job-tags": "value",
+        "skip-tags": "value",
+        "enabled": "boolean",
+        "disabled": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "schedule list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "template": "value",
+        "enabled": "boolean",
+        "disabled": "boolean",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "schedule show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "execution-environment create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "image": "value",
+        "description": "value",
+        "organization": "value",
+        "credential": "value",
+        "pull": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "execution-environment edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "image": "value",
+        "description": "value",
+        "organization": "value",
+        "credential": "value",
+        "pull": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "execution-environment delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "execution-environment copy",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "execution-environment list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "organization": "value",
+        "type": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "execution-environment show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "user token-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "scope": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "user token-revoke",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "user create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "username": "value",
+        "password-file": "value",
+        "first-name": "value",
+        "last-name": "value",
+        "email": "value",
+        "is-superuser": "boolean",
+        "is-system-auditor": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<username>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "user edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "username": "value",
+        "password-file": "value",
+        "first-name": "value",
+        "last-name": "value",
+        "email": "value",
+        "is-superuser": "boolean",
+        "no-superuser": "boolean",
+        "is-system-auditor": "boolean",
+        "no-system-auditor": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "user delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "user list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "user show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "notification list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "status": "value",
+        "search": "value",
+        "template": "value",
+        "job": "value",
+        "workflow-job": "value",
+        "project-update": "value",
+        "inventory-update": "value",
+        "ad-hoc": "value",
+        "system-job": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "notification show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "notification-template create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "notification-type": "value",
+        "configuration-file": "value",
+        "config-file": "value",
+        "messages-file": "value",
+        "description": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "notification-template edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "notification-type": "value",
+        "configuration-file": "value",
+        "config-file": "value",
+        "messages-file": "value",
+        "description": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "notification-template delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "notification-template test",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "notification-template copy",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "notification-template list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "type": "value",
+        "organization": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "notification-template show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "activity-stream list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "operation": "value",
+        "search": "value",
+        "job": "value",
+        "project": "value",
+        "inventory": "value",
+        "template": "value",
+        "workflow": "value",
+        "workflow-job": "value",
+        "organization": "value",
+        "team": "value",
+        "user": "value",
+        "credential": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "activity-stream show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team user-add",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team user-remove",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team credential-create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "credential-type": "value",
+        "inputs-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team create",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "description": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<name>"
+        ],
+        "required": 0
+      }
+    },
+    {
+      "command": "team edit",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "name": "value",
+        "organization": "value",
+        "description": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "organization": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "team show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team users",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team projects",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team credentials",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team roles",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team object-roles",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "team access-list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role grant",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "team": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role revoke",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "user": "value",
+        "team": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "search": "value",
+        "type": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "role show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role parents",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role children",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role users",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "role teams",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value"
+      },
+      "positionals": {
+        "names": [
+          "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "auth login",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "auth logout",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "setup",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "config path",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "profile list",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    },
+    {
+      "command": "update",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean"
+      },
+      "positionals": {
+        "names": [],
+        "required": 0
+      }
+    }
+  ]
+}
