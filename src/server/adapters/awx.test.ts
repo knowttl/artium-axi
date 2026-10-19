@@ -2,7 +2,6 @@ import { expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { decode, encode } from '@toon-format/toon'
 import { homeDiagnostic } from '../../../tools/node_modules/awx-axi/dist/commands/home.js'
-import { AwxAxiError, formatError } from '../../../tools/node_modules/awx-axi/dist/core/errors.js'
 import { rawRegion } from '../../../tools/node_modules/awx-axi/dist/core/output.js'
 import { jobDomain } from '../../../tools/node_modules/awx-axi/dist/domains/job/index.js'
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
@@ -11,6 +10,10 @@ import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolFailure } from '../health/diagnostic.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { createAwxAdapter, awxCredentialSchema, awxProfile } from './awx.js'
+
+// Load the published runtime without resolving its declarations through pnpm's symlink.
+const errorsModule = '../../../tools/node_modules/awx-axi/dist/core/errors.js'
+const { AwxAxiError, formatError } = await import(errorsModule)
 
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }

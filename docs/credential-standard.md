@@ -235,6 +235,7 @@ For each call, the host:
 4. Adds every secret value to its output scanner.
 5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
    LDAP is read-only by design and needs neither setting nor a write journal.
+   AWX receives `AWX_AXI_READ_ONLY` without a write-log override; see [host audit classification](../README.md#audit-screen-and-api).
 
 The shared profile writer owns schema validation and secret injection.
 Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
@@ -274,7 +275,6 @@ awx-axi uses its shipped token SecretRef schema without an authentication-kind t
 The host requires `origin` and `token`, restricts origins to HTTPS, and excludes upstream HTTP and TLS-verification bypass settings.
 The shared profile writer injects the token and registers it for output scanning.
 Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
-Only operational writes can be enabled; configuration, deletion and security gates remain disabled.
 See [AWX setup](../README.md#awx) for credential setup and the supported command boundary.
 
 ## 10. Migration

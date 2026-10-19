@@ -488,7 +488,7 @@ Details read bundled manifests and stored health without fetching credentials or
 Discovery and administration show the server's bundled tool versions, as defined by the [API contract](src/shared/api.ts).
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
-For Falcon, Vectra, Azure, Graph, LDAP and Azure DevOps, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+For Falcon, Vectra, Azure, Graph, LDAP, Azure DevOps and AWX, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](#ldap).
 Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
@@ -711,7 +711,7 @@ Device approval and refusal emit `device-approve` and `device-deny` events, with
 Each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
-ADO uses host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 For tools with native journals, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs also report `unknown`.
 See the [API contract](src/shared/api.ts) and [retention and export runbook](docs/runbook.md#retention-and-export).
 

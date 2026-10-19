@@ -306,7 +306,8 @@ Review actor, change time and revision before saving; reload stale forms instead
 See [browser administration](../README.md#browser-administration) for timestamp display and inline identity confirmation.
 
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
-On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure or Azure DevOps, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
+On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
+See the [AWX supported boundary](../README.md#awx) before enabling its write switch.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Set the switch to false or clear the settings to turn writes off.
 Settings changes use the existing administrator authorization, revision checks and audit trail.
@@ -354,6 +355,7 @@ At startup and daily, retention removes run directories whose modification time 
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
+AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.
 There is no audit deletion endpoint or general export CLI.
 See [Audit screen and API usage](../README.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
 
