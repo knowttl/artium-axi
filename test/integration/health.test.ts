@@ -116,6 +116,39 @@ test('scheduled checks never overlap a pending check and manual tests share that
   expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
 })
 
+test.each([
+  { name: 'startup check', retry: false },
+  { name: 'transient-failure retry', retry: true },
+])('a manual check cannot consume a pending $name', async ({ retry }) => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  const failure = { ...result, stderr: 'connect ECONNREFUSED', exitCode: 1 }
+  const run = vi.spyOn(runner, 'run').mockResolvedValue(result)
+  health.start()
+  if (retry) {
+    run.mockResolvedValueOnce(failure)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(healthDefaults.retryMs - healthDefaults.tickMs)
+  }
+  let started!: () => void
+  let release!: (value: typeof result) => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof result>(resolve => { release = resolve })
+  run.mockImplementationOnce(() => { started(); return held })
+  const manual = health.check('falcon-axi', 'synthetic-development-user', 'manual-overlap', null)
+  const completed = expect(manual).rejects.toMatchObject({ code: 'UPSTREAM_NETWORK_FAILED' })
+  await admitted
+  const calls = retry ? 2 : 1
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(calls)
+  release(failure)
+  await completed
+  await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+  expect(run).toHaveBeenCalledTimes(calls + 1)
+  expect(run.mock.calls[calls][0]).toBe(`${healthDefaults.actor}:falcon-axi`)
+  expect(db.prepare('SELECT status FROM tool_health').get()).toEqual({ status: 'ok' })
+})
+
 test('the first check runs on the first tick after start and stopping cancels the schedule', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
   const run = vi.spyOn(runner, 'run').mockResolvedValue(result)

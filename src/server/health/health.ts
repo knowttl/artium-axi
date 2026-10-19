@@ -44,7 +44,6 @@ export class ToolHealth {
       for (const adapter of this.adapters) {
         if (this.pending.size >= healthDefaults.backgroundCalls) return
         if ((this.due.get(adapter.name) ?? 0) > Date.now()) continue
-        this.due.set(adapter.name, Date.now() + healthDefaults.intervalMs)
         void this.refresh(adapter.name)
       }
     }, healthDefaults.tickMs)
