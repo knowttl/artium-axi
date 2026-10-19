@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.7](https://github.com/knowttl/artium-axi/compare/v0.0.6...v0.0.7) (2026-10-19)
+
+
+### Features
+
+* add awx-axi as a managed tool ([#121](https://github.com/knowttl/artium-axi/issues/121)) ([6bed128](https://github.com/knowttl/artium-axi/commit/6bed1289f2122400d51da60a05f81da0c6458f82))
+* refresh bundled tools and support updated commands ([#120](https://github.com/knowttl/artium-axi/issues/120)) ([5ef01c9](https://github.com/knowttl/artium-axi/commit/5ef01c94ab83c0df8f10cf5712a949987a40f788))
+* **server:** add certificate inspection and scoped trust in the admin UI ([#119](https://github.com/knowttl/artium-axi/issues/119)) ([6de9c4b](https://github.com/knowttl/artium-axi/commit/6de9c4b07e249a62c6def2acb1f01be673dd2988))
+* support Azure DevOps client-secret authentication ([#117](https://github.com/knowttl/artium-axi/issues/117)) ([cc73b42](https://github.com/knowttl/artium-axi/commit/cc73b42f0a5eb0aa29c0a2dd3a5ddeab341adb8a))
+
 ## [0.0.6](https://github.com/knowttl/artium-axi/compare/v0.0.5...v0.0.6) (2026-10-18)
 
 
