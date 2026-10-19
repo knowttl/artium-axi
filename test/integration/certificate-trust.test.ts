@@ -416,7 +416,7 @@ test('az-axi Graph confirmation enables only the confirmed endpoint in the runne
   const originalLookup = vi.mocked(dns.lookup).getMockImplementation()!
   const lookup = vi.mocked(dns.lookup).mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as never)
   const local = vi.mocked(net.connect).mockImplementation(((options: net.NetConnectOpts) =>
-    connect({ ...options, host: '127.0.0.1', port })) as typeof net.connect)
+    (connect as typeof net.connect)({ ...options, host: '127.0.0.1', port })) as typeof net.connect)
   let inspection
   try {
     const response = await app.inject({ method: 'POST', url: '/v1/admin/tools/az-axi/certificates/inspect', headers,

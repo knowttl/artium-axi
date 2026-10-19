@@ -188,7 +188,7 @@ Do not disable verification; a temporary network-policy exemption is an alternat
 
 ### Trusting one tool from the administration UI
 
-After a credential test reports a TLS verification failure, open the tool’s **Inspect certificate** window.
+After a credential test reports a TLS verification failure, select the affected **Saved TLS endpoint** on the tool page and choose **Inspect certificate**.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
@@ -260,7 +260,9 @@ An uncertain network outcome is never retried automatically; inspect audit and p
 There is no dedicated administrator CLI.
 Scripts use the JSON API over the same trusted HTTPS origin; see the [shared contracts](../src/shared/api.ts) for route bodies and revision fields.
 
-Test credential performs credential validation followed by DNS, TCP and verified TLS preflight for the health read destinations before running the tool.
+Test credential performs credential validation followed by DNS, TCP and verified TLS preflight for every endpoint in the [tool inventory](../src/server/tool-endpoints.ts) before running the tool.
+This includes Azure destinations derived from saved `tlsDestinations`; see [credential certificate trust](#trusting-one-tool-from-the-administration-ui) for configuration.
+A preflight failure at any inventory endpoint stops the test, even if the health read would use another endpoint.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
 The administrator test response and tool page show the current failure's stage and the tool's error text and hint when available.
