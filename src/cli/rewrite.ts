@@ -37,6 +37,16 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
+  if (tool === 'awx-axi') {
+    const diagnostic = /^(awx: [^;\n]+); Run `awx-axi auth (login|status)` (?:to configure credentials|to check configuration and access)\n$/.exec(output)
+    if (diagnostic) return `${diagnostic[1]}; ${diagnostic[2] === 'login'
+      ? 'Ask an administrator to update the managed credential'
+      : 'Run `artium-axi awx-axi auth status` to check configuration and access'}\n`
+    if (/^(?:job_stdout|ad_hoc_stdout):\n/.test(output)) {
+      const footer = /\nhelp\[2\]: [^\n]*(?:\n)?$/.exec(output)
+      return footer ? output.slice(0, footer.index + 1) + rewriteSuggestions(output.slice(footer.index + 1), tool) : output
+    }
+  }
   if (tool === 'awx-axi' && output.startsWith('bin: awx-axi\n')) {
     return encode({ bin: 'artium-axi awx-axi', description: 'Inspect AWX automation with managed credentials.',
       usage: 'artium-axi awx-axi <command> [args] [flags]', commands: awx.discovery.commands,

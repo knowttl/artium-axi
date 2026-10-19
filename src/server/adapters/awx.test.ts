@@ -1,6 +1,9 @@
 import { expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { decode, encode } from '@toon-format/toon'
+import { homeDiagnostic } from '../../../tools/node_modules/awx-axi/dist/commands/home.js'
+import { AwxAxiError } from '../../../tools/node_modules/awx-axi/dist/core/errors.js'
+import { rawRegion } from '../../../tools/node_modules/awx-axi/dist/core/output.js'
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
@@ -138,4 +141,35 @@ test.each([
   const rewritten = rewriteSuggestions(output, 'awx-axi')
   expect(decode(rewritten)).toMatchObject({ [field]: outcome })
   expect(rewritten).toContain(`artium-axi awx-axi ${field} list`)
+})
+
+test.each([
+  ['AUTH_REQUIRED', 'authentication required', 'Ask an administrator to update the managed credential'],
+  ['FORBIDDEN', 'dashboard access denied', 'Run `artium-axi awx-axi auth status` to check configuration and access'],
+  ['CONTROLLER_UNREACHABLE', 'controller unreachable', 'Run `artium-axi awx-axi auth status` to check configuration and access'],
+  ['TLS_UNTRUSTED', 'controller certificate could not be verified', 'Run `artium-axi awx-axi auth status` to check configuration and access'],
+  ['PROFILE_MISSING', 'controller configuration required', 'Run `artium-axi awx-axi auth status` to check configuration and access'],
+  ['CONFIG_INVALID', 'controller configuration required', 'Run `artium-axi awx-axi auth status` to check configuration and access'],
+  ['UNKNOWN', 'dashboard unavailable', 'Run `artium-axi awx-axi auth status` to check configuration and access'],
+])('%s dashboard diagnostics preserve the problem with managed recovery', (code, problem, recovery) => {
+  const output = homeDiagnostic(new AwxAxiError('Synthetic failure', code))
+  const rewritten = rewriteSuggestions(output, 'awx-axi')
+  expect(rewritten).toBe(`awx: ${problem}; ${recovery}\n`)
+  expect(rewriteSuggestions(rewritten, 'awx-axi')).toBe(rewritten)
+  expect(rewriteSuggestions(output, 'awx-axi', true)).toBe(output)
+})
+
+test.each(['job', 'ad-hoc'])('%s stdout rewrites only the generated footer', noun => {
+  const body = 'ordinary log line\nRun `awx-axi job list`\nhelp[2]: raw log help\nawx: authentication required; Run `awx-axi auth login` to configure credentials\n'
+  const header = { [noun === 'job' ? 'job_stdout' : 'ad_hoc_stdout']: { id: 42, lines: '1-4 of 4' } }
+  const help = [
+    `Run \`awx-axi ${noun} stdout 42 --lines 1-200\` to read from the start`,
+    `Run \`awx-axi ${noun} events 42\` for event-level detail`,
+  ]
+  const output = rawRegion({ header, label: 'stdout', body, help })
+  const expected = rawRegion({ header, label: 'stdout', body, help: help.map(value => value.replace('`awx-axi', '`artium-axi awx-axi')) })
+  const rewritten = rewriteSuggestions(output, 'awx-axi')
+  expect(rewritten).toBe(expected)
+  expect(rewriteSuggestions(rewritten, 'awx-axi')).toBe(expected)
+  expect(rewriteSuggestions(output, 'awx-axi', true)).toBe(output)
 })
