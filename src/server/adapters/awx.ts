@@ -46,9 +46,9 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   const rest = positionals.slice(route.command.split(' ').length)
   if (rest.length > route.positionals.names.length || !flags.has('help') && rest.length < route.positionals.required) throw new ArtiumError('INVALID_INPUT')
   const effect = route.effect === 'write' && flags.has('confirm') && !flags.has('dry-run') && !flags.has('help') ? 'write' as const : 'read' as const
-  const readGroup = ['job', 'template', 'workflow', 'ad-hoc', 'system-job-template'].includes(positionals[0]) && positionals[1] === 'launch'
-    ? 'job' : positionals[0] === 'inventory' ? 'inventory-source' : positionals[0]
-  const checkArgs = effect === 'write' && positionals[1] !== 'launch' && rest.length
+  const createsRun = positionals[1] === 'launch' || route.command === 'job relaunch'
+  const readGroup = positionals[0] === 'inventory' ? 'inventory-source' : positionals[0]
+  const checkArgs = createsRun ? ['job', 'list', '--type', 'all', '--limit', '100'] : effect === 'write' && rest.length
     ? [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
     : [readGroup, 'list', '--limit', '100']
   return { args: [...(route.command === 'home' ? [] : positionals), ...[...flags].map(([name, value]) => value === true ? `--${name}` : `--${name}=${value}`)], effect,

@@ -42,7 +42,10 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       usage: 'artium-axi awx-axi <command> [args] [flags]', commands: awx.discovery.commands,
       help: [awx.discovery.help] }) + '\n'
   }
-  const awxGroup = tool === 'awx-axi' && /^([a-z-]+): [^\n]+\n/.exec(output)?.[1]
+  if (tool === 'awx-axi' && /^(?:auth: authenticate against the controller\nusage: awx-axi auth |usage: awx-axi doctor(?: |\n))/.test(output)) {
+    return hostedHelp(`awx-axi ${output.startsWith('auth:') ? 'auth status' : 'doctor'}\n`, tool, managedFlags[tool], true)
+  }
+  const awxGroup = tool === 'awx-axi' && /^([a-z-]+): [^\n]+\n\nSubcommands:\n/.exec(output)?.[1]
   if (awxGroup && awx.discovery.commands.includes(awxGroup)) {
     return encode({ command: `artium-axi awx-axi ${awxGroup}`,
       commands: awx.commands.filter(route => route.effect !== 'blocked' && route.command.startsWith(awxGroup + ' ')).map(route =>
