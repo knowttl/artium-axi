@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -18,7 +18,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     const store = createCredentialStore(db, provider)
-    const adapter = createAwxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+    const adapter = createAwxAdapter(new EmbeddedSecretSource(store))
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -29,6 +29,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
     vi.stubEnv('AWX_AXI_ALLOW_CONFIG_WRITES', '1')
     vi.stubEnv('AWX_AXI_ALLOW_DELETES', '1')
     vi.stubEnv('AWX_AXI_ALLOW_SECURITY_WRITES', '1')
+    vi.stubEnv('AWX_AXI_WRITE_LOG', join(directory, 'ambient-writes.log'))
     const runner = await Runner.create(join(directory, 'calls'))
     const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
       credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
@@ -90,6 +91,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/jobs/42/cancel/', canaryReceived: true }))
       const audit = db.prepare("SELECT action, arguments FROM audit WHERE tool = 'awx-axi'").all()
       expect(audit).toContainEqual(expect.objectContaining({ action: 'write' }))
+      expect(existsSync(join(directory, 'ambient-writes.log'))).toBe(false)
       expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
       store.replaceCredential('awx-axi', { origin, token: 'CANARY-invalid-token' }, store.findCredential('awx-axi')!.revision!, 'synthetic-development-user', Date.now())

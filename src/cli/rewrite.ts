@@ -90,7 +90,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   for (const span of [...spans].reverse()) {
     const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value))
     if (value === span.value) continue
-    output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi', 'awx-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
@@ -172,7 +172,10 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
   if (tool === 'awx-axi') {
     const guidance = 'Artium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))
-      .map(line => line.replace(/--timeout (?:600|3600)/g, '--timeout 50')).join('\n')
+      .filter(line => !/^(?:Run|Use) .*\bawx-axi job stdout\b.*--download\b/.test(line))
+      .map(line => (/^(?:artium-axi )?awx-axi job stdout\b/.test(line)
+        ? line.replace(/ \[--(?:full|ansi)\]| \[--download <path>\]/g, '') : line)
+        .replace(/--timeout (?:600|3600)/g, '--timeout 50')).join('\n')
     if (!help.trim()) help = guidance
     else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }

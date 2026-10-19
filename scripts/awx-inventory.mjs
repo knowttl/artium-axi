@@ -30,7 +30,9 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   if (!read && !writeVerbs.test(route.name)) throw new Error(`Unclassified command: ${domain.name} ${route.name}`)
   const command = `${domain.name} ${route.name}`
   return { command, effect: read ? 'read' : operationalWrites.includes(command) ? 'write' : 'blocked',
-    flags: { help: 'boolean', ...Object.fromEntries(route.flags.map(flag => [flag.name, flag.takesValue ? 'value' : 'boolean'])) },
+    flags: { help: 'boolean', ...Object.fromEntries(route.flags
+      .filter(flag => command !== 'job stdout' || !['download', 'full', 'ansi'].includes(flag.name))
+      .map(flag => [flag.name, flag.takesValue ? 'value' : 'boolean'])) },
     positionals: route.positionals }
 }))
 for (const command of ['home', 'doctor', 'auth status']) commands.push({ command, effect: 'read', flags: { help: 'boolean' }, positionals: { names: [], required: 0 } })

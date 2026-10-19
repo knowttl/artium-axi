@@ -2,8 +2,9 @@ import { expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { decode, encode } from '@toon-format/toon'
 import { homeDiagnostic } from '../../../tools/node_modules/awx-axi/dist/commands/home.js'
-import { AwxAxiError } from '../../../tools/node_modules/awx-axi/dist/core/errors.js'
+import { AwxAxiError, formatError } from '../../../tools/node_modules/awx-axi/dist/core/errors.js'
 import { rawRegion } from '../../../tools/node_modules/awx-axi/dist/core/output.js'
+import { jobDomain } from '../../../tools/node_modules/awx-axi/dist/domains/job/index.js'
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
@@ -13,7 +14,7 @@ import { createAwxAdapter, awxCredentialSchema, awxProfile } from './awx.js'
 
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
-const adapter = (allowWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites }) }, '/tmp/awx-writes.log')
+const adapter = (allowWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites }) })
 
 test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command is refused regardless of write access', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
@@ -29,6 +30,7 @@ test.each(inventory.commands.filter(route => route.effect === 'write'))('$comman
   expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_CONFIG_WRITES')
   expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_DELETES')
   expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_SECURITY_WRITES')
+  expect(call.environment).not.toHaveProperty('AWX_AXI_WRITE_LOG')
   expect(call.write?.checkArgs).toBeDefined()
 })
 
@@ -57,6 +59,7 @@ test('managed credentials inject a token SecretRef without persisting the secret
     artium: { origin: credential.origin, token: { env: 'ARTIUM_SECRET_0' } },
   } })
   expect(call.environment.AWX_AXI_READ_ONLY).toBe('true')
+  expect(call.environment).not.toHaveProperty('AWX_AXI_WRITE_LOG')
   expect(call.secrets).toContain(credential.token)
   expect(awxProfile.metadata(credential)).toEqual({ origin: credential.origin })
   expect(toolEndpoints('awx-axi', credential).map(url => url.origin)).toEqual([credential.origin])
@@ -80,13 +83,16 @@ test.each([
   ['job', 'list', '--limit', '1', '--limit', '2'], ['job', 'list', '--unknown'],
   ['template', 'launch', '42', '--extra-vars', '@server.json'],
   ['template', 'launch', '42', '--credential-passwords-file', '/server.json'],
+  ['job', 'stdout', '42', '--download', './42.log'],
+  ['job', 'stdout', '42', '--download=./42.log'],
+  ['job', 'stdout', '42', '--full'], ['job', 'stdout', '42', '--ansi'],
 ].map(args => ({ args })))('unsafe arguments are refused: $args', ({ args }) => {
   expect(() => adapter().validateArgs(args)).toThrow()
 })
 
 test('the stored write switch is checked before loading secrets', async () => {
   let read = false
-  const managed = createAwxAdapter({ getSettings: () => ({}), getCredential: async () => { read = true; return credential } }, '/tmp/awx-writes.log')
+  const managed = createAwxAdapter({ getSettings: () => ({}), getCredential: async () => { read = true; return credential } })
   await expect(managed.prepare(['job', 'cancel', '42', '--confirm'], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   expect(read).toBe(false)
 })
@@ -111,6 +117,30 @@ test('published AWX top-level help advertises managed commands without selectors
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain('artium-axi awx-axi')
   expect(help).not.toMatch(/--(?:origin|profile|config|verify-ssl)|auth login|\bupdate\b/)
+})
+
+test('managed job stdout help advertises implemented output modes', () => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'stdout', '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('artium-axi awx-axi job stdout <id> [--tail <n> | --lines <a-b>]')
+  expect(help).not.toMatch(/--(?:download|full|ansi)\b/)
+})
+
+test('oversized job stdout suggests managed events instead of a download', async () => {
+  const plan = jobDomain.subcommands.find(route => route.name === 'stdout')!.plan({ args: ['42'], flags: { type: 'job' },
+    context: { env: {}, createTransport: () => { throw new Error('Unexpected network access') } } })
+  plan.next()
+  const error = await Promise.resolve().then(() => plan.next({
+    status: 200, content: '', rangeStart: 0, rangeEnd: 0, absoluteEnd: 0, tooLarge: true,
+    sizeBytes: 2 * 1024 * 1024, displayLimitBytes: 1024 * 1024,
+  })).catch(error => error)
+  const result = formatError(error)
+  expect(result.exitCode).toBe(1)
+  const output = rewriteSuggestions(result.output, 'awx-axi')
+  expect(decode(output)).toMatchObject({ code: 'OUTPUT_TOO_LARGE' })
+  expect(output).toContain('artium-axi awx-axi job events 42 --failed')
+  expect(output).not.toMatch(/--(?:download|full|ansi)\b/)
 })
 
 test.each(inventory.discovery.commands.filter(command => !['auth status', 'doctor'].includes(command)))('%s noun-level help lists only managed commands', async command => {

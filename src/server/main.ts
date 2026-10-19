@@ -53,7 +53,7 @@ async function main() {
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'), azureTokens),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
         createLdapAdapter(source), createAdoAdapter(source, azureTokens),
-        createAwxAdapter(source, join(dirname(database), 'tool-logs', 'awx-axi', 'writes.log'))] })
+        createAwxAdapter(source)] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }

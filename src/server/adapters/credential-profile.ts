@@ -187,7 +187,7 @@ export class CredentialProfile {
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (tool !== 'ldap-axi' && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
+    if (tool !== 'ldap-axi' && tool !== 'awx-axi' && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
@@ -205,7 +205,7 @@ export class CredentialProfile {
     if (tool !== 'ldap-axi') {
       const prefix = tool.toUpperCase().replaceAll('-', '_')
       environment[`${prefix}_READ_ONLY`] = String(readOnly)
-      environment[`${prefix}_WRITE_LOG`] = writeLog!
+      if (tool !== 'awx-axi') environment[`${prefix}_WRITE_LOG`] = writeLog!
     }
     // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
     const files: PreparedCall['files'] = []

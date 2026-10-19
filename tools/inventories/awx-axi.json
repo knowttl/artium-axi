@@ -369,9 +369,6 @@
         "help": "boolean",
         "tail": "value",
         "lines": "value",
-        "full": "boolean",
-        "download": "value",
-        "ansi": "boolean",
         "type": "value"
       },
       "positionals": {

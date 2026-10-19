@@ -56,7 +56,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
       afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' } } : {}) }
 }
 
-export function createAwxAdapter(source: SecretSource, writeLog: string): Adapter<unknown> {
+export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
   return {
     name: 'awx-axi', executable: toolPaths['awx-axi'], credentialProfile: awxProfile, credentialSchema: awxCredentialSchema,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: awxManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
@@ -73,7 +73,7 @@ export function createAwxAdapter(source: SecretSource, writeLog: string): Adapte
       const readOnly = !toolAllowsWrites('awx-axi', parsed.data)
       if (normalized.effect === 'write' && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       return { executable: toolPaths['awx-axi'], ...normalized,
-        ...awxProfile.prepare('awx-axi', parsed.data, writeLog, readOnly), limits: { timeoutMs: runnerLimits.timeoutMs } }
+        ...awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly), limits: { timeoutMs: runnerLimits.timeoutMs } }
     },
   }
 }

@@ -37,7 +37,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const source = { getCredential: async () => credentials[tool] }
     const log = join(directory, 'writes.log')
     const adapters = {
-      'awx-axi': createAwxAdapter(source, log),
+      'awx-axi': createAwxAdapter(source),
       'ado-axi': createAdoAdapter(source),
       'falcon-axi': createFalconAdapter(source, log),
       'vectra-axi': createVectraAdapter(source, log, profile('vectra-axi')),
