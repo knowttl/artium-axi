@@ -587,7 +587,7 @@ The form exposes the schema's full requirements, including conditional requireme
 Azure uses guided source-identity fields because the host brokers resource tokens separately.
 Azure and Graph certificate editors accept one PEM file containing one certificate and its matching unencrypted private key and calculate the fingerprint automatically.
 See the [hosted contract](docs/credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
-Falcon has guided fields and injects the managed client ID and secret through the pinned CLI's environment credential channel.
+Falcon has guided fields; see its [current credential handling](docs/credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Identity changes require new secrets as defined by the [credential-save contract](src/shared/api.ts) (`adminToolRoutes.save`).
 Select **Test after saving** to save and report a harmless credential check inline.

@@ -242,6 +242,10 @@ Per-tool policy covers the inventory, blocked commands and flags, and hosted res
 
 ### Per-tool host-facing schemas
 
+The current Falcon pin uses the environment credential channel through the [Falcon adapter](../src/server/adapters/falcon.ts), rather than the shared profile writer.
+The host injects `FALCON_AXI_CLIENT_ID`, `FALCON_AXI_CLIENT_SECRET` and `FALCON_AXI_READ_ONLY`, and supplies the managed region and optional member CID as arguments.
+The [Falcon inventory](../tools/inventories/falcon-axi.json) owns the blocked local configuration commands and credential overrides.
+
 mg-axi keeps the `mode` field.
 For `mode: "application"`, `auth` is `certificate`, `client-secret` or `federated`.
 Those kinds use the SecretRef fields `privateKey`, `clientSecret` or `token`, respectively.
