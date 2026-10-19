@@ -162,8 +162,7 @@ See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`
 See [credential rotation](runbook.md#roles-credentials-and-health).
 Native settings also replace the entire object; `{}` clears it.
 Credential changes clear cached health.
-Background checks for enabled configured tools run shortly after startup and every 15 minutes.
-After a network or timeout failure, a tool is re-checked at 1, 2, 4 and 8 minutes before returning to that interval, with at most two background checks at once.
+See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for startup checks, recovery retries and concurrency limits.
 Use **Test credential** for a current fixed read before enabling a configured tool.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
