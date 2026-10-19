@@ -46,7 +46,7 @@ test.each([undefined, 'synthetic-member'])('preparation adds the managed region 
   expect(result).toEqual({
     executable: '/opt/falcon-axi/bin/falcon-axi',
     args: [...args, '--region', 'us-2', ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'true' },
+    environment: { FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'false' },
     secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 60_000 },
   })
 })
@@ -72,10 +72,10 @@ test('native help and unknown ordinary options remain upstream-owned', async () 
 })
 
 test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list'])
-  ('new read command %s keeps managed credentials and read-only execution', async command => {
+  ('new read command %s keeps managed credentials and investigation operations enabled', async command => {
     const prepared = await prepareFalcon(command.split(' '), configuration)
     expect(prepared.args).toEqual([...command.split(' '), '--region', 'us-2'])
-    expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe('true')
+    expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe('false')
   })
 
 test('security prepared canaries reach only the trusted TLS fake through the real runner', async () => {

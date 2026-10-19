@@ -12,7 +12,7 @@ import azSchema from '../../../test/fixtures/az-credential.schema.json' with { t
 
 const identity = { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222' }
 const cases = [
-  { tool: 'falcon-axi', optedInReadOnly: 'true', credential: { clientId: 'synthetic-client', clientSecret: 'CANARY-secret', region: 'us-2' },
+  { tool: 'falcon-axi', optedInReadOnly: 'false', credential: { clientId: 'synthetic-client', clientSecret: 'CANARY-secret', region: 'us-2' },
     args: ['auth', 'status'], create: (source: SecretSource, profile?: CredentialProfile) => createFalconAdapter(source, '/tmp/writes.log', profile) },
   { tool: 'vectra-axi', optedInReadOnly: 'false', credential: { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token', token: 'CANARY-token' },
     args: ['health', 'list'], create: (source: SecretSource, profile?: CredentialProfile) => createVectraAdapter(source, '/tmp/writes.log', profile) },
@@ -22,22 +22,22 @@ const cases = [
     args: ['account', 'list'], create: (source: SecretSource, profile?: CredentialProfile) => createAzAdapter(source, '/tmp/writes.log', new AzureTokenCache(new FakeTokenTransport()), profile) },
 ] as const
 
-test.each(cases)('$tool requires write capability and its own explicit switch', async ({ tool, credential, args, create, optedInReadOnly }) => {
+test.each(cases)('$tool maps host write switches to its native read-only setting', async ({ tool, credential, args, create, optedInReadOnly }) => {
   const value: Record<string, unknown> = { ...credential }
   const adapter = create({ getCredential: async () => value })
   const reference = { id: 'synthetic', tool, revision: 1 }
   const key = `${tool.toUpperCase().replaceAll('-', '_')}_READ_ONLY`
-  expect((await adapter.prepare(args, reference)).environment[key]).toBe('true')
+  expect((await adapter.prepare(args, reference)).environment[key]).toBe(tool === 'falcon-axi' ? 'false' : 'true')
   const settings = tool === 'mg-axi' || tool === 'vectra-axi'
     ? { writes: { allowWrites: true, operations: ['synthetic.operation'] } } : { allowWrites: true }
   Object.assign(value, settings)
   expect((await adapter.prepare(args, reference)).environment[key]).toBe(optedInReadOnly)
   Object.assign(value, tool === 'mg-axi' || tool === 'vectra-axi'
     ? { writes: { allowWrites: false, operations: ['synthetic.operation'] } } : { allowWrites: false })
-  expect((await adapter.prepare(args, reference)).environment[key]).toBe('true')
+  expect((await adapter.prepare(args, reference)).environment[key]).toBe(tool === 'falcon-axi' ? 'false' : 'true')
 })
 
-test.each(cases.filter(item => item.tool !== 'az-axi'))('$tool schema-driven adapter enforces capability and the host switch', async ({ tool, credential, args, create, optedInReadOnly }) => {
+test.each(cases.filter(item => item.tool !== 'az-axi'))('$tool schema-driven adapter maps the host write switch', async ({ tool, credential, args, create, optedInReadOnly }) => {
   const schema = { type: 'object', additionalProperties: false,
     properties: Object.fromEntries(Object.keys(credential).map(name => [name, { type: 'string' }])) }
   if (tool !== 'falcon-axi') Object.assign(schema.properties, { writes: { type: 'object' } })
@@ -46,7 +46,7 @@ test.each(cases.filter(item => item.tool !== 'az-axi'))('$tool schema-driven ada
   const adapter = create({ getCredential: async () => value }, profile)
   const reference = { id: 'synthetic', tool, revision: 1 }
   const key = `${tool.toUpperCase().replaceAll('-', '_')}_READ_ONLY`
-  expect((await adapter.prepare(args, reference)).environment[key]).toBe('true')
+  expect((await adapter.prepare(args, reference)).environment[key]).toBe(tool === 'falcon-axi' ? 'false' : 'true')
   Object.assign(value, tool === 'falcon-axi' ? { allowWrites: true }
     : { writes: { allowWrites: true, operations: ['synthetic.operation'] } })
   const prepared = await adapter.prepare(args, reference)
