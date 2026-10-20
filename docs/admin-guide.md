@@ -108,10 +108,7 @@ The last enabled administrator cannot be disabled, demoted or archived.
 Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
 Session revocation and administration changes commit with their audit records.
 After 15 minutes without identity confirmation, administration mutations require reauthentication.
-After a tool credential test fails TLS verification, an administrator can inspect its saved endpoint’s certificate and trust it for that credential in one confirmation.
-The UI shows full fingerprints, warnings, expiry and removable trust; hostname and validity verification remain enabled.
-A missing intermediate is fetched automatically only when its chain reaches an already-trusted root.
-See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection, rotation and the network-path warning.
+See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for the administration UI's inspection, trust modes, automatic chain repair, rotation and network-path warning.
 Administration and account screens share a navigation menu.
 Signed-in screens have a header showing identity, sign-in source and sign-out.
 On administration screens, the header also shows the remaining confirmation window.

@@ -212,8 +212,9 @@ For Storage, Key Vault and ACR, save service names in the Azure native setting `
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
 CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
+For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
-On upgrade, saved pins with CA anchors are converted once to CA trust; self-signed leaf pins remain pins.
+On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable hostname or date verification.
@@ -222,14 +223,15 @@ Confirming an expired or hostname-mismatched certificate saves trust but does no
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
 Artium saves the intermediate without confirmation only after another handshake validates the chain to a root the server already trusts.
-Automatic repair preserves existing confirmed fingerprint pins; a changed leaf still requires confirmation.
+Automatic repair preserves existing confirmed fingerprint pins; in strict pinning mode, a changed leaf still requires confirmation.
 The window reports this repair; retry the credential test afterward.
 An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
 An obtained private issuer is offered for explicit CA confirmation even when it is not already trusted.
 When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unavailable and strict leaf pinning requires an explicit choice.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-Re-inspect the saved endpoint for rotation, and use **Remove trust** to retire the old pin after confirming the replacement; confirmation alone keeps previously confirmed fingerprints trusted.
+For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint and confirm the replacement, then use **Remove trust** to retire the old entry.
+Confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation.
 Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
