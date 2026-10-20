@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.9](https://github.com/knowttl/artium-axi/compare/v0.0.8...v0.0.9) (2026-10-20)
+
+
+### Features
+
+* **server:** show certificate expiry and trust anchor rotation warnings ([#132](https://github.com/knowttl/artium-axi/issues/132)) ([96879fc](https://github.com/knowttl/artium-axi/commit/96879fcf8fcebfba79f5cf96adfa243b1b743fa9))
+
+
+### Bug Fixes
+
+* allow tool certificate renewal with CA trust ([#131](https://github.com/knowttl/artium-axi/issues/131)) ([ceeda15](https://github.com/knowttl/artium-axi/commit/ceeda156f0e3a97557d46ce1a901830c55e77818))
+* **server:** handle empty certificate subjects and log safe error diagnostics ([#129](https://github.com/knowttl/artium-axi/issues/129)) ([fdb503c](https://github.com/knowttl/artium-axi/commit/fdb503c55eb39bd4cdb0082b529a6c4f0a00c6d7))
+* **server:** prevent unnecessary certificate trust and explain stale pins ([#133](https://github.com/knowttl/artium-axi/issues/133)) ([d534b7d](https://github.com/knowttl/artium-axi/commit/d534b7da1d921a224c43c0609ded04218421858f))
+
 ## [0.0.8](https://github.com/knowttl/artium-axi/compare/v0.0.7...v0.0.8) (2026-10-19)
 
 
