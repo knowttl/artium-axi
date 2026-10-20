@@ -414,6 +414,10 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     check(await page.eval(() => document.querySelector('#certificate-inspection').scrollWidth <= document.querySelector('#certificate-inspection').clientWidth), 'Certificate dialog overflows the narrow screen');
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    await page.eval(async () => {
+      // The reloaded form can appear before the stylesheet finishes loading.
+      if (document.readyState !== 'complete') await new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
+    });
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Trusted fingerprint overflows the narrow screen');
     check(await page.eval(() => !document.querySelector('#confirmation[open]')), 'Trust requires an extra confirmation');
     check(await page.eval(async () => {
