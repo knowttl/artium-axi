@@ -222,12 +222,10 @@ Confirming an expired or hostname-mismatched certificate saves trust but does no
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
-Artium saves the intermediate without confirmation only after another handshake validates the chain to a root the server already trusts.
-Automatic repair preserves existing confirmed fingerprint pins; in strict pinning mode, a changed leaf still requires confirmation.
-The window reports this repair; retry the credential test afterward.
-An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
 An obtained private issuer is offered for explicit CA confirmation even when it is not already trusted.
 When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unavailable and strict leaf pinning requires an explicit choice.
+Intermediate repair is deferred to a later slice.
+If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
 For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint and confirm the replacement, then use **Remove trust** to retire the old entry.

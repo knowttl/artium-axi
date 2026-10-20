@@ -108,7 +108,7 @@ The last enabled administrator cannot be disabled, demoted or archived.
 Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
 Session revocation and administration changes commit with their audit records.
 After 15 minutes without identity confirmation, administration mutations require reauthentication.
-See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for the administration UI's inspection, trust modes, automatic chain repair, rotation and network-path warning.
+See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for the administration UI's inspection, trust modes, rotation and network-path warning.
 Administration and account screens share a navigation menu.
 Signed-in screens have a header showing identity, sign-in source and sign-out.
 On administration screens, the header also shows the remaining confirmation window.

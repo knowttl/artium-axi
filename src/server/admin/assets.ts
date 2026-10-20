@@ -335,8 +335,7 @@ function showCertificateInspection(result) {
   if (!hasCA && !result.chain[0].selfSigned) {
     line(details, 'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.', true);
   }
-  form.hidden = result.repairAvailable;
-  dialog.querySelector('[data-close-certificate]').onclick = () => { dialog.close(); if (result.repairAvailable) location.reload(); };
+  dialog.querySelector('[data-close-certificate]').onclick = () => dialog.close();
   dialog.showModal();
 }
 document.addEventListener('submit', async event => {

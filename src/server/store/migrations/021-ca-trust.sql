@@ -6,11 +6,14 @@ CREATE TABLE trusted_certificates_new (
   leaf_fingerprint TEXT NOT NULL,
   pem TEXT NOT NULL,
   leaf_pem TEXT NOT NULL,
-  mode TEXT NOT NULL CHECK (mode IN ('ca', 'pin', 'intermediate')),
+  mode TEXT NOT NULL CHECK (mode IN ('ca', 'pin')),
   created_at INTEGER NOT NULL,
   created_by TEXT NOT NULL REFERENCES users(id),
   UNIQUE (credential_id, endpoint, leaf_fingerprint)
 );
-INSERT INTO trusted_certificates_new SELECT * FROM trusted_certificates;
+DELETE FROM tool_health WHERE tool IN (
+  SELECT c.tool FROM trusted_certificates t JOIN credentials c ON c.id = t.credential_id WHERE t.mode = 'intermediate'
+);
+INSERT INTO trusted_certificates_new SELECT * FROM trusted_certificates WHERE mode <> 'intermediate';
 DROP TABLE trusted_certificates;
 ALTER TABLE trusted_certificates_new RENAME TO trusted_certificates;

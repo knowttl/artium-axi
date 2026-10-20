@@ -12,11 +12,10 @@ export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: str
 // Self-contained so runner Node injection uses exactly the server's TLS policy.
 export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), 'checkServerIdentity' | 'getCACertificates'>,
   trust: readonly Pick<CredentialTrust, 'mode' | 'pem' | 'leafFingerprint'>[], ca?: ConnectionOptions['ca']): ConnectionOptions {
-  const anchored = trust.some(certificate => certificate.mode !== 'intermediate')
+  const anchored = trust.length > 0
   const roots = anchored ? [] : ca === undefined ? tls.getCACertificates('default') : [ca].flat()
-  const certificates = anchored ? trust.filter(certificate => certificate.mode !== 'intermediate') : trust
   return { rejectUnauthorized: true,
-    ca: [...roots, ...certificates.map(certificate => certificate.pem)],
+    ca: [...roots, ...trust.map(certificate => certificate.pem)],
     allowPartialTrustChain: anchored,
     checkServerIdentity: (hostname, certificate) => {
       const error = tls.checkServerIdentity(hostname, certificate)

@@ -30,23 +30,20 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (store?.findCredential(reference.tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
   }
   function save(request: FastifyRequest, actor: string, reference: CredentialReference,
-    inspection: Awaited<ReturnType<typeof inspectCertificate>>, mode: 'ca' | 'pin' | 'intermediate') {
-    audit.change({ event: 'admin-change', action: mode === 'intermediate' ? 'repair-certificate-chain' : 'trust-certificate',
+    inspection: Awaited<ReturnType<typeof inspectCertificate>>, mode: 'ca' | 'pin') {
+    audit.change({ event: 'admin-change', action: 'trust-certificate',
       targetId: inspection.anchor.fingerprint, subject: inspection.anchor.subject,
       userId: actor, tool: reference.tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
       current(reference)
-      if (mode !== 'intermediate') {
-        for (const certificate of credentialCertificates(db, reference.id).filter(item => item.endpoint === inspection.endpoint
-          && item.mode !== 'intermediate' && item.mode !== mode)) {
-          db.prepare('DELETE FROM trusted_certificates WHERE id = ?').run(certificate.id)
-        }
+      for (const certificate of credentialCertificates(db, reference.id).filter(item => item.endpoint === inspection.endpoint
+        && item.mode !== mode)) {
+        db.prepare('DELETE FROM trusted_certificates WHERE id = ?').run(certificate.id)
       }
       db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(credential_id, endpoint, leaf_fingerprint) DO UPDATE SET fingerprint = excluded.fingerprint,
-        pem = excluded.pem, leaf_pem = excluded.leaf_pem, mode = excluded.mode, created_at = excluded.created_at, created_by = excluded.created_by
-        WHERE trusted_certificates.mode = 'intermediate' OR excluded.mode <> 'intermediate'`)
+        pem = excluded.pem, leaf_pem = excluded.leaf_pem, mode = excluded.mode, created_at = excluded.created_at, created_by = excluded.created_by`)
         .run(randomUUID(), reference.id, inspection.endpoint, inspection.anchor.fingerprint, inspection.chain[0].fingerprint,
           inspection.pem, inspection.leafPem, mode, Date.now(), actor)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run(reference.tool)
@@ -73,13 +70,10 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const certificates = credentialCertificates(db, reference.id).filter(pin => pin.endpoint === certificateEndpoint(endpoint).href)
     const previousFingerprints = certificates.filter(pin => pin.leaf.fingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leaf.fingerprint)
     if (previousFingerprints.length) inspection.warnings.push('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
-    const confirmed = certificates.filter(pin => pin.mode === 'pin')
-    if (confirmed.length && !confirmed.some(pin => pin.leaf.fingerprint === inspection.chain[0].fingerprint)) inspection.repairAvailable = false
     for (const [id, item] of pending) if (item.expiresAt <= Date.now()) pending.delete(id)
     if (pending.size >= 100) pending.delete(pending.keys().next().value!)
     const inspectionId = randomUUID()
-    if (inspection.repairAvailable) save(request, actor, reference, inspection, 'intermediate')
-    else pending.set(inspectionId, { actor, reference, inspection, expiresAt: Date.now() + 5 * 60 * 1000 })
+    pending.set(inspectionId, { actor, reference, inspection, expiresAt: Date.now() + 5 * 60 * 1000 })
     const { pem: _pem, leafPem: _leafPem, ...details } = inspection
     return certificateInspectionSchema.parse({ ...details, inspectionId, credentialRevision: reference.revision, previousFingerprints })
   } })

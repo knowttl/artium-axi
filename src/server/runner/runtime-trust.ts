@@ -48,16 +48,12 @@ def _verified_wrap(self, sock, server_side=False, do_handshake_on_connect=True,
             context.maximum_version = self.maximum_version
             context.verify_flags = self.verify_flags
             context.set_ciphers(':'.join(cipher['name'] for cipher in self.get_ciphers()))
-            anchored = any(pin['mode'] != 'intermediate' for pin in expected)
-            roots = [] if anchored else self.get_ca_certs(binary_form=True)
-            certificates = [pin for pin in expected if pin['mode'] != 'intermediate'] if anchored else expected
-            context.load_verify_locations(cadata=''.join(ssl.DER_cert_to_PEM_cert(cert) for cert in roots)
-                + ''.join(pin['pem'] for pin in certificates))
+            context.load_verify_locations(cadata=''.join(pin['pem'] for pin in expected))
             self = context
             session = None
         self.verify_mode = ssl.CERT_REQUIRED
         self.check_hostname = True
-        if any(pin['mode'] != 'intermediate' for pin in expected):
+        if expected:
             self.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
         else:
             self.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
