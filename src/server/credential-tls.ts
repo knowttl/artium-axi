@@ -26,6 +26,9 @@ export async function classifyCertificateFailure(error: Error,
   return certificatePinError(trust, fingerprint) ?? error
 }
 
+// Diagnostic only: when a failed handshake loses its leaf, observe it without
+// sending credentials or application requests (LDAP uses an anonymous StartTLS
+// upgrade). This never establishes trust or makes the rejected connection usable.
 export function observeCertificate(connectTls: typeof connect, options: ConnectionOptions, protocol = 'https:'): Promise<string | undefined> {
   return new Promise(resolve => {
     let secure: TLSSocket | undefined
