@@ -36,9 +36,9 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       userId: actor, tool: reference.tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
       current(reference)
-      // A new explicit confirmation replaces the endpoint's previous trust policy.
       if (mode !== 'intermediate') {
-        for (const certificate of credentialCertificates(db, reference.id).filter(item => item.endpoint === inspection.endpoint)) {
+        for (const certificate of credentialCertificates(db, reference.id).filter(item => item.endpoint === inspection.endpoint
+          && item.mode !== 'intermediate' && item.mode !== mode)) {
           db.prepare('DELETE FROM trusted_certificates WHERE id = ?').run(certificate.id)
         }
       }
@@ -91,8 +91,11 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (!item || item.actor !== actor || item.reference.id !== reference.id || item.expiresAt <= Date.now()) throw new ArtiumError('INVALID_INPUT')
     current(item.reference)
     const { anchor, chain } = item.inspection
+    const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
+    if (mode === 'ca' && !hasCA && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',
+      'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.')
     save(request, actor, item.reference, item.inspection,
-      mode === 'ca' && (!anchor.ca || anchor.fingerprint === chain[0].fingerprint) ? 'pin' : mode)
+      mode === 'ca' && chain[0].selfSigned ? 'pin' : mode)
     pending.delete(inspectionId)
     return { trusted: true as const }
   } })

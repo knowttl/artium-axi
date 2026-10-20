@@ -225,9 +225,12 @@ Artium saves the intermediate without confirmation only after another handshake 
 Automatic repair preserves existing confirmed fingerprint pins; a changed leaf still requires confirmation.
 The window reports this repair; retry the credential test afterward.
 An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
+An obtained private issuer is offered for explicit CA confirmation even when it is not already trusted.
+When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unavailable and strict leaf pinning requires an explicit choice.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
 Re-inspect the saved endpoint for rotation, and use **Remove trust** to retire the old pin after confirming the replacement; confirmation alone keeps previously confirmed fingerprints trusted.
+Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 

@@ -132,7 +132,7 @@ afterAll(async () => {
 test.each([
   { certificate: 'self-signed', chain: false, reason: 'self-signed', count: 1, expired: false, matchesHostname: true },
   { certificate: 'leaf', chain: true, reason: 'CA this server does not trust', count: 3, expired: false, matchesHostname: true },
-  { certificate: 'leaf', chain: false, reason: 'sent no intermediate', count: 1, expired: false, matchesHostname: true },
+  { certificate: 'leaf', chain: false, reason: 'sent no intermediate', count: 2, expired: false, matchesHostname: true },
   { certificate: 'expired', chain: false, reason: 'expired', count: 1, expired: true, matchesHostname: true },
   { certificate: 'mismatch', chain: false, reason: 'hostname does not match', count: 1, expired: false, matchesHostname: false },
 ])('inspection explains $certificate without sending credentials or requests', async ({ certificate, chain, reason, count, expired, matchesHostname }) => {
@@ -213,7 +213,7 @@ test.each(['expired', 'mismatch'])('warnings do not block confirmation of %s', a
   serve(name)
   const result = await inspect()
   expect(result.warnings.length).toBeGreaterThan(0)
-  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })).statusCode).toBe(200)
 })
 
 test('a missing intermediate is fetched and saved automatically only when the chain reaches an existing trusted root', async () => {
@@ -229,15 +229,78 @@ test('a missing intermediate is fetched and saved automatically only when the ch
   expect(bytes).toBe(0)
 })
 
-test('an AIA-advertised private root requires administrator confirmation', async () => {
-  serve('root-issued')
-  issuerMode = 'root'
+test.each([
+  { certificate: 'root-issued', issuer: 'root', renewed: 'server', runtime: 'node' },
+  { certificate: 'root-issued', issuer: 'root', renewed: 'server', runtime: 'python' },
+  { certificate: 'leaf', issuer: 'valid', renewed: 'rotated', runtime: 'node' },
+  { certificate: 'leaf', issuer: 'valid', renewed: 'rotated', runtime: 'python' },
+] as const)('$runtime trusts a fetched private $issuer only after confirmation and accepts renewal', async ({ certificate, issuer, renewed, runtime }) => {
+  serve(certificate)
+  issuerMode = issuer
   const result = await inspect()
   expect(issuerRequests).toBe(1)
   expect(result.repairAvailable).toBe(false)
+  expect(result.anchor.ca).toBe(true)
+  expect(result.chain).toHaveLength(2)
   expect((await request('GET')).json().certificates).toEqual([])
   expect(db.prepare('SELECT action FROM audit').all()).toEqual([])
   expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
+  serve(renewed)
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+})
+
+test('a non-self-signed leaf without an obtainable issuer requires explicit pinning', async () => {
+  serve('leaf')
+  issuerMode = 'unrelated'
+  const result = await inspect()
+  expect(result.anchor.ca).toBe(false)
+  expect(result.chain[0].selfSigned).toBe(false)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(400)
+  const rejected = await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'ca' })
+  expect(rejected.statusCode).toBe(400)
+  expect(rejected.json().error.message).toContain('CA trust is unavailable')
+  expect((await request('GET')).json().certificates).toEqual([])
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('pin')
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+})
+
+test.each([
+  { mode: 'pin', certificate: 'rotated', chain: 'intermediate' },
+  { mode: 'ca', certificate: 'other-ca-leaf', chain: 'other-ca' },
+] as const)('a second $mode confirmation keeps the first certificate trusted', async ({ mode, certificate, chain }) => {
+  serve('leaf', true)
+  const first = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: first.inspectionId, mode })).statusCode).toBe(200)
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem(chain) })
+  const second = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: second.inspectionId, mode })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates.map((item: { leaf: { fingerprint: string } }) => item.leaf.fingerprint).sort())
+    .toEqual([first.chain[0].fingerprint, second.chain[0].fingerprint].sort())
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+  serve('leaf', true)
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+  expect((await runtimeCall('python')).exitCode).toBe(0)
+})
+
+test.each([
+  { first: 'pin', second: 'ca' }, { first: 'ca', second: 'pin' },
+] as const)('switching from $first to $second replaces the other mode', async ({ first, second }) => {
+  serve('leaf', true)
+  const original = await inspect()
+  await request('POST', '/trust', { inspectionId: original.inspectionId, mode: first })
+  serve('rotated', true)
+  const rotated = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: rotated.inspectionId, mode: second })).statusCode).toBe(200)
+  const listed = (await request('GET')).json().certificates
+  expect(listed).toHaveLength(1)
+  expect(listed[0]).toMatchObject({ mode: second, leaf: { fingerprint: rotated.chain[0].fingerprint } })
   expect((await runtimeCall('node')).exitCode).toBe(0)
 })
 
@@ -324,30 +387,30 @@ test.each(['ca', 'pin'] as const)('server transports reject a different CA at th
   expect(bytes).toBe(0)
 })
 
-test('legacy CA pins migrate once while self-signed pins remain pinned and both decisions are audited', async () => {
+test('legacy pins migrate once with accurate audit reasons for every retained pin', async () => {
   const selfSigned = await inspect()
   await request('POST', '/trust', { inspectionId: selfSigned.inspectionId })
-  const selfSignedId = (await request('GET')).json().certificates[0].id
   serve('leaf', true)
   const ca = await inspect()
   await request('POST', '/trust', { inspectionId: ca.inspectionId, mode: 'pin' })
-  // Keep a second legacy entry to exercise both upgrade decisions in one store.
   db.prepare(`INSERT INTO trusted_certificates
-    SELECT ?, credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by FROM trusted_certificates`)
-    .run(selfSignedId, selfSigned.anchor.fingerprint, selfSigned.chain[0].fingerprint, pem('self-signed'), pem('self-signed'))
+    SELECT 'synthetic-no-issuer-pin', credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by FROM trusted_certificates LIMIT 1`)
+    .run(new X509Certificate(pem('root-issued')).fingerprint256, new X509Certificate(pem('root-issued')).fingerprint256,
+      pem('root-issued'), pem('root-issued'))
   db.exec('ALTER TABLE trusted_certificates RENAME TO legacy_copy')
   db.exec(readFileSync('src/server/store/migrations/020-trusted-certificates.sql', 'utf8'))
   db.exec(`INSERT INTO trusted_certificates SELECT * FROM legacy_copy;
     DROP TABLE legacy_copy; DELETE FROM migrations WHERE version = 21; DELETE FROM audit`)
   migrate(db)
   validateSchema(db)
-  expect((await request('GET')).json().certificates.map((item: { mode: string }) => item.mode).sort()).toEqual(['ca', 'pin'])
+  expect((await request('GET')).json().certificates.map((item: { mode: string }) => item.mode).sort()).toEqual(['ca', 'pin', 'pin'])
   expect(db.prepare('SELECT action, tool, target_id FROM audit ORDER BY action').all()).toEqual([
+    { action: 'keep-certificate-pin-no-issuing-ca-stored', tool: 'vectra-axi', target_id: new X509Certificate(pem('root-issued')).fingerprint256 },
     { action: 'keep-self-signed-certificate-pin', tool: 'vectra-axi', target_id: selfSigned.anchor.fingerprint },
     { action: 'migrate-certificate-to-ca-trust', tool: 'vectra-axi', target_id: ca.anchor.fingerprint },
   ])
   migrate(db)
-  expect(db.prepare('SELECT count(*) AS count FROM audit').get()).toEqual({ count: 2 })
+  expect(db.prepare('SELECT count(*) AS count FROM audit').get()).toEqual({ count: 3 })
   const reference = store.findCredential('vectra-axi')!
   const trust = readCredentialTrust(db, reference)
   const credential = store.readCredential(reference) as Record<string, unknown>

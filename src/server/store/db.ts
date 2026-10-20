@@ -125,10 +125,12 @@ export function migrate(db: Database.Database, directory = migrationsDirectory):
           for (const pin of pins) {
             const anchor = new X509Certificate(pin.pem)
             const convert = anchor.ca && anchor.fingerprint256 !== pin.leaf_fingerprint
+            const selfSigned = anchor.subject === anchor.issuer && anchor.verify(anchor.publicKey)
             if (convert) db.prepare("UPDATE trusted_certificates SET mode = 'ca' WHERE id = ?").run(pin.id)
             db.prepare(`INSERT INTO audit (occurred_at, event, tool, request_id, outcome, action, target_id, subject)
               VALUES (?, 'admin-change', ?, ?, 'success', ?, ?, ?)`).run(Date.now(), pin.tool, randomUUID(),
-              convert ? 'migrate-certificate-to-ca-trust' : 'keep-self-signed-certificate-pin', pin.fingerprint, anchor.subject)
+              convert ? 'migrate-certificate-to-ca-trust' : selfSigned ? 'keep-self-signed-certificate-pin'
+                : 'keep-certificate-pin-no-issuing-ca-stored', pin.fingerprint, anchor.subject)
             db.prepare('DELETE FROM tool_health WHERE tool = ?').run(pin.tool)
           }
         }
