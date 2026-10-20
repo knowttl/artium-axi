@@ -178,6 +178,7 @@ The server adds the bundle to its default Node TLS trust before outbound connect
 The runner supplies `NODE_EXTRA_CA_CERTS` and `REQUESTS_CA_BUNDLE` centrally on every call through private temporary files.
 The Requests bundle includes the server's default Node public roots as well as the additional CAs, since Requests replaces its default certifi bundle when this variable is set.
 LDAP and Vectra credential-specific CA files receive the server bundle too, preserving those credential-specific CAs as an additive option.
+For endpoints with UI-confirmed trust, the [credential-scoped policy below](#trusting-one-tool-from-the-administration-ui) takes precedence.
 Certificate verification and hostname verification remain enabled.
 With the setting absent, no server-wide trust is added; credential-specific trust still applies.
 
@@ -217,6 +218,8 @@ For an endpoint with confirmed CA trust or strict pins, connections must validat
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
+If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
+Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable hostname or date verification.
 Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
