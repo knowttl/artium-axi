@@ -222,6 +222,10 @@ The server may present the leaf and issuing intermediate without the root; confi
 For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On a pin mismatch, the error explains that the stored fingerprint differs from the presented one and directs the administrator to re-inspect the certificate on the tool page.
+For failed tool runs, including background health checks, the shared runner checks endpoints with strict pins and replaces the CLI error with this message if it observes a different leaf fingerprint.
+If the fingerprint still matches or cannot be observed, the original error is retained.
+When a failed handshake does not expose its leaf, diagnostics can open a separate, unverified handshake solely to read the fingerprint, using an anonymous StartTLS upgrade for LDAP.
+This diagnostic connection sends no credentials or application requests, establishes no trust and leaves the real connection rejected; mismatch errors omit certificate contents and fingerprint values.
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
 If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.

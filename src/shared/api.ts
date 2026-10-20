@@ -240,6 +240,7 @@ export const trustedCredentialCertificateSchema = z.strictObject({
 })
 // Inspection accepts only an inventory endpoint index, never a host or URL.
 // Trust accepts an actor-bound, five-minute inspection handle, never PEM or keys.
+// Trust rejects inspections whose verificationError is null with INVALID_INPUT.
 export const adminCertificateRoutes = {
   list: { method: 'GET', path: '/v1/admin/tools/:tool/certificates', input: z.strictObject({}),
     response: z.strictObject({ certificates: z.array(trustedCredentialCertificateSchema) }) },
