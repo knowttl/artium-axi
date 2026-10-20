@@ -28,6 +28,23 @@ import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
 vi.unmock('../../src/server/health/preflight.js')
+// Generate serialized functions outside Vitest so child processes receive native imports.
+vi.mock('../../src/server/runner/runtime-trust.js', async () => {
+  const { build } = await import('esbuild')
+  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const { pathToFileURL } = await import('node:url')
+  const { execFileSync } = await import('node:child_process')
+  const directory = mkdtempSync(join(process.cwd(), '.certificate-bootstrap-'))
+  try {
+    await build({ entryPoints: ['src/server/runner/runtime-trust.ts', 'src/server/credential-tls.ts',
+      'src/server/ldap-starttls.ts', 'src/server/certificate-endpoint.ts'],
+      outbase: 'src/server', outdir: directory, platform: 'node', format: 'esm' })
+    const moduleUrl = pathToFileURL(join(directory, 'runner/runtime-trust.js')).href
+    return JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e',
+      `import * as bootstrap from ${JSON.stringify(moduleUrl)}; console.log(JSON.stringify(bootstrap))`], { encoding: 'utf8' }))
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
 vi.mock('node:dns/promises', async importOriginal => {
   const original = await importOriginal<typeof import('node:dns/promises')>()
   return { ...original, lookup: vi.fn(original.lookup) }
