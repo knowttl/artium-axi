@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { isIP } from 'node:net'
 import Fastify from 'fastify'
+import { ZodError } from 'zod'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
-import { inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
+import { certificateDetailsSchema, certificateInspectionSchema, inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { loadCredentialProfile } from './adapters/credential-profile.js'
@@ -72,6 +73,20 @@ export function createApp(options: {
     const failure = error instanceof ArtiumError ? error
       : error.code?.startsWith('FST_CSRF_') ? new ArtiumError('CSRF_INVALID')
       : new ArtiumError(error.statusCode && error.statusCode >= 400 && error.statusCode < 500 ? 'INVALID_INPUT' : 'INTERNAL_ERROR')
+    if (failure.code === 'INTERNAL_ERROR') {
+      // Only fixed class and schema names enter diagnostics, never error messages or dynamic keys.
+      const errorClass = error instanceof ZodError ? 'ZodError' : error instanceof ArtiumError ? 'ArtiumError'
+        : [TypeError, RangeError, SyntaxError, ReferenceError, URIError, EvalError, AggregateError]
+          .find(type => error instanceof type)?.name ?? 'Error'
+      const fields = new Set([...Object.keys(certificateDetailsSchema.shape), ...Object.keys(certificateInspectionSchema.shape)])
+      const validationFields = error instanceof ZodError
+        ? [...new Set(error.issues.flatMap(issue => {
+          const field = issue.path.at(-1)
+          return typeof field === 'string' && fields.has(field) ? [field] : []
+        }))] : undefined
+      process.stderr.write(JSON.stringify({ requestId: request.id, errorClass,
+        route: request.routeOptions.url ?? '(unmatched)', ...(validationFields ? { validationFields } : {}) }) + '\n')
+    }
     if (browser.isBrowser(request)) {
       if (failure.code === 'REAUTH_REQUIRED' && !(request.url.startsWith('/v1/') && request.headers.accept === 'application/json')) return reply.redirect('/reauth', 303)
       if (failure.code === 'PASSWORD_CHANGE_REQUIRED') return reply.redirect('/password', 303)

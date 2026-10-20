@@ -55,6 +55,8 @@ subjectAltName = DNS:localhost
 basicConstraints = CA:FALSE
 extendedKeyUsage = serverAuth
 authorityInfoAccess = caIssuers;URI:ftp://issuer.synthetic.test/intermediate
+[empty-subject]
+commonName = optional
 `)
   openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Artium synthetic intermediate',
     '-keyout', 'intermediate.key', '-out', 'intermediate.csr'])
@@ -69,6 +71,8 @@ authorityInfoAccess = caIssuers;URI:ftp://issuer.synthetic.test/intermediate
     '-subj', '/CN=rotated-aia.synthetic.test', '-in', 'server.csr', '-out', 'rotated-aia.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/CN=rotated.synthetic.test', '-in', 'server.csr', '-out', 'rotated.crt', ...validity])
+  openssl([...ca, '-policy', 'empty-subject', '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/', '-in', 'server.csr', '-out', 'empty-subject.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-subj', '/CN=expired.synthetic.test', '-in', 'server.csr',
     '-out', 'expired.crt', '-startdate', '20200101000000Z', '-enddate', '20210101000000Z'])
   openssl([...ca, '-extensions', 'mismatch-server', '-subj', '/CN=other.synthetic.test', '-in', 'server.csr',
@@ -77,4 +81,6 @@ authorityInfoAccess = caIssuers;URI:ftp://issuer.synthetic.test/intermediate
     '-subj', '/CN=non-http.synthetic.test', '-in', 'server.csr', '-out', 'non-http.crt', ...validity])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
     '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
+  openssl(['req', '-x509', '-key', 'server.key', '-subj', '/', '-days', '3650',
+    '-addext', 'basicConstraints=CA:FALSE', '-out', 'nameless.crt'])
 }

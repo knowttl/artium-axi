@@ -196,6 +196,9 @@ For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading t
 Administration capability and recent identity confirmation are required.
 
 Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
+When a certificate has no nonblank subject, its displayed subject falls back to the first subject alternative name, or `(no subject)` if none is available.
+This applies to inspection, trusted certificate and pinned leaf details, audit subjects and the server-wide CA bundle listing; a missing issuer displays as `(no issuer)`.
+An empty subject does not prevent inspection or trust, and two empty subject and issuer names do not establish a self-signed match.
 Compare the fingerprint with the appliance’s own display through a trusted channel.
 Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
 The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
@@ -361,6 +364,11 @@ At most two background checks run at once, including replacement checks; work de
 Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
 Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+
+For request failures returned as `INTERNAL_ERROR`, match the response's `requestId` to the server's stderr JSON line, available through `docker compose -f compose.example.yaml logs artium` for the example deployment.
+The line contains `requestId`, a sanitized `errorClass` and the matched route template in `route` (or `(unmatched)`), without actual path parameter values, query strings, request bodies, secrets, certificate contents or error messages.
+Schema validation failures also include `validationFields`, limited to recognized certificate field names; this array can be empty.
+These diagnostics leave the client error code as `INTERNAL_ERROR` and are separate from audit records.
 
 ## Retention and export
 
