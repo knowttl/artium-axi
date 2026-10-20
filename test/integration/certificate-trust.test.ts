@@ -348,6 +348,49 @@ test('legacy CA pins migrate once while self-signed pins remain pinned and both 
   ])
   migrate(db)
   expect(db.prepare('SELECT count(*) AS count FROM audit').get()).toEqual({ count: 2 })
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  for (const certificate of ['leaf', 'rotated', 'self-signed']) {
+    serve(certificate, certificate !== 'self-signed')
+    await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
+    expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+    for (const runtime of ['node', 'python'] as const) {
+      const passed = await runtimeCall(runtime)
+      expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+      expect(passed.stdout.trim()).toBe('ok')
+    }
+  }
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('other-ca-leaf') + pem('other-ca') })
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toThrow()
+  for (const runtime of ['node', 'python'] as const) expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
+})
+
+test.each(['node', 'python'] as const)('%s mixed CA and leaf trust does not promote the pinned leaf issuer to a CA', async runtime => {
+  serve('leaf', true)
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-root-issued-pin', credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by
+    FROM trusted_certificates`).run(new X509Certificate(pem('ca')).fingerprint256,
+    new X509Certificate(pem('root-issued')).fingerprint256, pem('ca'), pem('root-issued'))
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  serve('root-issued')
+  await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  serve('server')
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toThrow()
+  expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
 })
 
 test.each(['redirect', 'oversized', 'unrelated', 'stalled'] as const)('AIA refuses %s issuer responses without adding trust', async mode => {

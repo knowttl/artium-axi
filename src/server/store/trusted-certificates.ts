@@ -13,8 +13,11 @@ export interface CredentialTrust {
 }
 
 export function readCredentialTrust(db: Database.Database, reference: CredentialReference): CredentialTrust[] {
-  return db.prepare(`SELECT endpoint, pem, fingerprint, leaf_fingerprint AS leafFingerprint, mode
-    FROM trusted_certificates WHERE credential_id = ?`).all(reference.id) as CredentialTrust[]
+  const rows = db.prepare(`SELECT endpoint, pem, leaf_pem AS leafPem, fingerprint, leaf_fingerprint AS leafFingerprint, mode
+    FROM trusted_certificates WHERE credential_id = ?`).all(reference.id) as (CredentialTrust & { leafPem: string })[]
+  const caEndpoints = new Set(rows.filter(row => row.mode === 'ca').map(row => certificateEndpoint(row.endpoint).href))
+  return rows.map(({ leafPem, ...row }) => ({ ...row,
+    pem: row.mode === 'pin' && caEndpoints.has(certificateEndpoint(row.endpoint).href) ? leafPem : row.pem }))
 }
 
 export function credentialCertificates(db: Database.Database, credentialId: string) {

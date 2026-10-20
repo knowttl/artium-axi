@@ -22,7 +22,7 @@ export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), '
       const error = tls.checkServerIdentity(hostname, certificate)
       if (error) return error
       const pins = trust.filter(certificate => certificate.mode === 'pin')
-      if (pins.length && !pins.some(pin => pin.leafFingerprint === certificate.fingerprint256)) {
+      if (!trust.some(certificate => certificate.mode === 'ca') && pins.length && !pins.some(pin => pin.leafFingerprint === certificate.fingerprint256)) {
         return Object.assign(new Error('TLS certificate fingerprint changed'), { code: 'CERTIFICATE_PIN_MISMATCH' })
       }
     } }

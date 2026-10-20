@@ -70,9 +70,9 @@ def _verified_handshake(self, *args, **kwargs):
     if not self.server_side:
         host = (self.server_hostname or '').lower().strip('[]')
         port = self.getpeername()[1]
-        expected = [pin['leafFingerprint'].replace(':', '').upper() for pin in _pins
-                    if pin['hostname'] == host and pin['port'] == port and pin['mode'] == 'pin']
-        if expected and hashlib.sha256(self.getpeercert(binary_form=True)).hexdigest().upper() not in expected:
+        expected = [pin for pin in _pins if pin['hostname'] == host and pin['port'] == port]
+        fingerprints = [pin['leafFingerprint'].replace(':', '').upper() for pin in expected if pin['mode'] == 'pin']
+        if not any(pin['mode'] == 'ca' for pin in expected) and fingerprints and hashlib.sha256(self.getpeercert(binary_form=True)).hexdigest().upper() not in fingerprints:
             self.close()
             raise ssl.SSLCertVerificationError('TLS certificate fingerprint changed. Ask an administrator to re-inspect the certificate.')
     return result
