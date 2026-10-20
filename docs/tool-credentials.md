@@ -194,7 +194,7 @@ Local fake-service checks do not establish live organization acceptance.
 Artium bundles the [pinned](../tools/package.json) `awx-axi` package without upstream modifications.
 At `/admin/tools/awx-axi`, enter the controller HTTPS `origin`.
 Paste an existing personal access token into `token`, or choose password sign-in and enter a username and password.
-Follow the [runbook flow](runbook.md#roles-credentials-and-health) to save the address and approve certificate trust before password sign-in.
+Follow the [runbook password sign-in flow](runbook.md#roles-credentials-and-health).
 See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for token exchange, password handling and controllers with basic authentication disabled.
 Enter the token itself, never a SecretRef, environment-variable name or file path.
 Artium encrypts the token and injects a SecretRef through its private per-call profile.

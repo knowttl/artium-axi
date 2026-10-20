@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
+import { getCACertificates, setDefaultCACertificates } from 'node:tls'
 import { createApp } from '../../dist/src/server/app.js'
 import { Audit } from '../../dist/src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../dist/src/server/policy/identity-resolver.js'
@@ -66,6 +67,10 @@ let offset = 0
 const realNow = Date.now.bind(Date)
 Date.now = () => realNow() + offset
 // Harness-only loopback control; never registered by production createApp.
+server.post('/test/trust-ca', async () => {
+  setDefaultCACertificates([...getCACertificates('default'), readFileSync(join(directory, 'ca.crt'), 'utf8')])
+  return { trusted: true }
+})
 server.post('/test/clock', async request => {
   const { advanceMs } = request.body
   if (!Number.isSafeInteger(advanceMs) || advanceMs < 0) throw new Error('Invalid fake clock advance')

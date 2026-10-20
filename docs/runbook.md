@@ -195,6 +195,8 @@ This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
+If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, inspection reports that no trust is needed and offers no trust confirmation.
+The API also refuses to save CA trust or a strict pin for that inspection, and no trust change is recorded.
 
 Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
 When a certificate has no nonblank subject, its displayed subject falls back to the first subject alternative name, or `(no subject)` if none is available.
@@ -219,6 +221,11 @@ CA trust accepts renewed leaves under the stored issuing CA, including when that
 The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
 For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+On a pin mismatch, the error explains that the stored fingerprint differs from the presented one and directs the administrator to re-inspect the certificate on the tool page.
+For failed tool runs, including background health checks, the shared runner checks endpoints with strict pins and replaces the CLI error with this message if it observes a different leaf fingerprint.
+If the fingerprint still matches or cannot be observed, the original error is retained.
+When a failed handshake does not expose its leaf, diagnostics can open a separate, unverified handshake solely to read the fingerprint, using an anonymous StartTLS upgrade for LDAP.
+This diagnostic connection sends no credentials or application requests, establishes no trust and leaves the real connection rejected; mismatch errors omit certificate contents and fingerprint values.
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
 If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
@@ -235,7 +242,9 @@ Automatic intermediate repair is not included because treating a repaired interm
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint and confirm the replacement, then use **Remove trust** to retire the old entry.
+For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint.
+If inspection reports that no trust is needed, use **Remove trust** to retire the old entries and let the endpoint use the server's existing trust.
+Otherwise, confirm the replacement, then use **Remove trust** to retire the old entry.
 Confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation.
 Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
@@ -288,7 +297,7 @@ The administrator test response and tool page show the current failure's stage a
 Network and TLS diagnostics name the destination host for both manual tests and background checks; background checks run the tool without preflight.
 Checks admitted to run also update revision-bound cached health on `/admin/tools`, except for transient admission or authorization failures.
 Failures before admission, including missing credentials, overlapping checks and unavailable adapters, return configuration-stage diagnostics without replacing cached health; an absent credential revision is `null`.
-Preflight certificate-verification diagnostics identify the chain as self-signed or untrusted and include the presented issuer when available.
+Preflight certificate-verification diagnostics identify the chain as self-signed or untrusted and include the presented issuer when available, except for [pin mismatches](#trusting-one-tool-from-the-administration-ui), which omit certificate details.
 For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas).
 Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.

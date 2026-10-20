@@ -53,6 +53,10 @@ authorityInfoAccess = caIssuers;URI:${issuerUrl}
 subjectAltName = DNS:other.synthetic.test
 basicConstraints = CA:FALSE
 extendedKeyUsage = serverAuth
+[client-only]
+subjectAltName = DNS:localhost
+basicConstraints = CA:FALSE
+extendedKeyUsage = clientAuth
 [non-http-server]
 subjectAltName = DNS:localhost
 basicConstraints = CA:FALSE
@@ -76,6 +80,8 @@ commonName = optional
     '-in', 'server.csr', '-out', 'root-issued.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/CN=rotated.synthetic.test', '-in', 'server.csr', '-out', 'rotated.crt', ...validity])
+  openssl([...ca, '-extensions', 'client-only', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/CN=client-only.synthetic.test', '-in', 'server.csr', '-out', 'client-only.crt', ...validity])
   openssl([...ca, '-policy', 'empty-subject', '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/', '-in', 'server.csr', '-out', 'empty-subject.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-subj', '/CN=expired.synthetic.test', '-in', 'server.csr',
@@ -86,6 +92,8 @@ commonName = optional
     '-subj', '/CN=non-http.synthetic.test', '-in', 'server.csr', '-out', 'non-http.crt', ...validity])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
     '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
+  openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=rotated.localhost', '-days', '3650',
+    '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed-rotated.crt'])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/', '-days', '3650',
     '-addext', 'basicConstraints=CA:FALSE', '-out', 'nameless.crt'])
   openssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Other synthetic CA', '-days', '3650',

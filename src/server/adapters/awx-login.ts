@@ -1,6 +1,6 @@
 import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/errors.js'
 import { runnerLimits } from '../config.js'
-import { credentialFetch } from '../credential-tls.js'
+import { certificatePinMismatchMessage, credentialFetch } from '../credential-tls.js'
 import { certificateErrorCodePattern, safeDiagnostic } from '../health/diagnostic.js'
 import { SecretScanner } from '../runner/scan.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
@@ -71,6 +71,9 @@ function transportFailure(error: unknown, secrets: readonly string[], host: stri
   const code = typeof fields.code === 'string' ? fields.code : typeof fields.cause?.code === 'string' ? fields.cause.code : ''
   const name = typeof fields.name === 'string' ? fields.name : ''
   const where = host ? { host } : {}
+  if (code === 'CERTIFICATE_PIN_MISMATCH') return failure('UPSTREAM_TLS_FAILED',
+    certificatePinMismatchMessage, 'Re-inspect the certificate on the tool page.', secrets,
+    { stage: 'TLS', ...where, message: certificatePinMismatchMessage, toolCode: code })
   if (certificateErrorCodePattern.test(code) || code.startsWith('ERR_TLS_')) return failure('UPSTREAM_TLS_FAILED',
     'The controller certificate could not be verified.',
     'Inspect and trust the controller certificate, or paste an existing personal access token.', secrets,

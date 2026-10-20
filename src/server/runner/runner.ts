@@ -3,7 +3,8 @@ import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { getCACertificates } from 'node:tls'
+import { isIP } from 'node:net'
+import { connect, getCACertificates } from 'node:tls'
 import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
 import { adoPathPrefix, runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
@@ -13,6 +14,7 @@ import type { RunnerInput } from './input.js'
 import type { TemporaryFile } from '../adapters/types.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
+import { classifyCertificateFailure, observeCertificate } from '../credential-tls.js'
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 
 export interface RunnerLimits {
@@ -124,7 +126,7 @@ async function execute(
     ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : [])].join('\n') : ''
   const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
-    return { hostname: endpoint.hostname, port: endpoint.port,
+    return { hostname: endpoint.hostname, port: endpoint.port, protocol: new URL(certificate.endpoint).protocol,
       leafFingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
@@ -176,7 +178,7 @@ async function execute(
     } catch { throw new RunnerError('TEMP_UNAVAILABLE') }
     args = await writeInput(directories.TMPDIR, args, input)
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
-    return await new Promise<RunnerResult>((resolve, reject) => {
+    const result = await new Promise<RunnerResult>((resolve, reject) => {
       const streams = {
         stdout: { chunks: [] as Buffer[], retained: 0, observed: 0 },
         stderr: { chunks: [] as Buffer[], retained: 0, observed: 0 },
@@ -312,6 +314,29 @@ async function execute(
         finish()
       })
     })
+    if (result.exitCode !== 0) {
+      const original = new Error(result.stderr)
+      const endpoints = new Set(credentialTrust.filter(certificate => certificate.mode === 'pin')
+        .map(certificate => certificateEndpoint(certificate.endpoint).href))
+      for (const endpoint of endpoints) {
+        const scoped = credentialTrust.filter(certificate => certificateEndpoint(certificate.endpoint).href === endpoint)
+        const { hostname: host, port } = certificateEndpoint(endpoint)
+        const failure = await classifyCertificateFailure(original, scoped, undefined, () => observeCertificate(connect,
+          { host, port, servername: isIP(host) ? undefined : host }, new URL(endpoint).protocol))
+        if (failure === original) continue
+        const diagnostic = Buffer.from(`code: CERTIFICATE_PIN_MISMATCH\nmessage: ${failure.message}\n`)
+        if (new SecretScanner(secrets).scan('stderr', diagnostic)) {
+          throw Object.assign(new RunnerError('SECRET_IN_OUTPUT'), { processStarted: true,
+            durationMs: performance.now() - started, outputBytes: result.outputBytes })
+        }
+        result.stdout = ''
+        result.stderr = decode(diagnostic.subarray(0, cap), diagnostic.length > cap)
+        result.truncated = { stdout: false, stderr: diagnostic.length > cap }
+        break
+      }
+    }
+    result.durationMs = performance.now() - started
+    return result
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

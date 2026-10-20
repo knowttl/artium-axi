@@ -325,16 +325,17 @@ function showCertificateInspection(result) {
     section.append(label);
     details.append(section);
   }
-  if (result.anchor.fingerprint !== result.chain[0].fingerprint) {
+  if (result.verificationError && result.anchor.fingerprint !== result.chain[0].fingerprint) {
     line(details, 'Issuing CA to trust: ' + result.anchor.subject + '; SHA-256: ' + result.anchor.fingerprint);
   }
   const form = dialog.querySelector('[data-trust-certificate]');
+  form.hidden = !result.verificationError;
   form.elements.inspectionId.value = result.inspectionId;
   const hasCA = result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
   form.elements.mode.required = true;
   form.elements.mode.value = hasCA ? 'ca' : result.chain[0].selfSigned ? 'pin' : '';
   form.elements.mode.querySelector('option[value="ca"]').disabled = !hasCA;
-  if (!hasCA && !result.chain[0].selfSigned) {
+  if (result.verificationError && !hasCA && !result.chain[0].selfSigned) {
     line(details, 'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.', true);
   }
   dialog.querySelector('[data-close-certificate]').onclick = () => dialog.close();

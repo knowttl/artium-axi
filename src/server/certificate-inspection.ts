@@ -96,14 +96,15 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
   if (!chain[0].matchesHostname || chain.some(certificate => certificate.expired || certificate.notYetValid)) {
     warnings.push('Trust does not bypass hostname or validity checks. Renew the certificate or use its matching hostname to fix these failures.')
   }
-  let reason = 'The certificate verifies with this server’s existing trust.'
-  if (intermediate) reason = 'The server sent no intermediate. Its fetched issuer requires administrator confirmation for CA trust.'
+  let reason: string
+  if (!presented.verificationError) reason = 'No trust is needed. The certificate verifies with this server’s existing trust.'
+  else if (intermediate) reason = 'The server sent no intermediate. Its fetched issuer requires administrator confirmation for CA trust.'
   else if (chain[0].selfSigned) reason = 'The server presents a self-signed certificate.'
   else if (chain.some(certificate => certificate.expired)) reason = 'A certificate has expired.'
   else if (chain.some(certificate => certificate.notYetValid)) reason = 'A certificate is not yet valid.'
   else if (!chain[0].matchesHostname) reason = 'The hostname does not match the certificate names.'
   else if (presented.verificationError === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') reason = 'The server sent no intermediate and its issuer could not be verified.'
-  else if (presented.verificationError) reason = 'The certificate was issued by a CA this server does not trust.'
+  else reason = 'The certificate was issued by a CA this server does not trust.'
   const anchor = intermediate ?? presented.chain.find((certificate, index) => index > 0 && certificate.ca) ?? leaf
   const anchorDetails = certificateDetails(anchor, host)
   const now = Date.now()
