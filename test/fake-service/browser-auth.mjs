@@ -123,7 +123,8 @@ server.get('/test/tools/:tool', async request => {
     delivered: request.params.tool === 'ldap-axi' && existsSync(deliveryFile) ? JSON.parse(readFileSync(deliveryFile, 'utf8')) : null }
 })
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
-const proxy = createServer({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) }, (request, response) => {
+const proxy = createServer({ key: readFileSync(join(directory, 'server.key')),
+  cert: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') }, (request, response) => {
   const providerRequest = genericSso && request.url.startsWith('/test/generic-oidc/') ? genericSso
     : sso && request.url.startsWith('/test/oidc/') ? sso : undefined
   const upstream = httpRequest({ hostname: '127.0.0.1', port: providerRequest ? new URL(providerRequest.url).port : address.port,

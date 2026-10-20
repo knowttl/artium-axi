@@ -9,7 +9,7 @@ export interface CredentialTrust {
   pem: string
   fingerprint: string
   leafFingerprint: string
-  mode: 'pin' | 'intermediate'
+  mode: 'ca' | 'pin' | 'intermediate'
 }
 
 export function readCredentialTrust(db: Database.Database, reference: CredentialReference): CredentialTrust[] {
@@ -20,7 +20,7 @@ export function readCredentialTrust(db: Database.Database, reference: Credential
 export function credentialCertificates(db: Database.Database, credentialId: string) {
   const rows = db.prepare('SELECT id, endpoint, pem, leaf_pem, mode, created_at FROM trusted_certificates WHERE credential_id = ? ORDER BY created_at, id')
     .all(credentialId) as { id: string, endpoint: string, pem: string, leaf_pem: string,
-      mode: 'pin' | 'intermediate', created_at: number }[]
+      mode: CredentialTrust['mode'], created_at: number }[]
   return rows.map(row => {
     const { hostname, href } = certificateEndpoint(row.endpoint)
     return { id: row.id, endpoint: href, mode: row.mode, createdAt: row.created_at,

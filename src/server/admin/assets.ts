@@ -328,6 +328,9 @@ function showCertificateInspection(result) {
   }
   const form = dialog.querySelector('[data-trust-certificate]');
   form.elements.inspectionId.value = result.inspectionId;
+  const hasCA = result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
+  form.elements.mode.value = hasCA ? 'ca' : 'pin';
+  form.elements.mode.querySelector('option[value="ca"]').disabled = !hasCA;
   form.hidden = result.repairAvailable;
   dialog.querySelector('[data-close-certificate]').onclick = () => { dialog.close(); if (result.repairAvailable) location.reload(); };
   dialog.showModal();

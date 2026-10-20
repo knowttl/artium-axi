@@ -202,7 +202,8 @@ An empty subject does not prevent inspection or trust, and two empty subject and
 Compare the fingerprint with the appliance’s own display through a trusted channel.
 Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
 The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
-**Trust certificate for this tool** is the single trust confirmation; no certificate file or private key is accepted by this flow.
+**Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
+No certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
 Each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
@@ -210,7 +211,10 @@ Azure inspection includes login, ARM, Graph and Log Analytics.
 For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
-The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
+Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+On upgrade, saved pins with CA anchors are converted once to CA trust; self-signed leaf pins remain pins.
+Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable hostname or date verification.
 Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.

@@ -399,6 +399,8 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     check(await page.eval(() => document.querySelector('[data-certificate-details]').innerText.includes('Hostname: localhost')), 'Saved hostname missing');
     check(await page.eval(() => document.querySelector('[data-certificate-details] input[readonly]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256)}, 'Incorrect full fingerprint');
     check(await page.eval(() => document.querySelector('#certificate-inspection').innerText.includes('interception')), 'Network-path warning missing');
+    check(await page.eval(() => document.querySelector('[data-trust-certificate] [name=mode]').value === 'ca'), 'CA trust is not the default');
+    check(await page.eval(() => document.querySelector('[data-trust-certificate] option[value=pin]').textContent.includes('Strict leaf pinning')), 'Strict pinning is unavailable');
     check(await page.eval(() => document.querySelector('#certificate-inspection').scrollWidth <= document.querySelector('#certificate-inspection').clientWidth), 'Certificate dialog overflows the narrow screen');
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
@@ -407,7 +409,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     check(await page.eval(async () => {
       const result = await (await fetch('/v1/admin/tools/vectra-axi/certificates')).json();
       const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
-      return result.certificates.length === 1 && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
+      return result.certificates.length === 1 && result.certificates[0].mode === 'ca' && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
     }), 'Trust or fingerprint audit missing');
     await page.click('form[data-test-tool] button');
     await page.wait('#confirmation[open]');

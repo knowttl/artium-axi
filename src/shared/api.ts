@@ -236,7 +236,7 @@ export const certificateInspectionSchema = z.strictObject({
 })
 export const trustedCredentialCertificateSchema = z.strictObject({
   id: z.string(), endpoint: z.string(), certificate: certificateDetailsSchema, leaf: certificateDetailsSchema,
-  mode: z.enum(['pin', 'intermediate']), createdAt: z.number().int(),
+  mode: z.enum(['ca', 'pin', 'intermediate']), createdAt: z.number().int(),
 })
 // Inspection accepts only an inventory endpoint index, never a host or URL.
 // Trust accepts an actor-bound, five-minute inspection handle, never PEM or keys.
@@ -246,7 +246,7 @@ export const adminCertificateRoutes = {
   inspect: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/inspect',
     input: z.strictObject({ endpointIndex: z.number().int().nonnegative().default(0) }), response: certificateInspectionSchema },
   trust: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/trust',
-    input: z.strictObject({ inspectionId: z.string() }), response: z.strictObject({ trusted: z.literal(true) }) },
+    input: z.strictObject({ inspectionId: z.string(), mode: z.enum(['ca', 'pin']).default('ca') }), response: z.strictObject({ trusted: z.literal(true) }) },
   remove: { method: 'DELETE', path: '/v1/admin/tools/:tool/certificates',
     input: z.strictObject({ id: z.string() }), response: z.strictObject({ removed: z.literal(true) }) },
 } as const

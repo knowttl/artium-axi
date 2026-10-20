@@ -83,4 +83,8 @@ commonName = optional
     '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/', '-days', '3650',
     '-addext', 'basicConstraints=CA:FALSE', '-out', 'nameless.crt'])
+  openssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Other synthetic CA', '-days', '3650',
+    '-keyout', 'other-ca.key', '-out', 'other-ca.crt', '-addext', 'basicConstraints=critical,CA:TRUE'])
+  openssl(['x509', '-req', '-in', 'server.csr', '-CA', 'other-ca.crt', '-CAkey', 'other-ca.key', '-CAcreateserial',
+    '-days', '3650', '-extfile', 'inspection.cnf', '-extensions', 'server', '-out', 'other-ca-leaf.crt'])
 }
