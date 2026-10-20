@@ -4,7 +4,7 @@ import { lookup } from 'node:dns/promises'
 import { connect, isIP } from 'node:net'
 import { connect as connectTls } from 'node:tls'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
-import { certificatePinMismatchMessage, credentialTlsOptions } from '../credential-tls.js'
+import { certificatePinMismatchMessage, classifyCertificateFailure, credentialTlsOptions } from '../credential-tls.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
@@ -100,17 +100,19 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
       chain.push(new X509Certificate(peer.raw))
       peer = peer.issuerCertificate
     }
-    return { chain, ...(!secure.authorized ? { verificationError: String(secure.authorizationError) } : {}) }
+    const failure = !secure.authorized ? await classifyCertificateFailure(
+      Object.assign(new Error(), { code: String(secure.authorizationError) }), trust, chain[0]?.fingerprint256) : undefined
+    return { chain, ...(failure ? { verificationError: (failure as NodeJS.ErrnoException).code } : {}) }
   } catch (error) {
-    const code = verificationCode(error)
     const certificate = secure.getPeerCertificate()
+    const code = verificationCode(await classifyCertificateFailure(error as Error, trust, certificate?.fingerprint256))
     if (!secure.authorizationError && !certificateErrorCodePattern.test(code)) {
       throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TLS', host, message: `TLS connection failed for ${host}: ${code}.` })
     }
     const issuer = certificate?.issuer ? Object.entries(certificate.issuer).map(([key, value]) => `${key}=${value}`).join(', ') : undefined
     throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host,
       message: code === 'CERTIFICATE_PIN_MISMATCH' ? certificatePinMismatchMessage : `TLS verification failed for ${host}: ${code}.`, toolCode: code,
-      ...(issuer ? { issuer } : {}), trust: /SELF_SIGNED/.test(code) ? 'self-signed' : 'untrusted',
+      ...(issuer && code !== 'CERTIFICATE_PIN_MISMATCH' ? { issuer } : {}), trust: /SELF_SIGNED/.test(code) ? 'self-signed' : 'untrusted',
       hint: 'Check the presented chain and the upstream trusted-CA configuration (see docs/runbook.md; trusted-CA support is tracked in issue #99).' })
   } finally { secure.destroy(); socket.destroy() }
 }
@@ -123,7 +125,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   const code = result.verificationError
   throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host,
     message: code === 'CERTIFICATE_PIN_MISMATCH' ? certificatePinMismatchMessage : `TLS verification failed for ${host}: ${code}.`, toolCode: code,
-    ...(result.chain[0] ? { issuer: result.chain[0].issuer.replaceAll('\n', ', ') } : {}),
+    ...(result.chain[0] && code !== 'CERTIFICATE_PIN_MISMATCH' ? { issuer: result.chain[0].issuer.replaceAll('\n', ', ') } : {}),
     trust: /SELF_SIGNED/.test(code) ? 'self-signed' : 'untrusted',
     hint: 'Ask an administrator to inspect the presented certificate on the tool page.' })
 }

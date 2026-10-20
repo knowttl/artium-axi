@@ -576,12 +576,17 @@ test.each([
   expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
 })
 
-test.each(['node', 'python'] as const)('%s rejects a different valid leaf under the same confirmed CA before sending data', async runtime => {
-  serve('leaf', true)
+test.each([
+  { runtime: 'node', initial: 'leaf', rotated: 'rotated', chain: true },
+  { runtime: 'python', initial: 'leaf', rotated: 'rotated', chain: true },
+  { runtime: 'node', initial: 'self-signed', rotated: 'self-signed-rotated', chain: false },
+  { runtime: 'python', initial: 'self-signed', rotated: 'self-signed-rotated', chain: false },
+] as const)('$runtime explains rotation of $initial before sending data', async ({ runtime, initial, rotated, chain }) => {
+  serve(initial, chain)
   const result = await inspect()
   await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })
   expect((await runtimeCall(runtime)).exitCode).toBe(0)
-  serve('rotated', true)
+  serve(rotated, chain)
   bytes = 0
   const rejected = await runtimeCall(runtime)
   expect(rejected.exitCode).not.toBe(0)
@@ -589,7 +594,7 @@ test.each(['node', 'python'] as const)('%s rejects a different valid leaf under 
   expect(rejected.stderr).toContain('re-inspect')
   expect(rejected.stderr).not.toContain('BEGIN CERTIFICATE')
   expect(rejected.stderr).not.toContain(result.chain[0].fingerprint)
-  expect(rejected.stderr).not.toContain(new X509Certificate(pem('rotated')).fingerprint256)
+  expect(rejected.stderr).not.toContain(new X509Certificate(pem(rotated)).fingerprint256)
   expect(bytes).toBe(0)
 })
 
@@ -781,15 +786,18 @@ test.each([
   expect(bytes).toBe(0)
 })
 
-test('server preflight and token transport enforce the same confirmed fingerprint as children', async () => {
-  serve('leaf', true)
+test.each([
+  { initial: 'leaf', rotated: 'rotated', chain: true },
+  { initial: 'self-signed', rotated: 'self-signed-rotated', chain: false },
+])('server preflight and token transport explain rotation of $initial', async ({ initial, rotated, chain }) => {
+  serve(initial, chain)
   const result = await inspect()
   await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })
   const reference = store.findCredential('vectra-axi')!
   const trust = readCredentialTrust(db, reference)
   await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).resolves.toBeUndefined()
   expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
-  serve('rotated', true)
+  serve(rotated, chain)
   bytes = 0
   const preflightError = await preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust).catch(error => error)
   expect(preflightError).toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: {
@@ -809,7 +817,7 @@ test('server preflight and token transport enforce the same confirmed fingerprin
     const text = JSON.stringify(error) + error.message
     expect(text).not.toContain('BEGIN CERTIFICATE')
     expect(text).not.toContain(result.chain[0].fingerprint)
-    expect(text).not.toContain(new X509Certificate(pem('rotated')).fingerprint256)
+    expect(text).not.toContain(new X509Certificate(pem(rotated)).fingerprint256)
   }
   expect(bytes).toBe(0)
 })

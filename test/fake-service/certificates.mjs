@@ -86,6 +86,8 @@ commonName = optional
     '-subj', '/CN=non-http.synthetic.test', '-in', 'server.csr', '-out', 'non-http.crt', ...validity])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
     '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
+  openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=rotated.localhost', '-days', '3650',
+    '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed-rotated.crt'])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/', '-days', '3650',
     '-addext', 'basicConstraints=CA:FALSE', '-out', 'nameless.crt'])
   openssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Other synthetic CA', '-days', '3650',

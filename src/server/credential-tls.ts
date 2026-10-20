@@ -1,10 +1,42 @@
 import { request } from 'node:https'
-import { checkServerIdentity, getCACertificates } from 'node:tls'
-import type { ConnectionOptions } from 'node:tls'
+import { isIP } from 'node:net'
+import { checkServerIdentity, connect, getCACertificates } from 'node:tls'
+import type { ConnectionOptions, TLSSocket } from 'node:tls'
 import type { CredentialTrust } from './store/trusted-certificates.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
 
 export const certificatePinMismatchMessage = 'The stored certificate fingerprint differs from the presented one. Ask an administrator to re-inspect the certificate on the tool page.'
+
+export function certificatePinError(trust: readonly Pick<CredentialTrust, 'mode' | 'leafFingerprint'>[], fingerprint?: string): Error | undefined {
+  const pins = trust.filter(certificate => certificate.mode === 'pin')
+  if (fingerprint && !trust.some(certificate => certificate.mode === 'ca') && pins.length
+    && !pins.some(pin => pin.leafFingerprint === fingerprint)) {
+    return Object.assign(new Error(certificatePinMismatchMessage), { code: 'CERTIFICATE_PIN_MISMATCH' })
+  }
+}
+
+export async function classifyCertificateFailure(error: Error & { code?: string },
+  trust: readonly Pick<CredentialTrust, 'mode' | 'leafFingerprint'>[], fingerprint: string | undefined,
+  observe?: () => Promise<string | undefined>): Promise<Error> {
+  if (!/CERT|SELF_SIGNED|UNABLE_TO_.*(?:ISSUER|SIGNATURE)|INVALID_CA/.test(error.code ?? '')
+    || !trust.some(certificate => certificate.mode === 'pin') || trust.some(certificate => certificate.mode === 'ca')) return error
+  if (!fingerprint && observe) {
+    try { fingerprint = await observe() } catch { return error }
+  }
+  return certificatePinError(trust, fingerprint) ?? error
+}
+
+export function observeCertificate(connectTls: typeof connect, options: ConnectionOptions): Promise<string | undefined> {
+  return new Promise(resolve => {
+    const socket = connectTls({ host: options.host, port: options.port, servername: options.servername,
+      minVersion: options.minVersion, maxVersion: options.maxVersion, rejectUnauthorized: false })
+    const finish = (fingerprint?: string) => { clearTimeout(timer); socket.destroy(); resolve(fingerprint) }
+    const timer = setTimeout(() => finish(), 3000)
+    socket.once('secureConnect', () => finish(socket.getPeerCertificate().fingerprint256))
+    socket.once('error', () => finish())
+    socket.once('close', () => finish())
+  })
+}
 
 export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: string): ConnectionOptions {
   return buildCredentialTlsOptions({ checkServerIdentity, getCACertificates }, trust,
@@ -22,10 +54,7 @@ export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), '
     checkServerIdentity: (hostname, certificate) => {
       const error = tls.checkServerIdentity(hostname, certificate)
       if (error) return error
-      const pins = trust.filter(certificate => certificate.mode === 'pin')
-      if (!trust.some(certificate => certificate.mode === 'ca') && pins.length && !pins.some(pin => pin.leafFingerprint === certificate.fingerprint256)) {
-        return Object.assign(new Error(certificatePinMismatchMessage), { code: 'CERTIFICATE_PIN_MISMATCH' })
-      }
+      return certificatePinError(trust, certificate.fingerprint256)
     } }
 }
 
@@ -55,7 +84,12 @@ export function credentialFetch(url: string, init: { method: string, headers?: R
         } catch (error) { reject(error) }
       })
     })
-    outgoing.once('error', reject)
+    outgoing.once('error', error => {
+      void classifyCertificateFailure(error, scoped, (outgoing.socket as TLSSocket | null)?.getPeerCertificate()?.fingerprint256, () => observeCertificate(connect, {
+        host: endpoint.hostname.replace(/^\[|\]$/g, ''), port: Number(endpoint.port || 443),
+        servername: isIP(endpoint.hostname.replace(/^\[|\]$/g, '')) ? undefined : endpoint.hostname,
+      })).then(reject)
+    })
     outgoing.end(init.body)
   })
 }
