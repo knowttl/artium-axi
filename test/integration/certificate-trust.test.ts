@@ -13,6 +13,12 @@ import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { runTool } from '../../src/server/runner/run.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
+import { ToolHealth } from '../../src/server/health/health.js'
 import { createCredentialStore, migrate, openStore, validateSchema } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { adminCertificateRoutes, certificateInspectionSchema, nativeSettingsSchemas } from '../../src/shared/api.js'
@@ -25,6 +31,7 @@ import { credentialFetch } from '../../src/server/credential-tls.js'
 import { exchangeAwxPassword } from '../../src/server/adapters/awx-login.js'
 import { ldapStartTlsRequest, startLdapTls } from '../../src/server/ldap-starttls.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
+import { createLdapService } from '../fake-service/ldap.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
 vi.unmock('../../src/server/health/preflight.js')
@@ -62,12 +69,14 @@ let store: ReturnType<typeof createCredentialStore>
 let headers: Record<string, string>
 let endpoint: string
 let bytes = 0
+let httpReply = (_request: string) => 'ok'
 let issuerRequests = 0
 let issuerMode: 'valid' | 'redirect' | 'oversized' | 'unrelated' | 'stalled' | 'root' = 'valid'
 const defaults = getCACertificates('default')
 const tlsServer = createServer(socket => socket.on('data', chunk => {
   bytes += chunk.length
-  socket.end('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok')
+  const body = httpReply(chunk.toString('utf8'))
+  socket.end(`HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(body)}\r\nConnection: close\r\n\r\n${body}`)
 }))
 const issuerServer = createHttpServer((_request, response) => {
   issuerRequests++
@@ -112,6 +121,7 @@ beforeAll(async () => {
 })
 beforeEach(async () => {
   bytes = 0
+  httpReply = () => 'ok'
   issuerRequests = 0
   issuerMode = 'valid'
   serve('self-signed')
@@ -646,6 +656,107 @@ test('clientAuth-only leaf rotation explains a stale pin before sending data', a
     expect(rejected.stderr).not.toContain(new X509Certificate(pem('client-only')).fingerprint256)
   }
   expect(bytes).toBe(0)
+})
+
+test('a failed run preserves CLI output when the saved pin still matches', async () => {
+  const result = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })).statusCode).toBe(200)
+  const trust = readCredentialTrust(db, store.findCredential('vectra-axi')!)
+  const rejected = await runner.run('synthetic-development-user', process.execPath,
+    ['-e', "console.log('code: AUTH_FAILED'); console.error('The credential was rejected'); process.exitCode = 2"],
+    {}, [], { credentialTrust: trust })
+  expect(rejected).toMatchObject({ exitCode: 2, stdout: 'code: AUTH_FAILED\n', stderr: 'The credential was rejected\n' })
+  expect(bytes).toBe(0)
+})
+
+test.each([
+  { tool: 'awx-axi', protocol: 'https:', binary: 'awx-axi/dist/bin/awx-axi.js', args: ['job', 'list', '--limit', '1'],
+    credential: (origin: string) => ({ origin, token: 'CANARY-awx-token' }), adapter: (source: EmbeddedSecretSource) => createAwxAdapter(source) },
+  { tool: 'vectra-axi', protocol: 'https:', binary: '@knowttl/vectra-axi/bin/vectra-axi.js', args: ['detection', 'list'],
+    credential: (origin: string) => ({ origin, kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic-vectra-id', clientSecret: 'CANARY-vectra-secret' }),
+    adapter: (source: EmbeddedSecretSource) => createVectraAdapter(source, join(directory, 'writes.log')) },
+  { tool: 'ldap-axi', protocol: 'ldaps:', binary: '@knowttl/ldap-axi/dist/src/cli.js', args: ['auth', 'status'],
+    credential: (url: string) => ({ url, auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap' }),
+    adapter: (source: EmbeddedSecretSource) => createLdapAdapter(source) },
+  { tool: 'ldap-axi', protocol: 'ldap:', binary: '@knowttl/ldap-axi/dist/src/cli.js', args: ['auth', 'status'],
+    credential: (url: string) => ({ url, startTls: true, auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap' }),
+    adapter: (source: EmbeddedSecretSource) => createLdapAdapter(source) },
+] as const)('bundled $tool over $protocol preserves pin rotation diagnostics in runs and background health', async scenario => {
+  const service = scenario.tool === 'ldap-axi' ? createLdapService(directory) : tlsServer
+  let invalidUpgrades = 0
+  const listener = scenario.protocol === 'ldap:' ? net.createServer(socket => {
+    socket.on('error', () => {})
+    socket.once('data', packet => {
+      const expected = Buffer.from(ldapStartTlsRequest, 'hex')
+      expected[4] = packet[4]
+      if (!packet.equals(expected)) {
+        invalidUpgrades++
+        socket.destroy()
+        return
+      }
+      const response = Buffer.from('300c02010178070a010004000400', 'hex')
+      response[4] = packet[4]
+      socket.write(response)
+      service.emit('connection', socket)
+    })
+  }) : service
+  if (scenario.tool === 'ldap-axi') {
+    service.on('tlsClientError', () => {})
+    service.on('secureConnection', socket => socket.on('data', chunk => { bytes += chunk.length }))
+    listener.listen(0, '127.0.0.1')
+    await once(listener, 'listening')
+  }
+  try {
+    service.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('self-signed') })
+    httpReply = request => JSON.stringify(request.includes('oauth2/token')
+      ? { access_token: 'CANARY-vectra-minted', token_type: 'bearer', expires_in: 3600 }
+      : { count: 0, results: [], next: null })
+    const url = `${scenario.protocol}//localhost:${(listener.address() as { port: number }).port}`
+    const reference = store.replaceCredential(scenario.tool, scenario.credential(url), store.findCredential(scenario.tool)?.revision ?? 0,
+      'synthetic-development-user', Date.now())
+    db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(scenario.tool)
+    const base = `/v1/admin/tools/${scenario.tool}/certificates`
+    const inspection = await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })
+    expect(inspection.statusCode, inspection.body).toBe(200)
+    const result = certificateInspectionSchema.parse(inspection.json())
+    const saved = await app.inject({ method: 'POST', url: base + '/trust', headers,
+      payload: { inspectionId: result.inspectionId, mode: 'pin' } })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const adapter = scenario.adapter(new EmbeddedSecretSource(store))
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules', scenario.binary), ...call.args] }
+    }
+    const run = (requestId: string) => runTool(db, new Audit(db), runner, headers.authorization.slice(7), { args: [...scenario.args] }, adapter,
+      new SharedIdentityResolver(store), { requestId, clientAddress: null })
+    const passed = await run('before-pin-rotation')
+    expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+    service.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('self-signed-rotated') })
+    bytes = 0
+    const rejected = await run('after-pin-rotation')
+    expect(rejected.exitCode).not.toBe(0)
+    expect(rejected.stdout).toBe('')
+    expect(rejected.stderr).toContain('code: CERTIFICATE_PIN_MISMATCH')
+    expect(rejected.stderr).toContain('stored certificate fingerprint differs from the presented one')
+    expect(rejected.stderr).toContain('re-inspect')
+    expect(rejected.stderr).not.toContain('BEGIN CERTIFICATE')
+    expect(rejected.stderr).not.toContain(result.chain[0].fingerprint)
+    expect(rejected.stderr).not.toContain(new X509Certificate(pem('self-signed-rotated')).fingerprint256)
+    const background = new ToolHealth(db, new Audit(db), runner, [adapter], store)
+    try {
+      await background.refresh(scenario.tool)
+      const row = db.prepare('SELECT status, error_code, checked_at FROM tool_health WHERE tool = ?').get(scenario.tool) as {
+        status: string, error_code: string, checked_at: number }
+      expect(row).toMatchObject({ status: 'error', error_code: 'UPSTREAM_TLS_FAILED' })
+      expect(background.diagnostic(scenario.tool, reference.revision!, row.checked_at)).toMatchObject({ stage: 'TLS',
+        toolCode: 'CERTIFICATE_PIN_MISMATCH', message: expect.stringContaining('re-inspect') })
+    } finally { await background.stop() }
+    expect(invalidUpgrades).toBe(0)
+    expect(bytes).toBe(0)
+  } finally {
+    if (scenario.tool === 'ldap-axi') await new Promise<void>(resolve => listener.close(() => resolve()))
+  }
 })
 
 test.each(['node', 'python'] as const)('%s isolates mg-axi login and Graph trust when both use the same private root', async runtime => {
