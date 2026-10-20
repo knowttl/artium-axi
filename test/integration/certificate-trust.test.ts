@@ -599,6 +599,38 @@ test.each([
   expect(bytes).toBe(0)
 })
 
+test('clientAuth-only leaf rotation explains a stale pin before sending data', async () => {
+  serve('leaf', true)
+  const result = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })).statusCode).toBe(200)
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  serve('client-only', true)
+  bytes = 0
+  await expect(preflight('vectra-axi', { origin: endpoint, caBundle: pem('ca') })).rejects.toMatchObject({
+    code: 'UPSTREAM_TLS_FAILED', diagnostic: { toolCode: 'INVALID_PURPOSE' },
+  })
+  const preflightError = await preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust).catch(error => error)
+  expect(preflightError).toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: {
+    toolCode: 'CERTIFICATE_PIN_MISMATCH', message: expect.stringContaining('stored certificate fingerprint differs from the presented one'),
+  } })
+  const tokenError = await credentialFetch(endpoint, { method: 'GET' }, trust).catch(error => error)
+  expect(tokenError).toMatchObject({ code: 'CERTIFICATE_PIN_MISMATCH',
+    message: expect.stringContaining('stored certificate fingerprint differs from the presented one') })
+  expect(tokenError.message).toContain('re-inspect')
+  for (const runtime of ['node', 'python'] as const) {
+    const rejected = await runtimeCall(runtime)
+    expect(rejected.exitCode).not.toBe(0)
+    expect(rejected.stderr).toContain('stored certificate fingerprint differs from the presented one')
+    expect(rejected.stderr).toContain('re-inspect')
+    expect(rejected.stderr).not.toContain('BEGIN CERTIFICATE')
+    expect(rejected.stderr).not.toContain(result.chain[0].fingerprint)
+    expect(rejected.stderr).not.toContain(new X509Certificate(pem('client-only')).fingerprint256)
+  }
+  expect(bytes).toBe(0)
+})
+
 test.each(['node', 'python'] as const)('%s isolates mg-axi login and Graph trust when both use the same private root', async runtime => {
   tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('server') + pem('ca') })
   const result = await inspect()

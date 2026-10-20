@@ -86,7 +86,7 @@ def _certificate_failure(expected, peer, host, failure=None, certificate=None):
     fingerprints = [pin['leafFingerprint'].replace(':', '').upper() for pin in expected if pin['mode'] == 'pin']
     if any(pin['mode'] == 'ca' for pin in expected) or not fingerprints:
         return failure
-    if certificate is None and isinstance(failure, ssl.SSLCertVerificationError):
+    if certificate is None and failure is not None:
         try:
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.check_hostname = False
@@ -137,7 +137,9 @@ def _verified_handshake(self, *args, **kwargs):
     expected = [pin for pin in _pins if pin['hostname'] == host and pin['port'] == peer[1]]
     try:
         result = _handshake(self, *args, **kwargs)
-    except ssl.SSLCertVerificationError as error:
+    except (ssl.SSLWantReadError, ssl.SSLWantWriteError):
+        raise
+    except OSError as error:
         try:
             certificate = self.getpeercert(binary_form=True)
         except (OSError, ValueError):

@@ -16,11 +16,10 @@ export function certificatePinError(trust: readonly Pick<CredentialTrust, 'mode'
   }
 }
 
-export async function classifyCertificateFailure(error: Error & { code?: string },
+export async function classifyCertificateFailure(error: Error,
   trust: readonly Pick<CredentialTrust, 'mode' | 'leafFingerprint'>[], fingerprint: string | undefined,
   observe?: () => Promise<string | undefined>): Promise<Error> {
-  if (!/CERT|SELF_SIGNED|UNABLE_TO_.*(?:ISSUER|SIGNATURE)|INVALID_CA/.test(error.code ?? '')
-    || !trust.some(certificate => certificate.mode === 'pin') || trust.some(certificate => certificate.mode === 'ca')) return error
+  if (!trust.some(certificate => certificate.mode === 'pin') || trust.some(certificate => certificate.mode === 'ca')) return error
   if (!fingerprint && observe) {
     try { fingerprint = await observe() } catch { return error }
   }

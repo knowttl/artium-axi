@@ -53,6 +53,10 @@ authorityInfoAccess = caIssuers;URI:${issuerUrl}
 subjectAltName = DNS:other.synthetic.test
 basicConstraints = CA:FALSE
 extendedKeyUsage = serverAuth
+[client-only]
+subjectAltName = DNS:localhost
+basicConstraints = CA:FALSE
+extendedKeyUsage = clientAuth
 [non-http-server]
 subjectAltName = DNS:localhost
 basicConstraints = CA:FALSE
@@ -76,6 +80,8 @@ commonName = optional
     '-in', 'server.csr', '-out', 'root-issued.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/CN=rotated.synthetic.test', '-in', 'server.csr', '-out', 'rotated.crt', ...validity])
+  openssl([...ca, '-extensions', 'client-only', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/CN=client-only.synthetic.test', '-in', 'server.csr', '-out', 'client-only.crt', ...validity])
   openssl([...ca, '-policy', 'empty-subject', '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/', '-in', 'server.csr', '-out', 'empty-subject.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-subj', '/CN=expired.synthetic.test', '-in', 'server.csr',
