@@ -178,12 +178,15 @@ test('a private complete chain pins its issuing CA and retains the observed leaf
     certificate: { fingerprint: result.anchor.fingerprint }, leaf: { fingerprint: result.chain[0].fingerprint } })
 })
 
-test.each([false, true])('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: %s)', async chain => {
+test.each([
+  { chain: false, mode: 'pin' }, { chain: true, mode: 'ca' },
+] as const)('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: $chain)', async ({ chain, mode }) => {
   serve('empty-subject', chain)
   const result = await inspect()
   expect(result.chain[0]).toMatchObject({ subject: 'DNS:localhost', matchesHostname: true, selfSigned: false })
-  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode })).statusCode).toBe(200)
   const listed = adminCertificateRoutes.list.response.parse((await request('GET')).json()).certificates[0]
+  expect(listed.mode).toBe(mode)
   expect(listed.leaf.subject).toBe('DNS:localhost')
   expect(listed.certificate.subject).toBe(result.anchor.subject)
   expect(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'empty-subject.crt') })!.certificates[0].subject)
@@ -714,6 +717,40 @@ test.each(['node', 'python'] as const)('%s uses a fetched intermediate without a
   expect(passed.stdout.trim()).toBe('ok')
   setDefaultCACertificates(defaults)
   bytes = 0
+  expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
+})
+
+test.each(['node', 'python'] as const)('%s uses automatic repair under a confirmed CA without trusting unrelated repair issuers', async runtime => {
+  serve('server', true)
+  const original = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: original.inspectionId })).statusCode).toBe(200)
+  const reference = store.findCredential('vectra-axi')!
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  setDefaultCACertificates([...defaults, pem('ca')])
+  serve('leaf')
+  await expect(preflight('vectra-axi', credential, readCredentialTrust(db, reference)))
+    .rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  const repaired = await inspect()
+  expect(repaired.repairAvailable).toBe(true)
+  expect((await request('GET')).json().certificates.map((item: { mode: string }) => item.mode).sort())
+    .toEqual(['ca', 'intermediate'])
+  const trust = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  expect(passed.stdout.trim()).toBe('ok')
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-unrelated-repair', credential_id, endpoint, ?, ?, ?, ?, 'intermediate', created_at, created_by
+    FROM trusted_certificates WHERE mode = 'intermediate'`).run(new X509Certificate(pem('other-ca')).fingerprint256,
+    new X509Certificate(pem('other-ca-leaf')).fingerprint256, pem('other-ca'), pem('other-ca-leaf'))
+  setDefaultCACertificates([...defaults, pem('ca'), pem('other-ca')])
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('other-ca-leaf') + pem('other-ca') })
+  bytes = 0
+  const unrelated = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', credential, unrelated)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, unrelated)).rejects.toThrow()
   expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
   expect(bytes).toBe(0)
 })

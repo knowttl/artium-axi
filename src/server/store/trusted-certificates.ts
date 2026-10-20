@@ -16,8 +16,21 @@ export function readCredentialTrust(db: Database.Database, reference: Credential
   const rows = db.prepare(`SELECT endpoint, pem, leaf_pem AS leafPem, fingerprint, leaf_fingerprint AS leafFingerprint, mode
     FROM trusted_certificates WHERE credential_id = ?`).all(reference.id) as (CredentialTrust & { leafPem: string })[]
   const caEndpoints = new Set(rows.filter(row => row.mode === 'ca').map(row => certificateEndpoint(row.endpoint).href))
-  return rows.map(({ leafPem, ...row }) => ({ ...row,
-    pem: row.mode === 'pin' && caEndpoints.has(certificateEndpoint(row.endpoint).href) ? leafPem : row.pem }))
+  return rows.map(({ leafPem, ...row }) => {
+    if (row.mode === 'intermediate') return row
+    const endpoint = certificateEndpoint(row.endpoint).href
+    const pem = row.mode === 'pin' && caEndpoints.has(endpoint) ? leafPem : row.pem
+    const intermediates = rows.filter(certificate => certificate.mode === 'intermediate'
+      && certificateEndpoint(certificate.endpoint).href === endpoint).map(certificate => new X509Certificate(certificate.pem))
+    const chain = [new X509Certificate(pem)]
+    for (let index = 0; index < chain.length; index++) {
+      for (const intermediate of intermediates) {
+        if (!chain.some(certificate => certificate.fingerprint256 === intermediate.fingerprint256)
+          && intermediate.checkIssued(chain[index]) && intermediate.verify(chain[index].publicKey)) chain.push(intermediate)
+      }
+    }
+    return { ...row, pem: [pem, ...chain.slice(1).map(certificate => certificate.toString())].join('\n') }
+  })
 }
 
 export function credentialCertificates(db: Database.Database, credentialId: string) {
