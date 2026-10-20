@@ -40,6 +40,8 @@ extendedKeyUsage = serverAuth
 export function createInspectionCertificates(directory, issuerUrl) {
   createTestCertificates(directory, ['localhost', 'login.synthetic.test', 'graph.synthetic.test', 'graph.microsoft.com', 'login.microsoftonline.com'])
   const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+  openssl(['x509', '-req', '-in', 'ca.csr', '-signkey', 'ca.key', '-days', '-1',
+    '-extfile', 'authority.cnf', '-extensions', 'root', '-out', 'expired-ca.crt'])
   writeFileSync(join(directory, 'inspection.cnf'), readFileSync(join(directory, 'authority.cnf'), 'utf8') + `
 [inspection-server]
 subjectAltName = DNS:localhost
@@ -67,8 +69,6 @@ commonName = optional
     '-subj', '/CN=synthetic-leaf', '-in', 'server.csr', '-out', 'leaf.crt', ...validity])
   openssl([...ca, '-extensions', 'inspection-server', '-subj', '/CN=root-issued.synthetic.test',
     '-in', 'server.csr', '-out', 'root-issued.crt', ...validity])
-  openssl([...ca, '-extensions', 'inspection-server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
-    '-subj', '/CN=rotated-aia.synthetic.test', '-in', 'server.csr', '-out', 'rotated-aia.crt', ...validity])
   openssl([...ca, '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/CN=rotated.synthetic.test', '-in', 'server.csr', '-out', 'rotated.crt', ...validity])
   openssl([...ca, '-policy', 'empty-subject', '-extensions', 'server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
@@ -83,4 +83,8 @@ commonName = optional
     '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/', '-days', '3650',
     '-addext', 'basicConstraints=CA:FALSE', '-out', 'nameless.crt'])
+  openssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Other synthetic CA', '-days', '3650',
+    '-keyout', 'other-ca.key', '-out', 'other-ca.crt', '-addext', 'basicConstraints=critical,CA:TRUE'])
+  openssl(['x509', '-req', '-in', 'server.csr', '-CA', 'other-ca.crt', '-CAkey', 'other-ca.key', '-CAcreateserial',
+    '-days', '3650', '-extfile', 'inspection.cnf', '-extensions', 'server', '-out', 'other-ca-leaf.crt'])
 }

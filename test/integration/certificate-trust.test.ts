@@ -13,7 +13,7 @@ import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import { createCredentialStore, openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, migrate, openStore, validateSchema } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { adminCertificateRoutes, certificateInspectionSchema, nativeSettingsSchemas } from '../../src/shared/api.js'
 import { certificateDetails } from '../../src/server/certificate-inspection.js'
@@ -22,9 +22,6 @@ import { readCredentialTrust } from '../../src/server/store/trusted-certificates
 import { preflight } from '../../src/server/health/preflight.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
-import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
-import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
-import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -132,7 +129,7 @@ afterAll(async () => {
 test.each([
   { certificate: 'self-signed', chain: false, reason: 'self-signed', count: 1, expired: false, matchesHostname: true },
   { certificate: 'leaf', chain: true, reason: 'CA this server does not trust', count: 3, expired: false, matchesHostname: true },
-  { certificate: 'leaf', chain: false, reason: 'sent no intermediate', count: 1, expired: false, matchesHostname: true },
+  { certificate: 'leaf', chain: false, reason: 'sent no intermediate', count: 2, expired: false, matchesHostname: true },
   { certificate: 'expired', chain: false, reason: 'expired', count: 1, expired: true, matchesHostname: true },
   { certificate: 'mismatch', chain: false, reason: 'hostname does not match', count: 1, expired: false, matchesHostname: false },
 ])('inspection explains $certificate without sending credentials or requests', async ({ certificate, chain, reason, count, expired, matchesHostname }) => {
@@ -145,7 +142,6 @@ test.each([
     signatureAlgorithm: expect.stringContaining('sha256'), fingerprint: new X509Certificate(pem(certificate)).fingerprint256,
     expired, matchesHostname })
   expect(result.hostname).toBe('localhost')
-  expect(result.repairAvailable).toBe(false)
   expect(result).not.toHaveProperty('pem')
   expect(bytes).toBe(0)
 })
@@ -178,12 +174,15 @@ test('a private complete chain pins its issuing CA and retains the observed leaf
     certificate: { fingerprint: result.anchor.fingerprint }, leaf: { fingerprint: result.chain[0].fingerprint } })
 })
 
-test.each([false, true])('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: %s)', async chain => {
+test.each([
+  { chain: false, mode: 'pin' }, { chain: true, mode: 'ca' },
+] as const)('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: $chain)', async ({ chain, mode }) => {
   serve('empty-subject', chain)
   const result = await inspect()
   expect(result.chain[0]).toMatchObject({ subject: 'DNS:localhost', matchesHostname: true, selfSigned: false })
-  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode })).statusCode).toBe(200)
   const listed = adminCertificateRoutes.list.response.parse((await request('GET')).json()).certificates[0]
+  expect(listed.mode).toBe(mode)
   expect(listed.leaf.subject).toBe('DNS:localhost')
   expect(listed.certificate.subject).toBe(result.anchor.subject)
   expect(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'empty-subject.crt') })!.certificates[0].subject)
@@ -209,66 +208,276 @@ test('a changed endpoint certificate prominently flags the previously trusted fi
   expect(changed.warnings).toEqual(expect.arrayContaining([expect.stringContaining('different fingerprint')]))
 })
 
+test.each([
+  { runtime: 'node', certificate: 'leaf' }, { runtime: 'python', certificate: 'leaf' },
+  { runtime: 'node', certificate: 'rotated' }, { runtime: 'python', certificate: 'rotated' },
+] as const)('$runtime accepts $certificate through a confirmed presented intermediate without the root', async ({ runtime, certificate }) => {
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('leaf') + pem('intermediate') })
+  const result = await inspect()
+  expect(result.chain).toHaveLength(2)
+  expect(result.anchor.fingerprint).toBe(new X509Certificate(pem('intermediate')).fingerprint256)
+  expect((await request('GET')).json().certificates).toEqual([])
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem('intermediate') })
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  expect(passed.stdout.trim()).toBe('ok')
+})
+
 test.each(['expired', 'mismatch'])('warnings do not block confirmation of %s', async name => {
   serve(name)
   const result = await inspect()
   expect(result.warnings.length).toBeGreaterThan(0)
-  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })).statusCode).toBe(200)
 })
 
-test('a missing intermediate is fetched and saved automatically only when the chain reaches an existing trusted root', async () => {
-  serve('leaf')
-  setDefaultCACertificates([...defaults, pem('ca')])
+test.each([
+  { certificate: 'root-issued', issuer: 'root', renewed: 'server', runtime: 'node' },
+  { certificate: 'root-issued', issuer: 'root', renewed: 'server', runtime: 'python' },
+  { certificate: 'leaf', issuer: 'valid', renewed: 'rotated', runtime: 'node' },
+  { certificate: 'leaf', issuer: 'valid', renewed: 'rotated', runtime: 'python' },
+] as const)('$runtime trusts a fetched private $issuer only after confirmation and accepts renewal', async ({ certificate, issuer, renewed, runtime }) => {
+  serve(certificate)
+  issuerMode = issuer
   const result = await inspect()
   expect(issuerRequests).toBe(1)
-  expect(result.repairAvailable).toBe(true)
-  expect(result.reason).toContain('root this server already trusts')
-  expect((await request('GET')).json().certificates[0]).toMatchObject({ mode: 'intermediate',
-    certificate: { fingerprint: new X509Certificate(pem('intermediate')).fingerprint256 } })
-  expect(db.prepare('SELECT action FROM audit').all()).toEqual([{ action: 'repair-certificate-chain' }])
-  expect(bytes).toBe(0)
-})
-
-test('an AIA-advertised private root requires administrator confirmation', async () => {
-  serve('root-issued')
-  issuerMode = 'root'
-  const result = await inspect()
-  expect(issuerRequests).toBe(1)
-  expect(result.repairAvailable).toBe(false)
+  expect(result.anchor.ca).toBe(true)
+  expect(result.chain).toHaveLength(2)
   expect((await request('GET')).json().certificates).toEqual([])
   expect(db.prepare('SELECT action FROM audit').all()).toEqual([])
   expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
+  serve(renewed)
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+})
+
+test('a non-self-signed leaf without an obtainable issuer requires explicit pinning', async () => {
+  serve('leaf')
+  issuerMode = 'unrelated'
+  const result = await inspect()
+  expect(result.anchor.ca).toBe(false)
+  expect(result.chain[0].selfSigned).toBe(false)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(400)
+  const rejected = await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'ca' })
+  expect(rejected.statusCode).toBe(400)
+  expect(rejected.json().error.message).toContain('CA trust is unavailable')
+  expect((await request('GET')).json().certificates).toEqual([])
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('pin')
   expect((await runtimeCall('node')).exitCode).toBe(0)
 })
 
-test('automatic intermediate repair preserves an existing confirmed pin and requires confirmation for rotation', async () => {
-  serve('leaf', true)
+test.each(['node', 'python'] as const)('%s requires confirmation of a missing intermediate below a confirmed root', async runtime => {
+  serve('server', true)
   const original = await inspect()
-  await request('POST', '/trust', { inspectionId: original.inspectionId })
-  const pin = db.prepare('SELECT * FROM trusted_certificates').get()
+  expect((await request('POST', '/trust', { inspectionId: original.inspectionId })).statusCode).toBe(200)
+  const saved = (await request('GET')).json().certificates
   setDefaultCACertificates([...defaults, pem('ca')])
   serve('leaf')
-  expect((await inspect()).repairAvailable).toBe(true)
-  expect(db.prepare('SELECT * FROM trusted_certificates').all()).toEqual([pin])
+  const result = await inspect()
+  expect(result.anchor.fingerprint).toBe(new X509Certificate(pem('intermediate')).fingerprint256)
+  expect((await request('GET')).json().certificates).toEqual(saved)
+  expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+})
+
+test.each([
+  { mode: 'ca', runtime: 'node' }, { mode: 'ca', runtime: 'python' },
+  { mode: 'pin', runtime: 'node' }, { mode: 'pin', runtime: 'python' },
+] as const)('$runtime rejects an expired confirmed anchor in $mode mode', async ({ mode, runtime }) => {
+  serve('server', true)
+  const original = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: original.inspectionId, mode })).statusCode).toBe(200)
+  const reference = store.findCredential('vectra-axi')!
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  const valid = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', credential, valid)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, valid)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  db.prepare('UPDATE trusted_certificates SET pem = ?, fingerprint = ?')
+    .run(pem('expired-ca'), new X509Certificate(pem('expired-ca')).fingerprint256)
+  serve('server')
+  const expired = readCredentialTrust(db, reference)
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, expired)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, expired)).rejects.toMatchObject({ code: 'CERT_HAS_EXPIRED' })
+  const rejected = await runtimeCall(runtime)
+  expect(rejected.exitCode).not.toBe(0)
+  expect(rejected.stderr).toMatch(/expired|CERT_HAS_EXPIRED/)
+  expect(bytes).toBe(0)
+})
+
+test.each([
+  { mode: 'pin', certificate: 'rotated', chain: 'intermediate' },
+  { mode: 'ca', certificate: 'other-ca-leaf', chain: 'other-ca' },
+] as const)('a second $mode confirmation keeps the first certificate trusted', async ({ mode, certificate, chain }) => {
+  serve('leaf', true)
+  const first = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: first.inspectionId, mode })).statusCode).toBe(200)
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem(chain) })
+  const second = await inspect()
+  expect((await request('POST', '/trust', { inspectionId: second.inspectionId, mode })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates.map((item: { leaf: { fingerprint: string } }) => item.leaf.fingerprint).sort())
+    .toEqual([first.chain[0].fingerprint, second.chain[0].fingerprint].sort())
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+  serve('leaf', true)
   expect((await runtimeCall('node')).exitCode).toBe(0)
   expect((await runtimeCall('python')).exitCode).toBe(0)
-  serve('rotated-aia')
+})
+
+test.each([
+  { first: 'pin', second: 'ca' }, { first: 'ca', second: 'pin' },
+] as const)('switching from $first to $second replaces the other mode', async ({ first, second }) => {
+  serve('leaf', true)
+  const original = await inspect()
+  await request('POST', '/trust', { inspectionId: original.inspectionId, mode: first })
+  serve('rotated', true)
   const rotated = await inspect()
-  expect(rotated.repairAvailable).toBe(false)
-  expect(rotated.previousFingerprints).toEqual([original.chain[0].fingerprint])
-  expect(db.prepare('SELECT * FROM trusted_certificates').all()).toEqual([pin])
-  bytes = 0
-  expect((await runtimeCall('node')).exitCode).not.toBe(0)
-  expect((await runtimeCall('python')).exitCode).not.toBe(0)
+  expect((await request('POST', '/trust', { inspectionId: rotated.inspectionId, mode: second })).statusCode).toBe(200)
+  const listed = (await request('GET')).json().certificates
+  expect(listed).toHaveLength(1)
+  expect(listed[0]).toMatchObject({ mode: second, leaf: { fingerprint: rotated.chain[0].fingerprint } })
+  expect((await runtimeCall('node')).exitCode).toBe(0)
+})
+
+test.each(['node', 'python'] as const)('%s accepts a renewed leaf under the default trusted CA', async runtime => {
+  serve('leaf', true)
+  const result = await inspect()
+  const response = await request('POST', '/trust', { inspectionId: result.inspectionId })
+  expect(response.statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
+  serve('rotated', true)
+  const renewed = await runtimeCall(runtime)
+  expect(renewed.exitCode, renewed.stdout + renewed.stderr).toBe(0)
+  expect(renewed.stdout.trim()).toBe('ok')
+})
+
+test('server preflight and token transport accept a renewed leaf under the default trusted CA', async () => {
+  serve('leaf', true)
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId })
   const reference = store.findCredential('vectra-axi')!
   const trust = readCredentialTrust(db, reference)
-  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust))
-    .rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
-  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toMatchObject({ code: 'CERTIFICATE_PIN_MISMATCH' })
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  serve('rotated', true)
+  await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+})
+
+test.each([
+  { mode: 'ca', runtime: 'node' }, { mode: 'pin', runtime: 'node' },
+  { mode: 'ca', runtime: 'python' }, { mode: 'pin', runtime: 'python' },
+] as const)('$runtime rejects a different CA at the same endpoint in $mode mode', async ({ mode, runtime }) => {
+  serve('leaf', true)
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId, mode })
+  setDefaultCACertificates([...defaults, pem('other-ca')])
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('other-ca-leaf') + pem('other-ca') })
+  bytes = 0
+  expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
   expect(bytes).toBe(0)
-  expect((await request('POST', '/trust', { inspectionId: rotated.inspectionId })).statusCode).toBe(200)
-  expect((await runtimeCall('node')).exitCode).toBe(0)
-  expect((await runtimeCall('python')).exitCode).toBe(0)
+})
+
+test.each(['ca', 'pin'] as const)('server transports reject a different CA at the same endpoint in %s mode', async mode => {
+  serve('leaf', true)
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId, mode })
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  setDefaultCACertificates([...defaults, pem('other-ca')])
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('other-ca-leaf') + pem('other-ca') })
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toThrow()
+  expect(bytes).toBe(0)
+})
+
+test('legacy pins migrate once with accurate audit reasons for every retained pin', async () => {
+  const selfSigned = await inspect()
+  await request('POST', '/trust', { inspectionId: selfSigned.inspectionId })
+  serve('leaf', true)
+  const ca = await inspect()
+  await request('POST', '/trust', { inspectionId: ca.inspectionId, mode: 'pin' })
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-no-issuer-pin', credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by FROM trusted_certificates LIMIT 1`)
+    .run(new X509Certificate(pem('root-issued')).fingerprint256, new X509Certificate(pem('root-issued')).fingerprint256,
+      pem('root-issued'), pem('root-issued'))
+  db.exec('ALTER TABLE trusted_certificates RENAME TO legacy_copy')
+  db.exec(readFileSync('src/server/store/migrations/020-trusted-certificates.sql', 'utf8'))
+  db.exec(`INSERT INTO trusted_certificates SELECT * FROM legacy_copy;
+    DROP TABLE legacy_copy; DELETE FROM migrations WHERE version = 21; DELETE FROM audit`)
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-legacy-repair', credential_id, endpoint, ?, ?, ?, ?, 'intermediate', created_at, created_by
+    FROM trusted_certificates LIMIT 1`).run(new X509Certificate(pem('intermediate')).fingerprint256,
+    new X509Certificate(pem('empty-subject')).fingerprint256, pem('intermediate'), pem('empty-subject'))
+  migrate(db)
+  validateSchema(db)
+  expect((await request('GET')).json().certificates.map((item: { mode: string }) => item.mode).sort()).toEqual(['ca', 'pin', 'pin'])
+  expect(db.prepare('SELECT action, tool, target_id FROM audit ORDER BY action').all()).toEqual([
+    { action: 'keep-certificate-pin-no-issuing-ca-stored', tool: 'vectra-axi', target_id: new X509Certificate(pem('root-issued')).fingerprint256 },
+    { action: 'keep-self-signed-certificate-pin', tool: 'vectra-axi', target_id: selfSigned.anchor.fingerprint },
+    { action: 'migrate-certificate-to-ca-trust', tool: 'vectra-axi', target_id: ca.anchor.fingerprint },
+  ])
+  migrate(db)
+  expect(db.prepare('SELECT count(*) AS count FROM audit').get()).toEqual({ count: 3 })
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  for (const certificate of ['leaf', 'rotated', 'self-signed']) {
+    serve(certificate, certificate !== 'self-signed')
+    await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
+    expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+    for (const runtime of ['node', 'python'] as const) {
+      const passed = await runtimeCall(runtime)
+      expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+      expect(passed.stdout.trim()).toBe('ok')
+    }
+  }
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('other-ca-leaf') + pem('other-ca') })
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toThrow()
+  for (const runtime of ['node', 'python'] as const) expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
+})
+
+test.each(['node', 'python'] as const)('%s mixed CA and leaf trust does not promote the pinned leaf issuer to a CA', async runtime => {
+  serve('leaf', true)
+  const result = await inspect()
+  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-root-issued-pin', credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by
+    FROM trusted_certificates`).run(new X509Certificate(pem('ca')).fingerprint256,
+    new X509Certificate(pem('root-issued')).fingerprint256, pem('ca'), pem('root-issued'))
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  const credential = store.readCredential(reference) as Record<string, unknown>
+  serve('root-issued')
+  await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  serve('server')
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toThrow()
+  expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
+  expect(bytes).toBe(0)
 })
 
 test.each(['redirect', 'oversized', 'unrelated', 'stalled'] as const)('AIA refuses %s issuer responses without adding trust', async mode => {
@@ -277,14 +486,12 @@ test.each(['redirect', 'oversized', 'unrelated', 'stalled'] as const)('AIA refus
   setDefaultCACertificates([...defaults, pem('ca')])
   const result = await inspect()
   expect(issuerRequests).toBe(1)
-  expect(result.repairAvailable).toBe(false)
   expect((await request('GET')).json().certificates).toEqual([])
 })
 
 test('AIA rejects issuer URLs outside HTTP and HTTPS', async () => {
   serve('non-http')
   const result = await inspect()
-  expect(result.repairAvailable).toBe(false)
   expect(issuerRequests).toBe(0)
   expect((await request('GET')).json().certificates).toEqual([])
 })
@@ -336,7 +543,7 @@ test.each([
 test.each(['node', 'python'] as const)('%s rejects a different valid leaf under the same confirmed CA before sending data', async runtime => {
   serve('leaf', true)
   const result = await inspect()
-  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })
   expect((await runtimeCall(runtime)).exitCode).toBe(0)
   serve('rotated', true)
   bytes = 0
@@ -486,7 +693,7 @@ test.each([
 test.each(['node', 'python'] as const)('%s enforces legacy mixed-case LDAP endpoint pins', async runtime => {
   serve('leaf', true)
   const result = await inspect()
-  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })
   db.prepare('UPDATE trusted_certificates SET endpoint = ?, pem = ?').run(
     `LDAPS://LOCALHOST:${new URL(endpoint).port}`, pem('ca'))
   const passed = await runtimeCall(runtime)
@@ -506,7 +713,7 @@ test('LDAP preflight and rotation inspection match equivalent saved endpoints', 
   const ldapRequest = (path: string, payload: Record<string, unknown>) => app.inject({
     method: 'POST', url: '/v1/admin/tools/ldap-axi/certificates' + path, headers, payload })
   const previous = certificateInspectionSchema.parse((await ldapRequest('/inspect', {})).json())
-  expect((await ldapRequest('/trust', { inspectionId: previous.inspectionId })).statusCode).toBe(200)
+  expect((await ldapRequest('/trust', { inspectionId: previous.inspectionId, mode: 'pin' })).statusCode).toBe(200)
   db.prepare('UPDATE trusted_certificates SET endpoint = ? WHERE credential_id = ?').run(url, reference.id)
   const trust = readCredentialTrust(db, reference)
   const credential = { url: url.toLowerCase() + '/' }
@@ -519,59 +726,16 @@ test('LDAP preflight and rotation inspection match equivalent saved endpoints', 
   expect(bytes).toBe(0)
 })
 
-test.each(['node', 'python'] as const)('%s uses a fetched intermediate without adding a new trust anchor', async runtime => {
-  serve('leaf')
-  setDefaultCACertificates([...defaults, pem('ca')])
-  const result = await inspect()
-  expect(result.repairAvailable).toBe(true)
-  const passed = await runtimeCall(runtime)
-  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
-  expect(passed.stdout.trim()).toBe('ok')
-  setDefaultCACertificates(defaults)
-  bytes = 0
-  expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
-  expect(bytes).toBe(0)
-})
-
-test.each(['ldap-axi', 'vectra-axi'] as const)('%s explicit CA files retain default roots after automatic intermediate repair', async tool => {
-  serve('leaf')
-  setDefaultCACertificates([...defaults, pem('ca')])
-  const adapter = tool === 'ldap-axi'
-    ? createLdapAdapter({ getCredential: async () => ({ url: endpoint.replace('https:', 'ldaps:'),
-      auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap' }) })
-    : createVectraAdapter({ getCredential: async () => ({ kind: 'qux', apiVersion: '2.5', origin: endpoint,
-      auth: 'token', token: 'CANARY-vectra', caBundle: pem('self-signed') }) }, join(directory, 'writes.log'),
-    loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!)
-  const call = await adapter.prepare(tool === 'ldap-axi' ? ['auth', 'status'] : ['health', 'list'],
-    { id: 'synthetic-credential', tool, revision: 1 })
-  const files = call.files.filter(file => file.appendTrustedCa)
-  expect(files).toHaveLength(1)
-  const args = ['-e', `const fs = require('node:fs');
-    require('node:https').get(${JSON.stringify(endpoint)}, {
-      ca: fs.readFileSync(${JSON.stringify(files[0].name)}), agent: false
-    }, response => response.pipe(process.stdout)).on('error', error => { console.error(error.code); process.exitCode = 1 })`]
-  const run = () => runner.run('synthetic-development-user', process.execPath, args, call.environment, call.secrets,
-    { ...call.limits, credentialTrust: readCredentialTrust(db, store.findCredential('vectra-axi')!) }, {}, call.files)
-  expect((await run()).exitCode).not.toBe(0)
-  expect((await inspect()).repairAvailable).toBe(true)
-  const passed = await run()
-  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
-  expect(passed.stdout).toBe('ok')
-  setDefaultCACertificates(defaults)
-  bytes = 0
-  expect((await run()).exitCode).not.toBe(0)
-  expect(bytes).toBe(0)
-})
-
 test.each([
   { runtime: 'node', certificate: 'expired' }, { runtime: 'python', certificate: 'expired' },
   { runtime: 'node', certificate: 'mismatch' }, { runtime: 'python', certificate: 'mismatch' },
 ] as const)('$runtime preserves date and hostname verification after confirming $certificate', async ({ runtime, certificate }) => {
-  serve(certificate)
+  serve(certificate, true)
   setDefaultCACertificates([...defaults, pem('ca')])
   const result = await inspect()
   expect(result.warnings).toEqual(expect.arrayContaining([expect.stringContaining('does not bypass')]))
   await request('POST', '/trust', { inspectionId: result.inspectionId })
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
   expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
   expect(bytes).toBe(0)
 })
@@ -579,7 +743,7 @@ test.each([
 test('server preflight and token transport enforce the same confirmed fingerprint as children', async () => {
   serve('leaf', true)
   const result = await inspect()
-  await request('POST', '/trust', { inspectionId: result.inspectionId })
+  await request('POST', '/trust', { inspectionId: result.inspectionId, mode: 'pin' })
   const reference = store.findCredential('vectra-axi')!
   const trust = readCredentialTrust(db, reference)
   await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).resolves.toBeUndefined()

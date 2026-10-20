@@ -5,16 +5,26 @@ import type { CredentialTrust } from './store/trusted-certificates.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
 
 export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: string): ConnectionOptions {
+  return buildCredentialTlsOptions({ checkServerIdentity, getCACertificates }, trust,
+    ca ? [...getCACertificates('default'), ca] : undefined)
+}
+
+// Self-contained so runner Node injection uses exactly the server's TLS policy.
+export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), 'checkServerIdentity' | 'getCACertificates'>,
+  trust: readonly Pick<CredentialTrust, 'mode' | 'pem' | 'leafFingerprint'>[], ca?: ConnectionOptions['ca']): ConnectionOptions {
+  const anchored = trust.length > 0
+  const roots = anchored ? [] : ca === undefined ? tls.getCACertificates('default') : [ca].flat()
   return { rejectUnauthorized: true,
-    ...(ca || trust.length ? { ca: [...getCACertificates('default'), ...(ca ? [ca] : []), ...trust.map(certificate => certificate.pem)] } : {}),
-    ...(trust.length ? { allowPartialTrustChain: trust.some(certificate => certificate.mode === 'pin'), checkServerIdentity: (hostname, certificate) => {
-      const error = checkServerIdentity(hostname, certificate)
+    ca: [...roots, ...trust.map(certificate => certificate.pem)],
+    allowPartialTrustChain: anchored,
+    checkServerIdentity: (hostname, certificate) => {
+      const error = tls.checkServerIdentity(hostname, certificate)
       if (error) return error
       const pins = trust.filter(certificate => certificate.mode === 'pin')
-      if (pins.length && !pins.some(pin => pin.leafFingerprint === certificate.fingerprint256)) {
+      if (!trust.some(certificate => certificate.mode === 'ca') && pins.length && !pins.some(pin => pin.leafFingerprint === certificate.fingerprint256)) {
         return Object.assign(new Error('TLS certificate fingerprint changed'), { code: 'CERTIFICATE_PIN_MISMATCH' })
       }
-    } } : {}) }
+    } }
 }
 
 // Server-side token acquisition uses the same credential trust as runner children.

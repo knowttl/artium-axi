@@ -73,7 +73,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       const inspected = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
       expect(inspected.statusCode, inspected.body).toBe(200)
       const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-        payload: { inspectionId: inspected.json().inspectionId } })
+        payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       const health = await checked()
       expect(health.statusCode, health.body).toBe(200)
@@ -222,7 +222,7 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
       expect(inspected.json()).toMatchObject({ endpoint: `${origin}/`, hostname: 'localhost' })
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
       const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-        payload: { inspectionId: inspected.json().inspectionId } })
+        payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       await send('/__ado/reset', 'POST')
       const unsavedDestination = await save(initialMethod, { origin: `https://127.0.0.1:${port}`, signIn: 'password', username, password })
@@ -298,7 +298,7 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
         expect(inspection.json()).toMatchObject({ endpoint: `${changedOrigin}/` })
         expect(JSON.parse(await destination.send('/__evidence')).requests).toEqual([])
         const approval = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-          payload: { inspectionId: inspection.json().inspectionId } })
+          payload: { inspectionId: inspection.json().inspectionId, mode: 'pin' } })
         expect(approval.statusCode, approval.body).toBe(200)
         const signedIn = await save(initialMethod, { origin: changedOrigin, signIn: 'password', username, password })
         expect(signedIn.statusCode, signedIn.body).toBe(200)

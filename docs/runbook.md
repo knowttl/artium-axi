@@ -178,6 +178,7 @@ The server adds the bundle to its default Node TLS trust before outbound connect
 The runner supplies `NODE_EXTRA_CA_CERTS` and `REQUESTS_CA_BUNDLE` centrally on every call through private temporary files.
 The Requests bundle includes the server's default Node public roots as well as the additional CAs, since Requests replaces its default certifi bundle when this variable is set.
 LDAP and Vectra credential-specific CA files receive the server bundle too, preserving those credential-specific CAs as an additive option.
+For endpoints with UI-confirmed trust, the [credential-scoped policy below](#trusting-one-tool-from-the-administration-ui) takes precedence.
 Certificate verification and hostname verification remain enabled.
 With the setting absent, no server-wide trust is added; credential-specific trust still applies.
 
@@ -202,7 +203,8 @@ An empty subject does not prevent inspection or trust, and two empty subject and
 Compare the fingerprint with the appliance’s own display through a trusted channel.
 Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
 The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
-**Trust certificate for this tool** is the single trust confirmation; no certificate file or private key is accepted by this flow.
+**Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
+No certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
 Each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
@@ -210,20 +212,29 @@ Azure inspection includes login, ARM, Graph and Log Analytics.
 For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
-The observed leaf fingerprint is also checked before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
+The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
+For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
+Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
+Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
+If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
+Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable hostname or date verification.
 Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
-Artium saves the intermediate without confirmation only after another handshake validates the chain to a root the server already trusts.
-Automatic repair preserves existing confirmed fingerprint pins; a changed leaf still requires confirmation.
-The window reports this repair; retry the credential test afterward.
-An unavailable, invalid or untrusted issuer leaves the original failure visible and grants no automatic trust.
+An obtained private issuer is offered for explicit CA confirmation even when it is not already trusted.
+When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unavailable and strict leaf pinning requires an explicit choice.
+Automatic intermediate repair is not included because treating a repaired intermediate as trusted could bypass the confirmed anchor's expiry.
+If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-Re-inspect the saved endpoint for rotation, and use **Remove trust** to retire the old pin after confirming the replacement; confirmation alone keeps previously confirmed fingerprints trusted.
+For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint and confirm the replacement, then use **Remove trust** to retire the old entry.
+Confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation.
+Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 

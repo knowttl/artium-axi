@@ -125,7 +125,7 @@ async function execute(
   const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
     return { hostname: endpoint.hostname, port: endpoint.port,
-      fingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
+      leafFingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs

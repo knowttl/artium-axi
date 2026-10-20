@@ -2,7 +2,6 @@ import { X509Certificate } from 'node:crypto'
 import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
 import { isIP } from 'node:net'
-import { getCACertificates } from 'node:tls'
 import { inspectEndpoint } from './health/preflight.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
 import { certificateSubject } from './certificate-subject.js'
@@ -82,14 +81,7 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
   const leaf = presented.chain[0]
   let intermediate: X509Certificate | undefined
   if (presented.chain.length === 1 && ['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'].includes(presented.verificationError ?? '')) {
-    const issuer = await fetchIssuer(leaf)
-    if (issuer) {
-      const trusted = [...getCACertificates('default'), ...(ca?.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [])]
-        .map(pem => new X509Certificate(pem).fingerprint256)
-      const validated = await inspectEndpoint(endpoint, [ca, issuer.toString()].filter(Boolean).join('\n'), undefined, maxVersion)
-      if (!validated.verificationError && validated.chain[0]?.fingerprint256 === leaf.fingerprint256
-        && trusted.includes(validated.chain.at(-1)?.fingerprint256 ?? '')) intermediate = issuer
-    }
+    intermediate = await fetchIssuer(leaf)
   }
   const chain = presented.chain.map(certificate => certificateDetails(certificate, host))
   if (intermediate) chain.push(certificateDetails(intermediate, host))
@@ -104,7 +96,7 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
     warnings.push('Trust does not bypass hostname or validity checks. Renew the certificate or use its matching hostname to fix these failures.')
   }
   let reason = 'The certificate verifies with this server’s existing trust.'
-  if (intermediate) reason = 'The server sent no intermediate. Its fetched issuer validates to a root this server already trusts.'
+  if (intermediate) reason = 'The server sent no intermediate. Its fetched issuer requires administrator confirmation for CA trust.'
   else if (chain[0].selfSigned) reason = 'The server presents a self-signed certificate.'
   else if (chain.some(certificate => certificate.expired)) reason = 'A certificate has expired.'
   else if (chain.some(certificate => certificate.notYetValid)) reason = 'A certificate is not yet valid.'
@@ -113,6 +105,6 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
   else if (presented.verificationError) reason = 'The certificate was issued by a CA this server does not trust.'
   const anchor = intermediate ?? presented.chain.find((certificate, index) => index > 0 && certificate.ca) ?? leaf
   return { hostname: host, endpoint: href, chain, warnings, reason,
-    verificationError: presented.verificationError ?? null, repairAvailable: Boolean(intermediate),
+    verificationError: presented.verificationError ?? null,
     anchor: certificateDetails(anchor, host), pem: anchor.toString(), leafPem: leaf.toString() }
 }

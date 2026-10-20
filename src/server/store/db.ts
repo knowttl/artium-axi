@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, X509Certificate } from 'node:crypto'
 import { decryptCredential, encryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
 import { EnvironmentKeyProvider } from './key-provider.js'
@@ -118,6 +118,22 @@ export function migrate(db: Database.Database, directory = migrationsDirectory):
         const version = Number(file.split('-')[0])
         if (applied.has(version)) continue
         db.exec(readFileSync(join(directory, file), 'utf8'))
+        if (file === '021-ca-trust.sql') {
+          const pins = db.prepare(`SELECT t.id, t.pem, t.fingerprint, t.leaf_fingerprint, c.tool FROM trusted_certificates t
+            JOIN credentials c ON c.id = t.credential_id WHERE t.mode = 'pin'`).all() as
+            { id: string, pem: string, fingerprint: string, leaf_fingerprint: string, tool: string }[]
+          for (const pin of pins) {
+            const anchor = new X509Certificate(pin.pem)
+            const convert = anchor.ca && anchor.fingerprint256 !== pin.leaf_fingerprint
+            const selfSigned = anchor.subject === anchor.issuer && anchor.verify(anchor.publicKey)
+            if (convert) db.prepare("UPDATE trusted_certificates SET mode = 'ca' WHERE id = ?").run(pin.id)
+            db.prepare(`INSERT INTO audit (occurred_at, event, tool, request_id, outcome, action, target_id, subject)
+              VALUES (?, 'admin-change', ?, ?, 'success', ?, ?, ?)`).run(Date.now(), pin.tool, randomUUID(),
+              convert ? 'migrate-certificate-to-ca-trust' : selfSigned ? 'keep-self-signed-certificate-pin'
+                : 'keep-certificate-pin-no-issuing-ca-stored', pin.fingerprint, anchor.subject)
+            db.prepare('DELETE FROM tool_health WHERE tool = ?').run(pin.tool)
+          }
+        }
         db.prepare('INSERT INTO migrations (version) VALUES (?)').run(version)
       }
       if ((db.pragma('foreign_key_check') as unknown[]).length) throw new ArtiumError('STORE_SCHEMA_INVALID')
