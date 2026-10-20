@@ -12,7 +12,7 @@ import { SessionStore } from '../../src/cli/session.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { checkAuthSettings } from '../../src/server/auth/settings.js'
-import { errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits, loginResponseSchema } from '../../src/shared/api.js'
+import { certificateDetailsSchema, errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits, loginResponseSchema } from '../../src/shared/api.js'
 import { hashToken, requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { ArtiumError, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -102,6 +102,32 @@ test('the server handler maps every catalogue error to its HTTP envelope', async
     expect(response.json()).toEqual({ error: { code, source: 'artium-axi', message: definition.message,
       next: definition.next, requestId: expect.any(String) } })
   }
+})
+
+test('unexpected errors log only a request ID, error class and route template', async () => {
+  await app.close()
+  app = createApp(options)
+  app.post('/v1/failure/:secret', async () => { throw new TypeError('CANARY-error-secret') })
+  const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  const response = await app.inject({ method: 'POST', url: '/v1/failure/CANARY-path?token=CANARY-query',
+    headers: { authorization: 'Bearer CANARY-header' }, payload: { secret: 'CANARY-body' } })
+  expect(response.statusCode).toBe(500)
+  expect(response.json().error.code).toBe('INTERNAL_ERROR')
+  expect(stderr.mock.calls).toEqual([[JSON.stringify({ requestId: response.json().error.requestId,
+    errorClass: 'TypeError', route: '/v1/failure/:secret' }) + '\n']])
+})
+
+test('response validation logs the missing certificate field without certificate contents', async () => {
+  await app.close()
+  app = createApp(options)
+  app.get('/v1/invalid-response', async () => certificateDetailsSchema.pick({ subject: true }).parse({
+    'CANARY-dynamic-field': 'CANARY-certificate-contents' }))
+  const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  const response = await app.inject('/v1/invalid-response')
+  expect(response.statusCode).toBe(500)
+  expect(response.json().error.code).toBe('INTERNAL_ERROR')
+  expect(stderr.mock.calls).toEqual([[JSON.stringify({ requestId: response.json().error.requestId,
+    errorClass: 'ZodError', route: '/v1/invalid-response', validationFields: ['subject'] }) + '\n']])
 })
 
 test.each([

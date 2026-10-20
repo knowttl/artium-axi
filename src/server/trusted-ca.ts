@@ -2,6 +2,7 @@ import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { getCACertificates, setDefaultCACertificates } from 'node:tls'
 import { ArtiumError } from '../shared/errors.js'
+import { certificateSubject } from './certificate-subject.js'
 
 export interface TrustedCertificate {
   subject: string
@@ -40,7 +41,7 @@ export function loadTrustedCa(environment: NodeJS.ProcessEnv = process.env,
     if (expiry <= now + 30 * 24 * 60 * 60 * 1000) {
       warn(`ARTIUM_AXI_EXTRA_CA_FILE: certificate ${certificate.fingerprint256} ${expiry <= now ? 'has expired' : 'expires within 30 days'}.`)
     }
-    return { subject: certificate.subject, issuer: certificate.issuer,
+    return { subject: certificateSubject(certificate), issuer: certificate.issuer ?? '(no issuer)',
       expiresAt: new Date(expiry).toISOString(), fingerprint: certificate.fingerprint256 }
   })
   return { pem: blocks.join('\n') + '\n', certificates }

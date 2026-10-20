@@ -15,10 +15,12 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
-import { certificateInspectionSchema, nativeSettingsSchemas } from '../../src/shared/api.js'
+import { adminCertificateRoutes, certificateInspectionSchema, nativeSettingsSchemas } from '../../src/shared/api.js'
+import { certificateDetails } from '../../src/server/certificate-inspection.js'
 import { toolEndpoints } from '../../src/server/tool-endpoints.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
+import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
@@ -174,6 +176,28 @@ test('a private complete chain pins its issuing CA and retains the observed leaf
   expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
   expect((await request('GET')).json().certificates[0]).toMatchObject({
     certificate: { fingerprint: result.anchor.fingerprint }, leaf: { fingerprint: result.chain[0].fingerprint } })
+})
+
+test.each([false, true])('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: %s)', async chain => {
+  serve('empty-subject', chain)
+  const result = await inspect()
+  expect(result.chain[0]).toMatchObject({ subject: 'DNS:localhost', matchesHostname: true, selfSigned: false })
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  const listed = adminCertificateRoutes.list.response.parse((await request('GET')).json()).certificates[0]
+  expect(listed.leaf.subject).toBe('DNS:localhost')
+  expect(listed.certificate.subject).toBe(result.anchor.subject)
+  expect(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'empty-subject.crt') })!.certificates[0].subject)
+    .toBe('DNS:localhost')
+  expect(db.prepare("SELECT subject FROM audit WHERE action = 'trust-certificate'").get())
+    .toEqual({ subject: result.anchor.subject })
+})
+
+test('missing subject and issuer names never establish a self-signed match', () => {
+  const certificate = new X509Certificate(pem('nameless'))
+  expect(certificate.verify(certificate.publicKey)).toBe(true)
+  expect(certificateDetails(certificate, 'localhost')).toMatchObject({ subject: '(no subject)', selfSigned: false })
+  expect(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'nameless.crt') })!.certificates[0].subject)
+    .toBe('(no subject)')
 })
 
 test('a changed endpoint certificate prominently flags the previously trusted fingerprint', async () => {

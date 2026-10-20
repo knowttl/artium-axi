@@ -5,6 +5,7 @@ import { isIP } from 'node:net'
 import { getCACertificates } from 'node:tls'
 import { inspectEndpoint } from './health/preflight.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
+import { certificateSubject } from './certificate-subject.js'
 
 const issuerTimeoutMs = 3000
 const issuerMaxBytes = 128 * 1024
@@ -19,13 +20,14 @@ export function certificateDetails(certificate: X509Certificate, hostname: strin
   const expired = Date.parse(certificate.validTo) <= now
   const notYetValid = Date.parse(certificate.validFrom) > now
   const weakKey = bits !== null && (['rsa', 'rsa-pss', 'dsa'].includes(key.asymmetricKeyType ?? '') ? bits < 2048 : bits < 224)
-  return { subject: certificate.subject, issuer: certificate.issuer,
+  return { subject: certificateSubject(certificate), issuer: certificate.issuer ?? '(no issuer)',
     subjectAlternativeNames: certificate.subjectAltName ?? '',
     validFrom: new Date(certificate.validFrom).toISOString(), expiresAt: new Date(certificate.validTo).toISOString(),
     fingerprint: certificate.fingerprint256, matchesHostname, expired, notYetValid, weakKey,
     keyType: key.asymmetricKeyType ?? 'unknown', keyBits: bits,
     signatureAlgorithm: (certificate as X509Certificate & { signatureAlgorithm: string }).signatureAlgorithm,
-    selfSigned: certificate.subject === certificate.issuer && certificate.verify(key), ca: certificate.ca }
+    selfSigned: Boolean(certificate.subject?.trim() && certificate.issuer?.trim()
+      && certificate.subject === certificate.issuer && certificate.verify(key)), ca: certificate.ca }
 }
 
 // The only URL accepted here is extracted from the saved endpoint's leaf certificate.
