@@ -23,6 +23,7 @@ import { preflight } from '../../src/server/health/preflight.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
 import { exchangeAwxPassword } from '../../src/server/adapters/awx-login.js'
+import { ldapStartTlsRequest, startLdapTls } from '../../src/server/ldap-starttls.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -770,6 +771,81 @@ test('LDAP preflight and rotation inspection match equivalent saved endpoints', 
   expect(changed.previousFingerprints).toEqual([previous.chain[0].fingerprint])
   expect(changed.warnings).toEqual(expect.arrayContaining([expect.stringContaining('different fingerprint')]))
   expect(bytes).toBe(0)
+})
+
+test.each([
+  { runtime: 'node', initial: 'leaf', rotated: 'rotated', chain: true },
+  { runtime: 'python', initial: 'leaf', rotated: 'rotated', chain: true },
+  { runtime: 'node', initial: 'self-signed', rotated: 'self-signed-rotated', chain: false },
+  { runtime: 'python', initial: 'self-signed', rotated: 'self-signed-rotated', chain: false },
+] as const)('$runtime explains LDAP StartTLS rotation of $initial without sending data', async ({ runtime, initial, rotated, chain }) => {
+  serve(initial, chain)
+  let invalidUpgrades = 0
+  const startTlsServer = net.createServer(socket => {
+    socket.on('error', () => {})
+    socket.once('data', packet => {
+      if (packet.toString('hex') !== ldapStartTlsRequest) {
+        invalidUpgrades++
+        socket.destroy()
+        return
+      }
+      socket.write(Buffer.from('300c02010178070a010004000400', 'hex'))
+      tlsServer.emit('connection', socket)
+    })
+  })
+  startTlsServer.listen(0, '127.0.0.1')
+  await once(startTlsServer, 'listening')
+  try {
+    const port = (startTlsServer.address() as { port: number }).port
+    const url = `ldap://localhost:${port}`
+    const reference = store.replaceCredential('ldap-axi', { url }, 0, 'synthetic-development-user', Date.now())
+    const inspection = await app.inject({ method: 'POST', url: '/v1/admin/tools/ldap-axi/certificates/inspect', headers, payload: {} })
+    expect(inspection.statusCode, inspection.body).toBe(200)
+    const result = certificateInspectionSchema.parse(inspection.json())
+    const saved = await app.inject({ method: 'POST', url: '/v1/admin/tools/ldap-axi/certificates/trust', headers,
+      payload: { inspectionId: result.inspectionId, mode: 'pin' } })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const trust = readCredentialTrust(db, reference)
+    const run = () => runner.run('synthetic-development-user', runtime === 'node' ? process.execPath : '/usr/bin/python3',
+      runtime === 'node' ? ['-e', `
+        const net = require('node:net');
+        const tls = require('node:tls');
+        const ldapStartTlsRequest = ${JSON.stringify(ldapStartTlsRequest)};
+        const startLdapTls = ${startLdapTls.toString()};
+        const raw = net.connect({ host: 'localhost', port: ${port} });
+        raw.once('connect', async () => {
+          await startLdapTls(raw);
+          const secure = tls.connect({ socket: raw, servername: 'localhost' }, () => secure.write('GET / HTTP/1.1\\r\\n\\r\\n'));
+          secure.on('data', data => console.log(data.toString()));
+          secure.once('error', error => { console.error(error.message); process.exitCode = 1 });
+        });
+      `] : ['-c', `
+import socket, ssl
+raw = socket.create_connection(('localhost', ${port}), timeout=3)
+raw.sendall(bytes.fromhex(${JSON.stringify(ldapStartTlsRequest)}))
+raw.makefile('rb').read(14)
+with ssl.create_default_context().wrap_socket(raw, server_hostname='localhost') as secure:
+    secure.sendall(b'GET / HTTP/1.1\\r\\n\\r\\n')
+    print(secure.recv(4096).decode())
+`], {}, [], { timeoutMs: 5000, credentialTrust: trust, ...(runtime === 'python' ? { runtime: 'python' as const } : {}) })
+    await expect(preflight('ldap-axi', { url }, trust)).resolves.toBeUndefined()
+    const passed = await run()
+    expect(passed.exitCode, passed.stderr).toBe(0)
+    expect(passed.stdout).toContain('ok')
+    serve(rotated, chain)
+    bytes = 0
+    await expect(preflight('ldap-axi', { url }, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED',
+      diagnostic: { toolCode: 'CERTIFICATE_PIN_MISMATCH', message: expect.stringContaining('re-inspect') } })
+    const rejected = await run()
+    expect(rejected.exitCode).not.toBe(0)
+    expect(rejected.stderr).toContain('stored certificate fingerprint differs from the presented one')
+    expect(rejected.stderr).toContain('re-inspect')
+    expect(rejected.stderr).not.toContain('BEGIN CERTIFICATE')
+    expect(rejected.stderr).not.toContain(result.chain[0].fingerprint)
+    expect(rejected.stderr).not.toContain(new X509Certificate(pem(rotated)).fingerprint256)
+    expect(invalidUpgrades).toBe(0)
+    expect(bytes).toBe(0)
+  } finally { await new Promise<void>(resolve => startTlsServer.close(() => resolve())) }
 })
 
 test.each([

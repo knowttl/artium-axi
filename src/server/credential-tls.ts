@@ -1,9 +1,10 @@
 import { request } from 'node:https'
-import { isIP } from 'node:net'
+import { connect as connectTcp, isIP } from 'node:net'
 import { checkServerIdentity, connect, getCACertificates } from 'node:tls'
 import type { ConnectionOptions, TLSSocket } from 'node:tls'
 import type { CredentialTrust } from './store/trusted-certificates.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
+import { startLdapTls } from './ldap-starttls.js'
 
 export const certificatePinMismatchMessage = 'The stored certificate fingerprint differs from the presented one. Ask an administrator to re-inspect the certificate on the tool page.'
 
@@ -26,15 +27,27 @@ export async function classifyCertificateFailure(error: Error & { code?: string 
   return certificatePinError(trust, fingerprint) ?? error
 }
 
-export function observeCertificate(connectTls: typeof connect, options: ConnectionOptions): Promise<string | undefined> {
+export function observeCertificate(connectTls: typeof connect, options: ConnectionOptions, protocol = 'https:'): Promise<string | undefined> {
   return new Promise(resolve => {
-    const socket = connectTls({ host: options.host, port: options.port, servername: options.servername,
-      minVersion: options.minVersion, maxVersion: options.maxVersion, rejectUnauthorized: false })
-    const finish = (fingerprint?: string) => { clearTimeout(timer); socket.destroy(); resolve(fingerprint) }
+    let secure: TLSSocket | undefined
+    const plain = protocol === 'ldap:' ? connectTcp({ host: options.host, port: options.port! }) : undefined
+    const finish = (fingerprint?: string) => { clearTimeout(timer); secure?.destroy(); plain?.destroy(); resolve(fingerprint) }
     const timer = setTimeout(() => finish(), 3000)
-    socket.once('secureConnect', () => finish(socket.getPeerCertificate().fingerprint256))
-    socket.once('error', () => finish())
-    socket.once('close', () => finish())
+    const handshake = () => {
+      secure = connectTls({ host: options.host, port: options.port, servername: options.servername,
+        minVersion: options.minVersion, maxVersion: options.maxVersion, rejectUnauthorized: false,
+        ...(plain ? { socket: plain } : {}) })
+      secure.once('secureConnect', () => finish(secure?.getPeerCertificate().fingerprint256))
+      secure.once('error', () => finish())
+      secure.once('close', () => finish())
+    }
+    if (plain) {
+      plain.once('error', () => finish())
+      plain.once('close', () => finish())
+      plain.once('connect', () => {
+        void startLdapTls(plain).then(() => { if (!plain.destroyed) handshake() }, () => finish())
+      })
+    } else handshake()
   })
 }
 

@@ -124,7 +124,7 @@ async function execute(
     ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : [])].join('\n') : ''
   const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
-    return { hostname: endpoint.hostname, port: endpoint.port,
+    return { hostname: endpoint.hostname, port: endpoint.port, protocol: new URL(certificate.endpoint).protocol,
       leafFingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
