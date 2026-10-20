@@ -84,6 +84,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const item = pending.get(inspectionId)
     if (!item || item.actor !== actor || item.reference.id !== reference.id || item.expiresAt <= Date.now()) throw new ArtiumError('INVALID_INPUT')
     current(item.reference)
+    if (!item.inspection.verificationError) throw new ArtiumError('INVALID_INPUT', item.inspection.reason)
     const { anchor, chain } = item.inspection
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
     if (mode === 'ca' && !hasCA && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',

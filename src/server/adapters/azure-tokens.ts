@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
 import { azureAdvice, certificateErrorCodePattern, diagnosticError, safeDiagnostic } from '../health/diagnostic.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
-import { credentialFetch } from '../credential-tls.js'
+import { certificatePinMismatchMessage, credentialFetch } from '../credential-tls.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const identity = { tenantId: z.uuid(), clientId: z.uuid() }
@@ -119,6 +119,8 @@ function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
     stage: 'token acquisition', host, message: 'The identity provider service could not complete token acquisition.',
     ...(toolCode ? { toolCode } : {}), hint: 'Try again later and check identity provider service availability.' })
   const verificationCode = certificateErrorCodePattern.exec(text)?.[0]
+  if (verificationCode === 'CERTIFICATE_PIN_MISMATCH') return diagnosticError('UPSTREAM_TLS_FAILED', {
+    stage: 'TLS', host, message: certificatePinMismatchMessage, toolCode: verificationCode })
   if (verificationCode || /certificate verification|ERR_TLS/i.test(text)) return diagnosticError('UPSTREAM_TLS_FAILED', {
     stage: 'TLS', host, message: `TLS certificate verification failed contacting ${host}.`,
     ...(verificationCode ? { toolCode: verificationCode } : {}), hint: 'Check the certificate chain and upstream trusted-CA configuration.' })

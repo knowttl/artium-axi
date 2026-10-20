@@ -4,7 +4,7 @@ import { lookup } from 'node:dns/promises'
 import { connect, isIP } from 'node:net'
 import { connect as connectTls } from 'node:tls'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
-import { credentialTlsOptions } from '../credential-tls.js'
+import { certificatePinMismatchMessage, credentialTlsOptions } from '../credential-tls.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
@@ -109,7 +109,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
     }
     const issuer = certificate?.issuer ? Object.entries(certificate.issuer).map(([key, value]) => `${key}=${value}`).join(', ') : undefined
     throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host,
-      message: `TLS verification failed for ${host}: ${code}.`, toolCode: code,
+      message: code === 'CERTIFICATE_PIN_MISMATCH' ? certificatePinMismatchMessage : `TLS verification failed for ${host}: ${code}.`, toolCode: code,
       ...(issuer ? { issuer } : {}), trust: /SELF_SIGNED/.test(code) ? 'self-signed' : 'untrusted',
       hint: 'Check the presented chain and the upstream trusted-CA configuration (see docs/runbook.md; trusted-CA support is tracked in issue #99).' })
   } finally { secure.destroy(); socket.destroy() }
@@ -122,7 +122,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
   const host = endpoint.hostname.replace(/^\[|\]$/g, '')
   const code = result.verificationError
   throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host,
-    message: `TLS verification failed for ${host}: ${code}.`, toolCode: code,
+    message: code === 'CERTIFICATE_PIN_MISMATCH' ? certificatePinMismatchMessage : `TLS verification failed for ${host}: ${code}.`, toolCode: code,
     ...(result.chain[0] ? { issuer: result.chain[0].issuer.replaceAll('\n', ', ') } : {}),
     trust: /SELF_SIGNED/.test(code) ? 'self-signed' : 'untrusted',
     hint: 'Ask an administrator to inspect the presented certificate on the tool page.' })

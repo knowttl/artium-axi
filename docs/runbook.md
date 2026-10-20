@@ -195,6 +195,8 @@ This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
+If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, inspection reports that no trust is needed and offers no trust confirmation.
+The API also refuses to save CA trust or a strict pin for that inspection, and no trust change is recorded.
 
 Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
 When a certificate has no nonblank subject, its displayed subject falls back to the first subject alternative name, or `(no subject)` if none is available.
@@ -219,6 +221,7 @@ CA trust accepts renewed leaves under the stored issuing CA, including when that
 The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
 For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
+On a pin mismatch, the error explains that the stored fingerprint differs from the presented one and directs the administrator to re-inspect the certificate on the tool page.
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
 If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.

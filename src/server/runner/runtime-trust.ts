@@ -1,4 +1,4 @@
-import { buildCredentialTlsOptions } from '../credential-tls.js'
+import { buildCredentialTlsOptions, certificatePinMismatchMessage } from '../credential-tls.js'
 
 // Both runtimes keep native chain, hostname and date verification. The extra
 // fingerprint check runs before a verified socket can carry application data.
@@ -7,6 +7,7 @@ const tls = require('node:tls');
 const { syncBuiltinESMExports } = require('node:module');
 const pins = JSON.parse(require('node:fs').readFileSync(process.env.ARTIUM_CERTIFICATE_PINS, 'utf8'));
 const original = tls.connect;
+const certificatePinMismatchMessage = ${JSON.stringify(certificatePinMismatchMessage)};
 const buildOptions = ${buildCredentialTlsOptions.toString()};
 tls.connect = function (...args) {
   const options = typeof args[0] === 'object' ? { ...args[0] } : {
@@ -70,7 +71,7 @@ def _verified_handshake(self, *args, **kwargs):
         fingerprints = [pin['leafFingerprint'].replace(':', '').upper() for pin in expected if pin['mode'] == 'pin']
         if not any(pin['mode'] == 'ca' for pin in expected) and fingerprints and hashlib.sha256(self.getpeercert(binary_form=True)).hexdigest().upper() not in fingerprints:
             self.close()
-            raise ssl.SSLCertVerificationError('TLS certificate fingerprint changed. Ask an administrator to re-inspect the certificate.')
+            raise ssl.SSLCertVerificationError(${JSON.stringify(certificatePinMismatchMessage)})
     return result
 
 ssl.SSLContext.wrap_socket = _verified_wrap

@@ -426,6 +426,15 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Credential test did not pass after trust');
+    await page.eval(async () => {
+      const response = await fetch('/test/trust-ca', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not install the fixture CA');
+    });
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    check(await page.eval(() => document.querySelector('[data-certificate-details]').textContent.includes('No trust is needed')), 'Default trust was not explained');
+    check(await page.eval(() => document.querySelector('[data-trust-certificate]').hidden), 'Already verified endpoint offers trust');
+    await page.click('[data-close-certificate]');
     await page.click('form[data-method=DELETE][action$="/certificates"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');

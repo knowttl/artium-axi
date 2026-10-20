@@ -4,12 +4,14 @@ import type { ConnectionOptions } from 'node:tls'
 import type { CredentialTrust } from './store/trusted-certificates.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
 
+export const certificatePinMismatchMessage = 'The stored certificate fingerprint differs from the presented one. Ask an administrator to re-inspect the certificate on the tool page.'
+
 export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: string): ConnectionOptions {
   return buildCredentialTlsOptions({ checkServerIdentity, getCACertificates }, trust,
     ca ? [...getCACertificates('default'), ca] : undefined)
 }
 
-// Self-contained so runner Node injection uses exactly the server's TLS policy.
+// Serialized with its mismatch message so runner Node injection uses the server's TLS policy.
 export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), 'checkServerIdentity' | 'getCACertificates'>,
   trust: readonly Pick<CredentialTrust, 'mode' | 'pem' | 'leafFingerprint'>[], ca?: ConnectionOptions['ca']): ConnectionOptions {
   const anchored = trust.length > 0
@@ -22,7 +24,7 @@ export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), '
       if (error) return error
       const pins = trust.filter(certificate => certificate.mode === 'pin')
       if (!trust.some(certificate => certificate.mode === 'ca') && pins.length && !pins.some(pin => pin.leafFingerprint === certificate.fingerprint256)) {
-        return Object.assign(new Error('TLS certificate fingerprint changed'), { code: 'CERTIFICATE_PIN_MISMATCH' })
+        return Object.assign(new Error(certificatePinMismatchMessage), { code: 'CERTIFICATE_PIN_MISMATCH' })
       }
     } }
 }

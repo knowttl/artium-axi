@@ -251,6 +251,7 @@ describe('Azure token authentication', () => {
   })
 
   it.each([
+    'CERTIFICATE_PIN_MISMATCH',
     'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_ISSUER_CERT', 'CERT_NOT_YET_VALID',
     'CERT_HAS_EXPIRED', 'CERTIFICATE_VERIFY_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID',
     'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
@@ -268,6 +269,19 @@ describe('Azure token authentication', () => {
       stage: 'TLS', host: 'login.microsoftonline.com', toolCode: code,
     } })
     expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
+  })
+
+  it('explains a stale pin during token acquisition without forwarding certificate data', async () => {
+    const network = new FakeTokenTransport()
+    network.sendPostRequestAsync = async () => {
+      throw Object.assign(new Error('-----BEGIN CERTIFICATE----- CANARY-certificate'), { code: 'CERTIFICATE_PIN_MISMATCH' })
+    }
+    const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
+    expect(error).toMatchObject({ diagnostic: {
+      message: expect.stringMatching(/stored certificate fingerprint differs from the presented one.*re-inspect/),
+    } })
+    expect(JSON.stringify(error)).not.toContain('CANARY-certificate')
+    expect(JSON.stringify(error)).not.toContain('BEGIN CERTIFICATE')
   })
 
   it('keeps token and assertion values out of files during authentication', async () => {

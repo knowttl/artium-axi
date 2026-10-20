@@ -22,6 +22,7 @@ import { readCredentialTrust } from '../../src/server/store/trusted-certificates
 import { preflight } from '../../src/server/health/preflight.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
+import { exchangeAwxPassword } from '../../src/server/adapters/awx-login.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -76,7 +77,7 @@ function runtimeCall(runtime: 'node' | 'python', trusted = true) {
   const trust = trusted ? readCredentialTrust(db, store.findCredential('vectra-axi')!) : []
   return runner.run('synthetic-development-user', runtime === 'node' ? process.execPath : '/usr/bin/python3',
     runtime === 'node'
-      ? ['-e', `fetch(${JSON.stringify(endpoint)}).then(r => r.text()).then(console.log).catch(e => { console.error(e.cause?.code || e.message); process.exitCode = 1 })`]
+      ? ['-e', `fetch(${JSON.stringify(endpoint)}).then(r => r.text()).then(console.log).catch(e => { console.error(e.cause?.message || e.message); process.exitCode = 1 })`]
       : ['-c', `import requests; print(requests.get(${JSON.stringify(endpoint)}, timeout=3).text)`],
     {}, [], { ...(runtime === 'python' ? { runtime: 'python' as const } : {}), timeoutMs: 5000, credentialTrust: trust })
 }
@@ -165,6 +166,20 @@ test('inspection does not warn about short validity for long-lived certificates'
   serve('leaf', true)
   const result = await inspect()
   expect(result.warnings).toEqual([])
+})
+
+test.each(['ca', 'pin'] as const)('default trust refuses saving %s trust without an audit change', async mode => {
+  serve('leaf', true)
+  setDefaultCACertificates([...defaults, pem('ca')])
+  const result = await inspect()
+  expect(result.verificationError).toBeNull()
+  const response = await request('POST', '/trust', { inspectionId: result.inspectionId, mode })
+  expect(response.statusCode).toBe(400)
+  expect(response.json().error.message).toContain('No trust is needed')
+  expect(result.reason).toContain('No trust is needed')
+  expect((await request('GET')).json().certificates).toEqual([])
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
+  expect(bytes).toBe(0)
 })
 
 test('one confirmation stores an exact credential pin, records its subject and fingerprint, and removal is audited', async () => {
@@ -570,7 +585,11 @@ test.each(['node', 'python'] as const)('%s rejects a different valid leaf under 
   bytes = 0
   const rejected = await runtimeCall(runtime)
   expect(rejected.exitCode).not.toBe(0)
-  expect(rejected.stderr).toMatch(/fingerprint changed|CERTIFICATE_PIN_MISMATCH/)
+  expect(rejected.stderr).toContain('stored certificate fingerprint differs from the presented one')
+  expect(rejected.stderr).toContain('re-inspect')
+  expect(rejected.stderr).not.toContain('BEGIN CERTIFICATE')
+  expect(rejected.stderr).not.toContain(result.chain[0].fingerprint)
+  expect(rejected.stderr).not.toContain(new X509Certificate(pem('rotated')).fingerprint256)
   expect(bytes).toBe(0)
 })
 
@@ -723,7 +742,8 @@ test.each(['node', 'python'] as const)('%s enforces legacy mixed-case LDAP endpo
   bytes = 0
   const rejected = await runtimeCall(runtime)
   expect(rejected.exitCode).not.toBe(0)
-  expect(rejected.stderr).toMatch(/fingerprint changed|CERTIFICATE_PIN_MISMATCH/)
+  expect(rejected.stderr).toContain('stored certificate fingerprint differs from the presented one')
+  expect(rejected.stderr).toContain('re-inspect')
   expect(bytes).toBe(0)
 })
 
@@ -771,7 +791,25 @@ test('server preflight and token transport enforce the same confirmed fingerprin
   expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
   serve('rotated', true)
   bytes = 0
-  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
-  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toMatchObject({ code: 'CERTIFICATE_PIN_MISMATCH' })
+  const preflightError = await preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust).catch(error => error)
+  expect(preflightError).toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: {
+    toolCode: 'CERTIFICATE_PIN_MISMATCH', message: expect.stringContaining('stored certificate fingerprint differs from the presented one'),
+  } })
+  expect(preflightError.diagnostic.message).toContain('re-inspect')
+  const tokenError = await credentialFetch(endpoint, { method: 'GET' }, trust).catch(error => error)
+  expect(tokenError).toMatchObject({ code: 'CERTIFICATE_PIN_MISMATCH',
+    message: expect.stringContaining('stored certificate fingerprint differs from the presented one') })
+  expect(tokenError.message).toContain('re-inspect')
+  const signInError = await exchangeAwxPassword({ origin: endpoint, signIn: 'password',
+    username: 'synthetic-user', password: 'CANARY-never-sent' }, trust, () => {}).catch(error => error)
+  expect(signInError).toMatchObject({ code: 'UPSTREAM_TLS_FAILED',
+    message: expect.stringContaining('stored certificate fingerprint differs from the presented one') })
+  expect(signInError.message).toContain('re-inspect')
+  for (const error of [preflightError, tokenError, signInError]) {
+    const text = JSON.stringify(error) + error.message
+    expect(text).not.toContain('BEGIN CERTIFICATE')
+    expect(text).not.toContain(result.chain[0].fingerprint)
+    expect(text).not.toContain(new X509Certificate(pem('rotated')).fingerprint256)
+  }
   expect(bytes).toBe(0)
 })
