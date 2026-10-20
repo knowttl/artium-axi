@@ -146,6 +146,27 @@ test.each([
   expect(bytes).toBe(0)
 })
 
+test('inspection reports leaf and intermediate expiry and warns without blocking CA trust', async () => {
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')),
+    cert: pem('short-leaf') + pem('short-intermediate') })
+  const result = await inspect()
+  expect(result.chain[0].expiresAt).toBe(new Date(new X509Certificate(pem('short-leaf')).validTo).toISOString())
+  expect(result.anchor.expiresAt).toBe(new Date(new X509Certificate(pem('short-intermediate')).validTo).toISOString())
+  expect(result.warnings).toEqual(expect.arrayContaining([
+    `Leaf expires within seven days (${result.chain[0].expiresAt}).`,
+    `Trust anchor expires within seven days (${result.anchor.expiresAt}).`,
+    expect.stringMatching(/intermediate trust anchor will rotate.*long-lived root.*server-wide bundle/),
+  ]))
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
+})
+
+test('inspection does not warn about short validity for long-lived certificates', async () => {
+  serve('leaf', true)
+  const result = await inspect()
+  expect(result.warnings).toEqual([])
+})
+
 test('one confirmation stores an exact credential pin, records its subject and fingerprint, and removal is audited', async () => {
   const result = await inspect()
   const trusted = await request('POST', '/trust', { inspectionId: result.inspectionId })
