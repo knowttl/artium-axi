@@ -26,7 +26,7 @@ import { createTestCertificates } from './certificates.mjs'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules } from '../../dist/test/fixtures/sso.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
-createTestCertificates(directory, ['localhost'])
+createTestCertificates(directory, ['localhost'], 1)
 const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const db = openStore(join(directory, 'artium.db'), key)
 await seedToolUser(db)

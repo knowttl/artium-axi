@@ -299,6 +299,8 @@ function showCertificateInspection(result) {
   };
   line(details, 'Hostname: ' + result.hostname);
   line(details, result.reason);
+  line(details, 'Leaf expires: ' + result.chain[0].expiresAt);
+  line(details, 'Trust anchor expires: ' + result.anchor.expiresAt);
   for (const warning of result.warnings) line(details, warning, true);
   for (const fingerprint of result.previousFingerprints) line(details, 'Previously trusted endpoint SHA-256: ' + fingerprint);
   for (const certificate of result.chain) {

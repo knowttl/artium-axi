@@ -203,6 +203,9 @@ An empty subject does not prevent inspection or trust, and two empty subject and
 Compare the fingerprint with the appliance’s own display through a trusted channel.
 Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
 The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
+The confirmation window and inspection API report the leaf and trust anchor expiry, with informational warnings when either expires within seven days.
+For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
+Expiry warnings do not block confirmation or change hostname and date verification.
 **Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
 No certificate file or private key is accepted by this flow.
 

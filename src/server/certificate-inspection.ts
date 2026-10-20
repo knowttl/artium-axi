@@ -8,6 +8,7 @@ import { certificateSubject } from './certificate-subject.js'
 
 const issuerTimeoutMs = 3000
 const issuerMaxBytes = 128 * 1024
+const shortLivedThresholdMs = 7 * 24 * 60 * 60 * 1000
 
 export function certificateDetails(certificate: X509Certificate, hostname: string, now = Date.now()) {
   const key = certificate.publicKey
@@ -104,7 +105,18 @@ export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?
   else if (presented.verificationError === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') reason = 'The server sent no intermediate and its issuer could not be verified.'
   else if (presented.verificationError) reason = 'The certificate was issued by a CA this server does not trust.'
   const anchor = intermediate ?? presented.chain.find((certificate, index) => index > 0 && certificate.ca) ?? leaf
+  const anchorDetails = certificateDetails(anchor, host)
+  const now = Date.now()
+  for (const [role, certificate] of [['Leaf', chain[0]], ['Trust anchor', anchorDetails]] as const) {
+    const remainingMs = Date.parse(certificate.expiresAt) - now
+    if (remainingMs > 0 && remainingMs <= shortLivedThresholdMs) {
+      warnings.push(`${role} expires within seven days (${certificate.expiresAt}).`)
+      if (role === 'Trust anchor' && certificate.ca && !certificate.selfSigned) {
+        warnings.push('This short-lived intermediate trust anchor will rotate. Trust the long-lived root through the server-wide bundle to avoid confirming trust again after rotation.')
+      }
+    }
+  }
   return { hostname: host, endpoint: href, chain, warnings, reason,
     verificationError: presented.verificationError ?? null,
-    anchor: certificateDetails(anchor, host), pem: anchor.toString(), leafPem: leaf.toString() }
+    anchor: anchorDetails, pem: anchor.toString(), leafPem: leaf.toString() }
 }

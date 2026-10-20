@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export function createTestCertificates(directory, hosts) {
+export function createTestCertificates(directory, hosts, validityDays) {
   const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
   writeFileSync(join(directory, 'index'), '')
   writeFileSync(join(directory, 'authority.cnf'), `[ca]
@@ -26,7 +26,8 @@ basicConstraints = CA:FALSE
 extendedKeyUsage = serverAuth
 `)
   // Fixed dates keep synthetic TLS independent of clock skew between processes.
-  const validity = ['-startdate', '20200101000000Z', '-enddate', '20991231235959Z']
+  const validity = validityDays === undefined
+    ? ['-startdate', '20200101000000Z', '-enddate', '20991231235959Z'] : ['-days', String(validityDays)]
   openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Artium synthetic test CA',
     '-keyout', 'ca.key', '-out', 'ca.csr'])
   openssl(['ca', '-batch', '-notext', '-rand_serial', '-selfsign', '-config', 'authority.cnf',
@@ -65,6 +66,10 @@ commonName = optional
   const ca = ['ca', '-batch', '-notext', '-rand_serial', '-config', 'inspection.cnf']
   const validity = ['-startdate', '20200101000000Z', '-enddate', '20991231235959Z']
   openssl([...ca, '-extensions', 'root', '-in', 'intermediate.csr', '-out', 'intermediate.crt', ...validity])
+  openssl([...ca, '-extensions', 'root', '-subj', '/CN=Short synthetic intermediate',
+    '-in', 'intermediate.csr', '-out', 'short-intermediate.crt', '-days', '6'])
+  openssl([...ca, '-extensions', 'inspection-server', '-cert', 'short-intermediate.crt', '-keyfile', 'intermediate.key',
+    '-subj', '/CN=short.synthetic.test', '-in', 'server.csr', '-out', 'short-leaf.crt', '-days', '1'])
   openssl([...ca, '-extensions', 'inspection-server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/CN=synthetic-leaf', '-in', 'server.csr', '-out', 'leaf.crt', ...validity])
   openssl([...ca, '-extensions', 'inspection-server', '-subj', '/CN=root-issued.synthetic.test',

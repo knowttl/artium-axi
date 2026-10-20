@@ -397,6 +397,16 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.click('[data-inspect-certificate] button');
     await page.wait('#certificate-inspection[open]');
     check(await page.eval(() => document.querySelector('[data-certificate-details]').innerText.includes('Hostname: localhost')), 'Saved hostname missing');
+    check(await page.eval(() => {
+      const details = document.querySelector('[data-certificate-details]').innerText;
+      return details.includes('Leaf expires: ' + ${JSON.stringify(new Date(new X509Certificate(fixture.certificatePem).validTo).toISOString())})
+        && /Trust anchor expires: \\d{4}-\\d{2}-\\d{2}T/.test(details);
+    }), 'Leaf or trust anchor expiry missing');
+    check(await page.eval(() => {
+      const warnings = [...document.querySelectorAll('[data-certificate-details] [role=alert]')].map(node => node.textContent);
+      return warnings.some(text => text.startsWith('Leaf expires within seven days'))
+        && warnings.some(text => text.startsWith('Trust anchor expires within seven days'));
+    }), 'Short-lived leaf or anchor warning missing');
     check(await page.eval(() => document.querySelector('[data-certificate-details] input[readonly]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256)}, 'Incorrect full fingerprint');
     check(await page.eval(() => document.querySelector('#certificate-inspection').innerText.includes('interception')), 'Network-path warning missing');
     check(await page.eval(() => document.querySelector('[data-trust-certificate] [name=mode]').value === 'ca'), 'CA trust is not the default');
