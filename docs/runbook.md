@@ -212,6 +212,7 @@ For Storage, Key Vault and ACR, save service names in the Azure native setting `
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
 CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
+The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
 For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
@@ -224,7 +225,7 @@ If the server omitted an intermediate, inspection can retrieve the leaf certific
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
 An obtained private issuer is offered for explicit CA confirmation even when it is not already trusted.
 When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unavailable and strict leaf pinning requires an explicit choice.
-Intermediate repair is deferred to a later slice.
+Automatic intermediate repair is not included because treating a repaired intermediate as trusted could bypass the confirmed anchor's expiry.
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.

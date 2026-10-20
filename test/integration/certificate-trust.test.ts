@@ -208,6 +208,27 @@ test('a changed endpoint certificate prominently flags the previously trusted fi
   expect(changed.warnings).toEqual(expect.arrayContaining([expect.stringContaining('different fingerprint')]))
 })
 
+test.each([
+  { runtime: 'node', certificate: 'leaf' }, { runtime: 'python', certificate: 'leaf' },
+  { runtime: 'node', certificate: 'rotated' }, { runtime: 'python', certificate: 'rotated' },
+] as const)('$runtime accepts $certificate through a confirmed presented intermediate without the root', async ({ runtime, certificate }) => {
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('leaf') + pem('intermediate') })
+  const result = await inspect()
+  expect(result.chain).toHaveLength(2)
+  expect(result.anchor.fingerprint).toBe(new X509Certificate(pem('intermediate')).fingerprint256)
+  expect((await request('GET')).json().certificates).toEqual([])
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId })).statusCode).toBe(200)
+  expect((await request('GET')).json().certificates[0].mode).toBe('ca')
+  tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem('intermediate') })
+  const reference = store.findCredential('vectra-axi')!
+  const trust = readCredentialTrust(db, reference)
+  await expect(preflight('vectra-axi', store.readCredential(reference) as Record<string, unknown>, trust)).resolves.toBeUndefined()
+  expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
+  const passed = await runtimeCall(runtime)
+  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  expect(passed.stdout.trim()).toBe('ok')
+})
+
 test.each(['expired', 'mismatch'])('warnings do not block confirmation of %s', async name => {
   serve(name)
   const result = await inspect()
