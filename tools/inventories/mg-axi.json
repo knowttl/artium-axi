@@ -63,6 +63,13 @@
   ],
   "nativeWriteSettings": {
     "default": "disabled",
+    "supportedOperations": [
+      "entra.conditional-access.policy.update",
+      "entra.risky-user.dismiss",
+      "entra.user.revokeSessions",
+      "entra.user.update",
+      "mg.entra.group.member.add"
+    ],
     "profileFields": {
       "writes.allowWrites": "boolean",
       "writes.operations": "string[]"

@@ -1,5 +1,6 @@
 import inventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -7,6 +8,8 @@ import type { Adapter } from './types.js'
 import { CredentialProfile, loadCredentialProfile } from './credential-profile.js'
 
 export const ldapManifest = { ...inventory, ...inventory.adapterBoundary }
+export const ldapWritePolicy = writePolicy({ reason: 'LDAP has no write path in this adapter.',
+  unlocks: 'No write actions.', blocked: 'All write actions remain unavailable.' })
 const bundledProfile = new CredentialProfile(inventory.credentialSchema, 'ldap-axi')
 export const ldapCredentialSchema = bundledProfile.credentialSchema
 

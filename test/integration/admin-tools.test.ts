@@ -723,6 +723,8 @@ test('concurrent saves retain one secret revision and reject the competing edit'
 })
 
 const routes = [
+  { method: 'GET', path: '/az-axi', body: undefined },
+  { method: 'PATCH', path: '/az-axi/write-access', body: { enabled: true, expectedRevision: 1 } },
   { method: 'GET', path: '', body: undefined },
   { method: 'PATCH', path: '/falcon-axi', body: { enabled: false, expectedRevision: 1 } },
   { method: 'GET', path: '/falcon-axi/credential', body: undefined },
@@ -730,6 +732,159 @@ const routes = [
   { method: 'PATCH', path: '/falcon-axi/credential', body: { value: values['falcon-axi'], expectedRevision: 0, expectedToolRevision: 1 } },
   { method: 'POST', path: '/falcon-axi/test', body: {} },
 ]
+test('admin list and detail expose write capability for every tool, including unavailable runtime adapters', async () => {
+  const response = await request('GET', '')
+  const { tools } = await response.json()
+  expect(tools.map((tool: { name: string, writeAccess: unknown }) => ({ name: tool.name, ...tool.writeAccess as object })))
+    .toMatchObject([
+      { name: 'falcon-axi', capable: false, enabled: false, reason: expect.stringContaining('ignores allowWrites') },
+      { name: 'vectra-axi', capable: true, enabled: false, reason: null },
+      { name: 'az-axi', capable: true, enabled: false, reason: null },
+      { name: 'mg-axi', capable: true, enabled: false, reason: null },
+      { name: 'ldap-axi', capable: false, enabled: false, reason: expect.stringContaining('no write path') },
+      { name: 'ado-axi', capable: true, enabled: false, reason: null },
+      { name: 'awx-axi', capable: true, enabled: false, reason: null },
+    ])
+  for (const tool of tools) {
+    const detail = await request('GET', `/${tool.name}`)
+    expect(detail.status).toBe(200)
+    expect((await detail.json()).writeAccess).toEqual(tool.writeAccess)
+    expect(tool.writeAccess.unlocks.length).toBeGreaterThan(0)
+    expect(tool.writeAccess.blocked.length).toBeGreaterThan(0)
+  }
+})
+
+test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
+  await replace(tool)
+  const settings = tool === 'az-axi' ? { allowWrites: true, subscriptions: ['synthetic-subscription'],
+    managementGroup: 'synthetic-group', workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' },
+    description: 'Synthetic description', tlsDestinations: { storageAccounts: ['syntheticstore'],
+      keyVaults: ['synthetic-vault'], registries: ['syntheticregistry'] } } : { allowWrites: true }
+  expect((await request('PATCH', `/${tool}`, { nativeSettings: settings, expectedRevision: 2 })).status).toBe(200)
+  const before = store.readCredential(store.findCredential(tool)!) as Record<string, unknown>
+  const reference = store.findCredential(tool)
+  const off = await request('PATCH', `/${tool}/write-access`, { enabled: false, expectedRevision: 3 })
+  expect(off.status).toBe(200)
+  expect(await off.json()).toMatchObject({ nativeSettings: { ...settings, allowWrites: false },
+    writeAccess: { capable: true, enabled: false }, revision: 4 })
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...before, allowWrites: false })
+  const on = await request('PATCH', `/${tool}/write-access`, { enabled: true, expectedRevision: 4 })
+  expect(on.status).toBe(200)
+  expect(await on.json()).toMatchObject({ nativeSettings: settings, writeAccess: { enabled: true }, revision: 5 })
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(before)
+  expect(store.findCredential(tool)).toEqual(reference)
+})
+
+test.each(['falcon-axi', 'ldap-axi'] as const)('%s refuses write changes with the fixed read-only reason', async tool => {
+  const detail = await request('GET', `/${tool}`)
+  const { writeAccess } = await detail.json()
+  const response = await request('PATCH', `/${tool}/write-access`, { enabled: true, expectedRevision: 1 })
+  expect(response.status).toBe(400)
+  expect((await response.json()).error.message).toContain(writeAccess.reason)
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'tool-write-access'").all()).toEqual([])
+})
+
+test.each([
+  { tool: 'mg-axi', operations: ['mg.entra.group.member.add', 'entra.user.update'], settings: { preview: true } },
+  { tool: 'vectra-axi', operations: ['qux.host.tag.set', 'rux.detection.note.edit'], settings: {} },
+] as const)('$tool selectable writes reach the real adapter and retain other settings', async ({ tool, operations, settings }) => {
+  const source = new EmbeddedSecretSource(store)
+  const adapter = tool === 'mg-axi' ? createMgAdapter(source, join(directory, 'writes.log'))
+    : createVectraAdapter(source, join(directory, 'writes.log'))
+  await replace(tool)
+  expect((await request('PATCH', `/${tool}`, { nativeSettings: settings, expectedRevision: 2 })).status).toBe(200)
+  const enabled = await request('PATCH', `/${tool}/write-access`, { enabled: true, operations, expectedRevision: 3 })
+  expect(enabled.status).toBe(200)
+  const state = await enabled.json()
+  expect(state).toMatchObject({ writeAccess: { enabled: true, allowedOperations: operations }, nativeSettings: settings })
+  const prepared = await adapter.prepare(tool === 'mg-axi' ? ['entra', 'user', 'list'] : ['health', 'list'], store.findCredential(tool)!)
+  expect(JSON.parse(String(prepared.files[0].content)).profiles.artium.writes).toEqual({ allowWrites: true, operations })
+  const disabled = await request('PATCH', `/${tool}/write-access`, { enabled: false, expectedRevision: 4 })
+  expect(disabled.status).toBe(200)
+  expect((await disabled.json()).nativeSettings).toEqual({ ...settings, writes: { allowWrites: false, operations } })
+  const changed = await request('PATCH', `/${tool}/write-access`, { enabled: false, operations: [operations[1]], expectedRevision: 5 })
+  expect(changed.status).toBe(200)
+  expect((await changed.json()).writeAccess.allowedOperations).toEqual([operations[1]])
+})
+
+test('Graph choices use native operation identities, including names that differ from command spelling', async () => {
+  const response = await request('GET', '/mg-axi')
+  expect((await response.json()).writeAccess.supportedOperations).toEqual([
+    'entra.conditional-access.policy.update', 'entra.risky-user.dismiss', 'entra.user.revokeSessions',
+    'entra.user.update', 'mg.entra.group.member.add',
+  ])
+})
+
+test('Vectra choices contain implemented QUX and RUX operations without placeholder names', async () => {
+  const response = await request('GET', '/vectra-axi')
+  const { writeAccess } = await response.json()
+  expect(writeAccess.supportedOperations).toHaveLength(30)
+  expect(writeAccess.supportedOperations).toEqual(expect.arrayContaining([
+    'qux.detection.tag.bulk-set', 'qux.host.assignment.unassign', 'rux.account.note.delete',
+  ]))
+  expect(writeAccess.supportedOperations).not.toContain('notes.set')
+  expect(writeAccess.supportedOperations).not.toContain('rux.host.tag.set')
+})
+
+test.each(['mg-axi', 'vectra-axi'] as const)('%s rejects unsupported operations and enabling without a scope', async tool => {
+  await failure(await request('PATCH', `/${tool}/write-access`, { enabled: true, expectedRevision: 1 }), 'INVALID_INPUT')
+  await failure(await request('PATCH', `/${tool}/write-access`, {
+    enabled: true, operations: ['synthetic.unsupported'], expectedRevision: 1 }), 'INVALID_INPUT')
+  expect((await (await request('GET', `/${tool}`)).json()).revision).toBe(1)
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'tool-write-access'").all()).toEqual([])
+})
+
+test('write changes are audited without credentials or native setting values and no-ops do not emit changes', async () => {
+  await replace('az-axi')
+  db.exec('DELETE FROM audit')
+  const response = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: 2 })
+  expect(response.status).toBe(200)
+  const noOp = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: 3 })
+  expect(noOp.status).toBe(200)
+  const records = db.prepare('SELECT * FROM audit').all()
+  expect(records).toHaveLength(1)
+  expect(records[0]).toMatchObject({ event: 'tool-write-access', tool: 'az-axi', user_id: actor,
+    outcome: 'success', arguments: JSON.stringify({ enabled: false, operations: [], unsupportedOperationCount: 0 }) })
+  expect(JSON.stringify(records)).not.toContain('CANARY')
+  expect(JSON.stringify(records)).not.toContain('synthetic-subscription')
+  await failure(await request('PATCH', '/az-axi/write-access', { enabled: true, expectedRevision: 2 }), 'REVISION_CONFLICT')
+  expect((await (await request('GET', '/az-axi')).json()).writeAccess.enabled).toBe(false)
+})
+test('advanced settings write changes are audited while arbitrary operation names stay out of audit', async () => {
+  const saved = await request('PATCH', '/mg-axi', { expectedRevision: 1,
+    nativeSettings: { preview: true, writes: { allowWrites: true, operations: ['entra.user.update', 'CANARY-not-an-operation'] } } })
+  expect(saved.status).toBe(200)
+  const rows = db.prepare("SELECT * FROM audit WHERE event = 'tool-write-access'").all() as { arguments: string }[]
+  expect(rows).toHaveLength(1)
+  expect(JSON.parse(rows[0].arguments)).toEqual({ enabled: true, operations: ['entra.user.update'], unsupportedOperationCount: 1 })
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY')
+  const disabled = await request('PATCH', '/mg-axi/write-access', { expectedRevision: 2, enabled: false })
+  expect(disabled.status).toBe(200)
+  expect((await disabled.json()).writeAccess).toMatchObject({ enabled: false, allowedOperations: ['entra.user.update', 'CANARY-not-an-operation'] })
+  const cleared = await request('PATCH', '/mg-axi', { expectedRevision: 3, nativeSettings: {} })
+  expect(cleared.status).toBe(200)
+  expect((await cleared.json()).nativeSettings).toEqual({})
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'tool-write-access'").get()).toEqual({ count: 3 })
+})
+
+test('write updates roll back when the dedicated audit record cannot be stored', async () => {
+  db.exec("CREATE TRIGGER refuse_write_audit BEFORE INSERT ON audit WHEN NEW.event = 'tool-write-access' BEGIN SELECT RAISE(ABORT, 'synthetic audit failure'); END")
+  await failure(await request('PATCH', '/az-axi/write-access', { enabled: true, expectedRevision: 1 }), 'AUDIT_UNAVAILABLE')
+  expect((await (await request('GET', '/az-axi')).json())).toMatchObject({ revision: 1, nativeSettings: {}, writeAccess: { enabled: false } })
+})
+
+test.each(['mg-axi', 'vectra-axi'] as const)('%s can clear the allow-list when disabling and audit a list-only edit', async tool => {
+  const operation = tool === 'mg-axi' ? 'entra.user.update' : 'qux.host.tag.set'
+  const selected = await request('PATCH', `/${tool}/write-access`, { enabled: false, operations: [operation], expectedRevision: 1 })
+  expect(selected.status).toBe(200)
+  expect((await selected.json()).writeAccess).toMatchObject({ enabled: false, allowedOperations: [operation] })
+  const record = db.prepare("SELECT arguments FROM audit WHERE event = 'tool-write-access'").get() as { arguments: string }
+  expect(JSON.parse(record.arguments)).toEqual({ enabled: false, operations: [operation], unsupportedOperationCount: 0 })
+  const cleared = await request('PATCH', `/${tool}/write-access`, { enabled: false, operations: [], expectedRevision: 2 })
+  expect(cleared.status).toBe(200)
+  expect((await cleared.json())).toMatchObject({ nativeSettings: {}, writeAccess: { enabled: false, allowedOperations: [] } })
+})
+
 test.each(routes)('$method $path requires admin capability despite tool grants', async route => {
   await failure(await request(route.method, route.path, route.body, await adminHeaders('synthetic-ordinary')), 'ADMIN_REQUIRED')
   expect(db.prepare("SELECT user_id, outcome FROM audit WHERE event = 'denial'").get())
@@ -965,7 +1120,7 @@ test.each([
   const health = healthSchema.parse(await response.json())
   expect(health).toMatchObject({ status: 'ok', credentialRevision: 1, errorCode: null })
   expect(adapters.find(adapter => adapter.name === tool)!.prepare).toHaveBeenCalledWith(args, store.findCredential(tool))
-  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id").all()).toEqual([
+  expect(db.prepare("SELECT event, user_id, outcome FROM audit WHERE event IN ('run-start', 'run-terminal', 'credential-test') AND user_id IS NOT NULL ORDER BY id").all()).toEqual([
     { event: 'run-start', user_id: actor, outcome: 'started' },
     { event: 'run-terminal', user_id: actor, outcome: 'completed' },
     { event: 'credential-test', user_id: actor, outcome: 'success' },
@@ -974,7 +1129,7 @@ test.each([
   expect(await list.text()).not.toContain('synthetic-health-output')
   expect(db.prepare('SELECT status FROM tool_health WHERE tool = ?').get(tool)).toEqual({ status: 'ok' })
   const evidence = db.prepare(`SELECT event, checked_at, credential_revision, error_code FROM audit
-    WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id`).all()
+    WHERE event IN ('run-start', 'run-terminal', 'credential-test') AND user_id IS NOT NULL ORDER BY id`).all()
   expect(evidence).toEqual([
     { event: 'run-start', checked_at: expect.any(Number), credential_revision: 1, error_code: null },
     { event: 'run-terminal', checked_at: health.checkedAt, credential_revision: 1, error_code: null },
@@ -983,7 +1138,7 @@ test.each([
   await replace(tool, values[tool], 1)
   expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
   expect(db.prepare(`SELECT event, checked_at, credential_revision, error_code FROM audit
-    WHERE event != 'admin-change' AND user_id IS NOT NULL ORDER BY id`).all()).toEqual(evidence)
+    WHERE event IN ('run-start', 'run-terminal', 'credential-test') AND user_id IS NOT NULL ORDER BY id`).all()).toEqual(evidence)
 })
 test('unconfigured test admission records safe evidence without a credential revision', async () => {
   const response = await request('POST', '/falcon-axi/test', {})

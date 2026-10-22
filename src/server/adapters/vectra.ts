@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -26,6 +27,9 @@ export const vectraCredentialSchema = z.union([
 ])
 export type VectraCredential = z.infer<typeof vectraCredentialSchema>
 
+export const vectraWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
+  unlocks: 'Selected tag, note and assignment operations supported by the configured QUX or RUX deployment; native preview and confirmation gates still apply.',
+  blocked: 'Operations outside the allow-list, unsupported deployment or API operations, raw API mutations and unsafe overrides remain blocked. Upstream permissions are still required.' })
 export const vectraManifest = {
   ...inventory,
   ...inventory.adapterBoundary,

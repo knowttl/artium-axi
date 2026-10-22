@@ -212,7 +212,15 @@ export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'un
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.
+export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabled: z.boolean(), reason: z.string().nullable(),
+  supportedOperations: z.array(z.string()).nullable(), allowedOperations: z.array(z.string()), unlocks: z.string(), blocked: z.string() })
+// tool-write-access audit arguments contain enabled, catalogue operation identities and
+// unsupportedOperationCount. Arbitrary legacy allow-list strings are counted, never logged.
+export const writeAccessInputSchema = z.strictObject({ enabled: z.boolean(),
+  operations: z.array(z.string().min(1).max(256)).max(64).refine(operations => new Set(operations).size === operations.length).optional(),
+  expectedRevision: z.number().int().positive() })
 export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),
+  writeAccess: toolWriteStateSchema,
   readOnly: z.boolean().default(true),
   nativeSettings: z.record(z.string(), z.unknown()), revision: z.number().int().positive(),
   updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema })
@@ -252,6 +260,13 @@ export const adminCertificateRoutes = {
     input: z.strictObject({ id: z.string() }), response: z.strictObject({ removed: z.literal(true) }) },
 } as const
 export const adminToolRoutes = {
+  get: { method: 'GET', path: '/v1/admin/tools/:tool', input: z.strictObject({}),
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
+  // Changes only write policy. Omitted operations retain the current allow-list; an empty
+  // list clears it while disabling. Enabling requires a supported nonempty allow-list.
+  // Other native settings and credentials are preserved. Revision conflicts never mutate.
+  writeAccess: { method: 'PATCH', path: '/v1/admin/tools/:tool/write-access', input: writeAccessInputSchema,
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'tool-write-access' },
   list: { method: 'GET', path: '/v1/admin/tools', input: z.strictObject({}),
     response: z.strictObject({ tools: z.array(adminToolSchema) }), authorization: 'administrator-and-recent-auth', auditEvent: null },
   patch: { method: 'PATCH', path: '/v1/admin/tools/:tool',
