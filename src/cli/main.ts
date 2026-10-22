@@ -16,7 +16,13 @@ import { cliVersion } from '../shared/version.js'
 import { ManagedSession } from './managed-session.js'
 
 let managed: ManagedSession | undefined
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EPIPE') throw error
+  })
+}
 function output(stream: 'stdout' | 'stderr', text: string) {
+  if (process[stream].destroyed) return
   if (managed) managed.write(stream, text)
   else process[stream].write(text)
 }
