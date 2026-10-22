@@ -43,12 +43,12 @@ export type HelpCommand = keyof typeof commands
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
   const flags = [toolSchema.safeParse(command).success ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags,
-    '--managed-session before the command (default false; caller-owned sessions; see artium-axi --managed-session --help)']
+    ...(command === 'update' ? [] : ['--managed-session before the command (default false; caller-owned sessions; see artium-axi --managed-session --help)'])]
   const protocol = [
     'Session JSON on inherited pipe fd 3, new sessions and rotations as JSON lines on private pipe fd 4; no session file.',
     'Managed input: {serverUrl, accessToken, refreshToken?}; close fd 3 after JSON (64 KiB maximum). Output: {serverUrl, status, accessToken, refreshToken, accessExpiresAt, familyExpiresAt} per rotation, before retry, including on later failure.',
     'Managed login: fd 3 is unused; fd 4 must be a writable private pipe/socket. Local sign-in requires --username <username> --password-stdin with protected inherited stdin; password argv and ARTIUM_AXI_PASSWORD are refused. SSO uses login --sso and displays browser approval instructions immediately. New sessions use the rotation envelope; password-change-required returns {serverUrl, status, passwordChangeToken, passwordChangeExpiresAt} on fd 4 and exits 1.',
-    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
+    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup/update; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
   const purposes = command === 'home' ? `commands[${Object.keys(commands).length - 2}]{command,purpose}:\n${Object.entries(commands)
     .filter(([name]) => name !== 'home' && name !== 'managed-session')
     .map(([name, value]) => `  ${name},${JSON.stringify(value.purpose)}`).join('\n')}\n` : ''

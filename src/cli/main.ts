@@ -47,14 +47,14 @@ async function main(args: string[]) {
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
   if (help) { output('stdout', commandHelp(help)); return }
-  if (command === 'update') { output('stdout', await update()); return }
   if (managedMode) {
-    if (['passwd', 'logout', 'setup'].includes(args[0])) {
+    if (['passwd', 'logout', 'setup', 'update'].includes(args[0])) {
       throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
         'The caller manages session persistence, password changes and revocation.')
     }
     managed = await ManagedSession.read(args[0] === 'login')
   }
+  if (command === 'update') { output('stdout', await update()); return }
   if (command === 'setup') { output('stdout', await setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')

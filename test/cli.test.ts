@@ -348,9 +348,28 @@ test.each(['not JSON CANARY-managed-access', '{}', '{"accessToken":""}', 'x'.rep
   expect(requests).toEqual([])
 })
 
-test.each(['passwd', 'logout', 'setup'])('managed mode refuses %s before network access', async command => {
+test.each(['passwd', 'logout', 'setup', 'update'])('managed mode refuses %s before network access', async command => {
   requests = []
   expect(await managedCli([command])).toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test('managed update is refused before configuration or private descriptor validation', async () => {
+  requests = []
+  expect(await managedCli(['update'], { missing: 3, existing: true, environment: { ARTIUM_AXI_URL: 'invalid' } }))
+    .toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test.each([
+  ['update', '--help'], ['--help', 'update'],
+  ['--managed-session', 'update', '--help'], ['--managed-session', '--help', 'update'],
+].map(args => ({ args })))('update help advertises only standalone flags: $args', async ({ args }) => {
+  requests = []
+  const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('usage: artium-axi update')
+  expect(result.stdout).not.toContain('--managed-session')
   expect(requests).toEqual([])
 })
 
