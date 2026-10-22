@@ -334,9 +334,7 @@ Review actor, change time and revision before saving; reload stale forms instead
 See [browser administration](admin-guide.md#browser-administration) for timestamp display and inline identity confirmation.
 
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
-The browser tool page still uses the Native settings JSON editor; a dedicated UI switch is not yet available.
-For that editor, use `allowWrites: true` for Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
-Saving Native settings replaces the entire object, so preserve all other settings and the current write policy; omitting the write opt-in or saving `{}` turns writes off.
+Follow [browser administration](admin-guide.md#browser-administration) to use the Write access switch or preserve write policy when replacing Native settings.
 For scripted administration, read `GET /v1/admin/tools` or `GET /v1/admin/tools/:tool` to review normalized `writeAccess` capability, current state, fixed read-only reasons, supported and allowed operations, and the actions a grant unlocks or leaves blocked.
 Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while preserving other native settings and credential values.
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.

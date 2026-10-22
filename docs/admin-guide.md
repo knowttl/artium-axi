@@ -80,8 +80,8 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
 | `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for usage and claim availability. |
 | `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
-| `/admin/tools` | Review installed tools, pinned versions and cached health. |
-| `/admin/tools/:tool` | Configure credentials, native settings and enablement; test health and review granting roles. |
+| `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
+| `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete eligible roles. |
@@ -157,7 +157,13 @@ Select **Test after saving** to save and report a harmless credential check inli
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
-Before saving Native settings, follow the runbook's [write-policy preservation guidance](runbook.md#roles-credentials-and-health).
+Use **Write access** on a tool page to change writes without replacing other native settings.
+Writes default to off; fixed read-only tools show the reason and have no switch.
+Review the current grant, actions enabled by the switch and actions that always stay blocked.
+For Graph and Vectra, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+Choose **Save write access** and confirm the change, completing identity confirmation if requested.
+See [write-access audit events](#audit-screen-and-api) to review saved changes.
+The advanced JSON editor shows the saved write state, but saving it replaces the whole object and omitting write settings turns writes off.
 Credential changes clear cached health.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for startup checks, recovery retries and concurrency limits.
 Use **Test credential** for a current fixed read before enabling a configured tool.
