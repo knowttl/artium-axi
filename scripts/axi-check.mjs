@@ -172,7 +172,7 @@ try {
   const homeView = decode(homeText)
   assert.equal(homeView.tools.length, 1)
   const doctor = await success(['doctor'])
-  assert.deepEqual(doctor.trim().split('\n'), ['pass: server address', 'pass: certificate', 'pass: token', 'pass: CLI version', 'pass: falcon-axi (ok)'])
+  assert.deepEqual(doctor.trim().split('\n'), ['pass: server address (ARTIUM_AXI_URL)', 'pass: certificate', 'pass: token', 'pass: CLI version', 'pass: falcon-axi (ok)'])
   pass(4, 'Pre-computed aggregates: counted views and doctor checks')
   db.exec('DELETE FROM user_roles')
   const empty = decode(await success(['tools']))

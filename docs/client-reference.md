@@ -102,8 +102,8 @@ Installation does not establish that an agent host has loaded the skill.
 
 | Variable | Meaning |
 | --- | --- |
-| `ARTIUM_AXI_URL` | Required HTTPS base URL without credentials, query or fragment. |
-| `ARTIUM_AXI_CA_FILE` | Optional readable PEM CA file added to Node's certificate trust. |
+| `ARTIUM_AXI_URL` | HTTPS base URL without credentials, query or fragment; overrides the saved URL. Required in managed mode. |
+| `ARTIUM_AXI_CA_FILE` | Optional readable PEM CA file added to Node's certificate trust; overrides the saved CA path. |
 | `ARTIUM_AXI_PASSWORD` | Ordinary login password source when `--password-stdin` is absent, before the terminal prompt; refused for [managed sign-in](#externally-managed-client-sessions). |
 | `ARTIUM_AXI_CURRENT_PASSWORD` | Current password for an ordinary password change, before the terminal prompt. |
 | `XDG_CONFIG_HOME` | Session-file base on Linux/macOS; otherwise `~/.config`. |
@@ -117,6 +117,12 @@ Ordinary password changes also require the current password through the terminal
 Clear password environment values after use.
 
 By default, sessions live in `artium-axi/session.json` under the applicable base directory and are bound to the normalized server URL.
+Ordinary password and SSO login save the server URL and optional absolute CA file path in the adjacent `config.json`, with the same private write protections.
+For the first login, or to save settings for an existing session, set `ARTIUM_AXI_URL` and any required `ARTIUM_AXI_CA_FILE`, then sign in again.
+Later commands use those saved settings when the corresponding environment variables are unset, including commands run by installed hooks and skills.
+Agent hosts must use the same configuration directory, and any saved CA file must remain readable at its saved path.
+`doctor` reports whether the address came from `ARTIUM_AXI_URL` or `config.json`.
+Logout keeps these connection settings; managed mode neither reads nor writes them.
 Callers that manage their own tokens can instead use [externally managed client sessions](#externally-managed-client-sessions).
 POSIX directories use mode 0700 and files mode 0600; Windows uses a restricted ACL and refuses storage if it cannot establish it.
 Do not export or share the session file.

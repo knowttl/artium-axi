@@ -2,11 +2,12 @@ import { readFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { rootCertificates } from 'node:tls'
+import { resolve } from 'node:path'
 import type { TLSSocket } from 'node:tls'
 import { errorResponseSchema, loginResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { cliVersion } from '../shared/version.js'
-import { SessionStore, sessionPath } from './session.js'
+import { SessionStore, sessionPath, readClientConfig } from './session.js'
 import type { StoredSession } from './session.js'
 import type { ManagedSession } from './managed-session.js'
 
@@ -14,16 +15,23 @@ export const DEFAULT_REQUEST_DEADLINE_MS = 90_000
 
 export class Client {
   readonly serverUrl: string
+  readonly serverUrlSource: 'ARTIUM_AXI_URL' | 'config.json'
+  readonly caFile?: string
   private readonly storedSessions?: SessionStore
   get sessions(): SessionStore {
     if (!this.storedSessions) throw new ArtiumError('INVALID_INPUT', 'Session-file operations are unavailable in managed mode.')
     return this.storedSessions
   }
   certificateVerified = false
-  constructor(private readonly environment = process.env, private readonly managed?: ManagedSession,
+  constructor(environment = process.env, private readonly managed?: ManagedSession,
     private readonly requestDeadlineMs = DEFAULT_REQUEST_DEADLINE_MS) {
     try {
-      const url = new URL(environment.ARTIUM_AXI_URL!)
+      const config = !managed && (environment.ARTIUM_AXI_URL === undefined || environment.ARTIUM_AXI_CA_FILE === undefined)
+        ? readClientConfig(environment) : undefined
+      this.serverUrlSource = environment.ARTIUM_AXI_URL === undefined ? 'config.json' : 'ARTIUM_AXI_URL'
+      const caFile = environment.ARTIUM_AXI_CA_FILE ?? config?.caFile
+      this.caFile = caFile ? resolve(caFile) : undefined
+      const url = new URL(environment.ARTIUM_AXI_URL ?? config?.serverUrl ?? '')
       if (url.username || url.password || url.href.includes('?') || url.href.includes('#') ||
         (url.protocol !== 'https:' && !(url.protocol === 'http:' && environment.ARTIUM_AXI_TEST_HTTP === '1' &&
           ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error()
@@ -39,7 +47,7 @@ export class Client {
   async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string): Promise<unknown> {
     this.certificateVerified = false
     let ca: string[] | undefined
-    try { if (this.environment.ARTIUM_AXI_CA_FILE) ca = [...rootCertificates, readFileSync(this.environment.ARTIUM_AXI_CA_FILE, 'utf8')] }
+    try { if (this.caFile) ca = [...rootCertificates, readFileSync(this.caFile, 'utf8')] }
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
     const body = input === undefined ? undefined : JSON.stringify(input)
     const controller = new AbortController()

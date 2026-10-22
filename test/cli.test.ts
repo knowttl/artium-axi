@@ -3,7 +3,7 @@ import { promisify } from 'node:util'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
 import { createServer as createHttpServer } from 'node:http'
-import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import type { Writable } from 'node:stream'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,7 +13,7 @@ import { decode } from '@toon-format/toon'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createTestCertificates } from './fake-service/certificates.mjs'
 import { SessionStore } from '../src/cli/session.js'
-import { DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
+import { Client, DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
 import { cliVersion } from '../src/shared/version.js'
 import { ArtiumError, errorResponse, errors } from '../src/shared/errors.js'
 
@@ -152,6 +152,80 @@ test('standalone bundle prints the package version offline without configuration
     env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, 'unsigned-config') } })
   expect(result).toEqual({ stdout: `${cliVersion}\n`, stderr: '' })
 })
+
+test.each(['password', 'sso'])('%s login remembers connection settings for tools and the installed SessionStart hook', async method => {
+  const configuration = mkdtempSync(join(directory, 'remembered-config-'))
+  const env = { PATH: process.env.PATH, HOME: configuration, XDG_CONFIG_HOME: configuration }
+  const options = { cwd: directory, timeout: 10_000, env }
+  response = { status: 200, body: { status: 'authenticated', accessToken: 'CANARY-access', refreshToken: 'CANARY-refresh',
+    accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 } }
+  if (method === 'sso') responseSequence = [
+    { status: 200, body: { deviceCode: 'CANARY-device', userCode: 'ABCD-EFGH',
+      verificationUri: url + '/device', expiresAt: Date.now() + 60_000, intervalMs: 1000 } }, response,
+  ]
+  const login = execute(process.execPath, [bundle, 'login', ...(method === 'sso' ? ['--sso'] : ['--username', 'synthetic-user', '--password-stdin'])],
+    { ...options, env: { ...env, ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') } })
+  login.child.stdin!.end('CANARY-password\n')
+  try { expect((await login).stdout).toContain('status: authenticated') }
+  finally { responseSequence = undefined }
+  response = { status: 200, body: { tools: [] } }
+  expect((await execute(process.execPath, [bundle, 'tools'], options)).stdout).toContain('tools: 0 available')
+  const file = join(configuration, 'artium-axi', 'config.json')
+  expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ serverUrl: url, caFile: join(directory, 'ca.crt') })
+  expect(statSync(file).mode & 0o777).toBe(0o600)
+  expect(statSync(join(configuration, 'artium-axi')).mode & 0o777).toBe(0o700)
+  response = { status: 200, body: { skills: [] } }
+  await execute(process.execPath, [bundle, 'setup', '--host', 'claude', '--hook'], options)
+  const settings = JSON.parse(readFileSync(join(configuration, '.claude/settings.json'), 'utf8'))
+  const hook = settings.hooks.SessionStart[0].hooks[0]
+  response = { status: 200, body: { tools: [] } }
+  expect((await execute(hook.command, hook.args, options)).stdout).toContain('tools: 0 available')
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+    '/v1/tools': response,
+  }
+  try {
+    expect((await execute(process.execPath, [bundle, 'doctor'], options)).stdout).toContain('pass: server address (config.json)')
+  } finally { doctorResponses = undefined }
+})
+
+test.each(['url', 'ca'])('the environment overrides the saved %s independently', async setting => {
+  const configuration = mkdtempSync(join(directory, 'override-config-'))
+  const caFile = join(directory, 'ca.crt')
+  new SessionStore(setting === 'url' ? 'https://artium.example.test' : url,
+    join(configuration, 'artium-axi/session.json')).writeClientConfig(setting === 'ca' ? 'missing-ca.crt' : caFile)
+  const client = new Client({ XDG_CONFIG_HOME: configuration,
+    ...(setting === 'url' ? { ARTIUM_AXI_URL: `${url}/override` } : { ARTIUM_AXI_CA_FILE: caFile }) })
+  requests = []
+  response = { status: 200, body: { status: 'ok' } }
+  expect(await client.request('/health/live', 'GET')).toEqual({ status: 'ok' })
+  expect(client.serverUrlSource).toBe(setting === 'url' ? 'ARTIUM_AXI_URL' : 'config.json')
+  expect(requests.map(request => request.path)).toEqual([setting === 'url' ? '/override/health/live' : '/health/live'])
+})
+
+test('failed login preserves saved connection settings', async () => {
+  const configuration = mkdtempSync(join(directory, 'failed-login-config-'))
+  new SessionStore('https://artium.example.test', join(configuration, 'artium-axi/session.json')).writeClientConfig()
+  const file = join(configuration, 'artium-axi/config.json')
+  const before = readFileSync(file, 'utf8')
+  response = { status: 401, body: errorResponse(new ArtiumError('SIGN_IN_FAILED'), 'synthetic-request') }
+  const login = execute(process.execPath, [bundle, 'login', '--username', 'synthetic-user', '--password-stdin'], {
+    cwd: directory, timeout: 10_000, env: { XDG_CONFIG_HOME: configuration, ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') },
+  })
+  login.child.stdin!.end('CANARY-password\n')
+  await expect(login).rejects.toMatchObject({ stdout: expect.stringContaining('SIGN_IN_FAILED') })
+  expect(readFileSync(file, 'utf8')).toBe(before)
+})
+
+test.each(['invalid json', '{}', '{"serverUrl":"invalid"}', '{"serverUrl":42}'])(
+  'invalid saved connection settings fail with CLIENT_CONFIG_INVALID: %s', content => {
+    const configuration = mkdtempSync(join(directory, 'invalid-config-'))
+    mkdirSync(join(configuration, 'artium-axi'))
+    writeFileSync(join(configuration, 'artium-axi/config.json'), content)
+    expect(() => new Client({ XDG_CONFIG_HOME: configuration })).toThrow(expect.objectContaining({ code: 'CLIENT_CONFIG_INVALID' }))
+  })
 
 const managedTokens = { accessToken: 'CANARY-managed-access', refreshToken: 'CANARY-managed-refresh' }
 const rotatedTokens = { status: 'authenticated', accessToken: 'CANARY-rotated-access', refreshToken: 'CANARY-rotated-refresh',
@@ -575,7 +649,7 @@ test.each([
   try {
     const result = await cli(['doctor'])
     expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
-      /^pass: server address\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
+      /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
     doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.5.0' }] }
@@ -588,7 +662,7 @@ test.each(['stall-headers', 'stall-body'])('doctor bounds %s and stops after add
   response = { status: 200, body: {} }
   const result = await cli(['doctor'], { ARTIUM_AXI_URL: `${url}/${stall}` }, true)
   expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
-    /^fail: server address \(SERVER_UNAVAILABLE\)\npass: certificate\nerror:\n  code: "SERVER_UNAVAILABLE"\n/) })
+    /^fail: server address \(ARTIUM_AXI_URL: SERVER_UNAVAILABLE\)\npass: certificate\nerror:\n  code: "SERVER_UNAVAILABLE"\n/) })
   expect(requests.map(request => request.path)).toEqual([`/${stall}/health/live`])
 })
 
@@ -600,7 +674,7 @@ test('doctor continues authentication checks when the reachable server rejects t
   }
   try {
     expect(await cli(['doctor'])).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
-      /^pass: server address\npass: certificate\nfail: token\npass: CLI version\nerror:\n  code: "TOKEN_INVALID"\n/) })
+      /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\nfail: token\npass: CLI version\nerror:\n  code: "TOKEN_INVALID"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me'])
     expect(requests.map(request => request.token)).toEqual([undefined, undefined, 'Bearer CANARY-cli-token'])
   } finally { doctorResponses = undefined }
@@ -620,7 +694,7 @@ test('managed doctor refreshes privately and completes its diagnostic probes', a
   ]
   try {
     expect(await managedCli(['doctor'], { existing: true })).toEqual({ code: 0, stderr: '',
-      stdout: 'pass: server address\npass: certificate\npass: token\npass: CLI version\n',
+      stdout: 'pass: server address (ARTIUM_AXI_URL)\npass: certificate\npass: token\npass: CLI version\n',
       rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
     expect(requests.map(request => ({ path: request.path, token: request.token }))).toEqual([
       { path: '/health/live', token: undefined },

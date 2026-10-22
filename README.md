@@ -95,6 +95,7 @@ artium-axi falcon-axi detection list
 Replace the synthetic username with your account; login uses a hidden terminal password prompt.
 For `PASSWORD_CHANGE_REQUIRED`, run `artium-axi passwd`, then log in again.
 For SSO, use `artium-axi login --sso` and approve only the browser code matching your own terminal.
+After ordinary login, later commands, installed hooks and skills use [saved connection settings](docs/client-reference.md#client-settings).
 The Falcon read requires an enabled tool, a role grant and API permissions; choose the example from an available tool's detail view.
 
 With no enabled tools granted, `artium-axi tools` succeeds with:
@@ -191,8 +192,7 @@ Its restricted environment, private directories and process limits are not a com
 
 | Setting or flag | Purpose |
 | --- | --- |
-| `ARTIUM_AXI_URL` | Required trusted HTTPS origin |
-| `ARTIUM_AXI_CA_FILE` | Additional readable PEM trust bundle for the client |
+| `ARTIUM_AXI_URL`, `ARTIUM_AXI_CA_FILE` | Connection overrides; see [client settings](docs/client-reference.md#client-settings) |
 | `XDG_CONFIG_HOME` | Linux session-storage base, default `~/.config` |
 | `--password-stdin` | Login/new password via protected stdin |
 | `--host`, `--hook`, `--force` | Setup host, optional Claude hook, explicit skill replacement |
