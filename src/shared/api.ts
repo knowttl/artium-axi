@@ -49,7 +49,7 @@ export const ssoReauthSchema = z.union([z.strictObject({}), devicePollSchema])
 export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
   z.strictObject({ status: z.literal('pending') }), reauthResponseSchema])
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
-  administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int() })
+  administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's

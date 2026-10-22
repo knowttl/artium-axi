@@ -22,6 +22,7 @@ const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-cli-'))
 const bundle = join(directory, 'artium-axi.mjs')
 const clockBundle = join(directory, 'artium-axi-clock.mjs')
+const expiryBundle = join(directory, 'artium-axi-expiry.mjs')
 const windowsBundle = join(directory, 'artium-axi-windows.mjs')
 const stalls = new EventEmitter()
 let url: string
@@ -34,6 +35,9 @@ const server = createServer()
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])
   copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: expiryBundle, bundle: true,
+    platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' },
+    banner: { js: "Date.now = () => Date.parse('2026-01-01T08:50:00Z')" } })
   await build({ entryPoints: ['src/cli/main.ts'], outfile: windowsBundle, bundle: true,
     platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' },
     banner: { js: "Object.defineProperty(process, 'platform', { value: 'win32' })" } })
@@ -77,7 +81,7 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string) {
+async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string, executable = bundle) {
   const configuration = mkdtempSync(join(directory, 'config-'))
   new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
     status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
@@ -87,7 +91,7 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
     ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment }
   if (controlled) return controlledCli(args, env)
   try {
-    const pending = execute(process.execPath, [bundle, ...args], { cwd: directory, timeout: 10_000, env })
+    const pending = execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 10_000, env })
     if (input !== undefined) pending.child.stdin!.end(input)
     return { ...await pending, code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
@@ -242,7 +246,7 @@ test.each(['password', 'sso'])('%s login remembers connection settings for tools
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': response,
   }
   try {
@@ -359,6 +363,49 @@ test('managed update is refused before configuration or private descriptor valid
   expect(await managedCli(['update'], { missing: 3, existing: true, environment: { ARTIUM_AXI_URL: 'invalid' } }))
     .toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
   expect(requests).toEqual([])
+})
+
+test('whoami shows the session deadline in UTC and time remaining', async () => {
+  response = { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+    roles: [], accessExpiresAt: Date.parse('2026-01-01T09:50:00Z'), sessionExpiresAt: Date.parse('2026-01-01T12:00:00Z') } }
+  const result = await cli(['whoami'], {}, false, undefined, expiryBundle)
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('sessionExpiresAt: 2026-01-01T12:00:00Z (in 3h 10m)\n')
+  expect(result.stdout).toContain('note: Access tokens refresh automatically when a refresh token is available.\n')
+  expect(result.stdout).toContain('accessExpiresAt: 2026-01-01T09:50:00Z (in 1h 0m)\n')
+})
+
+test.each([{ args: ['whoami'] }, { args: [] }])('managed access-only identity shows both deadlines for $args', async ({ args }) => {
+  const accessExpiresAt = Date.now() + 300_000
+  const sessionExpiresAt = Date.now() + 11 * 3600_000
+  responseSequence = [
+    { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt, sessionExpiresAt } },
+    { status: 200, body: { tools: [] } },
+  ]
+  try {
+    const result = await managedCli(args, { json: JSON.stringify({ serverUrl: url, accessToken: managedTokens.accessToken }) })
+    expect(result).toMatchObject({ code: 0, stderr: '', rotations: '' })
+    expect(result.stdout).toContain(`accessExpiresAt: ${new Date(accessExpiresAt).toISOString().replace('.000Z', 'Z')} (`)
+    expect(result.stdout).toContain(`sessionExpiresAt: ${new Date(sessionExpiresAt).toISOString().replace('.000Z', 'Z')} (`)
+    expect(result.stdout).toContain('note: Access tokens refresh automatically when a refresh token is available.\n')
+  } finally { responseSequence = undefined }
+})
+
+test.each([
+  { expiresAt: '2026-01-01T09:49:59Z', remaining: '0h 59m' },
+  { expiresAt: '2026-01-01T09:50:00Z', remaining: '1h 0m' },
+])('doctor reports a valid session with $remaining remaining', async ({ expiresAt, remaining }) => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.parse(expiresAt), sessionExpiresAt: Date.parse(expiresAt) } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  try {
+    expect(await cli(['doctor'], {}, false, undefined, expiryBundle)).toMatchObject({ code: 0, stderr: '',
+      stdout: expect.stringContaining(`pass: token (session expires ${expiresAt} (in ${remaining}))\n`) })
+  } finally { doctorResponses = undefined }
 })
 
 test.each([
@@ -720,14 +767,14 @@ test.each([
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/health/ready': readiness,
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.5.0' },
       { name: 'vectra-axi', status: 'error', version: '0.1.3' }] } },
   }
   try {
     const result = await cli(['doctor'])
     expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringMatching(
-      /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
+      /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token \(session expires [^\n]+\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
     doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.5.0' }] }
@@ -761,7 +808,7 @@ test('doctor continues authentication checks when the reachable server rejects t
 test('managed doctor refreshes privately and completes its diagnostic probes', async () => {
   requests = []
   const me = { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-    roles: [], accessExpiresAt: Date.now() + 3600_000 }
+    roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 }
   responseSequence = [
     { status: 200, body: { status: 'ok' } },
     { status: 401, body: errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-version') },
@@ -772,7 +819,7 @@ test('managed doctor refreshes privately and completes its diagnostic probes', a
   ]
   try {
     expect(await managedCli(['doctor'], { existing: true })).toEqual({ code: 0, stderr: '',
-      stdout: 'pass: server address (ARTIUM_AXI_URL)\npass: certificate\npass: token\npass: CLI version\n',
+      stdout: expect.stringMatching(/^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token \(session expires [^\n]+\npass: CLI version\n$/),
       rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
     expect(requests.map(request => ({ path: request.path, token: request.token }))).toEqual([
       { path: '/health/live', token: undefined },
@@ -845,7 +892,7 @@ test.each([
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [] } },
     [path]: { status: errors[code].status, body: errorResponse(new ArtiumError(code), 'synthetic-doctor') },
   }
@@ -869,7 +916,7 @@ test.each([
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.5.0', status }] } },
   }
   try {
@@ -886,7 +933,7 @@ test.each(['/v1/me', '/v1/tools'])('doctor rejects a malformed %s response throu
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-      roles: [], accessExpiresAt: Date.now() + 3600_000 } },
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [] } },
     [path]: { status: 200, body: {} },
   }

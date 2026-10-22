@@ -164,9 +164,11 @@ export function createApp(options: {
       { username: string, display_name: string, administrator: number }
     const roles = db.prepare('SELECT DISTINCT name FROM roles JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = ? ORDER BY name')
       .all(userId) as { name: string }[]
-    const expiry = db.prepare('SELECT expires_at FROM tokens WHERE hash = ?').get(hashToken(token)) as { expires_at: number }
+    const expiry = db.prepare(`SELECT tokens.expires_at, session_families.expires_at AS session_expires_at FROM tokens
+      JOIN session_families ON session_families.id = tokens.family_id WHERE hash = ?`).get(hashToken(token)) as
+      { expires_at: number, session_expires_at: number }
     return { username: user.username, displayName: user.display_name, administrator: Boolean(user.administrator),
-      roles: roles.map(role => role.name), accessExpiresAt: expiry.expires_at }
+      roles: roles.map(role => role.name), accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
   })
   app.post('/v1/auth/login', async request => {
     const input = loginSchema.safeParse(request.body)
