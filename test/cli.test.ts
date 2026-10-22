@@ -371,8 +371,25 @@ test('whoami shows the session deadline in UTC and time remaining', async () => 
   const result = await cli(['whoami'], {}, false, undefined, expiryBundle)
   expect(result).toMatchObject({ code: 0, stderr: '' })
   expect(result.stdout).toContain('sessionExpiresAt: 2026-01-01T12:00:00Z (in 3h 10m)\n')
-  expect(result.stdout).toContain('note: Access tokens refresh automatically.\n')
-  expect(result.stdout).not.toContain('accessExpiresAt:')
+  expect(result.stdout).toContain('note: Access tokens refresh automatically when a refresh token is available.\n')
+  expect(result.stdout).toContain('accessExpiresAt: 2026-01-01T09:50:00Z (in 1h 0m)\n')
+})
+
+test.each([{ args: ['whoami'] }, { args: [] }])('managed access-only identity shows both deadlines for $args', async ({ args }) => {
+  const accessExpiresAt = Date.now() + 300_000
+  const sessionExpiresAt = Date.now() + 11 * 3600_000
+  responseSequence = [
+    { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt, sessionExpiresAt } },
+    { status: 200, body: { tools: [] } },
+  ]
+  try {
+    const result = await managedCli(args, { json: JSON.stringify({ serverUrl: url, accessToken: managedTokens.accessToken }) })
+    expect(result).toMatchObject({ code: 0, stderr: '', rotations: '' })
+    expect(result.stdout).toContain(`accessExpiresAt: ${new Date(accessExpiresAt).toISOString().replace('.000Z', 'Z')} (`)
+    expect(result.stdout).toContain(`sessionExpiresAt: ${new Date(sessionExpiresAt).toISOString().replace('.000Z', 'Z')} (`)
+    expect(result.stdout).toContain('note: Access tokens refresh automatically when a refresh token is available.\n')
+  } finally { responseSequence = undefined }
 })
 
 test.each([

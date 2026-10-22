@@ -7,7 +7,7 @@ import { rewriteDiscoveryHelp } from './rewrite.js'
 type Tools = z.input<typeof toolsResponseSchema>['tools']
 
 export function identityView(user: z.infer<typeof meResponseSchema>, server: string): string {
-  return `user: ${JSON.stringify(user.username)}\nserver: ${JSON.stringify(server)}\nroles[${user.roles.length}]: ${user.roles.map(role => JSON.stringify(role)).join(',')}\nsessionExpiresAt: ${sessionExpiryView(user.sessionExpiresAt)}\nnote: Access tokens refresh automatically.\n`
+  return `user: ${JSON.stringify(user.username)}\nserver: ${JSON.stringify(server)}\nroles[${user.roles.length}]: ${user.roles.map(role => JSON.stringify(role)).join(',')}\nsessionExpiresAt: ${sessionExpiryView(user.sessionExpiresAt)}\naccessExpiresAt: ${sessionExpiryView(user.accessExpiresAt)}\nnote: Access tokens refresh automatically when a refresh token is available.\n`
 }
 
 export function sessionExpiryView(expiresAt: number, now = Date.now()): string {
