@@ -95,7 +95,10 @@ async function main(args: string[]) {
         const parsed = loginResponseSchema.safeParse(await client.request('/v1/auth/login', 'POST', { username, password }))
         if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
         if (managed) await managed.emit(client.serverUrl, parsed.data)
-        else client.sessions.write(parsed.data)
+        else {
+          client.sessions.write(parsed.data)
+          client.sessions.writeClientConfig(client.caFile)
+        }
         return parsed.data
       }
       const session = await (managed ? signIn() : client.sessions.locked(signIn))

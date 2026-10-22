@@ -17,6 +17,21 @@ export function sessionPath(platform = process.platform, environment = process.e
   return paths.join(base, 'artium-axi', 'session.json')
 }
 
+export function clientConfigPath(platform = process.platform, environment = process.env, home = homedir()) {
+  return sessionPath(platform, environment, home).replace(/session\.json$/, 'config.json')
+}
+
+export function readClientConfig(environment = process.env) {
+  try {
+    return z.object({ serverUrl: z.string(), caFile: z.string().optional() })
+      .parse(JSON.parse(readFileSync(clientConfigPath(process.platform, environment), 'utf8')))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    if (error instanceof ArtiumError) throw error
+    throw new ArtiumError('CLIENT_CONFIG_INVALID')
+  }
+}
+
 export function restrictWindowsAcl(path: string, directory: boolean) {
   const script = `$ErrorActionPreference='Stop'; $path=$env:ARTIUM_AXI_SESSION_ACL_PATH; $directory=$env:ARTIUM_AXI_SESSION_ACL_KIND -eq 'directory'; ` +
     `$acl=if ($directory) { [System.Security.AccessControl.DirectorySecurity]::new() } else { [System.Security.AccessControl.FileSecurity]::new() }; ` +
@@ -74,6 +89,22 @@ export class SessionStore {
       } finally { closeSync(file) }
       renameSync(temporary, this.file)
       return stored
+    } catch { throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE') }
+    finally { rmSync(temporary, { force: true }) }
+  }
+
+  writeClientConfig(caFile?: string) {
+    this.secureDirectory()
+    const temporary = join(this.directory, `${randomUUID()}.tmp`)
+    try {
+      const file = openSync(temporary, 'wx', 0o600)
+      try {
+        if (this.platform === 'win32') this.acl(temporary, false)
+        else fchmodSync(file, 0o600)
+        writeFileSync(file, JSON.stringify({ serverUrl: this.serverUrl, caFile }))
+        fsyncSync(file)
+      } finally { closeSync(file) }
+      renameSync(temporary, join(this.directory, 'config.json'))
     } catch { throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE') }
     finally { rmSync(temporary, { force: true }) }
   }

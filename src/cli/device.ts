@@ -19,7 +19,10 @@ export async function ssoLogin(client: Client, managed?: ManagedSession) {
       if (response.data.status === 'authenticated') {
         const session = response.data
         if (managed) await managed.emit(client.serverUrl, session)
-        else await client.sessions.locked(async () => { client.sessions.write(session) })
+        else await client.sessions.locked(async () => {
+          client.sessions.write(session)
+          client.sessions.writeClientConfig(client.caFile)
+        })
         const message = `status: authenticated\nsession-ends: ${new Date(session.familyExpiresAt).toISOString()}\nnext: artium-axi tools\n`
         if (managed) managed.write('stdout', message)
         else process.stdout.write(message)

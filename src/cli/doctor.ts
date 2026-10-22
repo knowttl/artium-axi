@@ -20,11 +20,11 @@ export async function doctor(createClient = (deadline: number) => new Client(pro
   try {
     const live = await client.request('/health/live', 'GET')
     addressOk = !!live && typeof live === 'object' && 'status' in live && live.status === 'ok'
-    line('server address', addressOk)
+    line('server address', addressOk, client.serverUrlSource)
     line('certificate', client.certificateVerified, client.certificateVerified ? undefined : 'test HTTP', new ArtiumError('CLIENT_CONFIG_INVALID'))
   } catch (error) {
     const cause = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE')
-    line('server address', cause.code === 'CERTIFICATE_INVALID', cause.code, cause)
+    line('server address', cause.code === 'CERTIFICATE_INVALID', `${client.serverUrlSource}: ${cause.code}`, cause)
     line('certificate', client.certificateVerified, client.certificateVerified ? undefined : cause.code, cause)
   }
   if (!addressOk && failure) throw failure
