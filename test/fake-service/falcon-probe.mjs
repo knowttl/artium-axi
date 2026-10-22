@@ -35,6 +35,14 @@ from falcon_axi.cli import parse
 from falcon_axi.core import CliError
 assert parse(['detection', 'list', '--region=us-1', '--region', 'us-2']).flags['region'] == 'us-2'
 assert parse(['detection', 'list', '--allow-unknown-origin=false']).flags['allow-unknown-origin'] is True
+assert parse(['search', 'start', '--query', 'synthetic | head(5)', '--wait', '1']).flags['wait'] == '1'
+assert parse(['search', 'status', 'synthetic-search', '--wait', '50']).flags['wait'] == '50'
+for wait in ['0', '51', 'forever']:
+    try:
+        parse(['search', 'status', 'synthetic-search', '--wait', wait])
+    except CliError:
+        continue
+    raise AssertionError('Unbounded search wait accepted')
 for args in [['detection', 'list', '--'], ['detection', 'list', '-r', 'us-1'], ['detection', 'list', '--member_cid=synthetic']]:
     try:
         parse(args)
@@ -56,8 +64,16 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
   const adapter = createFalconAdapter({ getCredential: async () => ({
     clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1',
   }) })
+  const beforeHelp = (await evidence()).requests.length
+  for (const command of ['detection', 'host', 'search']) {
+    const help = await run([command, '--help'])
+    assert.equal(help.exitCode, 0, help.stdout + help.stderr)
+    assert.match(help.stdout, new RegExp(command))
+  }
+  assert.equal((await evidence()).requests.length, beforeHelp)
   for (const args of [
-    ['search', 'start', '--query', 'synthetic | head(1)'],
+    ['search', 'start', '--query', 'synthetic | head(1)', '--wait', '30'],
+    ['search', 'status', 'synthetic-search', '--wait', '30'],
     ['search', 'stop', 'synthetic-search'],
     ['identity', 'activity', 'synthetic@example.test'],
   ]) {

@@ -23,7 +23,7 @@ test('Falcon prepares the persisted shared credential after database reopen', as
   const file = join(directory, 'artium.db')
   const db = openStore(file, provider)
   const row = encryptCredential(reference.id, reference.tool, Buffer.from(JSON.stringify(credential)), provider.getKey())
-  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('0.5.0', reference.tool)
+  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('0.5.1', reference.tool)
   db.prepare('INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag) VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag)').run(row)
   db.close()
   const reopened = openStore(file, provider)

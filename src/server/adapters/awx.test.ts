@@ -88,6 +88,15 @@ test('managed credentials inject a token SecretRef without persisting the secret
   expect(toolAllowsWrites('awx-axi', {})).toBe(false)
 })
 
+test('pinned job list requests newest jobs first within the managed row limit', async () => {
+  const call = await adapter().prepare(['job', 'list', '--limit', '1'], reference)
+  expect(call.args).toEqual(['job', 'list', '--limit=1'])
+  const plan = jobDomain.subcommands.find(route => route.name === 'list')!.plan({ args: [], flags: { limit: '1' },
+    context: { env: {}, createTransport: () => { throw new Error('Unexpected network access') } } })
+  expect(plan.next()).toMatchObject({ done: false, value: { kind: 'readPaged',
+    route: { path: 'unified_jobs/', query: { order_by: '-id' } }, limit: { all: false, maxRows: 1 } } })
+})
+
 test('password sign-in parses as host input and is not prepared as a controller credential', async () => {
   const input = { origin: 'https://controller.example', signIn: 'password', username: 'synthetic-awx', password: 'CANARY-awx-password' }
   expect(awxCredentialSchema.safeParse(input).success).toBe(true)

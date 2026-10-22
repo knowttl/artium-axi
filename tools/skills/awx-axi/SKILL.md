@@ -2,7 +2,7 @@
 name: awx-axi
 description: "Manage AWX 24.6.1 automation from the shell - inspect, create, edit, copy, delete, launch, cancel, associate, and configure controller resources with dry-run previews and gated writes. Use for AWX or Ansible Tower jobs, templates, workflows, hosts, inventories, projects, schedules and their launch-time prompt overrides, organizations, credentials, notifications, execution environments, teams, users, roles, and maintenance runs."
 user-invocable: false
-author: Kun Chen (kunchenguid)
+author: knowttl
 metadata:
   hermes:
     tags: [awx, ansible, automation, devops, jobs, workflows]
@@ -40,10 +40,9 @@ Use `organization`, `credential`, `execution-environment`, `notification-templat
 Common reads include `schedule list`, `execution-environment list`, `organization list`, `credential show <id|name>`, `user show <id|name>`, `system-job-template show <id|name>`, and `system-job notifications`.
 `approval list` defaults to pending approvals, limited to 20 rows.
 Use `approval list --include-decided --limit 50` to include approved or denied approvals within that row limit.
-Replace the former `approval list --all` spelling with `--include-decided`, keeping any `--limit` value.
-Old `--all` invocations fail with exit 2 and a migration hint before any request during this transition.
-Renamed flags normally retain a deprecated alias for one minor release; this collision is an explicit exception because `--all` is reserved for future pagination and cannot retain its old runtime meaning.
-Pagination via `approval list --all` is not enabled during this transition.
+The former meaning of `approval list --all` is replaced by `--include-decided`.
+`--all` now walks pages while preserving the pending-only default; combine it with `--include-decided` to include decided approvals.
+See [TOON output behavior](https://github.com/knowttl/awx-axi#toon-output-behavior) for supported collection commands, pagination controls, budgets, and completeness metadata.
 
 ## Safety and secrets
 
@@ -104,7 +103,8 @@ Use the actual resource nouns above instead of inventing CRUD commands for gener
 Output is machine-readable TOON on stdout.
 Errors include a stable code and actionable help.
 Mutation previews show the HTTP method, route, and redacted payload.
-Secrets are never printed, including token values returned while creating a token.
+Structured sensitive fields are redacted regardless of value length, including token values returned while creating a token.
+Registered secrets of at least eight characters are also replaced in free text; shorter values may appear in free text.
 Use per-command `--help` for positional arguments, flags, defaults, and examples.
 
 Run `npx -y awx-axi --help` for top-level usage, or `npx -y awx-axi <command> --help` for a focused reference.

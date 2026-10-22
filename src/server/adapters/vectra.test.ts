@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 import { withFakeService } from '../../../test/fake-service/fixture.js'
@@ -13,6 +14,18 @@ const variants = [
   { kind: 'rux', apiVersion: '3.4', origin: base.origin, auth: 'oauth', clientId: 'synthetic-vectra-id', clientSecret: 'CANARY-vectra-secret' },
 ] as const
 const binary = join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/bin/vectra-axi.js')
+
+test.each([
+  ['host', 'list', '--name', 'synthetic'],
+  ['detection', 'show', '42', '--fields', 'id,src_ip,summary,grouped_details'],
+  ['host', 'show', '42'], ['account', 'show', '42'], ['entity', 'show', '42', '--type', 'host'],
+].map(args => ({ args })))('managed arguments reach the pinned parser: $args', async ({ args }) => {
+  const adapter = createVectraAdapter({ getCredential: async () => base }, '/data/writes.log')
+  adapter.validateArgs(args)
+  const call = await adapter.prepare([...args, '--help'], reference)
+  const result = spawnSync(process.execPath, [binary, ...call.args], { encoding: 'utf8', env: { PATH: process.env.PATH } })
+  expect(result.status, result.stdout + result.stderr).toBe(0)
+})
 
 test.each(variants)('preparation keeps the native %j profile and secrets separate', async credential => {
   const writes = { allowWrites: true, operations: ['qux.detection.tag.set'] }
@@ -75,7 +88,7 @@ test.each(variants)('pinned %j read uses the generated profile and private CA', 
         ? ['/api/v2.5/detections'] : [variant.kind === 'rux' ? '/oauth2/token' : '/api/v2.5/oauth2/token',
           variant.kind === 'rux' ? '/api/v3.4/detections/' : '/api/v2.5/detections'])
       expect(evidence.mutations).toBe(0)
-      const show = await adapter.prepare(['detection', 'show', '--id', '42'], reference)
+      const show = await adapter.prepare(['detection', 'show', '42'], reference)
       const redacted = await runner.run('synthetic-user', process.execPath, [binary, ...show.args],
         show.environment, show.secrets, show.limits, {}, show.files)
       expect(redacted.exitCode).toBe(0)

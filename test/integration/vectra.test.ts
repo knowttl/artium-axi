@@ -33,7 +33,7 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
         fileArguments: call.fileArguments?.map(index => index + 1) }
     }
     const db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
-    db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.7' WHERE name = 'vectra-axi'")
+    db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.8' WHERE name = 'vectra-axi'")
     await seedToolUser(db)
     const runner = await Runner.create(join(directory, 'calls'))
     const lines: string[] = []

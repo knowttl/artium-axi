@@ -175,6 +175,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       .filter(line => !/^(?:Run|Use) .*\bawx-axi job stdout\b.*--download\b/.test(line))
       .map(line => (/^(?:artium-axi )?awx-axi job stdout\b/.test(line)
         ? line.replace(/ \[--(?:full|ansi)\]| \[--download <path>\]/g, '') : line)
+        .replace(/^((?:artium-axi )?awx-axi job list\b[^\n]*) \[--fields <fields>\]/, '$1')
         .replace(/--timeout (?:600|3600)/g, '--timeout 50')).join('\n')
     if (!help.trim()) help = guidance
     else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
