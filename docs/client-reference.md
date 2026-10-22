@@ -118,7 +118,9 @@ Clear password environment values after use.
 
 By default, sessions live in `artium-axi/session.json` under the applicable base directory and are bound to the normalized server URL.
 Ordinary password and SSO login save the server URL and optional absolute CA file path in the adjacent `config.json`, with the same private write protections.
+For the first login, or to save settings for an existing session, set `ARTIUM_AXI_URL` and any required `ARTIUM_AXI_CA_FILE`, then sign in again.
 Later commands use those saved settings when the corresponding environment variables are unset, including commands run by installed hooks and skills.
+Agent hosts must use the same configuration directory, and any saved CA file must remain readable at its saved path.
 `doctor` reports whether the address came from `ARTIUM_AXI_URL` or `config.json`.
 Logout keeps these connection settings; managed mode neither reads nor writes them.
 Callers that manage their own tokens can instead use [externally managed client sessions](#externally-managed-client-sessions).
