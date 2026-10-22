@@ -9,7 +9,7 @@
 | `artium-axi login --username synthetic-user` | Sign in with a local account. |
 | `artium-axi login --sso` | Sign in through browser approval with an enabled SSO provider; works on headless and SSH hosts. |
 | `artium-axi passwd` | Change your password, then sign in again. |
-| `artium-axi whoami` | Show identity, roles, access expiry and server URL. |
+| `artium-axi whoami` | Show identity, roles, session and access-token expiry, and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
@@ -63,6 +63,11 @@ Discovery and Artium errors use TOON.
 Tool listings include their count in the array header; an empty list returns `tools: 0 available` with a reason and next step.
 Details read bundled manifests and stored health without fetching credentials or executing upstream help.
 Discovery and administration show the server's bundled tool versions, as defined by the [API contract](../src/shared/api.ts).
+
+The home view and `whoami` display `sessionExpiresAt` and `accessExpiresAt` as UTC timestamps with remaining whole hours and minutes, or `expired` when the deadline has passed.
+`sessionExpiresAt` is the fixed session-family deadline; refreshing an access token does not extend it.
+`accessExpiresAt` is the current access-token deadline; automatic refresh requires a refresh token, as described in [client settings](#client-settings).
+Doctor includes the session deadline and remaining time in its token diagnostic.
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
 If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.

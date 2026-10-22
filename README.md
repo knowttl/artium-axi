@@ -216,7 +216,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `artium-axi` | Identity, roles and available tools |
 | `login --username <username>` / `login --sso` | Local password / browser approval |
 | `passwd` / `logout` | Change password / remove local tokens and attempt revocation |
-| `whoami` | Identity, roles, expiry and server |
+| `whoami` | Identity, roles, [session and access-token expiry](docs/client-reference.md#toon-output-behavior) and server |
 | `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
