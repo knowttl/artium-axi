@@ -10,7 +10,7 @@ const commands = {
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
   'tools show': { usage: 'artium-axi tools show <tool>', purpose: 'Show one available tool and its vetted upstream help.', flags: [], example: 'artium-axi tools show falcon-axi' },
-  whoami: { usage: 'artium-axi whoami', purpose: 'Show your identity, roles, access expiry and server.', flags: [], example: 'artium-axi whoami' },
+  whoami: { usage: 'artium-axi whoami', purpose: 'Show your identity, roles, session expiry and server.', flags: [], example: 'artium-axi whoami' },
   login: { usage: 'artium-axi login --sso | --username <username> [--password-stdin]', purpose: 'Sign in through browser SSO (8-hour session) or with a local account.',
     flags: ['--sso (default false; open the displayed URL in any browser and approve your terminal code; no password flags)', '--username <username> (required for local sign-in)', '--password-stdin (default false; local only; otherwise ARTIUM_AXI_PASSWORD or a terminal prompt)'],
     example: 'artium-axi login --sso' },

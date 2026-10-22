@@ -42,7 +42,7 @@ beforeEach(async () => {
       reply.writeHead(expired ? 401 : 200, { 'content-type': 'application/json' })
       reply.end(JSON.stringify(expired ? errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-request') :
         request.url === '/v1/me' ? { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-          roles: [], accessExpiresAt: pair.accessExpiresAt } : { tools: [] }))
+          roles: [], accessExpiresAt: pair.accessExpiresAt, sessionExpiresAt: pair.familyExpiresAt } : { tools: [] }))
       return
     }
     if (requests.length === 1 && (scenario === 'login-replaced' || scenario === 'rotated')) {

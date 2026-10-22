@@ -282,6 +282,16 @@ test('reauth shares username limits with login and rejects incorrect passwords w
     .toEqual({ event: 'sign-in', outcome: 'AUTH_RATE_LIMITED' })
 })
 
+test('identity returns the fixed session deadline after token rotation', async () => {
+  const session = await ordinarySession()
+  vi.spyOn(Date, 'now').mockReturnValue(session.accessExpiresAt - 1)
+  const rotated = loginResponseSchema.parse(await (await refresh(session.refreshToken)).json())
+  if (rotated.status !== 'authenticated') throw new Error('Expected ordinary session')
+  const response = await fetch(`${url}/v1/me`, { headers: { authorization: `Bearer ${rotated.accessToken}` } })
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ accessExpiresAt: rotated.accessExpiresAt, sessionExpiresAt: session.familyExpiresAt })
+})
+
 test('security: concurrent refresh consumes once and reuse revokes the complete family', async () => {
   const session = await ordinarySession()
   const other = await ordinarySession()

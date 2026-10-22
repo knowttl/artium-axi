@@ -1,14 +1,15 @@
 import { meResponseSchema, toolsResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { Client } from './http.js'
+import { sessionExpiryView } from './views.js'
 
 const DIAGNOSTIC_REQUEST_DEADLINE_MS = 5_000
 
 export async function doctor(createClient = (deadline: number) => new Client(process.env, undefined, deadline), write = (text: string) => { process.stdout.write(text) }): Promise<void> {
   let failure: ArtiumError | undefined
-  const line = (name: string, pass: boolean, detail?: string, error?: ArtiumError) => {
+  const line = (name: string, pass: boolean | 'warn', detail?: string, error?: ArtiumError) => {
     if (!pass) failure ??= error ?? new ArtiumError('INVALID_RESPONSE')
-    write(`${pass ? 'pass' : 'fail'}: ${name}${detail ? ` (${detail})` : ''}\n`)
+    write(`${pass === 'warn' ? 'warn' : pass ? 'pass' : 'fail'}: ${name}${detail ? ` (${detail})` : ''}\n`)
   }
   let client: Client
   try { client = createClient(DIAGNOSTIC_REQUEST_DEADLINE_MS) }
@@ -37,9 +38,19 @@ export async function doctor(createClient = (deadline: number) => new Client(pro
   }
   let tokenOk = false
   let tokenError: ArtiumError | undefined
-  try { tokenOk = meResponseSchema.safeParse(await client.authenticated('/v1/me', 'GET')).success }
+  let tokenDetail: string | undefined
+  let expiring = false
+  try {
+    const parsed = meResponseSchema.safeParse(await client.authenticated('/v1/me', 'GET'))
+    tokenOk = parsed.success
+    if (parsed.success) {
+      const now = Date.now()
+      expiring = parsed.data.sessionExpiresAt - now < 3_600_000
+      tokenDetail = `session expires ${sessionExpiryView(parsed.data.sessionExpiresAt, now)}${expiring ? '; sign in again soon' : ''}`
+    }
+  }
   catch (error) { tokenError = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE') }
-  line('token', tokenOk, undefined, tokenError)
+  line('token', tokenOk && expiring ? 'warn' : tokenOk, tokenDetail, tokenError)
   line('CLI version', versionOk, undefined, versionError)
   if (tokenOk && versionOk) {
     try {
