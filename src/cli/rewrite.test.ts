@@ -58,6 +58,12 @@ test('Falcon managed booleans do not consume the following command flag', () => 
   expect(rewriteSuggestions(input, 'falcon-axi')).toBe(encode({ help: ['Run `artium-axi falcon-axi host list --limit 1`'] }))
 })
 
+test('LDAP per-flag help removes managed descriptions with comma-separated defaults', () => {
+  const input = 'ldap-axi user show <name>\nFlags:\n  --base <dn>  Search base (default: configured base, otherwise root)\n  --fields <fields>  Output fields (default: dn, name)\n  --attributes <attributes>  LDAP attributes (default: cn, mail)\n  --config <path>  Configuration (default: environment, then platform config directory)\n  --start-tls  Upgrade transport (default: configured value, otherwise false)\n  --ca-file <path>  Trusted CA (default: environment, otherwise system)\n  --tls-max-version <version>  TLS cap (default: configured value, otherwise automatic)\n  --profile <name>  Profile (default: environment, otherwise default)\n  --gssapi-service <name>  Service (default: configured value, otherwise ldap)\n  --gssapi-protection <mode>  Protection (default: configured value, otherwise auto)\n'
+  const expected = 'artium-axi ldap-axi user show <name>\nFlags:\n  --base <dn>  Search base (default: configured base, otherwise root)\n  --fields <fields>  Output fields (default: dn, name)\n  --attributes <attributes>  LDAP attributes (default: cn, mail)\n'
+  expect(rewriteSuggestions(input, 'ldap-axi')).toBe(expected)
+})
+
 test.each(['json', 'toon'].flatMap(format => [false, true].map(multiline => ({ format, multiline }))))(
   'Graph $format validation headings preserve separate suggestions (multiline: $multiline)', ({ format, multiline }) => {
     const heading = 'Valid flags for `mg-axi entra user list`: --profile <name>, --scopes <scopes>, --config <path>, --limit <positive-integer>'

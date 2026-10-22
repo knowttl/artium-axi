@@ -211,7 +211,8 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
   }
   const filtered = help.replace(/^([ \t]*(?:(?:Flags|Globals|Global flags|Selector flags on every command|[Vv]alid flags for `[^`]+`): |(?=--)))([^\r\n]*)(\r?\n|$)/gm,
     (_, label: string, listed: string, ending: string) => {
-      const retained = listed.split(', ').filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
+      const entries = label.trim() || /^--[\w-]+(?: <[^>]+>)?(?:, --[\w-]+(?: <[^>]+>)?)*\.?$/.test(listed) ? listed.split(', ') : [listed]
+      const retained = entries.filter(flag => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? '')).join(', ')
       if (!retained && !label.trim()) return ''
       return label + retained + (listed.endsWith('.') && !retained.endsWith('.') ? '.' : '') + ending
     })

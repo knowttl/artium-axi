@@ -92,6 +92,17 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
 
+test.each([{ args: ['--help'], code: 0 }, { args: ['--unknown'], code: 2 }])(
+  'closed stdout preserves command status $code without diagnostics', async ({ args, code }) => {
+    const child = spawn(process.execPath, [bundle, ...args], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const closed = once(child, 'close')
+    let stderr = ''
+    child.stderr.on('data', chunk => { stderr += chunk })
+    child.stdout.destroy()
+    expect(await closed).toEqual([code, null])
+    expect(stderr).toBe('')
+  })
+
 async function controlledCli(args: string[], env: NodeJS.ProcessEnv) {
   const diagnostic = args[0] === 'doctor'
   const deadline = diagnostic ? 5_000 : DEFAULT_REQUEST_DEADLINE_MS
@@ -146,7 +157,7 @@ const managedTokens = { accessToken: 'CANARY-managed-access', refreshToken: 'CAN
 const rotatedTokens = { status: 'authenticated', accessToken: 'CANARY-rotated-access', refreshToken: 'CANARY-rotated-refresh',
   accessExpiresAt: 100000, familyExpiresAt: 200000 }
 
-async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean, environment?: NodeJS.ProcessEnv } = {}) {
+async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean, environment?: NodeJS.ProcessEnv, closeStream?: 'stdout' | 'stderr' } = {}) {
   const configuration = mkdtempSync(join(directory, 'managed-config-'))
   const storedFile = join(configuration, 'artium-axi', 'session.json')
   if (options.existing) {
@@ -163,6 +174,7 @@ async function managedCli(args: string[], options: { json?: string, input?: stri
   let stdout = '', stderr = '', rotations = ''
   child.stdout!.on('data', chunk => { stdout += chunk })
   child.stderr!.on('data', chunk => { stderr += chunk })
+  if (options.closeStream) child[options.closeStream]!.destroy()
   child.stdio[4]?.on('data', chunk => { rotations += chunk })
   const sessionInput = child.stdio[3] as Writable | null
   sessionInput?.on('error', () => {})
@@ -401,6 +413,14 @@ test('passthrough preserves argument tokens, streams and upstream nonzero status
   const args = ['detection', 'list', '', 'two words', '"quoted"', "'single'", '$(touch synthetic)', ';', '\\', '雪', '--flag=a b']
   expect(await cli(['falcon-axi', ...args])).toMatchObject({ code: 7, stdout: 'data\n', stderr: 'diagnostic\n' })
   expect(requests[0].body).toEqual({ args })
+})
+
+test.each(['stdout', 'stderr'] as const)('closed %s preserves upstream status and the other stream', async closeStream => {
+  response = { status: 200, body: { source: 'falcon-axi', stdout: 'data\n', stderr: 'diagnostic\n', exitCode: 7,
+    durationMs: 1, outputBytes: { stdout: 5, stderr: 11 }, truncated: { stdout: false, stderr: false } } }
+  expect(await managedCli(['falcon-axi', 'host', 'list'], { closeStream })).toMatchObject({
+    code: 7, stdout: closeStream === 'stdout' ? '' : 'data\n', stderr: closeStream === 'stderr' ? '' : 'diagnostic\n',
+  })
 })
 
 test('truncation diagnostic precedes upstream stderr without changing stdout', async () => {

@@ -64,8 +64,10 @@ Details read bundled manifests and stored health without fetching credentials or
 Discovery and administration show the server's bundled tool versions, as defined by the [API contract](../src/shared/api.ts).
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
+If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
 For Falcon, Vectra, Azure, Graph, LDAP, Azure DevOps and AWX, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
+Per-flag help removes each managed flag's entire description and preserves retained flag descriptions, including comma-separated defaults.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](tool-credentials.md#ldap).
 Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
