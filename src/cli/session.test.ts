@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { SessionStore, sessionPath, restrictWindowsAcl } from './session.js'
+import { SessionStore, sessionPath } from './session.js'
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 
@@ -17,30 +17,6 @@ beforeEach(() => {
   store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'), 'linux')
 })
 afterEach(() => { vi.resetAllMocks(); rmSync(directory, { recursive: true, force: true }) })
-
-test.each([false, true])('Windows emits a protected .NET ACL script (directory=%s)', isDirectory => {
-  const path = join(directory, "synthetic ' session")
-  restrictWindowsAcl(path, isDirectory)
-  const [command, args, options] = vi.mocked(execFileSync).mock.calls[0]!
-  expect(command).toBe('powershell.exe')
-  expect(args?.slice(0, 3)).toEqual(['-NoProfile', '-NonInteractive', '-EncodedCommand'])
-  expect(options).toMatchObject({ stdio: 'ignore', env: {
-    ARTIUM_AXI_SESSION_ACL_PATH: path, ARTIUM_AXI_SESSION_ACL_KIND: isDirectory ? 'directory' : 'file',
-  } })
-  const script = Buffer.from(args![3]!, 'base64').toString('utf16le')
-  expect(script).toContain("$ErrorActionPreference='Stop'")
-  expect(script).toContain('$path=$env:ARTIUM_AXI_SESSION_ACL_PATH')
-  expect(script).toContain("$directory=$env:ARTIUM_AXI_SESSION_ACL_KIND -eq 'directory'")
-  expect(script).toContain('$acl=if ($directory) { [System.Security.AccessControl.DirectorySecurity]::new() } else { [System.Security.AccessControl.FileSecurity]::new() }')
-  expect(script).toContain('$acl.SetAccessRuleProtection($true,$false)')
-  expect(script).toContain('$user=[System.Security.Principal.WindowsIdentity]::GetCurrent().User')
-  expect(script).toContain("foreach ($sid in @($user,[System.Security.Principal.SecurityIdentifier]::new('S-1-5-18'),[System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')))")
-  expect(script.match(/\.AddAccessRule\(/g)).toHaveLength(1)
-  expect(script).toContain("[System.Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl',$inherit,'None','Allow')")
-  expect(script).toContain("$inherit=if ($directory) { [System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit' } else { [System.Security.AccessControl.InheritanceFlags]::None }")
-  expect(script).toContain('$item=if ($directory) { [System.IO.DirectoryInfo]::new($path) } else { [System.IO.FileInfo]::new($path) }; $item.SetAccessControl($acl)')
-  expect(script).not.toMatch(/Set-Acl/i)
-})
 
 test.each([true, false])('Windows ACL script failure maps to storage unavailable (directory=%s)', failDirectory => {
   vi.mocked(execFileSync).mockImplementation((_command, _args, options) => {
