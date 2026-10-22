@@ -155,14 +155,21 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const settings = writePolicies[tool].update(current.nativeSettings, input)
     const events = writeChange(request, actor, tool, current.nativeSettings, settings)
     if (!events.length) return current
+    let replacement: CredentialReference | undefined
     const result = audit.change(events, () => {
       authorize(request)
+      const now = Date.now()
+      const reference = store?.findCredential(tool)
+      if (reference) {
+        const value = credentialStore().readCredential(reference) as Record<string, unknown>
+        replacement = credentialStore().replaceCredential(tool, splitSettings(tool, value).credential, reference.revision!, actor, now)
+      }
       db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
-        .run(JSON.stringify(settings), Date.now(), actor, tool)
+        .run(JSON.stringify(settings), now, actor, tool)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
       return readTool(tool)
     }).value
-    invalidate(store?.findCredential(tool))
+    invalidate(replacement)
     return result
   } })
   app.route({ method: adminToolRoutes.saveOrigin.method, url: adminToolRoutes.saveOrigin.path, handler: async request => {

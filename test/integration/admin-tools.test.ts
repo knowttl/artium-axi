@@ -762,7 +762,7 @@ test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves 
       keyVaults: ['synthetic-vault'], registries: ['syntheticregistry'] } } : { allowWrites: true }
   expect((await request('PATCH', `/${tool}`, { nativeSettings: settings, expectedRevision: 2 })).status).toBe(200)
   const before = store.readCredential(store.findCredential(tool)!) as Record<string, unknown>
-  const reference = store.findCredential(tool)
+  const reference = store.findCredential(tool)!
   const off = await request('PATCH', `/${tool}/write-access`, { enabled: false, expectedRevision: 3 })
   expect(off.status).toBe(200)
   expect(await off.json()).toMatchObject({ nativeSettings: { ...settings, allowWrites: false },
@@ -772,7 +772,41 @@ test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves 
   expect(on.status).toBe(200)
   expect(await on.json()).toMatchObject({ nativeSettings: settings, writeAccess: { enabled: true }, revision: 5 })
   expect(store.readCredential(store.findCredential(tool)!)).toEqual(before)
-  expect(store.findCredential(tool)).toEqual(reference)
+  expect(store.findCredential(tool)).toEqual({ ...reference, revision: reference.revision! + 2 })
+})
+
+test.each(['az-axi', 'ado-axi'] as const)('%s write switch rejects an in-flight write and permits a fresh write after re-enabling', async tool => {
+  const adapter = tool === 'az-axi' ? adapters[2] : createAdoAdapter(new EmbeddedSecretSource(store), cache)
+  if (tool === 'ado-axi') adapters.push(adapter)
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  const value = tool === 'az-axi' ? values[tool] : { org: 'synthetic-org', auth: 'client-secret',
+    tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222',
+    clientSecret: 'CANARY-ado-client-secret', allowWrites: true }
+  await replace(tool, value)
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  const args = tool === 'az-axi'
+    ? ['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic-group', '--execute']
+    : ['pr', 'comment', '42', '--body', 'Synthetic comment']
+  const old = store.findCredential(tool)!
+  let release!: () => void
+  let started!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const posted = new Promise<void>(resolve => { started = resolve })
+  const post = network.sendPostRequestAsync.bind(network)
+  vi.spyOn(network, 'sendPostRequestAsync').mockImplementationOnce(async (url, options) => { started(); await held; return post(url, options) })
+  const pending = adapter.prepare(args, old)
+  const rejected = expect(pending).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
+  try {
+    await posted
+    const response = await request('PATCH', `/${tool}/write-access`, { enabled: false, expectedRevision: 2 })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ writeAccess: { enabled: false } })
+  } finally { release() }
+  await rejected
+  await expect(adapter.prepare(args, store.findCredential(tool)!)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect((await request('PATCH', `/${tool}/write-access`, { enabled: true, expectedRevision: 3 })).status).toBe(200)
+  expect(await adapter.prepare(args, store.findCredential(tool)!)).toMatchObject({ write: expect.any(Object) })
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(value)
 })
 
 test.each(['falcon-axi', 'ldap-axi'] as const)('%s refuses write changes with the fixed read-only reason', async tool => {
@@ -839,8 +873,10 @@ test('write changes are audited without credentials or native setting values and
   db.exec('DELETE FROM audit')
   const response = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: 2 })
   expect(response.status).toBe(200)
+  const reference = store.findCredential('az-axi')
   const noOp = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: 3 })
   expect(noOp.status).toBe(200)
+  expect(store.findCredential('az-axi')).toEqual(reference)
   const records = db.prepare('SELECT * FROM audit').all()
   expect(records).toHaveLength(1)
   expect(records[0]).toMatchObject({ event: 'tool-write-access', tool: 'az-axi', user_id: actor,
@@ -868,9 +904,13 @@ test('advanced settings write changes are audited while arbitrary operation name
 })
 
 test('write updates roll back when the dedicated audit record cannot be stored', async () => {
+  await replace('az-axi')
+  const before = db.prepare('SELECT * FROM credentials').all()
   db.exec("CREATE TRIGGER refuse_write_audit BEFORE INSERT ON audit WHEN NEW.event = 'tool-write-access' BEGIN SELECT RAISE(ABORT, 'synthetic audit failure'); END")
-  await failure(await request('PATCH', '/az-axi/write-access', { enabled: true, expectedRevision: 1 }), 'AUDIT_UNAVAILABLE')
-  expect((await (await request('GET', '/az-axi')).json())).toMatchObject({ revision: 1, nativeSettings: {}, writeAccess: { enabled: false } })
+  await failure(await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: 2 }), 'AUDIT_UNAVAILABLE')
+  expect((await (await request('GET', '/az-axi')).json())).toMatchObject({ revision: 2,
+    nativeSettings: { subscriptions: ['synthetic-subscription'], allowWrites: true }, writeAccess: { enabled: true } })
+  expect(db.prepare('SELECT * FROM credentials').all()).toEqual(before)
 })
 
 test.each(['mg-axi', 'vectra-axi'] as const)('%s can clear the allow-list when disabling and audit a list-only edit', async tool => {
