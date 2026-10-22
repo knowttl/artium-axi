@@ -27,6 +27,10 @@ fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
 .table-scroll { max-width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 .session-table { min-width: 1000px; }
+.tools-table { min-width: 1000px; }
+.tools-table th, .tools-table td:not(:nth-child(4)):not(:nth-child(6)) { white-space: nowrap; }
+.tools-table td:nth-child(4) { min-width: 240px; }
+.tools-table td:nth-child(6) { min-width: 100px; }
 .session-table time, .session-table button { white-space: nowrap; }
 .audit-table { min-width: 1000px; }
 .audit-table td:nth-child(2) { min-width: 320px; }

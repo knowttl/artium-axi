@@ -716,6 +716,96 @@ test('tool detail enablement and granting roles lead to the role access editor',
   `)
 })
 
+test('tools show capability and current write state including fixed read-only reasons', () => {
+  browser(`
+    await page.open(base + '/admin/tools');
+    const tools = await page.eval(async () => (await (await fetch('/v1/admin/tools')).json()).tools);
+    for (const tool of tools) {
+      const row = await page.eval('document.querySelector(' + JSON.stringify('a[href="/admin/tools/' + tool.name + '"]') + ').closest("tr").innerText');
+      check(row.includes(tool.writeAccess.capable ? 'Read and write capable' : 'Fixed read-only'), tool.name + ' capability missing');
+      check(row.includes(tool.writeAccess.enabled ? 'Writes enabled' : 'Writes off'), tool.name + ' state missing');
+      if (tool.writeAccess.reason) check(row.includes(tool.writeAccess.reason), tool.name + ' reason missing');
+      await page.open(base + '/admin/tools/' + tool.name);
+      await page.wait('[data-write-access]');
+      const state = await page.eval(() => document.querySelector('[data-write-access]').innerText);
+      check(state.includes(tool.writeAccess.blocked), tool.name + ' blocked actions missing');
+      check(state.includes('No write actions are currently granted.'), tool.name + ' current grant missing');
+      check(await page.eval(() => Boolean(document.querySelector('form[action$="/write-access"]'))) === tool.writeAccess.capable, tool.name + ' incorrect switch availability');
+      if (tool.writeAccess.reason) check(state.includes(tool.writeAccess.reason), tool.name + ' detail reason missing');
+      await page.open(base + '/admin/tools');
+    }
+  `)
+})
+
+test('write switch confirms identity, preserves native settings, refreshes JSON and audits on and off', async () => {
+  browser(`
+    await page.open(base + '/admin/tools/az-axi');
+    await page.fill('[name=nativeSettings]', JSON.stringify({ description: 'Synthetic scope', subscriptions: ['11111111-1111-4111-8111-111111111111'] }));
+    await page.click('form:has([name=nativeSettings]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => !document.querySelector('[role=switch]').checked), 'Writes did not default off');
+    check(await page.eval(() => document.body.innerText.includes('Omitting write settings turns writes off.')), 'JSON replacement warning missing');
+  `)
+  await expireConfirmation()
+  browser(`
+    await page.click('[role=switch]');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=cancel]');
+    check(await page.eval(async () => !(await (await fetch('/v1/admin/tools/az-axi')).json()).writeAccess.enabled), 'Cancel changed writes');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#reauth-dialog[open]');
+    check(await page.eval(async () => !(await (await fetch('/v1/admin/tools/az-axi')).json()).writeAccess.enabled), 'Writes bypassed identity confirmation');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="3"]');
+    check(await page.eval(() => document.querySelector('[role=switch]').checked), 'Switch not on');
+    check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('Reviewed Azure writes')), 'Grant summary missing');
+    check(await page.eval(() => JSON.parse(document.querySelector('[name=nativeSettings]').value).allowWrites), 'JSON state stale');
+    await page.click('[role=switch]');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="4"]');
+    const tool = await page.eval(async () => (await (await fetch('/v1/admin/tools/az-axi')).json()));
+    check(!tool.writeAccess.enabled && tool.nativeSettings.allowWrites === false, 'Writes not off');
+    check(tool.nativeSettings.description === 'Synthetic scope' && tool.nativeSettings.subscriptions[0] === '11111111-1111-4111-8111-111111111111', 'Other settings lost');
+    const audit = await page.eval(async () => (await (await fetch('/v1/admin/audit?event=tool-write-access')).json()));
+    check(audit.records.length === 2 && audit.records.every(event => event.tool === 'az-axi'), 'Dedicated audit events missing');
+    check(!JSON.stringify(audit).includes('CANARY-'), 'Audit contains secret material');
+  `)
+})
+
+for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}');
+    const initial = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
+    const choices = await page.eval(() => [...document.querySelectorAll('[name=operations]')].map(input => input.value));
+    check(JSON.stringify(choices) === JSON.stringify(initial.writeAccess.supportedOperations), 'Picker differs from pinned catalogue');
+    check(await page.eval(() => [...document.querySelectorAll('[name=operations]')].every(input => !input.checked)), 'Unexpected initial selection');
+    await page.click('[role=switch]');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#message:not(:empty)');
+    check(await page.eval(() => document.querySelector('#message').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
+    await page.click('[name=operations]');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
+    const saved = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
+    check(saved.writeAccess.enabled && JSON.stringify(saved.writeAccess.allowedOperations) === JSON.stringify([choices[0]]), 'Selection not saved');
+    check(await page.eval(() => document.querySelector('[name=operations]').checked), 'Selection not reflected');
+    await page.click('[role=switch]');
+    await page.click('[name=operations]');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="3"]');
+    const cleared = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
+    check(!cleared.writeAccess.enabled && cleared.writeAccess.allowedOperations.length === 0, 'Empty selection not saved');
+  `)
+})
+
 test('changing Vectra authentication requires new secrets and saves only the selected method', async () => {
   browser(`
     await page.open(base + '/admin/tools/vectra-axi');
