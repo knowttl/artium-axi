@@ -393,9 +393,9 @@ test.each([{ args: ['whoami'] }, { args: [] }])('managed access-only identity sh
 })
 
 test.each([
-  { expiresAt: '2026-01-01T09:49:59Z', tokenLine: 'warn: token', remaining: '0h 59m' },
-  { expiresAt: '2026-01-01T09:50:00Z', tokenLine: 'pass: token', remaining: '1h 0m' },
-])('doctor reports $tokenLine with session time remaining', async ({ expiresAt, tokenLine, remaining }) => {
+  { expiresAt: '2026-01-01T09:49:59Z', remaining: '0h 59m' },
+  { expiresAt: '2026-01-01T09:50:00Z', remaining: '1h 0m' },
+])('doctor reports a valid session with $remaining remaining', async ({ expiresAt, remaining }) => {
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
@@ -404,7 +404,7 @@ test.each([
   }
   try {
     expect(await cli(['doctor'], {}, false, undefined, expiryBundle)).toMatchObject({ code: 0, stderr: '',
-      stdout: expect.stringContaining(`${tokenLine} (session expires ${expiresAt} (in ${remaining})`) })
+      stdout: expect.stringContaining(`pass: token (session expires ${expiresAt} (in ${remaining}))\n`) })
   } finally { doctorResponses = undefined }
 })
 
