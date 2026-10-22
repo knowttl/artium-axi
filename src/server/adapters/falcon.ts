@@ -2,12 +2,15 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
 import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 export const falconManifest = inventory
+export const falconWritePolicy = writePolicy({ reason: 'The pinned Falcon version has no write commands and ignores allowWrites.',
+  unlocks: 'No write actions.', blocked: 'All write actions remain unavailable.' })
 export const falconCredentialFiles = z.object({
   clientIdFile: z.string().min(1),
   clientSecretFile: z.string().min(1),

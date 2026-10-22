@@ -1,6 +1,7 @@
 import inventory from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { adoPathPrefix, runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -9,6 +10,8 @@ import { AzureTokenCache } from './azure-token-cache.js'
 import type { Adapter, PreparedCall } from './types.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
+export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item, pull-request, pipeline and ref writes with host classification and journaling.',
+  blocked: 'Raw API mutations, configuration overrides and unsupported commands remain blocked; api is GET only.' })
 export const adoProfile = new CredentialProfile({ type: 'object', additionalProperties: false,
   required: ['org', 'auth'], properties: {
     org: { type: 'string', format: 'ado-org', title: 'Organization', description: 'Azure DevOps organization name or organization-root URL.' },

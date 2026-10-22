@@ -4,20 +4,20 @@ import { registerCertificateAdmin } from './certificates.js'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { adminCredentialSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema, healthSchema,
-  nativeSettingsSchemas, toolSchema, toolAllowsWrites } from '../../shared/api.js'
+  nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../../shared/errors.js'
-import { falconCredentialSchema } from '../adapters/falcon.js'
-import { vectraCredentialSchema } from '../adapters/vectra.js'
-import { azCredentialSchema } from '../adapters/az.js'
-import { mgCredentialSchema } from '../adapters/mg.js'
-import { ldapCredentialSchema } from '../adapters/ldap.js'
-import { adoCredentialSchema } from '../adapters/ado.js'
-import { awxCredentialSchema } from '../adapters/awx.js'
+import { falconCredentialSchema, falconWritePolicy } from '../adapters/falcon.js'
+import { vectraCredentialSchema, vectraWritePolicy } from '../adapters/vectra.js'
+import { azCredentialSchema, azWritePolicy } from '../adapters/az.js'
+import { mgCredentialSchema, mgWritePolicy } from '../adapters/mg.js'
+import { ldapCredentialSchema, ldapWritePolicy } from '../adapters/ldap.js'
+import { adoCredentialSchema, adoWritePolicy } from '../adapters/ado.js'
+import { awxCredentialSchema, awxWritePolicy } from '../adapters/awx.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
-import type { Audit } from '../audit/audit.js'
+import type { Audit, AuditEvent } from '../audit/audit.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
@@ -34,6 +34,8 @@ export interface ToolAdminOptions {
 }
 
 const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema }
+const writePolicies = { 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy }
 const publicFields = {
   'awx-axi': ['origin'],
   'ado-axi': ['org', 'project', 'auth', 'tenantId', 'clientId'],
@@ -91,10 +93,12 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
     const nativeSettings = JSON.parse(row.nativeSettings)
-    const readOnly = !toolAllowsWrites(tool, nativeSettings)
+    const writeAccess = writePolicies[tool].read(nativeSettings)
+    const readOnly = !writeAccess.enabled
     const diagnostic = options.health.diagnostic(tool, health.credentialRevision, health.checkedAt)
     return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
-      nativeSettings, readOnly, health: { ...health, readOnly, ...(diagnostic ? { diagnostic } : {}) } })
+      nativeSettings, readOnly, writeAccess,
+      health: { ...health, readOnly, ...(diagnostic ? { diagnostic } : {}) } })
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
     readTool(tool)
@@ -115,6 +119,18 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   function invalidate(reference: CredentialReference | undefined): void {
     if (reference) for (const adapter of adapters) if (adapter.name === reference.tool) adapter.invalidateCredential?.(reference)
   }
+  function writeChange(request: FastifyRequest, actor: string, tool: ToolName,
+    before: Record<string, unknown>, after: Record<string, unknown>): AuditEvent[] {
+    const previous = writePolicies[tool].read(before)
+    const next = writePolicies[tool].read(after)
+    if (previous.enabled === next.enabled &&
+      JSON.stringify([...previous.allowedOperations].sort()) === JSON.stringify([...next.allowedOperations].sort())) return []
+    // The advanced JSON editor accepts arbitrary names. Only catalogue identities belong in audit.
+    const operations = next.allowedOperations.filter(operation => next.supportedOperations?.includes(operation))
+    return [{ event: 'tool-write-access', userId: actor, tool, outcome: 'success', enabled: next.enabled,
+      operations, unsupportedOperationCount: next.allowedOperations.length - operations.length,
+      requestId: request.id, clientAddress: request.ip }]
+  }
   app.route({ method: adminToolRoutes.list.method, url: adminToolRoutes.list.path, handler: async request => {
     authorize(request)
     parse(adminToolRoutes.list.input, request.query)
@@ -124,6 +140,37 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     authorize(request)
     parse(adminToolRoutes.credential.input, request.query)
     return readCredential(toolName(request))
+  } })
+  app.route({ method: adminToolRoutes.get.method, url: adminToolRoutes.get.path, handler: async request => {
+    authorize(request)
+    parse(adminToolRoutes.get.input, request.query)
+    return readTool(toolName(request))
+  } })
+  app.route({ method: adminToolRoutes.writeAccess.method, url: adminToolRoutes.writeAccess.path, handler: async request => {
+    const actor = authorize(request)
+    const tool = toolName(request)
+    const input = parse(adminToolRoutes.writeAccess.input, request.body)
+    const current = readTool(tool)
+    if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+    const settings = writePolicies[tool].update(current.nativeSettings, input)
+    const events = writeChange(request, actor, tool, current.nativeSettings, settings)
+    if (!events.length) return current
+    let replacement: CredentialReference | undefined
+    const result = audit.change(events, () => {
+      authorize(request)
+      const now = Date.now()
+      const reference = store?.findCredential(tool)
+      if (reference) {
+        const value = credentialStore().readCredential(reference) as Record<string, unknown>
+        replacement = credentialStore().replaceCredential(tool, splitSettings(tool, value).credential, reference.revision!, actor, now)
+      }
+      db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
+        .run(JSON.stringify(settings), now, actor, tool)
+      db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
+      return readTool(tool)
+    }).value
+    invalidate(replacement)
+    return result
   } })
   app.route({ method: adminToolRoutes.saveOrigin.method, url: adminToolRoutes.saveOrigin.path, handler: async request => {
     const actor = authorize(request)
@@ -158,13 +205,15 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const settings = input.nativeSettings === undefined ? undefined : parse(nativeSettingsSchemas[tool], input.nativeSettings)
     if (input.enabled && !adapters.some(adapter => adapter.name === tool)) throw new ArtiumError('TOOL_DISABLED')
     let replacement: CredentialReference | undefined
-    const result = audit.change({ event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
-      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
+    const events: AuditEvent[] = [{ event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
+    const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const now = Date.now()
       if (settings !== undefined) {
+        events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
         const reference = credentialStore().findCredential(tool)
         if (reference) {
           const value = credentialStore().readCredential(reference) as Record<string, unknown>
@@ -224,8 +273,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       }
     }
     let replacement: CredentialReference | undefined
-    const result = audit.change({ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,
-      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
+    const events: AuditEvent[] = [{ event: 'admin-change', action: adminToolRoutes.replace.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
+    const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
@@ -241,6 +291,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         next = parse(schemaFor(tool), { ...retained, ...value, ...current.nativeSettings }) as Record<string, unknown>
       }
       const { credential, settings } = splitSettings(tool, next)
+      events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = credentialStore().replaceCredential(tool, credential, input.expectedRevision, actor, now)
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)

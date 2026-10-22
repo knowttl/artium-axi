@@ -157,7 +157,7 @@ Select **Test after saving** to save and report a harmless credential check inli
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
-Native settings also replace the entire object; `{}` clears it.
+Before saving Native settings, follow the runbook's [write-policy preservation guidance](runbook.md#roles-credentials-and-health).
 Credential changes clear cached health.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for startup checks, recovery retries and concurrency limits.
 Use **Test credential** for a current fixed read before enabling a configured tool.
@@ -262,6 +262,9 @@ CSV quotes non-null values and leaves null fields empty; JSON lines preserves JS
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
+Filter by event `tool-write-access` to review changes to effective write enablement or an operations allow-list, including changes made through Native settings or complete credential replacement.
+These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
+No-op write-access requests emit no change event.
 Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
 Successful local sign-in, password confirmation and password-change records include `authentication_method` as `local` or `break-glass`.
 These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.

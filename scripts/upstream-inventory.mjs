@@ -16,6 +16,13 @@ const vectra = await load('vectra-axi', 'src/catalogue.js')
 const vectraWrites = await load('vectra-axi', 'src/writes.js')
 const mg = await load('mg-axi', 'catalogue.js')
 const mgWrites = await load('mg-axi', 'mutations.js')
+const mgWriteOperations = await Promise.all([
+  ['entra-group-member-add.js', 'GROUP_MEMBER_ADD_OPERATION'],
+  ['entra-user-update.js', 'USER_ACCOUNT_UPDATE_OPERATION'],
+  ['entra-user-revoke-sessions.js', 'USER_REVOKE_SESSIONS_OPERATION'],
+  ['entra-risk-dismiss.js', 'RISKY_USER_DISMISS_OPERATION'],
+  ['entra-ca-policy-update.js', 'CA_POLICY_UPDATE_OPERATION'],
+].map(async ([path, name]) => (await load('mg-axi', path))[name]))
 const azShortFlags = { h: 'help', s: 'subscription', g: 'resource-group', n: 'name',
   l: 'location', w: 'workspace', t: 'timespan', q: 'graph-query' }
 const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
@@ -126,6 +133,10 @@ for (const [tool, commands] of Object.entries(inventories)) {
     environmentSources: environments[tool].sources.map(path => ({ path: `dist/${path}`,
       sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })),
     nativeWriteSettings: { default: 'disabled', ...(tool === 'mg-axi' ? {} : { disposition: 'server-owned' }),
+      ...(tool === 'mg-axi' ? { supportedOperations: mgWriteOperations.sort() } : {}),
+      ...(tool === 'vectra-axi' ? { supportedOperations: vectra.inventory.operations
+        .filter(operation => operation.effect === 'write' && operation.disposition === 'named' && vectra.catalogue[operation.command])
+        .map(operation => operation.id).sort() } : {}),
       profileFields: nativeWriteSettings[tool].profileFields, scope: nativeWriteSettings[tool].scope,
       sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
         sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))).digest('hex') })) },

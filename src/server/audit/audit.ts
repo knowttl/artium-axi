@@ -29,6 +29,7 @@ export type AuditEvent = Context & (
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string, subject?: string }
+  | { event: 'tool-write-access', outcome: Outcome, enabled: boolean, operations: string[], unsupportedOperationCount: number }
   | { event: 'invite-create' | 'invite-resend' | 'invite-revoke', outcome: Outcome, targetId: string }
   | { event: 'invite-claim' | 'identity-link', outcome: Outcome, targetId: string, providerId: string, subject: string }
   | { event: 'role-sync', outcome: Outcome, providerId: string, subject: string, added: string[], removed: string[] }
@@ -181,6 +182,8 @@ export class Audit {
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
       arguments: event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
+        event.event === 'tool-write-access' ? JSON.stringify({ enabled: event.enabled, operations: event.operations,
+          unsupportedOperationCount: event.unsupportedOperationCount }) :
         event.event === 'role-sync' ? JSON.stringify({ added: event.added, removed: event.removed }) :
         event.event === 'device-approve' || event.event === 'device-deny' ? JSON.stringify({ requestingAddress: event.requestingAddress }) : null,
       request_id: event.requestId, exit_code: terminal?.exitCode ?? null,

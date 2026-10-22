@@ -1,6 +1,7 @@
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -8,6 +9,8 @@ import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
+export const awxWritePolicy = writePolicy({ unlocks: 'Operational launch, relaunch, cancel, sync, approval and notification tests with explicit confirmation.',
+  blocked: 'Configuration, deletion and security writes, server file inputs and unsafe overrides remain blocked.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 

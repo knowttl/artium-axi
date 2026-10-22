@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { nativeSettingsSchemas, toolAllowsWrites } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/az-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -18,6 +19,8 @@ export const azCredentialSchema = z.discriminatedUnion('auth', [
 ])
 export type AzCredential = z.infer<typeof azCredentialSchema>
 export const azManifest = { ...inventory, ...inventory.adapterBoundary }
+export const azWritePolicy = writePolicy({ unlocks: 'Reviewed Azure writes and ARM API mutations within configured subscriptions; --execute is still required.',
+  blocked: 'Unscoped writes, unsupported commands, unsafe overrides and non-ARM API writes remain blocked.' })
 
 // Follow the pinned leaf parser while retaining caller spelling for upstream execution.
 function azArguments(args: readonly string[], input: RunnerInput = {}): {

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import inventory from '../../../tools/inventories/mg-axi.json' with { type: 'json' }
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -19,6 +20,9 @@ export const mgCredentialSchema = z.discriminatedUnion('auth', [
 ])
 export type MgCredential = z.infer<typeof mgCredentialSchema>
 export const mgManifest = { ...inventory, ...inventory.adapterBoundary }
+export const mgWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
+  unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal and conditional-access policy operations; native execution and confirmation gates still apply.',
+  blocked: 'Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
 
 function mgArguments(args: readonly string[], input: RunnerInput = {}): string[] {
   if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
