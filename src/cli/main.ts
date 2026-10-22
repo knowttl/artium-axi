@@ -14,6 +14,7 @@ import { toolInput } from './input.js'
 import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
 import { ManagedSession } from './managed-session.js'
+import { update } from './update.js'
 
 let managed: ManagedSession | undefined
 for (const stream of [process.stdout, process.stderr]) {
@@ -46,6 +47,7 @@ async function main(args: string[]) {
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
   if (help) { output('stdout', commandHelp(help)); return }
+  if (command === 'update') { output('stdout', await update()); return }
   if (managedMode) {
     if (['passwd', 'logout', 'setup'].includes(args[0])) {
       throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',

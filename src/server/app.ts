@@ -112,9 +112,7 @@ export function createApp(options: {
     const version = request.headers['x-artium-cli-version']
     if (path.startsWith('/v1/') && !login && version !== undefined &&
       !browser.isBrowser(request) && (typeof version !== 'string' || !acceptsCliVersion(version))) {
-      const host = request.headers.host
-      throw new ArtiumError('CLI_OUTDATED', undefined,
-        `Download the current CLI: curl --fail --output artium-axi.mjs https://${host}/cli/artium-axi.mjs`)
+      throw new ArtiumError('CLI_OUTDATED')
     }
     if (!proxies.includes(request.socket.remoteAddress ?? '') &&
       Object.keys(request.headers).some(name => name === 'forwarded' || name.startsWith('x-forwarded-'))) {

@@ -5,7 +5,7 @@ import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json'
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const commands = {
-  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
+  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
   setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and an optional Claude Code session hook.',
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
@@ -19,6 +19,7 @@ const commands = {
     example: 'artium-axi passwd --password-stdin' },
   logout: { usage: 'artium-axi logout', purpose: 'Remove local tokens and revoke the server session.', flags: [], example: 'artium-axi logout' },
   doctor: { usage: 'artium-axi doctor', purpose: 'Check the server, certificate, token, CLI version and cached tool health.', flags: [], example: 'artium-axi doctor' },
+  update: { usage: 'artium-axi update', purpose: 'Download and verify the server’s client, replace this file and keep a .bak backup. npm installations must use npm install -g @knowttl/artium-axi.', flags: [], example: 'artium-axi update' },
   'falcon-axi': { usage: 'artium-axi falcon-axi [<args>]', purpose: 'Run Falcon commands with your managed credentials.',
     flags: ['Arguments after falcon-axi are forwarded upstream, including --help.'], example: `artium-axi falcon-axi ${falcon.discovery.example.join(' ')}` },
   'vectra-axi': { usage: 'artium-axi vectra-axi [<args>]', purpose: 'Run Vectra commands with your managed credentials.',

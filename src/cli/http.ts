@@ -44,7 +44,9 @@ export class Client {
     managed?.checkServer(this.serverUrl)
   }
 
-  async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string): Promise<unknown> {
+  async request(path: string, method: 'GET' | 'POST', input: undefined, token: undefined, bytes: true): Promise<Buffer>
+  async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string): Promise<unknown>
+  async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string, bytes = false): Promise<unknown> {
     this.certificateVerified = false
     let ca: string[] | undefined
     try { if (this.caFile) ca = [...rootCertificates, readFileSync(this.caFile, 'utf8')] }
@@ -67,7 +69,7 @@ export class Client {
         response.on('data', chunk => chunks.push(chunk))
         response.on('error', () => reject(new ArtiumError('SERVER_UNAVAILABLE')))
         response.on('end', () => {
-          try { resolve({ status: response.statusCode!, body: response.statusCode === 204 ? undefined : JSON.parse(Buffer.concat(chunks).toString('utf8')),
+          try { resolve({ status: response.statusCode!, body: bytes ? Buffer.concat(chunks) : response.statusCode === 204 ? undefined : JSON.parse(Buffer.concat(chunks).toString('utf8')),
             serverVersion: typeof response.headers['x-artium-cli-version'] === 'string' ? response.headers['x-artium-cli-version'] : undefined }) }
           catch { reject(new ArtiumError('INVALID_RESPONSE')) }
         })
@@ -91,7 +93,7 @@ export class Client {
     if (result.status !== 200 && result.status !== 204) throw new ArtiumError('INVALID_RESPONSE')
     if ((path === '/v1/auth/login' || path === '/v1/auth/device') && result.serverVersion && result.serverVersion !== cliVersion) {
       const version = result.serverVersion.replace(/[\x00-\x1f\x7f]/g, '')
-      const warning = `warning: CLI ${cliVersion} differs from server ${version}; download the matching client from ${this.serverUrl}/cli/artium-axi.mjs and verify its .sha256, or run npm install -g @knowttl/artium-axi@${version}.\n`
+      const warning = `warning: CLI ${cliVersion} differs from server ${version}; run artium-axi update, or run npm install -g @knowttl/artium-axi@${version}.\n`
       if (this.managed) this.managed.write('stderr', warning)
       else process.stderr.write(warning)
     }
