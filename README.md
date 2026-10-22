@@ -35,17 +35,17 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 - **Limits:** reviewed command inventories, write switches, bounded runtime, output and concurrency.
 
 ### Supported pinned tools
-| Tool | Version | Managed access |
-| --- | --- | --- |
-| Falcon | 0.5.0 | Read-only API client |
-| Vectra | 0.1.7 | Token or OAuth; optional allow-listed writes |
-| Azure | 0.1.10 | Application identity and resource-token broker |
-| Microsoft Graph | 0.1.10 | Application identity; optional allow-listed writes |
-| LDAP | 0.2.0 | Verified TLS simple bind; read-only |
-| Azure DevOps | 0.4.6 | PAT or application identity |
-| AWX | 0.1.7 | Pasted token or one-time password sign-in; optional operational writes |
+| Tool | Managed access |
+| --- | --- |
+| Falcon | Read-only API client |
+| Vectra | Token or OAuth; optional allow-listed writes |
+| Azure | Application identity and resource-token broker |
+| Microsoft Graph | Application identity; optional allow-listed writes |
+| LDAP | Verified TLS simple bind; read-only |
+| Azure DevOps | PAT or application identity |
+| AWX | Pasted token or one-time password sign-in; optional operational writes |
 
-[Package pins](tools/package.json), [Falcon source pin](tools/falcon-source.json) and [reviewed inventories](tools/inventories) define the supported boundary.
+[Package pins](tools/package.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
 
 ## Quickstart
 

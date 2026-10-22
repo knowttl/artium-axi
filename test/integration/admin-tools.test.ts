@@ -316,7 +316,7 @@ test('Falcon discovery and successful health checks remain read-only with its sa
   const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
   expect(tool).toMatchObject({ status: 'ok', readOnly: true })
   expect(toolView(tool)).toContain('readOnly: true\n')
-  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.5.0",true\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.5.1",true\n')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -940,13 +940,13 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(response.status).toBe(200)
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
-    { name: 'falcon-axi', version: '0.5.0', health: { status: 'unconfigured' } },
-    { name: 'vectra-axi', version: '0.1.7', health: { status: 'unconfigured' } },
+    { name: 'falcon-axi', version: '0.5.1', health: { status: 'unconfigured' } },
+    { name: 'vectra-axi', version: '0.1.8', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.10', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.10', health: { status: 'disabled' } },
-    { name: 'ldap-axi', version: '0.2.0', health: { status: 'disabled' } },
+    { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
-    { name: 'awx-axi', version: '0.1.7', health: { status: 'disabled' } },
+    { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

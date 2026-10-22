@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.7",
-  "integrity": "sha512-7gop8tQkTohKKoldYuHZ9Kz2Eq/vQNBqW0OZV8HLSPEKc3OVhdFt00osRb1kwRjB1h1Vr/ku0H0IWoKOxxticQ==",
+  "version": "0.1.8",
+  "integrity": "sha512-Wvn73g5hm4mzQQKhNnKvAjt6SfGFrPD2EAYMa4AXhoVqFfjXjxnQLk6tUw7E92jozeHtpZ+aDXSGMHaJhhTi1Q==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "f9c6cbae6a861654398dd30d830ec5b048fad34f8b6bd5f8157dcf8a5cd3ed7e",
+  "packageManifestSha256": "0e2e4e616e06435582fcd96787a2088f7fda5b0b99c32daa4d6c7dc8c2b2f3fb",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -153,12 +153,13 @@
     "help": {
       "command": "vectra-axi detection list",
       "description": "List detections on QUX v2.5 or RUX v3.4 with server-side filters and a bounded window",
+      "pagination": "QUX: collection pages; bounded --all supported; RUX: collection pages; bounded --all supported",
       "flags": {
         "--help": "Show concise help; default false",
         "--state <state>": "Filter by server-side detection state",
         "--detection-type <type>": "Filter by server-side detection type",
         "--detection-category <category>": "Filter by server-side detection category",
-        "--host-id <id>": "Filter by server-side host ID (non-negative integer)",
+        "--host-id <id>": "Filter by server-side host ID (non-negative integer); find it with host list --name <text>, then detection list --host-id <id>",
         "--tags <tags>": "Filter by server-side tags",
         "--certainty-gte <score>": "Filter by server-side minimum certainty",
         "--threat-gte <score>": "Filter by server-side minimum threat",
@@ -166,7 +167,7 @@
         "--min-id <id>": "Server-side minimum detection ID (non-negative integer)",
         "--max-id <id>": "Server-side maximum detection ID (non-negative integer)",
         "--limit <rows>": "Row window for this read; default 100",
-        "--fields <list>": "Comma-separated projection over id,detection_type,state,threat,certainty",
+        "--fields <list>": "Comma-separated detection fields, including first_timestamp,last_timestamp,src_ip,src_host,summary,grouped_details; default id,detection_type,state,threat,certainty",
         "--all": "Traverse pages within 10 requests, 8 MiB, 60 seconds and 10000 rows; cannot combine with --limit",
         "--cursor <cursor>": "Resume a capped list with its original filters"
       },
@@ -198,7 +199,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "9c0a3783a91fb0fd4c2a2f4df00e477b8abdc3ea3cefe80dc20e98b4cebf55fd"
+      "sha256": "5fadea660c71fb4021a4c130699ae3883c54e801c8e3eb6c3f370a10b0a04930"
     }
   },
   "flags": [
@@ -529,6 +530,7 @@
         "profile": "value",
         "config": "value",
         "id": "value",
+        "fields": "value",
         "full": "boolean"
       }
     },
@@ -551,6 +553,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "name": "value",
         "threat-gte": "value",
         "certainty-gte": "value",
         "tags": "value",
@@ -958,6 +961,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "all": "boolean",
         "account": "value",
         "host": "value",
         "assignee": "value",
@@ -990,6 +994,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "all": "boolean",
         "limit": "value",
         "fields": "value",
         "cursor": "value"
@@ -1010,6 +1015,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "all": "boolean",
         "username": "value",
         "limit": "value",
         "fields": "value",
@@ -1046,6 +1052,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "all": "boolean",
         "name": "value",
         "type": "value",
         "limit": "value",
@@ -1068,6 +1075,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "all": "boolean",
         "id": "value",
         "name": "value",
         "ordering": "value",
@@ -1083,6 +1091,7 @@
         "help": "boolean",
         "profile": "value",
         "config": "value",
+        "all": "boolean",
         "contains": "value",
         "ordering": "value",
         "limit": "value",

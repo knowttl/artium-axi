@@ -13,7 +13,7 @@ beforeEach(() => {
       VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash', 1);
     INSERT INTO users (id, username, display_name, password_hash, administrator)
       VALUES ('synthetic-other-admin', 'synthetic-other-admin', 'Other Admin', 'unusable', 1);
-    INSERT INTO tools (name, enabled, pinned_version) VALUES ('falcon-axi', 1, '0.5.0');
+    INSERT INTO tools (name, enabled, pinned_version) VALUES ('falcon-axi', 1, '0.5.1');
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
     INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'falcon-axi');

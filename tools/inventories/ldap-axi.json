@@ -1,17 +1,17 @@
 {
   "generatedBy": "scripts/ldap-inventory.mjs",
   "tool": "ldap-axi",
-  "version": "0.2.0",
-  "integrity": "sha512-w/gE4jHaUHE0iKh3ucDnDG0AVrhP0VwpFCEcw3wSTzLmTBMNZrJ9AFB06j2jnf4TFgK5+5NhF0EE0R69mv7crA==",
+  "version": "0.3.0",
+  "integrity": "sha512-QVectHNsRxYWNBf0im5DjeN78mcgK0Te0Sxh7uXGNb+AhQjsS5ywiCrnKAk0/INA/oxiZ1TiXaDX7jHAg5OvDg==",
   "parserEvidence": "Installed pinned command schemas and reviewed CLI globals and entry routes",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "7ee133bf0333fe975c905418c9ecdd542836dab39f52aa5f7f630776d2bcc0b0"
+      "sha256": "9fa26acd15443dad0857c7468f570164e436f7b25aef3df733da3c4d859917a9"
     },
     {
       "path": "README.md",
-      "sha256": "3a1eeda8c376c39853e4835acf2a1d61f76f23a555651417d0d691459fbb3139"
+      "sha256": "cd05d13da53b80aa651a5207b680e7fa6a0fb0c975244e4cc135d26b13391204"
     },
     {
       "path": "axi-credential.schema.json",
@@ -23,7 +23,7 @@
     },
     {
       "path": "dist/src/schema.js",
-      "sha256": "0d5946fa26efb55e8480e9a22f93cdb6b321c48697e77ca02c4c99630f11284f"
+      "sha256": "ba2285cbda6e5994c536b2f9de65736df1b43b0b10c5d5b7a1c2d7124ab198a0"
     },
     {
       "path": "dist/src/config.js",
@@ -35,7 +35,7 @@
     },
     {
       "path": "dist/src/directory/auth.js",
-      "sha256": "d2b3a61cb9e63744462e3a6a2841fcddb2b48e7823c307841028288cfe9d688b"
+      "sha256": "64885ea4bc5067c58dcb4d432610f99eedfa9af65fa46273b68d503d26ec3214"
     },
     {
       "path": "dist/src/directory/policy.js",
@@ -195,7 +195,7 @@
       "--limit",
       "1"
     ],
-    "help": "List user accounts.\nLDAPv3 users are inetOrgPerson or posixAccount entries; use ldap-axi entry search for account + simpleSecurityObject service accounts.\nUsage: ldap-axi user list [flags]\nFlags:\n  --help  show this help\n  --base  <dn> search base (default: environment, config, or server naming contexts)\n  --disabled  include disabled accounts (LDAPv3: permanent ppolicy locks)\n  --enabled  include enabled accounts (LDAPv3: exclude permanent ppolicy locks)\n  --locked  include current AD locks or recorded LDAPv3 ppolicy lock candidates\n  --all  read all pages up to --max-rows or --limit\n  --name  <pattern> match cn\n  --sam  <pattern> AD only: match sAMAccountName\n  --upn  <pattern> AD only: match userPrincipalName\n  --uid  <pattern> LDAPv3 only: match uid\n  --filter  <RFC4515> add a raw LDAP filter\n  --scope  <base|one|sub> search scope (default: sub)\n  --max-rows  <n> maximum output rows\n  --page-size  <1..1000> LDAP page size (default: AD 1000, LDAPv3 500; config overrides)\n  --limit  <n> alias for bounded list output\n  --fields  <name,...> select output fields\n  --attributes  <name,...> request and emit raw attributes\nActive Directory fields: sam, upn, name, dn, enabled, locked, last_logon, object_sid, when_created\nActive Directory defaults: sam, name, enabled, last_logon\nLDAPv3 fields: uid, name, mail, enabled, locked, account_state, dn, entry_uuid, when_created\nLDAPv3 defaults: uid, name, mail, enabled, locked, account_state\nExamples:\n  ldap-axi user list --disabled --max-rows 25\n  ldap-axi user list --name Alice --fields name,dn --limit 50"
+    "help": "List user accounts.\nLDAPv3 users are inetOrgPerson or posixAccount entries; use ldap-axi entry search for account + simpleSecurityObject service accounts.\nUsage: ldap-axi user list [flags]\nFlags:\n  --help  show this help\n  --base  <dn> search base (default: environment, config, or server naming contexts)\n  --disabled  include disabled accounts (LDAPv3: permanent ppolicy locks)\n  --enabled  include enabled accounts (LDAPv3: exclude permanent ppolicy locks)\n  --locked  include current AD locks or recorded LDAPv3 ppolicy lock candidates\n  --all  read all pages up to --max-rows or --limit\n  --name  <pattern> match cn\n  --sam  <pattern> AD only: match sAMAccountName\n  --upn  <pattern> AD only: match userPrincipalName\n  --uid  <pattern> LDAPv3 only: match uid\n  --filter  <RFC4515> add a raw LDAP filter\n  --scope  <base|one|sub> search scope (default: sub)\n  --max-rows  <n> maximum output rows\n  --page-size  <1..1000> LDAP page size (default: AD 1000, LDAPv3 500; config overrides)\n  --limit  <n> alias for bounded list output\n  --fields  <name,...> select output fields\n  --attributes  <name,...> request and emit raw attributes\nActive Directory fields: sam, upn, name, dn, enabled, locked, last_logon, object_sid, when_created, description, display_name, memberOf\nActive Directory defaults: sam, name, enabled, last_logon\nLDAPv3 fields: uid, name, mail, enabled, locked, account_state, dn, entry_uuid, when_created\nLDAPv3 defaults: uid, name, mail, enabled, locked, account_state\nExamples:\n  ldap-axi user list --disabled --max-rows 25\n  ldap-axi user list --name Alice --fields name,dn --limit 50"
   },
   "suggestionFields": [
     "help"

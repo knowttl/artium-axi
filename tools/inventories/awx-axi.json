@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/awx-inventory.mjs",
   "tool": "awx-axi",
-  "version": "0.1.7",
-  "integrity": "sha512-hZFvJnOhW+UZDeBTp+un1K1anUqEVC0njETANXbHjgXKwiGB3W1h5oEZzmf4fiPskZarr+ynlEaUaWafEHtnsA==",
+  "version": "0.1.8",
+  "integrity": "sha512-tkheZgSTjs6nZT3KWo0e/+SH43ZacfvZpo7COktmpIs8lNr8VLhUtrGARz+mvwj8pov4zscdfmxAHL/8V025Bw==",
   "parserEvidence": "Published domain registry, reviewed plan effects and transport safety gates",
   "sources": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "path": "dist/commands/auth.js",
-      "sha256": "5ccc0c9a226ab900bcc89a55aa71b22b64a41069e9f64d73c2c1fece79190a68"
+      "sha256": "cf8e52f33d6acb5091d009c23df4957da3d208d4e9417bdcbba547f4d7c8b690"
     },
     {
       "path": "dist/commands/home.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/core/flags.js",
-      "sha256": "ae72d1964d63ef9fab92bb5ff561f584432c14b8d216b5f2e2b5967333b25fbb"
+      "sha256": "60d5c58ab68c3cc61e57c249b93db544d619469c6fbd1e3082ee573ed1b50498"
     },
     {
       "path": "dist/core/mutations.js",
@@ -47,11 +47,11 @@
     },
     {
       "path": "dist/core/output.js",
-      "sha256": "b8d4dc8dff76151b2af0e25caf5946c97ba98f8eb21939aab49ed1222d7c16dd"
+      "sha256": "7406df524ee329a3e2eb1f2b37295d8699de678e687525c8d55a3ce67d78dd0a"
     },
     {
       "path": "dist/core/paginate.js",
-      "sha256": "cd5b17961f1671e204a8087b96ef8a15dc8c4994b486f0b3027734c560e648b2"
+      "sha256": "d952bc390a4ac2da263b1d98c24f05e416652335904de37b26379576632059a3"
     },
     {
       "path": "dist/core/poll.js",
@@ -59,19 +59,19 @@
     },
     {
       "path": "dist/core/private-file.js",
-      "sha256": "eedc2a13e5e4470eb22b8e3d500cd971b376c57fff9220c12c4d507ceeb240f6"
+      "sha256": "30f44672d91f74b232ae6f7884b7daee6bd12ce6702ca57b3213a8a5da4bf992"
     },
     {
       "path": "dist/core/profiles.js",
-      "sha256": "72b3bfe669c5471222efb6a457d25daff793375399c406f47a112fc76b291dc4"
+      "sha256": "c3ac1d2a531115d253ed83020d88e3763108249a4a03ca710da40833db05bc7d"
     },
     {
       "path": "dist/core/redact.js",
-      "sha256": "dd8de047c53d06808f90f9c51324b737a51d83768c16d4e69f9af64f56bdf602"
+      "sha256": "4fa205b30a3165738578c01ecfa5787bb6993ee11b07dbcb74b6401d4441679f"
     },
     {
       "path": "dist/core/registry.js",
-      "sha256": "a1818f532b67b39c6402d694b982b688234fdfdec4df51782ef30783b7afe488"
+      "sha256": "89d3983928dd3a63712e9c78a4959c2e9c950097a3d200f6d1ccf2c3327bbdfd"
     },
     {
       "path": "dist/core/resolve.js",
@@ -87,95 +87,95 @@
     },
     {
       "path": "dist/domains/activity-stream/index.js",
-      "sha256": "b5e7094013f5626affc0bf756b96ad3edce3d1720d0698238bc703e749e8571a"
+      "sha256": "633995f66b7e24cb4c6d98341e943a7e8d61b3b271503cb1b191b161b3fb927f"
     },
     {
       "path": "dist/domains/ad-hoc/index.js",
-      "sha256": "8fdaf507ab0b4b4f7e9ae7713e36ae318d55882276cfe9e82dfdeff65417266d"
+      "sha256": "92f5395f74f449bb6fde43276764dfe965eaa8afb491a8f5e13323dc9a366084"
     },
     {
       "path": "dist/domains/approval/index.js",
-      "sha256": "139356c4fa1289f2694d55248b7f12e8b0267fa5acd39edb05b0f3ac4da0f64e"
+      "sha256": "741282a1143b776ba0850cd8cc0ec3da913e1d354cc08f671b51cdea58621b1b"
     },
     {
       "path": "dist/domains/credential/index.js",
-      "sha256": "554a36457a4d264f2361da766350ec6696aaace78280e978f56b6fb577447f6b"
+      "sha256": "00e5171e9b653f8266722cc53302748bbd54c874c07e60e2967f95797c7bcf05"
     },
     {
       "path": "dist/domains/execution-environment/index.js",
-      "sha256": "d068ff30cdf0eff1d8af2a53a564ed26e2843c544cd1d0d5c2643e8a9f07bdca"
+      "sha256": "0038065d8d51b9fe370e8e517ddcebfdb8ccf0b3ee512a89147eea413e918685"
     },
     {
       "path": "dist/domains/group/index.js",
-      "sha256": "6415d7548cc0220f423dd5da887b0fc6975be3cdb8367ed5df74f7af375fc5ef"
+      "sha256": "7fdd83edd141372fcc5486ba07968137f913ac9a73147aa748127b523c4cc785"
     },
     {
       "path": "dist/domains/host/index.js",
-      "sha256": "2faf483f269b39a12f759f46ff520ee97ac1009448062ccfb333c5a26ecd4591"
+      "sha256": "478ff268a6a6a8452aa206be7671e402782fbfde8504808d9cc4fe10205b6707"
     },
     {
       "path": "dist/domains/inventory-source/index.js",
-      "sha256": "1015ff818f4051828cd089ff603f6a1fe28ddb672061be021372c93f68053f56"
+      "sha256": "56d8f203514f688eb734c29c2db45930dcddb96bdb82424bf8cc835c493cb279"
     },
     {
       "path": "dist/domains/inventory/index.js",
-      "sha256": "8363397bbb0b9f90617442ae980d9900b536f7c17dec35d1b931c71546603f31"
+      "sha256": "0352fc474d38aed258ab069a6a80da83d3acf00c9cccd37c3d26b16e8b6d8e2d"
     },
     {
       "path": "dist/domains/job/index.js",
-      "sha256": "5a5c76bc626d83dc286b737416b8f44c0b5bf53b419f39cc07bb61ef65ae00bd"
+      "sha256": "db22aa5cd3c15da799d7aaea4430c9a6aa5e04e7f5fa1a5cacb340799f34f38c"
     },
     {
       "path": "dist/domains/notification-template/index.js",
-      "sha256": "8b6faa1fd012db6d2c66246dea378d8360aaa36dc1accfed367cb39f4679721a"
+      "sha256": "c3ddb6e7abcdc57583bc1ada57f30302f63b01a559381c2be196b7ee3bbfdc9b"
     },
     {
       "path": "dist/domains/notification/index.js",
-      "sha256": "4825216f22fb565de502165455dd23a3126573dcff584d5cf97915123680d3cf"
+      "sha256": "d9c46319aabe8187e3417710c3ebeda5650b55463f84fa9baa3d6fe91edc1ced"
     },
     {
       "path": "dist/domains/organization/index.js",
-      "sha256": "d79160904aca5909b3e83cee7a43d751566a49fcba7fd63595d2d10ecb473289"
+      "sha256": "65072b9afb1706b67b1f7c37c9d96bf12104d8ec56a214f06a512e6283fb0229"
     },
     {
       "path": "dist/domains/project/index.js",
-      "sha256": "8dcb5a74ed19511e9c53cfe0d9c67efe3cf78861019a559c60c19914d8d7cde2"
+      "sha256": "eafb98f7148e2a5e8c194af16ebbaa7569ddf74344e367531ba9f6946a39ef46"
     },
     {
       "path": "dist/domains/role/index.js",
-      "sha256": "63df014ea35ce97855e19fba126ccef8971756b2cc707a9c442f3fd6c094bdc9"
+      "sha256": "0e5ee47acb703d2f202f01450eb87330140b97c430440eff31c4f33bab28a647"
     },
     {
       "path": "dist/domains/schedule/index.js",
-      "sha256": "bcab018cfa8b38fa9c4b3509ba1ec1c10c4e4d10e3887e500e00baa794bbc8a6"
+      "sha256": "d3267a27432a6911027a2d5dc04177eb46db703ea012cc6d1cfe33c19be49694"
     },
     {
       "path": "dist/domains/system-job-template/index.js",
-      "sha256": "d9c8efd7b12054715e2a110bffa726dcb1bd34120521725c505b1179d7a49b45"
+      "sha256": "8f485966f9f290399dfaf2eedf21b4182d2dd712bb6833e1df377eabb53ebb04"
     },
     {
       "path": "dist/domains/system-job/index.js",
-      "sha256": "59e45fa7495ae48f1e9d8e551a80673cbfbe880d4c78c4221a168709a8247cff"
+      "sha256": "25bae07068cd93cf705c2bebcd8a4f6e5f6071c6b41951edb62527630e2c678f"
     },
     {
       "path": "dist/domains/team/index.js",
-      "sha256": "fd47ffaa541b5deede3994d16be4ad6683a2a8b0883d99846475f2e924453797"
+      "sha256": "eb3a4b5cff91f8ef1b07b64a934a3b9d9bc025cf2eb476f6aafa92086b9c07b6"
     },
     {
       "path": "dist/domains/template/index.js",
-      "sha256": "30801bdd67e37b105eefd4df3e7c0ece4a7257258e9087bf444a3383e12c93c8"
+      "sha256": "92dd83d5adbba8b572b2bcec6090630a34d572b4a1346906dafdc8499d6f7941"
     },
     {
       "path": "dist/domains/user/index.js",
-      "sha256": "b85dc53d942ffc9ed062bf948565c69d4cb046f718bb65118e3e27ce7533217c"
+      "sha256": "dc2de36112a32b61f34d631f642a134b317255a5f5a1c1f2da6f3cf6d09e7cf3"
     },
     {
       "path": "dist/domains/workflow/index.js",
-      "sha256": "d5734a2b8f937fca7e0660f8c2942fbcc0e543c105c4be5a16b3f3787e6530af"
+      "sha256": "811a3b1df2bfa7a2f76f6fb1c3464de91ed2b7c171788bc82ae4cd991ce4c52a"
     },
     {
       "path": "dist/skill.js",
-      "sha256": "65fe6713e288b6263bc74331969db46c39bd7d798b816266512de456427626a7"
+      "sha256": "c7280e3093b0f547c577d54dc1f861cac4ce13ec70afabf7a3d1d55e3dbd6247"
     }
   ],
   "credentialSchema": {
@@ -267,7 +267,7 @@
       }
     }
   },
-  "skillSha256": "b3e128cd347128b36f949cf5641a4a1e3eeac47866e469d74d467f068cfb99c5",
+  "skillSha256": "71f03eed887e2a5189b1b08b692fc5fd7a4acfd274102bd925c27d1dd16177ce",
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",
@@ -340,7 +340,9 @@
         "template": "value",
         "failed": "boolean",
         "since": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -385,7 +387,9 @@
         "failed": "boolean",
         "host": "value",
         "task": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -398,7 +402,10 @@
       "command": "job hosts",
       "effect": "read",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -488,7 +495,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -715,7 +724,9 @@
         "help": "boolean",
         "project": "value",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -780,7 +791,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -1141,7 +1154,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1198,7 +1213,10 @@
       "command": "workflow nodes",
       "effect": "read",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -1212,7 +1230,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -1225,8 +1245,7 @@
       "command": "workflow template-node",
       "effect": "read",
       "flags": {
-        "help": "boolean",
-        "limit": "value"
+        "help": "boolean"
       },
       "positionals": {
         "names": [
@@ -1552,7 +1571,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1594,7 +1615,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1637,7 +1660,9 @@
         "search": "value",
         "template": "value",
         "status": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1665,7 +1690,9 @@
         "failed": "boolean",
         "host": "value",
         "task": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -1679,7 +1706,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -1693,7 +1722,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -1780,7 +1811,9 @@
         "help": "boolean",
         "search": "value",
         "organization": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1806,7 +1839,9 @@
       "flags": {
         "help": "boolean",
         "include-decided": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1888,7 +1923,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -1915,7 +1952,9 @@
         "help": "boolean",
         "host": "value",
         "task": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -2054,7 +2093,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -2092,7 +2133,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -2105,7 +2148,10 @@
       "command": "project roles",
       "effect": "read",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -2537,7 +2583,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -2563,7 +2611,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -2579,6 +2629,8 @@
         "help": "boolean",
         "search": "value",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "facts": "boolean"
       },
       "positionals": {
@@ -2594,7 +2646,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -2625,7 +2679,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -2653,7 +2709,9 @@
         "search": "value",
         "name": "value",
         "inventory": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -2681,7 +2739,9 @@
         "search": "value",
         "name": "value",
         "inventory": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -2711,7 +2771,9 @@
         "inventory": "value",
         "source": "value",
         "status": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -2903,7 +2965,9 @@
         "template": "value",
         "enabled": "boolean",
         "disabled": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3004,7 +3068,9 @@
         "search": "value",
         "organization": "value",
         "type": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3122,7 +3188,9 @@
       "flags": {
         "help": "boolean",
         "search": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3156,7 +3224,9 @@
         "inventory-update": "value",
         "ad-hoc": "value",
         "system-job": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3274,7 +3344,9 @@
         "search": "value",
         "type": "value",
         "organization": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3311,7 +3383,9 @@
         "team": "value",
         "user": "value",
         "credential": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3439,7 +3513,9 @@
         "help": "boolean",
         "search": "value",
         "organization": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3464,7 +3540,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3478,7 +3556,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3492,7 +3572,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3506,7 +3588,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3520,7 +3604,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3534,7 +3620,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3584,7 +3672,9 @@
         "help": "boolean",
         "search": "value",
         "type": "value",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [],
@@ -3609,7 +3699,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3623,7 +3715,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3637,7 +3731,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [
@@ -3651,7 +3747,9 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "positionals": {
         "names": [

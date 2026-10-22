@@ -48,4 +48,9 @@ Output and errors are TOON on stdout; help entries carry actionable next steps.
 Exit codes are 0 for success, 1 for failures, and 2 for usage errors.
 A continuation_cursor is opaque and bound to its credential and query; follow the emitted next-page command.
 Search jobs have no pagination; bound results in CQL and check parsed_query for unexpected interpretation.
+Start with `uvx falcon-axi search start --query '<cql> | head(5)' --wait 30`.
+If still running, use `uvx falcon-axi search status <id> --wait 30`; --wait accepts 1-50 seconds.
+Without --wait, start returns the job id and status polls once.
+For readable epoch-millisecond @timestamp values, append this CQL stage to the query:
+`| formatTime("%Y-%m-%dT%H:%M:%SZ", field=@timestamp, as=time, timezone="UTC")`.
 Stop search jobs when no longer needed.

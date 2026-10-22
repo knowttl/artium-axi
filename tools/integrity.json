@@ -1,7 +1,7 @@
 {
   "awx-axi": {
-    "version": "0.1.7",
-    "integrity": "sha512-hZFvJnOhW+UZDeBTp+un1K1anUqEVC0njETANXbHjgXKwiGB3W1h5oEZzmf4fiPskZarr+ynlEaUaWafEHtnsA=="
+    "version": "0.1.8",
+    "integrity": "sha512-tkheZgSTjs6nZT3KWo0e/+SH43ZacfvZpo7COktmpIs8lNr8VLhUtrGARz+mvwj8pov4zscdfmxAHL/8V025Bw=="
   },
   "@jeffreyhaen/ado-axi": {
     "version": "0.4.6",
@@ -12,12 +12,12 @@
     "integrity": "sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw=="
   },
   "@knowttl/vectra-axi": {
-    "version": "0.1.7",
-    "integrity": "sha512-7gop8tQkTohKKoldYuHZ9Kz2Eq/vQNBqW0OZV8HLSPEKc3OVhdFt00osRb1kwRjB1h1Vr/ku0H0IWoKOxxticQ=="
+    "version": "0.1.8",
+    "integrity": "sha512-Wvn73g5hm4mzQQKhNnKvAjt6SfGFrPD2EAYMa4AXhoVqFfjXjxnQLk6tUw7E92jozeHtpZ+aDXSGMHaJhhTi1Q=="
   },
   "@knowttl/ldap-axi": {
-    "version": "0.2.0",
-    "integrity": "sha512-w/gE4jHaUHE0iKh3ucDnDG0AVrhP0VwpFCEcw3wSTzLmTBMNZrJ9AFB06j2jnf4TFgK5+5NhF0EE0R69mv7crA=="
+    "version": "0.3.0",
+    "integrity": "sha512-QVectHNsRxYWNBf0im5DjeN78mcgK0Te0Sxh7uXGNb+AhQjsS5ywiCrnKAk0/INA/oxiZ1TiXaDX7jHAg5OvDg=="
   },
   "@knowttl/mg-axi": {
     "version": "0.1.10",

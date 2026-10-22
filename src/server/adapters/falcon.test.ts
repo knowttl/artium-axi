@@ -41,7 +41,7 @@ test.each(['setup', 'config', 'profile', 'credentials', 'export', 'auth login', 
   })
 
 test.each([undefined, 'synthetic-member'])('preparation adds the managed region and optional member %s', async memberCid => {
-  const args = ['search', 'start', '--query', 'synthetic | text --region=literal', '--repository=synthetic', '--since', '24h']
+  const args = ['search', 'start', '--query', 'synthetic | text --region=literal', '--repository=synthetic', '--since', '24h', '--wait', '30']
   const result = await prepareFalcon(args, { ...configuration, memberCid })
   expect(result).toEqual({
     executable: '/opt/falcon-axi/bin/falcon-axi',
@@ -77,6 +77,11 @@ test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list
     expect(prepared.args).toEqual([...command.split(' '), '--region', 'us-2'])
     expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe('false')
   })
+
+test.each(['detection', 'host', 'search', 'identity rule'])('%s group help stays terminal for the pinned parser', async group => {
+  const args = [...group.split(' '), '--help']
+  expect((await prepareFalcon(args, { ...configuration, memberCid: 'synthetic-member' })).args).toEqual(args)
+})
 
 test('security prepared canaries reach only the trusted TLS fake through the real runner', async () => {
   await withFakeService(async ({ directory: certificates, port, send }) => {

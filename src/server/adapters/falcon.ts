@@ -30,9 +30,12 @@ export type FalconCredential = z.infer<typeof falconCredentialSchema>
 
 function prepareCredential(args: readonly string[], credential: FalconCredential) {
   const { clientId, clientSecret, region, memberCid } = credential
+  const group = args.slice(0, -1).join(' ')
+  // Group help must end at --help and never resolves connection settings upstream.
+  const groupHelp = args.at(-1) === '--help' && inventory.commands.some(route => route.command.startsWith(group + ' '))
   return {
     executable: toolPaths['falcon-axi'],
-    args: [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
+    args: groupHelp ? [...args] : [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
     environment: { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret,
       FALCON_AXI_READ_ONLY: 'false' },
     secrets: [clientId, clientSecret],
