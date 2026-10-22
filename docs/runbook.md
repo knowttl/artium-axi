@@ -334,7 +334,13 @@ Review actor, change time and revision before saving; reload stale forms instead
 See [browser administration](admin-guide.md#browser-administration) for timestamp display and inline identity confirmation.
 
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
-On its admin tool page, save native settings with `allowWrites: true` for Falcon, Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
+The browser tool page still uses the Native settings JSON editor; a dedicated UI switch is not yet available.
+For that editor, use `allowWrites: true` for Azure, Azure DevOps or AWX, or `writes: {"allowWrites": true, "operations": ["<operation>"]}` for Graph or Vectra.
+Saving Native settings replaces the entire object, so preserve all other settings and the current write policy; omitting the write opt-in or saving `{}` turns writes off.
+For scripted administration, read `GET /v1/admin/tools` or `GET /v1/admin/tools/:tool` to review normalized `writeAccess` capability, current state, fixed read-only reasons, supported and allowed operations, and the actions a grant unlocks or leaves blocked.
+Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while preserving other native settings and credential values.
+Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
+The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
 For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
@@ -344,12 +350,12 @@ Until a token is saved, the credential remains unconfigured and ordinary calls c
 The same sequence applies when switching controllers; the paste-a-token path remains available.
 See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for the one-time token exchange and password handling.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
-Set the switch to false or clear the settings to turn writes off.
-Settings changes use the existing administrator authorization, revision checks and audit trail.
+Write-policy changes, including changes through Native settings or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
+Stale revisions never mutate settings, and an audit failure rolls back the change.
 Tool lists and health responses report `readOnly`; LDAP and the current Falcon pin always remain read-only.
 Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
-The reviewed Falcon pin has no write commands; enabling its saved switch leaves effective write access off.
-The Falcon switch is available for a future write-capable pin, which requires a separate review and upgrade.
+The write-access endpoint rejects changes for LDAP and the reviewed Falcon pin with the fixed read-only reason.
+Falcon ignores any legacy saved `allowWrites` value; a write-capable pin would require a separate review and upgrade.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
