@@ -13,6 +13,7 @@
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
+| `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
@@ -78,7 +79,7 @@ Doctor reads cached tool health rather than running a fresh platform test.
 Its certificate diagnostic reports whether the liveness request verified TLS, independently of the HTTP status or response body.
 If the connection or CA-file read fails before verification, the certificate remains unverified.
 Only `ok` passes; `unknown`, `unconfigured` and `error` require investigation.
-If the client reports `CLI_OUTDATED`, download the current bundle and checksum from the server again.
+If the client reports `CLI_OUTDATED`, follow the README's [client update guidance](../README.md#verified-client) or [npm alternative](../README.md#npm-client-alternative), according to your installation.
 
 ## Agent installation
 
@@ -153,7 +154,7 @@ For authenticated calls, send one UTF-8 JSON object of at most 64 KiB to fd 3, t
 The optional fields `status: "authenticated"`, `accessExpiresAt` and `familyExpiresAt` (integer Unix milliseconds) allow a rotation record to be reused as input; other fields are refused.
 The caller owns expiry policy, refresh serialization across processes and secure persistence.
 Managed mode supports `login`, the home view, `whoami`, `tools`, `tools show`, `doctor` and tool commands.
-`passwd`, `logout` and `setup` are refused before any network call; ordinary sign-in and its server-version warning remain unchanged without the flag.
+`passwd`, `logout`, `setup` and `update` are refused before configuration, private-channel reads or network access; ordinary sign-in and its server-version warning remain unchanged without the flag.
 Help is available without private channels through `artium-axi --help`; use `artium-axi --managed-session --help` or `artium-axi login --help` for the pipe protocol.
 
 To obtain the first session, run `artium-axi --managed-session login --username <username> --password-stdin` with the password on protected inherited stdin, or `artium-axi --managed-session login --sso` for browser approval.

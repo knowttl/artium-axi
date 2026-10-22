@@ -476,12 +476,12 @@ test('replacement during a check queues one fresh check and never caches the old
   expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
 })
 
-test.each(['0.0.0', '0.0.0-old'])('CLI %s is refused with the download command before authentication or tool preparation', async version => {
+test.each(['0.0.0', '0.0.0-old'])('CLI %s is refused with the update command before authentication or tool preparation', async version => {
   const prepare = vi.spyOn(adapter, 'prepare')
   const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
   expect(response.statusCode).toBe(426)
   expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED',
-    next: 'Download the current CLI: curl --fail --output artium-axi.mjs https://synthetic.invalid/cli/artium-axi.mjs' } })
+    next: 'Run artium-axi update to install the current CLI.' } })
   expect(prepare).not.toHaveBeenCalled()
 })
 

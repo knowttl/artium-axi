@@ -5,7 +5,7 @@ import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json'
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 
 const commands = {
-  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
+  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
   setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and an optional Claude Code session hook.',
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
@@ -19,6 +19,7 @@ const commands = {
     example: 'artium-axi passwd --password-stdin' },
   logout: { usage: 'artium-axi logout', purpose: 'Remove local tokens and revoke the server session.', flags: [], example: 'artium-axi logout' },
   doctor: { usage: 'artium-axi doctor', purpose: 'Check the server, certificate, token, CLI version and cached tool health.', flags: [], example: 'artium-axi doctor' },
+  update: { usage: 'artium-axi update', purpose: 'Download and verify the server’s client, replace this file and keep a .bak backup. npm installations must use npm install -g @knowttl/artium-axi.', flags: [], example: 'artium-axi update' },
   'falcon-axi': { usage: 'artium-axi falcon-axi [<args>]', purpose: 'Run Falcon commands with your managed credentials.',
     flags: ['Arguments after falcon-axi are forwarded upstream, including --help.'], example: `artium-axi falcon-axi ${falcon.discovery.example.join(' ')}` },
   'vectra-axi': { usage: 'artium-axi vectra-axi [<args>]', purpose: 'Run Vectra commands with your managed credentials.',
@@ -42,12 +43,12 @@ export type HelpCommand = keyof typeof commands
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
   const flags = [toolSchema.safeParse(command).success ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags,
-    '--managed-session before the command (default false; caller-owned sessions; see artium-axi --managed-session --help)']
+    ...(command === 'update' ? [] : ['--managed-session before the command (default false; caller-owned sessions; see artium-axi --managed-session --help)'])]
   const protocol = [
     'Session JSON on inherited pipe fd 3, new sessions and rotations as JSON lines on private pipe fd 4; no session file.',
     'Managed input: {serverUrl, accessToken, refreshToken?}; close fd 3 after JSON (64 KiB maximum). Output: {serverUrl, status, accessToken, refreshToken, accessExpiresAt, familyExpiresAt} per rotation, before retry, including on later failure.',
     'Managed login: fd 3 is unused; fd 4 must be a writable private pipe/socket. Local sign-in requires --username <username> --password-stdin with protected inherited stdin; password argv and ARTIUM_AXI_PASSWORD are refused. SSO uses login --sso and displays browser approval instructions immediately. New sessions use the rotation envelope; password-change-required returns {serverUrl, status, passwordChangeToken, passwordChangeExpiresAt} on fd 4 and exits 1.',
-    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
+    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup/update; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
   const purposes = command === 'home' ? `commands[${Object.keys(commands).length - 2}]{command,purpose}:\n${Object.entries(commands)
     .filter(([name]) => name !== 'home' && name !== 'managed-session')
     .map(([name, value]) => `  ${name},${JSON.stringify(value.purpose)}`).join('\n')}\n` : ''

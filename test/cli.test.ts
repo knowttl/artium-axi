@@ -1,5 +1,6 @@
 import { execFile, execFileSync, fork, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
+import { createHash } from 'node:crypto'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
 import { createServer as createHttpServer } from 'node:http'
@@ -24,7 +25,7 @@ const clockBundle = join(directory, 'artium-axi-clock.mjs')
 const windowsBundle = join(directory, 'artium-axi-windows.mjs')
 const stalls = new EventEmitter()
 let url: string
-let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string }
+let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string, raw?: string }
 let requests: { path: string, token?: string, body: unknown, version?: string }[] = []
 let doctorResponses: Record<string, typeof response> | undefined
 let responseSequence: typeof response[] | undefined
@@ -65,7 +66,7 @@ beforeAll(async () => {
       if (request.url!.startsWith('/stall-body/')) stalled()
       return
     }
-    reply.end(JSON.stringify(current.body))
+    reply.end(current.raw ?? JSON.stringify(current.body))
   })
   server.listen(0)
   await once(server, 'listening')
@@ -151,6 +152,64 @@ test('standalone bundle prints the package version offline without configuration
   const result = await execute(process.execPath, [bundle, '--version'], { cwd: directory, timeout: 10_000,
     env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, 'unsigned-config') } })
   expect(result).toEqual({ stdout: `${cliVersion}\n`, stderr: '' })
+})
+
+test('update replaces the running bundle using saved TLS settings and keeps one backup', async () => {
+  const install = mkdtempSync(join(directory, 'update-'))
+  const executable = join(install, 'artium-axi.mjs')
+  copyFileSync(bundle, executable)
+  writeFileSync(`${executable}.bak`, 'previous backup')
+  const original = readFileSync(executable)
+  const replacement = '#!/usr/bin/env node\nconsole.log("999.0.0")\n'
+  new SessionStore(url, join(install, 'artium-axi/session.json')).writeClientConfig(join(directory, 'ca.crt'))
+  doctorResponses = {
+    '/cli/artium-axi.mjs': { status: 200, body: undefined, raw: replacement },
+    '/cli/artium-axi.mjs.sha256': { status: 200, body: undefined,
+      raw: `${createHash('sha256').update(replacement).digest('hex')}  artium-axi.mjs\n` },
+  }
+  requests = []
+  try {
+    const result = await execute(process.execPath, [executable, 'update'], { env: { XDG_CONFIG_HOME: install }, timeout: 10_000 })
+    expect(result.stdout).toContain('status: updated')
+    expect((await execute(process.execPath, [executable, '--version'])).stdout).toBe('999.0.0\n')
+    expect(readFileSync(`${executable}.bak`)).toEqual(original)
+    expect(statSync(executable).mode & 0o777).toBe(statSync(bundle).mode & 0o777)
+    expect(requests.map(request => ({ path: request.path, token: request.token }))).toEqual([
+      { path: '/cli/artium-axi.mjs', token: undefined }, { path: '/cli/artium-axi.mjs.sha256', token: undefined },
+    ])
+  } finally { doctorResponses = undefined }
+})
+
+test.each(['0'.repeat(64), 'not-a-digest'])('update rejects checksum %s without changing the client or backup', async digest => {
+  const install = mkdtempSync(join(directory, 'bad-update-'))
+  const executable = join(install, 'artium-axi.mjs')
+  copyFileSync(bundle, executable)
+  writeFileSync(`${executable}.bak`, 'previous backup')
+  doctorResponses = {
+    '/cli/artium-axi.mjs': { status: 200, body: undefined, raw: 'unverified bundle' },
+    '/cli/artium-axi.mjs.sha256': { status: 200, body: undefined, raw: digest },
+  }
+  try {
+    await expect(execute(process.execPath, [executable, 'update'], { timeout: 10_000,
+      env: { XDG_CONFIG_HOME: install, ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') },
+    })).rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('SHA-256 verification') })
+    expect(readFileSync(executable)).toEqual(readFileSync(bundle))
+    expect(readFileSync(`${executable}.bak`, 'utf8')).toBe('previous backup')
+    expect(readdirSync(install).sort()).toEqual(['artium-axi.mjs', 'artium-axi.mjs.bak'])
+  } finally { doctorResponses = undefined }
+})
+
+test('update refuses npm installations before reading configuration or contacting the server', async () => {
+  const install = mkdtempSync(join(directory, 'npm-update-'))
+  mkdirSync(join(install, 'bin'))
+  const executable = join(install, 'bin/artium-axi.mjs')
+  copyFileSync(bundle, executable)
+  writeFileSync(join(install, 'package.json'), JSON.stringify({ name: '@knowttl/artium-axi' }))
+  requests = []
+  await expect(execute(process.execPath, [executable, 'update'], { timeout: 10_000, env: { XDG_CONFIG_HOME: install } }))
+    .rejects.toMatchObject({ code: 2, stdout: expect.stringContaining('npm install -g @knowttl/artium-axi@latest') })
+  expect(requests).toEqual([])
+  expect(readFileSync(executable)).toEqual(readFileSync(bundle))
 })
 
 test.each(['password', 'sso'])('%s login remembers connection settings for tools and the installed SessionStart hook', async method => {
@@ -289,9 +348,28 @@ test.each(['not JSON CANARY-managed-access', '{}', '{"accessToken":""}', 'x'.rep
   expect(requests).toEqual([])
 })
 
-test.each(['passwd', 'logout', 'setup'])('managed mode refuses %s before network access', async command => {
+test.each(['passwd', 'logout', 'setup', 'update'])('managed mode refuses %s before network access', async command => {
   requests = []
   expect(await managedCli([command])).toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test('managed update is refused before configuration or private descriptor validation', async () => {
+  requests = []
+  expect(await managedCli(['update'], { missing: 3, existing: true, environment: { ARTIUM_AXI_URL: 'invalid' } }))
+    .toMatchObject({ code: 2, stdout: expect.stringContaining('unavailable in managed session mode'), stderr: '', rotations: '' })
+  expect(requests).toEqual([])
+})
+
+test.each([
+  ['update', '--help'], ['--help', 'update'],
+  ['--managed-session', 'update', '--help'], ['--managed-session', '--help', 'update'],
+].map(args => ({ args })))('update help advertises only standalone flags: $args', async ({ args }) => {
+  requests = []
+  const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('usage: artium-axi update')
+  expect(result.stdout).not.toContain('--managed-session')
   expect(requests).toEqual([])
 })
 
@@ -468,7 +546,7 @@ test.each([
     refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 300_000, familyExpiresAt: Date.now() + 3600_000 } }
   const result = await cli(['login', '--username', 'synthetic-user', '--password-stdin'], {}, false, 'CANARY-password\n')
   expect(result).toMatchObject({ code: 0, stdout: 'status: authenticated\nnext: artium-axi tools\n',
-    stderr: warning ? `warning: CLI ${cliVersion} differs from server ${serverVersion}; download the matching client from ${url}/cli/artium-axi.mjs and verify its .sha256, or run npm install -g @knowttl/artium-axi@${serverVersion}.\n` : '' })
+    stderr: warning ? `warning: CLI ${cliVersion} differs from server ${serverVersion}; run artium-axi update, or run npm install -g @knowttl/artium-axi@${serverVersion}.\n` : '' })
 })
 
 test('standalone bundle lists tools and reports an empty list', async () => {
@@ -905,7 +983,7 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, az-axi, mg-axi' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
