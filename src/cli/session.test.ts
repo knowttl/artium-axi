@@ -1,8 +1,11 @@
 import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { SessionStore, sessionPath } from './session.js'
+
+vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
 
 let directory: string
 const url = 'https://server.test'
@@ -13,7 +16,17 @@ beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'artium-session-'))
   store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'), 'linux')
 })
-afterEach(() => { rmSync(directory, { recursive: true, force: true }) })
+afterEach(() => { vi.resetAllMocks(); rmSync(directory, { recursive: true, force: true }) })
+
+test.each([true, false])('Windows ACL script failure maps to storage unavailable (directory=%s)', failDirectory => {
+  vi.mocked(execFileSync).mockImplementation((_command, _args, options) => {
+    if ((options?.env?.ARTIUM_AXI_SESSION_ACL_KIND === 'directory') === failDirectory) throw new Error('synthetic script failure')
+    return Buffer.alloc(0)
+  })
+  const windows = new SessionStore(url, store.file, 'win32')
+  expect(() => windows.write(session)).toThrowError(expect.objectContaining({ code: 'SESSION_STORAGE_UNAVAILABLE' }))
+  expect(readdirSync(windows.directory)).toEqual([])
+})
 
 test.each([
   ['linux', {}, '/synthetic/home', '/synthetic/home/.config/artium-axi/session.json'],

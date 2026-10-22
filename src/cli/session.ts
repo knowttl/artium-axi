@@ -24,7 +24,8 @@ export function restrictWindowsAcl(path: string, directory: boolean) {
     `$inherit=if ($directory) { [System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit' } else { [System.Security.AccessControl.InheritanceFlags]::None }; ` +
     `foreach ($sid in @($user,[System.Security.Principal.SecurityIdentifier]::new('S-1-5-18'),[System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) { ` +
     `$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl',$inherit,'None','Allow')) }; ` +
-    `Set-Acl -LiteralPath $path -AclObject $acl -ErrorAction Stop`
+    `$item=if ($directory) { [System.IO.DirectoryInfo]::new($path) } else { [System.IO.FileInfo]::new($path) }; ` +
+    `$item.SetAccessControl($acl)`
   execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
     stdio: 'ignore', env: { ...process.env, ARTIUM_AXI_SESSION_ACL_PATH: path, ARTIUM_AXI_SESSION_ACL_KIND: directory ? 'directory' : 'file' },
   })

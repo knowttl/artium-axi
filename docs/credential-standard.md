@@ -128,7 +128,7 @@ macOS and WSL follow the Linux rules.
 2. Every directory the tool creates and every file it writes MUST get a protected DACL.
    The DACL disables inheritance and grants FullControl only to the current user, SYSTEM (`S-1-5-18`) and Administrators (`S-1-5-32-544`).
    On directories the grant is inheritable.
-   This is artium-axi `restrictWindowsAcl` (`src/cli/session.ts:20-31`).
+   This is artium-axi [`restrictWindowsAcl`](../src/cli/session.ts).
 3. Files MUST be written atomically:
    1. Create a temp file with flag `wx`.
    2. Apply the DACL.
@@ -144,7 +144,7 @@ macOS and WSL follow the Linux rules.
 1. When a check fails, the tool MUST raise `CONFIG_INSECURE`.
    The error names the path and the platform's fix (`chmod 600 <path>`, or re-running the tool's write on Windows) and never echoes the content.
 2. Each tool keeps these rules in one private-file module.
-   That module takes the platform and the ACL function as injectable parameters, as artium-axi's `SessionStore` does (`src/cli/session.ts:35-36`), so tests can run both branches on Linux.
+   That module takes the platform and the ACL function as injectable parameters, as artium-axi's [`SessionStore`](../src/cli/session.ts) does, so tests can run both branches on Linux.
 3. Before a release, at least one real Windows run of `auth status` and of a config write SHOULD happen.
 4. `axi-sdk-js` is third-party (kunchenguid/axi), so the module lives in each tool.
    falcon-axi needs a Python version of it.
