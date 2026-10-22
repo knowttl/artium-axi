@@ -157,13 +157,12 @@ Select **Test after saving** to save and report a harmless credential check inli
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
-Before saving Native settings, follow the runbook's [write-policy preservation guidance](runbook.md#roles-credentials-and-health).
 Use **Write access** on a tool page to change writes without replacing other native settings.
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For Graph and Vectra, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
-Changes are recorded as `tool-write-access` audit events.
+See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The advanced JSON editor shows the saved write state, but saving it replaces the whole object and omitting write settings turns writes off.
 Credential changes clear cached health.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for startup checks, recovery retries and concurrency limits.
