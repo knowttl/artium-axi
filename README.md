@@ -121,6 +121,7 @@ artium-axi login --username synthetic-user
 ```
 
 Login warns about version differences; minimum server API requirements still apply.
+`artium-axi update` refuses npm installations; update them with `npm install -g @knowttl/artium-axi@latest`.
 Install `@knowttl/artium-axi@<server-version>` or download from the server to match it.
 
 ### Build from source
@@ -218,6 +219,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `whoami` | Identity, roles, expiry and server |
 | `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
+| `update` | Update the [server-downloaded client](#verified-client) |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
 | `<tool> <args>` | Run any of the seven managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |
