@@ -289,11 +289,16 @@ test.each(['ok', 'error'] as const)('a configuration refresh supersedes an in-fl
   let releaseOther!: (value: typeof result) => void
   const old = new Promise<typeof result>(resolve => { releaseOld = resolve })
   const other = new Promise<typeof result>(resolve => { releaseOther = resolve })
-  const run = vi.spyOn(runner, 'run').mockReturnValueOnce(old).mockReturnValueOnce(other).mockResolvedValue(result)
+  let admitted!: () => void
+  const bothAdmitted = new Promise<void>(resolve => { admitted = resolve })
+  const run = vi.spyOn(runner, 'run').mockReturnValueOnce(old).mockImplementationOnce(() => {
+    admitted()
+    return other
+  }).mockResolvedValue(result)
   const pending = health.refresh('falcon-axi')
   const otherPending = health.refresh('vectra-axi')
   try {
-    await vi.advanceTimersByTimeAsync(0)
+    await bothAdmitted
     expect(run).toHaveBeenCalledTimes(2)
     expect(health.refresh('falcon-axi', true)).toBeUndefined()
     releaseOld(status === 'ok' ? result : { ...result, stderr: 'code: TLS_UNTRUSTED', exitCode: 1 })
