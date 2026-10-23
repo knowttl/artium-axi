@@ -25,9 +25,15 @@ export class ToolHealth {
   private pending = new Set<Promise<unknown>>()
   private closed = false
   private readonly replaced = new Set<ToolName>()
+  private readonly queued = new Set<ToolName>()
   private readonly diagnostics = new Map<ToolName, Diagnostic>()
   private readonly due = new Map<ToolName, number>()
   private readonly failures = new Map<ToolName, number>()
+
+  // A check is running, queued behind a running check, or waiting for a background slot.
+  checking(tool: ToolName): boolean {
+    return this.active.has(tool) || this.replaced.has(tool) || this.queued.has(tool)
+  }
 
   diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null): Diagnostic | undefined {
     const detail = this.diagnostics.get(tool)
@@ -70,13 +76,15 @@ export class ToolHealth {
       return
     }
     const reference = this.store?.findCredential(tool)
-    if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) return
+    if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) { this.queued.delete(tool); return }
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
-    if (!row?.enabled || !this.adapters.some(adapter => adapter.name === tool)) return
+    if (!row?.enabled || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
     if (this.pending.size >= healthDefaults.backgroundCalls) {
+      this.queued.add(tool)
       this.due.set(tool, Date.now())
       return
     }
+    this.queued.delete(tool)
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
       .then(
         () => this.reschedule(tool, reference.revision, undefined),

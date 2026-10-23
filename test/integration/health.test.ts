@@ -264,6 +264,7 @@ test('credential saves defer background checks when both slots are occupied', as
     store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
       bindPassword: 'CANARY-LDAP-REPLACEMENT' }, 1, 'synthetic-development-user', Date.now())
     expect(health.refresh('ldap-axi', true)).toBeUndefined()
+    expect(health.checking('ldap-axi')).toBe(true)
     expect(run).toHaveBeenCalledTimes(2)
     releases[0]()
     await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)

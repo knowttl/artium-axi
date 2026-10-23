@@ -929,6 +929,19 @@ test.each([
   } finally { doctorResponses = undefined }
 })
 
+test('doctor reports checking health as pending, not a failure', async () => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.7.2', status: 'checking' }] } },
+  }
+  try {
+    expect(await cli(['doctor'])).toMatchObject({ code: 0, stderr: '',
+      stdout: expect.stringContaining('pass: falcon-axi (checking)\n') })
+  } finally { doctorResponses = undefined }
+})
+
 test.each(['/v1/me', '/v1/tools'])('doctor rejects a malformed %s response through the catalogue', async path => {
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },

@@ -28,6 +28,7 @@ import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-tra
 import { seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 import { CredentialProfile, loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
+import { createTestCertificates } from '../fake-service/certificates.mjs'
 import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
 
 let directory: string
@@ -912,14 +913,54 @@ test('write changes are audited without credentials or native setting values and
   expect(noOp.status).toBe(200)
   expect(store.findCredential('az-axi')).toEqual(reference)
   const records = db.prepare('SELECT * FROM audit').all()
-  expect(records).toHaveLength(1)
-  expect(records[0]).toMatchObject({ event: 'tool-write-access', tool: 'az-axi', user_id: actor,
+  const changes = records.filter(record => (record as { event: string }).event === 'tool-write-access')
+  expect(changes).toHaveLength(1)
+  expect(changes[0]).toMatchObject({ event: 'tool-write-access', tool: 'az-axi', user_id: actor,
     outcome: 'success', arguments: JSON.stringify({ enabled: false, operations: [], unsupportedOperationCount: 0 }) })
   expect(JSON.stringify(records)).not.toContain('CANARY')
   expect(JSON.stringify(records)).not.toContain('synthetic-subscription')
   await failure(await request('PATCH', '/az-axi/write-access', { enabled: true, expectedRevision: 2 }), 'REVISION_CONFLICT')
   expect((await (await request('GET', '/az-axi')).json()).writeAccess.enabled).toBe(false)
 })
+test('write-access change reports checking while its re-check runs, then ok without a manual test', async () => {
+  await replace('az-axi')
+  const current = await (await request('GET', '/az-axi')).json() as { revision: number }
+  const heldResult = { stdout: 'synthetic', stderr: '', exitCode: 0, durationMs: 1,
+    outputBytes: { stdout: 9, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+  let started!: () => void
+  let release!: (value: typeof heldResult) => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof heldResult>(resolve => { release = resolve })
+  const run = vi.spyOn(runner, 'run').mockImplementation(() => { started(); return held })
+  const patching = request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: current.revision })
+  await admitted
+  expect((await (await request('GET', '/az-axi')).json()).health.status).toBe('checking')
+  const discovery = await fetch(`${url}/v1/tools`, { headers })
+  expect(toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'az-axi')!.status).toBe('checking')
+  release(heldResult)
+  const patched = await patching
+  expect(patched.status).toBe(200)
+  expect((await patched.json()).health.status).toBe('ok')
+  expect(run).toHaveBeenCalledTimes(1)
+  expect(run.mock.calls[0][0]).toBe('system:tool-health:az-axi')
+})
+
+test('removing a trusted certificate schedules one re-check for that tool', async () => {
+  await replace('vectra-axi')
+  createTestCertificates(directory, ['synthetic.invalid'])
+  const pem = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const reference = store.findCredential('vectra-axi')!
+  db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pin', ?, ?)`)
+    .run('synthetic-certificate', reference.id, 'https://synthetic.invalid', 'synthetic-fingerprint', 'synthetic-leaf', pem, pem, Date.now(), actor)
+  const run = vi.spyOn(runner, 'run')
+  const response = await request('DELETE', '/vectra-axi/certificates', { id: 'synthetic-certificate' })
+  expect(response.status).toBe(200)
+  expect(run).toHaveBeenCalledTimes(1)
+  expect(run.mock.calls[0][0]).toBe('system:tool-health:vectra-axi')
+  expect((await (await request('GET', '/vectra-axi')).json()).health.status).toBe('ok')
+})
+
 test('advanced settings write changes are audited while arbitrary operation names stay out of audit', async () => {
   const saved = await request('PATCH', '/mg-axi', { expectedRevision: 1,
     nativeSettings: { preview: true, writes: { allowWrites: true, operations: ['entra.user.update', 'CANARY-not-an-operation'] } } })
