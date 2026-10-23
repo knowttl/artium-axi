@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
+import { toolInput } from '../../src/cli/input.js'
 import { createApp } from '../../src/server/app.js'
 import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -63,10 +64,25 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       expect(read.stdout).toContain('Synthetic exposure')
       const page = decode(read.stdout) as { cursor: string, complete: boolean }
       expect(page.complete).toBe(false)
-      const resumed = await run(['card', 'list', '--limit', '1', '--cursor', page.cursor])
+      expect(Buffer.byteLength(page.cursor)).toBeGreaterThan(4096)
+      const continuation = await toolInput('tenable-axi', ['card', 'list', '--limit', '1', '--cursor', page.cursor])
+      const resumed = await run(continuation.args)
       expect(resumed.exitCode, resumed.stdout).toBe(0)
       expect(resumed.stdout).toContain('Synthetic continuation')
-      expect((decode(resumed.stdout) as { complete: boolean }).complete).toBe(true)
+      expect((decode(resumed.stdout) as { complete: boolean }).complete).toBe(false)
+      const remaining = await run(['card', 'list', '--limit', '25', '--cursor', page.cursor])
+      expect(remaining.exitCode, remaining.stdout).toBe(0)
+      expect(decode(remaining.stdout)).toMatchObject({ count: 24, complete: true })
+      const home = await run(['home'])
+      expect(home.exitCode, home.stdout).toBe(0)
+      const homePage = decode(home.stdout) as { cursor: string, complete: boolean }
+      expect(homePage.complete).toBe(false)
+      expect(Buffer.byteLength(homePage.cursor)).toBeGreaterThan(4096)
+      const homeContinuation = await toolInput('tenable-axi', ['card', 'list', '--limit', '25', '--cursor', homePage.cursor])
+      const resumedHome = await run(homeContinuation.args)
+      expect(resumedHome.exitCode, resumedHome.stdout).toBe(0)
+      expect(resumedHome.stdout).toContain('Synthetic continuation')
+      expect(decode(resumedHome.stdout)).toMatchObject({ count: 20, complete: true })
       const checked = await app.inject({ method: 'POST', url: '/v1/admin/tools/tenable-axi/test', headers, payload: {} })
       expect(checked.json()).toMatchObject({ status: 'ok' })
       const create = ['tag', 'category', 'create', '--name', 'Synthetic category']

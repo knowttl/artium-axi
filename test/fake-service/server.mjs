@@ -59,11 +59,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       return
     }
     if (req.method === 'GET' && url.pathname === '/api/v1/t1/exposure-view/cards') {
-      const cards = [{ id: 'synthetic-card', name: 'Synthetic exposure', ces_score: { score: 42 } },
-        { id: 'synthetic-card-2', name: 'Synthetic continuation', ces_score: { score: 24 } }]
+      const cards = Array.from({ length: 25 }, (_, index) => ({
+        id: `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`,
+        name: `Synthetic ${index === 0 ? 'exposure' : 'continuation'} ${index}`.padEnd(100, 'x'),
+        ces_score: { score: 42 },
+      }))
       const offset = Number(url.searchParams.get('offset') ?? 0)
-      const limit = Number(url.searchParams.get('limit') ?? 25)
-      res.end(JSON.stringify({ data: cards.slice(offset, offset + limit), pagination: { total: cards.length } }))
+      res.end(JSON.stringify({ data: cards.slice(offset, offset + 25), pagination: { total: cards.length } }))
       return
     }
     if (req.method === 'GET' && url.pathname === '/api/v1/t1/tags/properties') {

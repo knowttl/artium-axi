@@ -5,12 +5,17 @@ import { ArtiumError, errorResponse, errors } from './errors.js'
 const file = (name: string, bytes = 0) => ({ name, contentBase64: Buffer.alloc(bytes).toString('base64') })
 
 test('accepts the exact argument and UTF-8 stdin byte limits', () => {
-  expect(runRequestSchema.parse({ args: Array(64).fill('é'.repeat(2048)), stdin: 'é'.repeat(inputLimits.stdinBytes / 2) }).args).toHaveLength(64)
+  expect(runRequestSchema.parse({ args: Array(64).fill('é'.repeat(inputLimits.argumentBytes / 2)), stdin: 'é'.repeat(inputLimits.stdinBytes / 2) }).args).toHaveLength(64)
+})
+
+test('accepts a 64 KiB continuation cursor', () => {
+  const args = ['--cursor', 'a'.repeat(64 * 1024)]
+  expect(runRequestSchema.parse({ args }).args).toEqual(args)
 })
 
 test.each([
   { args: Array(65).fill('') },
-  { args: ['é'.repeat(2048) + 'a'] },
+  { args: ['é'.repeat(inputLimits.argumentBytes / 2) + 'a'] },
   { args: ['a\0b'] },
   { args: [], stdin: 'é'.repeat(inputLimits.stdinBytes / 2) + 'a' },
   { args: [], stdin: '\0' },

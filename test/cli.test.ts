@@ -970,7 +970,7 @@ test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
 })
 
-test.each([{ args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['falcon-axi', 'x'.repeat(4097)] },
+test.each([{ args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['falcon-axi', 'x'.repeat(64 * 1024 + 1)] },
   { args: ['tools', 'show'] }, { args: ['tools', 'show', 'missing'] }, { args: ['login', '--unknown', '--help'] },
   { args: ['whoami', '--unknown', '--help'] }, { args: ['tools', 'show', '--unknown', '--help'] },
   { args: ['tools', 'show', 'missing', '--help'] }, { args: ['tools', '--help', 'show', '--unknown'] },
@@ -1138,7 +1138,7 @@ test.each([
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.0' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.6' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.8' },
-  { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.0' },
+  { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.1' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])

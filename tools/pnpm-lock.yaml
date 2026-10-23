@@ -21,8 +21,8 @@ importers:
         specifier: 0.1.10
         version: 0.1.10
       '@knowttl/tenable-axi':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
       '@knowttl/vectra-axi':
         specifier: 0.1.8
         version: 0.1.8
@@ -64,8 +64,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/tenable-axi@0.1.0':
-    resolution: {integrity: sha512-nw1HLOmUZdeo/x1po1uOmFQhZsg0rP1eMGrcwLj+Pd2UkdwKodAQjDCjgBdl5DNLIqaafkUEV6mPMJmkFLQpzw==}
+  '@knowttl/tenable-axi@0.1.1':
+    resolution: {integrity: sha512-ukWwVny4DeEBLqqWJhaM0au4Z5dvQTsDKoE2NhROIE3p114WUz2tT5dOfWL8MaalVrmU/zSMhk+S29sUocR3xg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -366,7 +366,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       open: 11.0.4
 
-  '@knowttl/tenable-axi@0.1.0':
+  '@knowttl/tenable-axi@0.1.1':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
