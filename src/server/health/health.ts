@@ -31,7 +31,7 @@ export class ToolHealth {
   private readonly due = new Map<ToolName, number>()
   private readonly failures = new Map<ToolName, number>()
 
-  // A check is running, queued behind a running check, or waiting for a background slot.
+  // A check is running, queued behind a running check, or waiting for background or runner capacity.
   checking(tool: ToolName): boolean {
     return this.active.has(tool) || this.replaced.has(tool) || this.queued.has(tool)
   }
@@ -56,7 +56,7 @@ export class ToolHealth {
     this.timer.unref()
   }
 
-  // Only reachability failures retry early, so a rejected credential is never retried into an account lockout.
+  // Rejected credentials use the normal interval to avoid retries into an account lockout.
   private reschedule(tool: ToolName, revision: CredentialReference['revision'], generation: number, code: string | undefined): void {
     if (this.store?.findCredential(tool)?.revision !== revision || (this.generations.get(tool) ?? 0) !== generation) return
     if (code === 'TOO_MANY_CALLS' && this.queued.has(tool)) {
