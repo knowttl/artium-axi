@@ -178,7 +178,6 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     }
     const command = ['rtr', 'run', 'a'.repeat(32), '--command', 'ps']
     const execute = [...command, '--execute', '--confirm', `${'a'.repeat(32)}:ps`]
-    const start = (await evidence()).requests.length
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const confirmedHeaders = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
     const configured = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders,
@@ -188,6 +187,7 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     assert.equal(detail.statusCode, 200, detail.body)
     assert.equal(detail.json().writeAccess.enabled, false)
     assert.equal(detail.json().writeAccess.unlocks, 'RTR read-only command execution')
+    const start = (await evidence()).requests.length
     assert.equal((await run(command)).exitCode, 0)
     assert.match((await run(execute)).stdout, /READ_ONLY_VIOLATION/)
     assert.equal((await evidence()).requests.length, start)
