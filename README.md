@@ -166,6 +166,7 @@ Falcon investigation reads include detection lineage, process details and trees,
 Vectra supports selected QUX/RUX writes for detection close/open and mark-fixed, host/account close, key assets, tags, notes (including bulk notes), assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, internal-network settings, syslog/Kafka, notification destinations and Match, subject to deployment support in the [reviewed inventory](tools/inventories/vectra-axi.json).
 User, role, API-client and credential administration remains blocked.
 Review the [Vectra grant warnings](docs/admin-guide.md#browser-administration) before enabling operations.
+See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for Vectra file inputs.
 
 | Tool | Write capability and unlock |
 | --- | --- |
