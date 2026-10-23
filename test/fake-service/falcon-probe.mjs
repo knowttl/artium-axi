@@ -211,7 +211,8 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     const detail = await app.inject({ url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders })
     assert.equal(detail.statusCode, 200, detail.body)
     assert.equal(detail.json().writeAccess.enabled, false)
-    assert.equal(detail.json().writeAccess.unlocks, 'RTR read-only command execution')
+    assert.deepEqual(detail.json().writeAccess.supportedOperations, ['rtr run', 'malquery search'])
+    assert.deepEqual(detail.json().writeAccess.allowedOperations, [])
     const start = (await evidence()).requests.length
     assert.equal((await run(command)).exitCode, 0)
     assert.match((await run(execute)).stdout, /READ_ONLY_VIOLATION/)
@@ -221,7 +222,7 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
       assert.equal(history.exitCode, 0, history.stdout)
       assert.match(history.stdout, /synthetic-rtr-session/)
     }
-    const switchInput = { enabled: true, expectedRevision: detail.json().revision }
+    const switchInput = { enabled: true, operations: ['rtr run'], expectedRevision: detail.json().revision }
     const unconfirmed = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi/write-access', headers, payload: switchInput })
     assert.equal(unconfirmed.json().error.code, 'REAUTH_REQUIRED')
     const on = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi/write-access',
