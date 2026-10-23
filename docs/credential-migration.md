@@ -9,7 +9,7 @@ The [credential standard](credential-standard.md) is the canonical contract.
 | vectra-axi | Move to XDG; replace tokenEnv/secretEnv with SecretRefs; add permission checks, the env profile and auth status; ship the profile schema. |
 | az-axi | Move to XDG; drop cwd discovery; write config atomically; validate SecretRefs on load; add auth status and ship the schema. Keep ambient az authentication. Changes stay in knowttl/az-axi, with matching UPSTREAM.md local-change records. |
 | mg-axi | Move to XDG; add config/profile selection; flatten credentialRef into SecretRefs; add auth login/logout/status; use thumbprintSha256; store delegated credentials in the protected state file; enforce Windows DACLs. |
-| falcon-axi | Complete schema-based host integration; see [current Falcon credential handling](credential-standard.md#per-tool-host-facing-schemas). |
+| falcon-axi | The managed pin supports schema-based host integration; see [current Falcon credential handling](credential-standard.md#per-tool-host-facing-schemas). |
 | awx-axi | The managed pin ships the profile schema and SecretRefs; see the [host-facing integration](credential-standard.md#per-tool-host-facing-schemas) and [supported boundary](tool-credentials.md#awx). |
 | tenable-axi | The managed pin ships both API-key SecretRefs and a fixed cloud origin; see [Tenable One setup](tool-credentials.md#tenable-one). |
 | azure-axi | Keep ambient credentials; adopt tenant/subscription profiles, AZURE_AXI variables and auth status. |
@@ -27,4 +27,4 @@ Az's brokered token profile and schema-absent fallback both use the per-resource
 See [credential editor guidance](admin-guide.md#browser-administration) for Vectra origin and CA inputs.
 [Published-credential tests](../test/integration/published-credentials.test.ts) exercise artium-written SecretRefs and private per-call configuration: Vectra contacts a fake HTTPS appliance; Graph uses the published CLI and secret resolver with fake credential acquisition and transport.
 See [Graph headless verification](https://github.com/knowttl/artium-axi/blob/archive/internal-docs/docs/verification-s50.md) for the generated schema and acquisition probe.
-Falcon's schema-based host integration follows; azure-axi follows last.
+Azure-axi's schema-based host integration remains pending.

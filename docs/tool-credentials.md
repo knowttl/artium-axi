@@ -40,11 +40,7 @@ For example, account reads need `Assets:read`, while CVE reads need `Vulnerabili
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
 The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
-RTR session and audit history reads remain available while execution is off.
-To permit RTR read-only command execution, enable the audited write-access switch and separately save native settings `rtr: {"enabled": true}` with an optional `commands` subset such as `["ps"]`.
-Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then supply `--execute --confirm '<device_id>:ps'` exactly.
-The session is deleted after execution and the durable journal is redacted.
-When the switch is off, the read-only override also blocks NG-SIEM job start/stop and identity activity.
+See [Falcon RTR execution setup](runbook.md#falcon-rtr-execution) for history reads, profile opt-in, execution confirmation and the read-only override.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
 
 #### Vectra

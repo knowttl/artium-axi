@@ -354,9 +354,7 @@ Stale revisions never mutate settings, and an audit failure rolls back the chang
 Tool lists and health responses report `readOnly`; LDAP always remains read-only.
 Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
 The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
-Falcon exposes RTR read-only command execution, off by default, through the audited switch with recent identity confirmation.
-Its managed profile must also opt in with `rtr.enabled=true`, optionally narrow `rtr.commands`, and the caller must preview then provide exact `--execute --confirm '<device_id>:<complete command>'`.
-Artium sets the native read-only override while the switch is off; history reads and previews still work.
+See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and confirmation gates.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
@@ -400,6 +398,20 @@ The line contains `requestId`, a sanitized `errorClass` and the matched route te
 Schema validation failures also include `validationFields`, limited to recognized certificate field names; this array can be empty.
 These diagnostics leave the client error code as `INTERNAL_ERROR` and are separate from audit records.
 
+### Falcon RTR execution
+
+Enable Falcon's audited **Write access** switch with recent identity confirmation, then separately save Native settings with profile opt-in, for example `{"allowWrites": true, "rtr": {"enabled": true, "commands": ["ps"]}}`.
+Native settings replace the whole object, so preserve `allowWrites: true` when saving the profile opt-in.
+Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
+The switch never supplies profile opt-in or execution confirmation for the caller.
+Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then execute the same call with `--execute --confirm '<device_id>:ps'`.
+Confirmation must match the device ID and complete command exactly.
+While the switch is off, the [native read-only override](credential-standard.md#per-tool-host-facing-schemas) blocks execution, NG-SIEM job start/stop and identity activity; RTR session and audit history reads and local previews remain available.
+Execution deletes its session afterward and records a durable redacted journal; see [retention and export](#retention-and-export).
+Avoid overlapping sessions for the same host and API client, including from other machines.
+After ambiguous session initialization or failed deletion, reconcile sessions in Falcon before retrying; never replay automatically.
+Keep the example deployment's shutdown grace period when adapting it so native session cleanup can complete before container termination.
+
 ## Retention and export
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
@@ -407,6 +419,7 @@ Each batch commits its count and cutoff with the deletion.
 Azure, Graph and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
+Falcon execution uses isolated redacted native journals at `<database directory>/tool-logs/falcon-axi/writes.log.runs/run-*/writes.log`; these persist after calls and are not pruned by run-journal retention.
 Tenable keeps one shared native journal at its configured write-log path so sequential and concurrent invocations retain native intent replay protection.
 That journal is not pruned by run-journal retention.
 Successful Tenable reads report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.

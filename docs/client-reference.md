@@ -49,7 +49,7 @@ Other Azure commands, including the dashboard and `home`, leave stdin unread; he
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
 
-See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches, native write gates and the current Falcon limitation.
+See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.
 
 Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.
