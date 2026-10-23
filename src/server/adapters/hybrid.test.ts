@@ -50,6 +50,17 @@ test('uploaded leaves and explicit JSON stdin normalize without server file acce
   await expect(adapter.prepare(['quota'], reference, { stdin: '{}' })).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
+test.each([
+  ['submit', 'file', '--custom-cmd-line=--silent', '--document-password=-password', '--comment=-comment', '--submit-name=-name'],
+  ['submit', 'url', '--custom-cmd-line=--silent', '--document-password=-password', '--comment=-comment', '--submit-name=-name'],
+  ['quick-scan', 'submit', '--custom-cmd-line=--silent', '--document-password=-password', '--comment=-comment', '--submit-name=-name'],
+  ['quick-scan', 'file', '--comment=-comment', '--submit-name=-name'],
+  ['quick-scan', 'url', '--comment=-comment', '--submit-name=-name'],
+  ['hunting', 'yara', 'list', '--search=-search'],
+].map(args => ({ args })))('inline values retain their native representation: $args', async ({ args }) => {
+  expect((await adapter.prepare(args, reference)).args).toEqual(args)
+})
+
 test('write switch exposes only hosted operations and source policy can force read-only', async () => {
   const settings = hybridWritePolicy.update({}, { enabled: true, operations: ['submitFile', 'yaraCreate', 'huntingMatches'], expectedRevision: 1 })
   expect(hybridWritePolicy.read(settings)).toMatchObject({ enabled: true, allowedOperations: ['submitFile', 'yaraCreate', 'huntingMatches'] })

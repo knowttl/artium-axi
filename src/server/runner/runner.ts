@@ -169,7 +169,7 @@ async function execute(
         const target = join(directories.XDG_CONFIG_HOME, file.name)
         await mkdir(dirname(target), { recursive: true, mode: 0o700 })
         await chmod(dirname(target), 0o700)
-        const temporary = `${target}.tmp`
+        const temporary = join(directories.TMPDIR, 'adapter-file')
         const handle = await open(temporary, 'wx', 0o600)
         try {
           await handle.writeFile(file.appendTrustedCa && trustPem

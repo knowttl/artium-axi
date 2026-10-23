@@ -81,7 +81,8 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       const upload = await toolInput('hybrid-axi', ['quick-scan', 'file', '--file', join(process.cwd(), 'package.json'), '--scan-type', 'all_lookup'])
       expect((await run(upload.args, { files: upload.files })).exitCode).toBe(0)
       const sample = { files: [{ name: 'synthetic sample.json', contentBase64: upload.files![0].contentBase64 }] }
-      const fileSubmit = ['submit', 'file', '--file', 'synthetic sample.json', '--environment-id', '160']
+      const fileSubmit = ['submit', 'file', '--file', 'synthetic sample.json', '--environment-id', '160',
+        '--custom-cmd-line=--silent', '--document-password=-password', '--comment=-comment', '--submit-name=-name']
       const filePlan = decode((await run(fileSubmit, sample)).stdout) as { preview: { confirm: string } }
       expect((await run([...fileSubmit, '--execute', '--confirm', filePlan.preview.confirm], sample)).exitCode).toBe(0)
       const rule = JSON.stringify({ identifier: 'Synthetic rule', threat_categories: [], active: false, rule: 'rule synthetic { condition: false }' })

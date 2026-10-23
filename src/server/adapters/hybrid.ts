@@ -43,8 +43,10 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     }
     const value = inline ?? tokens[++index]
     if (value === undefined) throw new ArtiumError('INVALID_INPUT')
-    normalized.push(`--${name}`, value)
-    if (hybridManifest.inputFileFlags.includes(name)) {
+    const isFile = hybridManifest.inputFileFlags.includes(name)
+    if (inline !== undefined && !isFile) normalized.push(token)
+    else normalized.push(`--${name}`, value)
+    if (isFile) {
       if (value === '-' && name === 'body-file') usesStdin = true
       else {
         if (!input.files?.some(file => file.name === value)) throw new ArtiumError('UNSUPPORTED_INPUT')
