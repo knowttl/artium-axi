@@ -61,6 +61,28 @@ test.each([
   expect((await adapter.prepare(args, reference)).args).toEqual(args)
 })
 
+test('inline hash search is normalized for the native parser', async () => {
+  const hash = 'a'.repeat(64)
+  const call = await adapter.prepare(['hash', 'search', `--hash=${hash}`], reference)
+  expect(call.args).toEqual(['hash', 'search', '--hash', hash])
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e',
+    "import { parseSearch } from './tools/node_modules/@knowttl/hybrid-axi/dist/src/search.js'; console.log(JSON.stringify(parseSearch(process.argv.slice(1))))",
+    ...call.args], { encoding: 'utf8' })
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(result.stdout)).toMatchObject({ command: 'hash search', flags: { '--hash': hash } })
+})
+
+test('dash-leading submission values remain inline for the native parser', async () => {
+  const call = await adapter.prepare(['submit', 'url', '--url', 'https://example.com/synthetic', '--environment-id', '160',
+    '--custom-cmd-line=--silent'], reference)
+  expect(call.args).toContain('--custom-cmd-line=--silent')
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e',
+    "import { parseSubmission } from './tools/node_modules/@knowttl/hybrid-axi/dist/src/submissions.js'; console.log(JSON.stringify(parseSubmission(process.argv.slice(1))))",
+    ...call.args], { encoding: 'utf8' })
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(result.stdout)).toMatchObject({ command: 'submit url', body: { custom_cmd_line: '--silent' } })
+})
+
 test('write switch exposes only hosted operations and source policy can force read-only', async () => {
   const settings = hybridWritePolicy.update({}, { enabled: true, operations: ['submitFile', 'yaraCreate', 'huntingMatches'], expectedRevision: 1 })
   expect(hybridWritePolicy.read(settings)).toMatchObject({ enabled: true, allowedOperations: ['submitFile', 'yaraCreate', 'huntingMatches'] })
