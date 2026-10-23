@@ -217,7 +217,7 @@ export const diagnosticSchema = z.strictObject({
   trust: z.enum(['self-signed', 'untrusted']).optional(), checkedAt: z.number().int().optional(),
   credentialRevision: z.number().int().nullable().optional(),
 })
-export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
+export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'unknown', 'checking', 'ok', 'error', 'disabled']),
   diagnostic: diagnosticSchema.optional(),
   readOnly: z.boolean().default(true),
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
@@ -430,7 +430,7 @@ export const toolsResponseSchema = z.strictObject({
     name: toolSchema,
     version: z.string(),
     readOnly: z.boolean().default(true),
-    status: z.enum(['unconfigured', 'unknown', 'ok', 'error', 'disabled']),
+    status: z.enum(['unconfigured', 'unknown', 'checking', 'ok', 'error', 'disabled']),
   })),
 })
 export const inputFileSchema = z.strictObject({

@@ -15,6 +15,7 @@ import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { healthDefaults, runnerLimits } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -28,6 +29,7 @@ import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-tra
 import { seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 import { CredentialProfile, loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
+import { createTestCertificates } from '../fake-service/certificates.mjs'
 import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
 
 let directory: string
@@ -912,14 +914,105 @@ test('write changes are audited without credentials or native setting values and
   expect(noOp.status).toBe(200)
   expect(store.findCredential('az-axi')).toEqual(reference)
   const records = db.prepare('SELECT * FROM audit').all()
-  expect(records).toHaveLength(1)
-  expect(records[0]).toMatchObject({ event: 'tool-write-access', tool: 'az-axi', user_id: actor,
+  const changes = records.filter(record => (record as { event: string }).event === 'tool-write-access')
+  expect(changes).toHaveLength(1)
+  expect(changes[0]).toMatchObject({ event: 'tool-write-access', tool: 'az-axi', user_id: actor,
     outcome: 'success', arguments: JSON.stringify({ enabled: false, operations: [], unsupportedOperationCount: 0 }) })
   expect(JSON.stringify(records)).not.toContain('CANARY')
   expect(JSON.stringify(records)).not.toContain('synthetic-subscription')
   await failure(await request('PATCH', '/az-axi/write-access', { enabled: true, expectedRevision: 2 }), 'REVISION_CONFLICT')
   expect((await (await request('GET', '/az-axi')).json()).writeAccess.enabled).toBe(false)
 })
+test('write-access change reports checking while its re-check runs, then ok without a manual test', async () => {
+  await replace('az-axi')
+  const current = await (await request('GET', '/az-axi')).json() as { revision: number }
+  const heldResult = { stdout: 'synthetic', stderr: '', exitCode: 0, durationMs: 1,
+    outputBytes: { stdout: 9, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+  let started!: () => void
+  let release!: (value: typeof heldResult) => void
+  const admitted = new Promise<void>(resolve => { started = resolve })
+  const held = new Promise<typeof heldResult>(resolve => { release = resolve })
+  const run = vi.spyOn(runner, 'run').mockImplementation(() => { started(); return held })
+  const patching = request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: current.revision })
+  await admitted
+  expect((await (await request('GET', '/az-axi')).json()).health.status).toBe('checking')
+  const discovery = await fetch(`${url}/v1/tools`, { headers })
+  expect(toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'az-axi')!.status).toBe('checking')
+  release(heldResult)
+  const patched = await patching
+  expect(patched.status).toBe(200)
+  expect((await patched.json()).health.status).toBe('ok')
+  expect(run).toHaveBeenCalledTimes(1)
+  expect(run.mock.calls[0][0]).toBe('system:tool-health:az-axi')
+})
+
+test('a write-access check stays pending while ordinary calls fill the runner and succeeds on the next free tick', async () => {
+  await replace('az-axi')
+  const current = await (await request('GET', '/az-axi')).json() as { revision: number }
+  await app.close()
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  runner = await Runner.create(join(directory, 'calls'))
+  let completed!: () => void
+  const terminal = new Promise<void>(resolve => { completed = resolve })
+  let rejectedAgain!: () => void
+  let rejections = 0
+  const retryRejected = new Promise<void>(resolve => { rejectedAgain = resolve })
+  const audit = new Audit(db, Date.now, line => {
+    const record = JSON.parse(line)
+    if (record.event === 'health-check' && record.tool === 'az-axi' && record.outcome === 'success') completed()
+    if (record.event === 'health-check' && record.tool === 'az-axi' && record.outcome === 'TOO_MANY_CALLS'
+      && ++rejections === 2) rejectedAgain()
+  })
+  app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters,
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const controller = new AbortController()
+  const calls = Array.from({ length: runnerLimits.globalCalls }, (_, index) =>
+    runner.run(`synthetic-ordinary-${index}`, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [],
+      { signal: controller.signal }).catch(error => error))
+  try {
+    const response = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: current.revision })
+    expect(response.status).toBe(200)
+    expect((await response.json()).health.status).toBe('checking')
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await retryRejected
+    expect((await (await request('GET', '/az-axi')).json()).health.status).toBe('checking')
+    const discovery = await fetch(`${url}/v1/tools`, { headers })
+    expect(toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'az-axi')!.status).toBe('checking')
+    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'health-check' AND tool = 'az-axi' AND outcome = 'TOO_MANY_CALLS'").all())
+      .toHaveLength(2)
+    expect(db.prepare("SELECT status FROM tool_health WHERE tool = 'az-axi'").get()).toBeUndefined()
+    controller.abort()
+    await Promise.all(calls)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await terminal
+    expect((await (await request('GET', '/az-axi')).json()).health.status).toBe('ok')
+    const recovered = await fetch(`${url}/v1/tools`, { headers })
+    expect(toolsResponseSchema.parse(await recovered.json()).tools.find(tool => tool.name === 'az-axi')!.status).toBe('ok')
+  } finally {
+    controller.abort()
+    await Promise.all(calls)
+    await app.close()
+    vi.useRealTimers()
+  }
+})
+
+test('removing a trusted certificate schedules one re-check for that tool', async () => {
+  await replace('vectra-axi')
+  createTestCertificates(directory, ['synthetic.invalid'])
+  const pem = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const reference = store.findCredential('vectra-axi')!
+  db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pin', ?, ?)`)
+    .run('synthetic-certificate', reference.id, 'https://synthetic.invalid', 'synthetic-fingerprint', 'synthetic-leaf', pem, pem, Date.now(), actor)
+  const run = vi.spyOn(runner, 'run')
+  const response = await request('DELETE', '/vectra-axi/certificates', { id: 'synthetic-certificate' })
+  expect(response.status).toBe(200)
+  expect(run).toHaveBeenCalledTimes(1)
+  expect(run.mock.calls[0][0]).toBe('system:tool-health:vectra-axi')
+  expect((await (await request('GET', '/vectra-axi')).json()).health.status).toBe('ok')
+})
+
 test('advanced settings write changes are audited while arbitrary operation names stay out of audit', async () => {
   const saved = await request('PATCH', '/mg-axi', { expectedRevision: 1,
     nativeSettings: { preview: true, writes: { allowWrites: true, operations: ['entra.user.update', 'CANARY-not-an-operation'] } } })

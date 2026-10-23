@@ -64,7 +64,7 @@ const legacySecretFields = {
 export function registerToolAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, options: ToolAdminOptions): void {
   const { adapters, store, health, credentialProfiles } = options
-  registerCertificateAdmin(app, db, audit, authorize, store)
+  registerCertificateAdmin(app, db, audit, authorize, store, health)
   const schemaFor = (tool: ToolName) => credentialProfiles[tool]?.credentialSchema ?? credentialSchemas[tool]
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const result = schema.safeParse(value)
@@ -95,7 +95,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const cached = stored.success ? stored.data : undefined
     const reference = tool === 'awx-axi' ? store?.findCredential(tool) : undefined
     const configured = Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
-    const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : 'unknown'
+    const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : options.health.checking(tool) ? 'checking' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
     const nativeSettings = JSON.parse(row.nativeSettings)
@@ -176,7 +176,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return readTool(tool)
     }).value
     invalidate(replacement)
-    return result
+    if (replacement) await health.refresh(tool, true)
+    return replacement ? readTool(tool) : result
   } })
   app.route({ method: adminToolRoutes.saveOrigin.method, url: adminToolRoutes.saveOrigin.path, handler: async request => {
     const actor = authorize(request)
@@ -202,6 +203,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return readCredential(tool)
     }).value
     invalidate(replacement)
+    await health.refresh(tool, true)
     return result
   } })
   app.route({ method: adminToolRoutes.patch.method, url: adminToolRoutes.patch.path, handler: async request => {
@@ -235,7 +237,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     }).value
     invalidate(replacement)
     if (replacement) await health.refresh(tool, true)
-    return result
+    return replacement ? readTool(tool) : result
   } })
   for (const route of [adminToolRoutes.replace, adminToolRoutes.save]) app.route({ method: route.method, url: route.path, handler: async request => {
     const actor = authorize(request)

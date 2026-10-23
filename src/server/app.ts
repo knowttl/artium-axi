@@ -147,7 +147,7 @@ export function createApp(options: {
       const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
       const configured = Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
       return { name: adapter.name, version: toolManifests[adapter.name].version,
-        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? row.health ?? 'unknown' : 'unconfigured' }
+        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured' }
     })
     return toolsResponseSchema.parse({ tools })
   })

@@ -386,9 +386,12 @@ Both return `status: ok` when healthy; readiness returns HTTP 503 when local mig
 These checks do not test remote services or reload the key.
 Use doctor for the [CLI diagnostics](client-reference.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
 Background checks for enabled configured tools become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
-Only reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
-Success resets the retry backoff; authentication, TLS, configuration and runner admission failures use the normal interval.
-Credential/settings replacement resets the backoff and requests a fresh check; results from a superseded credential revision cannot change the schedule or cached health.
+Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
+Success resets the retry backoff; authentication, TLS and configuration failures use the normal interval.
+Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.
+Credential, native-settings, write-access and certificate-trust changes reset the backoff and request a fresh check for enabled configured tools without a manual test.
+While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
+Results superseded by a later configuration change cannot change the schedule or cached health, even when the credential revision is unchanged.
 At most two background checks run at once, including replacement checks; work deferred by this cap stays due for a later tick.
 Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.

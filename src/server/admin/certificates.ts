@@ -9,10 +9,11 @@ import { inspectCertificate } from '../certificate-inspection.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
+import type { ToolHealth } from '../health/health.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
 
 export function registerCertificateAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
-  authorize: (request: FastifyRequest) => string, store?: MutableCredentialStore): void {
+  authorize: (request: FastifyRequest) => string, store?: MutableCredentialStore, health?: ToolHealth): void {
   const pending = new Map<string, { actor: string, reference: CredentialReference, expiresAt: number,
     inspection: Awaited<ReturnType<typeof inspectCertificate>> }>()
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
@@ -92,6 +93,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     save(request, actor, item.reference, item.inspection,
       mode === 'ca' && chain[0].selfSigned ? 'pin' : mode)
     pending.delete(inspectionId)
+    await health?.refresh(item.reference.tool, true)
     return { trusted: true as const }
   } })
   app.route({ method: adminCertificateRoutes.remove.method, url: adminCertificateRoutes.remove.path, handler: async request => {
@@ -107,6 +109,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       db.prepare('DELETE FROM trusted_certificates WHERE id = ? AND credential_id = ?').run(id, reference.id)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run(reference.tool)
     })
+    await health?.refresh(reference.tool, true)
     return { removed: true as const }
   } })
 }

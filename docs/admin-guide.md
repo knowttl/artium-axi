@@ -166,8 +166,7 @@ Review the Vectra grant warnings: host/account close closes every active detecti
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The advanced JSON editor shows the saved write state, but saving it replaces the whole object and omitting write settings turns writes off.
-Credential changes clear cached health.
-See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for startup checks, recovery retries and concurrency limits.
+See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test credential** for a current fixed read before enabling a configured tool.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
