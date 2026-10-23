@@ -8,6 +8,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild argon2 bette
 RUN --network=none /opt/tools/node_modules/.bin/ado-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/awx-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/tenable-axi --version
+RUN --network=none /opt/tools/node_modules/.bin/hybrid-axi --version
 RUN python3 -m venv /opt/falcon-build && python3 -m venv /opt/falcon-axi
 RUN /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/build-requirements.txt -d /build-wheels && /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/requirements.txt -d /runtime-wheels
 RUN node --input-type=module -e 'import {readFileSync} from "node:fs"; import {execFileSync} from "node:child_process"; const pin=JSON.parse(readFileSync("/opt/tools/falcon-source.json")); for(const args of [["init","/source"],["-C","/source","remote","add","origin",pin.repository],["-C","/source","fetch","--depth=1","origin",pin.commit],["-C","/source","checkout","--detach",pin.commit]]) execFileSync("git",args,{stdio:"inherit"})'

@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.22.0",
   "dependencies": {
+    "@knowttl/hybrid-axi": "0.1.0",
     "@knowttl/tenable-axi": "0.1.1",
     "awx-axi": "0.1.8",
     "@jeffreyhaen/ado-axi": "0.4.6",

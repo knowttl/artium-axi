@@ -1,0 +1,902 @@
+{
+  "generatedBy": "scripts/hybrid-inventory.mjs",
+  "tool": "hybrid-axi",
+  "version": "0.1.0",
+  "integrity": "sha512-eQdks/92bP8wCn7mpLGqkl5bAI/kYLgRzrRXumtuwpe4sQytNXuAiXY/lNyTYdPT6/WXEFGL9JoaTwWA37F01A==",
+  "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
+  "sources": [
+    {
+      "path": "dist/src/catalogue.js",
+      "sha256": "0244f912f05d7a491651b70015a80bfa15d39ed57b691174d8d4f15d89e8a907"
+    },
+    {
+      "path": "dist/src/cli.js",
+      "sha256": "541b529cf64eeae007dac76898ffe288f03c8317f8e24b8c34ef13cb94c95665"
+    },
+    {
+      "path": "dist/src/download-catalogue.js",
+      "sha256": "d6cf67428d643cfa4f838d261ca0df98ea6f65096b8853896fd6abf9a7ca5d21"
+    },
+    {
+      "path": "dist/src/hunting-catalogue.js",
+      "sha256": "899c3a2e5a199fc899364ba2c324d188b3b030a13cb73d7b32927abda0fa562e"
+    },
+    {
+      "path": "dist/src/hunting.js",
+      "sha256": "65de316b45aadbaf1d043c44899a3f95acb55f3c1626cef1951a69b80b036d6c"
+    },
+    {
+      "path": "dist/src/key-contracts.js",
+      "sha256": "bf6010f9d3f54af7a6afaf4681a2ff62bf74bc583f0271d4145df2f4d6d3d4e1"
+    },
+    {
+      "path": "dist/src/local-commands.js",
+      "sha256": "80555cd34f3cfb55e72afb76080138b343bbfef000e0ae16060247ef547de7e9"
+    },
+    {
+      "path": "dist/src/private-file.js",
+      "sha256": "8c0bb52123706705d41c2572833dd356b754b168d7eae86e649ec979b2486d8a"
+    },
+    {
+      "path": "dist/src/profiles.js",
+      "sha256": "13efc4d1755319813ddd08ca3a23b89df34c6decfe568e90d71d6c217dfcf1b4"
+    },
+    {
+      "path": "dist/src/redact.js",
+      "sha256": "d94573e9fe37c1a94dfdf1b90882423e5fcb417fa05283bfdfdf4a0c62fe0078"
+    },
+    {
+      "path": "dist/src/report-catalogue.js",
+      "sha256": "387cbfd2c687cb0ec4a4813132057fdd3cf1145cb8a9760ccdaad99ed9732169"
+    },
+    {
+      "path": "dist/src/report-file.js",
+      "sha256": "c2f25f49344f8dd87deb5a04f9b9b397c1a9d64f30163cb2cf637de9f7b3e582"
+    },
+    {
+      "path": "dist/src/reports.js",
+      "sha256": "404a6bd21adcf33d1808b0703175f952b66220f1ad0821489d42720e0cfbc0fa"
+    },
+    {
+      "path": "dist/src/search-catalogue.js",
+      "sha256": "205bcc21e3d48f36b1b0d4501ab8a33b12f72d1998c74f7b40a9101328dfcbaa"
+    },
+    {
+      "path": "dist/src/search-contracts.js",
+      "sha256": "88feb91a39d80ebdc899fbad97bf4d8df8ea547cde7d710ae7b64554df170991"
+    },
+    {
+      "path": "dist/src/search.js",
+      "sha256": "03c3a4169cb5b731b820ef52278baf7573f9eaaf75b7c0a5f205de2751424da5"
+    },
+    {
+      "path": "dist/src/session.js",
+      "sha256": "e75476c1db36aa635d6f3f675e95dfcde6bdda5c66abd0f8f905db881c7d9cf5"
+    },
+    {
+      "path": "dist/src/setup.js",
+      "sha256": "1360cb697983a40d92525e3e16d019157b40eed05a0b22b515d6b13b33b616ec"
+    },
+    {
+      "path": "dist/src/submission-catalogue.js",
+      "sha256": "91632f5c8edf427a17acaf960b872aec68f2ac946dcdecbf4bba67657117778b"
+    },
+    {
+      "path": "dist/src/submissions.js",
+      "sha256": "a723e2c911eed849e7a101bf1f0d193732f52d61f6057e78d1af7f95b68808c1"
+    },
+    {
+      "path": "dist/src/transport-core.js",
+      "sha256": "b3d69e4109401830dc757ab9f38af3a28c5d219120703ce3fa56dc7ba5654d65"
+    },
+    {
+      "path": "dist/src/transport.js",
+      "sha256": "61540336956d3f967712784739083ea970dbe43ff1cae4f7d9a342e856c68c62"
+    },
+    {
+      "path": "dist/src/uploads.js",
+      "sha256": "c3963ff7c17d8c04ae2a4dcc0fcefb94783d3d1a951f1713391cd73da68eef35"
+    },
+    {
+      "path": "dist/src/writes-core.js",
+      "sha256": "c231cae7b8ee78090c4eee94b0f0f1bd0ab3aa9433d0a02711bbd923183f7dc2"
+    },
+    {
+      "path": "dist/src/writes.js",
+      "sha256": "43099c373b451991102515f0f583c9a7678edb89a5b6bc9ad7e261a1c1f4a5dd"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/knowttl/hybrid-axi/axi-credential.schema.json",
+    "title": "Hybrid Analysis AXI credential profile",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "origin": {
+        "const": "https://hybrid-analysis.com",
+        "default": "https://hybrid-analysis.com"
+      },
+      "apiKey": {
+        "$ref": "#/$defs/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "HYBRID_AXI_API_KEY"
+        }
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "default": {
+          "allowWrites": false,
+          "operations": []
+        },
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+            }
+          }
+        }
+      }
+    },
+    "$defs": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "skillSha256": "3b75c852fcfd4a18589145e1f7ae0cabac7e1896bd427d8ed8a3a43da989e20f",
+  "nativeWriteSettings": {
+    "supportedOperations": [
+      "convertQuickScan",
+      "huntingMatches",
+      "submitDroppedFile",
+      "submitFile",
+      "submitUrl",
+      "yaraCreate",
+      "yaraDelete",
+      "yaraUpdate"
+    ]
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "output"
+    ],
+    "inputFileFlags": [
+      "file",
+      "body-file",
+      "hashes-file"
+    ],
+    "blockedCommands": [
+      "setup",
+      "setup hooks",
+      "config path",
+      "profile list",
+      "hash file",
+      "report file"
+    ],
+    "inputs": {
+      "stdin": "body-file - only",
+      "files": "uploaded leaves only",
+      "downloads": "not available through artium; use hybrid-axi locally"
+    },
+    "nativeWrites": "native preview, operation allow-list, execute, exact confirm and durable journal"
+  },
+  "discovery": {
+    "commands": [
+      "api",
+      "auth",
+      "doctor",
+      "feed",
+      "hash",
+      "home",
+      "hunting",
+      "quick-scan",
+      "quota",
+      "report",
+      "search",
+      "submit",
+      "system"
+    ],
+    "example": [
+      "quota"
+    ],
+    "help": "hybrid-axi quota\nArtium manages the API key and fixed Hybrid Analysis origin. Submissions, YARA mutations and consuming matches are off by default; administrator-enabled operations still require native preview, --execute, exact --confirm and journal. Quick scans transmit the supplied sample or URL as read exceptions. File flags accept uploaded leaves; body-file also accepts explicit stdin (-). Downloads are not available through artium; use hybrid-axi locally.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "api get",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it",
+        "labs": "Select experimental Labs API; default stable"
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile name; default profile precedence"
+      }
+    },
+    {
+      "command": "config path",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile selector; does not affect paths"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile name; default profile precedence"
+      }
+    },
+    {
+      "command": "feed abuse",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it",
+        "page": "Upstream page; default 1"
+      }
+    },
+    {
+      "command": "feed detonation",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "feed latest",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "feed quick-scan",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "hash file",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "output": "Required new file in an existing directory; never stdout or overwrite",
+        "execute": "Execute once after exact confirmation; default preview only",
+        "dry-run": "Preview only; mutually exclusive with --execute",
+        "confirm": "Exact confirmation string from the preview, binding profile, ID, type and destination"
+      }
+    },
+    {
+      "command": "hash search",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "Include all response fields; default false",
+        "hash": "One MD5/SHA1/SHA256/SHA512; exactly one selector required",
+        "hashes-file": "Newline-separated MD5/SHA1/SHA256 file; deprecated bulk route"
+      }
+    },
+    {
+      "command": "hash show",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "Include all response fields; default false",
+        "labs": "Experimental Labs overview; default false"
+      }
+    },
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile name; default HYBRID_AXI_PROFILE or profile precedence"
+      }
+    },
+    {
+      "command": "hunting matches",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All response fields and untruncated text; default false",
+        "execute": "Execute once; default preview only",
+        "dry-run": "Preview only; mutually exclusive with --execute",
+        "confirm": "Exact preview confirmation binding profile, target and payload digest",
+        "intent-id": "Optional unique intent ID; never reuse an unresolved intent",
+        "items-count": "Maximum returned matches; default 100, range 1-1000",
+        "search-after": "Optional RFC3339 date-time; only matches created after this timestamp"
+      }
+    },
+    {
+      "command": "hunting yara create",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All response fields and untruncated text; default false",
+        "execute": "Execute once; default preview only",
+        "dry-run": "Preview only; mutually exclusive with --execute",
+        "confirm": "Exact preview confirmation binding profile, target and payload digest",
+        "intent-id": "Optional unique intent ID; never reuse an unresolved intent",
+        "body-file": "Required strict JSON body, at most 1 MiB; - reads stdin"
+      }
+    },
+    {
+      "command": "hunting yara delete",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All response fields and untruncated text; default false",
+        "execute": "Execute once; default preview only",
+        "dry-run": "Preview only; mutually exclusive with --execute",
+        "confirm": "Exact preview confirmation binding profile, target and payload digest",
+        "intent-id": "Optional unique intent ID; never reuse an unresolved intent"
+      }
+    },
+    {
+      "command": "hunting yara list",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All response fields and untruncated text; default false",
+        "search": "Optional text filter",
+        "threat-category": "Optional comma-separated categories",
+        "status": "Optional active or paused"
+      }
+    },
+    {
+      "command": "hunting yara show",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All response fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "hunting yara update",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All response fields and untruncated text; default false",
+        "execute": "Execute once; default preview only",
+        "dry-run": "Preview only; mutually exclusive with --execute",
+        "confirm": "Exact preview confirmation binding profile, target and payload digest",
+        "intent-id": "Optional unique intent ID; never reuse an unresolved intent",
+        "body-file": "Required strict JSON body, at most 1 MiB; - reads stdin"
+      }
+    },
+    {
+      "command": "profile list",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile selector; does not filter the list"
+      }
+    },
+    {
+      "command": "quick-scan file",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "full": "All response fields; default false",
+        "fields": "Comma-separated response fields; default compact fields",
+        "comment": "Optional comment; default omitted",
+        "submit-name": "Optional submission name; default omitted",
+        "file": "Required regular file, at most 250 MiB",
+        "scan-type": "Required: all, all_lookup, all_scan, lookup_ha, scan_crowdstrike_ml, scan_metadefender"
+      }
+    },
+    {
+      "command": "quick-scan scanners",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "full": "All response fields; default false",
+        "fields": "Comma-separated response fields; default compact fields"
+      }
+    },
+    {
+      "command": "quick-scan show",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "full": "All response fields; default false",
+        "fields": "Comma-separated response fields; default compact fields"
+      }
+    },
+    {
+      "command": "quick-scan submit",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "execute": "Send once; default preview only",
+        "dry-run": "Preview only; incompatible with --execute",
+        "confirm": "Exact confirmation from the preview; required with --execute",
+        "intent-id": "Optional durable intent identifier; an already reserved intent is never replayed",
+        "environment-id": "Required documented environment: 100, 110, 120, 140, 160, 200, 330, 430",
+        "action-script": "Optional: default, default_maxantievasion, default_randomfiles, default_randomtheme, default_openie; default omitted",
+        "experimental-anti-evasion": "Optional experimental_anti_evasion; default omitted; explicit true or false",
+        "script-logging": "Optional script_logging; default omitted; explicit true or false",
+        "input-sample-tampering": "Optional input_sample_tampering; default omitted; explicit true or false",
+        "network-settings": "Optional: default, tor, simulated; default omitted",
+        "email": "Optional email; default omitted",
+        "comment": "Optional comment; default omitted",
+        "custom-date-time": "Optional YYYY-MM-DD HH:mm; default omitted",
+        "custom-cmd-line": "Optional custom_cmd_line; default omitted",
+        "custom-run-time": "Optional positive integer seconds; default omitted",
+        "submit-name": "Optional submit_name; default omitted",
+        "priority": "Optional integer 1-10; default omitted (upstream 5)",
+        "document-password": "Optional document_password; default omitted",
+        "environment-variable": "Optional environment_variable; default omitted"
+      }
+    },
+    {
+      "command": "quick-scan url",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "full": "All response fields; default false",
+        "fields": "Comma-separated response fields; default compact fields",
+        "comment": "Optional comment; default omitted",
+        "submit-name": "Optional submission name; default omitted",
+        "url": "Required exact HTTP(S) URL without embedded credentials",
+        "scan-type": "Required: all, all_lookup, all_scan, lookup_ha, scan_crowdstrike_ml, scan_metadefender, lookup_cleandns, lookup_bforeai, scan_urlscanio, scan_scamadviser, scan_criminalip, scan_vipre"
+      }
+    },
+    {
+      "command": "quota",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile name; default profile precedence"
+      }
+    },
+    {
+      "command": "report children",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "report file",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "type": "Required single type: crt, pcap, json, memory-strings, xml, html, pdf, maec, stix, misp, misp-json, openioc, bin, dropped-files, memory",
+        "output": "Required new file in an existing directory; never stdout or overwrite",
+        "execute": "Execute once after exact confirmation; default preview only",
+        "dry-run": "Preview only; mutually exclusive with --execute",
+        "confirm": "Exact confirmation string from the preview, binding profile, ID, type and destination"
+      }
+    },
+    {
+      "command": "report memory hex",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it",
+        "filename": "Required exact memory dump filename"
+      }
+    },
+    {
+      "command": "report memory list",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "report memory strings",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it",
+        "filename": "Required exact memory dump filename"
+      }
+    },
+    {
+      "command": "report screenshots",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "report show",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "report state",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "search results",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "Include all response fields; default false"
+      }
+    },
+    {
+      "command": "search run",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "Include all response fields; default false",
+        "query": "Required nonempty query",
+        "size": "Results per page or async total; default 50, range 1-200",
+        "page": "Synchronous page, ignored asynchronously; default 1, minimum 1",
+        "date-from": "Inclusive YYYY-MM-DD; default omitted",
+        "date-to": "Inclusive YYYY-MM-DD; default omitted"
+      }
+    },
+    {
+      "command": "search terms",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "Include all response fields; default false",
+        "filename": "Optional nonempty filter; default omitted",
+        "filetype": "Optional nonempty filter; default omitted",
+        "filetype-desc": "Optional nonempty filter; default omitted",
+        "env-id": "Optional nonempty filter; default omitted",
+        "country": "Optional nonempty filter; default omitted",
+        "verdict": "Optional nonempty filter; default omitted",
+        "av-detect": "Optional nonempty filter; default omitted",
+        "vx-family": "Optional nonempty filter; default omitted",
+        "tag": "Optional nonempty filter; default omitted",
+        "date-from": "Optional nonempty filter; default omitted",
+        "date-to": "Optional nonempty filter; default omitted",
+        "port": "Optional nonempty filter; default omitted",
+        "host": "Optional nonempty filter; default omitted",
+        "domain": "Optional nonempty filter; default omitted",
+        "url": "Optional nonempty filter; default omitted",
+        "similar-to": "Optional nonempty filter; default omitted",
+        "context": "Optional nonempty filter; default omitted",
+        "imp-hash": "Optional nonempty filter; default omitted",
+        "ssdeep": "Optional nonempty filter; default omitted",
+        "authentihash": "Optional nonempty filter; default omitted",
+        "uses-tactic": "Optional nonempty filter; default omitted",
+        "uses-technique": "Optional nonempty filter; default omitted"
+      }
+    },
+    {
+      "command": "setup",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
+        "profile": "Profile selector; template uses example"
+      }
+    },
+    {
+      "command": "setup hooks",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show help without installing",
+        "scope": "user (default) or project; Codex hooks feature is always enabled in user config"
+      }
+    },
+    {
+      "command": "submit dropped-file",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "execute": "Send once; default preview only",
+        "dry-run": "Preview only; incompatible with --execute",
+        "confirm": "Exact confirmation from the preview; required with --execute",
+        "intent-id": "Optional durable intent identifier; an already reserved intent is never replayed",
+        "id": "Required source job ID or sha256:environmentId",
+        "file-hash": "Required dropped-file SHA256"
+      }
+    },
+    {
+      "command": "submit file",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "execute": "Send once; default preview only",
+        "dry-run": "Preview only; incompatible with --execute",
+        "confirm": "Exact confirmation from the preview; required with --execute",
+        "intent-id": "Optional durable intent identifier; an already reserved intent is never replayed",
+        "environment-id": "Required documented environment: 100, 110, 120, 140, 160, 200, 330, 430",
+        "action-script": "Optional: default, default_maxantievasion, default_randomfiles, default_randomtheme, default_openie; default omitted",
+        "experimental-anti-evasion": "Optional experimental_anti_evasion; default omitted; explicit true or false",
+        "script-logging": "Optional script_logging; default omitted; explicit true or false",
+        "input-sample-tampering": "Optional input_sample_tampering; default omitted; explicit true or false",
+        "network-settings": "Optional: default, tor, simulated; default omitted",
+        "email": "Optional email; default omitted",
+        "comment": "Optional comment; default omitted",
+        "custom-date-time": "Optional YYYY-MM-DD HH:mm; default omitted",
+        "custom-cmd-line": "Optional custom_cmd_line; default omitted",
+        "custom-run-time": "Optional positive integer seconds; default omitted",
+        "submit-name": "Optional submit_name; default omitted",
+        "priority": "Optional integer 1-10; default omitted (upstream 5)",
+        "document-password": "Optional document_password; default omitted",
+        "environment-variable": "Optional environment_variable; default omitted",
+        "file": "Required regular file, at most 250 MiB; confirmation binds its SHA256 and size"
+      }
+    },
+    {
+      "command": "submit url",
+      "effect": "write",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "execute": "Send once; default preview only",
+        "dry-run": "Preview only; incompatible with --execute",
+        "confirm": "Exact confirmation from the preview; required with --execute",
+        "intent-id": "Optional durable intent identifier; an already reserved intent is never replayed",
+        "environment-id": "Required documented environment: 100, 110, 120, 140, 160, 200, 330, 430",
+        "action-script": "Optional: default, default_maxantievasion, default_randomfiles, default_randomtheme, default_openie; default omitted",
+        "experimental-anti-evasion": "Optional experimental_anti_evasion; default omitted; explicit true or false",
+        "script-logging": "Optional script_logging; default omitted; explicit true or false",
+        "input-sample-tampering": "Optional input_sample_tampering; default omitted; explicit true or false",
+        "network-settings": "Optional: default, tor, simulated; default omitted",
+        "email": "Optional email; default omitted",
+        "comment": "Optional comment; default omitted",
+        "custom-date-time": "Optional YYYY-MM-DD HH:mm; default omitted",
+        "custom-cmd-line": "Optional custom_cmd_line; default omitted",
+        "custom-run-time": "Optional positive integer seconds; default omitted",
+        "submit-name": "Optional submit_name; default omitted",
+        "priority": "Optional integer 1-10; default omitted (upstream 5)",
+        "document-password": "Optional document_password; default omitted",
+        "environment-variable": "Optional environment_variable; default omitted",
+        "url": "Required exact HTTP(S) URL without embedded credentials"
+      }
+    },
+    {
+      "command": "system action-scripts",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "system configuration",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "system environments",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
+      }
+    },
+    {
+      "command": "system queue-size",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "system stats",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "system total-submissions",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "system version",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false"
+      }
+    }
+  ]
+}

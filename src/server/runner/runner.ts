@@ -9,6 +9,7 @@ import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
 import { adoPathPrefix, runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { inputFileSchema } from '../../shared/api.js'
 import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
 import type { TemporaryFile } from '../adapters/types.js'
@@ -161,14 +162,14 @@ async function execute(
           { name: 'sitecustomize.py', content: pythonTrustBootstrap },
         ] : [])]
       for (const file of materialized) {
-        if (!file.name.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) || names.has(file.name)) {
+        if (!file.name.split('/').every(part => inputFileSchema.shape.name.safeParse(part).success) || names.has(file.name)) {
           throw new Error('Invalid adapter file name')
         }
         names.add(file.name)
         const target = join(directories.XDG_CONFIG_HOME, file.name)
         await mkdir(dirname(target), { recursive: true, mode: 0o700 })
         await chmod(dirname(target), 0o700)
-        const temporary = `${target}.tmp`
+        const temporary = join(directories.TMPDIR, 'adapter-file')
         const handle = await open(temporary, 'wx', 0o600)
         try {
           await handle.writeFile(file.appendTrustedCa && trustPem
