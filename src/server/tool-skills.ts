@@ -9,6 +9,7 @@ import type { ToolName } from './store/credential-store.js'
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
+  'hybrid-axi': { sha256: '3b75c852fcfd4a18589145e1f7ae0cabac7e1896bd427d8ed8a3a43da989e20f', sections: [] },
   'tenable-axi': { sha256: 'ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
@@ -31,7 +32,11 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       return source.slice(start, end === -1 ? undefined : end).trim()
     })
     let body = sections.join('\n\n')
-    if (tool === 'tenable-axi') {
+    if (tool === 'hybrid-axi') {
+      frontmatter = frontmatter.replace(/^description:.*$/m, 'description: Investigate Hybrid Analysis hashes, reports, searches and experimental hunting through Artium, with administrator-enabled submissions, YARA changes and consuming matches. Downloads are unavailable.')
+      body = '## Managed investigation and writes\n\nUse `artium-axi hybrid-axi quota`, hash show, report show, search terms and hunting yara list for investigation.\nArtium manages one API key and the fixed Hybrid Analysis origin.\nSubmissions, YARA mutations and consuming matches are off by default and require administrator-enabled operations, native preview, --execute, exact --confirm and durable journal.\nSandbox submission previews disclose community visibility. Consuming matches marks results delivered; never replay an ambiguous outcome. Reconcile its audit ID and journal.\nQuick scans are read exceptions that transmit the supplied sample or URL.\nFile flags accept uploaded leaf names only; body-file also accepts explicit stdin (-). Server paths are unavailable.\nDownloads are not available through artium; use hybrid-axi locally with live-malware warnings, native preview, execute and exact confirmation.\nLabs contracts are experimental; preserve filters and query IDs when resuming bounded reads. A denial or malformed result is never an empty result.\nRun each command with --help for selectors, defaults and examples.\n'
+      body += '\nManaged commands: ' + toolManifests['hybrid-axi'].commands.filter(route => route.effect !== 'blocked').map(route => '`artium-axi hybrid-axi ' + route.command + '`').join(', ') + '.\n'
+    } else if (tool === 'tenable-axi') {
       body = '## Managed investigation and writes\n\nUse `artium-axi tenable-axi card list --limit 1`, asset list, finding list, software list and attack-path list to investigate exposure.\nArtium manages both secret API keys and the fixed https://cloud.tenable.com origin.\nWrites and export-job creation require administrator-enabled operations, native preview, --execute and the exact preview --confirm string.\nNever replay an unknown mutation outcome; follow its audit ID and read-back guidance.\nFile flags accept uploaded leaf names or explicit stdin (-); server paths and output downloads are unavailable.\nUsers, roles, access control, credential minting and arbitrary HTTP are unavailable.\nLists are bounded; preserve filters, sort and fields when resuming a cursor.\nRun each command with --help for selectors, defaults and examples.\n'
       body += '\nManaged commands: ' + toolManifests['tenable-axi'].commands.filter(route => route.effect !== 'blocked').map(route => '`artium-axi tenable-axi ' + route.command + '`').join(', ') + '.\n'
     } else if (tool === 'awx-axi') {

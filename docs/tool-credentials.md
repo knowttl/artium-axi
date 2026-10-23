@@ -232,3 +232,18 @@ Stdin, file uploads, server file paths and `@file` values are unsupported; use i
 Use `job watch --timeout 50` or less to stay within the runner timeout.
 For an interrupted write, inspect current state using the returned read-back guidance before retrying.
 Local fake-service checks do not establish live controller acceptance.
+
+#### Hybrid Analysis
+
+Artium bundles `@knowttl/hybrid-axi` at the [reviewed package pin](../tools/package.json).
+At `/admin/tools/hybrid-axi`, enter the API key itself into `apiKey`, never a SecretRef or file path.
+The origin is fixed to `https://hybrid-analysis.com`; the published CLI sends the secret only in its `api-key` header.
+Artium encrypts the key and supplies an environment SecretRef through its private per-call profile.
+Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi hybrid-axi quota`.
+The credential test reads key level and submission quota; it does not prove permission for other resources.
+Structured 403 failures preserve upstream key-level guidance and never become empty results.
+
+Review the [Hybrid Analysis capability boundary](../README.md#safety) before enabling operations, including its quick-scan exception, community visibility, consuming-match recovery and deferred hosted downloads.
+The [inventory](../tools/inventories/hybrid-axi.json) owns supported operation names and reviewed command/source digests.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for local uploads and explicit JSON stdin, and the [shared API contract](../src/shared/api.ts) for bounded input.
+Local fake-service checks do not establish live service acceptance.

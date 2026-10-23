@@ -1001,7 +1001,7 @@ test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['
   })
 
 test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'],
-  ['falcon-axi'], ['vectra-axi'], ['ldap-axi'], ['ado-axi'], ['awx-axi'], ['tenable-axi'], ['az-axi'], ['mg-axi']].map(command => ({ command })))(
+  ['falcon-axi'], ['vectra-axi'], ['ldap-axi'], ['ado-axi'], ['awx-axi'], ['tenable-axi'], ['hybrid-axi'], ['az-axi'], ['mg-axi']].map(command => ({ command })))(
   'prefix help uses the local layout without configuration or network: $command', async ({ command }) => {
     requests = []
     const result = await cli(['--help', ...command], { ARTIUM_AXI_URL: undefined })
@@ -1030,7 +1030,7 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, az-axi, mg-axi' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
@@ -1139,6 +1139,7 @@ test.each([
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.6' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.8' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.1' },
+  { tool: 'hybrid-axi', example: 'quota', version: '0.1.0' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])

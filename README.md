@@ -45,6 +45,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 | Azure DevOps | PAT or application identity |
 | AWX | Pasted token or one-time password sign-in; optional operational writes |
 | Tenable One | Access and secret API keys; optional allow-listed business writes and export jobs |
+| Hybrid Analysis | Managed API key; investigation reads and optional allow-listed submissions, YARA mutations and consuming matches |
 
 [Package pins](tools/package.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
 
@@ -176,6 +177,11 @@ Review the [Vectra grant warnings](docs/admin-guide.md#browser-administration) b
 | Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |
 | AWX | Launch/cancel/relaunch, workflow approval/denial, project/inventory-source sync and notification tests with `allowWrites: true` and upstream `--confirm`; configuration, deletion and security writes stay blocked. |
 | Tenable One | Business writes and export-job creation with administrator `writes.allowWrites: true`, an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and durable journaling; downloads and local configuration stay blocked. |
+| Hybrid Analysis | Sandbox submissions, YARA create/update/delete and consuming hunting matches require administrator `writes.allowWrites: true`, an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and durable journaling. All downloads, including report artifacts, samples, dropped-file archives and memory dumps, are unavailable pending a separate hosted download path with its own security design; use hybrid-axi locally with its native guards and live-malware warnings. Local configuration and credential/origin overrides are blocked. |
+
+Hybrid Analysis quick scans transmit the supplied sample or URL as read exceptions without a write gate; sandbox submission previews disclose that samples and reports can become visible to the community.
+Consuming hunting matches marks every returned match delivered; reconcile ambiguous outcomes using the audit ID, durable native journal and returned read-back guidance before retrying.
+Labs hunting and search contracts are experimental.
 
 There is no universal Artium confirmation flag.
 Use authenticated tool help and the [write-access runbook](docs/runbook.md#roles-credentials-and-health) for operation-specific gates.
@@ -191,6 +197,7 @@ After an unknown write outcome, inspect state using returned guidance before ret
 | Azure DevOps project list | Identity permitted to view the organization/project |
 | AWX job list | Token identity with job read access |
 | Tenable One card list | See [Tenable One credential permissions](docs/tool-credentials.md#tenable-one). |
+| Hybrid Analysis quota | A valid API key; resource permissions vary by key level. See [Hybrid Analysis setup](docs/tool-credentials.md#hybrid-analysis). |
 
 See [tool credentials](docs/tool-credentials.md) for dedicated identities, permissions and safe credential entry.
 Artium stores shared service credentials encrypted with AES-256-GCM and never returns saved secrets to clients.
@@ -232,7 +239,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
-| `<tool> <args>` | Run any of the eight managed tools above |
+| `<tool> <args>` | Run any of the nine managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |
 
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
@@ -251,6 +258,7 @@ Windows/macOS execution, token storage and actual agent-host loading remain unve
 Local tests do not establish live vendor permissions or production host acceptance.
 LDAP uses simple bind over verified TLS; ambient Kerberos, per-user upstream credentials and external secret stores are unsupported.
 Azure has reviewed bounded input/upload support; ADO and AWX reject stdin and file uploads.
+See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for Hybrid Analysis uploads and explicit JSON stdin, and [Safety](#safety) for its capability boundaries.
 See [adapter limits](docs/tool-credentials.md) and [deployment requirements](docs/runbook.md#scope-and-prerequisites).
 
 ## Contributing

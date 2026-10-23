@@ -80,6 +80,15 @@ test.each(['', '.', '..', '../profile.json', '/data/profile.json', 'inputs/../pr
       .rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
   })
 
+test.each([252, 253, 254, 255])('adapter files preserve %i-byte leaves and contents', async bytes => {
+  const name = `hybrid-axi/uploads/${'x'.repeat(bytes)}`
+  const result = await run(process.execPath, ['-e',
+    "const fs = require('node:fs'); console.log(JSON.stringify({ content: fs.readFileSync(process.argv[1], 'utf8'), mode: fs.statSync(process.argv[1]).mode & 0o777 }))", name],
+  {}, [], {}, {}, [{ name, content: 'synthetic' }])
+  expect(result.exitCode).toBe(0)
+  expect(JSON.parse(result.stdout)).toEqual({ content: 'synthetic', mode: 0o600 })
+})
+
 test('duplicate adapter files cannot replace an existing profile', async () => {
   await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], {}, {}, [
     { name: 'profile.json', content: 'first' }, { name: 'profile.json', content: 'second' },

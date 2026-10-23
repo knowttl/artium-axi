@@ -7,8 +7,10 @@ import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
+import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'hybrid-axi': hybrid.adapterBoundary.unsafeOverrides,
   'tenable-axi': tenable.adapterBoundary.unsafeOverrides,
   'awx-axi': awx.adapterBoundary.unsafeOverrides,
   'falcon-axi': falcon.unsafeOverrides,
@@ -39,6 +41,18 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
+  if (tool === 'hybrid-axi') {
+    try {
+      const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[] }
+      if (document.command && document.flags && hybrid.commands.some(route => route.command === document.command)) {
+        return encode({ ...document, command: document.command.startsWith('artium-axi ') ? document.command : `artium-axi hybrid-axi ${document.command}`,
+          flags: Object.fromEntries(Object.entries(document.flags).filter(([name]) => !hybrid.adapterBoundary.unsafeOverrides.includes(name.slice(2)))),
+          examples: (document.examples ?? []).filter(example => !/--(?:config|profile|origin|output)\b/.test(example))
+            .map(example => example.replace(/^hybrid-axi\b/, 'artium-axi hybrid-axi')),
+          help: [hybrid.discovery.help.replaceAll('hybrid-axi ', 'artium-axi hybrid-axi ')] }) + '\n'
+      }
+    } catch { /* Other output uses the normal suggestion contract below. */ }
+  }
   if (tool === 'awx-axi') {
     const diagnostic = /^(awx: [^;\n]+); Run `awx-axi auth (login|status)` (?:to configure credentials|to check configuration and access)\n$/.exec(output)
     if (diagnostic) return `${diagnostic[1]}; ${diagnostic[2] === 'login'
@@ -74,6 +88,11 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   try {
     const json = output.trimStart().startsWith('{')
     let parsed = json ? jsonHelp(output) : toonHelp(output)
+    if (tool === 'hybrid-axi' && parsed.document.commands) {
+      return encode({ description: 'Investigate Hybrid Analysis with a managed API key.',
+        commands: hybrid.commands.filter(route => route.effect !== 'blocked').map(route => route.command),
+        help: [hybrid.discovery.help.replaceAll('hybrid-axi ', 'artium-axi hybrid-axi ')] }) + '\n'
+    }
     if (tool === 'tenable-axi' && parsed.document.commands) {
       return encode({ description: 'Investigate Tenable One with managed API keys.',
         commands: tenable.commands.filter(route => route.effect !== 'blocked').map(route => route.command),
@@ -176,6 +195,11 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'hybrid-axi') {
+    help = help.split('\n').filter(line => !/HYBRID_AXI_|SecretRefs|hybrid-axi (?:setup|config|profile)|--(?:config|profile|origin|output)\b/.test(line)).join('\n')
+    const guidance = 'Artium manages the API key and fixed origin. Submissions, YARA mutations and consuming matches require administrator-enabled operations, native preview, execute, exact confirmation and journal. Quick scans transmit the supplied sample or URL. Downloads are not available through artium; use hybrid-axi locally.'
+    if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
+  }
   if (tool === 'tenable-axi') {
     help = help.split('\n').filter(line => !/TENABLE_AXI_|SecretRefs|tenable-axi (?:setup|config|profile|hook)|export (?:attack|inventory) download/.test(line)).join('\n')
     const guidance = 'Artium manages both API keys and the fixed origin. Administrators enable write operations; native preview, execute, exact confirmation and journal gates remain required. Downloads are unavailable.'

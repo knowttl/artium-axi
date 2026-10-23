@@ -160,7 +160,7 @@ See [credential rotation](runbook.md#roles-credentials-and-health).
 Use **Write access** on a tool page to change writes without replacing other native settings.
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
-For Falcon, Graph and Vectra, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+For Falcon, Graph, Vectra, Tenable and Hybrid Analysis, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
 See the [Vectra supported boundary and native write gates](../README.md#safety) before selecting operations.
 Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
@@ -285,7 +285,7 @@ Falcon calls report `read` unless they contain `--execute` or submit `malquery s
 Those calls report `write` only with valid native journal records; absent or empty evidence reports `unknown`, even after success.
 MalQuery submissions do not emit the native RTR journal.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
-Tenable uses a shared native journal with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
+Tenable and Hybrid Analysis use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
 For Azure, Graph, Vectra and Falcon calls requiring journal evidence, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.
 See the [API contract](../src/shared/api.ts) and [retention and export runbook](runbook.md#retention-and-export).
 
