@@ -38,6 +38,8 @@ document:
     Do not run tests or dependency installs again during documentation housekeeping.
 
 test:
+  evidence:
+    attach_media: false
   instructions: |
     The configured pnpm test command runs the full real local suite once as the baseline.
     Use targeted public CLI, API and browser flows for additional evidence only when needed.
