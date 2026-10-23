@@ -167,7 +167,7 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     await seedToolUser(db)
     db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
     store.replaceCredential('falcon-axi', { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret',
-      region: 'us-1', rtr: { enabled: true, commands: ['ps'] } }, 0, 'synthetic-development-user', Date.now())
+      region: 'us-1' }, 0, 'synthetic-development-user', Date.now())
     const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
       username: 'synthetic-user', password: 'CANARY-local-password' } })
     const headers = { authorization: `Bearer ${login.json().accessToken}` }
@@ -181,6 +181,9 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     const start = (await evidence()).requests.length
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const confirmedHeaders = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
+    const configured = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders,
+      payload: { nativeSettings: { rtr: { enabled: true, commands: ['ps'] } }, expectedRevision: 1 } })
+    assert.equal(configured.statusCode, 200, configured.body)
     const detail = await app.inject({ url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders })
     assert.equal(detail.statusCode, 200, detail.body)
     assert.equal(detail.json().writeAccess.enabled, false)
@@ -231,9 +234,9 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
       })))
     assert.match(journals.join(''), /"cleanup": "deleted"/)
     assert.doesNotMatch(journals.join(''), /CANARY-|synthetic process list/)
-    const current = store.findCredential('falcon-axi')
-    store.replaceCredential('falcon-axi', { ...store.readCredential(current), rtr: { enabled: false } }, current.revision,
-      'synthetic-development-user', Date.now())
+    const optOut = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders,
+      payload: { nativeSettings: { allowWrites: true, rtr: { enabled: false } }, expectedRevision: on.json().revision } })
+    assert.equal(optOut.statusCode, 200, optOut.body)
     assert.match((await run(execute)).stdout, /explicit profile opt-in/)
     console.log('falcon-rtr: default off, history reads, recent confirmation, audited switch, native confirmation, command narrowing, execute and delete passed')
   } finally { await app.close(); db.close() }
