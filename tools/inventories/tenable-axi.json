@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.0",
-  "integrity": "sha512-nw1HLOmUZdeo/x1po1uOmFQhZsg0rP1eMGrcwLj+Pd2UkdwKodAQjDCjgBdl5DNLIqaafkUEV6mPMJmkFLQpzw==",
+  "version": "0.1.1",
+  "integrity": "sha512-ukWwVny4DeEBLqqWJhaM0au4Z5dvQTsDKoE2NhROIE3p114WUz2tT5dOfWL8MaalVrmU/zSMhk+S29sUocR3xg==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/exposure.js",
-      "sha256": "0278853a917eb583c721c69d10c5e466aed9d18c8d910f20991dcfe33faac738"
+      "sha256": "5e93b01dc54368627f1f7c1ac4a96579af2f4beae7c2b10189ba190cf5cc9af6"
     },
     {
       "path": "dist/src/hook-install.js",
@@ -47,19 +47,19 @@
     },
     {
       "path": "dist/src/inventory-catalogue.js",
-      "sha256": "2a4b4338917af9060b6859eaa2cfc94cc5ccb936bf96f744b51755d4d92d98a7"
+      "sha256": "ccd42834a43aabffbd90e7326926660e9cff788997ab836cb2eb858fc36f1119"
     },
     {
       "path": "dist/src/inventory-export-catalogue.js",
-      "sha256": "a85ef57098bdec74dccd587b7065ebb4c84b3902043fc87c8aedd878d74b375f"
+      "sha256": "cf07efc8540e83fcda3f79df4a5ec6c75e081e1557a52e6e178a24ee7d393905"
     },
     {
       "path": "dist/src/inventory-export.js",
-      "sha256": "5422b59008eecad8476d8c0ce5f287188a2f1ad4fcfe763450ac187423d7d0f2"
+      "sha256": "176bd2aef67901383e29f5984867d104fdb8278a40d13d1281aa459ea44a8f9c"
     },
     {
       "path": "dist/src/inventory.js",
-      "sha256": "12ad8effb2728fea7791e5f62716d079484b377c56f8b9cdb83d500842258b7d"
+      "sha256": "83bd3b19b1ad54785fdf107b57a66ffc882141706337bb886108b67f75565bb1"
     },
     {
       "path": "dist/src/inventory/schema.js",
@@ -71,11 +71,11 @@
     },
     {
       "path": "dist/src/platform-tag-catalogue.js",
-      "sha256": "9c887c06dd1179a877696deae8873ffce5e3b3e001f2c61ae7968f883eafe314"
+      "sha256": "9efb6f39618f2508e7e3cf58e1f50ce0c994351d5e8d69463c8caad8ecf020d7"
     },
     {
       "path": "dist/src/platform-tag.js",
-      "sha256": "ff31eb9a454ba20d2e378403fd4cb29b097e8de4b8b241b3af13197598a66972"
+      "sha256": "89933fd5ed557037afab537d147348cad8131684cd8422f20ee4fb5846707a18"
     },
     {
       "path": "dist/src/private-file.js",
@@ -103,7 +103,7 @@
     },
     {
       "path": "dist/src/transport-core.js",
-      "sha256": "db13c1c33aa1716bc8a32e3ebc6459421c64f078ea4641f248e552c5b74a621d"
+      "sha256": "3419fbee2b091109495216c4da4f68fdaa1779449f9eee29a9ec429b0d306195"
     },
     {
       "path": "dist/src/transport.js",
@@ -569,7 +569,7 @@
         "full": "Full output; default false",
         "help": "Show help",
         "body-file": "Optional strict query/filters JSON file, '-' for stdin; maximum 1 MiB",
-        "properties": "Comma-separated property names",
+        "properties": "Comma-separated names from asset properties; id maps to asset_id",
         "use-readable-name": "true|false; API default true",
         "max-chunk-file-size": "5242880-104857600 bytes; API default 20971520",
         "sort": "property:asc|desc",
@@ -660,7 +660,7 @@
         "full": "Full output; default false",
         "help": "Show help",
         "body-file": "Optional strict query/filters JSON file, '-' for stdin; maximum 1 MiB",
-        "properties": "Comma-separated property names",
+        "properties": "Comma-separated names from finding properties; id maps to finding_id",
         "use-readable-name": "true|false; API default true",
         "max-chunk-file-size": "5242880-104857600 bytes; API default 20971520",
         "sort": "property:asc|desc",

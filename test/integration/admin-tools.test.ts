@@ -949,7 +949,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
-    { name: 'tenable-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'tenable-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])
