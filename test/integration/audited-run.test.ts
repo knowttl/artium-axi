@@ -47,7 +47,7 @@ beforeEach(async () => {
   db = openStore(join(directory, 'artium.db'), provider)
   db.exec(`INSERT INTO users (id, username, display_name, password_hash)
       VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
-    UPDATE tools SET enabled = 1, pinned_version = '0.5.1' WHERE name = 'falcon-axi';
+    UPDATE tools SET enabled = 1, pinned_version = '0.6.0' WHERE name = 'falcon-axi';
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
     INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'falcon-axi');`)

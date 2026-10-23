@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
+import { falconRtrSettingsSchema } from '../../shared/api.js'
 import { writePolicy } from './write-policy.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -9,8 +10,10 @@ import type { Adapter } from './types.js'
 import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 export const falconManifest = inventory
-export const falconWritePolicy = writePolicy({ reason: 'The pinned Falcon version has no write commands and ignores allowWrites.',
-  unlocks: 'No write actions.', blocked: 'All write actions remain unavailable.' })
+const falconLimits = { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
+export const falconWritePolicy = writePolicy({
+  unlocks: 'RTR read-only command execution',
+  blocked: 'Host changes, scripts and file transfers remain unavailable. Profile RTR opt-in, command restrictions and exact execution confirmation still apply.' })
 export const falconCredentialFiles = z.object({
   clientIdFile: z.string().min(1),
   clientSecretFile: z.string().min(1),
@@ -21,6 +24,7 @@ export type FalconCredentialFiles = z.infer<typeof falconCredentialFiles>
 
 export const falconCredentialSchema = z.object({
   allowWrites: z.boolean().optional(),
+  rtr: falconRtrSettingsSchema.optional(),
   clientId: z.string().trim().min(1),
   clientSecret: z.string().trim().min(1),
   region: z.string().min(1),
@@ -33,19 +37,22 @@ function prepareCredential(args: readonly string[], credential: FalconCredential
   const group = args.slice(0, -1).join(' ')
   // Group help must end at --help and never resolves connection settings upstream.
   const groupHelp = args.at(-1) === '--help' && inventory.commands.some(route => route.command.startsWith(group + ' '))
+  const environment: Record<string, string> = credential.rtr
+    ? { ARTIUM_SECRET_0: clientSecret }
+    : { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret }
+  environment.FALCON_AXI_READ_ONLY = String(credential.allowWrites !== true)
   return {
     executable: toolPaths['falcon-axi'],
     args: groupHelp ? [...args] : [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret,
-      FALCON_AXI_READ_ONLY: 'false' },
+    environment,
     secrets: [clientId, clientSecret],
-    limits: { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs },
+    limits: falconLimits,
   }
 }
 
 export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool-logs/falcon-axi/writes.log',
   profile = loadCredentialProfile('falcon-axi')): Adapter<unknown> {
-  return withCredentialProfile({
+  const adapter = withCredentialProfile({
     name: 'falcon-axi',
     executable: toolPaths['falcon-axi'],
     credentialSchema: falconCredentialSchema,
@@ -59,10 +66,19 @@ export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = falconCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      return { ...prepareCredential(args, parsed.data), files: [] }
+      const { rtr, region, memberCid } = parsed.data
+      const prepared = prepareCredential(args, parsed.data)
+      return { ...prepared, environment: { ...prepared.environment, FALCON_AXI_WRITE_LOG: writeLog }, files: rtr ? [{ name: 'falcon-axi/config.json', content: JSON.stringify({
+        version: 1, defaultProfile: 'artium', profiles: { artium: { clientId: parsed.data.clientId,
+          clientSecret: { env: 'ARTIUM_SECRET_0' }, region, memberCid, rtr } },
+      }) }] : [] }
     },
   }, source, writeLog, profile, args => ({ args: [...args] }),
-  { runtime: 'python', timeoutMs: inventory.requirements.timeoutMs })
+  falconLimits)
+  return { ...adapter, async prepare(...input) {
+    const prepared = await adapter.prepare(...input)
+    return { ...prepared, effect: input[0].some(token => token === '--execute' || token.startsWith('--execute=')) ? 'write' : 'read' }
+  } }
 }
 
 export function validateFalconArgs(args: readonly string[]): void {

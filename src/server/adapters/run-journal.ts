@@ -1,14 +1,13 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
-import falconInventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import ldapInventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import type { ToolName } from '../store/credential-store.js'
 
 export type RunAction = 'read' | 'write' | 'unknown'
 
 // These pinned tools journal mutations after their native write gates.
-const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
+const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG', 'FALCON_AXI_WRITE_LOG']
 
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
   if (tool === 'tenable-axi') {
@@ -32,9 +31,11 @@ export async function prepareRunJournal(environment: Record<string, string>, too
     return { environment, action: async (succeeded: boolean): Promise<RunAction> => effect === 'read' ? 'read' : succeeded ? 'write' : 'unknown' }
   }
   const variable = journalVariables.find(name => environment[name])
+  if (tool === 'falcon-axi' && effect === 'read' && variable === 'FALCON_AXI_WRITE_LOG') {
+    return { environment, action: async (): Promise<RunAction> => 'read' }
+  }
   if (!variable) {
-    if (tool === 'falcon-axi' && falconInventory.requirements.nativeWrites === 'read-only upstream design'
-      || tool === 'ldap-axi' && ldapInventory.adapterBoundary.nativeWrites === 'read-only upstream design') {
+    if (tool === 'ldap-axi' && ldapInventory.adapterBoundary.nativeWrites === 'read-only upstream design') {
       return { environment, action: async (): Promise<RunAction> => 'read' }
     }
     throw new TypeError('Missing native write journal contract')

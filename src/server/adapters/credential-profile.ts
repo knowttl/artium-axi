@@ -224,7 +224,7 @@ export class CredentialProfile {
     if (!this.validateProfile(parsed.value)) throw new ArtiumError('CREDENTIAL_INVALID')
     if (tool !== 'ldap-axi') {
       const prefix = tool.toUpperCase().replaceAll('-', '_')
-      environment[`${prefix}_READ_ONLY`] = String(tool === 'falcon-axi' ? false : readOnly)
+      environment[`${prefix}_READ_ONLY`] = String(readOnly)
       if (tool !== 'awx-axi') environment[`${prefix}_WRITE_LOG`] = writeLog!
     }
     // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.

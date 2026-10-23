@@ -269,7 +269,7 @@ test('a retired cached category requires a fresh test without breaking administr
 })
 
 test.each([
-  { tool: 'falcon-axi', settings: { allowWrites: true }, readOnly: true, writableTools: [] },
+  { tool: 'falcon-axi', settings: { allowWrites: true }, readOnly: false, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, readOnly: false, writableTools: ['az-axi'] },
   { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, readOnly: false, writableTools: ['mg-axi'] },
   { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } }, readOnly: false, writableTools: ['vectra-axi'] },
@@ -290,7 +290,7 @@ test.each([
 })
 
 test.each([
-  { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: [] },
+  { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, writableTools: ['az-axi'] },
   { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, writableTools: ['mg-axi'] },
   { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } }, writableTools: ['vectra-axi'] },
@@ -303,21 +303,21 @@ test.each([
   expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual(writableTools)
 })
 
-test('Falcon discovery and successful health checks remain read-only with its saved switch on', async () => {
+test('Falcon discovery and health expose the enabled execution switch', async () => {
   await replace('falcon-axi', { ...values['falcon-axi'], allowWrites: true })
   const tested = await request('POST', '/falcon-axi/test', {})
   expect(tested.status).toBe(200)
-  expect(healthSchema.parse(await tested.json())).toMatchObject({ status: 'ok', readOnly: true })
+  expect(healthSchema.parse(await tested.json())).toMatchObject({ status: 'ok', readOnly: false })
   const admin = (await (await request('GET', '')).json() as { tools: unknown[] }).tools
     .map(tool => adminToolSchema.parse(tool)).find(tool => tool.name === 'falcon-axi')!
-  expect(admin).toMatchObject({ nativeSettings: { allowWrites: true }, readOnly: true,
-    health: { status: 'ok', readOnly: true } })
+  expect(admin).toMatchObject({ nativeSettings: { allowWrites: true }, readOnly: false,
+    health: { status: 'ok', readOnly: false } })
   const discovery = await fetch(`${url}/v1/tools`, { headers })
   expect(discovery.status).toBe(200)
   const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
-  expect(tool).toMatchObject({ status: 'ok', readOnly: true })
-  expect(toolView(tool)).toContain('readOnly: true\n')
-  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.5.1",true\n')
+  expect(tool).toMatchObject({ status: 'ok', readOnly: false })
+  expect(toolView(tool)).toContain('readOnly: false\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.6.0",false\n')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -327,8 +327,8 @@ test('Falcon discovery and successful health checks remain read-only with its sa
   const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain('Write access: Read-only.')
-  expect(page.body).not.toContain('Writes enabled')
+  expect(page.body).toContain('Writes enabled')
+  expect(page.body).toContain('RTR read-only command execution')
 })
 
 test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
@@ -738,7 +738,7 @@ test('admin list and detail expose write capability for every tool, including un
   const { tools } = await response.json()
   expect(tools.map((tool: { name: string, writeAccess: unknown }) => ({ name: tool.name, ...tool.writeAccess as object })))
     .toMatchObject([
-      { name: 'falcon-axi', capable: false, enabled: false, reason: expect.stringContaining('ignores allowWrites') },
+      { name: 'falcon-axi', capable: true, enabled: false, reason: null },
       { name: 'vectra-axi', capable: true, enabled: false, reason: null },
       { name: 'az-axi', capable: true, enabled: false, reason: null },
       { name: 'mg-axi', capable: true, enabled: false, reason: null },
@@ -756,7 +756,7 @@ test('admin list and detail expose write capability for every tool, including un
   }
 })
 
-test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
+test.each(['falcon-axi', 'az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
   await replace(tool)
   const settings = tool === 'az-axi' ? { allowWrites: true, subscriptions: ['synthetic-subscription'],
     managementGroup: 'synthetic-group', workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' },
@@ -811,7 +811,7 @@ test.each(['az-axi', 'ado-axi'] as const)('%s write switch rejects an in-flight 
   expect(store.readCredential(store.findCredential(tool)!)).toEqual(value)
 })
 
-test.each(['falcon-axi', 'ldap-axi'] as const)('%s refuses write changes with the fixed read-only reason', async tool => {
+test.each(['ldap-axi'] as const)('%s refuses write changes with the fixed read-only reason', async tool => {
   const detail = await request('GET', `/${tool}`)
   const { writeAccess } = await detail.json()
   const response = await request('PATCH', `/${tool}/write-access`, { enabled: true, expectedRevision: 1 })
@@ -942,7 +942,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(response.status).toBe(200)
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
-    { name: 'falcon-axi', version: '0.5.1', health: { status: 'unconfigured' } },
+    { name: 'falcon-axi', version: '0.6.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.8', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.10', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.10', health: { status: 'disabled' } },

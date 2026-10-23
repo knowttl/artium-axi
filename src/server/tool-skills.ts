@@ -16,7 +16,7 @@ const overlays = {
   'vectra-axi': { sha256: '88a10ed9113e82d264190062ddd444cdb3f6514f8371809e3055b0ea733ff3fb', sections: ['Safety'] },
   'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
   'ldap-axi': { sha256: 'e20365f41164061268067d0caa6055fe8417dc6c610d70a5c3108d1e6ae0dcfc', sections: ['Workflow', 'Safety'] },
-  'falcon-axi': { sha256: '9e910742a841697b2df8a8d75069d2f1ab4dda7a708cfeef114096e2829706c4', sections: ['Read-only boundary', 'Orientation', 'Credentials and output'] },
+  'falcon-axi': { sha256: '2f19a446de939997a0a4f3d9e1a5f203d9c172226d89d8ecdb61acffbfbfdcbd', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
 } as const
 
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {
@@ -58,6 +58,7 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
     } else if (tool === 'falcon-axi') {
       body = body.split('\n').filter(line => !/^(Secrets belong|Use `--profile|Use `--member-cid)/.test(line)).join('\n')
         .replaceAll('uvx falcon-axi', 'falcon-axi')
+      body += '\n\nArtium must enable RTR read-only command execution separately from the managed profile rtr.enabled opt-in. History reads remain available while execution is off.\n'
     }
     const registry = source.match(/<!-- command-registry:start -->\n([\s\S]*?)\n<!-- command-registry:end -->/)
     let commands = ''

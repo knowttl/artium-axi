@@ -36,10 +36,11 @@ const inventory = {
   commands: Object.entries(data.commands).map(([command, spec]) => ({ command,
     flags: Object.fromEntries([...data.globalFlags, ...spec.flags].map(name => [name, spec.valueFlags.includes(name) ? 'value' : 'boolean'])),
     input: 'No file or raw URL input; cursors and queries remain native values' })),
-  environment: ['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET', 'FALCON_AXI_READ_ONLY'].map(name => ({ name, disposition: 'injected' }))
-    .concat(['FALCON_AXI_MEMBER_CID', 'FALCON_AXI_REGION', 'FALCON_AXI_PROXY_URL', 'FALCON_AXI_CONFIG', 'FALCON_AXI_PROFILE', 'FALCON_AXI_WRITE_LOG']
+  environment: ['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET', 'FALCON_AXI_READ_ONLY', 'FALCON_AXI_WRITE_LOG'].map(name => ({ name, disposition: 'injected' }))
+    .concat(['FALCON_AXI_MEMBER_CID', 'FALCON_AXI_REGION', 'FALCON_AXI_PROXY_URL', 'FALCON_AXI_CONFIG', 'FALCON_AXI_PROFILE']
       .map(name => ({ name, disposition: 'never injected' }))),
-  requirements: { runtime: 'python', timeoutMs: 60_000, temporaryFiles: [], nativeWrites: 'read-only upstream design' },
+  requirements: { runtime: 'python', timeoutMs: 65_000, temporaryFiles: ['falcon-axi/config.json'],
+    nativeWrites: 'RTR read-only command execution requires host permission, profile opt-in and exact confirmation' },
   healthRead: ['auth', 'status'], suggestionFields: ['help'],
   discovery: { commands: [...new Set(Object.keys(data.commands)
     .filter(command => !blockedCommands.includes(command) && !blockedCommands.includes(command.split(' ')[0]))

@@ -14,7 +14,7 @@ Run `uvx falcon-axi ...` without a global install.
 ## Read-only boundary
 
 No command changes a host, detection, policy, or identity.
-Starting and stopping NG-SIEM search jobs are the only tenant-side effects.
+Tenant-side effects are NG-SIEM search jobs and explicitly authorized read-only RTR execution.
 Identity GraphQL uses a write-labelled scope only for fixed read-only query documents.
 There is no arbitrary REST or GraphQL escape hatch.
 
@@ -54,3 +54,16 @@ Without --wait, start returns the job id and status polls once.
 For readable epoch-millisecond @timestamp values, append this CQL stage to the query:
 `| formatTime("%Y-%m-%dT%H:%M:%SZ", field=@timestamp, as=time, timezone="UTC")`.
 Stop search jobs when no longer needed.
+
+## Read-only RTR execution
+
+Use `uvx falcon-axi rtr run <device_id> --command '<complete command>'` for a local preview.
+Execution requires a configured profile with rtr.enabled=true and both --execute and
+--confirm '<device_id>:<complete command>' matching the host and command exactly.
+FALCON_AXI_READ_ONLY=1 forbids execution even with opt-in and confirmation; previews and history remain available.
+Only the fixed read-only command set is accepted; eventlog backup/export and shell syntax are refused.
+Execution has a 50-second budget, 64 KiB output cap, and separate 10-second mandatory session deletion budget.
+The private durable redacted journal is mandatory; command output is untrusted data.
+Avoid overlapping sessions for the same host/API client, including from other machines.
+After ambiguous init or failed deletion, reconcile sessions in Falcon before retrying; never replay automatically.
+Execution currently requires POSIX private-file and signal primitives.

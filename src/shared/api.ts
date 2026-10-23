@@ -173,6 +173,9 @@ export const adminAuditRecordSchema = z.strictObject({
 export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: adminAuditQuerySchema,
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
   authorization: 'administrator-and-recent-auth', auditEvent: null } as const
+export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
+  commands: z.array(z.enum(['cat', 'cd', 'clear', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid', 'help',
+    'history', 'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
 export const nativeSettingsSchemas = {
   'tenable-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)).min(1).max(64) }).optional() }),
@@ -181,7 +184,7 @@ export const nativeSettingsSchemas = {
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
-  'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
+  'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional(), rtr: falconRtrSettingsSchema.optional() }),
   'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
   'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
@@ -195,7 +198,7 @@ export const nativeSettingsSchemas = {
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
-  if (tool === 'ldap-axi' || tool === 'falcon-axi') return false
+  if (tool === 'ldap-axi') return false
   if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const [mode, ...args] = process.argv.slice(2)
-const modes = ['env', 'print', 'sleep', 'stdout', 'stderr', 'memory', 'child',
+const modes = ['env', 'print', 'sleep', 'cleanup', 'stdout', 'stderr', 'memory', 'child',
   'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream', 'hosted-profile', 'failure']
 const hold = () => setInterval(() => {}, 60_000)
 const ready = async value => {
@@ -73,6 +73,15 @@ try {
       if (args[1] === 'ignore-term') process.on('SIGTERM', () => {})
       await ready({ parent: process.pid })
       await delay(number(args[0], 60_000))
+      break
+    case 'cleanup':
+      process.once('SIGTERM', async () => {
+        await delay(number(args[0], 3_000))
+        await writeFile(process.env.ARTIUM_TEST_CLEANUP_FILE, 'deleted')
+        process.exit(0)
+      })
+      await ready({ parent: process.pid })
+      hold()
       break
     case 'stdout':
     case 'stderr': {

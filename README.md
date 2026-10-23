@@ -37,7 +37,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 ### Supported pinned tools
 | Tool | Managed access |
 | --- | --- |
-| Falcon | Read-only API client |
+| Falcon | API client; optional guarded RTR read-only commands |
 | Vectra | Token or OAuth; optional allow-listed writes |
 | Azure | Application identity and resource-token broker |
 | Microsoft Graph | Application identity; optional allow-listed writes |
@@ -162,7 +162,8 @@ Administrator capability alone grants no tool access; upstream permissions remai
 
 | Tool | Write capability and unlock |
 | --- | --- |
-| Falcon, LDAP | Fixed read-only; Falcon's NG-SIEM search-job start/stop effects remain available regardless of any legacy saved write setting. LDAP has no writes. |
+| Falcon | Optional guarded RTR execution from the standard read-only command allowlist, with profile narrowing. Host changes, scripts and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
+| LDAP | Fixed read-only. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
 | Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |

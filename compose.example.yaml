@@ -4,6 +4,7 @@ services:
     build: .
     read_only: true
     init: true
+    stop_grace_period: 20s
     mem_limit: 6g
     pids_limit: 192
     healthcheck:
