@@ -4,7 +4,7 @@ import { errors } from './errors.js'
 export const inputLimits = {
   requestBytes: 16 * 1024 * 1024,
   arguments: 64,
-  argumentBytes: 4096,
+  argumentBytes: 64 * 1024,
   stdinBytes: 512 * 1024,
   fileBytes: 1024 * 1024,
   totalFileBytes: 4 * 1024 * 1024,
