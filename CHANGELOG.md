@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.12](https://github.com/knowttl/artium-axi/compare/v0.0.11...v0.0.12) (2026-10-23)
+
+
+### Features
+
+* bundle falcon-axi 0.7.0 with separate MalQuery access ([#149](https://github.com/knowttl/artium-axi/issues/149)) ([a066a43](https://github.com/knowttl/artium-axi/commit/a066a43b1cc9b19b79cdea31253a187a58e86d83))
+
 ## [0.0.11](https://github.com/knowttl/artium-axi/compare/v0.0.10...v0.0.11) (2026-10-23)
 
 
