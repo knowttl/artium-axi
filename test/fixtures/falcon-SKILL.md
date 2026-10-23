@@ -14,7 +14,7 @@ Run `uvx falcon-axi ...` without a global install.
 ## Read-only boundary
 
 No command changes a host, detection, policy, or identity.
-Tenant-side effects are NG-SIEM search jobs and explicitly authorized read-only RTR execution.
+Tenant-side effects are NG-SIEM jobs, guarded RTR execution, and bounded MalQuery exact/fuzzy searches (N4).
 Identity GraphQL uses a write-labelled scope only for fixed read-only query documents.
 There is no arbitrary REST or GraphQL escape hatch.
 

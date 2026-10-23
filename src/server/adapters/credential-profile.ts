@@ -86,7 +86,12 @@ export class CredentialProfile {
         else: { required: ['token'], not: { anyOf: [{ required: ['username'] }, { required: ['password'] }] } },
       }]
     }
-    if (tool === 'falcon-axi') this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow writes' }
+    if (tool === 'falcon-axi') {
+      this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow RTR execution' }
+      this.inputSchema.properties.writes = { type: 'object', additionalProperties: false, required: ['allowWrites', 'operations'],
+        properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', minItems: 1, maxItems: 2,
+          items: { enum: ['rtr run', 'malquery search'] } } } }
+    }
     if (tool === 'ldap-axi') {
       this.inputSchema.required = [...new Set([...this.inputSchema.required ?? [], 'auth', 'bindDn', 'bindPassword'])]
       this.inputSchema.properties.auth = { const: 'simple', title: 'Authentication' }
@@ -211,6 +216,7 @@ export class CredentialProfile {
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
+    if (tool === 'falcon-axi') delete parsed.value.writes
     const environment: Record<string, string> = {}
     const secrets: string[] = []
     for (const path of parsed.paths) {

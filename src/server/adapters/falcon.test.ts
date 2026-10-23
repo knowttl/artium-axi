@@ -4,8 +4,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { withFakeService } from '../../../test/fake-service/fixture.js'
 import { Runner } from '../runner/runner.js'
-import { createFalconAdapter, falconManifest, prepareFalcon } from './falcon.js'
+import { createFalconAdapter, falconManifest, falconWritePolicy, prepareFalcon } from './falcon.js'
 import { CredentialProfile } from './credential-profile.js'
+import { prepareRunJournal } from './run-journal.js'
 
 let directory: string
 let configuration: { clientIdFile: string, clientSecretFile: string, region: string, memberCid?: string }
@@ -16,6 +17,47 @@ beforeEach(async () => {
   await writeFile(configuration.clientSecretFile, 'CANARY-falcon-secret\n', { mode: 0o600 })
 })
 afterEach(async () => { await rm(directory, { recursive: true, force: true }) })
+
+test.each([false, true].flatMap(managed => [
+  { managed, settings: {}, malquery: 'true', rtr: 'true' },
+  { managed, settings: { allowWrites: true }, malquery: 'true', rtr: 'false' },
+  { managed, settings: { writes: { allowWrites: true, operations: ['malquery search'] } }, malquery: 'false', rtr: 'true' },
+  { managed, settings: { writes: { allowWrites: true, operations: ['rtr run', 'malquery search'] } }, malquery: 'false', rtr: 'false' },
+  { managed, settings: { writes: { allowWrites: false, operations: ['malquery search'] } }, malquery: 'true', rtr: 'true' },
+]))('MalQuery capability stays independent of RTR with managed=$managed and settings=$settings', async ({ managed, settings, malquery, rtr }) => {
+  const value = { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2', ...settings }
+  const profile = managed ? new CredentialProfile({ type: 'object', additionalProperties: false,
+    properties: { clientId: { type: 'string' }, clientSecret: { type: 'object', 'x-secret': true,
+      properties: { env: { type: 'string' } }, required: ['env'] }, region: { type: 'string' } } }, 'falcon-axi') : undefined
+  const adapter = createFalconAdapter({ getCredential: async () => value }, join(directory, 'writes.log'), profile)
+  const reference = { id: 'synthetic', tool: 'falcon-axi' as const }
+  const search = await adapter.prepare(['malquery', 'search', '--hex', '4d 5a', '--fuzzy'], reference)
+  expect(search.environment.FALCON_AXI_READ_ONLY).toBe(malquery)
+  expect(search.effect).toBe('write')
+  expect((await adapter.prepare(['rtr', 'run'], reference)).environment.FALCON_AXI_READ_ONLY).toBe(rtr)
+  expect((await adapter.prepare(['malquery', 'quota'], reference)).effect).toBe('read')
+  if (managed) expect(JSON.parse(search.files[0].content as string).profiles.artium).not.toHaveProperty('writes')
+})
+
+test('Falcon write switch keeps MalQuery off for legacy RTR opt-ins and retains choices while disabled', () => {
+  expect(falconWritePolicy.read({})).toMatchObject({ enabled: false, allowedOperations: [] })
+  expect(falconWritePolicy.read({ allowWrites: true })).toMatchObject({ enabled: true,
+    supportedOperations: ['rtr run', 'malquery search'], allowedOperations: ['rtr run'] })
+  const enabled = falconWritePolicy.update({ rtr: { enabled: true } }, { enabled: true, operations: ['malquery search'], expectedRevision: 1 })
+  expect(enabled).toEqual({ rtr: { enabled: true }, writes: { allowWrites: true, operations: ['malquery search'] } })
+  const disabled = falconWritePolicy.update(enabled, { enabled: false, expectedRevision: 2 })
+  expect(falconWritePolicy.read(disabled)).toMatchObject({ enabled: false, allowedOperations: ['malquery search'] })
+  expect(falconWritePolicy.read(falconWritePolicy.update(disabled, { enabled: true, expectedRevision: 3 })))
+    .toMatchObject({ enabled: true, allowedOperations: ['malquery search'] })
+  expect(() => falconWritePolicy.update({}, { enabled: true, operations: ['hunt'], expectedRevision: 1 })).toThrow()
+  expect(falconWritePolicy.read(falconWritePolicy.update(disabled, { enabled: false, operations: [], expectedRevision: 3 })))
+    .toMatchObject({ enabled: false, allowedOperations: [] })
+})
+
+test('MalQuery submissions without native journal evidence are never reported as reads', async () => {
+  const journal = await prepareRunJournal({ FALCON_AXI_WRITE_LOG: join(directory, 'writes.log') }, 'falcon-axi', 'write')
+  expect(await journal.action(true)).toBe('unknown')
+})
 
 test.each([false, true])('RTR profile opt-in and command narrowing remain independent of execute permission %s', async allowWrites => {
   const credential = { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-2',
@@ -95,7 +137,8 @@ test('native help and unknown ordinary options remain upstream-owned', async () 
   expect(falconManifest.parser.shortFlags).toEqual({})
 })
 
-test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list'])
+test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list', 'detection process',
+  'process show', 'process tree', 'sandbox list', 'sandbox show', 'file-change list', 'file-change show', 'policy show', 'malquery show', 'malquery quota', 'malquery status'])
   ('new read command %s keeps managed credentials and investigation operations enabled', async command => {
     const prepared = await prepareFalcon(command.split(' '), configuration)
     expect(prepared.args).toEqual([...command.split(' '), '--region', 'us-2'])

@@ -244,9 +244,10 @@ Per-tool policy covers the inventory, blocked commands and flags, and hosted res
 ### Per-tool host-facing schemas
 
 The Falcon adapter supports the pinned credential profile and a legacy environment credential channel.
-The shared profile writer removes host-owned `allowWrites` from the upstream profile while preserving `rtr` settings.
-The host sets `FALCON_AXI_READ_ONLY=true` unless the audited execute switch is enabled.
-See [Falcon RTR execution setup](runbook.md#falcon-rtr-execution) for the independent native gates and override behavior.
+The shared profile writer removes host-owned `allowWrites` and `writes` from the upstream profile while preserving `rtr` settings.
+The host sets `FALCON_AXI_READ_ONLY=false` only when write access is enabled and the call's capability is selected: `malquery search` for that command, `rtr run` for other calls.
+Otherwise it sets `FALCON_AXI_READ_ONLY=true`.
+See [Falcon execution setup](runbook.md#falcon-rtr-execution) for capability selection, legacy settings and independent native gates.
 The [Falcon inventory](../tools/inventories/falcon-axi.json) owns the blocked local configuration commands and credential overrides.
 
 mg-axi keeps the `mode` field.

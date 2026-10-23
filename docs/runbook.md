@@ -400,13 +400,16 @@ These diagnostics leave the client error code as `INTERNAL_ERROR` and are separa
 
 ### Falcon RTR execution
 
-Enable Falcon's audited **Write access** switch with recent identity confirmation, then separately save Native settings with profile opt-in, for example `{"allowWrites": true, "rtr": {"enabled": true, "commands": ["ps"]}}`.
-Native settings replace the whole object, so preserve `allowWrites: true` when saving the profile opt-in.
+Enable Falcon's audited **Write access** switch and select `rtr run` with recent identity confirmation, then separately save Native settings with profile opt-in, for example `{"writes": {"allowWrites": true, "operations": ["rtr run"]}, "rtr": {"enabled": true, "commands": ["ps"]}}`.
+Native settings replace the whole object, so preserve the `writes` selection when saving the profile opt-in.
+Existing `allowWrites: true` settings retain RTR permission only; saving the write switch converts them to the explicit operation selection.
+Select `malquery search` separately in **Write access** to enable it; existing RTR grants do not select it.
+See [supported Falcon capabilities](../README.md#safety), [upstream permissions and licensing](tool-credentials.md#falcon) and [audit classification](admin-guide.md#audit-screen-and-api) before enabling it.
 Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
 The switch never supplies profile opt-in or execution confirmation for the caller.
 Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then execute the same call with `--execute --confirm '<device_id>:ps'`.
 Confirmation must match the device ID and complete command exactly.
-While the switch is off, the [native read-only override](credential-standard.md#per-tool-host-facing-schemas) blocks execution, NG-SIEM job start/stop and identity activity; RTR session and audit history reads and local previews remain available.
+Without the `rtr run` capability enabled, the [native read-only override](credential-standard.md#per-tool-host-facing-schemas) blocks RTR execution, NG-SIEM job start/stop, `host usb` and identity activity; RTR session and audit history reads and local previews remain available.
 Execution deletes its session afterward and records a durable redacted journal; see [retention and export](#retention-and-export).
 Avoid overlapping sessions for the same host and API client, including from other machines.
 After ambiguous session initialization or failed deletion, reconcile sessions in Falcon before retrying; never replay automatically.

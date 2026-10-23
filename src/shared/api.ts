@@ -184,7 +184,8 @@ export const nativeSettingsSchemas = {
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
-  'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional(), rtr: falconRtrSettingsSchema.optional() }),
+  'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional(), rtr: falconRtrSettingsSchema.optional(),
+    writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(['rtr run', 'malquery search'])).min(1).max(2) }).optional() }),
   'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
   'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
@@ -199,6 +200,8 @@ export const nativeSettingsSchemas = {
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'ldap-axi') return false
+  if (tool === 'falcon-axi') return settings.writes
+    ? (settings.writes as { allowWrites?: unknown }).allowWrites === true : settings.allowWrites === true
   if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }

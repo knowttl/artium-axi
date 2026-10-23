@@ -317,7 +317,7 @@ test('Falcon discovery and health expose the enabled execution switch', async ()
   const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
   expect(tool).toMatchObject({ status: 'ok', readOnly: false })
   expect(toolView(tool)).toContain('readOnly: false\n')
-  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.6.0",false\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"0.7.0",false\n')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -756,7 +756,24 @@ test('admin list and detail expose write capability for every tool, including un
   }
 })
 
-test.each(['falcon-axi', 'az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
+test('Falcon write switch exposes MalQuery separately and persists the selection across disable/enable', async () => {
+  await replace('falcon-axi')
+  const enabled = await request('PATCH', '/falcon-axi/write-access', { enabled: true,
+    operations: ['malquery search'], expectedRevision: 2 })
+  expect(enabled.status).toBe(200)
+  expect(await enabled.json()).toMatchObject({ readOnly: false, writeAccess: {
+    supportedOperations: ['rtr run', 'malquery search'], allowedOperations: ['malquery search'], enabled: true } })
+  expect(store.readCredential(store.findCredential('falcon-axi')!)).toMatchObject({
+    ...values['falcon-axi'], writes: { allowWrites: true, operations: ['malquery search'] } })
+  const off = await request('PATCH', '/falcon-axi/write-access', { enabled: false, expectedRevision: 3 })
+  expect(off.status).toBe(200)
+  expect(await off.json()).toMatchObject({ readOnly: true, writeAccess: { enabled: false, allowedOperations: ['malquery search'] } })
+  const on = await request('PATCH', '/falcon-axi/write-access', { enabled: true, expectedRevision: 4 })
+  expect(on.status).toBe(200)
+  expect(await on.json()).toMatchObject({ writeAccess: { enabled: true, allowedOperations: ['malquery search'] } })
+})
+
+test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
   await replace(tool)
   const settings = tool === 'az-axi' ? { allowWrites: true, subscriptions: ['synthetic-subscription'],
     managementGroup: 'synthetic-group', workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' },
@@ -942,7 +959,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(response.status).toBe(200)
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
-    { name: 'falcon-axi', version: '0.6.0', health: { status: 'unconfigured' } },
+    { name: 'falcon-axi', version: '0.7.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.8', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.10', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.10', health: { status: 'disabled' } },

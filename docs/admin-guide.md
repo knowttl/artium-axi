@@ -160,7 +160,7 @@ See [credential rotation](runbook.md#roles-credentials-and-health).
 Use **Write access** on a tool page to change writes without replacing other native settings.
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
-For Graph and Vectra, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+For Falcon, Graph and Vectra, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The advanced JSON editor shows the saved write state, but saving it replaces the whole object and omitting write settings turns writes off.
@@ -279,10 +279,12 @@ Device approval and refusal emit `device-approve` and `device-deny` events, with
 For Azure, Graph and Vectra, each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 LDAP runs report `read` from its inventory's read-only declaration.
-Falcon calls without `--execute` report `read`; execution uses the same native journal classification as Azure, Graph and Vectra.
+Falcon calls report `read` unless they contain `--execute` or submit `malquery search`.
+Those calls report `write` only with valid native journal records; absent or empty evidence reports `unknown`, even after success.
+MalQuery submissions do not emit the native RTR journal.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 Tenable uses a shared native journal with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
-For Azure, Graph, Vectra and executed Falcon calls, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.
+For Azure, Graph, Vectra and Falcon calls requiring journal evidence, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.
 See the [API contract](../src/shared/api.ts) and [retention and export runbook](runbook.md#retention-and-export).
 
 ### Server settings and custody

@@ -737,6 +737,17 @@ test('tools show capability and current write state including fixed read-only re
   `)
 })
 
+test('Falcon write switch offers separate RTR and MalQuery capabilities off by default', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.wait('[data-write-access]');
+    check(await page.eval(() => Boolean(document.querySelector('[name=operations][value="rtr run"]'))), 'RTR capability missing');
+    check(await page.eval(() => Boolean(document.querySelector('[name=operations][value="malquery search"]'))), 'MalQuery capability missing');
+    check(await page.eval(() => !document.querySelector('[data-write-access] [name=enabled]').checked), 'Falcon writes enabled by default');
+    check(await page.eval(() => !document.querySelector('[name=operations][value="malquery search"]').checked), 'MalQuery selected by default');
+  `)
+})
+
 test('write switch confirms identity, preserves native settings, refreshes JSON and audits on and off', async () => {
   browser(`
     await page.open(base + '/admin/tools/az-axi');

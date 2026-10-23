@@ -13,6 +13,14 @@ test.each([
   { tool: 'falcon-axi', command: 'search start --query "synthetic | head(5)" --wait 30' },
   { tool: 'falcon-axi', command: 'search status synthetic-job --wait 30' },
   { tool: 'falcon-axi', command: 'search stop synthetic-job' },
+  { tool: 'falcon-axi', command: 'detection process synthetic-detection --full' },
+  { tool: 'falcon-axi', command: 'process tree synthetic-process --full' },
+  { tool: 'falcon-axi', command: 'sandbox list --sha256 ' + 'a'.repeat(64) },
+  { tool: 'falcon-axi', command: 'file-change list --filter synthetic --limit 1' },
+  { tool: 'falcon-axi', command: 'policy show synthetic-policy --type device-control' },
+  { tool: 'falcon-axi', command: 'host usb ' + 'a'.repeat(32) + ' --since 24h' },
+  { tool: 'falcon-axi', command: 'malquery search --hex "4d 5a" --fuzzy --limit 10' },
+  { tool: 'falcon-axi', command: 'malquery status 00000000-0000-4000-8000-000000000001 --limit 10' },
 ])('$tool preserves the new command arguments in managed suggestions: $command', ({ tool, command }) => {
   const input = encode({ help: [`Run \`${tool} ${command}\``] })
   expect(rewriteSuggestions(input, tool)).toBe(encode({ help: [`Run \`artium-axi ${tool} ${command}\``] }))
@@ -89,8 +97,8 @@ test.each(['json', 'toon'].flatMap(format => [false, true].map(multiline => ({ f
   })
 
 test.each(['plain', 'json', 'toon'])('Falcon %s root help hides managed flags in grouped rows', format => {
-  const input = 'falcon-axi 0.6.0\n  profile list   configured profiles\n  config path   configuration paths\n  setup hooks   local integrations\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n  --config <path>, --profile <name>\n'
-  const expected = 'artium-axi falcon-axi 0.6.0\nGlobal flags:\n  --help\n'
+  const input = 'falcon-axi 0.7.0\n  profile list   configured profiles\n  config path   configuration paths\n  setup hooks   local integrations\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n  --config <path>, --profile <name>\n'
+  const expected = 'artium-axi falcon-axi 0.7.0\nGlobal flags:\n  --help\n'
   const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help }) : encode({ help })
   expect(rewriteSuggestions(serialize(input), 'falcon-axi')).toBe(serialize(expected))
   expect(rewriteSuggestions(serialize(expected), 'falcon-axi')).toBe(serialize(expected))

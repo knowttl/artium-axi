@@ -20,7 +20,7 @@ const settingsGuide = {
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
-  'falcon-axi': 'RTR read-only command execution is off by default. Enable the audited switch and separately set rtr: {"enabled": true, "commands": ["ps"]} for profile opt-in and optional command narrowing. Native preview, --execute and exact --confirm still apply. History reads remain available while execution is off.',
+  'falcon-axi': 'Select rtr run and/or malquery search in the audited write switch; both are off by default. MalQuery search requires MalQuery:write and supports exact/fuzzy patterns only. RTR also requires rtr: {"enabled": true, "commands": ["ps"]} for profile opt-in and optional command narrowing. Native preview, --execute and exact --confirm still apply. History reads remain available while execution is off.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
@@ -90,7 +90,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const writes = tool.writeAccess
     content += `<section data-write-access><h2>Write access</h2><p>${writes.capable ? 'Read and write capable' : 'Fixed read-only'}. ${writes.enabled ? 'Writes enabled' : 'Writes off'}. Writes default to off.</p>`
     if (writes.reason) content += `<p>${escape(writes.reason)}</p>`
-    content += `<h3>Current grant</h3><p>${writes.enabled ? escape(writes.unlocks) : tool.name === 'falcon-axi' ? 'RTR read-only command execution: off.' : 'No write actions are currently granted.'}</p>`
+    content += `<h3>Current grant</h3><p>${writes.enabled ? escape(writes.unlocks) : 'No write actions are currently granted.'}</p>`
     if (writes.supportedOperations) {
       content += `<p>Currently allowed operations${writes.enabled ? '' : ' (inactive while writes are off)'}:</p>${writes.allowedOperations.length ? `<ul>${writes.allowedOperations.map(operation => `<li><code>${escape(operation)}</code></li>`).join('')}</ul>` : '<p>None selected.</p>'}`
     }

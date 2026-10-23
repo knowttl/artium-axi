@@ -513,7 +513,7 @@ test('password endpoint changes only the access-token owner and requires a fresh
 test('real requests list tools without retrieving credentials and preserve the completed upstream envelope', async () => {
   const listing = await fetch(`${url}/v1/tools`, { headers })
   expect(listing.status).toBe(200)
-  expect(toolsResponseSchema.parse(await listing.json())).toEqual({ tools: [{ name: 'falcon-axi', version: '0.6.0', status: 'unconfigured', readOnly: true }] })
+  expect(toolsResponseSchema.parse(await listing.json())).toEqual({ tools: [{ name: 'falcon-axi', version: '0.7.0', status: 'unconfigured', readOnly: true }] })
   expect(getCredential).not.toHaveBeenCalled()
   const response = await run({ args: ['upstream', 'vectra-axi', 'error'] })
   expect(response.status).toBe(200)
@@ -811,7 +811,7 @@ test('the real server remains available after startup encounters a damaged nativ
       .toEqual(malformedJournals.map(({ content }) => content))
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
-    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.6.0', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.7.0', status: 'unconfigured', readOnly: true })
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
     const azureListing = await fetch(`${origin}/v1/tools`, { headers })
     expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.10', status: 'unconfigured', readOnly: true })
