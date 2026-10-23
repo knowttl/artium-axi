@@ -21,7 +21,8 @@ type Arguments = { args: readonly string[], sensitive: SensitiveArguments }
 type CredentialTestEvidence = { checkedAt: number | null, credentialRevision: number | null, errorCode: ErrorCode | null }
 export type AuditEvent = Context & (
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
-  | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null } } & Partial<CredentialTestEvidence>)
+  // A normal run's errorCode is the tool's own bounded failure code; health-driven runs reuse Artium codes.
+  | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null }, errorCode?: string | null } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
   | { event: 'lockout' | 'token-reuse', outcome: Outcome }
@@ -56,7 +57,7 @@ export interface AuditRecord {
   deleted_count: number | null
   checked_at: number | null
   credential_revision: number | null
-  error_code: ErrorCode | null
+  error_code: string | null
   authentication_method: string | null
   provider_id: string | null
   subject: string | null
@@ -99,7 +100,7 @@ export class Audit {
       values.time = cursor[1]!
       values.id = cursor[2]!
     }
-    for (const [filter, column] of [['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome']] as const) {
+    for (const [filter, column] of [['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code']] as const) {
       if (input[filter] !== undefined) {
         clauses.push(`${column} = @${filter}`)
         values[filter] = input[filter]!

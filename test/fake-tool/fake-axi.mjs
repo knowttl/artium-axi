@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 
 const [mode, ...args] = process.argv.slice(2)
 const modes = ['env', 'print', 'sleep', 'cleanup', 'stdout', 'stderr', 'memory', 'child',
-  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream', 'hosted-profile', 'failure']
+  'descendant', 'child-exit', 'exit', 'split', 'leak', 'signal', 'upstream', 'hosted-profile', 'failure', 'tool-failure']
 const hold = () => setInterval(() => {}, 60_000)
 const ready = async value => {
   const path = process.env.ARTIUM_TEST_READY_FILE
@@ -118,6 +118,11 @@ try {
     case 'failure':
       process.stderr.write(args[0])
       process.exitCode = Number(args[1] ?? 1)
+      break
+    case 'tool-failure':
+      // The code alone is a safe synthetic token; the message and help are canaries that must never be stored.
+      process.stderr.write(`${args[0] ? `error:\n  code: ${args[0]}\n` : 'error:\n'}  message: CANARY-failure-message\nhelp[1]: CANARY-help-text\n`)
+      process.exitCode = 1
       break
     case 'exit': {
       const code = number(args[0], 0)

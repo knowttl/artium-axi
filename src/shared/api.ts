@@ -152,6 +152,7 @@ const auditFiltersSchema = z.strictObject({
   user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(),
   event: z.string().min(1).max(100).optional(),
   outcome: z.string().min(1).max(100).optional(), from: z.iso.datetime().optional(), to: z.iso.datetime().optional(),
+  errorCode: z.string().min(1).max(100).optional(),
 })
 const orderedAuditRange = (input: { from?: string, to?: string }) => !input.from || !input.to || Date.parse(input.from) <= Date.parse(input.to)
 export const adminAuditQuerySchema = auditFiltersSchema.extend({

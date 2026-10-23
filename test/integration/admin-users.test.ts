@@ -247,6 +247,8 @@ test.each([
   { query: 'event=credential-test', requests: ['second'] },
   { query: 'event=unknown', requests: [] },
   { query: 'outcome=TOOL_NOT_GRANTED', requests: ['third'] },
+  { query: 'errorCode=CREDENTIAL_INVALID', requests: ['second'] },
+  { query: 'errorCode=PERMISSION_DENIED', requests: [] },
   { query: 'from=2026-01-02T00:00:00Z', requests: ['third'] },
   { query: 'to=2026-01-01T00:00:00Z', requests: ['second', 'first'] },
   { query: 'from=2026-01-01T00:00:00Z&to=2026-01-01T00:00:00Z', requests: ['second', 'first'] },
@@ -262,6 +264,20 @@ test.each([
   expect(page.records.map(record => record.request_id)).toEqual(requests)
   expect(page.nextCursor).toBeNull()
   expect(db.prepare('SELECT * FROM audit ORDER BY id').all()).toEqual(before)
+})
+
+test('audit API and export filter on the stored tool failure code', async () => {
+  const audit = new Audit(db, () => Date.parse('2026-01-01T00:00:00Z'))
+  audit.record({ event: 'run-terminal', userId: administrator, tool: 'falcon-axi', outcome: 'completed',
+    requestId: 'failed-run', clientAddress: null, exitCode: 1, durationMs: 5,
+    outputBytes: { stdout: 10, stderr: 20 }, errorCode: 'PERMISSION_DENIED' })
+  const page = adminAuditRoute.response.parse(await (await auditRequest('errorCode=PERMISSION_DENIED')).json())
+  expect(page.records.map(record => record.request_id)).toEqual(['failed-run'])
+  expect(page.records[0]).toMatchObject({ error_code: 'PERMISSION_DENIED' })
+  const response = await fetch(url + adminAuditExportRoute.path + '?format=jsonl&errorCode=PERMISSION_DENIED', { headers })
+  expect(response.status).toBe(200)
+  const exported = JSON.parse((await response.text()).trim())
+  expect(exported).toMatchObject({ request_id: 'failed-run', error_code: 'PERMISSION_DENIED' })
 })
 
 test('audit query caps default and maximum pages', async () => {

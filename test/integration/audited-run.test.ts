@@ -92,6 +92,32 @@ test('a run persists a start before secret retrieval and a paired terminal befor
   expect(records[1].arguments).toBeNull()
 })
 
+test('a failed run records only the bounded tool failure code', async () => {
+  const result = await runTool(db, audit, runner, token, { args: ['tool-failure', 'PERMISSION_DENIED'] }, adapter, resolver, context)
+  expect(result).toMatchObject({ exitCode: 1 })
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'run-terminal'").get())
+    .toMatchObject({ outcome: 'completed', exit_code: 1, error_code: 'PERMISSION_DENIED' })
+  const persisted = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+  expect(persisted).not.toContain('CANARY-')
+  expect(lines.join('')).not.toContain('CANARY-')
+  expect(lines.join('')).toContain('PERMISSION_DENIED')
+})
+
+test('a failed run without a recognizable code records no error code but keeps the exit code', async () => {
+  const result = await runTool(db, audit, runner, token, { args: ['tool-failure'] }, adapter, resolver, context)
+  expect(result).toMatchObject({ exitCode: 1 })
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'run-terminal'").get())
+    .toMatchObject({ outcome: 'completed', exit_code: 1, error_code: null })
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+  expect(lines.join('')).not.toContain('CANARY-')
+})
+
+test('a successful run leaves error_code empty', async () => {
+  await runTool(db, audit, runner, token, { args: ['exit', '0'] }, adapter, resolver, context)
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'run-terminal'").get())
+    .toMatchObject({ exit_code: 0, error_code: null })
+})
+
 test.each([
   ['AZ_AXI_WRITE_LOG', 'write', 'write', 'read'],
   ['MG_AXI_WRITE_LOG', 'write', 'write', 'read'],
