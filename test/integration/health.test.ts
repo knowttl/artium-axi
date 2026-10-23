@@ -12,14 +12,14 @@ import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { preflight } from '../../src/server/health/preflight.js'
-import { errors } from '../../src/shared/errors.js'
+import { cliOutdatedDownloadNext, cliOutdatedUpdateNext, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { toolsResponseSchema } from '../../src/shared/api.js'
-import { cliVersion } from '../../src/shared/version.js'
+import { cliVersion, firstVersionWithUpdate, hasCliUpdateCommand } from '../../src/shared/version.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 
@@ -476,13 +476,37 @@ test('replacement during a check queues one fresh check and never caches the old
   expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 2 })
 })
 
-test.each(['0.0.0', '0.0.0-old'])('CLI %s is refused with the update command before authentication or tool preparation', async version => {
-  const prepare = vi.spyOn(adapter, 'prepare')
+test.each(['0.0.0', '0.0.0-old', '0.0.9', `${firstVersionWithUpdate}-old`])(
+  'CLI %s without the update command is refused with the verified download before authentication or tool preparation', async version => {
+    const prepare = vi.spyOn(adapter, 'prepare')
+    const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
+    expect(response.statusCode).toBe(426)
+    expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED', next: cliOutdatedDownloadNext } })
+    expect(response.body).not.toContain(cliOutdatedUpdateNext)
+    expect(response.body).not.toContain('synthetic.invalid')
+    expect(prepare).not.toHaveBeenCalled()
+  })
+
+test.each([firstVersionWithUpdate, '0.0.13', '0.0.13-rc.1', '0.0.13+build.01', '0.0.13-rc.1+build.01'])(
+  'outdated CLI %s with the update command is refused with the update hint', async version => {
+    const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
+    expect(response.statusCode).toBe(426)
+    expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED', next: cliOutdatedUpdateNext } })
+    expect(response.body).not.toContain('synthetic.invalid')
+  })
+
+test.each(['not-a-version', '0.0', '0.0.13+..', '0.0.13-01', '0.0.13-rc..1', '0.0.13-rc.01', '0.0.13+build..1', '0.0.13-rc.1+..'])('malformed CLI version %s is refused with the verified download', async version => {
   const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
   expect(response.statusCode).toBe(426)
-  expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED',
-    next: 'Run artium-axi update to install the current CLI.' } })
-  expect(prepare).not.toHaveBeenCalled()
+  expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED', next: cliOutdatedDownloadNext } })
+  expect(response.body).not.toContain('synthetic.invalid')
+})
+
+test('a missing or malformed CLI version keeps the safe download default', () => {
+  expect(hasCliUpdateCommand(undefined)).toBe(false)
+  expect(hasCliUpdateCommand('not-a-version')).toBe(false)
+  expect(hasCliUpdateCommand(firstVersionWithUpdate)).toBe(true)
+  expect(errors.CLI_OUTDATED.next).toBe(cliOutdatedDownloadNext)
 })
 
 test.each(['/health/live', '/health/ready', '/cli/unavailable.mjs', '/login'])('%s is exempt from an old CLI header', async url => {

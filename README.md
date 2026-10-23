@@ -98,7 +98,9 @@ Replace the synthetic username with your account; login uses a hidden terminal p
 For `PASSWORD_CHANGE_REQUIRED`, run `artium-axi passwd`, then log in again.
 For SSO, use `artium-axi login --sso` and approve only the browser code matching your own terminal.
 After ordinary login, later commands, installed hooks and skills use [saved connection settings](docs/client-reference.md#client-settings).
-After a server upgrade, run `artium-axi update`, then `artium-axi --version`.
+After a server upgrade, run `artium-axi update` if your client has that command, then `artium-axi --version`.
+For clients without `update`, repeat the verified download and checksum check above to install the server's current client.
+For `CLI_OUTDATED`, the server uses the client version header to select the update hint or safe download guidance; the capability boundary is defined by `firstVersionWithUpdate` in [the version contract](src/shared/version.ts).
 The updater uses those connection settings, verifies the server download’s SHA-256, replaces the running client file and keeps the previous client beside it as `<client-file>.bak`.
 The client file and its directory must be writable.
 The Falcon read requires an enabled tool, a role grant and API permissions; choose the example from an available tool's detail view.
