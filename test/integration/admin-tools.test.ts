@@ -508,7 +508,7 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
   const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/roles']) {
+  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/vectra-axi', '/admin/roles']) {
     const page = await app.inject({ method: 'GET', url: path, headers: { cookie } })
     expect(page.statusCode).toBe(200)
     expect(page.headers['cache-control']).toBe('no-store')
@@ -516,6 +516,12 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
     expect(page.body).not.toContain(values['falcon-axi'].clientSecret)
     expect(page.body).not.toContain(values['vectra-axi'].token)
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
+    if (path === '/admin/tools/vectra-axi') {
+      expect(page.body).toContain('host/account close closes all active detections with no single inverse')
+      expect(page.body).toContain('group delete orphans triage rule references')
+      expect(page.body).toContain('syslog/Kafka redirects detection export (data egress)')
+      expect(page.body).toContain('Match enablement changes cause a reboot')
+    }
     if (path === '/admin/tools/az-axi') {
       expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/test"')
       expect(page.body).toContain('data-profile-field="tenantId"')
@@ -871,12 +877,19 @@ test('Graph choices use native operation identities, including names that differ
 test('Vectra choices contain implemented QUX and RUX operations without placeholder names', async () => {
   const response = await request('GET', '/vectra-axi')
   const { writeAccess } = await response.json()
-  expect(writeAccess.supportedOperations).toHaveLength(30)
+  expect(writeAccess.supportedOperations).toHaveLength(126)
   expect(writeAccess.supportedOperations).toEqual(expect.arrayContaining([
     'qux.detection.tag.bulk-set', 'qux.host.assignment.unassign', 'rux.account.note.delete',
+    'rux.host.tag.set', 'qux.host.close', 'rux.account.close', 'qux.group.delete',
+    'qux.setting.syslog.set', 'qux.setting.kafka.set', 'rux.match.enablement.set',
   ]))
   expect(writeAccess.supportedOperations).not.toContain('notes.set')
-  expect(writeAccess.supportedOperations).not.toContain('rux.host.tag.set')
+  expect(writeAccess).toMatchObject({ enabled: false, allowedOperations: [] })
+  const granted = await request('PATCH', '/vectra-axi/write-access', {
+    enabled: true, operations: writeAccess.supportedOperations, expectedRevision: 1,
+  })
+  expect(granted.status).toBe(200)
+  expect((await granted.json()).writeAccess.allowedOperations).toEqual(writeAccess.supportedOperations)
 })
 
 test.each(['mg-axi', 'vectra-axi'] as const)('%s rejects unsupported operations and enabling without a scope', async tool => {
@@ -960,7 +973,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.7.0', health: { status: 'unconfigured' } },
-    { name: 'vectra-axi', version: '0.1.8', health: { status: 'unconfigured' } },
+    { name: 'vectra-axi', version: '0.1.9', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.10', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.10', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },

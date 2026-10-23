@@ -16,8 +16,8 @@
     "integrity": "sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw=="
   },
   "@knowttl/vectra-axi": {
-    "version": "0.1.8",
-    "integrity": "sha512-Wvn73g5hm4mzQQKhNnKvAjt6SfGFrPD2EAYMa4AXhoVqFfjXjxnQLk6tUw7E92jozeHtpZ+aDXSGMHaJhhTi1Q=="
+    "version": "0.1.9",
+    "integrity": "sha512-GUl24JV8lErGjZliTHcb6BcjjdpJhrzbbB8cBekKE6dM3b5ph9i9EteJHFRWUuGpnEPlVEPeu7X3l33V9DGKwQ=="
   },
   "@knowttl/ldap-axi": {
     "version": "0.3.0",

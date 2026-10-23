@@ -9,11 +9,20 @@ const load = (tool: string, path: string) => import(new URL(`../tools/node_modul
 const inventory = (tool: string) => JSON.parse(readFileSync(join(root, `tools/inventories/${tool}.json`), 'utf8'))
 const azInventory = inventory('az-axi')
 const mgInventory = inventory('mg-axi')
+const vectraInventory = inventory('vectra-axi') as { commands: { command: string, flags: Record<string, string> }[] }
+const vectra = await load('vectra-axi', 'src/catalogue.js')
 const az = await load('az-axi', 'lib/router.js')
 const mg = await load('mg-axi', 'catalogue.js')
 type Route = { command: string; flags: Record<string, string>; flagAliases: Record<string, string>;
   shortFlags: Record<string, string>; positionalInput: boolean }
 const routes = new Map<string, Route>(azInventory.commands.map((route: Route) => [route.command, route]))
+
+test.each(vectraInventory.commands.flatMap((route: { command: string, flags: Record<string, string> }) =>
+  Object.entries(route.flags).map(([flag, kind]) => ({ command: route.command, flag, value: kind === 'boolean' ? true : 'synthetic' }))))(
+  'Vectra pinned parser accepts $command --$flag', ({ command, flag, value }) => {
+    const args = [...command.split(' '), `--${flag}`, ...(value === true ? [] : [value])]
+    expect(vectra.parseInvocation(args).flags.get(flag)).toBe(value)
+  })
 
 test.each([
   ['graph query', 'rg query', 'graph-query'],

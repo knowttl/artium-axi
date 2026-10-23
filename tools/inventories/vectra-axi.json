@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.8",
-  "integrity": "sha512-Wvn73g5hm4mzQQKhNnKvAjt6SfGFrPD2EAYMa4AXhoVqFfjXjxnQLk6tUw7E92jozeHtpZ+aDXSGMHaJhhTi1Q==",
+  "version": "0.1.9",
+  "integrity": "sha512-GUl24JV8lErGjZliTHcb6BcjjdpJhrzbbB8cBekKE6dM3b5ph9i9EteJHFRWUuGpnEPlVEPeu7X3l33V9DGKwQ==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "0e2e4e616e06435582fcd96787a2088f7fda5b0b99c32daa4d6c7dc8c2b2f3fb",
+  "packageManifestSha256": "e7fe728c58d41a9ddd554b15c29de281dd06c2d7e6a6b044e43d75fb001aa53d",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -60,7 +60,7 @@
     },
     {
       "path": "dist/src/writes.js",
-      "sha256": "16a5c36adf01ffa3c585e315f03a64a65060009090e83fd97312e5a24b018058"
+      "sha256": "97b6758c5f1a9c38ff319e55984f5eb5aa998e54ae54640d9149826d190a7d9d"
     },
     {
       "path": "dist/src/private-file.js",
@@ -73,34 +73,130 @@
     "supportedOperations": [
       "qux.account.assignment.create",
       "qux.account.assignment.reassign",
+      "qux.account.assignment.resolve",
       "qux.account.assignment.unassign",
+      "qux.account.close",
       "qux.account.note.add",
       "qux.account.note.delete",
       "qux.account.note.edit",
       "qux.account.tag.bulk-delete",
       "qux.account.tag.bulk-set",
       "qux.account.tag.set",
+      "qux.assignment-outcome.create",
+      "qux.assignment-outcome.delete",
+      "qux.assignment-outcome.edit",
+      "qux.detection.close",
+      "qux.detection.close-bulk",
+      "qux.detection.fixed.set",
       "qux.detection.note.add",
       "qux.detection.note.delete",
       "qux.detection.note.edit",
+      "qux.detection.open",
+      "qux.detection.open-bulk",
       "qux.detection.tag.bulk-delete",
       "qux.detection.tag.bulk-set",
       "qux.detection.tag.set",
+      "qux.detection.triage.clear",
+      "qux.detection.triage.set",
+      "qux.group.create",
+      "qux.group.delete",
+      "qux.group.edit",
+      "qux.group.member.set",
       "qux.host.assignment.create",
       "qux.host.assignment.reassign",
+      "qux.host.assignment.resolve",
       "qux.host.assignment.unassign",
+      "qux.host.close",
+      "qux.host.key-asset.set",
       "qux.host.note.add",
       "qux.host.note.delete",
       "qux.host.note.edit",
       "qux.host.tag.bulk-delete",
       "qux.host.tag.bulk-set",
       "qux.host.tag.set",
+      "qux.match.assignment.delete",
+      "qux.match.assignment.set",
+      "qux.match.enablement.set",
+      "qux.match.ruleset.delete",
+      "qux.match.ruleset.upload",
+      "qux.proxy.create",
+      "qux.proxy.edit",
+      "qux.setting.internal-network.set",
+      "qux.setting.kafka.set",
+      "qux.setting.syslog.set",
+      "qux.threat-feed.create",
+      "qux.threat-feed.delete",
+      "qux.threat-feed.edit",
+      "qux.threat-feed.file.delete",
+      "qux.threat-feed.file.set",
+      "qux.triage-rule.create",
+      "qux.triage-rule.delete",
+      "qux.triage-rule.edit",
+      "rux.account.assignment.create",
+      "rux.account.assignment.reassign",
+      "rux.account.assignment.resolve",
+      "rux.account.assignment.unassign",
+      "rux.account.close",
+      "rux.account.note.add",
+      "rux.account.note.bulk-add",
       "rux.account.note.delete",
       "rux.account.note.edit",
+      "rux.account.tag.bulk-delete",
+      "rux.account.tag.bulk-set",
+      "rux.account.tag.set",
+      "rux.assignment-outcome.create",
+      "rux.assignment-outcome.delete",
+      "rux.assignment-outcome.edit",
+      "rux.detection.close",
+      "rux.detection.close-bulk",
+      "rux.detection.fixed.set",
+      "rux.detection.note.add",
+      "rux.detection.note.bulk-add",
       "rux.detection.note.delete",
       "rux.detection.note.edit",
+      "rux.detection.open",
+      "rux.detection.open-bulk",
+      "rux.detection.tag.bulk-delete",
+      "rux.detection.tag.bulk-set",
+      "rux.detection.tag.set",
+      "rux.detection.triage.clear",
+      "rux.detection.triage.set",
+      "rux.group.create",
+      "rux.group.delete",
+      "rux.group.edit",
+      "rux.group.member.set",
+      "rux.host.assignment.create",
+      "rux.host.assignment.reassign",
+      "rux.host.assignment.resolve",
+      "rux.host.assignment.unassign",
+      "rux.host.close",
+      "rux.host.key-asset.set",
+      "rux.host.note.add",
+      "rux.host.note.bulk-add",
       "rux.host.note.delete",
-      "rux.host.note.edit"
+      "rux.host.note.edit",
+      "rux.host.tag.bulk-delete",
+      "rux.host.tag.bulk-set",
+      "rux.host.tag.set",
+      "rux.match.assignment.delete",
+      "rux.match.assignment.set",
+      "rux.match.enablement.set",
+      "rux.match.ruleset.delete",
+      "rux.match.ruleset.upload",
+      "rux.notification-destination.create",
+      "rux.notification-destination.delete",
+      "rux.notification-destination.edit",
+      "rux.proxy.create",
+      "rux.proxy.delete",
+      "rux.proxy.edit",
+      "rux.threat-feed.create",
+      "rux.threat-feed.delete",
+      "rux.threat-feed.edit",
+      "rux.threat-feed.file.delete",
+      "rux.threat-feed.file.set",
+      "rux.triage-rule.create",
+      "rux.triage-rule.delete",
+      "rux.triage-rule.edit"
     ],
     "profileFields": {
       "writes.allowWrites": "boolean",
@@ -118,7 +214,7 @@
       },
       {
         "path": "dist/src/writes.js",
-        "sha256": "16a5c36adf01ffa3c585e315f03a64a65060009090e83fd97312e5a24b018058"
+        "sha256": "97b6758c5f1a9c38ff319e55984f5eb5aa998e54ae54640d9149826d190a7d9d"
       }
     ]
   },
@@ -138,6 +234,11 @@
       "account",
       "entity",
       "assignment",
+      "threat-feed",
+      "match",
+      "setting",
+      "notification",
+      "proxy",
       "user",
       "audit",
       "group",
@@ -188,7 +289,11 @@
     "inputFileFlags": [
       "tags-file",
       "ids-file",
-      "note-file"
+      "note-file",
+      "file",
+      "config-file",
+      "members-file",
+      "rule-file"
     ],
     "parser": {
       "aliases": {},
@@ -199,7 +304,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "5fadea660c71fb4021a4c130699ae3883c54e801c8e3eb6c3f370a10b0a04930"
+      "sha256": "e49354f34c86cd986d9cc166fc33f3c0423ab8eaa8044621131351c8f297e834"
     }
   },
   "flags": [
@@ -208,11 +313,27 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "ad-group-dn",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "address",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "all",
       "disposition": "passthrough candidate"
     },
     {
       "name": "assignee",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "category",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "certainty",
       "disposition": "passthrough candidate"
     },
     {
@@ -228,11 +349,19 @@
       "disposition": "server-owned"
     },
     {
+      "name": "config-file",
+      "disposition": "input/output transport review"
+    },
+    {
       "name": "confirm",
       "disposition": "passthrough candidate"
     },
     {
       "name": "connector-type",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "consider",
       "disposition": "passthrough candidate"
     },
     {
@@ -252,6 +381,10 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "description",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "detection-category",
       "disposition": "passthrough candidate"
     },
@@ -260,7 +393,23 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "detections",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "device",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "drop",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "dry-run",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "duration",
       "disposition": "passthrough candidate"
     },
     {
@@ -288,12 +437,20 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "exclude",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "execute",
       "disposition": "passthrough candidate"
     },
     {
       "name": "fields",
       "disposition": "passthrough candidate"
+    },
+    {
+      "name": "file",
+      "disposition": "input/output transport review"
     },
     {
       "name": "fresh",
@@ -336,6 +493,18 @@
       "disposition": "input/output transport review"
     },
     {
+      "name": "importance",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "include",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "indicator-type",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "is-key-asset",
       "disposition": "passthrough candidate"
     },
@@ -348,8 +517,20 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "mark-fixed",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "max-id",
       "disposition": "passthrough candidate"
+    },
+    {
+      "name": "members",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "members-file",
+      "disposition": "input/output transport review"
     },
     {
       "name": "min-id",
@@ -384,6 +565,10 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "outcome",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "path",
       "disposition": "passthrough candidate"
     },
@@ -396,12 +581,24 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "reason",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "regex",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "resolution",
       "disposition": "passthrough candidate"
     },
     {
       "name": "resolved",
       "disposition": "passthrough candidate"
+    },
+    {
+      "name": "rule-file",
+      "disposition": "input/output transport review"
     },
     {
       "name": "start-date",
@@ -428,6 +625,14 @@
       "disposition": "passthrough candidate"
     },
     {
+      "name": "title",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "triage-as",
+      "disposition": "passthrough candidate"
+    },
+    {
       "name": "type",
       "disposition": "passthrough candidate"
     },
@@ -441,6 +646,14 @@
     },
     {
       "name": "username",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "uuid",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "value",
       "disposition": "passthrough candidate"
     }
   ],
@@ -641,6 +854,85 @@
       }
     },
     {
+      "command": "detection triage set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "category": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "detection triage clear",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "detection fixed set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "ids": "value",
+        "value": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "detection close",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value",
+        "reason": "value"
+      }
+    },
+    {
+      "command": "detection open",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "host key-asset set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "value": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
       "command": "detection note list",
       "flags": {
         "help": "boolean",
@@ -704,6 +996,20 @@
       }
     },
     {
+      "command": "detection note bulk-add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
       "command": "detection note add",
       "flags": {
         "help": "boolean",
@@ -743,6 +1049,32 @@
         "confirm": "value",
         "execute": "boolean",
         "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host close",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "reason": "value",
+        "dry-run": "boolean",
+        "execute": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "account close",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "reason": "value",
+        "dry-run": "boolean",
+        "execute": "boolean",
+        "confirm": "value"
       }
     },
     {
@@ -806,6 +1138,20 @@
         "tags-file": "value",
         "execute": "boolean",
         "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "host note bulk-add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
       }
     },
     {
@@ -914,6 +1260,20 @@
       }
     },
     {
+      "command": "account note bulk-add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "ids": "value",
+        "note": "value",
+        "note-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
       "command": "account note add",
       "flags": {
         "help": "boolean",
@@ -989,6 +1349,359 @@
       }
     },
     {
+      "command": "assignment resolve",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "host": "value",
+        "account": "value",
+        "outcome": "value",
+        "note": "value",
+        "note-file": "value",
+        "detections": "value",
+        "mark-fixed": "boolean",
+        "triage-as": "value",
+        "confirm": "value",
+        "execute": "boolean",
+        "dry-run": "boolean"
+      }
+    },
+    {
+      "command": "threat-feed list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "all": "boolean",
+        "limit": "value"
+      }
+    },
+    {
+      "command": "threat-feed show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "threat-feed create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "name": "value",
+        "category": "value",
+        "certainty": "value",
+        "indicator-type": "value",
+        "duration": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "threat-feed edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "name": "value",
+        "category": "value",
+        "certainty": "value",
+        "indicator-type": "value",
+        "duration": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "threat-feed delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "threat-feed file set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "threat-feed file delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "match enablement show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "device": "value"
+      }
+    },
+    {
+      "command": "match ruleset show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "uuid": "value"
+      }
+    },
+    {
+      "command": "match assignment list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "match enablement set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "device": "value",
+        "value": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "match ruleset upload",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "match ruleset delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "uuid": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "match assignment set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "device": "value",
+        "uuid": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "match assignment delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "device": "value",
+        "uuid": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "setting internal-network show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "setting internal-network set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "include": "value",
+        "exclude": "value",
+        "drop": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "setting syslog set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "config-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "setting kafka set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "config-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "notification destination list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "notification destination show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "notification destination create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "config-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "notification destination edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "config-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "notification destination delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "proxy list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value"
+      }
+    },
+    {
+      "command": "proxy show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value"
+      }
+    },
+    {
+      "command": "proxy create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "address": "value",
+        "consider": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "proxy edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "address": "value",
+        "consider": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "proxy delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
       "command": "assignment outcome list",
       "flags": {
         "help": "boolean",
@@ -998,6 +1711,45 @@
         "limit": "value",
         "fields": "value",
         "cursor": "value"
+      }
+    },
+    {
+      "command": "assignment outcome create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "title": "value",
+        "category": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "assignment outcome edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "title": "value",
+        "category": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "assignment outcome delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
       }
     },
     {
@@ -1070,6 +1822,93 @@
       }
     },
     {
+      "command": "group create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "name": "value",
+        "description": "value",
+        "importance": "value",
+        "type": "value",
+        "members": "value",
+        "regex": "value",
+        "ad-group-dn": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "group edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "name": "value",
+        "description": "value",
+        "importance": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "group delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "group member add",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "members": "value",
+        "members-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "group member remove",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "members": "value",
+        "members-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "group member set",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "members": "value",
+        "members-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
       "command": "group member list",
       "flags": {
         "help": "boolean",
@@ -1097,6 +1936,43 @@
         "limit": "value",
         "fields": "value",
         "cursor": "value"
+      }
+    },
+    {
+      "command": "triage rule create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "rule-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "triage rule edit",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "rule-file": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
+      }
+    },
+    {
+      "command": "triage rule delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "config": "value",
+        "id": "value",
+        "execute": "boolean",
+        "dry-run": "boolean",
+        "confirm": "value"
       }
     },
     {

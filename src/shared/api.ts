@@ -223,7 +223,7 @@ export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabl
 // tool-write-access audit arguments contain enabled, catalogue operation identities and
 // unsupportedOperationCount. Arbitrary legacy allow-list strings are counted, never logged.
 export const writeAccessInputSchema = z.strictObject({ enabled: z.boolean(),
-  operations: z.array(z.string().min(1).max(256)).max(64).refine(operations => new Set(operations).size === operations.length).optional(),
+  operations: z.array(z.string().min(1).max(256)).max(126).refine(operations => new Set(operations).size === operations.length).optional(),
   expectedRevision: z.number().int().positive() })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.

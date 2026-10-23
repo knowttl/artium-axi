@@ -136,7 +136,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
     nativeWriteSettings: { default: 'disabled', ...(tool === 'mg-axi' ? {} : { disposition: 'server-owned' }),
       ...(tool === 'mg-axi' ? { supportedOperations: mgWriteOperations.sort() } : {}),
       ...(tool === 'vectra-axi' ? { supportedOperations: vectra.inventory.operations
-        .filter(operation => operation.effect === 'write' && operation.disposition === 'named' && vectra.catalogue[operation.command])
+        .filter(operation => ['write', 'disruptive'].includes(operation.effect) && operation.disposition === 'named' && vectra.catalogue[operation.command])
         .map(operation => operation.id).sort() } : {}),
       profileFields: nativeWriteSettings[tool].profileFields, scope: nativeWriteSettings[tool].scope,
       sources: nativeWriteSettings[tool].sources.map(path => ({ path: `dist/${path}`,
@@ -180,7 +180,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
       sha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/az-axi/dist/${path}`, root))).digest('hex') })) } : {}),
     ...(tool === 'vectra-axi' ? { adapterBoundary: {
       blockedCommands: ['setup'],
-      unsafeOverrides: ['config', 'profile'], inputFileFlags: ['tags-file', 'ids-file', 'note-file'],
+      unsafeOverrides: ['config', 'profile'], inputFileFlags: ['tags-file', 'ids-file', 'note-file', 'file', 'config-file', 'members-file', 'rule-file'],
       parser: { aliases: {}, shortFlags: {}, repeats: 'refused', equals: true, doubleDash: 'unknown flag' },
       source: { path: 'dist/src/catalogue.js', sha256: createHash('sha256')
         .update(readFileSync(new URL('node_modules/@knowttl/vectra-axi/dist/src/catalogue.js', root))).digest('hex') },
