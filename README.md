@@ -162,7 +162,8 @@ Administrator capability alone grants no tool access; upstream permissions remai
 
 | Tool | Write capability and unlock |
 | --- | --- |
-| Falcon, LDAP | Fixed read-only; Falcon's NG-SIEM search-job start/stop effects remain available regardless of any legacy saved write setting. LDAP has no writes. |
+| Falcon | RTR read-only command execution is off by default. The audited switch, profile `rtr.enabled=true`, allowed command and exact `--execute --confirm` are all required. History reads remain available while execution is off. The read-only override also blocks NG-SIEM job start/stop and identity activity. |
+| LDAP | Fixed read-only. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
 | Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |

@@ -20,7 +20,7 @@ const settingsGuide = {
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
-  'falcon-axi': 'Optional allowWrites (boolean), saved for a future write-capable pin. The reviewed Falcon pin has no write commands and remains read-only even when this switch is true. Use {} to turn the switch off.',
+  'falcon-axi': 'RTR read-only command execution is off by default. Enable the audited switch and separately set rtr: {"enabled": true, "commands": ["ps"]} for profile opt-in and optional command narrowing. Native preview, --execute and exact --confirm still apply. History reads remain available while execution is off.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
@@ -48,7 +48,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
     const name = (request.params as { tool?: string }).tool
     if (!name) {
-      const rows = tools.map(tool => `<tr><td><a href="/admin/tools/${tool.name}">${escape(tool.name)}</a></td><td>${escape(tool.version)}</td><td>${tool.enabled ? 'Enabled' : 'Disabled'}</td><td>${tool.writeAccess.capable ? 'Read and write capable' : 'Fixed read-only'}${tool.writeAccess.reason ? `<p>${escape(tool.writeAccess.reason)}</p>` : ''}</td><td>${tool.writeAccess.enabled ? 'Writes enabled' : 'Writes off'}</td><td>${escape(tool.health.status)} ${escape(tool.health.errorCode ?? '')}<pre>${escape(diagnosticText(tool.health.diagnostic))}</pre></td><td>${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
+      const rows = tools.map(tool => `<tr><td><a href="/admin/tools/${tool.name}">${escape(tool.name)}</a></td><td>${escape(tool.version)}</td><td>${tool.enabled ? 'Enabled' : 'Disabled'}</td><td>${tool.writeAccess.capable ? 'Read and write capable' : 'Fixed read-only'}${tool.writeAccess.reason ? `<p>${escape(tool.writeAccess.reason)}</p>` : ''}<p>${escape(tool.writeAccess.unlocks)}</p></td><td>${tool.writeAccess.enabled ? 'Writes enabled' : 'Writes off'}</td><td>${escape(tool.health.status)} ${escape(tool.health.errorCode ?? '')}<pre>${escape(diagnosticText(tool.health.diagnostic))}</pre></td><td>${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
       const trust = trustedCertificates.length
         ? `<div class="table-scroll"><table><caption>Server-wide trusted CA bundle</caption><thead><tr><th>Subject</th><th>Issuer</th><th>Expiry (UTC)</th><th>SHA-256 fingerprint</th></tr></thead><tbody>${trustedCertificates.map(certificate => `<tr><td>${escape(certificate.subject)}</td><td>${escape(certificate.issuer)}</td><td>${escape(certificate.expiresAt)}</td><td><code>${escape(certificate.fingerprint)}</code></td></tr>`).join('')}</tbody></table></div>`
         : '<p>No server-wide extra CA bundle is configured.</p>'
@@ -90,7 +90,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const writes = tool.writeAccess
     content += `<section data-write-access><h2>Write access</h2><p>${writes.capable ? 'Read and write capable' : 'Fixed read-only'}. ${writes.enabled ? 'Writes enabled' : 'Writes off'}. Writes default to off.</p>`
     if (writes.reason) content += `<p>${escape(writes.reason)}</p>`
-    content += `<h3>Current grant</h3><p>${writes.enabled ? escape(writes.unlocks) : 'No write actions are currently granted.'}</p>`
+    content += `<h3>Current grant</h3><p>${writes.enabled ? escape(writes.unlocks) : tool.name === 'falcon-axi' ? 'RTR read-only command execution: off.' : 'No write actions are currently granted.'}</p>`
     if (writes.supportedOperations) {
       content += `<p>Currently allowed operations${writes.enabled ? '' : ' (inactive while writes are off)'}:</p>${writes.allowedOperations.length ? `<ul>${writes.allowedOperations.map(operation => `<li><code>${escape(operation)}</code></li>`).join('')}</ul>` : '<p>None selected.</p>'}`
     }

@@ -23,7 +23,7 @@ test('Falcon prepares the persisted shared credential after database reopen', as
   const file = join(directory, 'artium.db')
   const db = openStore(file, provider)
   const row = encryptCredential(reference.id, reference.tool, Buffer.from(JSON.stringify(credential)), provider.getKey())
-  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('0.5.1', reference.tool)
+  db.prepare('UPDATE tools SET pinned_version = ? WHERE name = ?').run('0.6.0', reference.tool)
   db.prepare('INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag) VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag)').run(row)
   db.close()
   const reopened = openStore(file, provider)
@@ -38,8 +38,8 @@ test('Falcon prepares the persisted shared credential after database reopen', as
     expect(prepared).toEqual({
       executable: '/opt/falcon-axi/bin/falcon-axi',
       args: ['detection', 'list', '--help', '--region', 'us-2', '--member-cid', 'synthetic-member'],
-      environment: { FALCON_AXI_CLIENT_ID: credential.clientId, FALCON_AXI_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'false' },
-      secrets: [credential.clientId, credential.clientSecret], files: [], limits: { runtime: 'python', timeoutMs: 60_000 },
+      environment: { FALCON_AXI_CLIENT_ID: credential.clientId, FALCON_AXI_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true', FALCON_AXI_WRITE_LOG: '/data/tool-logs/falcon-axi/writes.log' },
+      secrets: [credential.clientId, credential.clientSecret], files: [], effect: 'read', limits: { runtime: 'python', timeoutMs: 65_000 },
     })
     const runner = await Runner.create(join(directory, 'calls'))
     try {

@@ -15,7 +15,7 @@ RUN --network=none /opt/falcon-build/bin/pip install --no-index --find-links=/bu
 WORKDIR /source
 RUN mkdir -p /opt/tools/skills/falcon-axi && cp skills/falcon-axi/SKILL.md /opt/tools/skills/falcon-axi/SKILL.md
 RUN --network=none /opt/falcon-build/bin/python -m hatchling build -t wheel
-RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runtime-wheels --require-hashes -r /opt/tools/requirements.txt && /opt/falcon-axi/bin/pip install --no-deps --no-index dist/falcon_axi-0.5.1-py3-none-any.whl && /opt/falcon-axi/bin/pip check
+RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runtime-wheels --require-hashes -r /opt/tools/requirements.txt && /opt/falcon-axi/bin/pip install --no-deps --no-index dist/falcon_axi-0.6.0-py3-none-any.whl && /opt/falcon-axi/bin/pip check
 WORKDIR /opt/artium
 COPY tsconfig.json ./
 COPY src ./src

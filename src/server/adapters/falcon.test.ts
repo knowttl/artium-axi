@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { withFakeService } from '../../../test/fake-service/fixture.js'
 import { Runner } from '../runner/runner.js'
-import { falconManifest, prepareFalcon } from './falcon.js'
+import { createFalconAdapter, falconManifest, prepareFalcon } from './falcon.js'
 
 let directory: string
 let configuration: { clientIdFile: string, clientSecretFile: string, region: string, memberCid?: string }
@@ -15,6 +15,19 @@ beforeEach(async () => {
   await writeFile(configuration.clientSecretFile, 'CANARY-falcon-secret\n', { mode: 0o600 })
 })
 afterEach(async () => { await rm(directory, { recursive: true, force: true }) })
+
+test.each([false, true])('RTR profile opt-in and command narrowing remain independent of execute permission %s', async allowWrites => {
+  const credential = { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-2',
+    allowWrites, rtr: { enabled: true, commands: ['ps'] } }
+  const args = ['rtr', 'run', 'a'.repeat(32), '--command', 'ps', '--execute', '--confirm', `${'a'.repeat(32)}:ps`]
+  const prepared = await createFalconAdapter({ getCredential: async () => credential }, join(directory, 'writes.log'))
+    .prepare(args, { id: 'synthetic', tool: 'falcon-axi' })
+  expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe(String(!allowWrites))
+  expect(prepared.args).toEqual([...args, '--region', 'us-2'])
+  expect(JSON.parse(prepared.files[0].content as string).profiles.artium).toEqual({ clientId: credential.clientId,
+    clientSecret: { env: 'FALCON_AXI_CLIENT_SECRET' }, region: 'us-2', rtr: credential.rtr })
+  expect(prepared.effect).toBe('write')
+})
 
 const blocked = [
   ['--region', 'https://appliance.test'], ['--region=https://appliance.test'],
@@ -46,8 +59,8 @@ test.each([undefined, 'synthetic-member'])('preparation adds the managed region 
   expect(result).toEqual({
     executable: '/opt/falcon-axi/bin/falcon-axi',
     args: [...args, '--region', 'us-2', ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'false' },
-    secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 60_000 },
+    environment: { FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'true' },
+    secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 65_000 },
   })
 })
 
@@ -75,7 +88,7 @@ test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list
   ('new read command %s keeps managed credentials and investigation operations enabled', async command => {
     const prepared = await prepareFalcon(command.split(' '), configuration)
     expect(prepared.args).toEqual([...command.split(' '), '--region', 'us-2'])
-    expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe('false')
+    expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe('true')
   })
 
 test.each(['detection', 'host', 'search', 'identity rule'])('%s group help stays terminal for the pinned parser', async group => {

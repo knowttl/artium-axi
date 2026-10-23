@@ -108,7 +108,7 @@ test.each(['session', 'all', 'archive'])('administrator %s revocation ends a bun
 
 test('first call discovers tools and preserves fake output, then no access explains the empty state', async () => {
   await app.close()
-  db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.5.1' WHERE name = 'falcon-axi'")
+  db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.6.0' WHERE name = 'falcon-axi'")
   const credentials = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
   credentials.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' },
     0, 'synthetic-development-user', Date.now())
@@ -130,7 +130,7 @@ test('first call discovers tools and preserves fake output, then no access expla
   expect(home).toMatchObject({ code: 0, stderr: '' })
   expect(home.stdout).toContain('user: "synthetic-user"')
   expect(home.stdout).toContain('roles[1]: "Synthetic Role"')
-  expect(home.stdout).toContain('falcon-axi,unknown,"0.5.1"')
+  expect(home.stdout).toContain('falcon-axi,unknown,"0.6.0"')
   expect(home.stdout).toContain('artium-axi tools show falcon-axi')
   expect(home.stdout).toContain('artium-axi falcon-axi detection list')
   expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 0 })

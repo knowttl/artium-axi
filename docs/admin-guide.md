@@ -278,7 +278,8 @@ SSO reauthentication events include the authentication method, provider and vali
 Device approval and refusal emit `device-approve` and `device-deny` events, with the requesting IP in `arguments.requestingAddress` and the approving or denying browser's IP in `client_address`.
 For Azure, Graph and Vectra, each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
-Pinned Falcon and LDAP runs report `read` from their inventories' read-only declarations, including normal runs and health checks.
+LDAP runs report `read` from its inventory's read-only declaration.
+Falcon history and preview runs report `read`; RTR execution uses its isolated durable native journal to classify writes.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 Tenable uses a shared native journal with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
 For Azure, Graph and Vectra, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.

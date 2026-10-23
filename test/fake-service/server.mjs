@@ -312,7 +312,23 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     canaryReceived: /CANARY-/.test(req.headers.authorization ?? ''),
     ...(url.pathname === '/alerts/queries/alerts/v2' ? { offset: url.searchParams.get('offset'), limit: url.searchParams.get('limit') } : {}) }
   requests.push(recorded)
-  if (url.pathname === '/alerts/queries/alerts/v2') {
+  if (url.pathname === '/real-time-response/queries/sessions/v1') {
+    res.end(JSON.stringify({ resources: ['synthetic-rtr-session'], meta: { pagination: { total: 1, offset: 0 } } }))
+  } else if (url.pathname === '/real-time-response/entities/sessions/GET/v1'
+    || url.pathname === '/real-time-response-audit/combined/sessions/v1') {
+    req.resume()
+    res.end(JSON.stringify({ resources: [{ id: 'synthetic-rtr-session', hostname: 'SYNTHETIC-HOST',
+      user_id: 'synthetic-operator', created_at: '2026-01-01T00:00:00Z' }], meta: { pagination: { total: 1, offset: 0 } } }))
+  } else if (url.pathname === '/real-time-response/entities/sessions/v1') {
+    req.resume()
+    mutations++
+    res.end(JSON.stringify({ resources: req.method === 'DELETE' ? [] : [{ session_id: 'synthetic-rtr-session' }] }))
+  } else if (url.pathname === '/real-time-response/entities/command/v1') {
+    req.resume()
+    if (req.method === 'POST') mutations++
+    res.end(JSON.stringify({ resources: [req.method === 'POST' ? { cloud_request_id: 'synthetic-rtr-command' }
+      : { stdout: 'synthetic process list', stderr: '', complete: true, sequence_id: 0 }] }))
+  } else if (url.pathname === '/alerts/queries/alerts/v2') {
     if (req.headers.host === 'api-redirect.crowdstrike.com') {
       res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })
       res.end()

@@ -351,10 +351,12 @@ See the [hosted credential contract](credential-standard.md#per-tool-host-facing
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Write-policy changes, including changes through Native settings or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
 Stale revisions never mutate settings, and an audit failure rolls back the change.
-Tool lists and health responses report `readOnly`; LDAP and the current Falcon pin always remain read-only.
+Tool lists and health responses report `readOnly`; LDAP always remains read-only.
 Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
-The write-access endpoint rejects changes for LDAP and the reviewed Falcon pin with the fixed read-only reason.
-Falcon ignores any legacy saved `allowWrites` value; a write-capable pin would require a separate review and upgrade.
+The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
+Falcon exposes RTR read-only command execution, off by default, through the audited switch with recent identity confirmation.
+Its managed profile must also opt in with `rtr.enabled=true`, optionally narrow `rtr.commands`, and the caller must preview then provide exact `--execute --confirm '<device_id>:<complete command>'`.
+Artium sets the native read-only override while the switch is off; history reads and previews still work.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
