@@ -24,9 +24,12 @@ test.each([false, true])('RTR profile opt-in and command narrowing remain indepe
   const prepared = await createFalconAdapter({ getCredential: async () => credential }, join(directory, 'writes.log'))
     .prepare(args, { id: 'synthetic', tool: 'falcon-axi' })
   expect(prepared.environment.FALCON_AXI_READ_ONLY).toBe(String(!allowWrites))
+  expect(prepared.environment.FALCON_AXI_CLIENT_ID).toBeUndefined()
+  expect(prepared.environment.FALCON_AXI_CLIENT_SECRET).toBeUndefined()
+  expect(prepared.environment.ARTIUM_SECRET_0).toBe(credential.clientSecret)
   expect(prepared.args).toEqual([...args, '--region', 'us-2'])
   expect(JSON.parse(prepared.files[0].content as string).profiles.artium).toEqual({ clientId: credential.clientId,
-    clientSecret: { env: 'FALCON_AXI_CLIENT_SECRET' }, region: 'us-2', rtr: credential.rtr })
+    clientSecret: { env: 'ARTIUM_SECRET_0' }, region: 'us-2', rtr: credential.rtr })
   expect(prepared.effect).toBe('write')
 })
 

@@ -37,11 +37,14 @@ function prepareCredential(args: readonly string[], credential: FalconCredential
   const group = args.slice(0, -1).join(' ')
   // Group help must end at --help and never resolves connection settings upstream.
   const groupHelp = args.at(-1) === '--help' && inventory.commands.some(route => route.command.startsWith(group + ' '))
+  const environment: Record<string, string> = credential.rtr
+    ? { ARTIUM_SECRET_0: clientSecret }
+    : { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret }
+  environment.FALCON_AXI_READ_ONLY = String(credential.allowWrites !== true)
   return {
     executable: toolPaths['falcon-axi'],
     args: groupHelp ? [...args] : [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment: { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret,
-      FALCON_AXI_READ_ONLY: String(credential.allowWrites !== true) },
+    environment,
     secrets: [clientId, clientSecret],
     limits: falconLimits,
   }
@@ -67,7 +70,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool
       const prepared = prepareCredential(args, parsed.data)
       return { ...prepared, environment: { ...prepared.environment, FALCON_AXI_WRITE_LOG: writeLog }, files: rtr ? [{ name: 'falcon-axi/config.json', content: JSON.stringify({
         version: 1, defaultProfile: 'artium', profiles: { artium: { clientId: parsed.data.clientId,
-          clientSecret: { env: 'FALCON_AXI_CLIENT_SECRET' }, region, memberCid, rtr } },
+          clientSecret: { env: 'ARTIUM_SECRET_0' }, region, memberCid, rtr } },
       }) }] : [] }
     },
   }, source, writeLog, profile, args => ({ args: [...args] }),
