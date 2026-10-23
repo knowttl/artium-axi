@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.14](https://github.com/knowttl/artium-axi/compare/v0.0.13...v0.0.14) (2026-10-23)
+
+
+### Bug Fixes
+
+* bundle falcon-axi 0.7.2 so RTR rejects console-only commands and names unsupported ones ([#160](https://github.com/knowttl/artium-axi/issues/160)) ([ce77964](https://github.com/knowttl/artium-axi/commit/ce7796498471a4154b15dad124eed0627c6ba464))
+
 ## [0.0.13](https://github.com/knowttl/artium-axi/compare/v0.0.12...v0.0.13) (2026-10-23)
 
 
