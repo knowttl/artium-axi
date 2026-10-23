@@ -9,6 +9,7 @@ import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
 import { adoPathPrefix, runnerLimits, runtimePath, toolPaths } from '../config.js'
 import { SecretScanner } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { inputFileSchema } from '../../shared/api.js'
 import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
 import type { TemporaryFile } from '../adapters/types.js'
@@ -161,7 +162,7 @@ async function execute(
           { name: 'sitecustomize.py', content: pythonTrustBootstrap },
         ] : [])]
       for (const file of materialized) {
-        if (!file.name.split('/').every(part => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) || names.has(file.name)) {
+        if (!file.name.split('/').every(part => inputFileSchema.shape.name.safeParse(part).success) || names.has(file.name)) {
           throw new Error('Invalid adapter file name')
         }
         names.add(file.name)

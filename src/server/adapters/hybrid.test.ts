@@ -38,7 +38,7 @@ test.each([
 
 test.each([['hash', 'file', 'a'.repeat(64)], ['report', 'file', 'synthetic-job']].map(args => ({ args })))('download refusal names the local alternative: $args', async ({ args }) => {
   await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED',
-    message: 'Downloads are not available through artium; use hybrid-axi locally.' })
+    message: 'Hosted downloads are not available yet through artium; use hybrid-axi locally.' })
 })
 
 test('uploaded leaves and explicit JSON stdin normalize without server file access', async () => {

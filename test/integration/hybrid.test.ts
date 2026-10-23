@@ -80,9 +80,10 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       expect((await run(execute)).stdout).toContain('ALREADY_EXECUTED')
       const upload = await toolInput('hybrid-axi', ['quick-scan', 'file', '--file', join(process.cwd(), 'package.json'), '--scan-type', 'all_lookup'])
       expect((await run(upload.args, { files: upload.files })).exitCode).toBe(0)
-      const fileSubmit = ['submit', 'file', '--file', 'package.json', '--environment-id', '160']
-      const filePlan = decode((await run(fileSubmit, { files: upload.files })).stdout) as { preview: { confirm: string } }
-      expect((await run([...fileSubmit, '--execute', '--confirm', filePlan.preview.confirm], { files: upload.files })).exitCode).toBe(0)
+      const sample = { files: [{ name: 'synthetic sample.json', contentBase64: upload.files![0].contentBase64 }] }
+      const fileSubmit = ['submit', 'file', '--file', 'synthetic sample.json', '--environment-id', '160']
+      const filePlan = decode((await run(fileSubmit, sample)).stdout) as { preview: { confirm: string } }
+      expect((await run([...fileSubmit, '--execute', '--confirm', filePlan.preview.confirm], sample)).exitCode).toBe(0)
       const rule = JSON.stringify({ identifier: 'Synthetic rule', threat_categories: [], active: false, rule: 'rule synthetic { condition: false }' })
       const create = ['hunting', 'yara', 'create', '--body-file', '-']
       const yara = decode((await run(create, { stdin: rule })).stdout) as { preview: { confirm: string } }
@@ -100,7 +101,7 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(6)
       const download = await app.inject({ method: 'POST', url: '/v1/tools/hybrid-axi/run', headers,
         payload: { args: ['hash', 'file', 'a'.repeat(64), '--output', 'sample.bin', '--execute'] } })
-      expect(download.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: 'Downloads are not available through artium; use hybrid-axi locally.' } })
+      expect(download.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: 'Hosted downloads are not available yet through artium; use hybrid-axi locally.' } })
       expect((await save('CANARY-hybrid-restricted', store.findCredential('hybrid-axi')!.revision!)).statusCode).toBe(200)
       const denied = await run(['hash', 'show', 'a'.repeat(64)])
       expect(denied.exitCode).toBe(1)

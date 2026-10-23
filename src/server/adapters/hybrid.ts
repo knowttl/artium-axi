@@ -20,7 +20,7 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
   if (tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])) return { args: tokens, effect: 'read' as const }
   const route = [...inventory.commands].reverse().find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (route?.command === 'hash file' || route?.command === 'report file') throw new ArtiumError('FLAG_BLOCKED',
-    'Downloads are not available through artium; use hybrid-axi locally.',
+    'Hosted downloads are not available yet through artium; use hybrid-axi locally.',
     'Use hybrid-axi locally with its native preview, execute, exact confirmation and live-malware warnings.')
   if (!route || route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED')
   const normalized = tokens.slice(0, route.command.split(' ').length)
