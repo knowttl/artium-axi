@@ -59,6 +59,11 @@ export class ToolHealth {
   // Only reachability failures retry early, so a rejected credential is never retried into an account lockout.
   private reschedule(tool: ToolName, revision: CredentialReference['revision'], generation: number, code: string | undefined): void {
     if (this.store?.findCredential(tool)?.revision !== revision || (this.generations.get(tool) ?? 0) !== generation) return
+    if (code === 'TOO_MANY_CALLS' && this.queued.has(tool)) {
+      this.due.set(tool, Date.now())
+      return
+    }
+    this.queued.delete(tool)
     const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
     const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
     if (failures) this.failures.set(tool, failures)
@@ -72,6 +77,7 @@ export class ToolHealth {
   refresh(tool: ToolName, replaced = false): Promise<unknown> | undefined {
     if (this.closed) return
     if (replaced) {
+      this.queued.add(tool)
       this.failures.delete(tool)
       this.generations.set(tool, (this.generations.get(tool) ?? 0) + 1)
     }
@@ -88,7 +94,6 @@ export class ToolHealth {
       this.due.set(tool, Date.now())
       return
     }
-    this.queued.delete(tool)
     const generation = this.generations.get(tool) ?? 0
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
       .then(

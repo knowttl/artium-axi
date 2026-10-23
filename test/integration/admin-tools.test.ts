@@ -15,6 +15,7 @@ import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { healthDefaults, runnerLimits } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -943,6 +944,57 @@ test('write-access change reports checking while its re-check runs, then ok with
   expect((await patched.json()).health.status).toBe('ok')
   expect(run).toHaveBeenCalledTimes(1)
   expect(run.mock.calls[0][0]).toBe('system:tool-health:az-axi')
+})
+
+test('a write-access check stays pending while ordinary calls fill the runner and succeeds on the next free tick', async () => {
+  await replace('az-axi')
+  const current = await (await request('GET', '/az-axi')).json() as { revision: number }
+  await app.close()
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  runner = await Runner.create(join(directory, 'calls'))
+  let completed!: () => void
+  const terminal = new Promise<void>(resolve => { completed = resolve })
+  let rejectedAgain!: () => void
+  let rejections = 0
+  const retryRejected = new Promise<void>(resolve => { rejectedAgain = resolve })
+  const audit = new Audit(db, Date.now, line => {
+    const record = JSON.parse(line)
+    if (record.event === 'health-check' && record.tool === 'az-axi' && record.outcome === 'success') completed()
+    if (record.event === 'health-check' && record.tool === 'az-axi' && record.outcome === 'TOO_MANY_CALLS'
+      && ++rejections === 2) rejectedAgain()
+  })
+  app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters,
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const controller = new AbortController()
+  const calls = Array.from({ length: runnerLimits.globalCalls }, (_, index) =>
+    runner.run(`synthetic-ordinary-${index}`, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [],
+      { signal: controller.signal }).catch(error => error))
+  try {
+    const response = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: current.revision })
+    expect(response.status).toBe(200)
+    expect((await response.json()).health.status).toBe('checking')
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await retryRejected
+    expect((await (await request('GET', '/az-axi')).json()).health.status).toBe('checking')
+    const discovery = await fetch(`${url}/v1/tools`, { headers })
+    expect(toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'az-axi')!.status).toBe('checking')
+    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'health-check' AND tool = 'az-axi' AND outcome = 'TOO_MANY_CALLS'").all())
+      .toHaveLength(2)
+    expect(db.prepare("SELECT status FROM tool_health WHERE tool = 'az-axi'").get()).toBeUndefined()
+    controller.abort()
+    await Promise.all(calls)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await terminal
+    expect((await (await request('GET', '/az-axi')).json()).health.status).toBe('ok')
+    const recovered = await fetch(`${url}/v1/tools`, { headers })
+    expect(toolsResponseSchema.parse(await recovered.json()).tools.find(tool => tool.name === 'az-axi')!.status).toBe('ok')
+  } finally {
+    controller.abort()
+    await Promise.all(calls)
+    await app.close()
+    vi.useRealTimers()
+  }
 })
 
 test('removing a trusted certificate schedules one re-check for that tool', async () => {
