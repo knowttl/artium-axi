@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.13](https://github.com/knowttl/artium-axi/compare/v0.0.12...v0.0.13) (2026-10-23)
+
+
+### Features
+
+* add managed Hybrid Analysis integration ([#152](https://github.com/knowttl/artium-axi/issues/152)) ([2758c71](https://github.com/knowttl/artium-axi/commit/2758c71eb5e3ec9386f6a827b0243158095bb5e1))
+* expand guarded Vectra writes with vectra-axi 0.1.9 ([#153](https://github.com/knowttl/artium-axi/issues/153)) ([f4f5446](https://github.com/knowttl/artium-axi/commit/f4f544677fccd1880798be742bbf317893aa9854))
+
+
+### Bug Fixes
+
+* bundle falcon-axi 0.7.1 so RTR commands return their output ([#159](https://github.com/knowttl/artium-axi/issues/159)) ([e5a6430](https://github.com/knowttl/artium-axi/commit/e5a643021b8302d30a6b6878bd5bf8b10e0e658e))
+
 ## [0.0.12](https://github.com/knowttl/artium-axi/compare/v0.0.11...v0.0.12) (2026-10-23)
 
 
