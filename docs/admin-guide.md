@@ -256,7 +256,8 @@ Denial, expiry or revocation prevents ticket issuance; approval codes are single
 ### Audit screen and API
 
 Audit supports user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters.
-When a normal managed run exits non-zero, its terminal record stores the tool's own bounded failure code in `error_code` when the output carries one on a code line; the failure message, help text and tool output are never stored, and a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
+When a normal managed run exits non-zero, its terminal record stores the tool's own bounded failure code in `error_code` from a recognized `code:` or `error_code:` line, falling back to an Azure `AADSTS` provider code found in the output.
+The failure message, help text and tool output are never stored, and a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
 Open an event in the table to inspect every persisted field.
 Pagination retains filters; starting a new search includes records inserted after the previous search began.

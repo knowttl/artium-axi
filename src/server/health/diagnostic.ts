@@ -48,8 +48,8 @@ export function diagnosticError(code: ErrorCode, detail: Diagnostic): ArtiumErro
   return error
 }
 
-// The only code a run may persist: a bounded token on its own code line, never free text.
-// Every adapter's output passes through here, so parsing stays in this one place.
+// Persist only a bounded code token, never surrounding message or help text.
+// Keep parsing shared so normal managed runs and health diagnostics recognize the same code.
 export function toolFailureCode(stdout: string, stderr: string): string | undefined {
   const text = [stderr, stdout].filter(Boolean).join('\n')
   return /^\s*(?:code|error_code):\s*["']?([A-Za-z][A-Za-z0-9_]{0,79})["']?\s*$/mi.exec(text)?.[1]
