@@ -44,6 +44,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 | LDAP | Verified TLS simple bind; read-only |
 | Azure DevOps | PAT or application identity |
 | AWX | Pasted token or one-time password sign-in; optional operational writes |
+| Tenable One | Access and secret API keys; optional allow-listed business writes and export jobs |
 
 [Package pins](tools/package.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
 
@@ -221,7 +222,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
-| `<tool> <args>` | Run any of the seven managed tools above |
+| `<tool> <args>` | Run any of the eight managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |
 
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.

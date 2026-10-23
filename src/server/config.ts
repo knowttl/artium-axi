@@ -1,4 +1,5 @@
 export const toolPaths = {
+  'tenable-axi': '/opt/tools/node_modules/.bin/tenable-axi',
   'awx-axi': '/opt/tools/node_modules/.bin/awx-axi',
   'falcon-axi': '/opt/falcon-axi/bin/falcon-axi',
   'vectra-axi': '/opt/tools/node_modules/.bin/vectra-axi',
@@ -8,6 +9,7 @@ export const toolPaths = {
   'ado-axi': '/opt/tools/node_modules/.bin/ado-axi',
 } as const
 export const toolSkillPaths = {
+  'tenable-axi': '/opt/tools/skills/tenable-axi/SKILL.md',
   'awx-axi': '/opt/tools/skills/awx-axi/SKILL.md',
   'falcon-axi': '/opt/tools/skills/falcon-axi/SKILL.md',
   'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/skills/vectra-axi/SKILL.md',
@@ -17,6 +19,7 @@ export const toolSkillPaths = {
   'ado-axi': '/opt/tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
+  'tenable-axi': '/opt/tools/node_modules/@knowttl/tenable-axi/axi-credential.schema.json',
   'awx-axi': '/opt/tools/node_modules/awx-axi/axi-credential.schema.json',
   'falcon-axi': '/opt/falcon-axi/lib/python3.11/site-packages/falcon_axi/axi-credential.schema.json',
   'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json',

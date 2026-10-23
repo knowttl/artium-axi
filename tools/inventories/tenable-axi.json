@@ -1,0 +1,1200 @@
+{
+  "generatedBy": "scripts/tenable-inventory.mjs",
+  "tool": "tenable-axi",
+  "version": "0.1.0",
+  "integrity": "sha512-nw1HLOmUZdeo/x1po1uOmFQhZsg0rP1eMGrcwLj+Pd2UkdwKodAQjDCjgBdl5DNLIqaafkUEV6mPMJmkFLQpzw==",
+  "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
+  "sources": [
+    {
+      "path": "dist/src/attack-catalogue.js",
+      "sha256": "022f9d46c0e0a76b62ed528b17552fccae9634208698e541146f8af2f6107316"
+    },
+    {
+      "path": "dist/src/attack-export-catalogue.js",
+      "sha256": "7127a33fdbb01db34886b2c91b36bdc174131819b5753c1201c56999389584ee"
+    },
+    {
+      "path": "dist/src/attack-export.js",
+      "sha256": "38adf6d13ab1afe4f8d0123803257c2f10a1c47b9a7f9b216ee9107ea30368c8"
+    },
+    {
+      "path": "dist/src/attack.js",
+      "sha256": "76905fe54d1038ffbaa6b4a82b4cb4fadb6473462d28679319a98ab7cdd08650"
+    },
+    {
+      "path": "dist/src/catalogue.js",
+      "sha256": "d05c8dfebce3219c2ee0a305888fa336e62db5fc3b3b4bc95a27c0588943587b"
+    },
+    {
+      "path": "dist/src/cli.js",
+      "sha256": "df6dfee98019af2da15ac7a3c4d1ea7b3860c73021cbf2f08ac52386a64f441c"
+    },
+    {
+      "path": "dist/src/export-file.js",
+      "sha256": "2eb4f73e2d9a3361283a62e887c6cf95de70d5d3f353441bcd4de738377d57df"
+    },
+    {
+      "path": "dist/src/exposure-contracts.js",
+      "sha256": "febe68635d243ce801607d76af753d21f2ff30712c0efe9c3a2805209cc4b915"
+    },
+    {
+      "path": "dist/src/exposure.js",
+      "sha256": "0278853a917eb583c721c69d10c5e466aed9d18c8d910f20991dcfe33faac738"
+    },
+    {
+      "path": "dist/src/hook-install.js",
+      "sha256": "74fce246ea8fd1ee83bc89f06ab71b3bbf10b2b6ebce0701d24c95eae7755668"
+    },
+    {
+      "path": "dist/src/inventory-catalogue.js",
+      "sha256": "2a4b4338917af9060b6859eaa2cfc94cc5ccb936bf96f744b51755d4d92d98a7"
+    },
+    {
+      "path": "dist/src/inventory-export-catalogue.js",
+      "sha256": "a85ef57098bdec74dccd587b7065ebb4c84b3902043fc87c8aedd878d74b375f"
+    },
+    {
+      "path": "dist/src/inventory-export.js",
+      "sha256": "5422b59008eecad8476d8c0ce5f287188a2f1ad4fcfe763450ac187423d7d0f2"
+    },
+    {
+      "path": "dist/src/inventory.js",
+      "sha256": "12ad8effb2728fea7791e5f62716d079484b377c56f8b9cdb83d500842258b7d"
+    },
+    {
+      "path": "dist/src/inventory/schema.js",
+      "sha256": "1dc7cf0f1fb0e07dcf79bcac7e41450e1394345fc4fcd410119ab639064926af"
+    },
+    {
+      "path": "dist/src/local-commands.js",
+      "sha256": "4bb2769049b72126c47857f850b3cd008a371f952c479e0b288d5279d7aaa77a"
+    },
+    {
+      "path": "dist/src/platform-tag-catalogue.js",
+      "sha256": "9c887c06dd1179a877696deae8873ffce5e3b3e001f2c61ae7968f883eafe314"
+    },
+    {
+      "path": "dist/src/platform-tag.js",
+      "sha256": "ff31eb9a454ba20d2e378403fd4cb29b097e8de4b8b241b3af13197598a66972"
+    },
+    {
+      "path": "dist/src/private-file.js",
+      "sha256": "a5f01182fe09394ecf508deb46d54c9fb0b39c9fd205094d155ace212bbd1c8b"
+    },
+    {
+      "path": "dist/src/profiles.js",
+      "sha256": "12defbf234e4da8584e1f6ba601eb3826733ff85c76445197b0162ac52299b4a"
+    },
+    {
+      "path": "dist/src/redact.js",
+      "sha256": "e88631746e63a7fc08f206b58ddf3754ecea6f0ec21011c37ded0114dfbb6830"
+    },
+    {
+      "path": "dist/src/response-catalogue.js",
+      "sha256": "6f0eb3f6ba860e59e7bfd764a0d3932b52101e4013acea4ee5aa63081a1f83db"
+    },
+    {
+      "path": "dist/src/response.js",
+      "sha256": "44277f2a0c28b3e6801c47578603270ed59c76aac5214c6428fd2dbf8a83f1d4"
+    },
+    {
+      "path": "dist/src/setup.js",
+      "sha256": "2e9c8430b4fbf0f95e0e31267ba828107fd054e9d525a5c970f7c9c2e20d5348"
+    },
+    {
+      "path": "dist/src/transport-core.js",
+      "sha256": "db13c1c33aa1716bc8a32e3ebc6459421c64f078ea4641f248e552c5b74a621d"
+    },
+    {
+      "path": "dist/src/transport.js",
+      "sha256": "c3639f96d71c80217da15fe7449b586ee797c94e9f4f6b3f22d0472613d28ee1"
+    },
+    {
+      "path": "dist/src/writes-core.js",
+      "sha256": "55a76961512751653c8d14778b6b74094318ba1527b50dedf2167127f1e7c1f9"
+    },
+    {
+      "path": "dist/src/writes.js",
+      "sha256": "43099c373b451991102515f0f583c9a7678edb89a5b6bc9ad7e261a1c1f4a5dd"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/knowttl/tenable-axi/axi-credential.schema.json",
+    "title": "Tenable AXI credential profile",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "origin": {
+        "const": "https://cloud.tenable.com",
+        "default": "https://cloud.tenable.com"
+      },
+      "accessKey": {
+        "$ref": "#/$defs/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "TENABLE_AXI_ACCESS_KEY"
+        }
+      },
+      "secretKey": {
+        "$ref": "#/$defs/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "TENABLE_AXI_SECRET_KEY"
+        }
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "default": {
+          "allowWrites": false,
+          "operations": []
+        },
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+            }
+          }
+        }
+      }
+    },
+    "$defs": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "skillSha256": "ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a",
+  "nativeWriteSettings": {
+    "supportedOperations": [
+      "apa-export-attack-path",
+      "apa-export-attack-technique",
+      "apa-export-mitre-heatmap",
+      "combinations-create",
+      "combinations-delete",
+      "combinations-update",
+      "initiatives-create",
+      "initiatives-delete",
+      "initiatives-update",
+      "inventory-export-assets",
+      "inventory-export-findings",
+      "tags-assign-asset-tags",
+      "tags-create-tag-category",
+      "tags-create-tag-value",
+      "tags-delete-tag-category",
+      "tags-delete-tag-value",
+      "tags-delete-tag-values-bulk",
+      "tags-edit-tag-category",
+      "tags-update-tag-value"
+    ]
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "output"
+    ],
+    "inputFileFlags": [
+      "filter-file",
+      "body-file",
+      "ids-file",
+      "asset-ids-file",
+      "tag-ids-file"
+    ],
+    "blockedCommands": [
+      "setup hooks",
+      "config path",
+      "profile list",
+      "hook",
+      "export attack download",
+      "export inventory download"
+    ],
+    "inputs": {
+      "stdin": "explicit file flag with - only",
+      "files": "uploaded leaves only",
+      "downloads": "unsupported"
+    },
+    "nativeWrites": "native preview, operation allow-list, execute, exact confirm and durable journal"
+  },
+  "discovery": {
+    "commands": [
+      "asset",
+      "attack-path",
+      "attack-technique",
+      "auth",
+      "card",
+      "combination",
+      "connector",
+      "doctor",
+      "export",
+      "finding",
+      "home",
+      "initiative",
+      "software",
+      "tag"
+    ],
+    "example": [
+      "card",
+      "list",
+      "--limit",
+      "1"
+    ],
+    "help": "tenable-axi card list [--limit <n>]\nArtium manages both API keys and the fixed https://cloud.tenable.com origin. Writes and export-job creation require administrator-enabled operations, preview, --execute and exact --confirm. File inputs accept uploaded leaves or explicit stdin (-). Downloads and local configuration are blocked.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "asset list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Opaque resume cursor; retain the original selectors and filters",
+        "query": "Simple query text",
+        "filter": "Repeatable: <property> <operator> <JSON string array>",
+        "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
+        "sort": "Wire property:asc|desc",
+        "extra-properties": "Comma-separated extra wire properties",
+        "offset": "Starting record; default 0; excludes --cursor",
+        "class": "Server-side asset class filter"
+      }
+    },
+    {
+      "command": "asset properties",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Opaque resume cursor; retain the original selectors and filters",
+        "asset-classes": "Comma-separated documented asset classes"
+      }
+    },
+    {
+      "command": "asset show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "id": "Required exact inventory ID",
+        "extra-properties": "Comma-separated extra wire properties"
+      }
+    },
+    {
+      "command": "attack-path list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire fields; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Bounded resume cursor; retain original selectors, filters, sort and fields",
+        "offset": "Starting record; default 0; excludes --cursor",
+        "sort": "Documented wire property:direction",
+        "filter": "Repeatable: <property> <operator> <JSON-value>; combines with AND (paths) or and (techniques)",
+        "filter-file": "Documented single or nested JSON filter, at most two logical levels; '-' reads stdin; excludes --filter",
+        "include-resolved": "Include resolved records; default false (exclude_resolved=true)",
+        "run-ai-summarization": "true|false; default false"
+      }
+    },
+    {
+      "command": "attack-technique list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire fields; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Bounded resume cursor; retain original selectors, filters, sort and fields",
+        "offset": "Starting record; default 0; excludes --cursor",
+        "sort": "Documented wire property:direction",
+        "filter": "Repeatable: <property> <operator> <JSON-value>; combines with AND (paths) or and (techniques)",
+        "filter-file": "Documented single or nested JSON filter, at most two logical levels; '-' reads stdin; excludes --filter",
+        "include-resolved": "Include resolved records; default false (exclude_resolved=true)"
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default TENABLE_AXI_CONFIG or platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "card list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact projection",
+        "full": "Full text; default false",
+        "help": "Show help; default false",
+        "limit": "Output rows; default 100",
+        "offset": "Starting record; default 0",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read up to 10000 rows; incompatible with --limit",
+        "global": "true or false; default all cards",
+        "query": "Card name search",
+        "sorting-order": "asc or desc; default API order"
+      }
+    },
+    {
+      "command": "card show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact projection",
+        "full": "Full text; default false",
+        "help": "Show help; default false",
+        "id": "Required card ID",
+        "trend-start-date": "UTC ISO timestamp",
+        "trend-end-date": "UTC ISO timestamp",
+        "sla-efficiency-start-date": "UTC ISO timestamp",
+        "sla-efficiency-end-date": "UTC ISO timestamp",
+        "sla-breakdown-filter": "ANY, REMEDIATED or NON_REMEDIATED; default ANY",
+        "include-trend-events": "true or false; default false"
+      }
+    },
+    {
+      "command": "combination create",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "execute": "Send once; default preview",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact preview confirmation; required to execute",
+        "body-file": "Required strict JSON, at most 1 MiB; '-' reads stdin"
+      }
+    },
+    {
+      "command": "combination delete",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "execute": "Send once; default preview",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact preview confirmation; required to execute"
+      }
+    },
+    {
+      "command": "combination filters",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100, maximum 10000",
+        "all": "Up to 10000 rows; excludes --limit",
+        "cursor": "Re-fetch and resume an unchanged unpaged collection; requires original selectors"
+      }
+    },
+    {
+      "command": "combination list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100, maximum 10000",
+        "all": "Up to 10000 rows; excludes --limit",
+        "cursor": "Re-fetch and resume an unchanged unpaged collection; requires original selectors",
+        "type": "private, shared or tenable; default all accessible"
+      }
+    },
+    {
+      "command": "combination show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID"
+      }
+    },
+    {
+      "command": "combination update",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "execute": "Send once; default preview",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact preview confirmation; required to execute",
+        "body-file": "Required strict JSON, at most 1 MiB; '-' reads stdin"
+      }
+    },
+    {
+      "command": "config path",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default TENABLE_AXI_CONFIG or platform path",
+        "profile": "Common selector; paths are independent of profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "connector logs",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire fields; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Bounded resume cursor; retain original selectors, filters, sort and fields",
+        "connector-id": "Nonnegative numeric connector ID",
+        "status": "SUCCEEDED|FAILED",
+        "start-date": "Inclusive YYYY-MM-DD; requires --end-date",
+        "end-date": "Exclusive YYYY-MM-DD; requires --start-date"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact projection",
+        "full": "Full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "export asset jobs",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full output; default false",
+        "help": "Show help",
+        "status": "QUEUED|PROCESSING|FINISHED|ERROR",
+        "limit": "1-1000; default 100; last three days only"
+      }
+    },
+    {
+      "command": "export asset start",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full output; default false",
+        "help": "Show help",
+        "body-file": "Optional strict query/filters JSON file, '-' for stdin; maximum 1 MiB",
+        "properties": "Comma-separated property names",
+        "use-readable-name": "true|false; API default true",
+        "max-chunk-file-size": "5242880-104857600 bytes; API default 20971520",
+        "sort": "property:asc|desc",
+        "file-format": "JSON|CSV; API default JSON",
+        "compress": "true|false; API default false",
+        "execute": "Create once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "export attack download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated metadata fields; default compact view",
+        "full": "Full metadata text; default false",
+        "help": "Show help",
+        "id": "Required attack export UUID",
+        "output": "Required new output file; overwrite refused"
+      }
+    },
+    {
+      "command": "export attack status",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated metadata fields; default compact view",
+        "full": "Full metadata text; default false",
+        "help": "Show help",
+        "id": "Required attack export UUID",
+        "wait": "Poll once per second within 20-second/20-request budgets; default false"
+      }
+    },
+    {
+      "command": "export attack-path start",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated metadata fields; default compact view",
+        "full": "Full metadata text; default false",
+        "help": "Show help",
+        "body-file": "Required strict operation-specific JSON file, at most 1 MiB; '-' reads stdin",
+        "execute": "Create the previewed job once; default false",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact confirmation string from preview; required with --execute"
+      }
+    },
+    {
+      "command": "export attack-technique start",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated metadata fields; default compact view",
+        "full": "Full metadata text; default false",
+        "help": "Show help",
+        "body-file": "Required strict operation-specific JSON file, at most 1 MiB; '-' reads stdin",
+        "execute": "Create the previewed job once; default false",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact confirmation string from preview; required with --execute"
+      }
+    },
+    {
+      "command": "export finding jobs",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full output; default false",
+        "help": "Show help",
+        "status": "QUEUED|PROCESSING|FINISHED|ERROR",
+        "limit": "1-1000; default 100; last three days only"
+      }
+    },
+    {
+      "command": "export finding start",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full output; default false",
+        "help": "Show help",
+        "body-file": "Optional strict query/filters JSON file, '-' for stdin; maximum 1 MiB",
+        "properties": "Comma-separated property names",
+        "use-readable-name": "true|false; API default true",
+        "max-chunk-file-size": "5242880-104857600 bytes; API default 20971520",
+        "sort": "property:asc|desc",
+        "file-format": "JSON|CSV; API default JSON",
+        "compress": "true|false; API default false",
+        "execute": "Create once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "export inventory download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full output; default false",
+        "help": "Show help",
+        "id": "Required export UUID",
+        "chunk": "Required nonnegative chunk number from status",
+        "output": "Required new output file; refuses overwrite"
+      }
+    },
+    {
+      "command": "export inventory status",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full output; default false",
+        "help": "Show help",
+        "id": "Required export UUID"
+      }
+    },
+    {
+      "command": "export mitre-heatmap start",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated metadata fields; default compact view",
+        "full": "Full metadata text; default false",
+        "help": "Show help",
+        "body-file": "Required strict operation-specific JSON file, at most 1 MiB; '-' reads stdin",
+        "execute": "Create the previewed job once; default false",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact confirmation string from preview; required with --execute"
+      }
+    },
+    {
+      "command": "finding list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Opaque resume cursor; retain the original selectors and filters",
+        "query": "Simple query text",
+        "filter": "Repeatable: <property> <operator> <JSON string array>",
+        "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
+        "sort": "Wire property:asc|desc",
+        "extra-properties": "Comma-separated extra wire properties",
+        "offset": "Starting record; default 0; excludes --cursor"
+      }
+    },
+    {
+      "command": "finding properties",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Opaque resume cursor; retain the original selectors and filters"
+      }
+    },
+    {
+      "command": "finding show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "id": "Required exact inventory ID",
+        "extra-properties": "Comma-separated extra wire properties"
+      }
+    },
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Card fields; default id,name,score",
+        "full": "Full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "hook",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact projection",
+        "full": "Full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "initiative create",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "execute": "Send once; default preview",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact preview confirmation; required to execute",
+        "body-file": "Required strict JSON, at most 1 MiB; '-' reads stdin"
+      }
+    },
+    {
+      "command": "initiative delete",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "execute": "Send once; default preview",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact preview confirmation; required to execute"
+      }
+    },
+    {
+      "command": "initiative list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100, maximum 10000",
+        "all": "Up to 10000 rows; excludes --limit",
+        "cursor": "Re-fetch and resume an unchanged unpaged collection; requires original selectors"
+      }
+    },
+    {
+      "command": "initiative show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID"
+      }
+    },
+    {
+      "command": "initiative update",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "execute": "Send once; default preview",
+        "dry-run": "Preview only; excludes --execute",
+        "confirm": "Exact preview confirmation; required to execute",
+        "body-file": "Required strict JSON, at most 1 MiB; '-' reads stdin"
+      }
+    },
+    {
+      "command": "profile list",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default TENABLE_AXI_CONFIG or platform path",
+        "profile": "Common selector; list still shows all profiles",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "setup hooks",
+      "effect": "blocked",
+      "flags": {
+        "scope": "user or project; default user; project targets the current directory",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "software list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Opaque resume cursor; retain the original selectors and filters",
+        "query": "Simple query text",
+        "filter": "Repeatable: <property> <operator> <JSON string array>",
+        "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
+        "sort": "Wire property:asc|desc",
+        "extra-properties": "Comma-separated extra wire properties",
+        "offset": "Starting record; default 0; excludes --cursor"
+      }
+    },
+    {
+      "command": "software properties",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; default compact view",
+        "full": "Show full text; default false",
+        "help": "Show help",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "cursor": "Opaque resume cursor; retain the original selectors and filters"
+      }
+    },
+    {
+      "command": "tag asset-filter list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100; maximum 10000",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read at most 10000 rows; excludes --limit"
+      }
+    },
+    {
+      "command": "tag assignment add",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection",
+        "asset-ids-file": "Required JSON asset UUID array; '-' for stdin",
+        "tag-ids-file": "Required JSON tag UUID array; '-' for stdin"
+      }
+    },
+    {
+      "command": "tag assignment list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "asset-id": "Required exact asset UUID",
+        "limit": "Output rows; default 100; maximum 10000",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read at most 10000 rows; excludes --limit"
+      }
+    },
+    {
+      "command": "tag assignment remove",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection",
+        "asset-ids-file": "Required JSON asset UUID array; '-' for stdin",
+        "tag-ids-file": "Required JSON tag UUID array; '-' for stdin"
+      }
+    },
+    {
+      "command": "tag category create",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "name": "Required category name, at most 127 characters, no colon",
+        "description": "Optional description, at most 3000 characters",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "tag category delete",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "tag category list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100; maximum 10000",
+        "offset": "Starting record; default 0",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read at most 10000 rows; excludes --limit",
+        "filter": "Repeatable field:operator:value",
+        "filter-type": "and|or; API default and",
+        "sort": "Comma-separated field:asc|desc"
+      }
+    },
+    {
+      "command": "tag category show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID"
+      }
+    },
+    {
+      "command": "tag category update",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "name": "Required category name, at most 127 characters, no colon",
+        "description": "Optional description, at most 3000 characters",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "tag exclusion list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100; maximum 10000",
+        "offset": "Starting record; default 0",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read at most 10000 rows; excludes --limit",
+        "tag-id": "Required exact dynamic tag UUID",
+        "target-type": "assets; API default assets"
+      }
+    },
+    {
+      "command": "tag list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact projection",
+        "full": "Full text; default false",
+        "help": "Show help; default false",
+        "limit": "Output rows; default 100",
+        "offset": "Starting record; default 0",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read up to 10000 rows; incompatible with --limit",
+        "query": "Simple text search",
+        "filter": "Repeatable: property operator JSON-array-of-strings",
+        "filter-file": "Strict documented tag filter array; incompatible with --filter",
+        "sort": "property:asc or property:desc",
+        "extra-properties": "Comma-separated property names"
+      }
+    },
+    {
+      "command": "tag properties",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact projection",
+        "full": "Full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "tag value bulk-delete",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection",
+        "ids-file": "Required JSON UUID array; '-' for stdin; maximum 1 MiB"
+      }
+    },
+    {
+      "command": "tag value create",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "body-file": "Required strict tag JSON; '-' for stdin; maximum 1 MiB; no access_control",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "tag value delete",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    },
+    {
+      "command": "tag value list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "limit": "Output rows; default 100; maximum 10000",
+        "offset": "Starting record; default 0",
+        "cursor": "Resume the same scoped collection",
+        "all": "Read at most 10000 rows; excludes --limit",
+        "filter": "Repeatable field:operator:value",
+        "filter-type": "and|or; API default and",
+        "sort": "Comma-separated field:asc|desc",
+        "with": "Wildcard search value (w)",
+        "with-filter": "Comma-separated wildcard fields (wf)"
+      }
+    },
+    {
+      "command": "tag value show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID"
+      }
+    },
+    {
+      "command": "tag value update",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated output fields; default compact view",
+        "full": "Full text; default false",
+        "help": "Show help",
+        "id": "Required exact UUID",
+        "body-file": "Required strict tag JSON; '-' for stdin; maximum 1 MiB; no access_control",
+        "execute": "Execute once; default preview",
+        "dry-run": "Explicit preview; excludes --execute",
+        "confirm": "Exact confirmation from preview",
+        "intent-id": "Unique execution intent for replay protection"
+      }
+    }
+  ]
+}

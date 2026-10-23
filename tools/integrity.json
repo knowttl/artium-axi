@@ -1,4 +1,8 @@
 {
+  "@knowttl/tenable-axi": {
+    "version": "0.1.0",
+    "integrity": "sha512-nw1HLOmUZdeo/x1po1uOmFQhZsg0rP1eMGrcwLj+Pd2UkdwKodAQjDCjgBdl5DNLIqaafkUEV6mPMJmkFLQpzw=="
+  },
   "awx-axi": {
     "version": "0.1.8",
     "integrity": "sha512-tkheZgSTjs6nZT3KWo0e/+SH43ZacfvZpo7COktmpIs8lNr8VLhUtrGARz+mvwj8pov4zscdfmxAHL/8V025Bw=="

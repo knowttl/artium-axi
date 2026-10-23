@@ -7,7 +7,7 @@ import type { ToolName } from '../store/credential-store.js'
 export type RunAction = 'read' | 'write' | 'unknown'
 
 // These pinned tools journal mutations after their native write gates.
-const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
+const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG', 'TENABLE_AXI_WRITE_LOG']
 
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
   if (tool === 'ado-axi' || tool === 'awx-axi') {

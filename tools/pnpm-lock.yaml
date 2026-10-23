@@ -20,6 +20,9 @@ importers:
       '@knowttl/mg-axi':
         specifier: 0.1.10
         version: 0.1.10
+      '@knowttl/tenable-axi':
+        specifier: 0.1.0
+        version: 0.1.0
       '@knowttl/vectra-axi':
         specifier: 0.1.8
         version: 0.1.8
@@ -58,6 +61,11 @@ packages:
 
   '@knowttl/mg-axi@0.1.10':
     resolution: {integrity: sha512-rsd8KjyXxojDF3Gu6C95xsJokATeEmUaIRO7Zcaw9h/sF9WLXpW/gh6tKB1niU2QTGe2tsZjPsqXvzpyG34UUA==}
+    engines: {node: '>=22.12.0'}
+    hasBin: true
+
+  '@knowttl/tenable-axi@0.1.0':
+    resolution: {integrity: sha512-nw1HLOmUZdeo/x1po1uOmFQhZsg0rP1eMGrcwLj+Pd2UkdwKodAQjDCjgBdl5DNLIqaafkUEV6mPMJmkFLQpzw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -267,6 +275,10 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
+  smol-toml@1.9.1:
+    resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
+    engines: {node: '>= 18'}
+
   strict-event-emitter-types@2.0.0:
     resolution: {integrity: sha512-Nk/brWYpD85WlOgzw5h173aci0Teyv8YdIAEtV+N88nDB0dLlazZyJMIsN6eo1/AR61l+p6CJTG1JIyFaoNEEA==}
 
@@ -353,6 +365,13 @@ snapshots:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       open: 11.0.4
+
+  '@knowttl/tenable-axi@0.1.0':
+    dependencies:
+      '@toon-format/toon': 2.3.1
+      axi-sdk-js: 0.1.13
+      smol-toml: 1.9.1
+      zod: 4.3.6
 
   '@knowttl/vectra-axi@0.1.8':
     dependencies:
@@ -546,6 +565,8 @@ snapshots:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
+
+  smol-toml@1.9.1: {}
 
   strict-event-emitter-types@2.0.0: {}
 

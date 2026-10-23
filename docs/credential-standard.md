@@ -15,7 +15,7 @@ Round 3 recorded all six board decisions:
 
 The text where each decision applies is marked `[D#]`.
 
-Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, azure-axi.
+Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, azure-axi.
 artium-axi is the host that consumes the standard (section 9).
 The key words MUST, SHOULD and MAY are used as described in RFC 2119.
 
@@ -287,6 +287,12 @@ A controller that has basic authentication disabled returns a clear error and st
 The shared profile writer injects the token and registers it for output scanning.
 Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
 See [AWX setup](tool-credentials.md#awx) for credential setup and the supported command boundary.
+
+tenable-axi uses its shipped accessKey and secretKey SecretRef schema with a fixed `https://cloud.tenable.com` origin.
+Artium requires both keys, treats both as secrets and supplies a private profile for each call.
+The per-tool write switch maps to `writes.allowWrites` and `writes.operations`; disabling writes sets `TENABLE_AXI_READ_ONLY=true`.
+Native preview, exact confirmation, operation scope and durable journaling also gate export-job creation.
+See [Tenable One setup](tool-credentials.md#tenable-one) for the supported boundary.
 
 ## 10. Migration
 

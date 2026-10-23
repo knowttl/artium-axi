@@ -9,6 +9,7 @@ import type { ToolName } from './store/credential-store.js'
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
+  'tenable-axi': { sha256: 'ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
   'az-axi': { sha256: '7d957ed28170171530c0c174ac27c0174b5500cd1797d18243324ef44fee033f', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
@@ -30,7 +31,10 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       return source.slice(start, end === -1 ? undefined : end).trim()
     })
     let body = sections.join('\n\n')
-    if (tool === 'awx-axi') {
+    if (tool === 'tenable-axi') {
+      body = '## Managed investigation and writes\n\nUse `artium-axi tenable-axi card list --limit 1`, asset list, finding list, software list and attack-path list to investigate exposure.\nArtium manages both secret API keys and the fixed https://cloud.tenable.com origin.\nWrites and export-job creation require administrator-enabled operations, native preview, --execute and the exact preview --confirm string.\nNever replay an unknown mutation outcome; follow its audit ID and read-back guidance.\nFile flags accept uploaded leaf names or explicit stdin (-); server paths and output downloads are unavailable.\nUsers, roles, access control, credential minting and arbitrary HTTP are unavailable.\nLists are bounded; preserve filters, sort and fields when resuming a cursor.\nRun each command with --help for selectors, defaults and examples.\n'
+      body += '\nManaged commands: ' + toolManifests['tenable-axi'].commands.filter(route => route.effect !== 'blocked').map(route => '`artium-axi tenable-axi ' + route.command + '`').join(', ') + '.\n'
+    } else if (tool === 'awx-axi') {
       frontmatter = frontmatter.replace(/^description:.*$/m, 'description: Inspect AWX resources and perform administrator-enabled operational actions through Artium. Configuration, deletion and security writes are blocked.')
       body = body.replaceAll('npx -y awx-axi', 'artium-axi awx-axi')
       body += '\n\n## Managed commands\n\nOperational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Artium manages the HTTPS origin and token; administrators inspect certificates and trust per host in the tool page.\nUse job list and job show to inspect runs, job stdout for output, and job watch --timeout 50 for bounded polling.\nRead commands: ' + awxInventory.commands.filter(route => route.effect === 'read').map(route => '`' + route.command + '`').join(', ') + '.\nOperational commands: ' + awxInventory.commands.filter(route => route.effect === 'write').map(route => '`' + route.command + '`').join(', ') + '.\n'

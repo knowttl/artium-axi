@@ -43,6 +43,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
   'awx-axi': { origin: 'https://controller.example', token: 'CANARY-awx-token' },
   'ado-axi': { org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' },
   'ldap-axi': { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' },
@@ -744,6 +745,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'ldap-axi', capable: false, enabled: false, reason: expect.stringContaining('no write path') },
       { name: 'ado-axi', capable: true, enabled: false, reason: null },
       { name: 'awx-axi', capable: true, enabled: false, reason: null },
+      { name: 'tenable-axi', capable: true, enabled: false, reason: null },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -947,6 +949,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
+    { name: 'tenable-axi', version: '0.1.0', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

@@ -57,6 +57,12 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'tenable-axi') {
+      this.inputSchema.required = ['accessKey', 'secretKey']
+      for (const name of ['accessKey', 'secretKey']) this.inputSchema.properties[name] = {
+        ...this.inputSchema.properties[name], pattern: '^[^;=,\\s\\p{Cc}]+$',
+      }
+    }
     if (tool === 'awx-axi') {
       // A usable credential still requires origin plus token. Password sign-in is host-only input.
       this.inputSchema.required = ['origin']

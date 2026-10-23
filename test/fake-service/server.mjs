@@ -41,6 +41,32 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end('{}')
     return
   }
+  if (req.headers.host === 'cloud.tenable.com') {
+    const canaryReceived = req.headers['x-apikeys'] === 'accessKey=CANARY-tenable-access; secretKey=CANARY-tenable-secret'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ message: 'Invalid API keys' })); return }
+    if (req.method === 'POST' && url.pathname === '/tags/categories') {
+      mutations++
+      res.end(JSON.stringify({ uuid: '11111111-1111-4111-8111-111111111111', name: 'Synthetic category', reserved: false }))
+      return
+    }
+    if (req.method === 'GET' && url.pathname === '/tags/categories') {
+      res.end(JSON.stringify({ categories: [], pagination: { total: 0, offset: 0, limit: 100 } })); return
+    }
+    if (req.method === 'POST' && url.pathname === '/api/v1/t1/inventory/export/assets') {
+      mutations++
+      res.end(JSON.stringify({ export_id: '22222222-2222-4222-8222-222222222222' }))
+      return
+    }
+    if (req.method === 'GET' && url.pathname === '/api/v1/t1/exposure-view/cards') {
+      res.end(JSON.stringify({ data: [{ id: 'synthetic-card', name: 'Synthetic exposure', ces_score: { score: 42 } }], pagination: { total: 1 } }))
+      return
+    }
+    if (req.method === 'GET' && url.pathname === '/api/v1/t1/tags/properties') {
+      res.end(JSON.stringify({ data: [] })); return
+    }
+    res.writeHead(404); res.end(JSON.stringify({ message: 'Unknown synthetic route' })); return
+  }
   if (url.pathname === '/api/v2/tokens/' && req.method === 'POST') {
     let body = ''
     req.setEncoding('utf8')

@@ -13,6 +13,7 @@ import { mgCredentialSchema, mgWritePolicy } from '../adapters/mg.js'
 import { ldapCredentialSchema, ldapWritePolicy } from '../adapters/ldap.js'
 import { adoCredentialSchema, adoWritePolicy } from '../adapters/ado.js'
 import { awxCredentialSchema, awxWritePolicy } from '../adapters/awx.js'
+import { tenableCredentialSchema, tenableWritePolicy } from '../adapters/tenable.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -33,10 +34,11 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema }
+const credentialSchemas = { 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
 const writePolicies = { 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
-  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy }
+  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy }
 const publicFields = {
+  'tenable-axi': ['origin'],
   'awx-axi': ['origin'],
   'ado-axi': ['org', 'project', 'auth', 'tenantId', 'clientId'],
   'ldap-axi': ['url', 'auth', 'bindDn', 'base', 'pageSize', 'startTls', 'tlsMaxVersion', 'caFile'],
@@ -46,6 +48,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'tenable-axi': ['accessKey', 'secretKey'],
   'awx-axi': ['token'],
   'ado-axi': ['token', 'clientSecret'],
   'ldap-axi': ['bindPassword'],
