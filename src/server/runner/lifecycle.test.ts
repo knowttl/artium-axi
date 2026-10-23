@@ -36,7 +36,9 @@ function start(mode: string, options = {}, args: string[] = []) {
       try { resolve(JSON.parse(await readFile(path, 'utf8'))) } catch (error) { reject(error) }
     })
   })
-  const result = runner.run('synthetic-user', fakeTool.executable, [...fakeTool.args, mode, ...args], { ARTIUM_TEST_READY_FILE: path }, [], options)
+  const result = runner.run('synthetic-user', fakeTool.executable, [...fakeTool.args, mode, ...args], {
+    ARTIUM_TEST_READY_FILE: path, ARTIUM_TEST_CLEANUP_FILE: join(fixture, 'cleanup'),
+  }, [], options)
   const settled = result.catch(error => {
     watcher.close()
     rejectReady(error)
@@ -78,6 +80,18 @@ test('shutdown cancels an active child, reaps it and refuses further admission',
   expect(await state(pids.parent)).toBeUndefined()
   await expect(runner.run('synthetic-user', fakeTool.executable, fakeTool.args, {}, []))
     .rejects.toMatchObject({ code: 'RUNNER_CLOSED' })
+})
+
+test.each(['disconnect', 'shutdown', 'timeout'])('%s allows cleanup beyond the default termination grace', async cause => {
+  const controller = new AbortController()
+  const call = start('cleanup', { terminationGraceMs: 12_000, signal: controller.signal,
+    timeoutMs: cause === 'timeout' ? 1_000 : 60_000 })
+  const pids = await call.ready
+  if (cause === 'disconnect') controller.abort()
+  if (cause === 'shutdown') await runner.shutdown()
+  expect((await call.result).code).toBe(cause === 'timeout' ? 'TIMEOUT' : 'CANCELLED')
+  expect(await readFile(join(fixture, 'cleanup'), 'utf8')).toBe('deleted')
+  expect(await state(pids.parent)).toBeUndefined()
 })
 
 test('normal leader exit still terminates surviving group descendants', async () => {

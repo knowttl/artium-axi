@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { withFakeService } from '../../../test/fake-service/fixture.js'
 import { Runner } from '../runner/runner.js'
 import { createFalconAdapter, falconManifest, prepareFalcon } from './falcon.js'
+import { CredentialProfile } from './credential-profile.js'
 
 let directory: string
 let configuration: { clientIdFile: string, clientSecretFile: string, region: string, memberCid?: string }
@@ -60,8 +61,15 @@ test.each([undefined, 'synthetic-member'])('preparation adds the managed region 
     executable: '/opt/falcon-axi/bin/falcon-axi',
     args: [...args, '--region', 'us-2', ...(memberCid ? ['--member-cid', memberCid] : [])],
     environment: { FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', FALCON_AXI_READ_ONLY: 'true' },
-    secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 65_000 },
+    secrets: ['CANARY-falcon-id', 'CANARY-falcon-secret'], limits: { runtime: 'python', timeoutMs: 65_000, terminationGraceMs: 12_000 },
   })
+})
+
+test('managed Falcon profiles preserve the session cleanup grace period', async () => {
+  const profile = new CredentialProfile({ type: 'object', properties: { region: { type: 'string' } } }, 'falcon-axi')
+  const prepared = await createFalconAdapter({ getCredential: async () => ({ region: 'us-2' }) }, join(directory, 'writes.log'), profile)
+    .prepare(['rtr', 'run'], { id: 'synthetic', tool: 'falcon-axi' })
+  expect(prepared.limits).toEqual({ runtime: 'python', timeoutMs: 65_000, terminationGraceMs: 12_000 })
 })
 
 test.each(['', '\n', '   '])('empty secret file %j is unavailable', async value => {

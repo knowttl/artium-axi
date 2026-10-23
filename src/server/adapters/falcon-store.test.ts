@@ -39,7 +39,7 @@ test('Falcon prepares the persisted shared credential after database reopen', as
       executable: '/opt/falcon-axi/bin/falcon-axi',
       args: ['detection', 'list', '--help', '--region', 'us-2', '--member-cid', 'synthetic-member'],
       environment: { FALCON_AXI_CLIENT_ID: credential.clientId, FALCON_AXI_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true', FALCON_AXI_WRITE_LOG: '/data/tool-logs/falcon-axi/writes.log' },
-      secrets: [credential.clientId, credential.clientSecret], files: [], effect: 'read', limits: { runtime: 'python', timeoutMs: 65_000 },
+      secrets: [credential.clientId, credential.clientSecret], files: [], effect: 'read', limits: { runtime: 'python', timeoutMs: 65_000, terminationGraceMs: 12_000 },
     })
     const runner = await Runner.create(join(directory, 'calls'))
     try {

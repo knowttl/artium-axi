@@ -10,6 +10,7 @@ import type { Adapter } from './types.js'
 import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
 
 export const falconManifest = inventory
+const falconLimits = { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
 export const falconWritePolicy = writePolicy({
   unlocks: 'RTR read-only command execution',
   blocked: 'Host changes, scripts and file transfers remain unavailable. Profile RTR opt-in, command restrictions and exact execution confirmation still apply.' })
@@ -42,7 +43,7 @@ function prepareCredential(args: readonly string[], credential: FalconCredential
     environment: { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret,
       FALCON_AXI_READ_ONLY: String(credential.allowWrites !== true) },
     secrets: [clientId, clientSecret],
-    limits: { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs },
+    limits: falconLimits,
   }
 }
 
@@ -70,7 +71,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool
       }) }] : [] }
     },
   }, source, writeLog, profile, args => ({ args: [...args] }),
-  { runtime: 'python', timeoutMs: inventory.requirements.timeoutMs })
+  falconLimits)
   return { ...adapter, async prepare(...input) {
     const prepared = await adapter.prepare(...input)
     return { ...prepared, effect: input[0].some(token => token === '--execute' || token.startsWith('--execute=')) ? 'write' : 'read' }

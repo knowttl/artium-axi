@@ -20,6 +20,7 @@ import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 export interface RunnerLimits {
   outputBytesPerStream?: number
   timeoutMs?: number
+  terminationGraceMs?: number
   runtime?: 'python'
   nodeHeapMiB?: number
   signal?: AbortSignal
@@ -131,8 +132,10 @@ async function execute(
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs
+  const terminationGraceMs = limits.terminationGraceMs ?? runnerLimits.terminationGraceMs
   if (!Number.isSafeInteger(cap) || cap < 0) throw new RangeError('Output byte limit must be a non-negative integer')
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError('Timeout must be a positive integer')
+  if (!Number.isSafeInteger(terminationGraceMs) || terminationGraceMs <= 0) throw new RangeError('Termination grace must be a positive integer')
   const scanner = new SecretScanner(secrets)
   const started = performance.now()
   const directory = await mkdtemp(join(root, 'artium-call-')).catch(() => {
@@ -230,7 +233,7 @@ async function execute(
             child.stdout.destroy()
             child.stderr.destroy()
             finish()
-          }, runnerLimits.terminationGraceMs)
+          }, terminationGraceMs)
         } else {
           cleanupDone = true
         }
