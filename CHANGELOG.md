@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.11](https://github.com/knowttl/artium-axi/compare/v0.0.10...v0.0.11) (2026-10-23)
+
+
+### Features
+
+* enable guarded Falcon RTR read-only execution ([#147](https://github.com/knowttl/artium-axi/issues/147)) ([ba235ed](https://github.com/knowttl/artium-axi/commit/ba235ed40bfb5e7e3a8d70fcfad8a799d04f3a58))
+
+
+### Bug Fixes
+
+* update bundled Tenable tool and support larger cursors ([#145](https://github.com/knowttl/artium-axi/issues/145)) ([d386d04](https://github.com/knowttl/artium-axi/commit/d386d040f99ecf9bc17e46d5b9d6058626211397))
+
 ## [0.0.10](https://github.com/knowttl/artium-axi/compare/v0.0.9...v0.0.10) (2026-10-23)
 
 
