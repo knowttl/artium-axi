@@ -40,6 +40,7 @@ test.each([false, true].flatMap(managed => [
 })
 
 test('Falcon write switch keeps MalQuery off for legacy RTR opt-ins and retains choices while disabled', () => {
+  expect(falconWritePolicy.read({})).toMatchObject({ enabled: false, allowedOperations: [] })
   expect(falconWritePolicy.read({ allowWrites: true })).toMatchObject({ enabled: true,
     supportedOperations: ['rtr run', 'malquery search'], allowedOperations: ['rtr run'] })
   const enabled = falconWritePolicy.update({ rtr: { enabled: true } }, { enabled: true, operations: ['malquery search'], expectedRevision: 1 })
@@ -49,6 +50,8 @@ test('Falcon write switch keeps MalQuery off for legacy RTR opt-ins and retains 
   expect(falconWritePolicy.read(falconWritePolicy.update(disabled, { enabled: true, expectedRevision: 3 })))
     .toMatchObject({ enabled: true, allowedOperations: ['malquery search'] })
   expect(() => falconWritePolicy.update({}, { enabled: true, operations: ['hunt'], expectedRevision: 1 })).toThrow()
+  expect(falconWritePolicy.read(falconWritePolicy.update(disabled, { enabled: false, operations: [], expectedRevision: 3 })))
+    .toMatchObject({ enabled: false, allowedOperations: [] })
 })
 
 test('MalQuery submissions without native journal evidence are never reported as reads', async () => {
