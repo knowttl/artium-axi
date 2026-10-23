@@ -487,7 +487,7 @@ test.each(['0.0.0', '0.0.0-old', '0.0.9', `${firstVersionWithUpdate}-old`])(
     expect(prepare).not.toHaveBeenCalled()
   })
 
-test.each([firstVersionWithUpdate, '0.0.13'])(
+test.each([firstVersionWithUpdate, '0.0.13', '0.0.13-rc.1', '0.0.13+build.01', '0.0.13-rc.1+build.01'])(
   'outdated CLI %s with the update command is refused with the update hint', async version => {
     const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
     expect(response.statusCode).toBe(426)
@@ -495,7 +495,7 @@ test.each([firstVersionWithUpdate, '0.0.13'])(
     expect(response.body).not.toContain('synthetic.invalid')
   })
 
-test.each(['not-a-version', '0.0'])('malformed CLI version %s is refused with the verified download', async version => {
+test.each(['not-a-version', '0.0', '0.0.13+..', '0.0.13-01', '0.0.13-rc..1', '0.0.13-rc.01', '0.0.13+build..1', '0.0.13-rc.1+..'])('malformed CLI version %s is refused with the verified download', async version => {
   const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': version, host: 'synthetic.invalid' } })
   expect(response.statusCode).toBe(426)
   expect(response.json()).toMatchObject({ error: { code: 'CLI_OUTDATED', next: cliOutdatedDownloadNext } })
