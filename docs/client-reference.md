@@ -23,6 +23,7 @@
 | `artium-axi az-axi sub list` | Read managed Azure subscriptions. |
 | `artium-axi ado-axi project list --limit 1` | Read a managed Azure DevOps project. |
 | `artium-axi awx-axi job list --limit 1` | Read a managed AWX job. |
+| `artium-axi tenable-axi card list --limit 1` | Read a managed Tenable One exposure card. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Top-level help lists command purposes.
@@ -71,7 +72,7 @@ Doctor includes the session deadline and remaining time in its token diagnostic.
 
 Upstream calls preserve stdout, stderr and nonzero exit codes.
 If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
-For Falcon, Vectra, Azure, Graph, LDAP, Azure DevOps and AWX, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+For managed tools, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
 Per-flag help removes each managed flag's entire description and preserves retained flag descriptions, including comma-separated defaults.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](tool-credentials.md#ldap).

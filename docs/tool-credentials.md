@@ -13,6 +13,21 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
+| Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `card list --limit 1`; exposure-view read access is required. |
+
+#### Tenable One
+
+At `/admin/tools/tenable-axi`, enter `accessKey` and `secretKey` in the secret fields.
+The origin is fixed to `https://cloud.tenable.com`; both keys are stored encrypted and injected as private SecretRefs.
+The credential test runs `card list --limit 1`; the identity needs exposure-view read access.
+Other investigation commands need the corresponding upstream permissions.
+Writes stay off until an administrator enables the tool's write switch and selects supported operation IDs.
+Business writes and export-job creation retain the native preview, `--execute`, exact preview `--confirm` and durable journal gates.
+Unknown write outcomes must be reconciled using the native audit ID and read-back guidance, never replayed blindly.
+Through the run API, file flags accept uploaded leaf names or `-` for explicit stdin.
+The bundled CLI does not upload Tenable files or forward stdin; see [client input handling](client-reference.md#command-surface-and-subcommands).
+Server paths, local configuration, hooks and export downloads are blocked.
+Export-job status remains available through the managed CLI.
 
 #### Falcon
 

@@ -64,6 +64,10 @@ try {
       recoveryContainers.push(awxPackage)
       await command('docker', ['run', '--name', awxPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/awx-axi', image, '--version'])
+      const tenablePackage = `${builder}-tenable-package`
+      recoveryContainers.push(tenablePackage)
+      await command('docker', ['run', '--name', tenablePackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/tenable-axi', image, '--version'])
       const adoToken = `${builder}-ado-token`
       recoveryContainers.push(adoToken)
       await command('docker', ['run', '--name', adoToken, '--pull', 'never', '--network', 'none', '--read-only',

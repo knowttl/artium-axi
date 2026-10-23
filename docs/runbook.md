@@ -340,6 +340,7 @@ Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
+See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
 For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
 Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.
@@ -404,7 +405,11 @@ Each batch commits its count and cutoff with the deletion.
 Azure, Graph and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
-Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
+Tenable keeps one shared native journal at its configured write-log path so sequential and concurrent invocations retain native intent replay protection.
+That journal is not pruned by run-journal retention.
+Successful Tenable reads report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
+Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
+Retention leaves malformed Azure, Graph and Vectra native journals untouched and reports `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
 AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.
 There is no audit deletion endpoint or general export CLI.

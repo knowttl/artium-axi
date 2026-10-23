@@ -44,6 +44,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 | LDAP | Verified TLS simple bind; read-only |
 | Azure DevOps | PAT or application identity |
 | AWX | Pasted token or one-time password sign-in; optional operational writes |
+| Tenable One | Access and secret API keys; optional allow-listed business writes and export jobs |
 
 [Package pins](tools/package.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
 
@@ -166,6 +167,7 @@ Administrator capability alone grants no tool access; upstream permissions remai
 | Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
 | Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |
 | AWX | Launch/cancel/relaunch, workflow approval/denial, project/inventory-source sync and notification tests with `allowWrites: true` and upstream `--confirm`; configuration, deletion and security writes stay blocked. |
+| Tenable One | Business writes and export-job creation with administrator `writes.allowWrites: true`, an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and durable journaling; downloads and local configuration stay blocked. |
 
 There is no universal Artium confirmation flag.
 Use authenticated tool help and the [write-access runbook](docs/runbook.md#roles-credentials-and-health) for operation-specific gates.
@@ -180,6 +182,7 @@ After an unknown write outcome, inspect state using returned guidance before ret
 | LDAP | Bind identity with directory read access |
 | Azure DevOps project list | Identity permitted to view the organization/project |
 | AWX job list | Token identity with job read access |
+| Tenable One card list | See [Tenable One credential permissions](docs/tool-credentials.md#tenable-one). |
 
 See [tool credentials](docs/tool-credentials.md) for dedicated identities, permissions and safe credential entry.
 Artium stores shared service credentials encrypted with AES-256-GCM and never returns saved secrets to clients.
@@ -221,7 +224,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
-| `<tool> <args>` | Run any of the seven managed tools above |
+| `<tool> <args>` | Run any of the eight managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |
 
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.

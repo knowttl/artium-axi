@@ -51,7 +51,7 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -174,6 +174,8 @@ export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: 
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
   authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const nativeSettingsSchemas = {
+  'tenable-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
+    operations: z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)).min(1).max(64) }).optional() }),
   'awx-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'ldap-axi': z.strictObject({}),
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
@@ -194,7 +196,7 @@ export const nativeSettingsSchemas = {
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'ldap-axi' || tool === 'falcon-axi') return false
-  if (tool === 'mg-axi' || tool === 'vectra-axi') {
+  if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }
   return settings.allowWrites === true

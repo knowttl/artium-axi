@@ -6,8 +6,10 @@ import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
+import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'tenable-axi': tenable.adapterBoundary.unsafeOverrides,
   'awx-axi': awx.adapterBoundary.unsafeOverrides,
   'falcon-axi': falcon.unsafeOverrides,
   'vectra-axi': vectra.adapterBoundary.unsafeOverrides,
@@ -72,6 +74,11 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   try {
     const json = output.trimStart().startsWith('{')
     let parsed = json ? jsonHelp(output) : toonHelp(output)
+    if (tool === 'tenable-axi' && parsed.document.commands) {
+      return encode({ description: 'Investigate Tenable One with managed API keys.',
+        commands: tenable.commands.filter(route => route.effect !== 'blocked').map(route => route.command),
+        help: [tenable.discovery.help.replaceAll('tenable-axi ', 'artium-axi tenable-axi ')] }) + '\n'
+    }
     if (tool === 'ldap-axi' && parsed.document.description === 'Read Active Directory and LDAPv3 directories safely with ldap-axi (read-only)'
       && Array.isArray(parsed.document.commands) && parsed.spans.length) {
       const home = { ...parsed.document, commands: parsed.document.commands.filter(command => ldapCommands.includes(command)),
@@ -169,6 +176,11 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'tenable-axi') {
+    help = help.split('\n').filter(line => !/TENABLE_AXI_|SecretRefs|tenable-axi (?:setup|config|profile|hook)|export (?:attack|inventory) download/.test(line)).join('\n')
+    const guidance = 'Artium manages both API keys and the fixed origin. Administrators enable write operations; native preview, execute, exact confirmation and journal gates remain required. Downloads are unavailable.'
+    if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
+  }
   if (tool === 'awx-axi') {
     const guidance = 'Artium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))

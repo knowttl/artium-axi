@@ -10,6 +10,7 @@ import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -26,6 +27,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
   await withFakeService(async ({ directory }) => {
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
+      'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
       'awx-axi': { origin: 'https://controller.example', token: 'CANARY-awx-token' },
       'ado-axi': { org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' },
       'falcon-axi': { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1' },
@@ -37,6 +39,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const source = { getCredential: async () => credentials[tool] }
     const log = join(directory, 'writes.log')
     const adapters = {
+      'tenable-axi': createTenableAdapter(source, log),
       'awx-axi': createAwxAdapter(source),
       'ado-axi': createAdoAdapter(source),
       'falcon-axi': createFalconAdapter(source, log),
@@ -45,7 +48,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       'mg-axi': createMgAdapter(source, log, profile('mg-axi')),
       'ldap-axi': createLdapAdapter(source),
     }
-    const args = { 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
+    const args = { 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
       'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)

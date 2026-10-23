@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import './ldap-inventory.mjs'
 import './ado-inventory.mjs'
 import './awx-inventory.mjs'
+import './tenable-inventory.mjs'
 
 const root = new URL('../tools/', import.meta.url)
 const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))

@@ -67,7 +67,7 @@ export async function runTool<Credential>(
       outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 } })
     throw error
   }
-  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0) ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
+  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
     durationMs: result.durationMs, outputBytes: result.outputBytes })
   return result
 }
