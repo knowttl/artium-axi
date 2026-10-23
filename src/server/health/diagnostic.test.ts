@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { diagnosticSchema } from '../../shared/api.js'
-import { safeDiagnostic, toolFailure } from './diagnostic.js'
+import { safeDiagnostic, toolFailure, toolFailureCode } from './diagnostic.js'
 
 const secret = 'CANARY-diagnostic-secret'
 test.each(['message', 'hint', 'host', 'issuer', 'toolCode', 'providerCode'])(
@@ -22,6 +22,30 @@ test('shares the text budget while preserving destination and trust', () => {
     message: expect.stringMatching(/^m+$/), hint: expect.stringMatching(/^h+$/), issuer: expect.stringMatching(/^i+$/) })
   expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
   expect(Object.values(bounded).join('').length).toBeLessThanOrEqual(4096)
+})
+
+test.each([
+  ['error:\n  code: PERMISSION_DENIED\n  message: CANARY-message\nhelp[1]: CANARY-help', 'PERMISSION_DENIED'],
+  ['code: AUTH_FAILED\nmessage: CANARY-message', 'AUTH_FAILED'],
+  ['error_code: "RATE_LIMITED"', 'RATE_LIMITED'],
+  ["code: 'ACCESS_DENIED'", 'ACCESS_DENIED'],
+  ['message: AADSTS7000215: CANARY-message', 'AADSTS7000215'],
+])('extracts only the bounded failure code from %s', (text, code) => {
+  expect(toolFailureCode(text, '')).toBe(code)
+  expect(toolFailureCode('', text)).toBe(code)
+})
+
+test.each([
+  'CANARY-message with PERMISSION_DENIED inside',
+  'message: PERMISSION_DENIED',
+  'help[1]: PERMISSION_DENIED',
+  'code: PERMISSION DENIED',
+  'code: PERMISSION-DENIED',
+  `code: ${'A'.repeat(81)}`,
+  'code:',
+  '',
+])('stores nothing for output without a recognizable code: %s', text => {
+  expect(toolFailureCode(text, '')).toBeUndefined()
 })
 
 test('preserves emitted provider and tool codes with mapped advice', () => {

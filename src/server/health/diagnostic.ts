@@ -48,10 +48,17 @@ export function diagnosticError(code: ErrorCode, detail: Diagnostic): ArtiumErro
   return error
 }
 
+// Persist only a bounded code token, never surrounding message or help text.
+// Keep parsing shared so normal managed runs and health diagnostics recognize the same code.
+export function toolFailureCode(stdout: string, stderr: string): string | undefined {
+  const text = [stderr, stdout].filter(Boolean).join('\n')
+  return /^\s*(?:code|error_code):\s*["']?([A-Za-z][A-Za-z0-9_]{0,79})["']?\s*$/mi.exec(text)?.[1]
+    ?? /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
+}
+
 export function toolFailure(stdout: string, stderr: string, exitCode: number, tool?: ToolName): ArtiumError {
   const text = [stderr, stdout].filter(Boolean).join('\n')
-  const toolCode = /^\s*(?:code|error_code):\s*["']?([A-Za-z][A-Za-z0-9_]{0,79})["']?\s*$/mi.exec(text)?.[1]
-    ?? /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
+  const toolCode = toolFailureCode(stdout, stderr)
   const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const hint = /^\s*(?:hint|next):\s*(.+)$/mi.exec(text)?.[1] ?? (providerCode ? azureAdvice[providerCode] : undefined)
   const message = text.trim() || `Tool exited with status ${exitCode}.`

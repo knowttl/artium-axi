@@ -9,6 +9,7 @@ import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult } from './runner.js'
+import { toolFailureCode } from '../health/diagnostic.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 
 export interface RunContext {
@@ -68,6 +69,7 @@ export async function runTool<Credential>(
     throw error
   }
   audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
+    errorCode: result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null,
     durationMs: result.durationMs, outputBytes: result.outputBytes })
   return result
 }
