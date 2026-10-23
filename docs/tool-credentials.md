@@ -40,11 +40,9 @@ For example, account reads need `Assets:read`, while CVE reads need `Vulnerabili
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
 The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
-Investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
-The fixed `host usb` search requires `NGSIEM:write` and the existing execution switch.
+The fixed `host usb` search requires `NGSIEM:write`; see [Falcon execution setup](runbook.md#falcon-rtr-execution) for its host capability gate.
 MalQuery metadata, quota and request-status reads require `MalQuery:read`.
-MalQuery search requires its separate administrator capability in the write switch, `MalQuery:write` and product licensing; it is off by default, including for existing RTR-enabled installations.
-Only bounded exact/fuzzy literal searches are supported; hunt and sample downloads remain unavailable.
+MalQuery search requires `MalQuery:write` and product licensing; see [supported Falcon capabilities](../README.md#safety) for its boundaries.
 See [Falcon RTR execution setup](runbook.md#falcon-rtr-execution) for history reads, profile opt-in, execution confirmation and the read-only override.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
 

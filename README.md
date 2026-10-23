@@ -37,7 +37,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 ### Supported pinned tools
 | Tool | Managed access |
 | --- | --- |
-| Falcon | API client; optional guarded RTR read-only commands |
+| Falcon | API client; see [supported capabilities](#safety) |
 | Vectra | Token or OAuth; optional allow-listed writes |
 | Azure | Application identity and resource-token broker |
 | Microsoft Graph | Application identity; optional allow-listed writes |
@@ -160,9 +160,11 @@ Artium's authenticated setup fetches managed skills; a standalone skill installe
 All tools start disabled; write access defaults to off.
 Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
 
+Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
+
 | Tool | Write capability and unlock |
 | --- | --- |
-| Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy search (`MalQuery:write`). RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
+| Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy literal search. RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
 | LDAP | Fixed read-only. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
