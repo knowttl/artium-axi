@@ -250,6 +250,7 @@ Local tests do not establish live vendor permissions or production host acceptan
 LDAP uses simple bind over verified TLS; ambient Kerberos, per-user upstream credentials and external secret stores are unsupported.
 Azure has reviewed bounded input/upload support; ADO and AWX reject stdin and file uploads.
 Hybrid Analysis file inputs use the same bounded uploads; `--body-file -` accepts JSON stdin.
+All Hybrid Analysis downloads remain unavailable until a separate hosted download path with its own security design is delivered.
 Quick scans transmit the supplied sample or URL as read exceptions; sandbox submission previews disclose community visibility.
 See [adapter limits](docs/tool-credentials.md) and [deployment requirements](docs/runbook.md#scope-and-prerequisites).
 

@@ -256,5 +256,6 @@ The client uploads local files for `--file`, `--body-file` and `--hashes-file` u
 The API accepts uploaded leaf names only; `--body-file -` also accepts explicit JSON stdin.
 Server file paths, credential/origin overrides and local setup/config/profile commands are refused.
 Downloads, including normal report artifacts, samples, dropped-file archives and memory dumps, are unavailable through Artium.
+These operations are deferred to a separate hosted download path with its own security design.
 Use hybrid-axi locally for downloads with its native guards and live-malware warnings.
 Local fake-service checks do not establish live service acceptance.
