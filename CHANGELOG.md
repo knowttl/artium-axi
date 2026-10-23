@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.0.10](https://github.com/knowttl/artium-axi/compare/v0.0.9...v0.0.10) (2026-10-23)
+
+
+### Features
+
+* add audited tool write-access administration APIs ([#137](https://github.com/knowttl/artium-axi/issues/137)) ([9e892fd](https://github.com/knowttl/artium-axi/commit/9e892fd88f5ff08928c8d24f13ed37ff3cb0d254))
+* add Tenable One as a managed tool ([#144](https://github.com/knowttl/artium-axi/issues/144)) ([ec4113e](https://github.com/knowttl/artium-axi/commit/ec4113ede8d20ccd99ead3c6c4e957e2120605e4))
+* **cli:** add verified client self-update command ([#141](https://github.com/knowttl/artium-axi/issues/141)) ([33a5e61](https://github.com/knowttl/artium-axi/commit/33a5e612bd79488d0e2395e553efa06ce109bcca))
+* **server:** add admin write-access controls and capability details ([#140](https://github.com/knowttl/artium-axi/issues/140)) ([4fccd03](https://github.com/knowttl/artium-axi/commit/4fccd03b20f62fa75537c525172988d5e07c1e99))
+
+
+### Bug Fixes
+
+* **cli:** handle closed pipes and preserve flag help descriptions ([#135](https://github.com/knowttl/artium-axi/issues/135)) ([3f2bcfe](https://github.com/knowttl/artium-axi/commit/3f2bcfe8502d94363a44a6733966ee3d4f55f9d4))
+* **cli:** persist sessions on Windows PowerShell 5.1 ([#138](https://github.com/knowttl/artium-axi/issues/138)) ([4e158fe](https://github.com/knowttl/artium-axi/commit/4e158feefced88b2e30e0068ca55b631de4abd25))
+* **cli:** remember connection settings for hooks and skills ([#139](https://github.com/knowttl/artium-axi/issues/139)) ([b0dd5b5](https://github.com/knowttl/artium-axi/commit/b0dd5b5c11daa87f259acebdf6eb6b41e7ddb591))
+* **cli:** show readable session and access-token expiry ([#142](https://github.com/knowttl/artium-axi/issues/142)) ([80d2242](https://github.com/knowttl/artium-axi/commit/80d22420b5bfe145d6bba8ee8969594a816606a2))
+* refresh bundled tools with upstream fixes ([#143](https://github.com/knowttl/artium-axi/issues/143)) ([f77127a](https://github.com/knowttl/artium-axi/commit/f77127a55ca2aade079a56c72adf8ffcb2ba5b5f))
+
 ## [0.0.9](https://github.com/knowttl/artium-axi/compare/v0.0.8...v0.0.9) (2026-10-20)
 
 
