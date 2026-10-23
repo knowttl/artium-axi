@@ -162,7 +162,7 @@ Administrator capability alone grants no tool access; upstream permissions remai
 
 | Tool | Write capability and unlock |
 | --- | --- |
-| Falcon | Optional guarded RTR execution from the standard read-only command allowlist, with profile narrowing. Host changes, scripts and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
+| Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy search (`MalQuery:write`). RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
 | LDAP | Fixed read-only. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |

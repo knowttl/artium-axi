@@ -35,11 +35,16 @@ In the Falcon console, open **Support and resources > API clients and keys** and
 Copy its client ID and secret and record its cloud region: `us-1`, `us-2`, `eu-1` or `us-gov-1`.
 At `/admin/tools/falcon-axi`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
 Grant `Alerts:read` for detection reads, including the first-call example.
-Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.6.0/README.md#api-client-permissions) and its offline `scopes` command.
+Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.7.0/README.md#api-client-permissions) and its offline `scopes` command.
 For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
 The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
+Investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
+The fixed `host usb` search requires `NGSIEM:write` and the existing execution switch.
+MalQuery metadata, quota and request-status reads require `MalQuery:read`.
+MalQuery search requires its separate administrator capability in the write switch, `MalQuery:write` and product licensing; it is off by default, including for existing RTR-enabled installations.
+Only bounded exact/fuzzy literal searches are supported; hunt and sample downloads remain unavailable.
 See [Falcon RTR execution setup](runbook.md#falcon-rtr-execution) for history reads, profile opt-in, execution confirmation and the read-only override.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
 

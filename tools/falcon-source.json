@@ -1,11 +1,11 @@
 {
   "repository": "https://github.com/knowttl/falcon-axi.git",
-  "tag": "v0.6.0",
-  "commit": "84017f66e72757a8468992c793b3c1095fe6baa3",
-  "version": "0.6.0",
+  "tag": "v0.7.0",
+  "commit": "5b860e4899ab2c0961fe2937e04983fe483bc98f",
+  "version": "0.7.0",
   "distribution": {
-    "filename": "falcon_axi-0.6.0-py3-none-any.whl",
-    "sha256": "88bacab2be710432807678f6c710fc5f8d00eb5b1d44680f3807d64398b23781",
-    "provenance": "https://pypi.org/integrity/falcon-axi/0.6.0/falcon_axi-0.6.0-py3-none-any.whl/provenance"
+    "filename": "falcon_axi-0.7.0-py3-none-any.whl",
+    "sha256": "553c37002b9ec499b2aedce4161d7144d104c6b2de7ac78b6b9b5417e4486b7c",
+    "provenance": "https://pypi.org/integrity/falcon-axi/0.7.0/falcon_axi-0.7.0-py3-none-any.whl/provenance"
   }
 }

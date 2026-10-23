@@ -46,7 +46,9 @@ export async function prepareRunJournal(environment: Record<string, string>, too
   const directory = await mkdtemp(join(root, 'run-'))
   const path = join(directory, 'writes.log')
   return { environment: { ...environment, [variable]: path }, async action(succeeded: boolean): Promise<RunAction> {
-    const absent = succeeded ? 'read' : 'unknown'
+    // Falcon search submissions do not emit RTR's native journal. Missing evidence
+    // must not turn a classified submission into a confirmed read.
+    const absent = succeeded && !(tool === 'falcon-axi' && effect === 'write') ? 'read' : 'unknown'
     try {
       const content = await readFile(path, 'utf8')
       if (!content.trim()) return absent

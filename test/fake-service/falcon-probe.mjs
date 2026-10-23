@@ -44,6 +44,22 @@ assert parse(['detection', 'list', '--region=us-1', '--region', 'us-2']).flags['
 assert parse(['detection', 'list', '--allow-unknown-origin=false']).flags['allow-unknown-origin'] is True
 assert parse(['search', 'start', '--query', 'synthetic | head(5)', '--wait', '1']).flags['wait'] == '1'
 assert parse(['search', 'status', 'synthetic-search', '--wait', '50']).flags['wait'] == '50'
+for args in [
+    ['detection', 'process', 'synthetic-detection', '--full'],
+    ['process', 'show', 'pid:' + 'a' * 32 + ':123', '--full'],
+    ['process', 'tree', 'pid:' + 'a' * 32 + ':123', '--full'],
+    ['sandbox', 'list', '--sha256', 'a' * 64, '--limit', '1'],
+    ['sandbox', 'show', 'synthetic-report'],
+    ['file-change', 'list', '--filter', 'synthetic', '--limit', '1'],
+    ['file-change', 'show', 'synthetic-change'],
+    ['policy', 'show', 'synthetic-policy', '--type', 'device-control'],
+    ['host', 'usb', 'a' * 32, '--since', '24h'],
+    ['malquery', 'show', 'a' * 64],
+    ['malquery', 'quota'],
+    ['malquery', 'search', '--hex', '4d 5a', '--fuzzy', '--limit', '10'],
+    ['malquery', 'status', '00000000-0000-4000-8000-000000000001', '--limit', '10'],
+]:
+    parse(args)
 for wait in ['0', '51', 'forever']:
     try:
         parse(['search', 'status', 'synthetic-search', '--wait', wait])
@@ -83,9 +99,18 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
     ['search', 'status', 'synthetic-search', '--wait', '30'],
     ['search', 'stop', 'synthetic-search'],
     ['identity', 'activity', 'synthetic@example.test'],
+    ['host', 'usb', 'a'.repeat(32), '--since', '24h'],
+    ['malquery', 'search', '--string', 'SYNTHETIC-PATTERN'],
+    ['malquery', 'search', '--hex', '4d 5a', '--fuzzy'],
   ]) {
+    const capabilityCalls = args[0] === 'malquery' ? await Promise.all([
+      { allowWrites: true },
+      { writes: { allowWrites: true, operations: ['malquery search'] } },
+    ].map(settings => createFalconAdapter({ getCredential: async () => ({
+      clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1', ...settings,
+    }) }).prepare(args, { id: 'synthetic', tool: 'falcon-axi' }))) : []
     for (const prepared of [await prepareFalcon(args, configuration),
-      await adapter.prepare(args, { id: 'synthetic', tool: 'falcon-axi' })]) {
+      await adapter.prepare(args, { id: 'synthetic', tool: 'falcon-axi' }), ...capabilityCalls]) {
       execFileSync('/opt/falcon-axi/bin/python', ['-c', `
 import json, sys
 from falcon_axi.cli import run
@@ -107,7 +132,7 @@ for file in call.get('files', []):
         with open(env['FALCON_AXI_CONFIG'], 'w') as output:
             output.write(file['content'])
 stdout, code = run(call['args'], transport=transport, env=env)
-assert transport.called == (call['args'][:2] == ['search', 'status']), stdout
+assert transport.called == (call['args'][:2] == ['search', 'status'] or env['FALCON_AXI_READ_ONLY'] == 'false'), stdout
 assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout), stdout
 `], { input: JSON.stringify(prepared), encoding: 'utf8' })
     }

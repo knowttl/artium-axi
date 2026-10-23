@@ -2,17 +2,17 @@
   "generatedBy": "scripts/falcon-inventory.mjs",
   "tool": "falcon-axi",
   "repository": "https://github.com/knowttl/falcon-axi.git",
-  "tag": "v0.6.0",
-  "commit": "84017f66e72757a8468992c793b3c1095fe6baa3",
-  "version": "0.6.0",
+  "tag": "v0.7.0",
+  "commit": "5b860e4899ab2c0961fe2937e04983fe483bc98f",
+  "version": "0.7.0",
   "distribution": {
-    "filename": "falcon_axi-0.6.0-py3-none-any.whl",
-    "sha256": "88bacab2be710432807678f6c710fc5f8d00eb5b1d44680f3807d64398b23781",
-    "provenance": "https://pypi.org/integrity/falcon-axi/0.6.0/falcon_axi-0.6.0-py3-none-any.whl/provenance"
+    "filename": "falcon_axi-0.7.0-py3-none-any.whl",
+    "sha256": "553c37002b9ec499b2aedce4161d7144d104c6b2de7ac78b6b9b5417e4486b7c",
+    "provenance": "https://pypi.org/integrity/falcon-axi/0.7.0/falcon_axi-0.7.0-py3-none-any.whl/provenance"
   },
   "parser": {
     "path": "falcon_axi/cli.py",
-    "sha256": "d8b94b90440d7c538847a7da5dc8b3daa12fbaee09a400144c70539261ae7ec6",
+    "sha256": "ef29404b26da085b96ace7ba1f708e928eb40c7aa99e071807d5003a3421b0cd",
     "aliases": {},
     "shortFlags": {},
     "repeats": "last value wins",
@@ -198,6 +198,20 @@
         "no-member-cid": "boolean",
         "config": "value",
         "profile": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "host usb",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "since": "value"
       },
       "input": "No file or raw URL input; cursors and queries remain native values"
     },
@@ -864,6 +878,151 @@
       "input": "No file or raw URL input; cursors and queries remain native values"
     },
     {
+      "command": "process show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "full": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "process tree",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "cursor": "value",
+        "full": "boolean"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "sandbox list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "sha256": "value",
+        "filter": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "sandbox show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "file-change list",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "filter": "value",
+        "limit": "value",
+        "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "file-change show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "malquery show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "malquery quota",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "malquery search",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "string": "value",
+        "hex": "value",
+        "fuzzy": "boolean",
+        "limit": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "malquery status",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "limit": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
       "command": "host-group list",
       "flags": {
         "help": "boolean",
@@ -926,6 +1085,20 @@
         "filter": "value",
         "limit": "value",
         "cursor": "value"
+      },
+      "input": "No file or raw URL input; cursors and queries remain native values"
+    },
+    {
+      "command": "policy show",
+      "flags": {
+        "help": "boolean",
+        "region": "value",
+        "allow-unknown-origin": "boolean",
+        "member-cid": "value",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "type": "value"
       },
       "input": "No file or raw URL input; cursors and queries remain native values"
     },
@@ -1494,7 +1667,7 @@
     "temporaryFiles": [
       "falcon-axi/config.json"
     ],
-    "nativeWrites": "RTR read-only command execution requires host permission, profile opt-in and exact confirmation"
+    "nativeWrites": "RTR requires host permission, profile opt-in and exact confirmation; MalQuery exact/fuzzy search requires a separate host capability and MalQuery:write; native read-only guards remain enforced"
   },
   "healthRead": [
     "auth",
@@ -1526,6 +1699,10 @@
       "identity",
       "search",
       "ioc",
+      "process",
+      "sandbox",
+      "file-change",
+      "malquery",
       "host-group",
       "policy",
       "cloud-asset",

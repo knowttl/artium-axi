@@ -40,7 +40,7 @@ const inventory = {
     .concat(['FALCON_AXI_MEMBER_CID', 'FALCON_AXI_REGION', 'FALCON_AXI_PROXY_URL', 'FALCON_AXI_CONFIG', 'FALCON_AXI_PROFILE']
       .map(name => ({ name, disposition: 'never injected' }))),
   requirements: { runtime: 'python', timeoutMs: 65_000, temporaryFiles: ['falcon-axi/config.json'],
-    nativeWrites: 'RTR read-only command execution requires host permission, profile opt-in and exact confirmation' },
+    nativeWrites: 'RTR requires host permission, profile opt-in and exact confirmation; MalQuery exact/fuzzy search requires a separate host capability and MalQuery:write; native read-only guards remain enforced' },
   healthRead: ['auth', 'status'], suggestionFields: ['help'],
   discovery: { commands: [...new Set(Object.keys(data.commands)
     .filter(command => !blockedCommands.includes(command) && !blockedCommands.includes(command.split(' ')[0]))

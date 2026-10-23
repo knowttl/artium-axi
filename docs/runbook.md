@@ -400,8 +400,12 @@ These diagnostics leave the client error code as `INTERNAL_ERROR` and are separa
 
 ### Falcon RTR execution
 
-Enable Falcon's audited **Write access** switch with recent identity confirmation, then separately save Native settings with profile opt-in, for example `{"allowWrites": true, "rtr": {"enabled": true, "commands": ["ps"]}}`.
-Native settings replace the whole object, so preserve `allowWrites: true` when saving the profile opt-in.
+Enable Falcon's audited **Write access** switch and select `rtr run` with recent identity confirmation, then separately save Native settings with profile opt-in, for example `{"writes": {"allowWrites": true, "operations": ["rtr run"]}, "rtr": {"enabled": true, "commands": ["ps"]}}`.
+Native settings replace the whole object, so preserve the `writes` selection when saving the profile opt-in.
+Existing `allowWrites: true` settings retain RTR permission only; saving the write switch converts them to the explicit operation selection.
+The separate `malquery search` capability is off by default and requires `MalQuery:write` plus product licensing.
+It permits bounded exact/fuzzy literal searches only, retaining the native read-only guard; hunt and downloads remain unavailable.
+MalQuery submissions do not emit the native RTR journal, so audit outcomes without journal evidence remain unknown rather than reporting a confirmed read.
 Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
 The switch never supplies profile opt-in or execution confirmation for the caller.
 Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then execute the same call with `--execute --confirm '<device_id>:ps'`.
