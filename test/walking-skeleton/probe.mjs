@@ -200,7 +200,7 @@ try {
         assert.equal(statSync(dirname(log)).mode & 0o777, 0o700)
       }
       assert.equal(statSync(logs).mode & 0o777, 0o700)
-      console.log(JSON.stringify({ pinnedVectra: '0.1.8', profile: 'local and Artium parity', dryRun: 'zero mutations',
+      console.log(JSON.stringify({ pinnedVectra: '0.1.9', profile: 'local and Artium parity', dryRun: 'zero mutations',
         execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.7.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
     }

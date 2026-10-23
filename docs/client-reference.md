@@ -49,6 +49,8 @@ It captures bounded non-terminal stdin only for Azure `rg query` (also `graph qu
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
+Vectra file inputs use named uploads through the run API, or bounded stdin where the upstream flag accepts `-`; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the accepted file flags.
+The bundled CLI does not upload Vectra files or capture Vectra stdin, and server file paths are unavailable.
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
 Its run API accepts uploaded leaf names only; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.

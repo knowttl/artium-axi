@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 import { withFakeService } from '../../../test/fake-service/fixture.js'
 import { Runner } from '../runner/runner.js'
-import { createVectraAdapter, vectraCredentialSchema, vectraManifest } from './vectra.js'
+import { createVectraAdapter, vectraCredentialSchema, vectraManifest, vectraWritePolicy } from './vectra.js'
 
 const reference = { id: 'synthetic', tool: 'vectra-axi' as const }
 const base = { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token', token: 'CANARY-vectra-token' } as const
@@ -15,16 +15,44 @@ const variants = [
 ] as const
 const binary = join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/bin/vectra-axi.js')
 
+test('the write picker exposes every named upstream write, including disruptive operations, off by default', async () => {
+  const { inventory, catalogue } = await import('../../../tools/node_modules/@knowttl/vectra-axi/dist/src/catalogue.js')
+  const operations = inventory.operations.filter(operation =>
+    ['write', 'disruptive'].includes(operation.effect) && operation.disposition === 'named' && operation.command && catalogue[operation.command])
+    .map(operation => operation.id).sort()
+  expect(vectraWritePolicy.read({})).toMatchObject({ enabled: false, allowedOperations: [], supportedOperations: operations })
+  const settings = vectraWritePolicy.update({}, { enabled: true, operations, expectedRevision: 1 })
+  expect(vectraWritePolicy.read(settings)).toMatchObject({ enabled: true, allowedOperations: operations })
+})
+
 test.each([
   ['host', 'list', '--name', 'synthetic'],
   ['detection', 'show', '42', '--fields', 'id,src_ip,summary,grouped_details'],
   ['host', 'show', '42'], ['account', 'show', '42'], ['entity', 'show', '42', '--type', 'host'],
+  ['detection', 'close', '--id', '42', '--reason', 'benign'],
+  ['detection', 'fixed', 'set', '--ids', '41,42', '--value', 'true'],
+  ['host', 'close', '--id', '7'], ['account', 'close', '--id', '7'],
+  ['assignment', 'resolve'], ['group', 'delete', '--id', '8'],
+  ['match', 'enablement', 'set', '--value', 'true'],
+  ['setting', 'syslog', 'set'], ['setting', 'kafka', 'set'],
+  ['notification', 'destination', 'create'], ['proxy', 'create'], ['threat-feed', 'create'],
 ].map(args => ({ args })))('managed arguments reach the pinned parser: $args', async ({ args }) => {
   const adapter = createVectraAdapter({ getCredential: async () => base }, '/data/writes.log')
   adapter.validateArgs(args)
   const call = await adapter.prepare([...args, '--help'], reference)
   const result = spawnSync(process.execPath, [binary, ...call.args], { encoding: 'utf8', env: { PATH: process.env.PATH } })
   expect(result.status, result.stdout + result.stderr).toBe(0)
+})
+
+test.each([
+  ['match ruleset upload', 'file'], ['setting syslog set', 'config-file'],
+  ['group member set', 'members-file'], ['triage rule create', 'rule-file'],
+])('%s accepts uploaded payloads through --%s without exposing server paths', async (command, flag) => {
+  const adapter = createVectraAdapter({ getCredential: async () => base }, '/data/writes.log')
+  const args = [...command.split(' '), `--${flag}=payload.json`]
+  const call = await adapter.prepare(args, reference, { files: [{ name: 'payload.json', contentBase64: 'e30=' }] })
+  expect(call.args).toEqual([...command.split(' '), `--${flag}`, 'payload.json'])
+  expect(call.fileArguments).toEqual([call.args.length - 1])
 })
 
 test.each(variants)('preparation keeps the native %j profile and secrets separate', async credential => {

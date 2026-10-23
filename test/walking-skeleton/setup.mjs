@@ -18,7 +18,7 @@ try {
   })), provider.getKey())
   db.prepare(`INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag)
     VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag)`).run(credential)
-  db.prepare("UPDATE tools SET enabled = 1, pinned_version = '0.1.8' WHERE name = 'vectra-axi'").run()
+  db.prepare("UPDATE tools SET enabled = 1, pinned_version = '0.1.9' WHERE name = 'vectra-axi'").run()
   const vectra = encryptCredential('synthetic-vectra', 'vectra-axi', Buffer.from(JSON.stringify({
     kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token', token: 'CANARY-vectra-token',
     caBundle: readFileSync('/certs/ca.crt', 'utf8'), writes: { allowWrites: true, operations: ['qux.detection.tag.set'] },

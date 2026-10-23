@@ -27,8 +27,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1
       '@knowttl/vectra-axi':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.9
+        version: 0.1.9
       awx-axi:
         specifier: 0.1.8
         version: 0.1.8
@@ -77,8 +77,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/vectra-axi@0.1.8':
-    resolution: {integrity: sha512-Wvn73g5hm4mzQQKhNnKvAjt6SfGFrPD2EAYMa4AXhoVqFfjXjxnQLk6tUw7E92jozeHtpZ+aDXSGMHaJhhTi1Q==}
+  '@knowttl/vectra-axi@0.1.9':
+    resolution: {integrity: sha512-GUl24JV8lErGjZliTHcb6BcjjdpJhrzbbB8cBekKE6dM3b5ph9i9EteJHFRWUuGpnEPlVEPeu7X3l33V9DGKwQ==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -388,7 +388,7 @@ snapshots:
       smol-toml: 1.9.1
       zod: 4.3.6
 
-  '@knowttl/vectra-axi@0.1.8':
+  '@knowttl/vectra-axi@0.1.9':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

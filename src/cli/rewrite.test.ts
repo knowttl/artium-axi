@@ -10,6 +10,10 @@ import graph from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 test.each([
   { tool: 'vectra-axi', command: 'host list --name synthetic' },
   { tool: 'vectra-axi', command: 'detection show 42 --full' },
+  { tool: 'vectra-axi', command: 'host close --id 7 --execute --confirm "host 7"' },
+  { tool: 'vectra-axi', command: 'match enablement set --value true' },
+  { tool: 'vectra-axi', command: 'group member set --id 8 --members-file members.json' },
+  { tool: 'vectra-axi', command: 'setting syslog set --config-file export.json' },
   { tool: 'falcon-axi', command: 'search start --query "synthetic | head(5)" --wait 30' },
   { tool: 'falcon-axi', command: 'search status synthetic-job --wait 30' },
   { tool: 'falcon-axi', command: 'search stop synthetic-job' },

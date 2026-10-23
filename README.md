@@ -163,12 +163,18 @@ Administrator capability alone grants no tool access; upstream permissions remai
 
 Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
 
+Vectra supports selected QUX/RUX writes for detection close/open and mark-fixed, host/account close, key assets, tags, notes (including bulk notes), assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, internal-network settings, syslog/Kafka, notification destinations and Match, subject to deployment support in the [reviewed inventory](tools/inventories/vectra-axi.json).
+User, role, API-client and credential administration remains blocked.
+Review the [Vectra grant warnings](docs/admin-guide.md#browser-administration) before enabling operations.
+See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for Vectra file inputs.
+
 | Tool | Write capability and unlock |
 | --- | --- |
 | Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy literal search. RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
 | LDAP | Fixed read-only. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
-| Graph, Vectra | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
+| Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
+| Vectra | Administrator `writes.allowWrites: true` and an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and redacted journaling. Artium enforces the native read-only override while write access is off. |
 | Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |
 | AWX | Launch/cancel/relaunch, workflow approval/denial, project/inventory-source sync and notification tests with `allowWrites: true` and upstream `--confirm`; configuration, deletion and security writes stay blocked. |
 | Tenable One | Business writes and export-job creation with administrator `writes.allowWrites: true`, an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and durable journaling; downloads and local configuration stay blocked. |

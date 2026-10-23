@@ -161,6 +161,8 @@ Use **Write access** on a tool page to change writes without replacing other nat
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For Falcon, Graph, Vectra, Tenable and Hybrid Analysis, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+See the [Vectra supported boundary and native write gates](../README.md#safety) before selecting operations.
+Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The advanced JSON editor shows the saved write state, but saving it replaces the whole object and omitting write settings turns writes off.

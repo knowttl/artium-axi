@@ -54,7 +54,7 @@ QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optiona
 For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
 Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
 Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
-See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.8#configuration) for deployment-specific requirements.
+See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.9#configuration) for deployment-specific requirements.
 For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
 For shared trust across tools, follow the [private CA runbook](runbook.md#tls-inspection-and-private-upstream-cas).
 Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.

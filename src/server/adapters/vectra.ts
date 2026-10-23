@@ -28,8 +28,8 @@ export const vectraCredentialSchema = z.union([
 export type VectraCredential = z.infer<typeof vectraCredentialSchema>
 
 export const vectraWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
-  unlocks: 'Selected tag, note and assignment operations supported by the configured QUX or RUX deployment; native preview and confirmation gates still apply.',
-  blocked: 'Operations outside the allow-list, unsupported deployment or API operations, raw API mutations and unsafe overrides remain blocked. Upstream permissions are still required.' })
+  unlocks: 'Selected detection, entity, tag, note, assignment, triage, group, proxy, threat-feed, network, export, notification and Match writes supported by the configured QUX or RUX deployment; native preview, --execute and exact --confirm gates still apply. Warning: host/account close closes all active detections with no single inverse; assignment resolve is permanent; group delete orphans triage rule references; syslog/Kafka redirects detection export (data egress); Match enablement changes cause a reboot.',
+  blocked: 'Operations outside the allow-list, unsupported deployment or API operations, user, role, API-client and credential administration, raw API mutations and unsafe overrides remain blocked. Upstream permissions are still required.' })
 export const vectraManifest = {
   ...inventory,
   ...inventory.adapterBoundary,

@@ -1133,7 +1133,7 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.10' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.10' },
-  { tool: 'vectra-axi', example: 'detection list', version: '0.1.8' },
+  { tool: 'vectra-axi', example: 'detection list', version: '0.1.9' },
   { tool: 'falcon-axi', example: 'detection list', version: '0.7.0' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.0' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.6' },

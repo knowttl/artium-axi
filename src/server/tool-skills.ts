@@ -14,7 +14,7 @@ const overlays = {
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
   'az-axi': { sha256: '7d957ed28170171530c0c174ac27c0174b5500cd1797d18243324ef44fee033f', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
-  'vectra-axi': { sha256: '88a10ed9113e82d264190062ddd444cdb3f6514f8371809e3055b0ea733ff3fb', sections: ['Safety'] },
+  'vectra-axi': { sha256: 'a9fb66ac59a325958e19470286f27e8d2e1e9e65a4e93f5ee93fca6467fb2303', sections: ['Safety'] },
   'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
   'ldap-axi': { sha256: 'e20365f41164061268067d0caa6055fe8417dc6c610d70a5c3108d1e6ae0dcfc', sections: ['Workflow', 'Safety'] },
   'falcon-axi': { sha256: '67db889e8344f472de7346aa2e696b9f3a08cab588a58920ee5950fadec680fc', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
