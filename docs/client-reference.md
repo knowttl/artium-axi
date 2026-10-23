@@ -50,8 +50,9 @@ Other Azure commands, including the dashboard and `home`, leave stdin unread; he
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
+Its run API accepts uploaded leaf names only; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
-Downloads are unavailable through Artium; use hybrid-axi locally for artifacts.
+See the [Hybrid Analysis capability boundary](../README.md#safety) for download restrictions and the planned hosted path.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.

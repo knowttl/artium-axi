@@ -243,19 +243,7 @@ Save, run **Test credential**, enable the tool and grant it to a role, then run 
 The credential test reads key level and submission quota; it does not prove permission for other resources.
 Structured 403 failures preserve upstream key-level guidance and never become empty results.
 
-Submissions, YARA create/update/delete and consuming hunting matches are off by default.
-Enable only intended operations in the write switch; native preview, `--execute`, the exact preview `--confirm` and durable journaling remain required.
+Review the [Hybrid Analysis capability boundary](../README.md#safety) before enabling operations, including its quick-scan exception, community visibility, consuming-match recovery and deferred hosted downloads.
 The [inventory](../tools/inventories/hybrid-axi.json) owns supported operation names and reviewed command/source digests.
-Sandbox submission previews disclose that samples and reports can become visible to the community.
-Consuming matches marks every returned match delivered; never automatically replay an ambiguous outcome.
-Use the audit ID, durable native journal and returned read-back guidance to reconcile it.
-Quick scans are read exceptions that transmit the supplied sample or URL without a write gate.
-Labs hunting and search contracts are experimental.
-
-The client uploads local files for `--file`, `--body-file` and `--hashes-file` using the existing bounded input transport.
-The API accepts uploaded leaf names only; `--body-file -` also accepts explicit JSON stdin.
-Server file paths, credential/origin overrides and local setup/config/profile commands are refused.
-Downloads, including normal report artifacts, samples, dropped-file archives and memory dumps, are unavailable through Artium.
-These operations are deferred to a separate hosted download path with its own security design.
-Use hybrid-axi locally for downloads with its native guards and live-malware warnings.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for local uploads and explicit JSON stdin, and the [shared API contract](../src/shared/api.ts) for bounded input.
 Local fake-service checks do not establish live service acceptance.
