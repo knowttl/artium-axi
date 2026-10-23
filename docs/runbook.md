@@ -406,9 +406,10 @@ Azure, Graph and Vectra use isolated native journals at `<configured write-log p
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Tenable keeps one shared native journal at its configured write-log path so sequential and concurrent invocations retain native intent replay protection.
-That journal is not pruned by run-journal retention; host audit attribution matches the invocation's native audit ID and remains unknown when execution output omits it.
+That journal is not pruned by run-journal retention.
+Successful Tenable reads report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
-Malformed native journals remain untouched and produce `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
+Retention leaves malformed Azure, Graph and Vectra native journals untouched and reports `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
 AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.
 There is no audit deletion endpoint or general export CLI.

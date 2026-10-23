@@ -22,7 +22,7 @@ An unreadable or invalid schema fails startup with `CREDENTIAL_INVALID`.
 The az token broker retains its source-identity editor and validates the brokered token profile against the shipped schema when available.
 Each tool switches when its pinned package ships axi-credential.schema.json.
 For tools using the shared profile writer, the shipped schema supplies validation, form guidance and secret injection, subject to [hosted input restrictions](credential-standard.md#per-tool-host-facing-schemas).
-The current Vectra, Graph, Az, LDAP and AWX [pins](../tools/package.json) ship the canonical schemas and use the shared writer.
+See the [per-tool host-facing schemas](credential-standard.md#per-tool-host-facing-schemas) for current shared-writer integrations.
 Az's brokered token profile and schema-absent fallback both use the per-resource SecretRefs defined in the [credential standard](credential-standard.md#per-tool-host-facing-schemas).
 See [credential editor guidance](admin-guide.md#browser-administration) for Vectra origin and CA inputs.
 [Published-credential tests](../test/integration/published-credentials.test.ts) exercise artium-written SecretRefs and private per-call configuration: Vectra contacts a fake HTTPS appliance; Graph uses the published CLI and secret resolver with fake credential acquisition and transport.

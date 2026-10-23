@@ -24,7 +24,9 @@ Other investigation commands need the corresponding upstream permissions.
 Writes stay off until an administrator enables the tool's write switch and selects supported operation IDs.
 Business writes and export-job creation retain the native preview, `--execute`, exact preview `--confirm` and durable journal gates.
 Unknown write outcomes must be reconciled using the native audit ID and read-back guidance, never replayed blindly.
-File flags accept uploaded leaf names or `-` for explicit stdin; server paths, local configuration, hooks and export downloads are blocked.
+Through the run API, file flags accept uploaded leaf names or `-` for explicit stdin.
+The bundled CLI does not upload Tenable files or forward stdin; see [client input handling](client-reference.md#command-surface-and-subcommands).
+Server paths, local configuration, hooks and export downloads are blocked.
 Export-job status remains available through the managed CLI.
 
 #### Falcon

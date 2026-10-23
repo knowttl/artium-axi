@@ -22,7 +22,7 @@ The key words MUST, SHOULD and MAY are used as described in RFC 2119.
 ## 0. Terms
 
 - **Tool prefix `P`**: the tool name in upper case, with `-` replaced by `_`.
-  The prefixes are `VECTRA_AXI`, `AZ_AXI`, `MG_AXI`, `FALCON_AXI`, `AWX_AXI` and `AZURE_AXI`.
+  The prefixes are `VECTRA_AXI`, `AZ_AXI`, `MG_AXI`, `FALCON_AXI`, `AWX_AXI`, `TENABLE_AXI` and `AZURE_AXI`.
 - **Profile**: one named set of non-secret settings, made of one endpoint or tenant and one identity, together with references to its secrets.
 - **SecretRef**: a JSON value that says where a secret comes from, defined in section 3.
 - **Host**: a program that runs the tool on someone else's behalf, for example artium-axi.
@@ -231,6 +231,7 @@ For each call, the host:
 1. Provides a private, empty `HOME` and XDG dirs.
    The implementation is in [runner.ts](../src/server/runner/runner.ts).
 2. Writes `$XDG_CONFIG_HOME/<tool>/config.json` containing exactly one profile, named `artium`, which is also the `defaultProfile`.
+   Tenable instead selects a stable private configuration through `TENABLE_AXI_CONFIG`; see [journal and profile custody](runbook.md#retention-and-export).
 3. Replaces each `x-secret` field with `{"env": "ARTIUM_SECRET_<n>"}` and passes the values through the environment.
 4. Adds every secret value to its output scanner.
 5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
