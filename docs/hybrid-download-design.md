@@ -1,7 +1,7 @@
 # Hosted Hybrid Analysis downloads
 
 Status: proposed design only; downloads remain unavailable until the final implementation slice.
-This adds a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
+This proposes a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 
 ## Evidence and boundaries
 
