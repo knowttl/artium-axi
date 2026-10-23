@@ -26,6 +26,7 @@ export class ToolHealth {
   private closed = false
   private readonly replaced = new Set<ToolName>()
   private readonly queued = new Set<ToolName>()
+  private readonly generations = new Map<ToolName, number>()
   private readonly diagnostics = new Map<ToolName, Diagnostic>()
   private readonly due = new Map<ToolName, number>()
   private readonly failures = new Map<ToolName, number>()
@@ -56,8 +57,8 @@ export class ToolHealth {
   }
 
   // Only reachability failures retry early, so a rejected credential is never retried into an account lockout.
-  private reschedule(tool: ToolName, revision: CredentialReference['revision'], code: string | undefined): void {
-    if (this.store?.findCredential(tool)?.revision !== revision) return
+  private reschedule(tool: ToolName, revision: CredentialReference['revision'], generation: number, code: string | undefined): void {
+    if (this.store?.findCredential(tool)?.revision !== revision || (this.generations.get(tool) ?? 0) !== generation) return
     const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
     const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
     if (failures) this.failures.set(tool, failures)
@@ -70,7 +71,10 @@ export class ToolHealth {
 
   refresh(tool: ToolName, replaced = false): Promise<unknown> | undefined {
     if (this.closed) return
-    if (replaced) this.failures.delete(tool)
+    if (replaced) {
+      this.failures.delete(tool)
+      this.generations.set(tool, (this.generations.get(tool) ?? 0) + 1)
+    }
     if (this.active.has(tool)) {
       if (replaced) this.replaced.add(tool)
       return
@@ -85,10 +89,11 @@ export class ToolHealth {
       return
     }
     this.queued.delete(tool)
+    const generation = this.generations.get(tool) ?? 0
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
       .then(
-        () => this.reschedule(tool, reference.revision, undefined),
-        (error: unknown) => this.reschedule(tool, reference.revision, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'),
+        () => this.reschedule(tool, reference.revision, generation, undefined),
+        (error: unknown) => this.reschedule(tool, reference.revision, generation, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'),
       )
       .finally(() => this.pending.delete(pending))
     this.pending.add(pending)
@@ -124,6 +129,7 @@ export class ToolHealth {
       throw failure
     }
     this.active.add(tool)
+    const generation = this.generations.get(tool) ?? 0
     const args = healthReads[tool]
     const started = Date.now()
     let failure: ArtiumError | undefined
@@ -200,7 +206,8 @@ export class ToolHealth {
       audit.change({ ...context, event: background ? 'health-check' : 'credential-test', action: background ? healthDefaults.actor : undefined, outcome: failure?.code ?? 'success', ...evidence }, () => {
         if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
           'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
-          && store?.findCredential(tool)?.revision === reference.revision) {
+          && store?.findCredential(tool)?.revision === reference.revision
+          && (this.generations.get(tool) ?? 0) === generation) {
           db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
             status = excluded.status, error_code = excluded.error_code`)

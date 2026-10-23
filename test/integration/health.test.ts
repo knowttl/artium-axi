@@ -278,6 +278,44 @@ test('credential saves defer background checks when both slots are occupied', as
   }
 })
 
+test.each(['ok', 'error'] as const)('a configuration refresh supersedes an in-flight %s check with both background slots occupied', async status => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
+    auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
+  health = new ToolHealth(db, new Audit(db), runner, [adapter,
+    createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
+  let releaseOld!: (value: typeof result) => void
+  let releaseOther!: (value: typeof result) => void
+  const old = new Promise<typeof result>(resolve => { releaseOld = resolve })
+  const other = new Promise<typeof result>(resolve => { releaseOther = resolve })
+  const run = vi.spyOn(runner, 'run').mockReturnValueOnce(old).mockReturnValueOnce(other).mockResolvedValue(result)
+  const pending = health.refresh('falcon-axi')
+  const otherPending = health.refresh('vectra-axi')
+  try {
+    await vi.advanceTimersByTimeAsync(0)
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(health.refresh('falcon-axi', true)).toBeUndefined()
+    releaseOld(status === 'ok' ? result : { ...result, stderr: 'code: TLS_UNTRUSTED', exitCode: 1 })
+    await pending
+    expect(db.prepare("SELECT status FROM tool_health WHERE tool = 'falcon-axi'").get()).toBeUndefined()
+    expect(health.checking('falcon-axi')).toBe(true)
+    health.start()
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(3)
+    expect(db.prepare("SELECT status, credential_revision FROM tool_health WHERE tool = 'falcon-axi'").get())
+      .toEqual({ status: 'ok', credential_revision: 1 })
+    expect(health.checking('falcon-axi')).toBe(false)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(run).toHaveBeenCalledTimes(3)
+  } finally {
+    releaseOld(result)
+    releaseOther(result)
+    await Promise.all([pending, otherPending])
+    await health.stop()
+  }
+})
+
 test('a superseded failure cannot restore backoff after a credential change', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
   const failure = { ...result, stderr: 'connect ECONNREFUSED', exitCode: 1 }
