@@ -17,7 +17,7 @@ const overlays = {
   'vectra-axi': { sha256: 'a9fb66ac59a325958e19470286f27e8d2e1e9e65a4e93f5ee93fca6467fb2303', sections: ['Safety'] },
   'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
   'ldap-axi': { sha256: 'e20365f41164061268067d0caa6055fe8417dc6c610d70a5c3108d1e6ae0dcfc', sections: ['Workflow', 'Safety'] },
-  'falcon-axi': { sha256: '77c2f0b7be965f249817ec16e385a39e8f0aca7a39b746f1b45758dddadb2096', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
+  'falcon-axi': { sha256: 'dd23eead91a3f0a5e8d2265ae6f8a628f27c1f9981678ff1c23a24f6b0a6f43a', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
 } as const
 
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {

@@ -76,8 +76,13 @@ Execution currently requires POSIX private-file and signal primitives.
    The preview makes no network request and shows the effective policy and allowed commands.
 3. Execute the identical command string with `--execute --confirm '<device_id>:<complete command>'`.
 
-Allowed commands: cat, cd, clear, csrutil, env, eventlog (view or list), filehash, getsid, history, ifconfig, ipconfig, ls, mount, netstat, ps, reg query, users.
-Anything else is refused locally before any request, including `help`, which exists only in the interactive console.
+Allowed commands depend on the host's platform, and Falcon rejects a command that the platform lacks as `Command not found`:
+Verified on both Windows and Linux: cat, cd, env, filehash, ls, mount, netstat, ps.
+Verified on Windows only: eventlog, getsid, ipconfig, reg query.
+Verified on Linux only: ifconfig, users.
+Accepted on neither Windows nor Linux, because it is a macOS command and macOS was not tested: csrutil.
+`eventlog` permits only `view` and `list`.
+Anything else is refused locally before any request, including `help`, `clear` and `history`, which exist only in the interactive console.
 A command is one complete string such as `ls C:\Windows`, `filehash <path>` or `reg query <key>`.
 Pass it as a single shell argument; use a shell whose quoting is predictable when the path contains spaces or backslashes.
 Pipes, redirects, `;`, `&&`, backticks and `$(...)` are refused, so run one command per call and combine the results yourself.

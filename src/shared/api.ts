@@ -174,8 +174,8 @@ export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: 
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
   authorization: 'administrator-and-recent-auth', auditEvent: null } as const
 export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
-  commands: z.array(z.enum(['cat', 'cd', 'clear', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid',
-    'history', 'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
+  commands: z.array(z.enum(['cat', 'cd', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid',
+    'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
 export const nativeSettingsSchemas = {
   'hybrid-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string()) }).optional() }),

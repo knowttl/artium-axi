@@ -130,7 +130,7 @@ test('first call discovers tools and preserves fake output, then no access expla
   expect(home).toMatchObject({ code: 0, stderr: '' })
   expect(home.stdout).toContain('user: "synthetic-user"')
   expect(home.stdout).toContain('roles[1]: "Synthetic Role"')
-  expect(home.stdout).toContain('falcon-axi,unknown,"0.7.1"')
+  expect(home.stdout).toContain('falcon-axi,unknown,"0.7.2"')
   expect(home.stdout).toContain('artium-axi tools show falcon-axi')
   expect(home.stdout).toContain('artium-axi falcon-axi detection list')
   expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 0 })
