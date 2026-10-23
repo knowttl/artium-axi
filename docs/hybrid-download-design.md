@@ -5,7 +5,7 @@ This adds a hosted path for sample archives, dropped-file archives and process-m
 
 ## Evidence and boundaries
 
-Reviewed Artium `origin/main` at `f645dcc763dccc09f9c8e2969a55ebbc8fbda881` and hybrid-axi `origin/main` at `34e0b0c335d101058380d1b6510b46572b1bdb60`.
+Reviewed Artium `origin/main` at `124958d266cdbf383b5397ced2c9a270dd06a051` and hybrid-axi `origin/main` at `be4ec9b050c3f7576319afeda2f463ea2696fbd2`.
 Artium's current documentation lives in `docs/`; earlier internal design records are on `archive/internal-docs`, as described by [CONTRIBUTING.md](../CONTRIBUTING.md#historical-verification-records).
 
 - [src/server/runner/run.ts](../src/server/runner/run.ts) authenticates, checks tool policy, prepares managed credentials and journals, runs the child and records outcomes.
@@ -18,7 +18,9 @@ Artium's current documentation lives in `docs/`; earlier internal design records
   [src/server/audit/audit.ts](../src/server/audit/audit.ts) persists metadata in SQLite, recovers interrupted runs and retains audit records for 90 days.
 - [src/server/config.ts](../src/server/config.ts), [Dockerfile](../Dockerfile), [compose.example.yaml](../compose.example.yaml) and [docs/runbook.md](runbook.md) define the non-root container, tool installations, persistent `/data` and temporary runner storage.
   Artifact bytes must never enter `/data`, backups or the image.
-- Upstream [docs/design.md](https://github.com/knowttl/hybrid-axi/blob/34e0b0c335d101058380d1b6510b46572b1bdb60/docs/design.md), T8 and T13, requires native preview, execute, exact confirmation, unchanged bytes and managed write gating.
+- The shipped T13 adapter, `src/server/adapters/hybrid.ts`, refuses `hash file` and `report file`, maps uploads to isolated managed leaves and uses the existing native journal integration.
+  `tools/inventories/hybrid-axi.json` owns the reviewed command and operation boundaries; downloads stay refused until the final slice below.
+- Upstream [docs/design.md](https://github.com/knowttl/hybrid-axi/blob/be4ec9b050c3f7576319afeda2f463ea2696fbd2/docs/design.md), T8 and T13, requires native preview, execute, exact confirmation, unchanged bytes and managed write gating.
   Its `src/download-catalogue.ts` binds four operations: `hash-download-bin`, `report-download-bin`, `report-download-dropped-files` and `report-download-memory`.
   Its `src/writes-core.ts` binds confirmation to profile, operation, ID, type and output path, records intent before sending, and never retries downloads.
   Its `src/report-file.ts` atomically publishes a new private file; `src/transport-core.ts` caps downloads at 250 MiB and rejects content encoding that would alter artifact bytes.
@@ -30,7 +32,7 @@ Reading opaque bytes for transport, byte counting and SHA-256 is the only Artium
 
 ## Proposed transit and storage
 
-Recommend a strictly bounded temporary store because the released native CLI requires a completed output file and confirms its exact path.
+Use the approved strictly bounded temporary store because the released native CLI requires a completed output file and confirms its exact path.
 Pure stream-through would require a new upstream sink contract and would risk sending a partial response before native success and audit completion.
 
 1. An authenticated preparation request validates a closed operation/type allowlist, tool access and selected administrator-enabled write operation.
@@ -54,7 +56,7 @@ Pure stream-through would require a new upstream sink contract and would risk se
    The client writes a private temporary file, verifies advertised size and SHA-256, and atomically publishes to the exact confirmed new destination without overwrite or symlink traversal.
    Browser download UI offers save only; it never renders or automatically opens the artifact.
 
-Proposed fixed limits: 250 MiB per artifact, one reservation per user, four globally and 1 GiB total reserved artifact capacity, including partial files.
+Approved fixed limits: 250 MiB per artifact, one reservation per user, four globally and 1 GiB total reserved artifact capacity, including partial files.
 Reserve full capacity before native execution; use a dedicated size-limited, non-swappable tmpfs at `/tmp/artium-artifacts`, mounted `noexec,nosuid,nodev`, separate from runner scratch and `/data`.
 Native atomic publication may briefly leave two names for one inode; account actual bytes once and include every incomplete file in admission accounting.
 No disk fallback is permitted when the mount, capacity or memory budget is unavailable.
@@ -115,10 +117,12 @@ An authorized recipient can deliberately copy or execute saved bytes; Artium can
 Memory dumps may contain sensitive data, so the same access and retention controls apply even when no executable malware is present.
 All implementation verification uses inert synthetic bytes and fake services, never a live download or real credential.
 
-## Open decision and implementation slices
+## Storage decision and implementation slices
 
-Storage requires owner approval: accept the proposed bounded ten-minute tmpfs store and limits, or require pure streaming after an upstream sink redesign.
-Recommendation: bounded temporary storage preserves the existing native destination confirmation and atomic-file contract with less protocol complexity.
+The owner approved bounded temporary local storage on 2026-10-23: the dedicated tmpfs, limits, ten-minute absolute TTL and one-shot authenticated retrieval specified above.
+This preserves native exact-destination confirmation and atomic file/journal behavior.
+Pure streaming was considered and deferred because it requires an upstream sink redesign.
+There is no outstanding storage decision.
 No hosted download becomes available merely by approving this document.
 
 1. Define transfer API, typed audit fields, owner/session scope and limits -> verify denied/default-off/expired/changed-target flows with fake identities and clocks.
