@@ -1,8 +1,13 @@
+export const cliOutdatedUpdateNext = 'Run artium-axi update to install the current CLI.'
+// Safe default for CLI_OUTDATED: this step works whether or not the client
+// has the update command, so it is also the catalogue default below.
+export const cliOutdatedDownloadNext = 'Download the current CLI from /cli/artium-axi.mjs on this server, verify it with the SHA-256 checksum at /cli/artium-axi.mjs.sha256, and install it as artium-axi.'
+
 const definitions = {
   STORE_SCHEMA_INVALID: { status: 503, message: 'The store schema is unsupported by this image.', next: 'Use the matching image, or restore the pre-upgrade backup into a new volume with its matching image and key.' },
   BACKUP_FAILED: { status: 500, message: 'Database backup did not complete.', next: 'Check the source store and a writable backup directory; choose a new output file.' },
   RESTORE_FAILED: { status: 500, message: 'Database restore did not complete.', next: 'Stop the destination server and use an empty new data volume, an intact backup and its matching master key.' },
-  CLI_OUTDATED: { status: 426, message: 'The CLI version is too old for this server.', next: 'Run artium-axi update to install the current CLI.' },
+  CLI_OUTDATED: { status: 426, message: 'The CLI version is too old for this server.', next: cliOutdatedDownloadNext },
   CERTIFICATE_INVALID: { status: 503, message: 'The server certificate could not be verified.', next: 'Check certificate trust or set ARTIUM_AXI_CA_FILE to the trusted CA file.' },
   ADMIN_REQUIRED: { status: 403, message: 'Administrator capability is required.', next: 'Ask an administrator to perform this operation.' },
   REVISION_CONFLICT: { status: 409, message: 'The record changed since it was read.', next: 'Read the current record revision and retry your edit.' },

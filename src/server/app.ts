@@ -5,7 +5,7 @@ import { ZodError } from 'zod'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
 import { certificateDetailsSchema, certificateInspectionSchema, inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
-import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
+import { ArtiumError, cliOutdatedUpdateNext, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { loadCredentialProfile } from './adapters/credential-profile.js'
 import type { CredentialProfile } from './adapters/credential-profile.js'
@@ -31,7 +31,7 @@ import type { Runner } from './runner/runner.js'
 import type { MutableCredentialStore } from './store/credential-store.js'
 import { isAwxOriginOnly } from './store/credential-store.js'
 import { ToolHealth } from './health/health.js'
-import { acceptsCliVersion, cliVersion } from '../shared/version.js'
+import { acceptsCliVersion, cliVersion, hasCliUpdateCommand } from '../shared/version.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
@@ -112,7 +112,9 @@ export function createApp(options: {
     const version = request.headers['x-artium-cli-version']
     if (path.startsWith('/v1/') && !login && version !== undefined &&
       !browser.isBrowser(request) && (typeof version !== 'string' || !acceptsCliVersion(version))) {
-      throw new ArtiumError('CLI_OUTDATED')
+      throw hasCliUpdateCommand(version)
+        ? new ArtiumError('CLI_OUTDATED', undefined, cliOutdatedUpdateNext)
+        : new ArtiumError('CLI_OUTDATED')
     }
     if (!proxies.includes(request.socket.remoteAddress ?? '') &&
       Object.keys(request.headers).some(name => name === 'forwarded' || name.startsWith('x-forwarded-'))) {
