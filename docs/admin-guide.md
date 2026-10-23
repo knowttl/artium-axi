@@ -161,8 +161,7 @@ Use **Write access** on a tool page to change writes without replacing other nat
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For Falcon, Graph and Vectra, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
-Vectra 0.1.9 includes detection and entity state, key assets, tags, notes, assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, network settings, syslog/Kafka, notification destinations and Match writes for supported deployments.
-All remain off by default and require native preview, `--execute` and exact `--confirm`; user, role, API-client and credential administration remains blocked.
+See the [Vectra supported boundary and native write gates](../README.md#safety) before selecting operations.
 Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
