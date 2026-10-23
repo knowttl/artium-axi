@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import { basename } from 'node:path'
 import type { Readable } from 'node:stream'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
+import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
@@ -23,19 +24,24 @@ async function readBounded(stream: Readable, limit: number): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
-// Only the reviewed Azure file flags upload local contents; other paths remain arguments.
+// Only reviewed file flags upload local contents; other paths remain arguments.
 export async function toolInput(tool: string, original: string[]) {
   if (!runRequestSchema.safeParse({ args: original }).success) throw new ArtiumError('INVALID_INPUT')
   const args = [...original]
   const input: RunInput = {}
   let totalFileBytes = 0
-  if (tool === 'az-axi' && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
+  if ((tool === 'az-axi' || tool === 'hybrid-axi') && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
+    const fileFlags = tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
     for (let index = 0; index < args.length; index++) {
       if (args[index] === '--') break
       const [flag] = args[index].split('=')
-      if (!az.adapterBoundary.inputFileFlags.some(name => flag === `--${name}`)) continue
+      if (!fileFlags.some(name => flag === `--${name}`)) continue
       const equals = args[index].indexOf('=')
       const path = equals < 0 ? args[++index] : args[index].slice(equals + 1)
+      if (path === '-' && tool === 'hybrid-axi' && flag === '--body-file') {
+        input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes)).toString('utf8')
+        continue
+      }
       if (!path || path === '-') throw new ArtiumError('UNSUPPORTED_INPUT', 'A file flag requires a local file path.')
       const name = basename(path)
       if (input.files?.some(file => file.name === name)) throw new ArtiumError('INVALID_INPUT', 'Upload file names must be distinct.')
@@ -57,7 +63,7 @@ export async function toolInput(tool: string, original: string[]) {
     }
     const consumesStdin = az.commands.some(route => ['rg query', 'logs query', 'api'].includes(route.handlerCommand) &&
       route.command.split(' ').every((word, index) => args[leading + index] === word))
-    if (consumesStdin && !process.stdin.isTTY) {
+    if (tool === 'az-axi' && consumesStdin && !process.stdin.isTTY) {
       const stdin = await readBounded(process.stdin, inputLimits.stdinBytes)
       if (stdin.length) input.stdin = stdin.toString('utf8')
     }

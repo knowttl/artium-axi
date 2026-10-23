@@ -24,6 +24,7 @@
 | `artium-axi ado-axi project list --limit 1` | Read a managed Azure DevOps project. |
 | `artium-axi awx-axi job list --limit 1` | Read a managed AWX job. |
 | `artium-axi tenable-axi card list --limit 1` | Read a managed Tenable One exposure card. |
+| `artium-axi hybrid-axi quota` | Read managed Hybrid Analysis key level and quota. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Top-level help lists command purposes.
@@ -48,6 +49,9 @@ It captures bounded non-terminal stdin only for Azure `rg query` (also `graph qu
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
+Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
+Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
+Downloads are unavailable through Artium; use hybrid-axi locally for artifacts.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.

@@ -51,7 +51,7 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -177,6 +177,8 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
   commands: z.array(z.enum(['cat', 'cd', 'clear', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid', 'help',
     'history', 'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
 export const nativeSettingsSchemas = {
+  'hybrid-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
+    operations: z.array(z.string()) }).optional() }),
   'tenable-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)).min(1).max(64) }).optional() }),
   'awx-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
@@ -202,7 +204,7 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   if (tool === 'ldap-axi') return false
   if (tool === 'falcon-axi') return settings.writes
     ? (settings.writes as { allowWrites?: unknown }).allowWrites === true : settings.allowWrites === true
-  if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi') {
+  if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }
   return settings.allowWrites === true

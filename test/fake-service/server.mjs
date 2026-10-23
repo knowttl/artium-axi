@@ -1,6 +1,7 @@
 import { createServer } from 'node:https'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { hybridResponse } from './hybrid.mjs'
 
 const requests = []
 const resources = new Map()
@@ -39,6 +40,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   if (url.pathname === '/__awx/basic-auth' && req.method === 'POST') {
     basicAuthEnabled = url.searchParams.get('enabled') !== 'false'
     res.end('{}')
+    return
+  }
+  if (req.headers.host === 'hybrid-analysis.com') {
+    hybridResponse(req, res, url, requests, resources, () => { mutations++ })
     return
   }
   if (req.headers.host === 'cloud.tenable.com') {

@@ -15,7 +15,7 @@ Round 3 recorded all six board decisions:
 
 The text where each decision applies is marked `[D#]`.
 
-Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, azure-axi.
+Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, hybrid-axi, azure-axi.
 artium-axi is the host that consumes the standard (section 9).
 The key words MUST, SHOULD and MAY are used as described in RFC 2119.
 
@@ -296,6 +296,11 @@ Artium requires both keys, treats both as secrets and supplies a private profile
 The per-tool write switch maps to `writes.allowWrites` and `writes.operations`; disabling writes sets `TENABLE_AXI_READ_ONLY=true`.
 Native preview, exact confirmation, operation scope and durable journaling also gate export-job creation.
 See [Tenable One setup](tool-credentials.md#tenable-one) for the supported boundary.
+
+hybrid-axi uses its shipped apiKey SecretRef schema and the fixed `https://hybrid-analysis.com` origin.
+Artium requires one secret API key, injects it through an environment SecretRef and keeps native writes disabled unless the administrator enables named operations.
+Native preview, execute, exact confirmation and durable journaling remain required.
+See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis) for uploads, download exclusions and key-level failures.
 
 ## 10. Migration
 

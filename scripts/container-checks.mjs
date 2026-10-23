@@ -65,6 +65,10 @@ try {
       await command('docker', ['run', '--name', awxPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/awx-axi', image, '--version'])
       const tenablePackage = `${builder}-tenable-package`
+      const hybridPackage = `${builder}-hybrid-package`
+      recoveryContainers.push(hybridPackage)
+      await command('docker', ['run', '--name', hybridPackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/hybrid-axi', image, '--version'])
       recoveryContainers.push(tenablePackage)
       await command('docker', ['run', '--name', tenablePackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/tenable-axi', image, '--version'])

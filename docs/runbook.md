@@ -341,6 +341,7 @@ Follow the [scripted administrator session procedure](#scripted-administrator-se
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
+See the [Hybrid Analysis supported boundary](tool-credentials.md#hybrid-analysis) before enabling submissions, YARA mutations or consuming matches.
 For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
 Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.

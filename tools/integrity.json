@@ -1,4 +1,8 @@
 {
+  "@knowttl/hybrid-axi": {
+    "version": "0.1.0",
+    "integrity": "sha512-eQdks/92bP8wCn7mpLGqkl5bAI/kYLgRzrRXumtuwpe4sQytNXuAiXY/lNyTYdPT6/WXEFGL9JoaTwWA37F01A=="
+  },
   "@knowttl/tenable-axi": {
     "version": "0.1.1",
     "integrity": "sha512-ukWwVny4DeEBLqqWJhaM0au4Z5dvQTsDKoE2NhROIE3p114WUz2tT5dOfWL8MaalVrmU/zSMhk+S29sUocR3xg=="

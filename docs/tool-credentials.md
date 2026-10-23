@@ -232,3 +232,29 @@ Stdin, file uploads, server file paths and `@file` values are unsupported; use i
 Use `job watch --timeout 50` or less to stay within the runner timeout.
 For an interrupted write, inspect current state using the returned read-back guidance before retrying.
 Local fake-service checks do not establish live controller acceptance.
+
+#### Hybrid Analysis
+
+Artium bundles `@knowttl/hybrid-axi` at the [reviewed package pin](../tools/package.json).
+At `/admin/tools/hybrid-axi`, enter the API key itself into `apiKey`, never a SecretRef or file path.
+The origin is fixed to `https://hybrid-analysis.com`; the published CLI sends the secret only in its `api-key` header.
+Artium encrypts the key and supplies an environment SecretRef through its private per-call profile.
+Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi hybrid-axi quota`.
+The credential test reads key level and submission quota; it does not prove permission for other resources.
+Structured 403 failures preserve upstream key-level guidance and never become empty results.
+
+Submissions, YARA create/update/delete and consuming hunting matches are off by default.
+Enable only intended operations in the write switch; native preview, `--execute`, the exact preview `--confirm` and durable journaling remain required.
+The [inventory](../tools/inventories/hybrid-axi.json) owns supported operation names and reviewed command/source digests.
+Sandbox submission previews disclose that samples and reports can become visible to the community.
+Consuming matches marks every returned match delivered; never automatically replay an ambiguous outcome.
+Use the audit ID, durable native journal and returned read-back guidance to reconcile it.
+Quick scans are read exceptions that transmit the supplied sample or URL without a write gate.
+Labs hunting and search contracts are experimental.
+
+The client uploads local files for `--file`, `--body-file` and `--hashes-file` using the existing bounded input transport.
+The API accepts uploaded leaf names only; `--body-file -` also accepts explicit JSON stdin.
+Server file paths, credential/origin overrides and local setup/config/profile commands are refused.
+Downloads, including normal report artifacts, samples, dropped-file archives and memory dumps, are unavailable through Artium.
+Use hybrid-axi locally for downloads with its native guards and live-malware warnings.
+Local fake-service checks do not establish live service acceptance.
