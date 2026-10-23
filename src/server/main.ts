@@ -60,7 +60,7 @@ async function main() {
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
       try { retainNativeWriteLog(writeLog) }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
-      for (const tool of ['az-axi', 'mg-axi', 'vectra-axi', 'tenable-axi'] as const) {
+      for (const tool of ['az-axi', 'mg-axi', 'vectra-axi'] as const) {
         try { await retainRunJournals(join(dirname(database), 'tool-logs', tool, 'writes.log'), tool) }
         catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
       }

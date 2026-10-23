@@ -61,6 +61,12 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       const read = await run(['card', 'list', '--limit', '1'])
       expect(read.exitCode, read.stdout).toBe(0)
       expect(read.stdout).toContain('Synthetic exposure')
+      const page = decode(read.stdout) as { cursor: string, complete: boolean }
+      expect(page.complete).toBe(false)
+      const resumed = await run(['card', 'list', '--limit', '1', '--cursor', page.cursor])
+      expect(resumed.exitCode, resumed.stdout).toBe(0)
+      expect(resumed.stdout).toContain('Synthetic continuation')
+      expect((decode(resumed.stdout) as { complete: boolean }).complete).toBe(true)
       const checked = await app.inject({ method: 'POST', url: '/v1/admin/tools/tenable-axi/test', headers, payload: {} })
       expect(checked.json()).toMatchObject({ status: 'ok' })
       const create = ['tag', 'category', 'create', '--name', 'Synthetic category']
@@ -84,16 +90,29 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       })
       expect(exportPreview.exitCode, exportPreview.stdout).toBe(0)
       const exportPlan = decode(exportPreview.stdout) as { preview: { confirm: string } }
-      const exported = await run(['export', 'asset', 'start', '--body-file', '-', '--execute', '--confirm', exportPlan.preview.confirm], { stdin: '{}' })
+      const exportArgs = ['export', 'asset', 'start', '--body-file', '-', '--execute', '--confirm', exportPlan.preview.confirm,
+        '--intent-id', 'synthetic-export']
+      const exported = await run(exportArgs, { stdin: '{}' })
       expect(exported.exitCode, exported.stdout).toBe(0)
+      expect((await run(exportArgs, { stdin: '{}' })).stdout).toContain('ALREADY_EXECUTED')
+      expect(db.prepare("SELECT action FROM audit WHERE tool = 'tenable-axi' AND event = 'run-terminal' ORDER BY rowid DESC LIMIT 1").get())
+        .toMatchObject({ action: 'unknown' })
+      const concurrentArgs = [...exportArgs.slice(0, -1), 'synthetic-concurrent-export']
+      const concurrent = await Promise.all([run(concurrentArgs, { stdin: '{}' }), run(concurrentArgs, { stdin: '{}' })])
+      expect(concurrent.filter(result => result.exitCode === 0)).toHaveLength(1)
+      expect(concurrent.find(result => result.exitCode !== 0)?.stdout).toMatch(/ALREADY_EXECUTED|INTENT_NOT_RECORDED/)
+      expect((await run(['card', 'list', '--limit', '1'])).exitCode).toBe(0)
+      expect(db.prepare("SELECT action FROM audit WHERE tool = 'tenable-axi' AND event = 'run-terminal' ORDER BY rowid DESC LIMIT 1").get())
+        .toMatchObject({ action: 'read' })
+      expect(db.prepare("SELECT count(*) AS count FROM audit WHERE tool = 'tenable-axi' AND event = 'run-terminal' AND action = 'write'").get())
+        .toMatchObject({ count: 3 })
       const evidence = JSON.parse(await send('/__evidence'))
-      expect(evidence.mutations).toBe(2)
+      expect(evidence.mutations).toBe(3)
       expect(evidence.requests.every((request: { canaryReceived: boolean }) => request.canaryReceived)).toBe(true)
-      const journals = readdirSync(`${log}.runs`).flatMap(run => {
-        try { return readFileSync(join(`${log}.runs`, run, 'writes.log'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) }
-        catch { return [] }
-      })
-      expect(journals.map(record => record.kind).sort()).toEqual(['intent', 'intent', 'outcome', 'outcome'])
+      const journals = readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+      expect(journals.map(record => record.kind).sort()).toEqual(['intent', 'intent', 'intent', 'outcome', 'outcome', 'outcome'])
+      const profiles = readdirSync(join(directory, 'profiles')).map(file => readFileSync(join(directory, 'profiles', file), 'utf8'))
+      expect(profiles.join('')).not.toContain('CANARY-')
       const off = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/tenable-axi/write-access', headers,
         payload: { enabled: false, expectedRevision: (await settings()).json().revision } })
       expect(off.statusCode).toBe(200)

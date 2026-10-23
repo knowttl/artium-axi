@@ -1,4 +1,6 @@
-import { isAbsolute } from 'node:path'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { dirname, isAbsolute, join } from 'node:path'
 import inventory from '../../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
@@ -38,7 +40,9 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
     } else normalized.push(token)
   }
   if (input.stdin !== undefined && !usesStdin) throw new ArtiumError('UNSUPPORTED_INPUT')
-  return { args: normalized, fileArguments }
+  return { args: normalized, fileArguments,
+    effect: route?.effect === 'write' && tokens.some(token => token === '--execute' || token.startsWith('--execute='))
+      ? 'write' as const : 'read' as const }
 }
 
 export function createTenableAdapter(source: SecretSource, writeLog: string): Adapter<unknown> {
@@ -56,8 +60,20 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const readOnly = !toolAllowsWrites('tenable-axi', parsed.data)
         || Boolean(source.getSettings && !toolAllowsWrites('tenable-axi', source.getSettings(reference)))
+      const profile = tenableProfile.prepare('tenable-axi', parsed.data, writeLog, readOnly)
+      const content = profile.files[0].content
+      const identity = createHash('sha256').update(JSON.stringify([reference.id, reference.revision, content])).digest('hex')
+      const directory = join(dirname(writeLog), 'profiles')
+      await mkdir(directory, { recursive: true, mode: 0o700 })
+      const config = join(directory, `${identity}.json`)
+      const temporary = join(directory, `${randomUUID()}.tmp`)
+      try {
+        await writeFile(temporary, content, { mode: 0o600, flag: 'wx' })
+        await rename(temporary, config)
+      } finally { await rm(temporary, { force: true }) }
       return { executable: toolPaths['tenable-axi'], ...normalized,
-        ...tenableProfile.prepare('tenable-axi', parsed.data, writeLog, readOnly), limits: { timeoutMs: runnerLimits.timeoutMs } }
+        ...profile, files: [], environment: { ...profile.environment, TENABLE_AXI_CONFIG: config },
+        limits: { timeoutMs: runnerLimits.timeoutMs } }
     },
   }
 }

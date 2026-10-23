@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { afterAll } from 'vitest'
 import { credentialFields } from '../admin/credential-form.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { createTenableAdapter, tenableCredentialSchema, tenableProfile, tenableWritePolicy } from './tenable.js'
@@ -8,7 +11,10 @@ import { toolFailure } from '../health/diagnostic.js'
 
 const credential = { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' }
 const reference = { id: 'synthetic-tenable', tool: 'tenable-axi' as const, revision: 1 }
-const adapter = createTenableAdapter({ getCredential: async () => credential }, '/tmp/synthetic-tenable/writes.log')
+const directory = mkdtempSync(join(process.cwd(), '.tmp-tenable-'))
+const writeLog = join(directory, 'writes.log')
+const adapter = createTenableAdapter({ getCredential: async () => credential }, writeLog)
+afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 test('the credential form marks both keys secret and offers only the fixed origin', () => {
   const form = credentialFields('tenable-axi', tenableProfile, {}, false)
@@ -28,12 +34,13 @@ test.each([['--help'], ['card', 'list', '--help'], ['export', 'asset', 'start', 
 
 test('both keys are secret references and writes default off with a fixed endpoint', async () => {
   const call = await adapter.prepare(['card', 'list'], reference)
-  expect(call.environment).toMatchObject({ TENABLE_AXI_READ_ONLY: 'true', TENABLE_AXI_WRITE_LOG: '/tmp/synthetic-tenable/writes.log',
+  expect(call.environment).toMatchObject({ TENABLE_AXI_READ_ONLY: 'true', TENABLE_AXI_WRITE_LOG: writeLog,
     ARTIUM_SECRET_0: credential.accessKey, ARTIUM_SECRET_1: credential.secretKey })
-  expect(JSON.parse(String(call.files[0].content))).toMatchObject({ profiles: { artium: {
+  expect(JSON.parse(readFileSync(call.environment.TENABLE_AXI_CONFIG, 'utf8'))).toMatchObject({ profiles: { artium: {
     accessKey: { env: 'ARTIUM_SECRET_0' }, secretKey: { env: 'ARTIUM_SECRET_1' },
   } } })
   expect(call.secrets).toEqual([credential.accessKey, credential.secretKey])
+  expect((await adapter.prepare(['card', 'list'], reference)).environment.TENABLE_AXI_CONFIG).toBe(call.environment.TENABLE_AXI_CONFIG)
   expect(tenableProfile.metadata(credential)).toEqual({})
   expect(toolEndpoints('tenable-axi', credential).map(url => url.origin)).toEqual(['https://cloud.tenable.com'])
 })
@@ -67,7 +74,7 @@ test('the write switch preserves the allow-list and disabled source policy wins'
   const settings = tenableWritePolicy.update({}, { enabled: true, operations: ['inventory-export-assets'], expectedRevision: 1 })
   expect(tenableWritePolicy.read(settings)).toMatchObject({ capable: true, enabled: true, allowedOperations: ['inventory-export-assets'] })
   const source = { getCredential: async () => ({ ...credential, ...settings }), getSettings: () => ({}) }
-  const gated = createTenableAdapter(source, '/tmp/synthetic-tenable/writes.log')
+  const gated = createTenableAdapter(source, writeLog)
   expect((await gated.prepare(['export', 'asset', 'start'], reference)).environment.TENABLE_AXI_READ_ONLY).toBe('true')
   expect(() => tenableWritePolicy.update({}, { enabled: true, operations: ['unsupported'], expectedRevision: 1 })).toThrow()
   expect(() => tenableWritePolicy.update({}, { enabled: true, operations: [], expectedRevision: 1 })).toThrow()

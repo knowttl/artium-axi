@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { decode } from '@toon-format/toon'
 import falconInventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import ldapInventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import type { ToolName } from '../store/credential-store.js'
@@ -7,9 +8,25 @@ import type { ToolName } from '../store/credential-store.js'
 export type RunAction = 'read' | 'write' | 'unknown'
 
 // These pinned tools journal mutations after their native write gates.
-const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG', 'TENABLE_AXI_WRITE_LOG']
+const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG']
 
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
+  if (tool === 'tenable-axi') {
+    const path = environment.TENABLE_AXI_WRITE_LOG
+    if (!path || !effect) throw new TypeError('Missing native write journal contract')
+    return { environment, async action(succeeded: boolean, stdout?: string): Promise<RunAction> {
+      if (effect === 'read') return succeeded ? 'read' : 'unknown'
+      try {
+        const output = decode(stdout ?? '') as { auditId?: string, error?: { auditId?: string } }
+        const auditId = output?.auditId ?? output?.error?.auditId
+        if (!auditId) return 'unknown'
+        const content = await readFile(path, 'utf8')
+        if (!content.endsWith('\n')) return 'unknown'
+        const records = content.trim().split('\n').map(line => JSON.parse(line))
+        return records.some(record => record.auditId === auditId && record.kind === 'intent') ? 'write' : 'unknown'
+      } catch { return 'unknown' }
+    } }
+  }
   if (tool === 'ado-axi' || tool === 'awx-axi') {
     if (!effect) throw new TypeError('Missing host-classified effect')
     return { environment, action: async (succeeded: boolean): Promise<RunAction> => effect === 'read' ? 'read' : succeeded ? 'write' : 'unknown' }
@@ -41,7 +58,7 @@ export async function prepareRunJournal(environment: Record<string, string>, too
   } }
 }
 
-export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName, 'falcon-axi'>, now = Date.now()): Promise<void> {
+export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName, 'falcon-axi' | 'tenable-axi'>, now = Date.now()): Promise<void> {
   const root = `${writeLog}.runs`
   let entries
   try { entries = await readdir(root, { withFileTypes: true }) }
