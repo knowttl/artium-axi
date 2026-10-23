@@ -16,14 +16,14 @@ const capabilityPolicy = writePolicy({
   unlocks: 'RTR read-only command execution and MalQuery exact/fuzzy search (MalQuery:write)',
   blocked: 'Host changes, scripts, hunt and file transfers remain unavailable. Profile RTR opt-in, command restrictions and exact execution confirmation still apply.' })
 function capabilitySettings(settings: Record<string, unknown>) {
-  return settings?.writes ? settings : { writes: { allowWrites: settings?.allowWrites === true,
+  return { writes: settings?.writes ?? { allowWrites: settings?.allowWrites === true,
     operations: typeof settings?.allowWrites === 'boolean' ? ['rtr run'] : [] } }
 }
 export const falconWritePolicy = {
   read: (settings: Record<string, unknown>) => capabilityPolicy.read(capabilitySettings(settings)),
   update(settings: Record<string, unknown>, input: Parameters<typeof capabilityPolicy.update>[1]) {
-    const { allowWrites: _, ...updated } = { ...settings, ...capabilityPolicy.update(capabilitySettings(settings), input) }
-    return updated
+    const { allowWrites: _, writes: __, ...rest } = settings
+    return { ...rest, ...capabilityPolicy.update(capabilitySettings(settings), input) }
   },
 }
 export const falconCredentialFiles = z.object({

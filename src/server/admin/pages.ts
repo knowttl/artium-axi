@@ -90,7 +90,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const writes = tool.writeAccess
     content += `<section data-write-access><h2>Write access</h2><p>${writes.capable ? 'Read and write capable' : 'Fixed read-only'}. ${writes.enabled ? 'Writes enabled' : 'Writes off'}. Writes default to off.</p>`
     if (writes.reason) content += `<p>${escape(writes.reason)}</p>`
-    content += `<h3>Current grant</h3><p>${writes.enabled ? escape(writes.unlocks) : tool.name === 'falcon-axi' ? 'RTR read-only command execution: off.' : 'No write actions are currently granted.'}</p>`
+    content += `<h3>Current grant</h3><p>${writes.enabled ? escape(writes.unlocks) : 'No write actions are currently granted.'}</p>`
     if (writes.supportedOperations) {
       content += `<p>Currently allowed operations${writes.enabled ? '' : ' (inactive while writes are off)'}:</p>${writes.allowedOperations.length ? `<ul>${writes.allowedOperations.map(operation => `<li><code>${escape(operation)}</code></li>`).join('')}</ul>` : '<p>None selected.</p>'}`
     }
