@@ -48,7 +48,7 @@ export async function prepareRunJournal(environment: Record<string, string>, too
   return { environment: { ...environment, [variable]: path }, async action(succeeded: boolean): Promise<RunAction> {
     // Falcon search submissions do not emit RTR's native journal. Missing evidence
     // must not turn a classified submission into a confirmed read.
-    const absent = succeeded && !(tool === 'falcon-axi' && effect === 'write') ? 'read' : 'unknown'
+    const absent = succeeded && !(tool === 'falcon-axi' && variable === 'FALCON_AXI_WRITE_LOG' && effect === 'write') ? 'read' : 'unknown'
     try {
       const content = await readFile(path, 'utf8')
       if (!content.trim()) return absent
