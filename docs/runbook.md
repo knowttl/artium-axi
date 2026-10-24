@@ -12,6 +12,19 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
+Hosted Hybrid Analysis downloads remain unavailable until the delivery and enabling slices in [the approved design](hybrid-download-design.md) are complete.
+Their internal artifact owner requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev,noswap` mount flags.
+It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
+The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
+Four reservations globally and one per user include incomplete files and remain charged until deletion succeeds.
+The ten-minute deadline begins at preparation, cancels generation or delivery, and never extends on activity.
+Startup purges stale entries before admission and marks pending transfer metadata interrupted; shutdown stops consumers before unlinking.
+Cleanup failure emits a fixed operator diagnostic and blocks admission until cleanup is retried successfully.
+The ordinary `/tmp` mount in the Compose example does not satisfy this contract, and this slice does not provision a deployment mount or start the artifact owner.
+Use fake-only container acceptance to establish mount, maximum-size native RSS and concurrent memory headroom before enabling downloads; an unavailable or refused host check remains unverified.
+Operators must arrange security-team-approved, narrowly scoped AV/EDR handling for the dedicated artifact mount and controlled client download directory, exclude the mount from backups and core dumps, and prevent swap capture before enabling downloads.
+Never disable protection globally or exclude `/data`, tool installations or a general downloads directory.
+Quarantine or file locking can interrupt delivery or prevent cleanup; unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.
 Non-swarm Compose file secrets retain host ownership, so mode-0600 files owned by the operator are not readable by the image's UID 10001.

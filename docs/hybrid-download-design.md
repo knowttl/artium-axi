@@ -1,6 +1,7 @@
 # Hosted Hybrid Analysis downloads
 
-Status: transfer contracts, owner/session scope checks and typed audit metadata are implemented; artifact storage, delivery and final enablement remain pending.
+Status: transfer contracts, owner/session scope checks, typed audit metadata, bounded artifact ownership and the internal native handoff are implemented; delivery and final enablement remain pending.
+The artifact owner is not started by the server yet, and the ordinary runner scratch mount does not satisfy its admission contract.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
 This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 

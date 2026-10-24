@@ -48,6 +48,13 @@ try {
     if (!flag) await command(process.execPath, ['scripts/mg-headless-check.mjs'], { ...env, ARTIUM_TEST_IMAGE: image })
     await command(process.execPath, ['scripts/fake-services.mjs', ...probe], { ...env, ARTIUM_TEST_IMAGE: image })
     if (flag === '--production') {
+      const artifacts = `${builder}-artifacts`
+      recoveryContainers.push(artifacts)
+      await command('docker', ['run', '--name', artifacts, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--memory', '6g', '--memory-swap', '6g', '--pids-limit', '192',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--tmpfs', '/tmp/artium-artifacts:rw,noexec,nosuid,nodev,noswap,size=1073741824,mode=0700,uid=10001,gid=10001',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/test/runner/artifact-probe.mjs'])
       const packaged = `${builder}-mg-package`
       recoveryContainers.push(packaged)
       await command('docker', ['run', '--name', packaged, '--pull', 'never', '--network', 'none', '--read-only',
