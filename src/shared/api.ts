@@ -63,7 +63,7 @@ export const transferEvidenceSchema = z.strictObject({ outcome: transferOutcomeS
   .refine(evidence => !['preview', 'denied-not-sent', 'native-outcome-unknown', 'upstream-failure'].includes(evidence.outcome) || evidence.archive === null)
   .refine(evidence => evidence.saveOutcome !== 'verified-save' || evidence.archive !== null)
 export const transferStatusSchema = transferEvidenceSchema.safeExtend({ transferId: transferIdSchema, expiresAt: z.number().int() })
-// Native operations remain unavailable until the final adapter enablement slice.
+// Dedicated transfer routes preserve byte ownership outside ordinary tool runs.
 export const transferRoutes = {
   prepare: { method: 'POST', path: '/v1/transfers/hybrid/prepare', input: transferPrepareSchema, response: transferPreviewSchema },
   execute: { method: 'POST', path: '/v1/transfers/hybrid/execute', input: transferExecuteSchema, response: transferStatusSchema },

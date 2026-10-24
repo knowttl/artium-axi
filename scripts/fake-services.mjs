@@ -14,6 +14,7 @@ const name = `artium-test-${randomUUID()}`
 const containers = []
 const networks = []
 const certs = mkdtempSync(join(root, '.tmp-fake-services-'))
+console.log(`container-resources: ${JSON.stringify({ prefix: name, scratch: certs, image })}`)
 const command = (bin, args) => {
   const result = spawnSync(bin, args, { encoding: 'utf8', timeout: 60_000 })
   if (result.error || result.status !== 0) throw new Error(`${bin}: ${result.error?.message ?? result.stderr}`)
@@ -23,6 +24,7 @@ const docker = (...args) => command('docker', args)
 const start = (suffix, network, aliases = []) => {
   const container = `${name}-${suffix}`
   containers.push(container)
+  console.log(`container-resource: ${JSON.stringify({ container })}`)
   docker('run', '--detach', '--pull', 'never', '--name', container, '--network', network,
     ...(falcon ? ['--user', '0'] : []),
     ...aliases.flatMap(host => ['--network-alias', host]),
@@ -47,12 +49,14 @@ try {
   docker('image', 'inspect', image)
   const versionContainer = `${name}-version`
   containers.push(versionContainer)
+  console.log(`container-resource: ${JSON.stringify({ container: versionContainer })}`)
   const version = docker('run', '--rm', '--pull', 'never', '--network', 'none', '--name', versionContainer, image, 'node', '--version')
   if (Number(version.slice(1).split('.')[0]) < 24) throw new Error('Harness image requires Node 24 or later')
   createTestCertificates(certs, hosts)
   for (const suffix of ['inside', 'outside']) {
     const network = `${name}-${suffix}`
     networks.push(network)
+    console.log(`container-resource: ${JSON.stringify({ network })}`)
     docker('network', 'create', '--internal', network)
     if (!JSON.parse(docker('network', 'inspect', network))[0].Internal) throw new Error('Network is not internal')
   }
@@ -62,6 +66,7 @@ try {
   const outsideIp = Object.values(JSON.parse(docker('inspect', outside))[0].NetworkSettings.Networks)[0].IPAddress
   const client = `${name}-client`
   containers.push(client)
+  console.log(`container-resource: ${JSON.stringify({ container: client })}`)
   console.log(docker('run', '--rm', '--pull', 'never', '--name', client, '--network', networks[0],
     '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${join(certs, 'ca.crt')},dst=/test-ca.crt,readonly`,
     '--env', 'NODE_EXTRA_CA_CERTS=/test-ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',

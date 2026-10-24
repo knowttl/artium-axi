@@ -11,6 +11,7 @@ const name = `artium-test-s20-21-${randomUUID()}`
 const image = `${name}-server`
 const cliImage = `${name}-node24`
 const directory = mkdtempSync(join(root, '.tmp-walking-'))
+console.log(`container-resources: ${JSON.stringify({ prefix: name, scratch: directory, images: [image, cliImage] })}`)
 const containers = []
 const images = []
 const volumes = []
@@ -37,6 +38,7 @@ const ready = container => new Promise((resolve, reject) => {
 const run = (suffix, args) => {
   const container = `${name}-${suffix}`
   containers.push(container)
+  console.log(`container-resource: ${JSON.stringify({ container })}`)
   return docker('run', '--pull', 'never', '--name', container, ...args)
 }
 try {
@@ -51,6 +53,7 @@ try {
   chmodSync(join(directory, 'server.key'), 0o644)
   copyFileSync(join(root, 'test/fake-tool/environment.py'), join(directory, 'fake-axi'))
   chmodSync(join(directory, 'fake-axi'), 0o755)
+  console.log(`container-resource: ${JSON.stringify({ network: name })}`)
   docker('network', 'create', '--internal', name)
   network = true
   if (!JSON.parse(docker('network', 'inspect', name))[0].Internal) throw new Error('Fake-only network must be internal')
@@ -67,6 +70,7 @@ try {
     }
     const volume = `${name}-${mode}-data`
     volumes.push(volume)
+    console.log(`container-resource: ${JSON.stringify({ volume })}`)
     docker('volume', 'create', volume)
     const data = ['--mount', `type=volume,src=${volume},dst=/data`]
     run(`${mode}-setup`, ['--rm', '--user', '0', '--network', 'none', ...mounts, ...data,
