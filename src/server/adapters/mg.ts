@@ -37,7 +37,9 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}): string[]
     ?? (words.length === 3 && words[0] === 'api' && words[1] === 'get'
       ? inventory.commands.find(route => route.command === 'api get') : undefined)
   if (!route) {
-    if (['api', 'update'].includes(words[0])) throw new ArtiumError('FLAG_BLOCKED', `Command ${words.join(' ')} is unavailable through artium.`)
+    if (words[0] === 'update' || words[0] === 'api' && /^(post|put|patch|delete|head|options)$/i.test(words[1] ?? '')) {
+      throw new ArtiumError('FLAG_BLOCKED', `Command ${words.join(' ')} is unavailable through artium.`)
+    }
     throw invalidCommand('mg-axi', words, inventory.commands.filter(route => mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(command + ' '))).map(route => route.command))
   }
   if (!mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(`${command} `))) {

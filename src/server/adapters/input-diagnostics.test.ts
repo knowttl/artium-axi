@@ -16,6 +16,7 @@ test.each([
   ['hybrid-axi', ['hash']], ['hybrid-axi', ['hash', '--help']], ['hybrid-axi', ['qouta']],
   ['tenable-axi', ['asset']], ['tenable-axi', ['asset', '--help']], ['tenable-axi', ['assset']],
   ['mg-axi', ['entra']], ['mg-axi', ['entra', '--help']], ['mg-axi', ['enttra']],
+  ['mg-axi', ['api']], ['mg-axi', ['api', '--help']], ['mg-axi', ['api', 'gte', '/users']],
   ['awx-axi', ['job']], ['awx-axi', ['jbo']], ['ldap-axi', ['user']], ['ldap-axi', ['user', '--help']],
   ['ldap-axi', ['usre']], ['ado-axi', ['pipline']], ['az-axi', ['resorce']],
 ] as const)('%s names unknown or incomplete command %j', (tool, args) => {

@@ -132,13 +132,20 @@ try {
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', canary: 'fake env emits injected secret; CLI receives SECRET_IN_OUTPUT without either stream' }))
     } else {
       const clean = text => text.replace(/^(?:duration_ms|elapsed_ms|durationMs):.*\n/gm, '')
+      const { decode } = await import(createRequire('/opt/artium/package.json').resolve('@toon-format/toon'))
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], ['detection', 'list', '--limit', '1'],
         ['detection', 'list', '--filter', "hostname:'synthetic-empty'"], ['detection', 'list', '--unknown']]) {
         const local = await execute('/opt/falcon-axi/bin/falcon-axi', [...args, '--region', 'us-1'], {
           FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
         })
         const remote = await cli(['falcon-axi', ...args])
-        assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
+        if (args.length === 0) {
+          const expected = decode(clean(upstreamSuggestions(local.stdout, true)))
+          assert.equal(expected.bin, '/opt/falcon-axi/bin/falcon-axi')
+          expected.bin = 'artium-axi falcon-axi'
+          assert.deepEqual({ ...remote, stdout: decode(clean(upstreamSuggestions(remote.stdout))), stderr: clean(upstreamSuggestions(remote.stderr)) },
+            { ...local, stdout: expected, stderr: clean(upstreamSuggestions(local.stderr, true)) })
+        } else assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
           { ...local, stdout: clean(upstreamSuggestions(local.stdout, true)), stderr: clean(upstreamSuggestions(local.stderr, true)) })
         if (!args.includes('--unknown') && !args.includes('--filter') && !args.includes('--help')) assert.match(remote.stdout, /synthetic-detection/)
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
@@ -176,7 +183,6 @@ try {
       const vectraDetail = await cli(['tools', 'show', 'vectra-axi'])
       assert.equal(vectraDetail.code, 0, vectraDetail.stdout + vectraDetail.stderr)
       assert.match(vectraDetail.stdout, /example: artium-axi vectra-axi detection list/)
-      const { decode } = await import(createRequire('/opt/artium/package.json').resolve('@toon-format/toon'))
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
         const local = await execute(prepared.executable, args, { ...prepared.environment, XDG_CONFIG_HOME: directory })
         const remote = await cli(['vectra-axi', ...args])

@@ -1,31 +1,93 @@
 import { decode, encode } from '@toon-format/toon'
 import { ArtiumError } from '../../shared/errors.js'
 import type { RunnerResult } from '../runner/runner.js'
+import az from '../../../tools/inventories/az-axi.json' with { type: 'json' }
+import ldap from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
+import ado from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
+
+function statusCommand(tool: string, args: readonly string[]): boolean {
+  if (args.some(arg => /^(?:--help(?:=true)?|-h|--version|-v|-V)$/.test(arg))) return false
+  const inventory = tool === 'az-axi' ? az : tool === 'ldap-axi' ? ldap : tool === 'ado-axi' ? ado : undefined
+  const flags: Record<string, string | undefined> = inventory?.commands.find(route => route.command === 'home')?.flags ?? {}
+  let index = 0
+  while (args[index]?.startsWith('-')) {
+    const token = args[index++]
+    const name = token === '-s' ? 'subscription' : token.slice(2).split('=')[0]
+    const kind = flags[name]
+    if (!kind) return false
+    if (!token.includes('=') && (kind !== 'boolean' || tool !== 'ldap-axi' && ['true', 'false'].includes(args[index]))) index++
+  }
+  return index === args.length || args[index] === 'home' || args[index] === 'auth' && args[index + 1] === 'status'
+}
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, args: readonly string[], result: RunnerResult): RunnerResult {
-  if (result.exitCode !== 0 || args.includes('--help')
-    || !(args.length === 0 || args[0] === 'home' || args[0] === 'auth' && args[1] === 'status')) return result
-  if (result.truncated.stdout) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
+  if (!statusCommand(tool, args)) return result
+  if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   try {
     const json = result.stdout.trimStart().startsWith('{')
     const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
-    delete document.config
-    delete document.configPath
-    if (Object.hasOwn(document, 'bin')) document.bin = `artium-axi ${tool}`
-    if (document.setup && typeof document.setup === 'object') document.setup = 'Managed by artium.'
-    for (const field of ['source', 'bind_password_source']) {
-      const source = document[field]
-      if (typeof source === 'string' && /^(env|file):/.test(source)) document[field] = source.split(':')[0]
+    const references = new Map<string, string>()
+    const replace = (value: unknown, kind: string) => {
+      if (typeof value === 'string' && value.length > kind.length) references.set(value, kind)
+      return kind
     }
-    for (const field of ['apiKey', 'accessKey', 'secretKey']) {
-      const reference = document[field]
-      if (reference && typeof reference === 'object') {
-        if (Object.hasOwn(reference, 'env')) document[field] = 'env'
-        else if (Object.hasOwn(reference, 'file')) document[field] = 'file'
-        else throw new Error('Unknown secret source')
+    const sourceKind = (value: unknown): unknown => {
+      if (typeof value === 'string') {
+        const match = /^(env|file|stored):(.+)$/.exec(value)
+        if (match) {
+          const kind = match[1] === 'stored' ? 'file' : match[1]
+          replace(match[2], kind)
+          return replace(value, kind)
+        }
+        return value === 'stored' ? 'file' : value
+      }
+      if (value && typeof value === 'object') {
+        const reference = value as Record<string, unknown>
+        if (Object.hasOwn(reference, 'env')) return replace(reference.env, 'env')
+        if (Object.hasOwn(reference, 'file')) return replace(reference.file, 'file')
+        if (Object.hasOwn(reference, 'stored')) return 'file'
+        throw new Error('Unknown secret source')
+      }
+      return value
+    }
+    for (const field of ['config', 'configPath', 'credential_path']) {
+      replace(document[field], 'file')
+      delete document[field]
+    }
+    if (Object.hasOwn(document, 'bin')) document.bin = replace(document.bin, `artium-axi ${tool}`)
+    if (document.setup && typeof document.setup === 'object') document.setup = 'Managed by artium.'
+    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey']) {
+      if (Object.hasOwn(document, field)) document[field] = sourceKind(document[field])
+    }
+    if (document.secrets && typeof document.secrets === 'object') {
+      const secrets = document.secrets as Record<string, unknown>
+      for (const field of Object.keys(secrets)) secrets[field] = sourceKind(secrets[field])
+    }
+    if (tool === 'awx-axi' && document.auth && typeof document.auth === 'object') {
+      const auth = document.auth as Record<string, unknown>
+      if (typeof auth.source === 'string' && auth.source !== 'none') {
+        auth.source = replace(auth.source, /^[A-Za-z_][A-Za-z0-9_]*$/.test(auth.source) && !['file', 'stored'].includes(auth.source) ? 'env' : 'file')
       }
     }
-    return { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n' }
+    if (Array.isArray(document.sources)) {
+      for (const source of document.sources as Record<string, unknown>[]) {
+        if (Object.hasOwn(source, 'source')) source.source = sourceKind(source.source)
+        if (Object.hasOwn(source, 'location')) {
+          source.kind = sourceKind(source.kind)
+          replace(source.location, source.kind === 'env' ? 'env' : 'file')
+          delete source.location
+        }
+      }
+    }
+    const sanitize = (text: string) => {
+      for (const [reference, kind] of [...references].sort((a, b) => b[0].length - a[0].length)) text = text.replaceAll(reference, kind)
+      return text
+    }
+    for (const field of ['error', 'help']) {
+      if (Object.hasOwn(document, field)) document[field] = JSON.parse(JSON.stringify(document[field], (_, value: unknown) =>
+        typeof value === 'string' ? sanitize(value) : value))
+    }
+    return { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n', stderr: sanitize(result.stderr) }
   } catch { throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output is invalid.') }
 }
