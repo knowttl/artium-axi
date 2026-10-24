@@ -7,6 +7,7 @@ import type { PreparedCall } from './types.js'
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
   if (!invocation || invocation.help || !['home', 'auth status'].includes(invocation.command)) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
+  if (result.stdout === '') return result
   try {
     const document = decode(result.stdout) as Record<string, unknown>
     const references = new Map<string, string>()
