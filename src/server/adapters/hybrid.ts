@@ -1,5 +1,5 @@
 import inventory from '../../../tools/inventories/hybrid-axi.json' with { type: 'json' }
-import { toolAllowsWrites } from '../../shared/api.js'
+import { toolAllowsWrites, transferWarning } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
@@ -23,7 +23,7 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
   const route = [...inventory.commands].reverse().find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (route?.command === 'hash file' || route?.command === 'report file') throw new ArtiumError('FLAG_BLOCKED',
     'Hosted downloads are not available yet through artium; use hybrid-axi locally.',
-    'Use hybrid-axi locally with its native preview, execute, exact confirmation and live-malware warnings.')
+    `Use hybrid-axi locally with its native preview, execute, exact confirmation and live-malware warnings. ${transferWarning}`)
   if (!route) {
     if (hybridManifest.blockedCommands.some(command => tokens.join(' ') === command || tokens.join(' ').startsWith(command + ' '))) {
       throw new ArtiumError('FLAG_BLOCKED', `Command ${tokens[0]} is unavailable through artium.`)
@@ -77,6 +77,17 @@ export function createHybridAdapter(source: SecretSource, writeLog: string): Ada
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { hybridArguments(args, input) },
+    async prepareArtifact(args, reference, scope) {
+      if (reference.tool !== 'hybrid-axi' || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const parsed = hybridCredentialSchema.safeParse(await source.getCredential(reference))
+      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
+      // Only the authenticated transfer owner calls this internal handoff after
+      // current policy checks. Ordinary T13 arguments still refuse downloads.
+      const profile = hybridProfile.prepare('hybrid-axi', { ...parsed.data,
+        writes: { allowWrites: true, operations: [scope.selection.operation] } }, writeLog, false)
+      return { executable: toolPaths['hybrid-axi'], args, ...profile,
+        limits: { timeoutMs: runnerLimits.timeoutMs } }
+    },
     async prepare(args, reference, input) {
       const normalized = hybridArguments(args, input)
       if (reference.tool !== 'hybrid-axi') throw new ArtiumError('CREDENTIAL_INVALID')

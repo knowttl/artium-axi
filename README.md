@@ -241,6 +241,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
+| `download` | Preview and explicitly verify/save Hybrid Analysis archives through the local CLI; unavailable until final hosted download enablement. Run `artium-axi download --help` for guards and warnings. |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
 | `<tool> <args>` | Run any of the nine managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |

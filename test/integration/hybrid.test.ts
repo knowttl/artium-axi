@@ -119,8 +119,13 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
         payload: { args: ['report', 'file', 'synthetic-job', '--type', 'memory', '--output', '/synthetic/private/memory.gz', '--execute'] } })
       expect(reportDownload.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect(JSON.stringify(db.prepare("SELECT * FROM audit WHERE event = 'denial'").all())).not.toContain('/synthetic/private')
-      expect((await app.inject({ method: 'POST', url: transferRoutes.prepare.path, headers, payload: {} })).statusCode).toBe(404)
-      expect((await app.inject({ method: 'POST', url: transferRoutes.execute.path, headers, payload: {} })).statusCode).toBe(404)
+      const transfer = { selection: { operation: 'hash-download-bin', selector: 'a'.repeat(64), type: 'bin' }, targetDigest: 'b'.repeat(64) }
+      const unavailable = await app.inject({ method: 'POST', url: transferRoutes.prepare.path, headers, payload: transfer })
+      expect(unavailable.statusCode).toBe(400)
+      expect(unavailable.json().error.code).toBe('FLAG_BLOCKED')
+      expect((await app.inject({ method: 'POST', url: transferRoutes.execute.path, headers, payload: {
+        ...transfer, transferId: '77066c24-bcb0-4a39-9304-551a617ac080', execute: true, confirm: 'synthetic-confirm',
+      } })).statusCode).toBe(401)
       expect((await save('CANARY-hybrid-restricted', store.findCredential('hybrid-axi')!.revision!)).statusCode).toBe(200)
       const denied = await run(['hash', 'show', 'a'.repeat(64)])
       expect(denied.exitCode).toBe(1)

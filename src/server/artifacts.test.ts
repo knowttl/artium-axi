@@ -159,7 +159,7 @@ test('authorization denial immediately before spawn cleans the reservation witho
 })
 
 test('native upstream failure retains correlated journal evidence without inventing archive metadata', async () => {
-  await expect(native(await reserve(), 'upstream-failure')).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME' })
+  await expect(native(await reserve(), 'upstream-failure')).rejects.toMatchObject({ code: 'PERMISSION_DENIED' })
   const failure = db.prepare("SELECT * FROM audit WHERE outcome = 'upstream-failure'").get()
   expect(failure).toMatchObject({ native_audit_id: evidence.nativeAuditId, native_journal_result: 'FAILED',
     archive_bytes: null, archive_sha256: null })

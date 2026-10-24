@@ -1234,6 +1234,13 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
     await page.click('button');
     await page.wait('a[href="/cli/artium-axi.mjs"]');
     check(await page.eval(() => location.pathname === '/account'), 'Ordinary user did not reach account');
+    check(await page.eval(() => {
+      const text = document.querySelector('main').innerText;
+      return text.includes('Live malware: this archive may contain executable malware. Save only; do not extract or execute. Password protection is unverified; bytes are saved exactly as provided.')
+        && text.includes('artium-axi download --help') && text.includes('250 MiB')
+        && text.includes('Missing verified-save receipt remains unconfirmed.')
+        && !document.querySelector('a[href^="/v1/transfers/"]');
+    }), 'Archive guidance lost its warning, limits, receipt distinction or CLI-only save boundary');
     check(await page.eval(() => document.querySelector('main').innerText.includes('falcon-axi')), 'Granted tools are missing');
     check(await page.eval(() => document.querySelector('pre').textContent.includes(location.origin)), 'CLI uses wrong server');
     check(await page.eval(() => document.querySelector('main').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');

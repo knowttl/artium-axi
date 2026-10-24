@@ -28,6 +28,17 @@ The ordinary `/tmp` mount in the Compose example does not satisfy this contract,
 Use fake-only container acceptance to establish mount, maximum-size native RSS and concurrent memory headroom before enabling downloads; an unavailable or refused host check remains unverified.
 Operators must arrange security-team-approved, narrowly scoped AV/EDR handling for the dedicated artifact mount and controlled client download directory, exclude the mount from backups and core dumps, and prevent swap capture before enabling downloads.
 Never disable protection globally or exclude `/data`, tool installations or a general downloads directory.
+Artium does not automatically change AV/EDR policy.
+Security software can quarantine or lock even compressed samples, causing delivery failure, changed availability or blocked cleanup; resolve those failures under the approved narrowly scoped policy.
+Use a dedicated controlled Linux analysis client and dedicated private download directory, without sync, indexing or automatic opening.
+Keep subsequent analysis outside Artium.
+The CLI saves only opaque bytes: it verifies size and archive SHA-256 before atomic no-overwrite publication to the exact confirmed new destination.
+The browser offers warnings, CLI guidance and metadata/save status only, with no artifact bytes or direct browser saving.
+Live malware: this archive may contain executable malware.
+Save only; do not extract or execute.
+Password protection is unverified; bytes are saved exactly as provided.
+Upstream success, completed server delivery and a client verified-save receipt are separate outcomes; missing receipt is unconfirmed.
+For `/v1/transfers/hybrid/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
 Quarantine or file locking can interrupt delivery or prevent cleanup; unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.

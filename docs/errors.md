@@ -49,6 +49,9 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | PASSWORD_CHANGE_REQUIRED | artium-axi | 409 | 1 | Change your temporary password before using tools. | Run artium-axi passwd --password-stdin. |
 | SERVER_UNAVAILABLE | artium-axi | 503 | 1 | The CLI could not receive a server response. | Check the server address and certificate trust; confirm the previous call outcome before retrying. |
 | INVALID_RESPONSE | artium-axi | 500 | 1 | The server returned an invalid response. | Check the server URL and API version. |
+| KEY_LEVEL_RESTRICTED | artium-axi | 403 | 1 | HTTP 403: restricted key cannot download. | Request vetted-account download access. Administrator write settings cannot grant upstream entitlement. No other key or route was tried. |
+| PERMISSION_DENIED | artium-axi | 403 | 1 | HTTP 403: download denied; key level unknown. | Check upstream entitlement and request account vetting where required. Administrator write settings cannot grant upstream entitlement. No other key or route was tried. |
+| ARTIFACT_SAVE_FAILED | artium-axi | 400 | 1 | The archive was not verified and saved. | Check the dedicated private destination directory. Start a fresh preview and confirmation; interrupted transfers cannot be retried. |
 | DEV_AUTH_INVALID | artium-axi | 503 | 1 | Development authentication settings are unsupported. | Remove ARTIUM_AXI_DEV and ARTIUM_AXI_DEV_TOKEN_FILE and use local sign-in. |
 | PROXY_HEADERS_UNTRUSTED | artium-axi | 400 | 1 | Forwarding headers came from an untrusted address. | Connect through the configured trusted proxy or remove forwarding headers. |
 | NOT_FOUND | artium-axi | 404 | 1 | The endpoint does not exist. | Use a supported API endpoint and tool name. |
