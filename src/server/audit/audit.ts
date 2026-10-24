@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import type { z } from 'zod'
-import type { adminAuditQuerySchema } from '../../shared/api.js'
+import { transferAuditSchema, transferEvidenceSchema } from '../../shared/api.js'
+import type { adminAuditQuerySchema, adminAuditRecordSchema, transferOutcomeSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { ErrorCode } from '../../shared/errors.js'
 import type { ToolName } from '../store/credential-store.js'
@@ -20,6 +21,8 @@ type Outcome = 'success' | 'failure' | ErrorCode
 type Arguments = { args: readonly string[], sensitive: SensitiveArguments }
 type CredentialTestEvidence = { checkedAt: number | null, credentialRevision: number | null, errorCode: ErrorCode | null }
 export type AuditEvent = Context & (
+  | { event: 'transfer', outcome: z.infer<typeof transferOutcomeSchema>, credentialRevision: number,
+    transfer: z.infer<typeof transferAuditSchema> }
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
   // A normal managed run's errorCode is the tool's own bounded failure code; health-driven runs reuse Artium codes.
   | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null }, errorCode?: string | null } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
@@ -37,7 +40,9 @@ export type AuditEvent = Context & (
   | { event: 'maintenance', outcome: 'success', cutoff: number, deletedCount: number }
 )
 
-export interface AuditRecord {
+export interface AuditRecord extends Pick<z.infer<typeof adminAuditRecordSchema>,
+  'transfer_id' | 'session_family_id' | 'transfer_operation' | 'artifact_type' | 'artifact_selector' |
+  'requested_target_digest' | 'archive_bytes' | 'archive_sha256' | 'native_audit_id' | 'native_journal_result' | 'client_save_outcome'> {
   id: number
   occurred_at: number
   event: AuditEvent['event']
@@ -175,6 +180,10 @@ export class Audit {
   }
 
   private insert(event: AuditEvent): AuditRecord {
+    const transfer = event.event === 'transfer' ? transferAuditSchema.parse(event.transfer) : undefined
+    if (transfer) transferEvidenceSchema.parse({ outcome: event.outcome,
+      archive: transfer.archive_bytes === null ? null : { archiveBytes: transfer.archive_bytes, archiveSha256: transfer.archive_sha256 },
+      saveOutcome: transfer.client_save_outcome })
     const terminal = event.event === 'run-terminal' ? event : undefined
     const admin = event.event === 'admin-change' || event.event === 'sign-out' ? event : undefined
     const maintenance = event.event === 'maintenance' ? event : undefined
@@ -194,11 +203,17 @@ export class Audit {
       action: admin?.action ?? terminal?.action ?? (event.event === 'health-check' ? event.action : null) ?? null,
       target_id: 'targetId' in event ? event.targetId ?? null : null,
       cutoff: maintenance?.cutoff ?? null, deleted_count: maintenance?.deletedCount ?? null,
-      checked_at: test?.checkedAt ?? null, credential_revision: test?.credentialRevision ?? null,
+      checked_at: test?.checkedAt ?? null, credential_revision: event.event === 'transfer' ? event.credentialRevision : test?.credentialRevision ?? null,
       error_code: test?.errorCode ?? null,
       authentication_method: 'authenticationMethod' in event ? event.authenticationMethod ?? null : null,
       provider_id: 'providerId' in event ? event.providerId ?? null : null,
       subject: 'subject' in event ? event.subject ?? null : null,
+      transfer_id: transfer?.transfer_id ?? null, session_family_id: transfer?.session_family_id ?? null,
+      transfer_operation: transfer?.transfer_operation ?? null, artifact_type: transfer?.artifact_type ?? null,
+      artifact_selector: transfer?.artifact_selector ?? null, requested_target_digest: transfer?.requested_target_digest ?? null,
+      archive_bytes: transfer?.archive_bytes ?? null, archive_sha256: transfer?.archive_sha256 ?? null,
+      native_audit_id: transfer?.native_audit_id ?? null, native_journal_result: transfer?.native_journal_result ?? null,
+      client_save_outcome: transfer?.client_save_outcome ?? null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

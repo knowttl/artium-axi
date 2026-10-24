@@ -268,6 +268,9 @@ Apply filters, then use **Download CSV** or **Download JSON lines** to export ev
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
+The transfer contract adds nullable metadata columns for transfer/session correlation, native operation and artifact selector/type, destination digest, archive size/SHA-256, native audit ID/journal result and client save outcome.
+The selected sample hash and archive SHA-256 are distinct; incomplete archives have null size and digest, and delivery completion alone leaves the client save unconfirmed.
+These columns prepare the audit contract for hosted downloads, which remain unavailable.
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.

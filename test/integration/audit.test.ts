@@ -8,6 +8,7 @@ import { Audit } from '../../src/server/audit/audit.js'
 import type { AuditEvent, AuditRecord } from '../../src/server/audit/audit.js'
 import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { adminAuditRecordSchema } from '../../src/shared/api.js'
 
 let directory: string
 let db: Database.Database
@@ -34,6 +35,45 @@ afterEach(() => {
   vi.unstubAllEnvs()
   db.close()
   rmSync(directory, { recursive: true, force: true })
+})
+
+const transfer = {
+  transfer_id: 'f105c3b9-a58f-4d4c-bb60-8d17a70b5b86', session_family_id: 'family',
+  transfer_operation: 'hash-download-bin' as const, artifact_type: 'bin' as const,
+  artifact_selector: 'a'.repeat(64), requested_target_digest: 'b'.repeat(64),
+  archive_bytes: null, archive_sha256: null, native_audit_id: null, native_journal_result: null,
+  client_save_outcome: 'unconfirmed' as const,
+}
+
+test('transfer audit persists typed metadata with separate archive and client-save evidence', () => {
+  const record = audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome: 'preview',
+    credentialRevision: 3, transfer })
+  expect(adminAuditRecordSchema.parse(record)).toEqual(record)
+  expect(record).toMatchObject({ ...transfer, credential_revision: 3, arguments: null })
+  expect(db.prepare('SELECT * FROM audit WHERE id = ?').get(record.id)).toEqual(record)
+  const delivered = audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome: 'delivery-completed',
+    credentialRevision: 3, transfer: { ...transfer, archive_bytes: 5, archive_sha256: 'c'.repeat(64), native_journal_result: 'SUCCESS' } })
+  expect(delivered).toMatchObject({ outcome: 'delivery-completed', client_save_outcome: 'unconfirmed',
+    artifact_selector: 'a'.repeat(64), archive_sha256: 'c'.repeat(64) })
+})
+
+test.each([
+  { archive_bytes: 5 },
+  { archive_sha256: 'c'.repeat(64) },
+  { archive_bytes: 262144001, archive_sha256: 'c'.repeat(64) },
+  { destination: '/synthetic/private/file' },
+  { outputPath: '/synthetic/private/file' },
+  { artifact_selector: '/synthetic/private/file' },
+  { native_audit_id: '/synthetic/private/file' },
+  { session_family_id: '/synthetic/private/file' },
+  { archive_bytes: 5, archive_sha256: 'c'.repeat(64) },
+  { transfer_operation: 'report-download-memory' as const },
+])('transfer audit fails closed on incomplete digest, invalid scope and path fields: %j', change => {
+  const input = { ...transfer, ...change }
+  expect(() => audit.record({ ...context, event: 'transfer', outcome: 'preview', credentialRevision: 3,
+    transfer: input })).toThrow(expect.objectContaining({ code: 'AUDIT_UNAVAILABLE' }))
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
+  expect(lines).toEqual([])
 })
 
 test.each<AuditEvent>([
