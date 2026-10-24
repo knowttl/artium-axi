@@ -88,6 +88,10 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
 | `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 
+For users granted Hybrid Analysis, `/account` also shows archive warnings, [CLI save guidance](client-reference.md#hybrid-analysis-archive-saving) and metadata for their latest 20 transfers, including delivery and client-save receipts.
+The browser receives no artifact bytes and never saves, renders, opens or executes an archive.
+See the [capability boundary](../README.md#safety) for current availability.
+
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.

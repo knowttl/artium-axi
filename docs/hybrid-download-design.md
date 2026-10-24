@@ -1,8 +1,7 @@
 # Hosted Hybrid Analysis downloads
 
 Status: transfer contracts, owner/session scope checks, typed audit metadata, bounded artifact ownership, the internal native handoff and authenticated CLI delivery are implemented; final enablement remains pending.
-Once the adapter supports transfers, the server initializes the artifact owner before serving, purging stale bytes even when writes are off.
-Missing or invalid dedicated storage blocks artifact admission, and the ordinary runner scratch mount does not satisfy its admission contract.
+See the [runbook prerequisites](runbook.md#scope-and-prerequisites) for artifact-owner startup, storage admission and deployment requirements.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
 This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 
