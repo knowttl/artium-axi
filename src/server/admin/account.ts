@@ -43,7 +43,7 @@ chmod 755 artium-axi.mjs`)}</pre><p>Stop if download or verification fails. The 
       Review type, exact sample hash or report ID, local destination, the ${transferLimits.artifactBytes / 1024 ** 2} MiB limit and exact expiry before executing.
       Limits are ${transferLimits.reservationsPerUser} reservation per user, ${transferLimits.reservations} globally and ${transferLimits.reservedBytes / 1024 ** 3} GiB total artifact capacity.
       The ten-minute deadline includes generation and retrieval. There is no resume or automatic retry.</p>
-      <pre>artium-axi download --operation report-download-bin --selector &lt;report-id&gt; --type bin --destination /controlled/artifacts/new-archive.bin --sso</pre>
+      <pre>artium-axi download --operation report-download-bin --selector &lt;report-id&gt; --type bin --destination /controlled/artifacts/new-archive.bin${current.source === 'sso' ? ' --sso' : ''}</pre>
       <p>After preview, repeat the exact selection and destination with <code>--transfer &lt;transferId&gt; --execute --confirm &lt;exact-confirm&gt;</code>.
       The CLI reports archive size, archive SHA-256 and local save outcome. Server delivery completion is separate from upstream success and verified saving.
       Missing verified-save receipt remains unconfirmed. Absolute local paths are not stored by the server.</p>

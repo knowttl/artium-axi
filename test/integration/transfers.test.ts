@@ -303,13 +303,15 @@ test('bundled CLI interruption cancels an active native generation without publi
   expect(events()).not.toContainEqual(expect.objectContaining({ outcome: 'ready' }))
 })
 
-test('browser account offers guidance and metadata with no artifact download link or bytes', async () => {
+test.each(['local', 'sso'])('browser %s account offers guidance and metadata with no artifact download link or bytes', async source => {
   await ready()
+  db.prepare('UPDATE users SET source = ? WHERE id = ?').run(source, user)
   const session = createBrowserSession(db, user, 'CANARY-csrf')
   const page = await fetch(`${url}/account`, { headers: { cookie: `artium-session=${session.id}` } })
   const html = await page.text()
   expect(html).toContain(transferWarning)
   expect(html).toContain('artium-axi download --help')
+  expect(html).toContain(`<pre>artium-axi download --operation report-download-bin --selector &lt;report-id&gt; --type bin --destination /controlled/artifacts/new-archive.bin${source === 'sso' ? ' --sso' : ''}</pre>`)
   expect(html).toContain(selection.selector)
   expect(html).toContain('unconfirmed')
   expect(html).not.toContain('href="/v1/transfers')

@@ -128,6 +128,7 @@ export function validateArguments(args: string[], prefixHelp: boolean) {
 }
 
 export function helpCommand(args: string[], prefixHelp = false): HelpCommand | undefined {
+  if (args[0] === 'download' && args.includes('--help')) return 'download'
   if (args[0] === 'setup' && args.includes('--help')) {
     const path = args.filter(arg => arg !== '--help')
     for (let index = 1; index < path.length; index++) {
