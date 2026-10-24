@@ -43,7 +43,8 @@ A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-a
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-Unknown Azure flags return `INVALID_INPUT` with the flag name, valid flags and a hosted help command.
+The ADO, AWX, Azure, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
+Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
 It captures bounded non-terminal stdin only for Azure `rg query` (also `graph query`), `logs query` (also `monitor log-analytics query`) and `api` calls.
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
@@ -77,13 +78,13 @@ The home view and `whoami` display `sessionExpiresAt` and `accessExpiresAt` as U
 `accessExpiresAt` is the current access-token deadline; automatic refresh requires a refresh token, as described in [client settings](#client-settings).
 Doctor includes the session deadline and remaining time in its token diagnostic.
 
-Upstream calls preserve stdout, stderr and nonzero exit codes.
+See the [README output contract](../README.md#toon-output-and-errors) for upstream stream handling and hosted status filtering.
 If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
 For managed tools, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
 Per-flag help removes each managed flag's entire description and preserves retained flag descriptions, including comma-separated defaults.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](tool-credentials.md#ldap).
-Unrelated content, literal argument values, unknown formats and truncated streams remain unchanged.
+Outside hosted status filtering, suggestion adaptation leaves unrelated content, literal argument values, unknown formats and truncated streams unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
 See the [generated error reference](errors.md) for codes, HTTP status, CLI exit status and recovery steps.
