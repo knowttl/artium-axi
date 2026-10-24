@@ -311,6 +311,8 @@ test.each(['local', 'sso'])('browser %s account offers guidance and metadata wit
   const html = await page.text()
   expect(html).toContain(transferWarning)
   expect(html).toContain('artium-axi download --help')
+  expect(html).not.toContain('Hosted download operations remain unavailable until adapter enablement.')
+  expect(html).toContain('Downloads require administrator selection of the requested write operation and a configured dedicated artifact mount.')
   expect(html).toContain(`<pre>artium-axi download --operation report-download-bin --selector &lt;report-id&gt; --type bin --destination /controlled/artifacts/new-archive.bin${source === 'sso' ? ' --sso' : ''}</pre>`)
   expect(html).toContain(selection.selector)
   expect(html).toContain('unconfirmed')

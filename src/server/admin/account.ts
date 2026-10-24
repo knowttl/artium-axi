@@ -37,7 +37,7 @@ chmod 755 artium-axi.mjs`)}</pre><p>Stop if download or verification fails. The 
     ${tools.some(tool => tool.name === 'hybrid-axi') ? `<section><h2>Hybrid Analysis archive saving</h2>
       <p>${escape(transferWarning)}</p><p>Use the local CLI on a dedicated controlled Linux analysis client.
       The browser provides guidance and metadata only. Artifact bytes are never saved, rendered, opened or executed here.
-      Hosted download operations remain unavailable until adapter enablement.</p>
+      Downloads require administrator selection of the requested write operation and a configured dedicated artifact mount.</p>
       <p>Run <code>artium-axi download --help</code> for preview and explicit save commands.
       Choose a new absolute destination in a dedicated private directory (mode 0700), with no symlink components.
       Review type, exact sample hash or report ID, local destination, the ${transferLimits.artifactBytes / 1024 ** 2} MiB limit and exact expiry before executing.
