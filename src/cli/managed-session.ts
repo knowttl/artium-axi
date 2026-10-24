@@ -52,6 +52,11 @@ export class ManagedSession {
     if (this.session && this.session.serverUrl.replace(/\/$/, '') !== serverUrl) throw new ArtiumError('SESSION_SERVER_MISMATCH')
   }
 
+  async once<T>(request: (token: string) => Promise<T>): Promise<T> {
+    if (!this.session) throw new ArtiumError('TOKEN_INVALID')
+    return request(this.session.accessToken)
+  }
+
   async authenticated(request: (token: string) => Promise<unknown>, refresh: (token: string) => Promise<unknown>) {
     if (!this.session) throw new ArtiumError('TOKEN_INVALID')
     try { return await request(this.session.accessToken) }
@@ -83,6 +88,13 @@ export class ManagedSession {
   }
 
   write(stream: 'stdout' | 'stderr', text: string) { this.output[stream] += text }
+
+  // Identity approval and pre-execution notices must reach the caller before
+  // the pending operation. Tool output retains the buffered flush contract.
+  notice(text: string) {
+    if (new SecretScanner(this.secrets).scan('stdout', Buffer.from(text))) throw new ArtiumError('SECRET_IN_OUTPUT')
+    process.stdout.write(text)
+  }
 
   flush() {
     this.channel.destroy()

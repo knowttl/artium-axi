@@ -62,10 +62,11 @@ try {
       const auditId = '77066c24-bcb0-4a39-9304-551a617ac080'
       const meta = { time: '2026-01-01T00:00:00.000Z', auditId, intentKey: 'b'.repeat(64),
         profile: confirmation[0], operation, target: confirmation[3], effect: 'write' }
-      if (variant === 'upstream-failure') {
+      if (variant === 'upstream-failure' || variant === 'restricted-key') {
         await writeFile(process.env.HYBRID_AXI_WRITE_LOG, JSON.stringify({ ...meta, kind: 'intent' }) + '\n'
           + JSON.stringify({ ...meta, kind: 'outcome', result: 'FAILED', status: 403 }) + '\n', { mode: 0o600 })
-        process.stdout.write(encode({ error: { code: 'PERMISSION_DENIED', status: 403, auditId } }) + '\n')
+        process.stdout.write(encode({ error: { code: variant === 'restricted-key' ? 'KEY_LEVEL_RESTRICTED' : 'PERMISSION_DENIED',
+          keyLevel: variant === 'restricted-key' ? 'restricted' : 'unknown', status: 403, auditId } }) + '\n')
         process.exitCode = 1
         break
       }

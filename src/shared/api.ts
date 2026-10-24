@@ -19,6 +19,8 @@ export const transferLimits = {
   lifetimeMs: 10 * 60 * 1000,
 } as const
 
+export const transferWarning = 'Live malware: this archive may contain executable malware. Save only; do not extract or execute. Password protection is unverified; bytes are saved exactly as provided.'
+
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 const sampleSha256Schema = z.string().regex(/^[a-f0-9]{64}$/i)
 const reportIdSchema = z.string().regex(/^(?:[A-Za-z0-9_-]{1,256}|[a-f0-9]{64}:\d+)$/i)
@@ -43,6 +45,7 @@ export const transferPreviewSchema = z.strictObject({ transferId: transferIdSche
 export const transferExecuteSchema = z.strictObject({ transferId: transferIdSchema,
   selection: transferSelectionSchema, targetDigest: sha256Schema,
   execute: z.literal(true), confirm: z.string().min(1).max(64 * 1024) })
+export const transferRetrieveSchema = transferPrepareSchema.extend({ transferId: transferIdSchema })
 export const transferOutcomeSchema = z.enum(['preview', 'denied-not-sent', 'native-outcome-unknown', 'upstream-failure',
   'ready', 'delivery-completed', 'delivery-interrupted', 'expired', 'deleted', 'interrupted'])
 export const transferSaveOutcomeSchema = z.enum(['unconfirmed', 'verified-save', 'save-failed'])
@@ -51,16 +54,23 @@ export const transferSaveOutcomeSchema = z.enum(['unconfirmed', 'verified-save',
 export const transferArchiveSchema = z.strictObject({
   archiveBytes: z.number().int().nonnegative().max(transferLimits.artifactBytes), archiveSha256: sha256Schema,
 })
+export const transferReceiptSchema = transferRetrieveSchema.extend({
+  archive: transferArchiveSchema, saveOutcome: z.enum(['verified-save', 'save-failed']),
+})
 export const transferEvidenceSchema = z.strictObject({ outcome: transferOutcomeSchema,
   archive: transferArchiveSchema.nullable(), saveOutcome: transferSaveOutcomeSchema })
   .refine(evidence => !['ready', 'delivery-completed'].includes(evidence.outcome) || evidence.archive !== null)
   .refine(evidence => !['preview', 'denied-not-sent', 'native-outcome-unknown', 'upstream-failure'].includes(evidence.outcome) || evidence.archive === null)
   .refine(evidence => evidence.saveOutcome !== 'verified-save' || evidence.archive !== null)
 export const transferStatusSchema = transferEvidenceSchema.safeExtend({ transferId: transferIdSchema, expiresAt: z.number().int() })
-// Contract only. Routes remain unregistered until artifact ownership and delivery exist.
+// Native operations remain unavailable until the final adapter enablement slice.
 export const transferRoutes = {
   prepare: { method: 'POST', path: '/v1/transfers/hybrid/prepare', input: transferPrepareSchema, response: transferPreviewSchema },
   execute: { method: 'POST', path: '/v1/transfers/hybrid/execute', input: transferExecuteSchema, response: transferStatusSchema },
+  retrieve: { method: 'POST', path: '/v1/transfers/hybrid/retrieve', input: transferRetrieveSchema },
+  receipt: { method: 'POST', path: '/v1/transfers/hybrid/receipt', input: transferReceiptSchema },
+  cancel: { method: 'POST', path: '/v1/transfers/hybrid/cancel', input: transferRetrieveSchema },
+  status: { method: 'POST', path: '/v1/transfers/hybrid/status', input: transferRetrieveSchema, response: transferStatusSchema },
 } as const
 export type TransferScope = Readonly<Omit<z.infer<typeof transferScopeSchema>, 'selection'> & {
   selection: Readonly<z.infer<typeof transferSelectionSchema>>,

@@ -3,9 +3,10 @@ import { ArtiumError } from '../shared/errors.js'
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
+import { transferLimits, transferWarning } from '../shared/api.js'
 
 const commands = {
-  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
+  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
   setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and an optional Claude Code session hook.',
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
@@ -20,6 +21,16 @@ const commands = {
   logout: { usage: 'artium-axi logout', purpose: 'Remove local tokens and revoke the server session.', flags: [], example: 'artium-axi logout' },
   doctor: { usage: 'artium-axi doctor', purpose: 'Check the server, certificate, token, CLI version and cached tool health.', flags: [], example: 'artium-axi doctor' },
   update: { usage: 'artium-axi update', purpose: 'Download and verify the server’s client, replace this file and keep a .bak backup. npm installations must use npm install -g @knowttl/artium-axi.', flags: [], example: 'artium-axi update' },
+  download: { usage: 'artium-axi download --operation <operation> --selector <hash|report-id> --type <bin|dropped-files|memory> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin|--sso]',
+    purpose: 'Preview or explicitly save a hosted Hybrid Analysis archive. Operations remain unavailable until adapter enablement.',
+    flags: ['--operation <hash-download-bin|report-download-bin|report-download-dropped-files|report-download-memory> (required)',
+      '--selector <hash|report-id> (required)', '--type <bin|dropped-files|memory> (required)',
+      '--destination <absolute-new-path> (required; Linux private 0700 directory, no symlink components or overwrite)',
+      '--transfer <id> (required for execution; preview transfer ID)', '--execute (default false)',
+      '--confirm <exact-confirm> (required for execution; unchanged native preview string)',
+      '--password-stdin (default false; otherwise terminal password)', '--sso (default false; browser identity confirmation)',
+      transferWarning, `Limit ${transferLimits.artifactBytes / 1024 ** 2} MiB; ${transferLimits.reservationsPerUser} reservation per user, ${transferLimits.reservations} globally, ${transferLimits.reservedBytes / 1024 ** 3} GiB total artifact capacity; absolute expiry ${transferLimits.lifetimeMs / 60000} minutes after preview preparation, including generation and retrieval. No resume or automatic retry. Missing receipt is unconfirmed.`],
+    example: 'artium-axi download --operation report-download-bin --selector synthetic-report --type bin --destination /controlled/artifacts/new-archive.bin --sso' },
   'falcon-axi': { usage: 'artium-axi falcon-axi [<args>]', purpose: 'Run Falcon commands with your managed credentials.',
     flags: ['Arguments after falcon-axi are forwarded upstream, including --help.'], example: `artium-axi falcon-axi ${falcon.discovery.example.join(' ')}` },
   'vectra-axi': { usage: 'artium-axi vectra-axi [<args>]', purpose: 'Run Vectra commands with your managed credentials.',
@@ -33,7 +44,7 @@ const commands = {
   'tenable-axi': { usage: 'artium-axi tenable-axi [<args>]', purpose: 'Investigate Tenable One with managed API keys.',
     flags: ['Writes and export jobs are off by default and require administrator-enabled operations, preview, --execute and exact --confirm. Downloads are blocked.'], example: 'artium-axi tenable-axi card list --limit 1' },
   'hybrid-axi': { usage: 'artium-axi hybrid-axi [<args>]', purpose: 'Investigate Hybrid Analysis with a managed API key.',
-    flags: ['Submissions, YARA mutations and consuming matches are off by default and require administrator-enabled operations, preview, --execute and exact --confirm. Downloads are unavailable through Artium.'], example: 'artium-axi hybrid-axi quota' },
+    flags: ['Submissions, YARA mutations and consuming matches are off by default and require administrator-enabled operations, preview, --execute and exact --confirm. Downloads are unavailable through Artium.', transferWarning], example: 'artium-axi hybrid-axi quota' },
   'az-axi': { usage: 'artium-axi az-axi [<args>]', purpose: 'Run Azure commands with your managed identity.',
     flags: ['Arguments after az-axi are forwarded upstream, including --help.'], example: 'artium-axi az-axi sub list' },
   'mg-axi': { usage: 'artium-axi mg-axi [<args>]', purpose: 'Run Microsoft Graph commands with your managed identity.',
@@ -91,7 +102,7 @@ export function validateArguments(args: string[], prefixHelp: boolean) {
     start = 2
   }
   const entry = commands[level as HelpCommand]
-  const validFlags = ['--help', ...entry.flags.map(flag => flag.split(' ')[0])]
+  const validFlags = ['--help', ...entry.flags.filter(flag => flag.startsWith('--')).map(flag => flag.split(' ')[0])]
   const choices = `Valid flags for ${level}: ${validFlags.join(', ')}.` +
     (level === 'tools' ? ' Valid subcommands: show <tool>.' : level === 'tools show' ? ` Valid tools: ${toolSchema.options.join(', ')}.` : '')
   let tool = false
@@ -104,8 +115,9 @@ export function validateArguments(args: string[], prefixHelp: boolean) {
     } else {
       if (!validFlags.includes(token) || seen.has(token)) fail(token, level, choices)
       seen.add(token)
-      if (token === '--username' || token === '--host') {
+      if (token === '--username' || token === '--host' || command === 'download' && ['--operation', '--selector', '--type', '--destination', '--transfer', '--confirm'].includes(token)) {
         const value = args[index + 1]
+        if (!value && command === 'download') fail(value, `${level} ${token}`, `Supply a value for ${token}. Use ${entry.usage}. ${choices}`)
         if (!value) fail(value, `${level} ${token}`, `Supply ${token} ${token === '--host' ? '<claude|codex|opencode|pi>' : '<username>'}. ${choices}`)
         if (token === '--host' && !['claude', 'codex', 'opencode', 'pi'].includes(value)) fail(value, `${level} --host`, `Valid hosts: claude, codex, opencode, pi. Use ${entry.usage}.`)
         index++
@@ -116,6 +128,7 @@ export function validateArguments(args: string[], prefixHelp: boolean) {
 }
 
 export function helpCommand(args: string[], prefixHelp = false): HelpCommand | undefined {
+  if (args[0] === 'download' && args.includes('--help')) return 'download'
   if (args[0] === 'setup' && args.includes('--help')) {
     const path = args.filter(arg => arg !== '--help')
     for (let index = 1; index < path.length; index++) {

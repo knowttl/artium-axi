@@ -3,6 +3,7 @@ import type { CredentialReference, ToolName } from '../store/credential-store.js
 import type { SensitiveArguments } from '../audit/redact.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { CredentialProfile } from './credential-profile.js'
+import type { TransferScope } from '../../shared/api.js'
 
 // The runner materializes adapter-owned relative paths privately, including XDG profiles.
 export interface TemporaryFile {
@@ -36,5 +37,6 @@ export interface Adapter<Credential> {
   sensitiveArguments(args: readonly string[]): SensitiveArguments
   validateArgs(args: readonly string[], input?: RunnerInput): void
   prepare(args: readonly string[], reference: CredentialReference, input?: RunnerInput): Promise<PreparedCall>
+  prepareArtifact?(args: string[], reference: CredentialReference, scope: TransferScope): Promise<PreparedCall>
   invalidateCredential?(reference: CredentialReference): void
 }

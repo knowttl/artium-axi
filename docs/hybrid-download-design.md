@@ -1,7 +1,7 @@
 # Hosted Hybrid Analysis downloads
 
-Status: transfer contracts, owner/session scope checks, typed audit metadata, bounded artifact ownership and the internal native handoff are implemented; delivery and final enablement remain pending.
-The artifact owner is not started by the server yet, and the ordinary runner scratch mount does not satisfy its admission contract.
+Status: transfer contracts, owner/session scope checks, typed audit metadata, bounded artifact ownership, the internal native handoff and authenticated CLI delivery are implemented; final enablement remains pending.
+See the [runbook prerequisites](runbook.md#scope-and-prerequisites) for artifact-owner startup, storage admission and deployment requirements.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
 This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 
@@ -13,7 +13,7 @@ Artium's current documentation lives in `docs/`; earlier internal design records
 - [src/server/runner/run.ts](../src/server/runner/run.ts) authenticates, checks tool policy, prepares managed credentials and journals, runs the child and records outcomes.
 - [src/server/runner/runner.ts](../src/server/runner/runner.ts) owns private per-call directories, process termination, admission and cleanup; its stdout/stderr are text with secret scanning.
   [src/server/runner/input.ts](../src/server/runner/input.ts) materializes reviewed uploads, while [src/shared/api.ts](../src/shared/api.ts) defines base64 input and text-only run responses.
-  It also owns the transfer contracts; preparation, execution and retrieval routes remain unregistered pending delivery integration.
+  It also owns the transfer contracts; dedicated authenticated preparation, execution, retrieval, cancellation, status and receipt routes are registered, with download policy still unavailable pending final enablement.
 - [src/server/artifacts.ts](../src/server/artifacts.ts) owns bounded artifact reservations and cleanup beyond child exit; [src/server/runner/artifact.ts](../src/server/runner/artifact.ts) implements the internal native preview/execute handoff and checks completion against journal evidence.
   Deployment prerequisites are in the [runbook](runbook.md#scope-and-prerequisites); container acceptance requirements are in [CONTRIBUTING.md](../CONTRIBUTING.md#container-acceptance).
 - [src/server/adapters/write-policy.ts](../src/server/adapters/write-policy.ts), [src/server/admin/tools.ts](../src/server/admin/tools.ts) and `toolWriteStateSchema` in `src/shared/api.ts` own normalized per-tool capability, enabled state, operation allowlists and revision-checked administrator changes.
@@ -58,7 +58,9 @@ Pure stream-through would require a new upstream sink contract and would risk se
    Use attachment disposition with a fixed safe archive filename, `application/octet-stream`, `nosniff` and `Cache-Control: no-store`; disable proxy caching, body logging and response transformation.
    No bearer URL, public object, range/resume or automatic retry.
    The client writes a private temporary file, verifies advertised size and SHA-256, and atomically publishes to the exact confirmed new destination without overwrite or symlink traversal.
-   Browser download UI offers save only; it never renders or automatically opens the artifact.
+   The explicit local CLI owns verified saving and all filesystem guarantees.
+   The browser UI provides the live-malware warnings, CLI command guidance and metadata/save receipt status only; it receives no artifact bytes and never saves, renders, opens or executes an artifact.
+   This CLI-save interpretation was explicitly authorized on 2026-10-23 (Option A); no native browser bridge or weaker direct attachment save is included.
 
 Approved fixed limits: 250 MiB per artifact, one reservation per user, four globally and 1 GiB total reserved artifact capacity, including partial files.
 Reserve full capacity before native execution; use a dedicated size-limited, non-swappable tmpfs at `/tmp/artium-artifacts`, mounted `noexec,nosuid,nodev`, separate from runner scratch and `/data`.

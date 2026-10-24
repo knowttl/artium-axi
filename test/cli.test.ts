@@ -1001,6 +1001,22 @@ test.each(['INVALID_INPUT', 'TIMEOUT', 'SECRET_IN_OUTPUT'] as const)('catalogue 
   expect(result.stdout).toBe(`error:\n  code: ${JSON.stringify(code)}\n  source: "artium-axi"\n  message: ${JSON.stringify(definition.message)}\n  next: ${JSON.stringify(definition.next)}\n  requestId: "synthetic-catalogue"\n`)
 })
 
+test.each([
+  { prefix: [], suffix: ['--help'] },
+  { prefix: ['--help'], suffix: [] },
+  { prefix: ['--managed-session'], suffix: ['--help'] },
+  { prefix: ['--managed-session', '--help'], suffix: [] },
+].flatMap(mode => [[], ['--transfer', '00000000-0000-4000-8000-000000000001', '--execute', '--confirm', 'synthetic-confirm']]
+  .map(execution => ({ ...mode, execution }))))('download help avoids authentication and destination access: %j', async ({ prefix, suffix, execution }) => {
+  requests = []
+  const result = await cli([...prefix, 'download', '--operation', 'report-download-bin', '--selector', 'synthetic-report',
+    '--type', 'bin', '--destination', join(directory, 'missing-parent', 'new.bin'), '--sso', ...execution, ...suffix],
+  { ARTIUM_AXI_URL: undefined })
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(result.stdout).toContain('usage: artium-axi download ')
+  expect(requests).toEqual([])
+})
+
 test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor']].map(command => ({ command })))(
   'command help uses the common layout without configuration or network: $command', async ({ command }) => {
     requests = []
@@ -1043,7 +1059,9 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, az-axi, mg-axi' },
+  { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
+  { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },

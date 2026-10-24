@@ -102,11 +102,16 @@ export async function executeNativeArtifact(reservation: ArtifactReservation, ru
       let evidence: NativeArtifactIdentity | undefined
       if (profile && result && result.exitCode !== 0 && !result.truncated.stdout) {
         try {
-          const failure = z.object({ error: z.object({ auditId: z.uuid() }) }).parse(decode(result.stdout))
+          const failure = z.object({ error: z.object({ auditId: z.uuid(), code: z.string().optional(),
+            status: z.number().optional(), keyLevel: z.string().optional() }) }).parse(decode(result.stdout))
           const native = await nativeJournal(profile.environment.HYBRID_AXI_WRITE_LOG, scope, output, confirm, failure.error.auditId)
           if (native.result === 'FAILED' && native.status !== undefined && native.status >= 300 && native.status <= 599) outcome = 'upstream-failure'
           if (native.result === 'NOT_SENT' && native.status === undefined) outcome = 'denied-not-sent'
           if (native.result) evidence = { nativeAuditId: failure.error.auditId, nativeJournalResult: native.result }
+          if (native.result === 'FAILED' && native.status === 403 && failure.error.status === 403) {
+            error = new ArtiumError(failure.error.code === 'KEY_LEVEL_RESTRICTED'
+              && failure.error.keyLevel === 'restricted' ? 'KEY_LEVEL_RESTRICTED' : 'PERMISSION_DENIED')
+          }
         } catch { /* Missing or contradictory evidence stays unknown. */ }
       }
       throw new ArtifactGenerationFailure(outcome, error instanceof ArtiumError ? error : new ArtiumError('UNKNOWN_OUTCOME'), evidence)

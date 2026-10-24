@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { resolve, relative, sep, isAbsolute } from 'node:path'
-import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema } from '../shared/api.js'
+import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarning } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
@@ -15,6 +15,7 @@ import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
 import { ManagedSession } from './managed-session.js'
 import { update } from './update.js'
+import { download } from './download.js'
 
 let managed: ManagedSession | undefined
 for (const stream of [process.stdout, process.stderr]) {
@@ -55,6 +56,7 @@ async function main(args: string[]) {
     managed = await ManagedSession.read(args[0] === 'login')
   }
   if (command === 'update') { output('stdout', await update()); return }
+  if (command === 'download') { await download(args.slice(1), text => output('stdout', text), managed); return }
   if (command === 'setup') { output('stdout', await setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
@@ -179,6 +181,9 @@ async function main(args: string[]) {
 }
 
 function printError(response: ReturnType<typeof errorResponse>) {
+  if (process.argv[2] === 'download' || process.argv[2] === '--managed-session' && process.argv[3] === 'download') {
+    output('stdout', `warning: ${JSON.stringify(transferWarning)}\n`)
+  }
   output('stdout', `error:\n${Object.entries(response.error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
   process.exitCode = errors[response.error.code].exitCode
 }

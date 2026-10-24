@@ -38,6 +38,8 @@ import type { ProviderCredentials } from './store/provider-credentials.js'
 import { registerSso, type SsoFetch } from './auth/sso.js'
 import { registerDevice } from './auth/device.js'
 import { loadToolSkill } from './tool-skills.js'
+import { registerTransfers } from './transfer-routes.js'
+import type { ArtifactStore } from './artifacts.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -45,6 +47,7 @@ export function createApp(options: {
   credentialStore?: MutableCredentialStore,
   providerCredentials?: ProviderCredentials,
   ssoFetch?: SsoFetch,
+  artifactStore?: ArtifactStore,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
   const credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = Object.fromEntries(toolSchema.options.flatMap(tool => {
@@ -231,6 +234,7 @@ export function createApp(options: {
   registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db)
+  registerTransfers(app, db, audit, runner, resolver, adapters.find(adapter => adapter.name === 'hybrid-axi'), options.artifactStore)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')

@@ -14,6 +14,7 @@
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
 | `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |
+| `artium-axi download --help` | Inspect the [archive-saving command](#hybrid-analysis-archive-saving). |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
@@ -55,7 +56,7 @@ The bundled CLI does not upload Vectra files or capture Vectra stdin, and server
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
 Its run API accepts uploaded leaf names only; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
-See the [Hybrid Analysis capability boundary](../README.md#safety) for download restrictions and the planned hosted path.
+See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.
@@ -65,6 +66,26 @@ Artium also returns this error when its runner times out, cancels or receives a 
 Before submitting the write again, follow the returned read commands and inspect the changed state.
 Keep `--full` on recovery API GET commands so long changed values are not truncated, including both `Check current state before trying again` and `Verify with` suggestions.
 Runner-generated recovery for Sentinel incident updates and comment creation first resolves the incident ID with the suggested `incident show` command, then uses that ID in the suggested API GET to inspect all incident fields or the comments collection.
+
+### Hybrid Analysis archive saving
+
+`artium-axi download` implements preview and explicit verified saving through the local Linux CLI, separately from forwarded `hybrid-axi` commands.
+See the [capability boundary](../README.md#safety) for availability, `artium-axi download --help` for accepted flags and limits, and the [runbook prerequisites](runbook.md#scope-and-prerequisites) for the required controlled client and AV/EDR policy.
+The [shared API contract](../src/shared/api.ts) owns operation/type pairs and transfer limits.
+
+Choose a new normalized absolute destination in an existing directory owned by the current user with mode 0700 and no symlink components.
+The CLI checks the destination before preparation or execution; it never overwrites an existing entry.
+Preview supplies `--operation`, `--selector`, `--type` and `--destination` without `--execute`.
+Review the warning, exact selection, local destination, limits, expiry and native confirmation returned by preview.
+Then repeat the exact selection and destination with `--transfer <transferId> --execute --confirm <exact-confirm>`.
+Both invocations require identity confirmation: use `--sso` for browser approval, or a local password through a terminal prompt or `--password-stdin`.
+`ARTIUM_AXI_PASSWORD` is not a password source for this command.
+
+Retrieval writes a private temporary file, verifies the advertised size and archive SHA-256, then atomically publishes to the confirmed destination without overwrite or symlink traversal.
+Bytes never appear in command output.
+Output reports archive size, digest, local `saveOutcome` and server `receipt` separately; successful local publication can have an unconfirmed receipt.
+Transfers never refresh tokens or automatically replay requests, even after `TOKEN_EXPIRED`.
+After interruption or failure, start a fresh preview and confirmation.
 
 ### TOON output behavior
 
@@ -167,7 +188,7 @@ For authenticated calls, send one UTF-8 JSON object of at most 64 KiB to fd 3, t
 `accessToken` is required and nonempty; `refreshToken` is optional and nonempty when supplied.
 The optional fields `status: "authenticated"`, `accessExpiresAt` and `familyExpiresAt` (integer Unix milliseconds) allow a rotation record to be reused as input; other fields are refused.
 The caller owns expiry policy, refresh serialization across processes and secure persistence.
-Managed mode supports `login`, the home view, `whoami`, `tools`, `tools show`, `doctor` and tool commands.
+Managed mode supports `login`, the home view, `whoami`, `tools`, `tools show`, `doctor`, `download` and tool commands.
 `passwd`, `logout`, `setup` and `update` are refused before configuration, private-channel reads or network access; ordinary sign-in and its server-version warning remain unchanged without the flag.
 Help is available without private channels through `artium-axi --help`; use `artium-axi --managed-session --help` or `artium-axi login --help` for the pipe protocol.
 
@@ -181,7 +202,7 @@ The login server-version warning still appears on stderr when versions differ.
 If a local account requires a password change, fd 4 instead receives `{serverUrl, status: "password-change-required", passwordChangeToken, passwordChangeExpiresAt}` and the command returns `PASSWORD_CHANGE_REQUIRED` (exit 1).
 That restricted record is not valid managed-session input; the caller must complete the password change through the server API and sign in again.
 
-Only an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
+Except for [archive saving](#hybrid-analysis-archive-saving), an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
 Without a refresh token, or if refresh is refused, the CLI returns the authentication error for the caller to handle.
 Network failures and uncertain outcomes are never automatically retried.
 After a successful refresh, fd 4 receives one newline-terminated JSON object before the request is retried:
@@ -196,6 +217,7 @@ If new-session or rotation delivery fails, the CLI returns `INVALID_INPUT` (exit
 After failed rotation delivery, the CLI refuses to retry the request; do not reuse the consumed refresh token.
 Managed public output is buffered and scanned against supplied, newly issued and rotated tokens and their canonical encodings before printing; a match withholds both buffered streams and returns `SECRET_IN_OUTPUT`.
 SSO approval instructions are displayed before session issuance; managed password input and the private SSO device code are also checked against buffered output.
+Archive-saving warnings, identity approval instructions and pre-execution notices are scanned and displayed immediately so the caller can review them before execution; final save output remains buffered.
 
 Exit codes are 0 for success, 2 for invalid input, client configuration or private channels and refused commands, and 1 for authentication, server-binding, transport or output-scanning failures.
 Tool exit codes pass through as usual.

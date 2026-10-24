@@ -24,11 +24,23 @@ Four reservations globally and one per user include incomplete files and remain 
 The ten-minute deadline begins at preparation, cancels generation or delivery, and never extends on activity.
 Startup purges stale entries before admission and marks pending transfer metadata interrupted; shutdown stops consumers before unlinking.
 Cleanup failure emits a fixed operator diagnostic and blocks admission until cleanup is retried successfully.
-The ordinary `/tmp` mount in the Compose example does not satisfy this contract, and this slice does not provision a deployment mount or start the artifact owner.
+The ordinary `/tmp` mount in the Compose example does not satisfy this contract; the example does not provision the dedicated artifact mount.
+Once the adapter supports transfer operations, the server initializes the artifact owner before serving, purging stale bytes even when writes are off.
+Missing or invalid dedicated storage blocks artifact admission.
 Use fake-only container acceptance to establish mount, maximum-size native RSS and concurrent memory headroom before enabling downloads; an unavailable or refused host check remains unverified.
 Operators must arrange security-team-approved, narrowly scoped AV/EDR handling for the dedicated artifact mount and controlled client download directory, exclude the mount from backups and core dumps, and prevent swap capture before enabling downloads.
 Never disable protection globally or exclude `/data`, tool installations or a general downloads directory.
-Quarantine or file locking can interrupt delivery or prevent cleanup; unlinking frees temporary storage and does not promise forensic erasure.
+Artium does not automatically change AV/EDR policy.
+Security software can quarantine or lock even compressed samples, causing delivery failure, changed availability or blocked cleanup; resolve those failures under the approved narrowly scoped policy.
+Use a dedicated controlled Linux analysis client and dedicated private download directory, without sync, indexing or automatic opening.
+Keep subsequent analysis outside Artium.
+See [CLI archive saving](client-reference.md#hybrid-analysis-archive-saving) for destination requirements and verified saving, and [the account screen](admin-guide.md#browser-administration) for browser guidance and metadata.
+Live malware: this archive may contain executable malware.
+Save only; do not extract or execute.
+Password protection is unverified; bytes are saved exactly as provided.
+Upstream success, completed server delivery and a client verified-save receipt are separate outcomes; missing receipt is unconfirmed.
+For `/v1/transfers/hybrid/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
+Unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.
 Non-swarm Compose file secrets retain host ownership, so mode-0600 files owned by the operator are not readable by the image's UID 10001.
