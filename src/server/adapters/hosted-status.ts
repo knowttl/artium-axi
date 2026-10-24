@@ -8,8 +8,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
   if (!invocation || invocation.help || !['home', 'auth status'].includes(invocation.command)) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   try {
-    const json = result.stdout.trimStart().startsWith('{')
-    const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
+    const document = decode(result.stdout) as Record<string, unknown>
     const references = new Map<string, string>()
     const replace = (value: unknown, kind: string) => {
       if (typeof value === 'string' && value.length > kind.length) references.set(value, kind)
@@ -71,6 +70,6 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
       if (Object.hasOwn(document, field)) document[field] = JSON.parse(JSON.stringify(document[field], (_, value: unknown) =>
         typeof value === 'string' ? sanitize(value) : value))
     }
-    return { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n', stderr: sanitize(result.stderr) }
+    return { ...result, stdout: encode(document) + '\n', stderr: sanitize(result.stderr) }
   } catch { throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output is invalid.') }
 }

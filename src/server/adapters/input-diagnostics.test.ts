@@ -43,3 +43,37 @@ test.each(['hybrid-axi', 'tenable-axi', 'az-axi'])('%s names a home flag typo be
   await expect(adapter.prepare(['--hepl'], { id: 'synthetic', tool: adapter.name, revision: 1 })).rejects.toMatchObject(error)
   expect(source.getCredential).not.toHaveBeenCalled()
 })
+
+test.each([
+  { tool: 'ado-axi', args: ['project', 'list', '-x'], flag: '-x' },
+  { tool: 'ado-axi', args: ['home', '-x'], flag: '-x' },
+  { tool: 'ado-axi', args: ['-x'], flag: '-x' },
+  { tool: 'ado-axi', args: ['project', 'list', '--hepl'], flag: '--hepl' },
+  { tool: 'ado-axi', args: ['--hepl'], flag: '--hepl' },
+  { tool: 'ldap-axi', args: ['user', 'list', '-x'], flag: '-x' },
+  { tool: 'ldap-axi', args: ['auth', 'status', '-x'], flag: '-x' },
+  { tool: 'ldap-axi', args: ['-x'], flag: '-x' },
+  { tool: 'ldap-axi', args: ['user', 'list', '--hepl'], flag: '--hepl' },
+  { tool: 'ldap-axi', args: ['--hepl'], flag: '--hepl' },
+  { tool: 'tenable-axi', args: ['auth', 'status', '--hepl'], flag: '--hepl' },
+  { tool: 'tenable-axi', args: ['auth', 'status', '-x'], flag: '-x' },
+  { tool: 'tenable-axi', args: ['auth', 'status', '--fields', 'profile', '--hepl'], flag: '--hepl' },
+  { tool: 'tenable-axi', args: ['home', '--hepl'], flag: '--hepl' },
+  { tool: 'tenable-axi', args: ['home', '-x'], flag: '-x' },
+  { tool: 'tenable-axi', args: ['-x'], flag: '-x' },
+  { tool: 'tenable-axi', args: ['card', 'list', '--full', '--hepl'], flag: '--hepl' },
+  { tool: 'tenable-axi', args: ['card', 'list', '--all', '--hepl'], flag: '--hepl' },
+  { tool: 'tenable-axi', args: ['tag', 'value', 'create', '--execute', '--hepl'], flag: '--hepl' },
+] as const)('$tool names $flag before credential retrieval: $args', async ({ tool, args, flag }) => {
+  const adapter = adapters.find(adapter => adapter.name === tool)!
+  const error = { code: 'INVALID_INPUT', message: expect.stringContaining(flag) }
+  expect(() => adapter.validateArgs(args)).toThrow(expect.objectContaining(error))
+  await expect(adapter.prepare(args, { id: 'synthetic', tool, revision: 1 })).rejects.toMatchObject(error)
+  expect(source.getCredential).not.toHaveBeenCalled()
+})
+
+test('LDAP distinguishes trailing positional arguments from flags', () => {
+  const adapter = adapters.find(adapter => adapter.name === 'ldap-axi')!
+  expect(() => adapter.validateArgs(['user', 'list', '--help', 'extra']))
+    .toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: 'Unexpected argument "extra" for ldap-axi user list.' }))
+})

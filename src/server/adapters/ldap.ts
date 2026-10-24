@@ -6,7 +6,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
 import { CredentialProfile, loadCredentialProfile } from './credential-profile.js'
-import { invalidCommand } from './input-diagnostics.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const ldapManifest = { ...inventory, ...inventory.adapterBoundary }
 export const ldapWritePolicy = writePolicy({ reason: 'LDAP has no write path in this adapter.',
@@ -34,7 +34,10 @@ function ldapArguments(args: readonly string[], input: RunnerInput = {}) {
   for (; index < args.length; index++) {
     const token = args[index]
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(token)
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (!match) {
+      if (!token.startsWith('-')) throw new ArtiumError('INVALID_INPUT', `Unexpected argument ${JSON.stringify(token)} for ldap-axi ${command}.`)
+      throw unknownFlag('ldap-axi', command, token, Object.keys(flags).filter(name => !ldapManifest.unsafeOverrides.includes(name)))
+    }
     const [, name, inline] = match
     if (ldapManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
     if (!Object.hasOwn(flags, name)) throw new ArtiumError('INVALID_INPUT', `Unknown flag --${name} for ldap-axi ${command}.`,

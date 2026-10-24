@@ -38,6 +38,10 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
     const name = token.startsWith('--') ? token.slice(2).split('=')[0] : ''
     if (name === 'help') help = true
     if (token === '--' || tenableManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
+    if (route && token.startsWith('-') && !Object.hasOwn(route.flags, name)) {
+      throw unknownFlag('tenable-axi', route.command, token,
+        Object.keys(route.flags).filter(name => !tenableManifest.unsafeOverrides.includes(name)))
+    }
     if (tenableManifest.inputFileFlags.includes(name)) {
       const equals = token.indexOf('=')
       const value = equals === -1 ? tokens[++index] : token.slice(equals + 1)
@@ -45,7 +49,13 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
       if (value === '-') usesStdin = true
       normalized.push(`--${name}`, value)
       if (value !== '-') fileArguments.push(normalized.length - 1)
-    } else normalized.push(token)
+    } else {
+      normalized.push(token)
+      if (name && !['help', 'full', 'all', 'include-resolved', 'execute', 'dry-run'].includes(name)
+        && !token.includes('=') && tokens[index + 1] !== undefined && !tokens[index + 1].startsWith('--')) {
+        normalized.push(tokens[++index])
+      }
+    }
   }
   if (input.stdin !== undefined && !usesStdin) throw new ArtiumError('UNSUPPORTED_INPUT')
   return { args: normalized, fileArguments, invocation: { command: route?.command ?? 'version', help },

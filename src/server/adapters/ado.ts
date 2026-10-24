@@ -8,7 +8,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import type { Adapter, PreparedCall } from './types.js'
-import { invalidCommand } from './input-diagnostics.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
 export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item, pull-request, pipeline and ref writes with host classification and journaling.',
@@ -44,7 +44,8 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
       return { args: ['--version'], invocation: { command: 'version', help: false }, command: 'home', effect: 'read' as const, positionals: [], flags }
     }
     const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token)
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (!match) throw unknownFlag('ado-axi', positionals.join(' ') || 'home', token,
+      Object.keys(knownFlags).filter(name => !adoManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
     if (!Object.hasOwn(knownFlags, name)) throw new ArtiumError('INVALID_INPUT', `Unknown flag --${name} for ado-axi.`,
       'Run artium-axi ado-axi --help for managed command guidance.')

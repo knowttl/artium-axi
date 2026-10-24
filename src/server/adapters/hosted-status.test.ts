@@ -33,12 +33,6 @@ test('hosted home replaces the server executable', () => {
   expect(decode(output.stdout)).toEqual({ bin: 'artium-axi hybrid-axi', profile: 'artium' })
 })
 
-test('hosted status preserves selected JSON fields', () => {
-  const output = hostedStatus('tenable-axi', { command: 'auth status', help: false }, { ...result,
-    stdout: JSON.stringify({ secretKey: { env: 'SYNTHETIC_SECRET_KEY' } }) })
-  expect(JSON.parse(output.stdout)).toEqual({ secretKey: 'env' })
-})
-
 test('resource data remains unchanged', () => {
   const original = { ...result, stdout: encode({ bin: '/synthetic/data', config: '/synthetic/data' }) }
   expect(hostedStatus('hybrid-axi', { command: 'hash show', help: false }, original)).toBe(original)
@@ -67,11 +61,10 @@ const statuses = [
     expected: { client_secret_source: 'file', authenticated: false } },
 ]
 
-test.each(statuses.flatMap(status => [0, 1].flatMap(exitCode => ['toon', 'json'].map(format => ({ ...status, exitCode, format })))))
-  ('$tool $format status hides references with exit $exitCode', ({ tool, data, expected, exitCode, format }) => {
-    const stdout = format === 'json' ? JSON.stringify(data) : encode(data)
-    const output = hostedStatus(tool, { command: 'auth status', help: false }, { ...result, stdout, exitCode })
-    expect(format === 'json' ? JSON.parse(output.stdout) : decode(output.stdout)).toEqual(expected)
+test.each(statuses.flatMap(status => [0, 1].map(exitCode => ({ ...status, exitCode }))))
+  ('$tool TOON status hides references with exit $exitCode', ({ tool, data, expected, exitCode }) => {
+    const output = hostedStatus(tool, { command: 'auth status', help: false }, { ...result, stdout: encode(data), exitCode })
+    expect(decode(output.stdout)).toEqual(expected)
     expect(output.exitCode).toBe(exitCode)
   })
 
