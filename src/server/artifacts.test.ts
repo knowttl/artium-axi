@@ -42,9 +42,9 @@ beforeEach(async () => {
   db.exec("INSERT INTO tools (name, pinned_version) VALUES ('hybrid-axi', 'synthetic')")
   emitted = []
   audit = new Audit(db, Date.now, line => emitted.push(line))
-  host = { mountinfo: `1 2 0:1 / ${root} rw,nosuid,nodev,noexec - tmpfs tmpfs rw,noswap,size=1048576k`,
+  host = { mountinfo: `1 2 0:1 / ${root} rw,nosuid,nodev,noexec - tmpfs tmpfs rw,size=1048576k`,
     filesystemType: 0x01021994, capacityBytes: transferLimits.reservedBytes, freeBytes: transferLimits.reservedBytes,
-    memoryMax: artifactDefaults.containerBytes, memoryCurrent: 256 * 1024 * 1024, swapMax: 0 }
+    memoryMax: artifactDefaults.containerBytes, memoryCurrent: 256 * 1024 * 1024, swapMax: 0, swapCurrent: 0 }
   store = await ArtifactStore.create(audit, root, { inspect: async () => host })
   runner = await Runner.create(join(fixture, 'calls'))
 })
@@ -218,13 +218,16 @@ test.each([
   ['small container', { memoryMax: artifactDefaults.containerBytes - 1 }],
   ['missing resident headroom', { memoryCurrent: 3 * 1024 * 1024 * 1024 }],
   ['swappable container', { swapMax: 1 }],
+  ['missing swap limit evidence', { swapMax: NaN }],
+  ['existing swapped pages', { swapCurrent: 1 }],
+  ['missing swap usage evidence', { swapCurrent: NaN }],
 ] as const)('fails closed on %s host evidence', async (_name, change) => {
   Object.assign(host, change)
   await expect(reserve()).rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
   expect(await readdir(root)).toEqual([])
 })
 
-test.each(['noswap', 'noexec', 'nosuid', 'nodev'])('requires explicit %s on the dedicated mount', async flag => {
+test.each(['noexec', 'nosuid', 'nodev'])('requires explicit %s on the dedicated mount', async flag => {
   host.mountinfo = host.mountinfo.replace(flag, 'relatime')
   await expect(reserve()).rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
 })

@@ -26,17 +26,20 @@ export interface ArtifactHostEvidence {
   memoryMax: number
   memoryCurrent: number
   swapMax: number
+  swapCurrent: number
 }
 
 async function inspectHost(root: string): Promise<ArtifactHostEvidence> {
-  const [mountinfo, filesystem, memoryMax, memoryCurrent, swapMax] = await Promise.all([
+  const [mountinfo, filesystem, memoryMax, memoryCurrent, swapMax, swapCurrent] = await Promise.all([
     readFile('/proc/self/mountinfo', 'utf8'), statfs(root),
     readFile('/sys/fs/cgroup/memory.max', 'utf8'), readFile('/sys/fs/cgroup/memory.current', 'utf8'),
     readFile('/sys/fs/cgroup/memory.swap.max', 'utf8'),
+    readFile('/sys/fs/cgroup/memory.swap.current', 'utf8'),
   ])
   return { mountinfo, filesystemType: filesystem.type,
     capacityBytes: filesystem.blocks * filesystem.bsize, freeBytes: filesystem.bavail * filesystem.bsize,
-    memoryMax: Number(memoryMax.trim()), memoryCurrent: Number(memoryCurrent.trim()), swapMax: Number(swapMax.trim()) }
+    memoryMax: Number(memoryMax.trim()), memoryCurrent: Number(memoryCurrent.trim()),
+    swapMax: Number(swapMax.trim()), swapCurrent: Number(swapCurrent.trim()) }
 }
 
 interface ArtifactDependencies {
@@ -76,11 +79,14 @@ function checkHost(root: string, host: ArtifactHostEvidence): void {
   const separator = mount?.indexOf('-') ?? -1
   const flags = new Set([...(mount?.[5]?.split(',') ?? []), ...(mount?.[separator + 3]?.split(',') ?? [])])
   if (!mount || separator < 6 || mount[3] !== '/' || mount[separator + 1] !== 'tmpfs'
-    || !['rw', 'noexec', 'nosuid', 'nodev', 'noswap'].every(flag => flags.has(flag))
+    || !['rw', 'noexec', 'nosuid', 'nodev'].every(flag => flags.has(flag))
     || host.filesystemType !== 0x01021994 || host.capacityBytes !== transferLimits.reservedBytes
     || !Number.isSafeInteger(host.freeBytes) || host.freeBytes < 0 || host.freeBytes > host.capacityBytes
     || !Number.isSafeInteger(host.memoryMax) || host.memoryMax < artifactDefaults.containerBytes
-    || !Number.isSafeInteger(host.memoryCurrent) || host.memoryCurrent < 0 || host.swapMax !== 0
+    // Tmpfs swap allocation is charged to its writer's memory cgroup. Require
+    // enforced zero swap and no existing swapped pages; Docker rejects noswap
+    // in --tmpfs even on kernels that support that optional mount flag.
+    || !Number.isSafeInteger(host.memoryCurrent) || host.memoryCurrent < 0 || host.swapMax !== 0 || host.swapCurrent !== 0
     || host.memoryCurrent + transferLimits.reservedBytes
       + transferLimits.reservations * artifactDefaults.childResidentBytes > host.memoryMax) unavailable()
 }

@@ -17,6 +17,8 @@ const audit = new Audit(db, Date.now, () => {})
 const store = await ArtifactStore.create(audit)
 const runner = await Runner.create()
 try {
+  assert.equal((await readFile('/sys/fs/cgroup/memory.swap.max', 'utf8')).trim(), '0')
+  assert.equal((await readFile('/sys/fs/cgroup/memory.swap.current', 'utf8')).trim(), '0')
   const reservations = []
   for (let index = 0; index < transferLimits.reservations; index++) {
     const userId = `synthetic-${index}`
@@ -51,11 +53,12 @@ try {
     return measurement
   }))
   assert.equal(await readFile('/sys/fs/cgroup/memory.events', 'utf8'), before)
+  assert.equal((await readFile('/sys/fs/cgroup/memory.swap.current', 'utf8')).trim(), '0')
   assert.equal((await readdir('/tmp/artium-artifacts')).length, 4)
   const peak = Number(await readFile('/sys/fs/cgroup/memory.peak', 'utf8'))
   assert.ok(peak < artifactDefaults.containerBytes)
   console.log(`artifact-container: ${JSON.stringify({ measurements, peak, memoryMax: artifactDefaults.containerBytes,
-    tmpfsBytes: transferLimits.reservedBytes, swapMax: 0, opaqueBytesVerified: true })}`)
+    tmpfsBytes: transferLimits.reservedBytes, swapMax: 0, swapCurrent: 0, opaqueBytesVerified: true })}`)
 } finally {
   await store.shutdown()
   await runner.shutdown()
