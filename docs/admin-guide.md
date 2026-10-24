@@ -268,6 +268,8 @@ Apply filters, then use **Download CSV** or **Download JSON lines** to export ev
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
+The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
+For hosted download availability, see the [Hybrid Analysis capability boundary](../README.md#safety).
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.

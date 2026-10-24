@@ -1,0 +1,12 @@
+ALTER TABLE audit ADD COLUMN transfer_id TEXT;
+ALTER TABLE audit ADD COLUMN session_family_id TEXT;
+ALTER TABLE audit ADD COLUMN transfer_operation TEXT;
+ALTER TABLE audit ADD COLUMN artifact_type TEXT;
+ALTER TABLE audit ADD COLUMN artifact_selector TEXT;
+ALTER TABLE audit ADD COLUMN requested_target_digest TEXT;
+ALTER TABLE audit ADD COLUMN archive_bytes INTEGER;
+ALTER TABLE audit ADD COLUMN archive_sha256 TEXT;
+ALTER TABLE audit ADD COLUMN native_audit_id TEXT;
+ALTER TABLE audit ADD COLUMN native_journal_result TEXT;
+ALTER TABLE audit ADD COLUMN client_save_outcome TEXT;
+CREATE INDEX audit_transfer ON audit(transfer_id, id);

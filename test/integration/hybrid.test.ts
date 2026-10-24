@@ -12,7 +12,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
-import { loginResponseSchema } from '../../src/shared/api.js'
+import { loginResponseSchema, transferRoutes } from '../../src/shared/api.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -103,6 +103,12 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       const download = await app.inject({ method: 'POST', url: '/v1/tools/hybrid-axi/run', headers,
         payload: { args: ['hash', 'file', 'a'.repeat(64), '--output', 'sample.bin', '--execute'] } })
       expect(download.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: 'Hosted downloads are not available yet through artium; use hybrid-axi locally.' } })
+      const reportDownload = await app.inject({ method: 'POST', url: '/v1/tools/hybrid-axi/run', headers,
+        payload: { args: ['report', 'file', 'synthetic-job', '--type', 'memory', '--output', '/synthetic/private/memory.gz', '--execute'] } })
+      expect(reportDownload.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect(JSON.stringify(db.prepare("SELECT * FROM audit WHERE event = 'denial'").all())).not.toContain('/synthetic/private')
+      expect((await app.inject({ method: 'POST', url: transferRoutes.prepare.path, headers, payload: {} })).statusCode).toBe(404)
+      expect((await app.inject({ method: 'POST', url: transferRoutes.execute.path, headers, payload: {} })).statusCode).toBe(404)
       expect((await save('CANARY-hybrid-restricted', store.findCredential('hybrid-axi')!.revision!)).statusCode).toBe(200)
       const denied = await run(['hash', 'show', 'a'.repeat(64)])
       expect(denied.exitCode).toBe(1)

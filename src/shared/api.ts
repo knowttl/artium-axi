@@ -11,6 +11,75 @@ export const inputLimits = {
   files: 8,
 } as const
 
+export const transferLimits = {
+  artifactBytes: 250 * 1024 * 1024,
+  reservationsPerUser: 1,
+  reservations: 4,
+  reservedBytes: 1024 * 1024 * 1024,
+  lifetimeMs: 10 * 60 * 1000,
+} as const
+
+const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
+const sampleSha256Schema = z.string().regex(/^[a-f0-9]{64}$/i)
+const reportIdSchema = z.string().regex(/^(?:[A-Za-z0-9_-]{1,256}|[a-f0-9]{64}:\d+)$/i)
+const transferOwnerIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,256}$/)
+// Closed operation/type pairs prevent arbitrary native exports. Destinations cross
+// this boundary only as SHA-256 of the exact client-selected UTF-8 destination.
+export const transferSelectionSchema = z.discriminatedUnion('operation', [
+  z.strictObject({ operation: z.literal('hash-download-bin'), selector: sampleSha256Schema, type: z.literal('bin') }),
+  z.strictObject({ operation: z.literal('report-download-bin'), selector: reportIdSchema, type: z.literal('bin') }),
+  z.strictObject({ operation: z.literal('report-download-dropped-files'), selector: reportIdSchema, type: z.literal('dropped-files') }),
+  z.strictObject({ operation: z.literal('report-download-memory'), selector: reportIdSchema, type: z.literal('memory') }),
+])
+export const transferPrepareSchema = z.strictObject({ selection: transferSelectionSchema, targetDigest: sha256Schema })
+export const transferIdSchema = z.uuid()
+export const transferScopeSchema = z.strictObject({
+  transferId: transferIdSchema, userId: transferOwnerIdSchema, sessionFamilyId: transferOwnerIdSchema,
+  credentialRevision: z.number().int().positive(), selection: transferSelectionSchema, targetDigest: sha256Schema,
+  preparedAt: z.number().int().nonnegative(), expiresAt: z.number().int().nonnegative(),
+}).refine(scope => scope.expiresAt === scope.preparedAt + transferLimits.lifetimeMs)
+export const transferPreviewSchema = z.strictObject({ transferId: transferIdSchema, expiresAt: z.number().int(),
+  confirm: z.string().min(1).max(64 * 1024), warnings: z.array(z.string()), targetDigest: sha256Schema })
+export const transferExecuteSchema = z.strictObject({ transferId: transferIdSchema,
+  selection: transferSelectionSchema, targetDigest: sha256Schema,
+  execute: z.literal(true), confirm: z.string().min(1).max(64 * 1024) })
+export const transferOutcomeSchema = z.enum(['preview', 'denied-not-sent', 'native-outcome-unknown', 'upstream-failure',
+  'ready', 'delivery-completed', 'delivery-interrupted', 'expired', 'deleted', 'interrupted'])
+export const transferSaveOutcomeSchema = z.enum(['unconfirmed', 'verified-save', 'save-failed'])
+// Only completed archives have a size and digest. A service delivery is not a
+// verified client save; a missing client receipt remains unconfirmed.
+export const transferArchiveSchema = z.strictObject({
+  archiveBytes: z.number().int().nonnegative().max(transferLimits.artifactBytes), archiveSha256: sha256Schema,
+})
+export const transferEvidenceSchema = z.strictObject({ outcome: transferOutcomeSchema,
+  archive: transferArchiveSchema.nullable(), saveOutcome: transferSaveOutcomeSchema })
+  .refine(evidence => !['ready', 'delivery-completed'].includes(evidence.outcome) || evidence.archive !== null)
+  .refine(evidence => !['preview', 'denied-not-sent', 'native-outcome-unknown', 'upstream-failure'].includes(evidence.outcome) || evidence.archive === null)
+  .refine(evidence => evidence.saveOutcome !== 'verified-save' || evidence.archive !== null)
+export const transferStatusSchema = transferEvidenceSchema.safeExtend({ transferId: transferIdSchema, expiresAt: z.number().int() })
+// Contract only. Routes remain unregistered until artifact ownership and delivery exist.
+export const transferRoutes = {
+  prepare: { method: 'POST', path: '/v1/transfers/hybrid/prepare', input: transferPrepareSchema, response: transferPreviewSchema },
+  execute: { method: 'POST', path: '/v1/transfers/hybrid/execute', input: transferExecuteSchema, response: transferStatusSchema },
+} as const
+export type TransferScope = Readonly<Omit<z.infer<typeof transferScopeSchema>, 'selection'> & {
+  selection: Readonly<z.infer<typeof transferSelectionSchema>>,
+}>
+
+export const transferAuditSchema = z.strictObject({
+  transfer_id: transferIdSchema, session_family_id: transferOwnerIdSchema,
+  transfer_operation: transferSelectionSchema.options[0].shape.operation.or(transferSelectionSchema.options[1].shape.operation)
+    .or(transferSelectionSchema.options[2].shape.operation).or(transferSelectionSchema.options[3].shape.operation),
+  artifact_type: z.enum(['bin', 'dropped-files', 'memory']),
+  artifact_selector: sha256Schema.or(reportIdSchema), requested_target_digest: sha256Schema,
+  archive_bytes: z.number().int().nonnegative().max(transferLimits.artifactBytes).nullable(),
+  archive_sha256: sha256Schema.nullable(), native_audit_id: z.uuid().nullable(),
+  native_journal_result: z.enum(['SUCCESS', 'FAILED', 'NOT_SENT', 'OUTCOME_UNKNOWN']).nullable(),
+  client_save_outcome: transferSaveOutcomeSchema,
+}).refine(fields => (fields.archive_bytes === null) === (fields.archive_sha256 === null))
+  .refine(fields => transferSelectionSchema.safeParse({ operation: fields.transfer_operation,
+    type: fields.artifact_type, selector: fields.artifact_selector }).success)
+
 const byteLength = (value: string) => new TextEncoder().encode(value).length
 // Bound input passed to native hashing without imposing password complexity rules.
 export const passwordSchema = z.string().min(1).refine(value => byteLength(value) <= 512, 'Expected at most 512 UTF-8 bytes')
@@ -170,6 +239,10 @@ export const adminAuditRecordSchema = z.strictObject({
   cutoff: z.number().int().nullable(), deleted_count: z.number().int().nullable(), checked_at: z.number().int().nullable(),
   credential_revision: z.number().int().nullable(), error_code: z.string().nullable(),
   authentication_method: z.string().nullable(), provider_id: z.string().nullable(), subject: z.string().nullable(),
+  transfer_id: transferIdSchema.nullable(), session_family_id: z.string().nullable(),
+  transfer_operation: z.string().nullable(), artifact_type: z.string().nullable(), artifact_selector: z.string().nullable(),
+  requested_target_digest: sha256Schema.nullable(), archive_bytes: z.number().int().nullable(), archive_sha256: sha256Schema.nullable(),
+  native_audit_id: z.string().nullable(), native_journal_result: z.string().nullable(), client_save_outcome: transferSaveOutcomeSchema.nullable(),
 })
 export const adminAuditRoute = { method: 'GET', path: '/v1/admin/audit', input: adminAuditQuerySchema,
   response: z.strictObject({ records: z.array(adminAuditRecordSchema).max(100), nextCursor: auditCursorSchema.nullable() }),
