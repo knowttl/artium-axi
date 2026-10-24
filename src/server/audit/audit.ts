@@ -157,6 +157,24 @@ export class Audit {
     return starts.length
   }
 
+  // Called only after the dedicated artifact mount has been purged. Persistent
+  // metadata never makes bytes from a previous process retrievable again.
+  recoverInterruptedTransfers(): number {
+    const pending = this.db.prepare(`SELECT * FROM audit AS prior WHERE event = 'transfer'
+      AND outcome IN ('preview', 'ready') AND NOT EXISTS (SELECT 1 FROM audit AS later
+        WHERE later.event = 'transfer' AND later.transfer_id = prior.transfer_id AND later.id > prior.id)
+      ORDER BY id`).all() as AuditRecord[]
+    for (const prior of pending) {
+      const transfer = transferAuditSchema.parse(Object.fromEntries(Object.keys(transferAuditSchema.shape)
+        .map(key => [key, prior[key as keyof AuditRecord]])))
+      this.record({ event: 'transfer', userId: prior.user_id, tool: prior.tool,
+        requestId: prior.request_id, clientAddress: prior.client_address, outcome: 'interrupted',
+        credentialRevision: prior.credential_revision!, transfer: { ...transfer,
+          archive_bytes: null, archive_sha256: null, client_save_outcome: 'unconfirmed' } })
+    }
+    return pending.length
+  }
+
   maintain(): number {
     if (this.db.inTransaction) throw new ArtiumError('AUDIT_UNAVAILABLE')
     const now = this.clock()

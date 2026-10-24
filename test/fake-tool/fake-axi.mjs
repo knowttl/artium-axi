@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import { link, mkdir, readFile, readdir, rename, stat, symlink, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -27,6 +27,87 @@ const write = async (stream, value) => {
 
 try {
   switch (mode) {
+    case 'native-artifact': {
+      const { main } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/cli.js')
+      const { constructWriteCoordinator } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/writes-core.js')
+      const { downloadBindings, downloadOperations } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/download-catalogue.js')
+      const size = number(process.env.ARTIUM_TEST_ARTIFACT_BYTES, 257)
+      let requests = 0
+      await main(args, { createWriteCoordinator: (options, credentials) => constructWriteCoordinator(options, {
+        credentials, operations: downloadOperations, bindings: downloadBindings,
+        fetch: async () => {
+          requests++
+          let remaining = size
+          return new Response(new ReadableStream({ pull(controller) {
+            if (!remaining) { controller.close(); return }
+            const count = Math.min(remaining, 1024 * 1024)
+            controller.enqueue(new Uint8Array(count).fill(0xa5))
+            remaining -= count
+          } }), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
+        },
+      }) })
+      await writeFile(process.env.ARTIUM_TEST_RSS_FILE,
+        JSON.stringify({ maxRssBytes: process.resourceUsage().maxRSS * 1024, bytes: size, requests }))
+      break
+    }
+    case 'artifact': {
+      const { encode } = await import('@toon-format/toon')
+      const [group, , id] = args
+      const flag = name => args[args.indexOf(name) + 1]
+      const output = flag('--output')
+      const confirmation = JSON.parse(flag('--confirm'))
+      const operation = confirmation[1]
+      const variant = process.env.ARTIUM_TEST_ARTIFACT_VARIANT ?? 'success'
+      const size = number(process.env.ARTIUM_TEST_ARTIFACT_BYTES, 257)
+      const auditId = '77066c24-bcb0-4a39-9304-551a617ac080'
+      const meta = { time: '2026-01-01T00:00:00.000Z', auditId, intentKey: 'b'.repeat(64),
+        profile: confirmation[0], operation, target: confirmation[3], effect: 'write' }
+      if (variant === 'upstream-failure') {
+        await writeFile(process.env.HYBRID_AXI_WRITE_LOG, JSON.stringify({ ...meta, kind: 'intent' }) + '\n'
+          + JSON.stringify({ ...meta, kind: 'outcome', result: 'FAILED', status: 403 }) + '\n', { mode: 0o600 })
+        process.stdout.write(encode({ error: { code: 'PERMISSION_DENIED', status: 403, auditId } }) + '\n')
+        process.exitCode = 1
+        break
+      }
+      if (variant === 'partial') {
+        await writeFile(output.replace(/archive$/, '.hybrid-artifact-aaaa.tmp'), Buffer.alloc(1024, 0xa5), { mode: 0o600 })
+        await ready({ parent: process.pid })
+        hold()
+        break
+      }
+      const { constructTransport } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/transport-core.js')
+      const { downloadBindings } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/download-catalogue.js')
+      const { saveArtifact } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/report-file.js')
+      // Exercise the pinned buffered transport with an inert, in-process source.
+      // There is no network fallback in this fake.
+      let remaining = size
+      const transport = constructTransport({ credential: { apiKey: 'CANARY-artifact-key', redact: value => value } }, {
+        bindings: downloadBindings, consumeWriteAuthorization: () => true,
+        fetch: async () => new Response(new ReadableStream({ pull(controller) {
+          if (!remaining) { controller.close(); return }
+          const count = Math.min(remaining, 1024 * 1024)
+          controller.enqueue(new Uint8Array(count).fill(0xa5))
+          remaining -= count
+        } }), { status: 200, headers: { 'content-type': 'application/octet-stream' } }),
+      })
+      const response = await transport.request(operation, { pathParams: { [group === 'hash' ? 'sha256' : 'id']: id } })
+      saveArtifact(output, response.body, operation)
+      if (variant === 'symlink') { await unlink(output); await symlink('/dev/null', output) }
+      if (variant === 'directory') { await unlink(output); await mkdir(output) }
+      if (variant === 'missing-output') await unlink(output)
+      if (variant === 'hardlink') await link(output, output.replace(/archive$/, '.hybrid-artifact-aaaa.tmp'))
+      if (variant === 'failure') process.exitCode = 1
+      if (variant === 'wrong-target') meta.target = 'd'.repeat(64)
+      if (variant !== 'missing-journal') await writeFile(process.env.HYBRID_AXI_WRITE_LOG,
+        JSON.stringify({ ...meta, kind: 'intent' }) + '\n' + JSON.stringify({ ...meta, kind: 'outcome',
+          result: variant === 'failed-journal' ? 'FAILED' : 'SUCCESS', status: variant === 'failed-journal' ? 403 : 200 })
+        + (variant === 'incomplete-journal' ? '' : '\n'), { mode: 0o600 })
+      if (process.env.ARTIUM_TEST_RSS_FILE) await writeFile(process.env.ARTIUM_TEST_RSS_FILE,
+        JSON.stringify({ maxRssBytes: process.resourceUsage().maxRSS * 1024, bytes: size }))
+      process.stdout.write(encode({ id, type: group === 'hash' ? 'bin' : flag('--type'), output,
+        bytes: variant === 'size-mismatch' ? size + 1 : size, auditId }) + '\n')
+      break
+    }
     case 'ldap-delivery': {
       const config = JSON.parse(await readFile(join(process.env.XDG_CONFIG_HOME, 'ldap-axi/config.json'), 'utf8'))
       const profile = config.profiles.artium

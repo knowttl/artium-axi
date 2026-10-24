@@ -1,6 +1,7 @@
 # Hosted Hybrid Analysis downloads
 
-Status: transfer contracts, owner/session scope checks and typed audit metadata are implemented; artifact storage, delivery and final enablement remain pending.
+Status: transfer contracts, owner/session scope checks, typed audit metadata, bounded artifact ownership and the internal native handoff are implemented; delivery and final enablement remain pending.
+The artifact owner is not started by the server yet, and the ordinary runner scratch mount does not satisfy its admission contract.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
 This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 
@@ -12,7 +13,9 @@ Artium's current documentation lives in `docs/`; earlier internal design records
 - [src/server/runner/run.ts](../src/server/runner/run.ts) authenticates, checks tool policy, prepares managed credentials and journals, runs the child and records outcomes.
 - [src/server/runner/runner.ts](../src/server/runner/runner.ts) owns private per-call directories, process termination, admission and cleanup; its stdout/stderr are text with secret scanning.
   [src/server/runner/input.ts](../src/server/runner/input.ts) materializes reviewed uploads, while [src/shared/api.ts](../src/shared/api.ts) defines base64 input and text-only run responses.
-  It also owns the transfer contracts; preparation and execution routes remain unregistered until artifact ownership and delivery exist.
+  It also owns the transfer contracts; preparation, execution and retrieval routes remain unregistered pending delivery integration.
+- [src/server/artifacts.ts](../src/server/artifacts.ts) owns bounded artifact reservations and cleanup beyond child exit; [src/server/runner/artifact.ts](../src/server/runner/artifact.ts) implements the internal native preview/execute handoff and checks completion against journal evidence.
+  Deployment prerequisites are in the [runbook](runbook.md#scope-and-prerequisites); container acceptance requirements are in [CONTRIBUTING.md](../CONTRIBUTING.md#container-acceptance).
 - [src/server/adapters/write-policy.ts](../src/server/adapters/write-policy.ts), [src/server/admin/tools.ts](../src/server/admin/tools.ts) and `toolWriteStateSchema` in `src/shared/api.ts` own normalized per-tool capability, enabled state, operation allowlists and revision-checked administrator changes.
   Use this model rather than a second download permission switch.
 - [src/server/adapters/run-journal.ts](../src/server/adapters/run-journal.ts) connects native mutation evidence to hosted outcomes.
