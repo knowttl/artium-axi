@@ -37,7 +37,7 @@ try {
     const id = reservation.scope.userId
     const prepare = async args => {
       const profile = hybridProfile.prepare('hybrid-axi', { apiKey: 'CANARY-artifact-key',
-        writes: { allowWrites: true, operations: [reservation.scope.selection.operation] } }, `/tmp/${id}.log`, false)
+        writes: { allowWrites: true, operations: [reservation.scope.selection.operation] } }, `/tmp/store/${id}.log`, false)
       return { executable: process.execPath, args: ['/work/test/fake-tool/fake-axi.mjs', 'native-artifact', ...args], ...profile,
         environment: { ...profile.environment, ARTIUM_TEST_ARTIFACT_BYTES: String(transferLimits.artifactBytes),
           ARTIUM_TEST_RSS_FILE: `/tmp/${id}.rss` }, limits: { timeoutMs: 60_000 } }
