@@ -4,6 +4,7 @@ import { once } from 'node:events'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { get } from 'node:https'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -175,18 +176,20 @@ try {
       const vectraDetail = await cli(['tools', 'show', 'vectra-axi'])
       assert.equal(vectraDetail.code, 0, vectraDetail.stdout + vectraDetail.stderr)
       assert.match(vectraDetail.stdout, /example: artium-axi vectra-axi detection list/)
+      const { decode } = await import(createRequire('/opt/artium/package.json').resolve('@toon-format/toon'))
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
         const local = await execute(prepared.executable, args, { ...prepared.environment, XDG_CONFIG_HOME: directory })
         const remote = await cli(['vectra-axi', ...args])
         if (args.length === 0) {
-          // Home reports the generated profile location, which belongs to each call's temp directory.
-          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/config\/vectra-axi\/config\.json$/m
-          assert.match(remote.stdout, privateConfig)
-          assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-axi/config.json')}\n`))
-          remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-axi/config.json')
-          local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-axi/config.json')}`, '  config: <private call>/vectra-axi/config.json')
-        }
-        assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
+          const expected = decode(local.stdout)
+          assert.equal(expected.setup.config, join(directory, 'vectra-axi/config.json'))
+          delete expected.config
+          delete expected.configPath
+          if (Object.hasOwn(expected, 'bin')) expected.bin = 'artium-axi vectra-axi'
+          expected.setup = 'Managed by artium.'
+          assert.deepEqual({ ...remote, stdout: decode(upstreamSuggestions(remote.stdout)), stderr: upstreamSuggestions(remote.stderr) },
+            { ...local, stdout: expected })
+        } else assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
       }
       assert.equal((await requests()).mutations, 0)
       const write = await cli(['vectra-axi', ...tagArgs, '--execute', '--confirm', 'detection 42'])
