@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.0.15](https://github.com/knowttl/artium-axi/compare/v0.0.14...v0.0.15) (2026-10-24)
+
+
+### Features
+
+* add authenticated Hybrid Analysis transfer and CLI saving ([#170](https://github.com/knowttl/artium-axi/issues/170)) ([ff7bb0b](https://github.com/knowttl/artium-axi/commit/ff7bb0bdd5dddd7381a94dc10089c960202206bc))
+* add hosted download transfer contracts and audit metadata ([#167](https://github.com/knowttl/artium-axi/issues/167)) ([65dfa8c](https://github.com/knowttl/artium-axi/commit/65dfa8cc81218954c8aad35ca346bdfeb2074e06))
+* **server:** add bounded artifact storage and native download handoff ([#168](https://github.com/knowttl/artium-axi/issues/168)) ([2c3da9d](https://github.com/knowttl/artium-axi/commit/2c3da9db03fc63a776b9c8d5a1cbcebe6fdecd64))
+* **server:** enable guarded Hybrid Analysis archive downloads ([#171](https://github.com/knowttl/artium-axi/issues/171)) ([18f0fa1](https://github.com/knowttl/artium-axi/commit/18f0fa12f7da3c51219dfe7e91abb7a276902c71))
+
+
+### Bug Fixes
+
+* give outdated CLI clients version-appropriate upgrade guidance ([#162](https://github.com/knowttl/artium-axi/issues/162)) ([4e5edf5](https://github.com/knowttl/artium-axi/commit/4e5edf50cf563a1bf6607b89841d342c87c447f8))
+* record tool failure codes in run audit records ([#164](https://github.com/knowttl/artium-axi/issues/164)) ([affcb03](https://github.com/knowttl/artium-axi/commit/affcb035a851d64e53cc4ee02a9822f2a2844af1))
+* refresh tool health after configuration changes ([#165](https://github.com/knowttl/artium-axi/issues/165)) ([124958d](https://github.com/knowttl/artium-axi/commit/124958d266cdbf383b5397ced2c9a270dd06a051))
+* **server:** clarify adapter errors and sanitize hosted status ([#169](https://github.com/knowttl/artium-axi/issues/169)) ([1af87e4](https://github.com/knowttl/artium-axi/commit/1af87e454eaabf40a39ca02b10dd62fe1ec04538))
+
 ## [0.0.14](https://github.com/knowttl/artium-axi/compare/v0.0.13...v0.0.14) (2026-10-23)
 
 
