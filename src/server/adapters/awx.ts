@@ -17,7 +17,8 @@ export const awxCredentialSchema = awxProfile.credentialSchema
 
 function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
-  if (args.length === 1 && ['--version', '-v', '-V', '--help'].includes(args[0])) return { args: [...args], effect: 'read' as const }
+  if (args.length === 1 && ['--version', '-v', '-V', '--help'].includes(args[0])) return {
+    args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' }, effect: 'read' as const }
   const flags = new Map<string, string | true>()
   const positionals: string[] = []
   const knownFlags = Object.assign({}, ...inventory.commands.map(route => route.flags)) as Record<string, string>
@@ -42,7 +43,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   if (!positionals.length) positionals.push('home')
   if (positionals.length === 1 && flags.size === 1 && flags.has('help') && inventory.discovery.commands.includes(positionals[0])) {
-    return { args: [positionals[0], '--help'], effect: 'read' as const }
+    return { args: [positionals[0], '--help'], invocation: { command: positionals[0], help: true }, effect: 'read' as const }
   }
   const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('awx-axi', positionals, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
@@ -60,6 +61,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     ? [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
     : [readGroup, 'list', '--limit', '100']
   return { args: [...(route.command === 'home' ? [] : positionals), ...[...flags].map(([name, value]) => value === true ? `--${name}` : `--${name}=${value}`)], effect,
+    invocation: { command: route.command, help: flags.has('help') },
     ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource', checkArgs,
       afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' } } : {}) }
 }

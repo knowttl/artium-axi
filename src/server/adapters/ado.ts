@@ -41,7 +41,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
     const token = args[index]
     if (!token.startsWith('-')) { positionals.push(token); continue }
     if (['-v', '--version'].includes(token) && args.length === 1) {
-      return { args: ['--version'], command: 'home', effect: 'read' as const, positionals: [], flags }
+      return { args: ['--version'], invocation: { command: 'version', help: false }, command: 'home', effect: 'read' as const, positionals: [], flags }
     }
     const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token)
     if (!match) throw new ArtiumError('INVALID_INPUT')
@@ -88,7 +88,8 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   // consume a command or ID as a flag value. SDK help detection needs --help.
   const normalized = route.command === 'home' && flags.get('help') === 'true' ? ['--help'] : [...positionals, ...[...flags].flatMap(([name, value]) =>
     routeFlags[name] === 'boolean' || value.startsWith('--') ? [name === 'help' && value === 'true' ? '--help' : `--${name}=${value}`] : [`--${name}`, value])]
-  return { args: normalized, command: route.command, effect: flags.get('help') === 'true' ? 'read' : route.effect,
+  return { args: normalized, invocation: { command: route.command, help: flags.get('help') === 'true' },
+    command: route.command, effect: flags.get('help') === 'true' ? 'read' : route.effect,
     positionals: rest, flags }
 }
 
@@ -164,7 +165,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
         auth: 'secret', tenantId: value.tenantId as string, clientId: value.clientId as string, clientSecret: value.clientSecret as string,
       }, trust: source.getTrust?.(reference) }, { required: ['devops'], optional: [] })).devops! : undefined
       const token = minted?.accessToken ?? value.token as string
-      return { executable: toolPaths['ado-axi'], args: call.args,
+      return { executable: toolPaths['ado-axi'], args: call.args, invocation: call.invocation,
         environment: { ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: token,
           ...(minted ? { ARTIUM_ADO_EXPIRES_ON: new Date(minted.expiresAt).toISOString().replace('T', ' ').replace('Z', '') } : {}) },
         ...(minted ? { pathPrefix: adoPathPrefix } : {}),

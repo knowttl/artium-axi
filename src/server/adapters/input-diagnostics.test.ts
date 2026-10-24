@@ -28,9 +28,18 @@ test.each([
 
 test.each([
   ['hybrid-axi', ['quota', '--synthetic-unknown=value']], ['mg-axi', ['entra', 'user', 'list', '--synthetic-unknown=value']],
+  ['hybrid-axi', ['--synthetic-unknown']], ['tenable-axi', ['--synthetic-unknown']], ['az-axi', ['--synthetic-unknown']],
   ['awx-axi', ['job', 'list', '--synthetic-unknown=value']],
 ] as const)('%s names an unknown flag %j', (tool, args) => {
   expect(() => adapters.find(adapter => adapter.name === tool)!.validateArgs(args))
     .toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('--synthetic-unknown'),
       next: expect.stringContaining('--help') }))
+})
+
+test.each(['hybrid-axi', 'tenable-axi', 'az-axi'])('%s names a home flag typo before credential retrieval', async tool => {
+  const adapter = adapters.find(adapter => adapter.name === tool)!
+  const error = { code: 'INVALID_INPUT', message: `Unknown flag --hepl for ${tool} home.` }
+  expect(() => adapter.validateArgs(['--hepl'])).toThrow(expect.objectContaining(error))
+  await expect(adapter.prepare(['--hepl'], { id: 'synthetic', tool: adapter.name, revision: 1 })).rejects.toMatchObject(error)
+  expect(source.getCredential).not.toHaveBeenCalled()
 })

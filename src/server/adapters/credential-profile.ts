@@ -19,7 +19,7 @@ export interface ProfileField { name: string, schema: Schema, required: boolean 
 
 export function withCredentialProfile<Credential>(adapter: Adapter<Credential>, source: SecretSource,
   writeLog: string, profile: CredentialProfile | undefined,
-  argumentsForCall: (args: readonly string[], input?: RunnerInput) => Pick<PreparedCall, 'args' | 'fileArguments'>,
+  argumentsForCall: (args: readonly string[], input?: RunnerInput) => Pick<PreparedCall, 'args' | 'fileArguments' | 'invocation'>,
   limits: PreparedCall['limits'] = { timeoutMs: adapter.timeoutMs }): Adapter<unknown> {
   if (!profile) return adapter
   return { ...adapter, credentialSchema: profile.credentialSchema, credentialProfile: profile,

@@ -18,7 +18,8 @@ export const hybridWritePolicy = writePolicy({ supportedOperations: inventory.na
 
 function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
-  if (tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])) return { args: tokens, effect: 'read' as const }
+  if (tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])) return {
+    args: tokens, invocation: { command: tokens[0] === '--help' ? 'home' : 'version', help: tokens[0] === '--help' }, effect: 'read' as const }
   const route = [...inventory.commands].reverse().find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (route?.command === 'hash file' || route?.command === 'report file') throw new ArtiumError('FLAG_BLOCKED',
     'Hosted downloads are not available yet through artium; use hybrid-axi locally.',
@@ -27,6 +28,8 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     if (hybridManifest.blockedCommands.some(command => tokens.join(' ') === command || tokens.join(' ').startsWith(command + ' '))) {
       throw new ArtiumError('FLAG_BLOCKED', `Command ${tokens[0]} is unavailable through artium.`)
     }
+    if (tokens[0].startsWith('-')) throw unknownFlag('hybrid-axi', 'home', tokens[0],
+      Object.keys(inventory.commands.find(route => route.command === 'home')!.flags).filter(name => !hybridManifest.unsafeOverrides.includes(name)))
     throw invalidCommand('hybrid-axi', tokens, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
   }
   if (route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
@@ -63,7 +66,7 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   if (input.stdin !== undefined && !usesStdin) throw new ArtiumError('UNSUPPORTED_INPUT')
-  return { args: normalized, fileArguments,
+  return { args: normalized, fileArguments, invocation: { command: route.command, help: flags.has('help') },
     effect: route.effect === 'write' && flags.has('execute') && !flags.has('help') ? 'write' as const : 'read' as const }
 }
 

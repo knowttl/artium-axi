@@ -1,28 +1,11 @@
 import { decode, encode } from '@toon-format/toon'
 import { ArtiumError } from '../../shared/errors.js'
 import type { RunnerResult } from '../runner/runner.js'
-import az from '../../../tools/inventories/az-axi.json' with { type: 'json' }
-import ldap from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
-import ado from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
-
-function statusCommand(tool: string, args: readonly string[]): boolean {
-  if (args.some(arg => /^(?:--help(?:=true)?|-h|--version|-v|-V)$/.test(arg))) return false
-  const inventory = tool === 'az-axi' ? az : tool === 'ldap-axi' ? ldap : tool === 'ado-axi' ? ado : undefined
-  const flags: Record<string, string | undefined> = inventory?.commands.find(route => route.command === 'home')?.flags ?? {}
-  let index = 0
-  while (args[index]?.startsWith('-')) {
-    const token = args[index++]
-    const name = token === '-s' ? 'subscription' : token.slice(2).split('=')[0]
-    const kind = flags[name]
-    if (!kind) return false
-    if (!token.includes('=') && (kind !== 'boolean' || tool !== 'ldap-axi' && ['true', 'false'].includes(args[index]))) index++
-  }
-  return index === args.length || args[index] === 'home' || args[index] === 'auth' && args[index + 1] === 'status'
-}
+import type { PreparedCall } from './types.js'
 
 // Status metadata describes the hosted credential, never the server's local layout.
-export function hostedStatus(tool: string, args: readonly string[], result: RunnerResult): RunnerResult {
-  if (!statusCommand(tool, args)) return result
+export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
+  if (!invocation || invocation.help || !['home', 'auth status'].includes(invocation.command)) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   try {
     const json = result.stdout.trimStart().startsWith('{')

@@ -10,7 +10,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 import { writePolicy } from './write-policy.js'
-import { invalidCommand } from './input-diagnostics.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const tenableManifest = { ...inventory, ...inventory.adapterBoundary }
 export const tenableProfile = new CredentialProfile(inventory.credentialSchema, 'tenable-axi')
@@ -23,14 +23,20 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
   const version = tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])
   const route = inventory.commands.find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
-  if (!version && !route) throw invalidCommand('tenable-axi', tokens, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
+  if (!version && !route) {
+    if (tokens[0].startsWith('-')) throw unknownFlag('tenable-axi', 'home', tokens[0],
+      Object.keys(inventory.commands.find(route => route.command === 'home')!.flags).filter(name => !tenableManifest.unsafeOverrides.includes(name)))
+    throw invalidCommand('tenable-axi', tokens, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
+  }
   if (!version && route?.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
   const normalized: string[] = []
   const fileArguments: number[] = []
   let usesStdin = false
+  let help = false
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index]
     const name = token.startsWith('--') ? token.slice(2).split('=')[0] : ''
+    if (name === 'help') help = true
     if (token === '--' || tenableManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
     if (tenableManifest.inputFileFlags.includes(name)) {
       const equals = token.indexOf('=')
@@ -42,7 +48,7 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
     } else normalized.push(token)
   }
   if (input.stdin !== undefined && !usesStdin) throw new ArtiumError('UNSUPPORTED_INPUT')
-  return { args: normalized, fileArguments,
+  return { args: normalized, fileArguments, invocation: { command: route?.command ?? 'version', help },
     effect: route?.effect === 'write' && tokens.some(token => token === '--execute' || token.startsWith('--execute='))
       ? 'write' as const : 'read' as const }
 }

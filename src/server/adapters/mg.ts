@@ -25,11 +25,11 @@ export const mgWritePolicy = writePolicy({ supportedOperations: inventory.native
   unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal and conditional-access policy operations; native execution and confirmation gates still apply.',
   blocked: 'Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
 
-function mgArguments(args: readonly string[], input: RunnerInput = {}): string[] {
+function mgArguments(args: readonly string[], input: RunnerInput = {}) {
   if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--help', '--version', '-v', '-V'].includes(args[0])) {
     if (input.stdin !== undefined) throw new ArtiumError('UNSUPPORTED_INPUT')
-    return [...args]
+    return { args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' } }
   }
   const words = args.slice(0, args.findIndex(arg => arg.startsWith('-')) < 0
     ? args.length : args.findIndex(arg => arg.startsWith('-')))
@@ -65,7 +65,7 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}): string[]
     }
   }
   if (input.stdin !== undefined && flags.cursor !== '-') throw new ArtiumError('UNSUPPORTED_INPUT')
-  return [...args]
+  return { args: [...args], invocation: { command: route.command, help: flags.help === true } }
 }
 
 export function createMgAdapter(source: SecretSource, writeLog: string,
@@ -89,7 +89,7 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
         ? { provider: 'client-secret', key: clientId, secretEnv: holder }
         : { provider: 'certificate', key: clientId, thumbprint: credential.thumbprint.toLowerCase(), keyEnv: holder }
       return {
-        executable: toolPaths['mg-axi'], args: normalized,
+        executable: toolPaths['mg-axi'], ...normalized,
         environment: { MG_AXI_CONFIG: 'mg-profile.json', MG_AXI_WRITE_LOG: writeLog,
           MG_AXI_READ_ONLY: String(writes?.allowWrites !== true), [holder]: secret },
         files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
@@ -102,6 +102,6 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
         limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
       }
     },
-  }, source, writeLog, profile, (args, input) => ({ args: mgArguments(args, input) }),
+  }, source, writeLog, profile, mgArguments,
   { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 })
 }

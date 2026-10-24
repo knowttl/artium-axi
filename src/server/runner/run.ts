@@ -55,7 +55,7 @@ export async function runTool<Credential>(
     result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
-    result = hostedStatus(adapter.name, args, result)
+    result = hostedStatus(adapter.name, prepared.invocation, result)
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
     if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'].includes(runnerError.code)) {

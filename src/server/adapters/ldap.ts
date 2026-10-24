@@ -14,7 +14,7 @@ export const ldapWritePolicy = writePolicy({ reason: 'LDAP has no write path in 
 const bundledProfile = new CredentialProfile(inventory.credentialSchema, 'ldap-axi')
 export const ldapCredentialSchema = bundledProfile.credentialSchema
 
-function ldapArguments(args: readonly string[], input: RunnerInput = {}): string[] {
+function ldapArguments(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   const command = !args.length || args[0].startsWith('-') ? 'home' : args[0] === 'server' ? 'server' : args.slice(0, 2).join(' ')
   const route = inventory.commands.find(route => route.command === command)
@@ -53,7 +53,7 @@ function ldapArguments(args: readonly string[], input: RunnerInput = {}): string
   if (positionals > Number(route.positionalInput) || route.positionalInput && !seen.has('help') && positionals !== 1) {
     throw new ArtiumError('INVALID_INPUT')
   }
-  return normalized
+  return { args: normalized, invocation: { command, help: seen.has('help') } }
 }
 
 export function createLdapAdapter(source: SecretSource,
@@ -68,7 +68,7 @@ export function createLdapAdapter(source: SecretSource,
     async prepare(args, reference, input) {
       const normalized = ldapArguments(args, input)
       if (reference.tool !== 'ldap-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      return { executable: toolPaths['ldap-axi'], args: normalized,
+      return { executable: toolPaths['ldap-axi'], ...normalized,
         ...profile.prepare('ldap-axi', await source.getCredential(reference), undefined, true),
         limits: { timeoutMs: runnerLimits.timeoutMs } }
     },

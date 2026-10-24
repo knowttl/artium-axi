@@ -36,6 +36,7 @@ test('Falcon prepares the persisted shared credential after database reopen', as
     const adapter = createFalconAdapter(new EmbeddedSecretSource(store))
     const prepared = await adapter.prepare(['detection', 'list', '--help'], identity)
     expect(prepared).toEqual({
+      invocation: { command: 'detection list', help: true },
       executable: '/opt/falcon-axi/bin/falcon-axi',
       args: ['detection', 'list', '--help', '--region', 'us-2', '--member-cid', 'synthetic-member'],
       environment: { FALCON_AXI_CLIENT_ID: credential.clientId, FALCON_AXI_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true', FALCON_AXI_WRITE_LOG: '/data/tool-logs/falcon-axi/writes.log' },
