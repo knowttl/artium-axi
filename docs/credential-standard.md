@@ -300,7 +300,7 @@ See [Tenable One setup](tool-credentials.md#tenable-one) for the supported bound
 hybrid-axi uses its shipped apiKey SecretRef schema and the fixed `https://hybrid-analysis.com` origin.
 Artium requires one secret API key, injects it through an environment SecretRef and keeps native writes disabled unless the administrator enables named operations.
 Native preview, execute, exact confirmation and durable journaling remain required.
-See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis) for uploads, download exclusions and key-level failures.
+See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis) for credential setup and key-level failures, and the [capability boundary](../README.md#safety) for supported operations.
 
 ## 10. Migration
 
