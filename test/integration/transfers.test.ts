@@ -305,7 +305,7 @@ test('bundled CLI interruption cancels an active native generation without publi
 
 test.each(['local', 'sso'])('browser %s account offers guidance and metadata with no artifact download link or bytes', async source => {
   await ready()
-  db.prepare('UPDATE users SET source = ? WHERE id = ?').run(source, user)
+  if (source === 'sso') db.prepare("UPDATE users SET source = 'sso', password_hash = NULL, must_change = 0 WHERE id = ?").run(user)
   const session = createBrowserSession(db, user, 'CANARY-csrf')
   const page = await fetch(`${url}/account`, { headers: { cookie: `artium-session=${session.id}` } })
   const html = await page.text()
