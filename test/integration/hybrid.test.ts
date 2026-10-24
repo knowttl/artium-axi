@@ -60,6 +60,18 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
         return response.json() as { stdout: string, exitCode: number }
       }
       expect((await run(['quota'])).stdout).toContain('default')
+      const home = await run([])
+      expect(decode(home.stdout)).toMatchObject({ bin: 'artium-axi hybrid-axi' })
+      expect(home.stdout).not.toContain(directory)
+      const status = await run(['auth', 'status'])
+      expect(decode(status.stdout)).toMatchObject({ apiKey: 'env', source: 'env' })
+      expect(status.stdout).not.toMatch(/ARTIUM_SECRET_|config:|hybrid-profile|artium-call-/)
+      const unknown = await app.inject({ method: 'POST', url: '/v1/tools/hybrid-axi/run', headers,
+        payload: { args: ['quota', '--synthetic-unknown'] } })
+      expect(unknown.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'Unknown flag --synthetic-unknown for hybrid-axi quota.' } })
+      const incomplete = await app.inject({ method: 'POST', url: '/v1/tools/hybrid-axi/run', headers,
+        payload: { args: ['hash', '--help'] } })
+      expect(incomplete.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'Incomplete command "hash" for hybrid-axi.' } })
       const checked = await app.inject({ method: 'POST', url: '/v1/admin/tools/hybrid-axi/test', headers, payload: {} })
       expect(checked.json()).toMatchObject({ status: 'ok' })
       const submit = ['submit', 'url', '--url', 'https://example.com/synthetic', '--environment-id', '160']

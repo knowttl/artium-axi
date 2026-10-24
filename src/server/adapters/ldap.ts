@@ -6,6 +6,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
 import { CredentialProfile, loadCredentialProfile } from './credential-profile.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const ldapManifest = { ...inventory, ...inventory.adapterBoundary }
 export const ldapWritePolicy = writePolicy({ reason: 'LDAP has no write path in this adapter.',
@@ -13,11 +14,14 @@ export const ldapWritePolicy = writePolicy({ reason: 'LDAP has no write path in 
 const bundledProfile = new CredentialProfile(inventory.credentialSchema, 'ldap-axi')
 export const ldapCredentialSchema = bundledProfile.credentialSchema
 
-function ldapArguments(args: readonly string[], input: RunnerInput = {}): string[] {
+function ldapArguments(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   const command = !args.length || args[0].startsWith('-') ? 'home' : args[0] === 'server' ? 'server' : args.slice(0, 2).join(' ')
   const route = inventory.commands.find(route => route.command === command)
-  if (!route) throw new ArtiumError('FLAG_BLOCKED')
+  if (!route) {
+    if (ldapManifest.blockedCommands.includes(args[0])) throw new ArtiumError('FLAG_BLOCKED', `Command ${args[0]} is unavailable through artium.`)
+    throw invalidCommand('ldap-axi', args, inventory.commands.map(route => route.command))
+  }
   const flags: Record<string, string | undefined> = route.flags
   const seen = new Set<string>()
   let positionals = 0
@@ -30,7 +34,10 @@ function ldapArguments(args: readonly string[], input: RunnerInput = {}): string
   for (; index < args.length; index++) {
     const token = args[index]
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(token)
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (!match) {
+      if (!token.startsWith('-')) throw new ArtiumError('INVALID_INPUT', `Unexpected argument ${JSON.stringify(token)} for ldap-axi ${command}.`)
+      throw unknownFlag('ldap-axi', command, token, Object.keys(flags).filter(name => !ldapManifest.unsafeOverrides.includes(name)))
+    }
     const [, name, inline] = match
     if (ldapManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
     if (!Object.hasOwn(flags, name)) throw new ArtiumError('INVALID_INPUT', `Unknown flag --${name} for ldap-axi ${command}.`,
@@ -49,7 +56,7 @@ function ldapArguments(args: readonly string[], input: RunnerInput = {}): string
   if (positionals > Number(route.positionalInput) || route.positionalInput && !seen.has('help') && positionals !== 1) {
     throw new ArtiumError('INVALID_INPUT')
   }
-  return normalized
+  return { args: normalized, invocation: { command, help: seen.has('help') } }
 }
 
 export function createLdapAdapter(source: SecretSource,
@@ -64,7 +71,7 @@ export function createLdapAdapter(source: SecretSource,
     async prepare(args, reference, input) {
       const normalized = ldapArguments(args, input)
       if (reference.tool !== 'ldap-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      return { executable: toolPaths['ldap-axi'], args: normalized,
+      return { executable: toolPaths['ldap-axi'], ...normalized,
         ...profile.prepare('ldap-axi', await source.getCredential(reference), undefined, true),
         limits: { timeoutMs: runnerLimits.timeoutMs } }
     },

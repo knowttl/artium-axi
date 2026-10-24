@@ -11,6 +11,7 @@ import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult } from './runner.js'
 import { toolFailureCode } from '../health/diagnostic.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
+import { hostedStatus } from '../adapters/hosted-status.js'
 
 export interface RunContext {
   requestId: string
@@ -54,6 +55,7 @@ export async function runTool<Credential>(
     result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
+    result = hostedStatus(adapter.name, prepared.invocation, result)
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
     if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'].includes(runnerError.code)) {

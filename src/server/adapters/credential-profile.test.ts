@@ -457,6 +457,16 @@ test('uses SHA-256 certificate fields in the migrated adapter while retaining ar
   await expect(adapter.prepare(['auth', 'login'], { id: 'synthetic', tool: 'mg-axi' })).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
 })
 
+test.each([
+  { args: [], invocation: { command: 'home', help: false } },
+  { args: ['--help'], invocation: { command: 'home', help: true } },
+  { args: ['entra', 'user', 'list'], invocation: { command: 'entra user list', help: false } },
+])('credential-profile preparation preserves parsed invocation $args', async ({ args, invocation }) => {
+  const adapter = createMgAdapter({ getCredential: async () => credential }, join(directory, 'writes.log'), new CredentialProfile(schema))
+  const prepared = await adapter.prepare(args, { id: 'synthetic', tool: 'mg-axi', revision: 1 })
+  expect(prepared.invocation).toEqual(invocation)
+})
+
 test('extracts nested and referenced secrets for draft 2020-12 schemas', () => {
   const profile = new CredentialProfile({ $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object',
     additionalProperties: false, required: ['keys'], properties: { keys: { type: 'array', items: {

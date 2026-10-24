@@ -12,6 +12,7 @@ import { AzureTokenCache, azureCommandResources } from './azure-token-cache.js'
 import type { AzureResourcePlan } from './azure-token-cache.js'
 import { loadCredentialProfile } from './credential-profile.js'
 import type { Adapter, PreparedCall } from './types.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 const settings = nativeSettingsSchemas['az-axi'].shape
 export const azCredentialSchema = z.discriminatedUnion('auth', [
@@ -24,10 +25,11 @@ export const azWritePolicy = writePolicy({ unlocks: 'Reviewed Azure writes and A
 
 // Follow the pinned leaf parser while retaining caller spelling for upstream execution.
 function azArguments(args: readonly string[], input: RunnerInput = {}): {
-  args: string[], fileArguments: number[], resources: AzureResourcePlan, write?: PreparedCall['write']
+  args: string[], invocation: NonNullable<PreparedCall['invocation']>, fileArguments: number[], resources: AzureResourcePlan, write?: PreparedCall['write']
 } {
   if (args.length === 1 && ['--help', '-h', '--version', '-v', '-V'].includes(args[0])) {
-    return { args: [...args], fileArguments: [], resources: { required: [], optional: [] } }
+    return { args: [...args], invocation: { command: args[0].includes('help') || args[0] === '-h' ? 'home' : 'version', help: args[0].includes('help') || args[0] === '-h' },
+      fileArguments: [], resources: { required: [], optional: [] } }
   }
   let leading = 0
   while (args[leading]?.startsWith('-')) {
@@ -48,7 +50,14 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
   const route = inventory.commands.filter(route => route.tokenResources !== null &&
     (route.command === 'home' && args.length === 0 || route.command.split(' ').every((word, index) => args[index] === word)))
     .sort((a, b) => b.command.length - a.command.length)[0]
-  if (!route) throw new ArtiumError('FLAG_BLOCKED')
+  if (!route) {
+    if (inventory.commands.some(route => route.tokenResources === null && route.command.split(' ').every((word, index) => args[index] === word))) {
+      throw new ArtiumError('FLAG_BLOCKED', `Command ${args.slice(0, 2).join(' ')} is unavailable through artium.`)
+    }
+    if (args[0]?.startsWith('-')) throw unknownFlag('az-axi', 'home', args[0],
+      Object.keys(inventory.commands.find(route => route.command === 'home')!.flags).filter(name => !azManifest.unsafeOverrides.includes(name)))
+    throw invalidCommand('az-axi', args, inventory.commands.filter(route => route.tokenResources !== null).map(route => route.command))
+  }
   const flags: Record<string, string> = Object.create(null)
   const normalized = [...args]
   const fileArguments: number[] = []
@@ -100,7 +109,8 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
     }
     flags[name] = value
   }
-  return { args: normalized, fileArguments, resources: azureCommandResources(route.command, flags),
+  return { args: normalized, invocation: { command: route.canonicalCommand, help: flags.help === 'true' },
+    fileArguments, resources: azureCommandResources(route.command, flags),
     write: azWrite(route, flags, positionals) }
 }
 
@@ -213,7 +223,7 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         } }) }],
       }
       return {
-        executable: toolPaths['az-axi'], args: normalized.args, fileArguments: normalized.fileArguments,
+        executable: toolPaths['az-axi'], args: normalized.args, invocation: normalized.invocation, fileArguments: normalized.fileArguments,
         write: normalized.write,
         ...injection,
         secrets: [...new Set([credential.auth === 'secret' ? credential.clientSecret : credential.privateKey,

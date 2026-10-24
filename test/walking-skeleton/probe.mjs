@@ -4,6 +4,7 @@ import { once } from 'node:events'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { get } from 'node:https'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -131,13 +132,20 @@ try {
       console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', canary: 'fake env emits injected secret; CLI receives SECRET_IN_OUTPUT without either stream' }))
     } else {
       const clean = text => text.replace(/^(?:duration_ms|elapsed_ms|durationMs):.*\n/gm, '')
+      const { decode } = await import(createRequire('/opt/artium/package.json').resolve('@toon-format/toon'))
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], ['detection', 'list', '--limit', '1'],
         ['detection', 'list', '--filter', "hostname:'synthetic-empty'"], ['detection', 'list', '--unknown']]) {
         const local = await execute('/opt/falcon-axi/bin/falcon-axi', [...args, '--region', 'us-1'], {
           FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
         })
         const remote = await cli(['falcon-axi', ...args])
-        assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
+        if (args.length === 0) {
+          const expected = decode(clean(upstreamSuggestions(local.stdout, true)))
+          assert.equal(expected.bin, '/opt/falcon-axi/bin/falcon-axi')
+          expected.bin = 'artium-axi falcon-axi'
+          assert.deepEqual({ ...remote, stdout: decode(clean(upstreamSuggestions(remote.stdout))), stderr: clean(upstreamSuggestions(remote.stderr)) },
+            { ...local, stdout: expected, stderr: clean(upstreamSuggestions(local.stderr, true)) })
+        } else assert.deepEqual({ ...remote, stdout: clean(upstreamSuggestions(remote.stdout)), stderr: clean(upstreamSuggestions(remote.stderr)) },
           { ...local, stdout: clean(upstreamSuggestions(local.stdout, true)), stderr: clean(upstreamSuggestions(local.stderr, true)) })
         if (!args.includes('--unknown') && !args.includes('--filter') && !args.includes('--help')) assert.match(remote.stdout, /synthetic-detection/)
         if (args.includes('--filter')) assert.doesNotMatch(remote.stdout, /synthetic-detection/)
@@ -179,14 +187,15 @@ try {
         const local = await execute(prepared.executable, args, { ...prepared.environment, XDG_CONFIG_HOME: directory })
         const remote = await cli(['vectra-axi', ...args])
         if (args.length === 0) {
-          // Home reports the generated profile location, which belongs to each call's temp directory.
-          const privateConfig = /^  config: \/tmp\/artium-calls\/artium-call-[^/\n]+\/config\/vectra-axi\/config\.json$/m
-          assert.match(remote.stdout, privateConfig)
-          assert.ok(local.stdout.includes(`  config: ${join(directory, 'vectra-axi/config.json')}\n`))
-          remote.stdout = remote.stdout.replace(privateConfig, '  config: <private call>/vectra-axi/config.json')
-          local.stdout = local.stdout.replace(`  config: ${join(directory, 'vectra-axi/config.json')}`, '  config: <private call>/vectra-axi/config.json')
-        }
-        assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
+          const expected = decode(local.stdout)
+          assert.equal(expected.setup.config, join(directory, 'vectra-axi/config.json'))
+          delete expected.config
+          delete expected.configPath
+          if (Object.hasOwn(expected, 'bin')) expected.bin = 'artium-axi vectra-axi'
+          expected.setup = 'Managed by artium.'
+          assert.deepEqual({ ...remote, stdout: decode(upstreamSuggestions(remote.stdout)), stderr: upstreamSuggestions(remote.stderr) },
+            { ...local, stdout: expected })
+        } else assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
       }
       assert.equal((await requests()).mutations, 0)
       const write = await cli(['vectra-axi', ...tagArgs, '--execute', '--confirm', 'detection 42'])

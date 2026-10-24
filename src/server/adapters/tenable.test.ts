@@ -16,6 +16,14 @@ const writeLog = join(directory, 'writes.log')
 const adapter = createTenableAdapter({ getCredential: async () => credential }, writeLog)
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
+test('dash-prefixed query values remain values during preparation', async () => {
+  const args = ['card', 'list', '--query', '-x', '--full']
+  expect(() => adapter.validateArgs(args)).not.toThrow()
+  const call = await adapter.prepare(args, reference)
+  expect(call.args).toEqual(args)
+  expect(call.invocation).toEqual({ command: 'card list', help: false })
+})
+
 test('the credential form marks both keys secret and offers only the fixed origin', () => {
   const form = credentialFields('tenable-axi', tenableProfile, {}, false)
   expect(form).toContain('data-credential-field="accessKey" data-secret')

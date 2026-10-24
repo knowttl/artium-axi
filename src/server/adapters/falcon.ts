@@ -6,7 +6,7 @@ import { falconRtrSettingsSchema } from '../../shared/api.js'
 import { writePolicy } from './write-policy.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
-import type { Adapter } from './types.js'
+import type { Adapter, PreparedCall } from './types.js'
 import { loadCredentialProfile } from './credential-profile.js'
 
 export const falconManifest = inventory
@@ -81,19 +81,19 @@ export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool
     sensitiveArguments: () => ({ flags: ['--client-id', '--client-secret'], positions: [] }),
     validateArgs: validateFalconArgs,
     async prepare(args, reference) {
-      validateFalconArgs(args)
+      const invocation = validateFalconArgs(args)
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const value = await source.getCredential(reference)
       const effect = args[0] === 'malquery' && args[1] === 'search' || args.some(token => token === '--execute' || token.startsWith('--execute=')) ? 'write' : 'read'
       if (profile) {
-        return { executable: toolPaths['falcon-axi'], args: [...args], limits: falconLimits, effect,
+        return { executable: toolPaths['falcon-axi'], args: [...args], invocation, limits: falconLimits, effect,
           ...profile.prepare('falcon-axi', value, writeLog, !allowsCall(args, value as Record<string, unknown>)) }
       }
       const parsed = falconCredentialSchema.safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const { rtr, region, memberCid } = parsed.data
       const prepared = prepareCredential(args, parsed.data)
-      return { ...prepared, effect, environment: { ...prepared.environment, FALCON_AXI_WRITE_LOG: writeLog }, files: rtr ? [{ name: 'falcon-axi/config.json', content: JSON.stringify({
+      return { ...prepared, invocation, effect, environment: { ...prepared.environment, FALCON_AXI_WRITE_LOG: writeLog }, files: rtr ? [{ name: 'falcon-axi/config.json', content: JSON.stringify({
         version: 1, defaultProfile: 'artium', profiles: { artium: { clientId: parsed.data.clientId,
           clientSecret: { env: 'ARTIUM_SECRET_0' }, region, memberCid, rtr } },
       }) }] : [] }
@@ -101,21 +101,27 @@ export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool
   }
 }
 
-export function validateFalconArgs(args: readonly string[]): void {
+export function validateFalconArgs(args: readonly string[]): NonNullable<PreparedCall['invocation']> {
   const command = args.slice(0, 2).join(' ')
   if (inventory.blockedCommands.includes(args[0]) || inventory.blockedCommands.includes(command)) {
     throw new ArtiumError('FLAG_BLOCKED')
   }
   // The pinned parser has no aliases and no double-dash delimiter. Repeats cannot clear a refusal.
+  let help = false
   for (const token of args) {
+    if (token.split('=')[0] === '--help') help = true
     if (token === '--' || (token.startsWith('--') && inventory.unsafeOverrides.includes(token.slice(2).split('=')[0]))) {
       throw new ArtiumError('FLAG_BLOCKED')
     }
   }
+  const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
+    .find(route => route.command.split(' ').every((word, index) => args[index] === word))
+  return { command: args.length === 1 && ['--version', '-v', '-V'].includes(args[0]) ? 'version'
+    : !args.length || args[0].startsWith('-') ? 'home' : route?.command ?? args[0], help }
 }
 
 export async function prepareFalcon(args: readonly string[], configuration: FalconCredentialFiles) {
-  validateFalconArgs(args)
+  const invocation = validateFalconArgs(args)
   const parsed = falconCredentialFiles.safeParse(configuration)
   if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
   const { clientIdFile, clientSecretFile, region, memberCid } = parsed.data
@@ -123,5 +129,5 @@ export async function prepareFalcon(args: readonly string[], configuration: Falc
     .then(values => values.map(value => value.trim()))
     .catch(() => { throw new ArtiumError('CREDENTIAL_INVALID') })
   if (!clientId || !clientSecret) throw new ArtiumError('CREDENTIAL_INVALID')
-  return prepareCredential(args, { clientId, clientSecret, region, memberCid })
+  return { ...prepareCredential(args, { clientId, clientSecret, region, memberCid }), invocation }
 }

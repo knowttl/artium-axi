@@ -7,6 +7,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 import { writePolicy } from './write-policy.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const hybridManifest = { ...inventory, ...inventory.adapterBoundary }
 export const hybridProfile = new CredentialProfile(inventory.credentialSchema, 'hybrid-axi')
@@ -17,12 +18,21 @@ export const hybridWritePolicy = writePolicy({ supportedOperations: inventory.na
 
 function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
-  if (tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])) return { args: tokens, effect: 'read' as const }
+  if (tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])) return {
+    args: tokens, invocation: { command: tokens[0] === '--help' ? 'home' : 'version', help: tokens[0] === '--help' }, effect: 'read' as const }
   const route = [...inventory.commands].reverse().find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (route?.command === 'hash file' || route?.command === 'report file') throw new ArtiumError('FLAG_BLOCKED',
     'Hosted downloads are not available yet through artium; use hybrid-axi locally.',
     'Use hybrid-axi locally with its native preview, execute, exact confirmation and live-malware warnings.')
-  if (!route || route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED')
+  if (!route) {
+    if (hybridManifest.blockedCommands.some(command => tokens.join(' ') === command || tokens.join(' ').startsWith(command + ' '))) {
+      throw new ArtiumError('FLAG_BLOCKED', `Command ${tokens[0]} is unavailable through artium.`)
+    }
+    if (tokens[0].startsWith('-')) throw unknownFlag('hybrid-axi', 'home', tokens[0],
+      Object.keys(inventory.commands.find(route => route.command === 'home')!.flags).filter(name => !hybridManifest.unsafeOverrides.includes(name)))
+    throw invalidCommand('hybrid-axi', tokens, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
+  }
+  if (route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
   const normalized = tokens.slice(0, route.command.split(' ').length)
   const fileArguments: number[] = []
   const flags = new Set<string>()
@@ -31,10 +41,11 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     const token = tokens[index]
     if (!token.startsWith('-')) { normalized.push(token); continue }
     const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token)
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (!match) throw unknownFlag('hybrid-axi', route.command, token, Object.keys(route.flags).filter(name => !hybridManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
     if (hybridManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
-    if (!Object.hasOwn(route.flags, name) || flags.has(name)) throw new ArtiumError('INVALID_INPUT')
+    if (!Object.hasOwn(route.flags, name)) throw unknownFlag('hybrid-axi', route.command, token, Object.keys(route.flags).filter(name => !hybridManifest.unsafeOverrides.includes(name)))
+    if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     flags.add(name)
     if (['help', 'full', 'labs', 'execute', 'dry-run'].includes(name)) {
       if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
@@ -55,7 +66,7 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   if (input.stdin !== undefined && !usesStdin) throw new ArtiumError('UNSUPPORTED_INPUT')
-  return { args: normalized, fileArguments,
+  return { args: normalized, fileArguments, invocation: { command: route.command, help: flags.has('help') },
     effect: route.effect === 'write' && flags.has('execute') && !flags.has('help') ? 'write' as const : 'read' as const }
 }
 

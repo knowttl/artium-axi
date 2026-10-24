@@ -8,6 +8,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import type { Adapter, PreparedCall } from './types.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
 export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item, pull-request, pipeline and ref writes with host classification and journaling.',
@@ -40,10 +41,11 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
     const token = args[index]
     if (!token.startsWith('-')) { positionals.push(token); continue }
     if (['-v', '--version'].includes(token) && args.length === 1) {
-      return { args: ['--version'], command: 'home', effect: 'read' as const, positionals: [], flags }
+      return { args: ['--version'], invocation: { command: 'version', help: false }, command: 'home', effect: 'read' as const, positionals: [], flags }
     }
     const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token)
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (!match) throw unknownFlag('ado-axi', positionals.join(' ') || 'home', token,
+      Object.keys(knownFlags).filter(name => !adoManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
     if (!Object.hasOwn(knownFlags, name)) throw new ArtiumError('INVALID_INPUT', `Unknown flag --${name} for ado-axi.`,
       'Run artium-axi ado-axi --help for managed command guidance.')
@@ -65,7 +67,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   const candidates = inventory.commands.flatMap(route => [route.command, ...route.aliases].map(command => ({ route, command })))
     .sort((a, b) => b.command.length - a.command.length)
   const match = candidates.find(({ command }) => positionals.slice(0, command.split(' ').length).join(' ') === command)
-  if (!match) throw new ArtiumError('FLAG_BLOCKED')
+  if (!match) throw invalidCommand('ado-axi', positionals, candidates.map(({ command }) => command))
   const { route, command } = match
   const rest = positionals.slice(command.split(' ').length)
   const routeFlags: Record<string, string | undefined> = route.flags
@@ -87,7 +89,8 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   // consume a command or ID as a flag value. SDK help detection needs --help.
   const normalized = route.command === 'home' && flags.get('help') === 'true' ? ['--help'] : [...positionals, ...[...flags].flatMap(([name, value]) =>
     routeFlags[name] === 'boolean' || value.startsWith('--') ? [name === 'help' && value === 'true' ? '--help' : `--${name}=${value}`] : [`--${name}`, value])]
-  return { args: normalized, command: route.command, effect: flags.get('help') === 'true' ? 'read' : route.effect,
+  return { args: normalized, invocation: { command: route.command, help: flags.get('help') === 'true' },
+    command: route.command, effect: flags.get('help') === 'true' ? 'read' : route.effect,
     positionals: rest, flags }
 }
 
@@ -163,7 +166,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
         auth: 'secret', tenantId: value.tenantId as string, clientId: value.clientId as string, clientSecret: value.clientSecret as string,
       }, trust: source.getTrust?.(reference) }, { required: ['devops'], optional: [] })).devops! : undefined
       const token = minted?.accessToken ?? value.token as string
-      return { executable: toolPaths['ado-axi'], args: call.args,
+      return { executable: toolPaths['ado-axi'], args: call.args, invocation: call.invocation,
         environment: { ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: token,
           ...(minted ? { ARTIUM_ADO_EXPIRES_ON: new Date(minted.expiresAt).toISOString().replace('T', ' ').replace('Z', '') } : {}) },
         ...(minted ? { pathPrefix: adoPathPrefix } : {}),

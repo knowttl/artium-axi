@@ -40,9 +40,14 @@ function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
   if (vectraManifest.blockedCommands.includes(args[0])) throw new ArtiumError('FLAG_BLOCKED')
   const normalized: string[] = []
   const fileArguments: number[] = []
+  const command = !args.length || args[0].startsWith('-') ? 'home' : [...inventory.commands]
+    .sort((a, b) => b.command.length - a.command.length)
+    .find(route => route.command.split(' ').every((word, index) => args[index] === word))?.command ?? args[0]
+  let help = false
   for (let index = 0; index < args.length; index++) {
     const token = args[index]
     const name = token.startsWith('--') ? token.slice(2).split('=')[0] : ''
+    if (name === 'help') help = true
     if (token === '--' || vectraManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
     if (vectraManifest.inputFileFlags.includes(name)) {
       const equals = token.indexOf('=')
@@ -54,7 +59,7 @@ function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
       if (value !== '-') fileArguments.push(normalized.length - 1)
     } else normalized.push(token)
   }
-  return { args: normalized, fileArguments }
+  return { args: normalized, fileArguments, invocation: { command, help } }
 }
 
 export function createVectraAdapter(source: SecretSource, writeLog: string,

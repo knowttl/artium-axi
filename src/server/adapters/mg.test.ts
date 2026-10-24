@@ -27,6 +27,8 @@ test.each([
 test.each([
   ['entra', 'user', 'list', '--profile=other'], ['entra', 'user', 'list', '--config', '/data/artium.db'],
   ['login'], ['profile', 'create'], ['setup', 'hooks'], ['update'], ['api', 'POST', '/users'],
+  ['api', 'PUT', '/users'], ['api', 'PATCH', '/users'], ['api', 'DELETE', '/users'],
+  ['api', 'HEAD', '/users'], ['api', 'OPTIONS', '/users'],
   ['entra', 'user', 'list', '--scopes', 'https://graph.microsoft.com/User.Read.All'],
 ].map(args => [args]))('blocked override or command refuses credential retrieval: %j', async args => {
   const getCredential = vi.fn()
@@ -41,4 +43,32 @@ test('only cursor stdin is accepted as input', async () => {
   const call = await adapter.prepare(['entra', 'user', 'list', '--cursor=-'], reference, { stdin: 'opaque' })
   expect(call.args).toEqual(['entra', 'user', 'list', '--cursor=-'])
   expect(JSON.parse(call.files[0].content as string).profiles.artium.writes).toBeUndefined()
+})
+
+test.each([
+  ['entra', 'user', 'list', '--full', 'extra'],
+  ['entra', 'user', 'list', '--cursor', 'synthetic-cursor', 'extra'],
+].map(args => [args]))('trailing positional arguments are named before credential retrieval: %j', async args => {
+  const getCredential = vi.fn()
+  const adapter = createMgAdapter({ getCredential }, '/tmp/writes.log')
+  const error = { code: 'INVALID_INPUT', message: 'Unexpected argument "extra" for mg-axi entra user list.' }
+  expect(() => adapter.validateArgs(args)).toThrow(expect.objectContaining(error))
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject(error)
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['api'], ['api', '--help'], ['api', 'gte', '/users'],
+].map(args => [args]))('invalid API commands name the problem before credential retrieval: %j', async args => {
+  const getCredential = vi.fn()
+  const adapter = createMgAdapter({ getCredential }, '/tmp/writes.log')
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('command "api') })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('reviewed API GET retains its path and flags', async () => {
+  const adapter = createMgAdapter({ getCredential: async () => ({ ...identity, auth: 'secret', clientSecret: 'CANARY-secret' }) }, '/tmp/writes.log')
+  const args = ['api', 'get', '/users', '--full']
+  expect(() => adapter.validateArgs(args)).not.toThrow()
+  expect((await adapter.prepare(args, reference)).args).toEqual(args)
 })

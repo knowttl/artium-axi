@@ -75,6 +75,11 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       expect(decode(remaining.stdout)).toMatchObject({ count: 24, complete: true })
       const home = await run(['home'])
       expect(home.exitCode, home.stdout).toBe(0)
+      expect(decode(home.stdout)).toMatchObject({ bin: 'artium-axi tenable-axi' })
+      const status = await run(['auth', 'status'])
+      expect(decode(status.stdout)).toMatchObject({ accessKey: 'env', secretKey: 'env' })
+      expect(status.stdout).not.toMatch(/ARTIUM_SECRET_|config:|artium-call-/)
+      expect(status.stdout).not.toContain(directory)
       const homePage = decode(home.stdout) as { cursor: string, complete: boolean }
       expect(homePage.complete).toBe(false)
       expect(Buffer.byteLength(homePage.cursor)).toBeGreaterThan(4096)

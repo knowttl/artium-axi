@@ -250,7 +250,9 @@ The [full client reference](docs/client-reference.md#command-surface-and-subcomm
 
 ### TOON output and errors
 Discovery and Artium errors use TOON on stdout; progress uses stderr.
-Upstream stdout, stderr and exit status pass through, with managed suggestions adapted to Artium commands.
+Upstream stdout, stderr and exit status pass through, subject to managed suggestion adaptation and hosted status filtering.
+Hosted home and authentication status omit server executable and configuration paths; secret references report only their source kind, `env` or `file`.
+Malformed or truncated hosted status output is withheld with `INVALID_RESPONSE`.
 Artium exits 0 for success, 2 for usage/configuration errors and 1 for authentication/server/transport failures.
 See the generated [error catalogue](docs/errors.md) for actionable codes and retry guidance.
 
