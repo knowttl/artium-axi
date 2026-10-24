@@ -42,3 +42,15 @@ test('only cursor stdin is accepted as input', async () => {
   expect(call.args).toEqual(['entra', 'user', 'list', '--cursor=-'])
   expect(JSON.parse(call.files[0].content as string).profiles.artium.writes).toBeUndefined()
 })
+
+test.each([
+  ['entra', 'user', 'list', '--full', 'extra'],
+  ['entra', 'user', 'list', '--cursor', 'synthetic-cursor', 'extra'],
+].map(args => [args]))('trailing positional arguments are named before credential retrieval: %j', async args => {
+  const getCredential = vi.fn()
+  const adapter = createMgAdapter({ getCredential }, '/tmp/writes.log')
+  const error = { code: 'INVALID_INPUT', message: 'Unexpected argument "extra" for mg-axi entra user list.' }
+  expect(() => adapter.validateArgs(args)).toThrow(expect.objectContaining(error))
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject(error)
+  expect(getCredential).not.toHaveBeenCalled()
+})

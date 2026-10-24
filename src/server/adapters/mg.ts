@@ -46,6 +46,7 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}): string[]
   const schema: Record<string, string | undefined> = route.flags
   const flags: Record<string, string | boolean> = Object.create(null)
   for (let index = words.length; index < args.length; index++) {
+    if (!args[index].startsWith('-')) throw new ArtiumError('INVALID_INPUT', `Unexpected argument ${JSON.stringify(args[index])} for mg-axi ${route.command}.`)
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(args[index])
     if (!match) throw unknownFlag('mg-axi', route.command, args[index], Object.keys(schema).filter(name => !mgManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
