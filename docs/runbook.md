@@ -12,10 +12,11 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
-Hosted Hybrid Analysis downloads remain unavailable until the delivery and enabling slices in [the approved design](hybrid-download-design.md) are complete.
+See the [Hybrid Analysis capability boundary](../README.md#safety) for hosted download availability and [the approved design](hybrid-download-design.md) for pending implementation slices.
 Their internal artifact owner requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
 It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
 The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
+The executable host admission contract is in [src/server/artifacts.ts](../src/server/artifacts.ts); transfer limits are defined in [src/shared/api.ts](../src/shared/api.ts).
 Set Docker `--memory` and `--memory-swap` to the same positive value, and verify cgroup v2 `memory.swap.max=0` and `memory.swap.current=0`; the artifact owner checks both before admission.
 This prevents tmpfs pages written by the container from entering swap without depending on the optional `noswap` mount spelling, which Docker's `--tmpfs` parser rejects.
 See [Docker's swap-limit contract](https://docs.docker.com/engine/containers/resource_constraints/#prevent-a-container-from-using-swap) and the [kernel cgroup v2 swap controller](https://docs.kernel.org/admin-guide/cgroup-v2.html).

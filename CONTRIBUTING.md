@@ -48,6 +48,9 @@ pnpm test:containers
 ```
 
 The container command builds before its fake-only acceptance phases and removes its uniquely owned `artium-test-*` resources and BuildKit cache before returning.
+Its production-image artifact probe also requires cgroup v2 memory and swap controls and the dedicated tmpfs and memory contract in the [runbook](docs/runbook.md#scope-and-prerequisites).
+The probe exercises four concurrent maximum-size inert artifacts through the pinned native CLI, checking unchanged bytes, child RSS, container memory, zero swap and cleanup.
+This local evidence does not establish live deployment acceptance or enable hosted downloads.
 Use only isolated internal or no-network Docker networks and synthetic fixtures.
 Pinned dependency and image downloads are permitted; application probes must never reach real services.
 Never prune globally, change shared Docker settings or touch resources belonging to another run.
