@@ -1,6 +1,6 @@
 # Hosted Hybrid Analysis downloads
 
-Status: transfer contracts, owner/session scope checks, typed audit metadata, bounded artifact ownership, the internal native handoff and authenticated CLI delivery are implemented; final enablement remains pending.
+Status: all four implementation slices are implemented, including the four reviewed download operations behind independently selected, off-by-default write permissions and host admission.
 See the [runbook prerequisites](runbook.md#scope-and-prerequisites) for artifact-owner startup, storage admission and deployment requirements.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
 This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
@@ -13,7 +13,7 @@ Artium's current documentation lives in `docs/`; earlier internal design records
 - [src/server/runner/run.ts](../src/server/runner/run.ts) authenticates, checks tool policy, prepares managed credentials and journals, runs the child and records outcomes.
 - [src/server/runner/runner.ts](../src/server/runner/runner.ts) owns private per-call directories, process termination, admission and cleanup; its stdout/stderr are text with secret scanning.
   [src/server/runner/input.ts](../src/server/runner/input.ts) materializes reviewed uploads, while [src/shared/api.ts](../src/shared/api.ts) defines base64 input and text-only run responses.
-  It also owns the transfer contracts; dedicated authenticated preparation, execution, retrieval, cancellation, status and receipt routes are registered, with download policy still unavailable pending final enablement.
+  It also owns the transfer contracts; dedicated authenticated preparation, execution, retrieval, cancellation, status and receipt routes enforce the selected download policy.
 - [src/server/artifacts.ts](../src/server/artifacts.ts) owns bounded artifact reservations and cleanup beyond child exit; [src/server/runner/artifact.ts](../src/server/runner/artifact.ts) implements the internal native preview/execute handoff and checks completion against journal evidence.
   Deployment prerequisites are in the [runbook](runbook.md#scope-and-prerequisites); container acceptance requirements are in [CONTRIBUTING.md](../CONTRIBUTING.md#container-acceptance).
 - [src/server/adapters/write-policy.ts](../src/server/adapters/write-policy.ts), [src/server/admin/tools.ts](../src/server/admin/tools.ts) and `toolWriteStateSchema` in `src/shared/api.ts` own normalized per-tool capability, enabled state, operation allowlists and revision-checked administrator changes.
@@ -23,7 +23,7 @@ Artium's current documentation lives in `docs/`; earlier internal design records
 - [src/server/config.ts](../src/server/config.ts), [Dockerfile](../Dockerfile), [compose.example.yaml](../compose.example.yaml) and [docs/runbook.md](runbook.md) define the non-root container, tool installations, persistent `/data` and temporary runner storage.
   Artifact bytes must never enter `/data`, backups or the image.
 - The shipped T13 adapter, `src/server/adapters/hybrid.ts`, refuses `hash file` and `report file`, maps uploads to isolated managed leaves and uses the existing native journal integration.
-  `tools/inventories/hybrid-axi.json` owns the reviewed command and operation boundaries; downloads stay refused until the final slice below.
+  `tools/inventories/hybrid-axi.json` owns the reviewed command and operation boundaries; ordinary tool-run downloads remain refused and the dedicated transfer routes allow only the four reviewed operations.
 - Upstream [docs/design.md](https://github.com/knowttl/hybrid-axi/blob/be4ec9b050c3f7576319afeda2f463ea2696fbd2/docs/design.md), T8 and T13, requires native preview, execute, exact confirmation, unchanged bytes and managed write gating.
   Its `src/download-catalogue.ts` binds four operations: `hash-download-bin`, `report-download-bin`, `report-download-dropped-files` and `report-download-memory`.
   Its `src/writes-core.ts` binds confirmation to profile, operation, ID, type and output path, records intent before sending, and never retries downloads.
@@ -135,4 +135,4 @@ No hosted download becomes available merely by approving this document.
 2. Add bounded tmpfs artifact ownership and native runner handoff -> verify inert bytes unchanged, maximum size/RSS, cleanup on every terminal path, restart and deletion failure.
 3. Add authenticated one-shot transfer, CLI private atomic save and UI/help/operator warnings -> verify cross-user denial, revocation, digest/size mismatch, no overwrite, interrupted delivery and restricted-key 403 through fake-only public journeys.
 4. Enable only the reviewed download operations in the T13 hybrid-axi integration after the preceding slices pass -> verify pinned package/container, managed-key redaction, write-switch selection, native preview/execute/exact-confirm and journal without any bypass.
-   Until this slice, T13 ships its other capabilities with hosted downloads explicitly refused.
+   T13 now supports these four operations through the dedicated transfer routes; ordinary tool-run downloads remain refused.

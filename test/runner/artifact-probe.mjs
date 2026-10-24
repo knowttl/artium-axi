@@ -38,7 +38,8 @@ try {
     const prepare = async args => {
       const profile = hybridProfile.prepare('hybrid-axi', { apiKey: 'CANARY-artifact-key',
         writes: { allowWrites: true, operations: [reservation.scope.selection.operation] } }, `/tmp/store/${id}.log`, false)
-      return { executable: process.execPath, args: ['/work/test/fake-tool/fake-axi.mjs', 'native-artifact', ...args], ...profile,
+      return { executable: process.execPath, args: ['--import', '/work/test/fake-service/hybrid-artifact-transport.mjs',
+        '/opt/tools/node_modules/@knowttl/hybrid-axi/bin/hybrid-axi.js', ...args], ...profile,
         environment: { ...profile.environment, ARTIUM_TEST_ARTIFACT_BYTES: String(transferLimits.artifactBytes),
           ARTIUM_TEST_RSS_FILE: `/tmp/${id}.rss` }, limits: { timeoutMs: 60_000 } }
     }
@@ -54,6 +55,9 @@ try {
   }))
   assert.equal(await readFile('/sys/fs/cgroup/memory.events', 'utf8'), before)
   assert.equal((await readFile('/sys/fs/cgroup/memory.swap.current', 'utf8')).trim(), '0')
+  const records = db.prepare("SELECT * FROM audit WHERE event = 'transfer'").all()
+  assert.equal(records.filter(record => record.outcome === 'ready' && record.native_journal_result === 'SUCCESS').length, 4)
+  assert.ok(!JSON.stringify(records).includes('CANARY-'))
   assert.equal((await readdir('/tmp/artium-artifacts')).length, 4)
   const peak = Number(await readFile('/sys/fs/cgroup/memory.peak', 'utf8'))
   assert.ok(peak < artifactDefaults.containerBytes)

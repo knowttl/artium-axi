@@ -65,8 +65,7 @@ export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
   checkToolPolicy(db, owner.userId, 'hybrid-axi')
   const tool = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get('hybrid-axi') as { native_settings: string }
   const state = hybridWritePolicy.read(JSON.parse(tool.native_settings))
-  // Downloads remain unsupported until the final enabling slice, including when
-  // stale settings happen to contain their operation names.
+  // A global write switch never enables an unselected download operation.
   if (!state.enabled || !state.supportedOperations?.includes(operation) || !state.allowedOperations.includes(operation)) {
     throw new ArtiumError('FLAG_BLOCKED')
   }

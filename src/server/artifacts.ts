@@ -91,8 +91,8 @@ function checkHost(root: string, host: ArtifactHostEvidence): void {
       + transferLimits.reservations * artifactDefaults.childResidentBytes > host.memoryMax) unavailable()
 }
 
-// One owner per server, created explicitly before transfer admission in the later
-// route slice. No mount is created and no ordinary directory/disk fallback exists.
+// One owner per server, created before transfer admission. No mount is created
+// and no ordinary directory/disk fallback exists.
 export class ArtifactStore {
   private readonly entries = new Map<string, ArtifactReservation>()
   private queue: Promise<unknown> = Promise.resolve()
@@ -336,8 +336,7 @@ export class ArtifactReservation {
     finally { this.active = undefined; signal?.removeEventListener('abort', disconnect) }
   }
 
-  // Internal one-shot consumer seam for the authenticated delivery slice. It owns
-  // the stream until completion/cancellation; no public retrieval is registered.
+  // The authenticated one-shot delivery owns the stream until completion/cancellation.
   async consume<T>(consumer: (path: string, archive: Readonly<ArtifactArchive>, signal: AbortSignal) => Promise<T>,
     signal?: AbortSignal): Promise<T> {
     if (this.state !== 'ready') throw new ArtiumError('INVALID_INPUT')

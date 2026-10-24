@@ -16,6 +16,7 @@ try {
   for (const mode of ['tmpfs', 'memory']) {
     const name = `artium-test-runner-${randomUUID()}`
     containers.push(name)
+    console.log(`container-resource: ${JSON.stringify({ container: name, image })}`)
     command('docker', ['run', '--name', name, '--pull', 'never', '--init', '--network', 'none', '--read-only',
       '--memory', mode === 'memory' ? '256m' : '6g', '--memory-swap', mode === 'memory' ? '256m' : '6g', '--pids-limit', '192',
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,nr_inodes=1024,mode=1777', image, 'node', 'test/runner/probe.mjs', mode])

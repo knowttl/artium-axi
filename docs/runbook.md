@@ -12,7 +12,7 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
-See the [Hybrid Analysis capability boundary](../README.md#safety) for hosted download availability and [the approved design](hybrid-download-design.md) for pending implementation slices.
+See the [Hybrid Analysis capability boundary](../README.md#safety) for hosted download availability and [the approved design](hybrid-download-design.md) for the implemented transfer contract.
 Their internal artifact owner requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
 It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
 The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
@@ -25,7 +25,7 @@ The ten-minute deadline begins at preparation, cancels generation or delivery, a
 Startup purges stale entries before admission and marks pending transfer metadata interrupted; shutdown stops consumers before unlinking.
 Cleanup failure emits a fixed operator diagnostic and blocks admission until cleanup is retried successfully.
 The ordinary `/tmp` mount in the Compose example does not satisfy this contract; the example does not provision the dedicated artifact mount.
-Once the adapter supports transfer operations, the server initializes the artifact owner before serving, purging stale bytes even when writes are off.
+The server initializes the artifact owner before serving, purging stale bytes even when writes are off; unavailable host admission keeps transfers unavailable.
 Missing or invalid dedicated storage blocks artifact admission.
 Use fake-only container acceptance to establish mount, maximum-size native RSS and concurrent memory headroom before enabling downloads; an unavailable or refused host check remains unverified.
 Operators must arrange security-team-approved, narrowly scoped AV/EDR handling for the dedicated artifact mount and controlled client download directory, exclude the mount from backups and core dumps, and prevent swap capture before enabling downloads.

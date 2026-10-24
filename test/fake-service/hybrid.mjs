@@ -8,6 +8,14 @@ export function hybridResponse(req, res, url, requests, resources, mutated) {
     const quota = { apikey: null, quota_reached: false }
     json({ detonation: quota, quick_scan: quota }); return
   }
+  if (/^\/api\/v2\/(overview\/[^/]+\/sample|report\/[^/]+\/(sample|dropped-files-v2|file\/memory))$/.test(url.pathname)) {
+    if (req.headers['api-key'] === 'CANARY-hybrid-restricted') {
+      res.writeHead(403); json({ message: 'Restricted key cannot download this synthetic archive' }); return
+    }
+    res.setHeader('content-type', 'application/octet-stream')
+    res.setHeader('Vx-Filename', '../../untrusted-synthetic-name.gz')
+    mutated(); res.end(Buffer.alloc(257, 0xa5)); return
+  }
   if (url.pathname.startsWith('/api/v2/overview/')) {
     if (req.headers['api-key'] === 'CANARY-hybrid-restricted') {
       res.writeHead(403); json({ message: 'Restricted key cannot access this synthetic resource' }); return

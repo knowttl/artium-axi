@@ -22,6 +22,17 @@ beforeEach(() => {
 })
 afterEach(() => db.close())
 
+test.each(['hash-download-bin', 'report-download-bin', 'report-download-dropped-files', 'report-download-memory'])(
+  'only the independently selected %s passes current transfer access', selected => {
+    db.prepare('UPDATE tools SET native_settings = ?').run(JSON.stringify({ writes: { allowWrites: true, operations: [selected] } }))
+    const operations = ['hash-download-bin', 'report-download-bin', 'report-download-dropped-files', 'report-download-memory'] as const
+    for (const operation of operations) {
+      const access = () => checkTransferAccess(db, owner, operation, now)
+      if (operation === selected) expect(access).not.toThrow()
+      else expect(access).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+    }
+  })
+
 test('scope is immutable and binds exact destination without retaining a path', () => {
   const scope = createTransferScope(owner, 3, request, now)
   expect(() => checkTransferScope(scope, owner, 3, request, now)).not.toThrow()
@@ -80,7 +91,7 @@ test('reserves the full artifact budget and retains expired capacity until clean
 
 test.each([
   { sql: '', changedOwner: owner, code: 'FLAG_BLOCKED' },
-  { sql: `UPDATE tools SET native_settings = '{"writes":{"allowWrites":true,"operations":["hash-download-bin"]}}'`, changedOwner: owner, code: 'FLAG_BLOCKED' },
+  { sql: `UPDATE tools SET native_settings = '{"writes":{"allowWrites":true,"operations":["submitFile"]}}'`, changedOwner: owner, code: 'FLAG_BLOCKED' },
   { sql: 'DELETE FROM user_roles', changedOwner: owner, code: 'TOOL_NOT_GRANTED' },
   { sql: 'UPDATE tools SET enabled = 0', changedOwner: owner, code: 'TOOL_DISABLED' },
   { sql: 'UPDATE users SET disabled = 1', changedOwner: owner, code: 'USER_DISABLED' },

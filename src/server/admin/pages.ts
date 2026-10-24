@@ -15,7 +15,7 @@ import { credentialCertificates } from '../store/trusted-certificates.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
-  'hybrid-axi': 'Optional writes: {"allowWrites": true, "operations": ["submitUrl"]}. Submissions, YARA mutations and consuming matches are off by default; native preview, execute, exact confirmation and journal gates remain required. Downloads are unavailable through Artium. Use {} to turn writes off.',
+  'hybrid-axi': 'Optional writes: {"allowWrites": true, "operations": ["submitUrl"]}. Submissions, YARA mutations, consuming matches and four reviewed archive downloads are off by default and selected independently; native preview, execute, exact confirmation and journal gates remain required. Use artium-axi download for CLI verified saving after artifact-mount and operator prerequisites pass. Use {} to turn writes off.',
   'tenable-axi': 'Optional writes: {"allowWrites": true, "operations": ["tags-create-tag-category"]}. Writes and export jobs require native preview, execute and exact confirmation. Use {} to turn writes off.',
   'awx-axi': 'Optional allowWrites (boolean), off by default, enables operational actions only (launch, cancel, sync, approval and notification tests). Configuration, deletion and security writes are always blocked. Use {} to turn writes off.',
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',

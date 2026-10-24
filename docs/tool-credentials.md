@@ -243,7 +243,7 @@ Save, run **Test credential**, enable the tool and grant it to a role, then run 
 The credential test reads key level and submission quota; it does not prove permission for other resources.
 Structured 403 failures preserve upstream key-level guidance and never become empty results.
 
-Review the [Hybrid Analysis capability boundary](../README.md#safety) before enabling operations, including its quick-scan exception, community visibility, consuming-match recovery and deferred hosted downloads.
+Review the [Hybrid Analysis capability boundary](../README.md#safety) before enabling operations.
 The [inventory](../tools/inventories/hybrid-axi.json) owns supported operation names and reviewed command/source digests.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for local uploads and explicit JSON stdin, and the [shared API contract](../src/shared/api.ts) for bounded input.
 Local fake-service checks do not establish live service acceptance.

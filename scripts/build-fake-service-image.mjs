@@ -17,6 +17,7 @@ const image = cli ? process.argv[process.argv.indexOf('--cli') + 1] : runner ? p
 if (runner && (!image || image.startsWith('--'))) throw new Error('--runner requires an image tag')
 const directory = mkdtempSync(join(root, '.tmp-image-'))
 const exportPath = `/tmp/artium-test-image-${randomUUID()}.tar`
+console.log(`container-resources: ${JSON.stringify({ builder, image, scratch: directory, exportPath })}`)
 const docker = args => {
   const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 300_000 })
   if (result.error || result.status !== 0) throw new Error(result.error?.message ?? result.stderr)

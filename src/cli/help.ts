@@ -44,7 +44,7 @@ const commands = {
   'tenable-axi': { usage: 'artium-axi tenable-axi [<args>]', purpose: 'Investigate Tenable One with managed API keys.',
     flags: ['Writes and export jobs are off by default and require administrator-enabled operations, preview, --execute and exact --confirm. Downloads are blocked.'], example: 'artium-axi tenable-axi card list --limit 1' },
   'hybrid-axi': { usage: 'artium-axi hybrid-axi [<args>]', purpose: 'Investigate Hybrid Analysis with a managed API key.',
-    flags: ['Submissions, YARA mutations and consuming matches are off by default and require administrator-enabled operations, preview, --execute and exact --confirm. Downloads are unavailable through Artium.', transferWarning], example: 'artium-axi hybrid-axi quota' },
+    flags: ['Submissions, YARA mutations, consuming matches and four reviewed archive downloads are off by default and selected independently by an administrator. Native preview, --execute and exact --confirm remain required. Use artium-axi download --help for authenticated CLI verified saving.', transferWarning], example: 'artium-axi hybrid-axi quota' },
   'az-axi': { usage: 'artium-axi az-axi [<args>]', purpose: 'Run Azure commands with your managed identity.',
     flags: ['Arguments after az-axi are forwarded upstream, including --help.'], example: 'artium-axi az-axi sub list' },
   'mg-axi': { usage: 'artium-axi mg-axi [<args>]', purpose: 'Run Microsoft Graph commands with your managed identity.',
