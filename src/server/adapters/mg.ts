@@ -9,6 +9,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
 import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const guid = z.string().regex(/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/)
@@ -35,17 +36,22 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}): string[]
   const route = inventory.commands.find(route => route.command === (words.join(' ') || 'home'))
     ?? (words.length === 3 && words[0] === 'api' && words[1] === 'get'
       ? inventory.commands.find(route => route.command === 'api get') : undefined)
-  if (!route || !mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(`${command} `))) {
-    throw new ArtiumError('FLAG_BLOCKED')
+  if (!route) {
+    if (['api', 'update'].includes(words[0])) throw new ArtiumError('FLAG_BLOCKED', `Command ${words.join(' ')} is unavailable through artium.`)
+    throw invalidCommand('mg-axi', words, inventory.commands.filter(route => mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(command + ' '))).map(route => route.command))
+  }
+  if (!mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(`${command} `))) {
+    throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
   }
   const schema: Record<string, string | undefined> = route.flags
   const flags: Record<string, string | boolean> = Object.create(null)
   for (let index = words.length; index < args.length; index++) {
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(args[index])
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (!match) throw unknownFlag('mg-axi', route.command, args[index], Object.keys(schema).filter(name => !mgManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
     if (mgManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
-    if (!Object.hasOwn(schema, name) || Object.hasOwn(flags, name)) throw new ArtiumError('INVALID_INPUT')
+    if (!Object.hasOwn(schema, name)) throw unknownFlag('mg-axi', route.command, args[index], Object.keys(schema).filter(name => !mgManifest.unsafeOverrides.includes(name)))
+    if (Object.hasOwn(flags, name)) throw new ArtiumError('INVALID_INPUT')
     if (schema[name] === 'boolean') {
       if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
       flags[name] = true

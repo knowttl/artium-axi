@@ -8,6 +8,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import type { Adapter, PreparedCall } from './types.js'
+import { invalidCommand } from './input-diagnostics.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
 export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item, pull-request, pipeline and ref writes with host classification and journaling.',
@@ -65,7 +66,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   const candidates = inventory.commands.flatMap(route => [route.command, ...route.aliases].map(command => ({ route, command })))
     .sort((a, b) => b.command.length - a.command.length)
   const match = candidates.find(({ command }) => positionals.slice(0, command.split(' ').length).join(' ') === command)
-  if (!match) throw new ArtiumError('FLAG_BLOCKED')
+  if (!match) throw invalidCommand('ado-axi', positionals, candidates.map(({ command }) => command))
   const { route, command } = match
   const rest = positionals.slice(command.split(' ').length)
   const routeFlags: Record<string, string | undefined> = route.flags

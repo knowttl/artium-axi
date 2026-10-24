@@ -10,6 +10,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 import { writePolicy } from './write-policy.js'
+import { invalidCommand } from './input-diagnostics.js'
 
 export const tenableManifest = { ...inventory, ...inventory.adapterBoundary }
 export const tenableProfile = new CredentialProfile(inventory.credentialSchema, 'tenable-axi')
@@ -22,7 +23,8 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
   const version = tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])
   const route = inventory.commands.find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
-  if (!version && (!route || route.effect === 'blocked')) throw new ArtiumError('FLAG_BLOCKED')
+  if (!version && !route) throw invalidCommand('tenable-axi', tokens, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
+  if (!version && route?.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
   const normalized: string[] = []
   const fileArguments: number[] = []
   let usesStdin = false

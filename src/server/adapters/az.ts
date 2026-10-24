@@ -12,6 +12,7 @@ import { AzureTokenCache, azureCommandResources } from './azure-token-cache.js'
 import type { AzureResourcePlan } from './azure-token-cache.js'
 import { loadCredentialProfile } from './credential-profile.js'
 import type { Adapter, PreparedCall } from './types.js'
+import { invalidCommand } from './input-diagnostics.js'
 
 const settings = nativeSettingsSchemas['az-axi'].shape
 export const azCredentialSchema = z.discriminatedUnion('auth', [
@@ -48,7 +49,12 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
   const route = inventory.commands.filter(route => route.tokenResources !== null &&
     (route.command === 'home' && args.length === 0 || route.command.split(' ').every((word, index) => args[index] === word)))
     .sort((a, b) => b.command.length - a.command.length)[0]
-  if (!route) throw new ArtiumError('FLAG_BLOCKED')
+  if (!route) {
+    if (inventory.commands.some(route => route.tokenResources === null && route.command.split(' ').every((word, index) => args[index] === word))) {
+      throw new ArtiumError('FLAG_BLOCKED', `Command ${args.slice(0, 2).join(' ')} is unavailable through artium.`)
+    }
+    throw invalidCommand('az-axi', args, inventory.commands.filter(route => route.tokenResources !== null).map(route => route.command))
+  }
   const flags: Record<string, string> = Object.create(null)
   const normalized = [...args]
   const fileArguments: number[] = []

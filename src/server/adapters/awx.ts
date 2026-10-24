@@ -7,6 +7,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'Operational launch, relaunch, cancel, sync, approval and notification tests with explicit confirmation.',
@@ -24,10 +25,13 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     const token = args[index]
     if (!token.startsWith('-')) { positionals.push(token); continue }
     const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token)
-    if (!match) throw new ArtiumError('INVALID_INPUT')
+    if (match && awxManifest.unsafeOverrides.includes(match[1])) throw new ArtiumError('FLAG_BLOCKED')
+    if (!match || !Object.hasOwn(knownFlags, match[1])) {
+      const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
+      throw unknownFlag('awx-axi', route?.command ?? 'home', token, Object.keys(route?.flags ?? {}).filter(name => !awxManifest.unsafeOverrides.includes(name)))
+    }
     const [, name, inline] = match
-    if (awxManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
-    if (!Object.hasOwn(knownFlags, name) || flags.has(name)) throw new ArtiumError('INVALID_INPUT')
+    if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     const boolean = knownFlags[name] === 'boolean'
     if (boolean && inline !== undefined) throw new ArtiumError('INVALID_INPUT')
     const value = boolean ? true : inline ?? args[++index]
@@ -41,7 +45,8 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     return { args: [positionals[0], '--help'], effect: 'read' as const }
   }
   const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
-  if (!route || route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED')
+  if (!route) throw invalidCommand('awx-axi', positionals, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
+  if (route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
   const schema: Record<string, string | undefined> = route.flags
   for (const name of flags.keys()) if (!Object.hasOwn(schema, name)) throw new ArtiumError('INVALID_INPUT',
     `Unknown flag --${name} for awx-axi ${route.command}.`,

@@ -53,7 +53,7 @@ test('hosted LDAP credential fields exclude the ignored flavor selector', () => 
 
 test.each([
   ...ldapManifest.unsafeOverrides.flatMap(flag => [['user', 'list', `--${flag}=other`], ['user', 'list', `--${flag}`, 'other']]),
-  ['config', 'path'], ['profile', 'list'], ['setup', '--help'], ['auth', 'login'], ['entry', 'delete', 'uid=person'],
+  ['config', 'path'], ['profile', 'list'], ['setup', '--help'],
   ['server', '--url=ldaps://appliance.test'], ['server', '--auth', 'gssapi'],
   ['computer', 'show', 'synthetic-computer', '--profile', 'other'],
 ].map(args => [args]))('refuses credential and connection overrides before secret retrieval: %j', async args => {
@@ -63,6 +63,7 @@ test.each([
 })
 
 test.each([
+  ['auth', 'login'], ['entry', 'delete', 'uid=person'],
   ['user', 'list', '--limit'], ['user', 'list', '--limit', '1', '--limit', '2'],
   ['user', 'list', '--all=false'], ['user', 'show'], ['user', 'list', 'extra'],
   ['user', 'show', '--fields', 'name', 'uid=person'],
