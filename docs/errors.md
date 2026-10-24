@@ -3,7 +3,7 @@
 Generated from `src/shared/errors.ts` by `pnpm errors:generate`.
 Do not edit manually.
 Artium errors use TOON on CLI stdout and JSON over HTTP.
-Completed upstream calls preserve stdout, stderr and the upstream exit code, with HTTP 200 and the upstream tool as source.
+See the [README output contract](../README.md#toon-output-and-errors) for upstream output handling.
 Graph sign-in failures include the category, token-acquisition stage, check time, credential revision and redacted tool message in administrator credential diagnostics.
 They do not carry the provider (AADSTS) code because mg-axi does not expose it yet.
 Azure token-acquisition diagnostics retain supported provider codes.
