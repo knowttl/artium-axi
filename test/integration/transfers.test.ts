@@ -13,7 +13,7 @@ import type Database from 'better-sqlite3'
 import { createApp } from '../../src/server/app.js'
 import { ArtifactStore, artifactDefaults } from '../../src/server/artifacts.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { createHybridAdapter, hybridWritePolicy } from '../../src/server/adapters/hybrid.js'
+import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
 import { issueRecentAuthTicket } from '../../src/server/auth/tokens.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -39,7 +39,6 @@ let headers: Record<string, string>
 let variant: string
 let artifactSize: number
 let destination: string
-let policy: ReturnType<typeof vi.spyOn>
 const selection = { operation: 'hash-download-bin' as const, selector: 'a'.repeat(64), type: 'bin' as const }
 const reportSelections: TransferScope['selection'][] = [
   { operation: 'report-download-bin', selector: 'synthetic-report', type: 'bin' },
@@ -79,11 +78,6 @@ beforeEach(async () => {
       ARTIUM_TEST_ARTIFACT_VARIANT: variant, ARTIUM_TEST_ARTIFACT_BYTES: String(artifactSize),
       ARTIUM_TEST_RSS_FILE: join(directory, 'rss.json'), ARTIUM_TEST_READY_FILE: join(directory, 'ready.json') },
   } })
-  // Fake only the not-yet-enabled capability boundary. All current tool, user,
-  // write selection, credential, native confirmation and journal checks remain real.
-  const read = hybridWritePolicy.read
-  policy = vi.spyOn(hybridWritePolicy, 'read').mockImplementation(settings => ({ ...read(settings),
-    supportedOperations: [...read(settings).supportedOperations!, selection.operation, ...reportSelections.map(row => row.operation)] }))
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, audit, runner, adapters: [adapter], resolver: new SharedIdentityResolver(credentials),
     credentialStore: credentials, artifactStore: store, environment: {} })
@@ -191,6 +185,7 @@ test.each(['other-user', 'other-session'])('retrieval denies %s without disclosi
 test.each([
   ['credential', "UPDATE credentials SET revision = revision + 1 WHERE tool = 'hybrid-axi'"],
   ['policy', "UPDATE tools SET enabled = 0 WHERE name = 'hybrid-axi'"],
+  ['operation', `UPDATE tools SET native_settings = '{"writes":{"allowWrites":true,"operations":["submitFile"]}}' WHERE name = 'hybrid-axi'`],
   ['grant', `DELETE FROM user_roles WHERE user_id = '${user}'`],
   ['session', 'UPDATE session_families SET revoked_at = 1'],
 ])('current %s revocation removes ready bytes before the next response', async (_kind, sql) => {
@@ -224,8 +219,13 @@ test.each(['upstream-failure', 'restricted-key'])('native %s keeps HTTP 403 and 
   expect(await readdir(root)).toEqual([])
 })
 
-test('real capability boundary remains disabled even with stale download selections', async () => {
-  policy.mockRestore()
+test.each([
+  {},
+  { writes: { allowWrites: false, operations: [selection.operation] } },
+  { writes: { allowWrites: true, operations: ['submitFile', 'yaraCreate', 'huntingMatches'] } },
+  { writes: { allowWrites: true, operations: ['report-download-memory'] } },
+])('unselected or disabled download cannot reserve bytes: %j', async settings => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'hybrid-axi'").run(JSON.stringify(settings))
   expect((await post('prepare', body())).status).toBe(400)
   expect(await readdir(root)).toEqual([])
 })

@@ -5,6 +5,7 @@ import { credentialFields } from '../admin/credential-form.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { toolFailure } from '../health/diagnostic.js'
 import { createHybridAdapter, hybridCredentialSchema, hybridProfile, hybridWritePolicy } from './hybrid.js'
+import { transferSelectionSchema } from '../../shared/api.js'
 
 const credential = { apiKey: 'CANARY-hybrid-key' }
 const reference = { id: 'synthetic-hybrid', tool: 'hybrid-axi' as const, revision: 1 }
@@ -36,9 +37,9 @@ test.each([
   await expect(adapter.prepare(args, reference)).rejects.toBeDefined()
 })
 
-test.each([['hash', 'file', 'a'.repeat(64)], ['report', 'file', 'synthetic-job']].map(args => ({ args })))('download refusal names the local alternative: $args', async ({ args }) => {
+test.each([['hash', 'file', 'a'.repeat(64)], ['report', 'file', 'synthetic-job']].map(args => ({ args })))('download refusal names the authenticated save command: $args', async ({ args }) => {
   await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED',
-    message: 'Hosted downloads are not available yet through artium; use hybrid-axi locally.' })
+    message: 'Use artium-axi download for authenticated archive saving.' })
 })
 
 test('uploaded leaves and explicit JSON stdin normalize without server file access', async () => {
@@ -87,10 +88,21 @@ test('write switch exposes only hosted operations and source policy can force re
   const settings = hybridWritePolicy.update({}, { enabled: true, operations: ['submitFile', 'yaraCreate', 'huntingMatches'], expectedRevision: 1 })
   expect(hybridWritePolicy.read(settings)).toMatchObject({ enabled: true, allowedOperations: ['submitFile', 'yaraCreate', 'huntingMatches'] })
   expect(hybridWritePolicy.read({}).enabled).toBe(false)
-  expect(() => hybridWritePolicy.update({}, { enabled: true, operations: ['report-download-memory'], expectedRevision: 1 })).toThrow()
+  expect(() => hybridWritePolicy.update({}, { enabled: true, operations: ['report-download-arbitrary'], expectedRevision: 1 })).toThrow()
   const gated = createHybridAdapter({ getCredential: async () => ({ ...credential, ...settings }), getSettings: () => ({}) }, '/tmp/synthetic-hybrid/writes.log')
   expect((await gated.prepare(['hunting', 'matches', '--execute'], reference)).environment.HYBRID_AXI_READ_ONLY).toBe('true')
 })
+
+test.each(['hash-download-bin', 'report-download-bin', 'report-download-dropped-files', 'report-download-memory'])(
+  'download selection enables only %s and matches the transfer schema', operation => {
+    const initial = hybridWritePolicy.read({})
+    expect(initial).toMatchObject({ capable: true, enabled: false, allowedOperations: [] })
+    expect(initial.supportedOperations!.filter(name => name.includes('-download-')).sort())
+      .toEqual(transferSelectionSchema.options.map(selection => selection.shape.operation.value).sort())
+    const settings = hybridWritePolicy.update({}, { enabled: true, operations: [operation], expectedRevision: 1 })
+    expect(hybridWritePolicy.read(settings)).toMatchObject({ enabled: true, allowedOperations: [operation] })
+    expect(hybridCredentialSchema.safeParse({ ...credential, ...settings }).success).toBe(true)
+  })
 
 test.each([['--help'], ['quota', '--help'], ['submit', 'file', '--help'], ['hunting', 'matches', '--help']].map(args => ({ args })))('published help is adapted for managed use: $args', ({ args }) => {
   const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/hybrid-axi/bin/hybrid-axi.js', ...args], { encoding: 'utf8' })

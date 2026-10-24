@@ -13,8 +13,8 @@ export const hybridManifest = { ...inventory, ...inventory.adapterBoundary }
 export const hybridProfile = new CredentialProfile(inventory.credentialSchema, 'hybrid-axi')
 export const hybridCredentialSchema = hybridProfile.credentialSchema
 export const hybridWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
-  unlocks: 'Sandbox submissions, YARA create/update/delete and consuming hunting matches, with native preview, --execute, exact --confirm and durable journal.',
-  blocked: 'Sample, dropped-file and memory downloads are off and unavailable through Artium. Use hybrid-axi locally for downloads. Local configuration and origin overrides are blocked.' })
+  unlocks: 'Sandbox submissions, YARA create/update/delete, consuming hunting matches and four reviewed sample, dropped-file and memory downloads selected independently, with native preview, --execute, exact --confirm and durable journal. Use artium-axi download for authenticated one-shot CLI verified saving.',
+  blocked: 'Unselected writes, ordinary tool-run downloads, browser artifact saving, local configuration and origin overrides are blocked. Downloads require the dedicated artifact mount and current user permission; administrator selection cannot grant upstream entitlement.' })
 
 function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
@@ -22,8 +22,8 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     args: tokens, invocation: { command: tokens[0] === '--help' ? 'home' : 'version', help: tokens[0] === '--help' }, effect: 'read' as const }
   const route = [...inventory.commands].reverse().find(route => tokens.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (route?.command === 'hash file' || route?.command === 'report file') throw new ArtiumError('FLAG_BLOCKED',
-    'Hosted downloads are not available yet through artium; use hybrid-axi locally.',
-    `Use hybrid-axi locally with its native preview, execute, exact confirmation and live-malware warnings. ${transferWarning}`)
+    'Use artium-axi download for authenticated archive saving.',
+    `Run artium-axi download --help for native preview, execute and exact confirmation. ${transferWarning}`)
   if (!route) {
     if (hybridManifest.blockedCommands.some(command => tokens.join(' ') === command || tokens.join(' ').startsWith(command + ' '))) {
       throw new ArtiumError('FLAG_BLOCKED', `Command ${tokens[0]} is unavailable through artium.`)

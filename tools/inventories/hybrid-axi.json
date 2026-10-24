@@ -186,7 +186,11 @@
   "nativeWriteSettings": {
     "supportedOperations": [
       "convertQuickScan",
+      "hash-download-bin",
       "huntingMatches",
+      "report-download-bin",
+      "report-download-dropped-files",
+      "report-download-memory",
       "submitDroppedFile",
       "submitFile",
       "submitUrl",
@@ -218,7 +222,7 @@
     "inputs": {
       "stdin": "body-file - only",
       "files": "uploaded leaves only",
-      "downloads": "not available through artium; use hybrid-axi locally"
+      "downloads": "artium-axi download only; authenticated one-shot CLI verified save"
     },
     "nativeWrites": "native preview, operation allow-list, execute, exact confirm and durable journal"
   },
@@ -241,7 +245,7 @@
     "example": [
       "quota"
     ],
-    "help": "hybrid-axi quota\nArtium manages the API key and fixed Hybrid Analysis origin. Submissions, YARA mutations and consuming matches are off by default; administrator-enabled operations still require native preview, --execute, exact --confirm and journal. Quick scans transmit the supplied sample or URL as read exceptions. File flags accept uploaded leaves; body-file also accepts explicit stdin (-). Downloads are not available through artium; use hybrid-axi locally.\n"
+    "help": "hybrid-axi quota\nArtium manages the API key and fixed Hybrid Analysis origin. Submissions, YARA mutations, consuming matches and the four reviewed archive downloads are off by default and selected independently; administrator-enabled operations still require native preview, --execute, exact --confirm and journal. Quick scans transmit the supplied sample or URL as read exceptions. File flags accept uploaded leaves; body-file also accepts explicit stdin (-). Use artium-axi download --help for authenticated one-shot CLI verified saving and live-malware warnings.\n"
   },
   "suggestionFields": [
     "help"

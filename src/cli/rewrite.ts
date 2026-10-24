@@ -197,7 +197,7 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   if (tool === 'hybrid-axi') {
     help = help.split('\n').filter(line => !/HYBRID_AXI_|SecretRefs|hybrid-axi (?:setup|config|profile)|--(?:config|profile|origin|output)\b/.test(line)).join('\n')
-    const guidance = 'Artium manages the API key and fixed origin. Submissions, YARA mutations and consuming matches require administrator-enabled operations, native preview, execute, exact confirmation and journal. Quick scans transmit the supplied sample or URL. Downloads are not available through artium; use hybrid-axi locally.'
+    const guidance = 'Artium manages the API key and fixed origin. Submissions, YARA mutations, consuming matches and four reviewed archive downloads require independently selected administrator-enabled operations, native preview, execute, exact confirmation and journal. Quick scans transmit the supplied sample or URL. Use artium-axi download --help for authenticated one-shot CLI verified saving and live-malware warnings.'
     if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'tenable-axi') {

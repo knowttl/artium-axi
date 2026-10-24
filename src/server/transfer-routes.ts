@@ -41,8 +41,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     if (store || !adapter?.prepareArtifact) return
     const tool = db.prepare("SELECT native_settings FROM tools WHERE name = 'hybrid-axi'").get() as { native_settings: string } | undefined
     const supported = tool ? hybridWritePolicy.read(JSON.parse(tool.native_settings)).supportedOperations : null
-    // Before final enablement no artifact mount is required. Once the adapter
-    // supports transfers, purge stale bytes before serving, even with writes off.
+    // Purge stale bytes before serving, even with writes off.
     if (!transferSelectionSchema.options.some(selection => supported?.includes(selection.shape.operation.value))) return
     store = ArtifactStore.create(audit)
     try { await store }
