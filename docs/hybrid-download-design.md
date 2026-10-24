@@ -1,7 +1,8 @@
 # Hosted Hybrid Analysis downloads
 
-Status: proposed design only; downloads remain unavailable until the final implementation slice.
-This proposes a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
+Status: transfer contracts, owner/session scope checks and typed audit metadata are implemented; artifact storage, delivery and final enablement remain pending.
+See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
+This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 
 ## Evidence and boundaries
 
@@ -11,7 +12,7 @@ Artium's current documentation lives in `docs/`; earlier internal design records
 - [src/server/runner/run.ts](../src/server/runner/run.ts) authenticates, checks tool policy, prepares managed credentials and journals, runs the child and records outcomes.
 - [src/server/runner/runner.ts](../src/server/runner/runner.ts) owns private per-call directories, process termination, admission and cleanup; its stdout/stderr are text with secret scanning.
   [src/server/runner/input.ts](../src/server/runner/input.ts) materializes reviewed uploads, while [src/shared/api.ts](../src/shared/api.ts) defines base64 input and text-only run responses.
-  There is no existing binary download contract to reuse.
+  It also owns the transfer contracts; preparation and execution routes remain unregistered until artifact ownership and delivery exist.
 - [src/server/adapters/write-policy.ts](../src/server/adapters/write-policy.ts), [src/server/admin/tools.ts](../src/server/admin/tools.ts) and `toolWriteStateSchema` in `src/shared/api.ts` own normalized per-tool capability, enabled state, operation allowlists and revision-checked administrator changes.
   Use this model rather than a second download permission switch.
 - [src/server/adapters/run-journal.ts](../src/server/adapters/run-journal.ts) connects native mutation evidence to hosted outcomes.
