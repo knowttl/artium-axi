@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`home output is stable 1`] = `
+"bin: "<bin>"
+description: Run managed upstream tools through one local sign-in.
+user: "synthetic-user"
+server: "<server>"
+roles[0]: 
+sessionExpiresAt: 2026-01-01T12:00:00Z (in 3h 10m)
+accessExpiresAt: 2026-01-01T09:50:00Z (in 1h 0m)
+note: Access tokens refresh automatically when a refresh token is available.
+tools: 0 available
+reason: No enabled runtime tool is available through your assigned roles.
+contact: Ask an administrator to check your role assignments and enabled tools.
+next[1]:
+  - artium-axi whoami
+"
+`;

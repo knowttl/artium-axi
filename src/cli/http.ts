@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { rootCertificates } from 'node:tls'
 import { resolve } from 'node:path'
@@ -12,6 +11,9 @@ import { SessionStore, sessionPath, readClientConfig } from './session.js'
 import type { StoredSession } from './session.js'
 import type { ManagedSession } from './managed-session.js'
 
+// Avoid the ESM facade, which evaluates node:http's lazy undici getters.
+const { request: httpRequest } = process.getBuiltinModule('node:http')
+const ACCESS_EXPIRY_SKEW_MS = 30_000
 export const DEFAULT_REQUEST_DEADLINE_MS = 90_000
 
 export class Client {
@@ -108,9 +110,13 @@ export class Client {
       token => this.request(path, method, input, token),
       refreshToken => this.request('/v1/auth/refresh', 'POST', { refreshToken }),
     )
-    const session = previous ? this.reload(previous) : this.sessions.read()
+    let session = previous ? this.reload(previous) : this.sessions.read()
     if (!session) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
     if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+    if (session.accessExpiresAt <= Date.now() + ACCESS_EXPIRY_SKEW_MS) {
+      const expiring = session
+      session = await this.sessions.locked(() => this.refresh(expiring))
+    }
     let result: unknown
     try { result = await this.request(path, method, input, session.accessToken) }
     catch (error) {
