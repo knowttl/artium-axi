@@ -146,13 +146,16 @@ async function main(args: string[]) {
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined
   if (home && !managed && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
-  const result = await client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession)
+  const [result, homeTools] = await Promise.all([
+    client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession),
+    home ? client.authenticated('/v1/tools', 'GET', undefined, homeSession) : undefined,
+  ])
   if (home || whoami) {
     const parsed = meResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
     let view = identityView(parsed.data, client.serverUrl)
     if (home) {
-      const tools = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET', undefined, homeSession))
+      const tools = toolsResponseSchema.safeParse(homeTools)
       if (!tools.success) throw new ArtiumError('INVALID_RESPONSE')
       const executable = resolve(process.argv[1])
       const local = relative(homedir(), executable)

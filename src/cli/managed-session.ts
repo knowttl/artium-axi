@@ -12,6 +12,7 @@ const sessionSchema = z.strictObject({
 })
 
 export class ManagedSession {
+  private refreshing?: Promise<void>
   private readonly secrets: string[] = []
   private readonly output = { stdout: '', stderr: '' }
   private constructor(private readonly channel: Socket, private session?: z.infer<typeof sessionSchema>) {
@@ -59,16 +60,22 @@ export class ManagedSession {
 
   async authenticated(request: (token: string) => Promise<unknown>, refresh: (token: string) => Promise<unknown>) {
     if (!this.session) throw new ArtiumError('TOKEN_INVALID')
-    try { return await request(this.session.accessToken) }
+    const session = this.session
+    try { return await request(session.accessToken) }
     catch (error) {
       if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED' || !this.session.refreshToken) throw error
     }
-    const parsed = loginResponseSchema.safeParse(await refresh(this.session.refreshToken))
-    if (!parsed.success || parsed.data.status !== 'authenticated' || !parsed.data.accessToken || !parsed.data.refreshToken) {
-      throw new ArtiumError('INVALID_RESPONSE')
+    if (!this.refreshing && this.session.accessToken === session.accessToken) {
+      this.refreshing = (async () => {
+        const parsed = loginResponseSchema.safeParse(await refresh(session.refreshToken!))
+        if (!parsed.success || parsed.data.status !== 'authenticated' || !parsed.data.accessToken || !parsed.data.refreshToken) {
+          throw new ArtiumError('INVALID_RESPONSE')
+        }
+        await this.emit(session.serverUrl, parsed.data)
+        this.session = { serverUrl: session.serverUrl, ...parsed.data }
+      })().finally(() => { this.refreshing = undefined })
     }
-    await this.emit(this.session.serverUrl, parsed.data)
-    this.session = { serverUrl: this.session.serverUrl, ...parsed.data }
+    await this.refreshing
     return request(this.session.accessToken)
   }
 

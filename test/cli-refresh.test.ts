@@ -19,7 +19,7 @@ let homeScenario: { changeAt?: string, transition?: 'replace' | 'remove', expire
 let original: ReturnType<SessionStore['write']>
 let server: ReturnType<typeof createServer>
 const pair = { status: 'authenticated' as const, accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
-  accessExpiresAt: Date.now(), familyExpiresAt: Date.now() + 43200_000 }
+  accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 }
 beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-cli-retry-'))
@@ -162,7 +162,7 @@ test.each([
 ])('home withholds composite output when the session changes during $changeAt: $transition', async change => {
   homeScenario = change
   expect(await run([])).toMatchObject({ code: 1, stdout: expect.stringMatching(/^error:\n  code: "SESSION_CHANGED"/), stderr: '' })
-  expect(requests.map(request => request.path)).toEqual(change.changeAt === '/v1/me' ? ['/v1/me'] : ['/v1/me', '/v1/tools'])
+  expect(requests.map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
 })
 
 test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the original login', async expiresAt => {
@@ -171,8 +171,9 @@ test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the ori
   expect(result).toMatchObject({ code: 0, stderr: '' })
   expect(result.stdout).toContain('user: "synthetic-user"\n')
   expect(result.stdout).toContain('tools: 0 available\n')
-  expect(requests.map(request => request.path)).toEqual(expiresAt === '/v1/me' ?
-    ['/v1/me', '/v1/auth/refresh', '/v1/me', '/v1/tools'] : ['/v1/me', '/v1/tools', '/v1/auth/refresh', '/v1/tools'])
+  expect(requests.map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools', '/v1/auth/refresh', expiresAt].sort())
+  expect(requests.filter(request => request.path === expiresAt).map(request => request.authorization))
+    .toEqual(['Bearer CANARY-old', 'Bearer CANARY-new'])
   expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
 })
 

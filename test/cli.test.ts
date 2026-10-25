@@ -30,6 +30,7 @@ let response: { status: number, body: unknown, location?: string, stall?: boolea
 let requests: { path: string, token?: string, body: unknown, version?: string }[] = []
 let doctorResponses: Record<string, typeof response> | undefined
 let responseSequence: typeof response[] | undefined
+let beforeReply: ((path: string) => Promise<void>) | undefined
 const server = createServer()
 
 beforeAll(async () => {
@@ -51,6 +52,7 @@ beforeAll(async () => {
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined,
       version: request.headers['x-artium-cli-version'] as string | undefined })
     const current = responseSequence?.shift() ?? doctorResponses?.[request.url!] ?? response
+    await beforeReply?.(request.url!)
     const stalled = () => {
       const socket = request.socket
       const closed = new Promise<void>((resolve, reject) => {
@@ -82,7 +84,7 @@ afterAll(async () => {
 })
 
 async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string, executable = bundle) {
-  const configuration = mkdtempSync(join(directory, 'config-'))
+  const configuration = environment.XDG_CONFIG_HOME ?? mkdtempSync(join(directory, 'config-'))
   new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
     status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
     accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000,
@@ -96,6 +98,110 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
     return { ...await pending, code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
+
+test.each([
+  { offset: -1, paths: ['/v1/auth/refresh', '/v1/tools'], token: 'Bearer CANARY-new' },
+  { offset: 15_000, paths: ['/v1/auth/refresh', '/v1/tools'], token: 'Bearer CANARY-new' },
+  { offset: 3600_000, paths: ['/v1/tools'], token: 'Bearer CANARY-old' },
+])('stored access expiry offset $offset refreshes only when needed', async ({ offset, paths, token }) => {
+  requests = []
+  const client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'),
+    XDG_CONFIG_HOME: mkdtempSync(join(directory, 'expiry-')) })
+  client.sessions.write({ status: 'authenticated', accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
+    accessExpiresAt: Date.now() + offset, familyExpiresAt: Date.now() + 43200_000 })
+  doctorResponses = {
+    '/v1/auth/refresh': { status: 200, body: { status: 'authenticated', accessToken: 'CANARY-new', refreshToken: 'CANARY-new-refresh',
+      accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  try {
+    expect(await client.authenticated('/v1/tools', 'GET')).toEqual({ tools: [] })
+    expect(requests.map(request => request.path)).toEqual(paths)
+    expect(requests.at(-1)?.token).toBe(token)
+  } finally { doctorResponses = undefined }
+})
+
+test('concurrent callers refresh an expired stored token once', async () => {
+  requests = []
+  const environment = { ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'),
+    XDG_CONFIG_HOME: mkdtempSync(join(directory, 'race-')) }
+  const first = new Client(environment)
+  const second = new Client(environment)
+  first.sessions.write({ status: 'authenticated', accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
+    accessExpiresAt: Date.now() - 1, familyExpiresAt: Date.now() + 43200_000 })
+  doctorResponses = {
+    '/v1/auth/refresh': { status: 200, body: { status: 'authenticated', accessToken: 'CANARY-new', refreshToken: 'CANARY-new-refresh',
+      accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  try {
+    expect(await Promise.all([first.authenticated('/v1/tools', 'GET'), second.authenticated('/v1/tools', 'GET')]))
+      .toEqual([{ tools: [] }, { tools: [] }])
+    expect(requests.map(request => request.path)).toEqual(['/v1/auth/refresh', '/v1/tools', '/v1/tools'])
+    expect(requests.slice(1).map(request => request.token)).toEqual(['Bearer CANARY-new', 'Bearer CANARY-new'])
+  } finally { doctorResponses = undefined }
+})
+
+test('fresh-looking stored access still refreshes and retries once on server expiry', async () => {
+  requests = []
+  responseSequence = [
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 200, body: { status: 'authenticated', accessToken: 'CANARY-new', refreshToken: 'CANARY-new-refresh',
+      accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 } },
+    { status: 200, body: { tools: [] } },
+  ]
+  try {
+    expect(await cli(['tools'])).toMatchObject({ code: 0, stderr: '' })
+    expect(requests.map(request => request.path)).toEqual(['/v1/tools', '/v1/auth/refresh', '/v1/tools'])
+    expect(requests.at(-1)?.token).toBe('Bearer CANARY-new')
+  } finally { responseSequence = undefined }
+})
+
+test('home output is stable', async () => {
+  doctorResponses = {
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.parse('2026-01-01T09:50:00Z'), sessionExpiresAt: Date.parse('2026-01-01T12:00:00Z') } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  try {
+    const result = await cli([], {}, false, undefined, expiryBundle)
+    expect(result).toMatchObject({ code: 0, stderr: '' })
+    expect(result.stdout.replace(JSON.stringify(expiryBundle), '"<bin>"').replace(url, '<server>')).toMatchSnapshot()
+  } finally { doctorResponses = undefined }
+})
+
+test.each(['unchanged', 'removed', 'replaced'])('home requests are concurrent with session %s', async change => {
+  requests = []
+  const configuration = mkdtempSync(join(directory, 'home-'))
+  const store = new SessionStore(url, join(configuration, 'artium-axi', 'session.json'))
+  let release!: () => void
+  const bothReceived = new Promise<void>(resolve => { release = resolve })
+  doctorResponses = {
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  beforeReply = async () => {
+    if (requests.length === 2) {
+      if (change === 'removed') store.remove()
+      if (change === 'replaced') store.write({ status: 'authenticated', accessToken: 'CANARY-replacement', refreshToken: 'CANARY-replacement-refresh',
+        accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 })
+      release()
+    }
+    await bothReceived
+  }
+  try {
+    const result = await cli([], { XDG_CONFIG_HOME: configuration })
+    expect(requests.map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
+    expect(result).toMatchObject(change === 'unchanged' ? { code: 0, stderr: '', stdout: expect.stringContaining('user: "synthetic-user"') }
+      : { code: 1, stderr: '', stdout: expect.stringContaining('SESSION_CHANGED') })
+    if (change !== 'unchanged') expect(result.stdout).not.toContain('user:')
+  } finally {
+    release()
+    beforeReply = undefined
+    doctorResponses = undefined
+  }
+}, 15_000)
 
 test.each([{ args: ['--help'], code: 0 }, { args: ['--unknown'], code: 2 }])(
   'closed stdout preserves command status $code without diagnostics', async ({ args, code }) => {
@@ -293,6 +399,33 @@ test.each(['invalid json', '{}', '{"serverUrl":"invalid"}', '{"serverUrl":42}'])
 const managedTokens = { accessToken: 'CANARY-managed-access', refreshToken: 'CANARY-managed-refresh' }
 const rotatedTokens = { status: 'authenticated', accessToken: 'CANARY-rotated-access', refreshToken: 'CANARY-rotated-refresh',
   accessExpiresAt: 100000, familyExpiresAt: 200000 }
+
+test('parallel managed home requests share one refresh and rotation', async () => {
+  requests = []
+  let release!: () => void
+  const bothReceived = new Promise<void>(resolve => { release = resolve })
+  beforeReply = async () => {
+    if (requests.length === 2) release()
+    await bothReceived
+  }
+  responseSequence = [
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired') },
+    { status: 200, body: rotatedTokens },
+  ]
+  doctorResponses = {
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  try {
+    const result = await managedCli([])
+    expect(requests.slice(0, 2).map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
+    expect(requests[2].path).toBe('/v1/auth/refresh')
+    expect(requests.slice(3).map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
+    expect(result).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('user: "synthetic-user"'), rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
+  } finally { release(); beforeReply = undefined; responseSequence = undefined; doctorResponses = undefined }
+})
 
 async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean, environment?: NodeJS.ProcessEnv, closeStream?: 'stdout' | 'stderr' } = {}) {
   const configuration = mkdtempSync(join(directory, 'managed-config-'))
