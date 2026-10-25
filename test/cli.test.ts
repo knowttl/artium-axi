@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
 import { createServer as createHttpServer } from 'node:http'
+import type { ServerResponse } from 'node:http'
 import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
 import type { Writable } from 'node:stream'
 import { tmpdir } from 'node:os'
@@ -30,7 +31,7 @@ let response: { status: number, body: unknown, location?: string, stall?: boolea
 let requests: { path: string, token?: string, body: unknown, version?: string }[] = []
 let doctorResponses: Record<string, typeof response> | undefined
 let responseSequence: typeof response[] | undefined
-let beforeReply: ((path: string) => Promise<void>) | undefined
+let beforeReply: ((path: string, reply: ServerResponse) => Promise<void>) | undefined
 const server = createServer()
 
 beforeAll(async () => {
@@ -52,7 +53,7 @@ beforeAll(async () => {
     requests.push({ path: request.url!, token: request.headers.authorization, body: body ? JSON.parse(body) : undefined,
       version: request.headers['x-artium-cli-version'] as string | undefined })
     const current = responseSequence?.shift() ?? doctorResponses?.[request.url!] ?? response
-    await beforeReply?.(request.url!)
+    await beforeReply?.(request.url!, reply)
     const stalled = () => {
       const socket = request.socket
       const closed = new Promise<void>((resolve, reject) => {
@@ -425,6 +426,44 @@ test('parallel managed home requests share one refresh and rotation', async () =
     expect(requests.slice(3).map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
     expect(result).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('user: "synthetic-user"'), rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
   } finally { release(); beforeReply = undefined; responseSequence = undefined; doctorResponses = undefined }
+})
+
+test.each(['/v1/me', '/v1/tools'])('managed home preserves rotation when %s fails during the sibling refresh', async failingPath => {
+  requests = []
+  const refreshingPath = failingPath === '/v1/me' ? '/v1/tools' : '/v1/me'
+  let refreshStarted!: () => void
+  const refreshing = new Promise<void>(resolve => { refreshStarted = resolve })
+  let failureFinished!: () => void
+  const failureClosed = new Promise<void>(resolve => { failureFinished = resolve })
+  beforeReply = async (path, reply) => {
+    if (path === failingPath) {
+      reply.socket!.once('close', failureFinished)
+      await refreshing
+      reply.setHeader('connection', 'close')
+    } else if (path === '/v1/auth/refresh') {
+      refreshStarted()
+      await failureClosed
+      doctorResponses![refreshingPath] = { status: 200, body: refreshingPath === '/v1/tools' ? { tools: [] } : {
+        username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+        roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000,
+      } }
+    }
+  }
+  doctorResponses = {
+    [failingPath]: { status: 503, body: errorResponse(new ArtiumError('SERVER_UNAVAILABLE'), 'synthetic-failure') },
+    [refreshingPath]: {
+      status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-expired'),
+    },
+    '/v1/auth/refresh': { status: 200, body: rotatedTokens },
+  }
+  try {
+    const result = await managedCli([])
+    expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining('SERVER_UNAVAILABLE'),
+      rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
+    expect(result.stdout).not.toContain('user:')
+    expect(result.stdout).not.toContain('tools:')
+    expect(requests.filter(request => request.path === '/v1/auth/refresh')).toHaveLength(1)
+  } finally { refreshStarted(); beforeReply = undefined; doctorResponses = undefined }
 })
 
 async function managedCli(args: string[], options: { json?: string, input?: string, missing?: 3 | 4, existing?: boolean, environment?: NodeJS.ProcessEnv, closeStream?: 'stdout' | 'stderr' } = {}) {

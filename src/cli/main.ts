@@ -146,10 +146,13 @@ async function main(args: string[]) {
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined
   if (home && !managed && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
-  const [result, homeTools] = await Promise.all([
+  const [result, homeTools] = (await Promise.allSettled([
     client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession),
     home ? client.authenticated('/v1/tools', 'GET', undefined, homeSession) : undefined,
-  ])
+  ])).map(response => {
+    if (response.status === 'rejected') throw response.reason
+    return response.value
+  })
   if (home || whoami) {
     const parsed = meResponseSchema.safeParse(result)
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
