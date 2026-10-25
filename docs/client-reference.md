@@ -167,7 +167,8 @@ Concurrent login or logout can produce `SESSION_CHANGED`; check the current sess
 Logout removes local tokens even if remote revocation fails, reporting `remoteRevocation: unverified` in that case.
 
 Certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`, and authenticated redirects are refused.
-Only an explicit pre-execution `TOKEN_EXPIRED` response permits one serialized refresh and retry.
+For ordinary authenticated requests other than password changes and [archive saving](#hybrid-analysis-archive-saving), stored access tokens refresh under the session lock before use when expired or within 30 seconds of expiry.
+An explicit pre-execution `TOKEN_EXPIRED` response still permits one serialized refresh and retry.
 A network failure or uncertain command outcome is never retried automatically.
 
 ### Externally managed client sessions
@@ -203,6 +204,7 @@ If a local account requires a password change, fd 4 instead receives `{serverUrl
 That restricted record is not valid managed-session input; the caller must complete the password change through the server API and sign in again.
 
 Except for [archive saving](#hybrid-analysis-archive-saving), an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
+Concurrent requests within one managed invocation share a refresh and rotation record.
 Without a refresh token, or if refresh is refused, the CLI returns the authentication error for the caller to handle.
 Network failures and uncertain outcomes are never automatically retried.
 After a successful refresh, fd 4 receives one newline-terminated JSON object before the request is retried:
