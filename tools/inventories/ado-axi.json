@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/ado-inventory.mjs",
   "tool": "ado-axi",
-  "version": "0.4.6",
-  "integrity": "sha512-DThi4K9uO/jz93QQMBXtpnCXeHaYsOWSt6TFdYGhnqDN8aScow3bwbhVTIg4KEMVT0KHPYPdH00V9UOPX0c2fA==",
+  "version": "0.4.7",
+  "integrity": "sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw==",
   "parserEvidence": "Reviewed published dispatch switches, aliases and command flag constants",
   "sources": [
     {
@@ -63,7 +63,7 @@
     },
     {
       "path": "dist/commands/pr.js",
-      "sha256": "7b4f81ce93f18c1079294e71237be8e85a4c71313ae0bceac50b0245324d8772"
+      "sha256": "b85a81782aa806201facd9fc414a62959bc96db9858fa4ba804015395d001c32"
     },
     {
       "path": "dist/commands/ref.js",

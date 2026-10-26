@@ -9,23 +9,23 @@ importers:
   .:
     dependencies:
       '@jeffreyhaen/ado-axi':
-        specifier: 0.4.6
-        version: 0.4.6
+        specifier: 0.4.7
+        version: 0.4.7
       '@knowttl/az-axi':
-        specifier: 0.1.10
-        version: 0.1.10
+        specifier: 0.1.11
+        version: 0.1.11
       '@knowttl/hybrid-axi':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
       '@knowttl/ldap-axi':
         specifier: 0.3.0
         version: 0.3.0
       '@knowttl/mg-axi':
-        specifier: 0.1.10
-        version: 0.1.10
+        specifier: 0.1.12
+        version: 0.1.12
       '@knowttl/tenable-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/vectra-axi':
         specifier: 0.1.9
         version: 0.1.9
@@ -47,18 +47,18 @@ packages:
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
 
-  '@jeffreyhaen/ado-axi@0.4.6':
-    resolution: {integrity: sha512-DThi4K9uO/jz93QQMBXtpnCXeHaYsOWSt6TFdYGhnqDN8aScow3bwbhVTIg4KEMVT0KHPYPdH00V9UOPX0c2fA==}
+  '@jeffreyhaen/ado-axi@0.4.7':
+    resolution: {integrity: sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw==}
     engines: {node: '>=20'}
     hasBin: true
 
-  '@knowttl/az-axi@0.1.10':
-    resolution: {integrity: sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw==}
+  '@knowttl/az-axi@0.1.11':
+    resolution: {integrity: sha512-XiCwLaSh6A6xb9sk7RQ7T3FvkYpkWFIoGUCi7HxYlHF4kssVpF5gun4V7Taw9eKcm0HEWftnLci9l4EBSaFj0w==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/hybrid-axi@0.1.0':
-    resolution: {integrity: sha512-eQdks/92bP8wCn7mpLGqkl5bAI/kYLgRzrRXumtuwpe4sQytNXuAiXY/lNyTYdPT6/WXEFGL9JoaTwWA37F01A==}
+  '@knowttl/hybrid-axi@0.1.1':
+    resolution: {integrity: sha512-8K39EZadEq302GcuCKrWmdKJ6NvtFegpGWiStTF8T8gn+lbzbYNiBnRMt5lI0o+hCm7glUdOFahZqw62ylpi7w==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -67,13 +67,13 @@ packages:
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/mg-axi@0.1.10':
-    resolution: {integrity: sha512-rsd8KjyXxojDF3Gu6C95xsJokATeEmUaIRO7Zcaw9h/sF9WLXpW/gh6tKB1niU2QTGe2tsZjPsqXvzpyG34UUA==}
+  '@knowttl/mg-axi@0.1.12':
+    resolution: {integrity: sha512-TBt2y2rpfn8oi4YOq95uIo43RTsV/iOc0xFa3e3YCjhqd/ZL/y2is+7W0+B5/g1sdwb95yJbcU1eqeJEzmKJ5g==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/tenable-axi@0.1.1':
-    resolution: {integrity: sha512-ukWwVny4DeEBLqqWJhaM0au4Z5dvQTsDKoE2NhROIE3p114WUz2tT5dOfWL8MaalVrmU/zSMhk+S29sUocR3xg==}
+  '@knowttl/tenable-axi@0.1.2':
+    resolution: {integrity: sha512-csjV0urIUbZZlkA9VQpEGbsOWOnLgZTFMi0yRQD3uGlmlyPIxA6gKyvMzifSqcRvfyOaBEv7U5OjcWL1rs5NAw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -346,19 +346,19 @@ snapshots:
       minipass: 7.1.3
     optional: true
 
-  '@jeffreyhaen/ado-axi@0.4.6':
+  '@jeffreyhaen/ado-axi@0.4.7':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/az-axi@0.1.10':
+  '@knowttl/az-axi@0.1.11':
     dependencies:
       '@toon-format/toon': 4.4.0
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/hybrid-axi@0.1.0':
+  '@knowttl/hybrid-axi@0.1.1':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
@@ -374,14 +374,14 @@ snapshots:
       node-addon-api: 8.9.2
       node-gyp: 12.4.0
 
-  '@knowttl/mg-axi@0.1.10':
+  '@knowttl/mg-axi@0.1.12':
     dependencies:
       '@azure/msal-node': 7.0.1
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       open: 11.0.4
 
-  '@knowttl/tenable-axi@0.1.1':
+  '@knowttl/tenable-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

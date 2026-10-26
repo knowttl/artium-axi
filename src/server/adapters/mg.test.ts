@@ -29,6 +29,8 @@ test.each([
   ['login'], ['profile', 'create'], ['setup', 'hooks'], ['update'], ['api', 'POST', '/users'],
   ['api', 'PUT', '/users'], ['api', 'PATCH', '/users'], ['api', 'DELETE', '/users'],
   ['api', 'HEAD', '/users'], ['api', 'OPTIONS', '/users'],
+  ['security', 'hunting', 'query', '--file', 'hunt.kql'],
+  ['security', 'hunting', 'query', '--help'],
   ['entra', 'user', 'list', '--scopes', 'https://graph.microsoft.com/User.Read.All'],
 ].map(args => [args]))('blocked override or command refuses credential retrieval: %j', async args => {
   const getCredential = vi.fn()

@@ -7,7 +7,7 @@ const packageRoot = new URL('node_modules/@jeffreyhaen/ado-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for ado-axi')
-// Reviewed against 0.4.6 dispatch switches and *_FLAGS constants. Query POSTs
+// Reviewed against 0.4.7 dispatch switches and *_FLAGS constants. Query POSTs
 // (WIQL and workitemsbatch) are reads. Re-pinning requires reviewing effects too.
 const globals = { profile: 'value', org: 'value', project: 'value', config: 'value', help: 'boolean', full: 'boolean', fields: 'value' }
 const commands = []

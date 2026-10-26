@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/hybrid-inventory.mjs",
   "tool": "hybrid-axi",
-  "version": "0.1.0",
-  "integrity": "sha512-eQdks/92bP8wCn7mpLGqkl5bAI/kYLgRzrRXumtuwpe4sQytNXuAiXY/lNyTYdPT6/WXEFGL9JoaTwWA37F01A==",
+  "version": "0.1.1",
+  "integrity": "sha512-8K39EZadEq302GcuCKrWmdKJ6NvtFegpGWiStTF8T8gn+lbzbYNiBnRMt5lI0o+hCm7glUdOFahZqw62ylpi7w==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -11,7 +11,7 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "541b529cf64eeae007dac76898ffe288f03c8317f8e24b8c34ef13cb94c95665"
+      "sha256": "85424239ee66a94aeb77789392277c300d784c9e77297c72a2b40fa22349abc7"
     },
     {
       "path": "dist/src/download-catalogue.js",
@@ -19,11 +19,11 @@
     },
     {
       "path": "dist/src/hunting-catalogue.js",
-      "sha256": "899c3a2e5a199fc899364ba2c324d188b3b030a13cb73d7b32927abda0fa562e"
+      "sha256": "f013f3f508b15805cabe58c3c6e8f44088dee6448b08469b1dbe8d9d07fae6df"
     },
     {
       "path": "dist/src/hunting.js",
-      "sha256": "65de316b45aadbaf1d043c44899a3f95acb55f3c1626cef1951a69b80b036d6c"
+      "sha256": "323486f2003b1f97979400028b0350e978c84249700f05fed032eb9a1fe413f4"
     },
     {
       "path": "dist/src/key-contracts.js",
@@ -31,7 +31,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "80555cd34f3cfb55e72afb76080138b343bbfef000e0ae16060247ef547de7e9"
+      "sha256": "c151a3662a623360ef3d4d40d7c268b8a090983ee7949131237a7704d02a63b8"
     },
     {
       "path": "dist/src/private-file.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/profiles.js",
-      "sha256": "13efc4d1755319813ddd08ca3a23b89df34c6decfe568e90d71d6c217dfcf1b4"
+      "sha256": "a2b567d31d3d1f04bc86970fc8b736b3510c1d7b7848f685c347415387f85543"
     },
     {
       "path": "dist/src/redact.js",
@@ -55,11 +55,11 @@
     },
     {
       "path": "dist/src/reports.js",
-      "sha256": "404a6bd21adcf33d1808b0703175f952b66220f1ad0821489d42720e0cfbc0fa"
+      "sha256": "be256f71a04c2f19371b6eb862b88caff9f2e481b95551749bca172058d70396"
     },
     {
       "path": "dist/src/search-catalogue.js",
-      "sha256": "205bcc21e3d48f36b1b0d4501ab8a33b12f72d1998c74f7b40a9101328dfcbaa"
+      "sha256": "e5cba3e769308123a560f7e9bcbb0f0ab36e428ce3631a173298953f063b8f7e"
     },
     {
       "path": "dist/src/search-contracts.js",
@@ -67,7 +67,7 @@
     },
     {
       "path": "dist/src/search.js",
-      "sha256": "03c3a4169cb5b731b820ef52278baf7573f9eaaf75b7c0a5f205de2751424da5"
+      "sha256": "bd9362c96f6ff2a90c3297308cb7e1ef91469a4b233228abfa3d7a8849d28204"
     },
     {
       "path": "dist/src/session.js",
@@ -99,7 +99,7 @@
     },
     {
       "path": "dist/src/writes-core.js",
-      "sha256": "c231cae7b8ee78090c4eee94b0f0f1bd0ab3aa9433d0a02711bbd923183f7dc2"
+      "sha256": "c91ce1b7b8e2735d60565e0cc043bc3aa76d7d31e81fa6745c01fbb42035baa0"
     },
     {
       "path": "dist/src/writes.js",
@@ -182,7 +182,7 @@
       }
     }
   },
-  "skillSha256": "3b75c852fcfd4a18589145e1f7ae0cabac7e1896bd427d8ed8a3a43da989e20f",
+  "skillSha256": "1d0266cf0237630d063531b567a6b960dca48a731e7917e72b50fb59f757d384",
   "nativeWriteSettings": {
     "supportedOperations": [
       "convertQuickScan",
@@ -364,7 +364,8 @@
         "fields": "Comma-separated response fields; default compact fields",
         "full": "Include all response fields; default false",
         "hash": "One MD5/SHA1/SHA256/SHA512; exactly one selector required",
-        "hashes-file": "Newline-separated MD5/SHA1/SHA256 file; deprecated bulk route"
+        "hashes-file": "Newline-separated MD5/SHA1/SHA256 file; deprecated bulk route",
+        "limit": "Local row limit; default 100; --full does not change it"
       }
     },
     {
@@ -376,7 +377,8 @@
         "profile": "Profile name; default profile precedence",
         "fields": "Comma-separated response fields; default compact fields",
         "full": "Include all response fields; default false",
-        "labs": "Experimental Labs overview; default false"
+        "labs": "Experimental Labs overview; default false",
+        "limit": "Local row limit; default 100; --full does not change it"
       }
     },
     {

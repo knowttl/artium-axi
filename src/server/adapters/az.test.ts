@@ -47,7 +47,7 @@ test('Azure query help retains usable input examples with the hosted executable'
 })
 
 test('hosted discovery advertises only flags accepted by the managed adapter', () => {
-  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.10' })
+  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.11' })
   const help = JSON.parse(view.split('upstreamHelp: ')[1]) as string
   const flags = help.split('\n').find(line => line.startsWith('Flags: '))!.slice(7).split(', ')
   const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
@@ -139,6 +139,8 @@ test.each([
   ['empty dashboard', [], 'arm'],
   ['explicit dashboard', ['home'], 'arm'],
   ['sub list', ['sub', 'list'], 'arm'],
+  ['activity fetch budget', ['activity', 'list', '--all', '--max-rows', '2000'], 'arm'],
+  ['metrics fetch budget', ['monitor', 'metrics', 'list', '--max-rows=2000'], 'arm'],
   ['subscription override', ['group', 'list', '-s', 'other', '--subscription=third'], 'arm'],
   ['leading subscription', ['--subscription=other', 'group', 'list'], 'arm'],
   ['canonical query', ['monitor', 'log-analytics', 'query', '--analytics-query', 'Heartbeat', '-w', 'synthetic'], 'logs'],

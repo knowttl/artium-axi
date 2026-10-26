@@ -228,7 +228,7 @@ test.each(['--help', 'work-item', 'work-item update', 'wi update', 'pr', 'pr upd
   })
 
 test('discovery presents a managed example', () => {
-  expect(toolView({ name: 'ado-axi', version: '0.4.6', status: 'unconfigured' })).toContain('artium-axi ado-axi project list --limit 1')
+  expect(toolView({ name: 'ado-axi', version: '0.4.7', status: 'unconfigured' })).toContain('artium-axi ado-axi project list --limit 1')
 })
 
 test.each(['json', 'toon'])('rewrites %s suggestions without touching data fields', format => {

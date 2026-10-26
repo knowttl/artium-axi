@@ -1334,15 +1334,15 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 })
 
 test.each([
-  { tool: 'az-axi', example: 'sub list', version: '0.1.10' },
-  { tool: 'mg-axi', example: 'entra user list', version: '0.1.10' },
+  { tool: 'az-axi', example: 'sub list', version: '0.1.11' },
+  { tool: 'mg-axi', example: 'entra user list', version: '0.1.12' },
   { tool: 'vectra-axi', example: 'detection list', version: '0.1.9' },
   { tool: 'falcon-axi', example: 'detection list', version: '0.7.2' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.0' },
-  { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.6' },
+  { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.7' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.8' },
-  { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.1' },
-  { tool: 'hybrid-axi', example: 'quota', version: '0.1.0' },
+  { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.2' },
+  { tool: 'hybrid-axi', example: 'quota', version: '0.1.1' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])

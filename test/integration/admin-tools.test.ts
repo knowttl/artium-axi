@@ -1069,21 +1069,21 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.7.2', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.9', health: { status: 'unconfigured' } },
-    { name: 'az-axi', version: '0.1.10', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.10', health: { status: 'disabled' } },
+    { name: 'az-axi', version: '0.1.11', health: { status: 'unconfigured' } },
+    { name: 'mg-axi', version: '0.1.12', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
-    { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
+    { name: 'ado-axi', version: '0.4.7', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
-    { name: 'tenable-axi', version: '0.1.1', health: { status: 'disabled' } },
-    { name: 'hybrid-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'tenable-axi', version: '0.1.2', health: { status: 'disabled' } },
+    { name: 'hybrid-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])
   await failure(await request('POST', '', { executable: '/synthetic' }), 'NOT_FOUND')
 })
 test.each([
-  { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.10' },
-  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.10' },
+  { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.11' },
+  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.12' },
 ] as const)('$tool upgrade reports the bundled version while retaining configuration', async ({ tool, previousVersion, version }) => {
   const { tenantId, clientId, auth, clientSecret } = values[tool]
   const credential = { tenantId, clientId, auth, clientSecret }

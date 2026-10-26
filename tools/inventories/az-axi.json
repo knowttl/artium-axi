@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.10",
-  "integrity": "sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw==",
+  "version": "0.1.11",
+  "integrity": "sha512-XiCwLaSh6A6xb9sk7RQ7T3FvkYpkWFIoGUCi7HxYlHF4kssVpF5gun4V7Taw9eKcm0HEWftnLci9l4EBSaFj0w==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "7ec6a1ca9fd18e24bf0405bb49702d6846e40bcb089b270e8bdafedf345d9545",
+  "packageManifestSha256": "8bdf756d4f0b3d006543471320eb14d83f258122752bd1e07c76a2a74868691c",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -180,7 +180,7 @@
       "sub",
       "list"
     ],
-    "help": "Command: az-axi sub list\nNative operation: az-axi account list; existing scope, defaults and TOON output apply.\nFlags: --subscription, --management-group, --help, --full, --fields, --limit, --all, --max-rows\nShort flags where accepted: -h help, -s subscription, -g resource-group, -n name, -w workspace, -t timespan.\nLists accept comma-separated, space-separated and repeated values after the leaf path.\nBooleans accept bare flags or true/false. Conflicting scalar values are refused.\n\nLists live ARM subscriptions in selected scope (flags, environment, profile, else all accessible), resolving unambiguous names to IDs. This is not Azure CLI's cached account list. Legacy sub list still lists all visible subscriptions with inScope markers.\nDefault: name, id (subscription GUID), state, tenantId. --full adds ARM metadata and shows all fetched rows; --fields selects metadata. --limit defaults to 50. Paging stops at 100 pages with lower-bound counts. Management-group scope is unsupported.\nExamples: az-axi account list; az-axi account list -s <subscription> --full\nFetch budget per subscription: 1000 rows by default; --all raises it to 10000 (Key Vault: at most 2500 scanned at 25/page). --max-rows <1..100000> overrides either row budget. Every walk stops at 100 pages. Budgets count rows before local filters. --limit controls display only (default 50); --full shows every fetched row and expands display only, never bypassing fetch budgets. Incomplete totals are lower bounds; narrow the scope or raise --max-rows to search further."
+    "help": "Command: az-axi sub list\nNative operation: az-axi account list; existing scope, defaults and TOON output apply.\nFlags: --subscription, --management-group, --help, --full, --fields, --limit, --all, --max-rows\nShort flags where accepted: -h help, -s subscription, -g resource-group, -n name, -w workspace, -t timespan.\nLists accept comma-separated, space-separated and repeated values after the leaf path.\nBooleans accept bare flags or true/false. Conflicting scalar values are refused.\n\nLists live ARM subscriptions in selected scope (flags, environment, profile, else all accessible), resolving unambiguous names to IDs. This is not Azure CLI's cached account list. Legacy sub list still lists all visible subscriptions with inScope markers.\nDefault: name, id (subscription GUID), state, tenantId. --full adds ARM metadata and shows all fetched rows; --fields selects metadata. --limit defaults to 50. Lists follow the shared fetch budget (up to 100 pages and the row budget per subscription); incomplete counts are disclosed as lower bounds. Management-group scope is unsupported.\nExamples: az-axi account list; az-axi account list -s <subscription> --full\nFetch budget per subscription or collection (Resource Graph: across selected scope, per exposure check): 1000 rows by default; --all raises it to 10000 (Key Vault: at most 2500 scanned at 25/page). --max-rows <1..100000> overrides either row budget. Every walk stops at 100 pages. Budgets count rows before local filters. --limit controls display only (usually 50; Defender assessments 25, exposure overview 10 per check); --full shows every fetched row and expands display only, never bypassing fetch budgets. Incomplete totals are lower bounds; narrow the scope or raise --max-rows to search further."
   },
   "adapterBoundary": {
     "unsafeOverrides": [
@@ -263,7 +263,7 @@
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "e53b5e91dd69c4555960f7d69f0ea377090c8c80ecd38b200885ed31c69d3889"
+      "sha256": "1b0354317f721989465190b4a276fce811d559bcbbd9871129b02dd366a5beb5"
     },
     {
       "path": "dist/lib/client.js",
@@ -287,7 +287,7 @@
     },
     {
       "path": "dist/commands/rbac.js",
-      "sha256": "140ee55e6e9c139de95c13198c9b24557dd7b3c510b33d2560e52acf55978eb0"
+      "sha256": "a0b5d0e92d47b78be10ef210b657399b3386ca67d0869d466913b31451dcdcaa"
     },
     {
       "path": "dist/commands/logs.js",
@@ -992,6 +992,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -1056,6 +1058,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -1119,6 +1123,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -1182,6 +1188,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource": "value"
       },
       "flagAliases": {},
@@ -1241,6 +1249,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource": "value",
         "metric": "list",
         "start-time": "value",
@@ -1500,6 +1510,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "principal": "value",
         "role": "value",
         "scope": "value",
@@ -1533,6 +1545,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "principal": "value",
         "role": "value",
         "scope": "value",
@@ -1567,6 +1581,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "since": "value",
         "caller": "value",
         "resource-group": "value",
@@ -1600,6 +1616,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "since": "value",
         "caller": "value",
         "resource-group": "value",
@@ -1635,6 +1653,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "severity": "list",
         "status": "value",
         "since": "value"
@@ -1665,6 +1685,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "severity": "list",
         "status": "value",
         "since": "value"
@@ -1722,6 +1744,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "name": "value"
       },
       "flagAliases": {},
@@ -1781,6 +1805,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "name": "value",
         "assessment-name": "value",
         "assessed-resource-id": "value"
@@ -1920,6 +1946,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "severity": "list",
         "status": "value",
         "resource": "value",
@@ -1950,7 +1978,9 @@
         "help": "boolean",
         "full": "boolean",
         "fields": "list",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "flagAliases": {},
       "shortFlags": {
@@ -1977,7 +2007,9 @@
         "help": "boolean",
         "full": "boolean",
         "fields": "list",
-        "limit": "value"
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value"
       },
       "flagAliases": {},
       "shortFlags": {
@@ -2079,6 +2111,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "workspace-name": "value",
         "resource-group": "value",
         "workspace": "value",
@@ -2115,6 +2149,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "workspace-name": "value",
         "resource-group": "value",
         "workspace": "value",
@@ -2373,6 +2409,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "check": "value",
         "show-query": "boolean"
       },
@@ -3312,6 +3350,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3375,6 +3415,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "name": "value"
       },
       "flagAliases": {},
@@ -3434,6 +3476,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "name": "value"
       },
       "flagAliases": {},
@@ -3493,6 +3537,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value",
         "assignment": "value",
@@ -3526,6 +3572,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3589,6 +3637,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value"
       },
@@ -3652,6 +3702,8 @@
         "full": "boolean",
         "fields": "list",
         "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
         "resource-group": "value",
         "name": "value",
         "custom-role-only": "boolean"

@@ -9,13 +9,13 @@ import type { ToolName } from './store/credential-store.js'
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
-  'hybrid-axi': { sha256: '3b75c852fcfd4a18589145e1f7ae0cabac7e1896bd427d8ed8a3a43da989e20f', sections: [] },
+  'hybrid-axi': { sha256: '1d0266cf0237630d063531b567a6b960dca48a731e7917e72b50fb59f757d384', sections: [] },
   'tenable-axi': { sha256: 'ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
-  'az-axi': { sha256: '7d957ed28170171530c0c174ac27c0174b5500cd1797d18243324ef44fee033f', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
+  'az-axi': { sha256: 'a5df0a4e7603f8c960eacd2b57c3353b74b4c0ba0665d1d850374a90cc773123', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: 'a9fb66ac59a325958e19470286f27e8d2e1e9e65a4e93f5ee93fca6467fb2303', sections: ['Safety'] },
-  'mg-axi': { sha256: '5c91de7c458ff8813998d9950b5447c9fed16d87225093019c1ef6ec3ad27c4f', sections: ['Safety'] },
+  'mg-axi': { sha256: 'f2867005e792f594662cee7883f6fc34617e5d59d06827e2403f0f5c7d76397b', sections: ['Safety'] },
   'ldap-axi': { sha256: 'e20365f41164061268067d0caa6055fe8417dc6c610d70a5c3108d1e6ae0dcfc', sections: ['Workflow', 'Safety'] },
   'falcon-axi': { sha256: 'dd23eead91a3f0a5e8d2265ae6f8a628f27c1f9981678ff1c23a24f6b0a6f43a', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
 } as const
@@ -55,6 +55,7 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       body = body.replace('`entity show`', '`artium-axi vectra-axi entity show <id>`')
       body += '\n\n## Investigation reads\n\nFind a host with `artium-axi vectra-axi host list --name <text>`, then use `artium-axi vectra-axi detection list --host-id <id>`.\nInspect details with `artium-axi vectra-axi detection show <id> --full`; use either a positional ID or --id, never both.\nDetection --fields supports first_timestamp,last_timestamp,src_ip,src_host,summary,grouped_details.\n'
     } else if (tool === 'mg-axi') {
+      frontmatter = frontmatter.replace(', Defender XDR advanced hunting', '')
       body = body.replace('Reads run through a session that authorizes only catalogued operations before silent credential acquisition; only explicit `auth login` opens a browser or prints a device-code challenge.', 'Reads authorize only catalogued operations with Artium-managed credentials.')
       body = body.replace('Secrets stay in credential references, never in argv, config files or output; credential fields carry expiry metadata only.', 'Artium supplies credentials on the server; never put secrets in argv or output.')
     } else if (tool === 'ldap-axi') {

@@ -85,7 +85,7 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       expect(decode(home.stdout)).toMatchObject({ bin: 'artium-axi hybrid-axi' })
       expect(home.stdout).not.toContain(directory)
       const status = await run(['auth', 'status'])
-      expect(decode(status.stdout)).toMatchObject({ apiKey: 'env', source: 'env' })
+      expect(decode(status.stdout)).toMatchObject({ available: true, source: 'env' })
       expect(status.stdout).not.toMatch(/ARTIUM_SECRET_|config:|hybrid-profile|artium-call-/)
       const unknown = await app.inject({ method: 'POST', url: '/v1/tools/hybrid-axi/run', headers,
         payload: { args: ['quota', '--synthetic-unknown'] } })
