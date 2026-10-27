@@ -174,7 +174,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 
 For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.15/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 
-For mailbox opt-in, supported reads and mailbox selectors, see the [managed capability boundary](../README.md#safety).
+For mailbox opt-in, supported reads and writes, and mailbox selectors, see the [managed capability boundary](../README.md#safety).
 Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
 Keep `User.Read.All` for the credential test, which cannot verify mail authorization or scope.
 

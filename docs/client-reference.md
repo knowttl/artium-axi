@@ -75,12 +75,13 @@ Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared i
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
 Check Point stdin and server paths are unavailable.
-For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the local file as `query.kql` and rewrite the argument to that fixed name.
+For Graph hunting and mail rule create/update, `--file <local-path>` and `--file=<local-path>` upload the local file and rewrite the argument to the fixed name `query.kql` for hunting or `rule.json` for rules.
 Local paths containing a `..` component are refused.
-The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.
-Other Graph commands do not upload local files; hunting help and version requests leave local files and stdin unread.
+The run API requires the corresponding fixed upload name; the [reviewed Graph inventory](../tools/inventories/mg-axi.json)'s `adapterBoundary.inputs` owns upload constraints.
+Server file paths, stdin and multiple files are unavailable for these uploads.
+Other Graph commands do not upload local files; help and version requests leave local files and stdin unread.
 For Graph collection commands, including mail lists, the run API accepts the cursor token in `stdin` with `--cursor -`; the bundled CLI does not capture Graph cursor stdin, so use `--cursor <token>` there.
-See the [Graph capability boundary](../README.md#safety) for supported mail reads, hunting, content limits and administrator opt-in.
+See the [Graph capability boundary](../README.md#safety) for supported mail reads and writes, hunting, content limits and administrator opt-in.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.
