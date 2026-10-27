@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { executeArgv } from '../../tools/node_modules/@knowttl/mg-axi/dist/cli.js'
 import { resolveSecret } from '../../tools/node_modules/@knowttl/mg-axi/dist/secrets.js'
+import { KqlValidationError } from '../../tools/node_modules/@knowttl/mg-axi/dist/kql.js'
 
 const { encode } = await import(createRequire(new URL('../../tools/node_modules/@knowttl/mg-axi/package.json', import.meta.url)).resolve('@toon-format/toon'))
 const groupId = '00000000-0000-0000-0000-000000000003'
@@ -54,6 +55,7 @@ try {
 } catch (error) {
   if (!error.code) throw error
   assert.equal(sends, 0)
-  console.log(encode({ error: { code: error.code }, fakeSends: sends }))
-  process.exitCode = 1
+  console.log(encode({ error: { code: error.code },
+    ...(error instanceof KqlValidationError ? { diagnostics: error.diagnostics } : {}), fakeSends: sends }))
+  process.exitCode = error instanceof KqlValidationError ? 2 : 1
 }

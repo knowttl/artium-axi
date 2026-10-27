@@ -8,9 +8,9 @@
     "@knowttl/tenable-axi": "0.1.3",
     "awx-axi": "0.1.8",
     "@jeffreyhaen/ado-axi": "0.4.7",
-    "@knowttl/az-axi": "0.1.12",
-    "@knowttl/vectra-axi": "0.1.9",
-    "@knowttl/mg-axi": "0.1.12",
+    "@knowttl/az-axi": "0.1.13",
+    "@knowttl/vectra-axi": "0.1.10",
+    "@knowttl/mg-axi": "0.1.13",
     "@knowttl/ldap-axi": "0.3.0"
   },
   "pnpm": {

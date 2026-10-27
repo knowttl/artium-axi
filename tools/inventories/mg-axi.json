@@ -1,10 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.12",
-  "integrity": "sha512-TBt2y2rpfn8oi4YOq95uIo43RTsV/iOc0xFa3e3YCjhqd/ZL/y2is+7W0+B5/g1sdwb95yJbcU1eqeJEzmKJ5g==",
+  "version": "0.1.13",
+  "integrity": "sha512-V9f/H1xISbn1ar3ARVnYvtT4NDUDRgvhCkrnQd6lqNdj1MeQjF4JESS6PA6hY3epXKrqE+g/2nCfgJV1JDmDTQ==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "e686938dd356bffe87d9884d656a139b91e7eb6d62370f6aba3b5fd14283fb45",
+  "packageManifestSha256": "2357d6568740146d05a0ad67fb8e0be3c871261726d3cf110fed83e216001dc9",
+  "skillSha256": "98ff12e741b04592afae76853a00f572940dee6edf0e868d2ccba04a742b24ad",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -166,7 +167,7 @@
       },
       {
         "path": "dist/cli.js",
-        "sha256": "613fc3ac4870e5538d2c53b0760244c7e3bb3837fa3d97c1b89b7916c557af44"
+        "sha256": "723f00e5031068211b541ee43447fb559833bea924c91131e0d074349d5b9a4e"
       },
       {
         "path": "dist/profiles.js",
@@ -244,7 +245,7 @@
       },
       {
         "path": "dist/cli.js",
-        "sha256": "613fc3ac4870e5538d2c53b0760244c7e3bb3837fa3d97c1b89b7916c557af44"
+        "sha256": "723f00e5031068211b541ee43447fb559833bea924c91131e0d074349d5b9a4e"
       }
     ]
   },
