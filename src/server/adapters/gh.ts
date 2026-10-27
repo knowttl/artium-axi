@@ -47,15 +47,20 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
       flags.set(name, value)
     }
   }
+  if (flags.size === 1 && flags.has('help') && positionals.length === 0) {
+    return { args: ['--help'], invocation: { command: 'help', help: true } }
+  }
+  if (positionals.length === 0 || positionals[0] === 'home') throw new ArtiumError('INVALID_INPUT',
+    'The GitHub dashboard is unsupported and unverified: gh-axi 0.1.44 converts failed reads into successful empty results.',
+    'Use artium-axi gh-axi issue list -R OWNER/NAME or artium-axi gh-axi pr list -R OWNER/NAME.')
   if (flags.size === 1 && flags.has('help') && positionals.length === 1
     && inventory.discovery.commands.includes(positionals[0])) {
     return { args: [...positionals, '--help'], invocation: { command: positionals[0], help: true } }
   }
   const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
-    .find(route => route.command === 'home' ? positionals.length === 0 || positionals[0] === 'home'
-      : positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
+    .find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('gh-axi', positionals, inventory.commands.map(route => route.command))
-  const rest = positionals.slice(route.command === 'home' && !positionals.length ? 0 : route.command.split(' ').length)
+  const rest = positionals.slice(route.command.split(' ').length)
   if (route.positionals !== 'variadic' && rest.length > Number(route.positionals) || rest.some(value => /[\x00-\x1f\x7f]/.test(value))) throw new ArtiumError('INVALID_INPUT')
   for (const name of flags.keys()) if (!Object.hasOwn(route.flags, name)) {
     throw unknownFlag('gh-axi', route.command, `--${name}`, Object.keys(route.flags))
@@ -65,7 +70,6 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   if (route.command !== 'api' && !route.command.startsWith('search ') && rest.some(value => value.includes(':') || value.startsWith('//'))) {
     throw new ArtiumError('FLAG_BLOCKED')
   }
-  if (route.command === 'repo view' && rest[0] && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(rest[0])) throw new ArtiumError('FLAG_BLOCKED')
   if (route.repository && !flags.has('help') && !flags.has('repo')) throw new ArtiumError('INVALID_INPUT',
     'Repository reads require -R OWNER/NAME.', 'Pass -R OWNER/NAME for the managed GitHub host.')
   if (route.command === 'api' && !flags.has('help')) {
@@ -79,7 +83,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
       throw new ArtiumError('FLAG_BLOCKED')
     }
   }
-  const command = route.command === 'home' ? [] : route.command.split(' ')
+  const command = route.command.split(' ')
   return { args: [...command, ...rest, ...[...flags].flatMap(([name, value]) => allFlags[name] === 'boolean'
     ? [`--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
       ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help: flags.has('help') } }
@@ -88,7 +92,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
 export function createGhAdapter(source: SecretSource): Adapter<unknown> {
   return { name: 'gh-axi', executable: toolPaths['gh-axi'], credentialSchema: ghCredentialSchema, credentialProfile: ghProfile,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: ghManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
-    sensitiveArguments: args => ({ flags: ['--search', '--query'], positions: args.map((_, index) => index).filter(index => index > 1) }),
+    sensitiveArguments: args => ({ flags: ['--query'], positions: args.map((_, index) => index).filter(index => index > 1) }),
     validateArgs: (args, input) => { ghArguments(args, input) },
     async prepare(args, reference, input) {
       const call = ghArguments(args, input)

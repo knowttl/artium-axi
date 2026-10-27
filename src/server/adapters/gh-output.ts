@@ -5,7 +5,7 @@ import type { RunnerResult } from '../runner/runner.js'
 import type { PreparedCall } from './types.js'
 
 function managedHelp(command: string): string {
-  const routes = inventory.commands.filter(route => command === 'home' || route.command === command || route.command.startsWith(command + ' '))
+  const routes = inventory.commands.filter(route => command === 'help' || route.command === command || route.command.startsWith(command + ' '))
   return encode({ commands: routes.map(route => {
     const positional = route.command === 'api' ? ' [GET] <relative-path>'
       : route.positionals === 'variadic' ? ' [<query> ...]'

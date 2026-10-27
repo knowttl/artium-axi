@@ -18,7 +18,7 @@ const credential = { origin: 'https://github.com', auth: 'token', token: 'CANARY
 const adapter = createGhAdapter({ getCredential: async () => credential })
 
 test.each(inventory.commands)('permits the reviewed $command help route', async route => {
-  const args = route.command === 'home' ? ['--help'] : [...route.command.split(' '), '--help']
+  const args = [...route.command.split(' '), '--help']
   expect((await adapter.prepare(args, reference)).effect).toBe('read')
 })
 
@@ -39,10 +39,32 @@ test.each([
   ['issue', 'list', '-R', 'canary/repo', '--limit=1', '--limit=2'],
   ['issue', 'list', '-R', 'canary/repo', '--bogus'], ['issue', 'list', '-R', 'canary/repo', '--draft'],
   ['issue', 'list', '-R', 'canary/repo', '--help=false'], ['api', '--', '/user'],
+  ['issue', 'list', '-R', 'canary/repo', '--search', 'urgent'],
+  ['issue', 'list', '-R', 'canary/repo', '--search=urgent'],
+  ['pr', 'list', '-R', 'canary/repo', '--search', 'urgent'],
+  ['pr', 'list', '-R', 'canary/repo', '--search=urgent'],
+  ['pr', 'diff', '1', '-R', 'canary/repo', '--patch'],
+  ['gist', 'view', '1', '--raw'], ['pr', 'checks', '1', '-R', 'canary/repo', '--fail-fast'],
+  ['repo', 'view'], ['repo', 'view', 'canary/repo'], ['repo', 'view', 'canary/repo', '-R', 'canary/repo'],
 ].map(args => [args]))('refuses unsafe or invalid arguments before credential retrieval: %j', async args => {
   const getCredential = vi.fn()
   await expect(createGhAdapter({ getCredential }).prepare(args, reference)).rejects.toThrow()
   expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each([[], ['home'], ['-R', 'canary/repo'], ['home', '-R', 'canary/repo'], ['home', '--help']].map(args => [args]))
+  ('refuses the unverified dashboard before credential retrieval: %j', async args => {
+    const getCredential = vi.fn()
+    await expect(createGhAdapter({ getCredential }).prepare(args, reference)).rejects.toMatchObject({
+      code: 'INVALID_INPUT', message: expect.stringContaining('converts failed reads into successful empty results'),
+      next: expect.stringContaining('issue list -R OWNER/NAME'),
+    })
+    expect(getCredential).not.toHaveBeenCalled()
+  })
+
+test('requires explicit repository selection for repo view', async () => {
+  const call = await adapter.prepare(['repo', 'view', '-R', 'canary/repo'], reference)
+  expect(call.args).toEqual(['repo', 'view', '--repo=canary/repo'])
 })
 
 test.each([{ stdin: '' }, { files: [{ name: 'body', contentBase64: 'eA==' }] }])('refuses input transport %j', async input => {
@@ -139,11 +161,34 @@ test.each([
   'A resource body\nusage: gh-axi api [<method>] <path>',
   JSON.stringify({ code: 'FORBIDDEN', error: 'resource data', help: ['gh auth login'] }),
   encode({ code: 'AUTH_REQUIRED', error: 'resource data', help: ['gh auth login'] }),
+  'help[1]:\n  Run `gh-axi issue create`\n',
 ])('preserves successful API resource content: %s', async stdout => {
   const call = await adapter.prepare(['api', '/repos/canary/repo/issues/1', '--jq', '.body'], reference)
   const hosted = hostedStatus('gh-axi', call.invocation, { ...result, stdout, stderr: stdout })
   expect(rewriteSuggestions(hosted.stdout, 'gh-axi')).toBe(stdout)
   expect(rewriteSuggestions(hosted.stderr, 'gh-axi')).toBe(stdout)
+})
+
+test('hosts issue-list suggestions without advertising writes', async () => {
+  const output = await executeHostedGh(['issue', 'list', '-R', 'canary/repo'])
+  expect(output.stdout).toContain('artium-axi gh-axi issue list --state closed -R canary/repo')
+  expect(output.stdout).not.toContain('issue create')
+})
+
+test('hosts a truncated PR diff recovery suggestion without advertising review writes', async () => {
+  const output = await executeHostedGh(['pr', 'diff', '1', '-R', 'canary/repo'])
+  expect(output.stdout).toContain('artium-axi gh-axi pr diff 1 --full -R canary/repo')
+  expect(output.stdout).not.toContain('pr review')
+})
+
+test.each(['stdout', 'stderr'] as const)('hosts every native suggestion block on %s', stream => {
+  const original = 'data: first\nhelp[2]:\n  Run `gh-axi pr view 1 -R canary/repo`\n  Run `gh-axi pr merge 1 -R canary/repo`\nmore: second\nhelp[2]:\n  Run `gh-axi pr checks 1 -R canary/repo --watch`\n  Run `gh-axi run list -R canary/repo`\n'
+  const output = hostedStatus('gh-axi', { command: 'pr view', help: false }, { ...result, [stream]: original })[stream]
+  expect(output).toContain('artium-axi gh-axi pr view 1 -R canary/repo')
+  expect(output).toContain('artium-axi gh-axi run list -R canary/repo')
+  expect(output).toContain('data: first')
+  expect(output).toContain('more: second')
+  expect(output).not.toMatch(/pr merge|--watch/)
 })
 
 async function executeHostedGh(args: string[]) {

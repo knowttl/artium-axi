@@ -213,6 +213,7 @@
       "header"
     ],
     "blockedCommands": [
+      "home",
       "update",
       "setup",
       "stack",
@@ -260,16 +261,6 @@
   "format": "TOON",
   "commands": [
     {
-      "command": "home",
-      "effect": "read",
-      "flags": {
-        "help": "boolean",
-        "repo": "value"
-      },
-      "positionals": 0,
-      "repository": false
-    },
-    {
       "command": "issue list",
       "effect": "read",
       "flags": {
@@ -282,8 +273,7 @@
         "author": "value",
         "milestone": "value",
         "sort": "value",
-        "limit": "value",
-        "search": "value"
+        "limit": "value"
       },
       "positionals": 0,
       "repository": true
@@ -324,7 +314,6 @@
         "base": "value",
         "head": "value",
         "limit": "value",
-        "search": "value",
         "draft": "boolean"
       },
       "positionals": 0,
@@ -350,8 +339,7 @@
       "flags": {
         "help": "boolean",
         "repo": "value",
-        "full": "boolean",
-        "patch": "boolean"
+        "full": "boolean"
       },
       "positionals": 1,
       "repository": true
@@ -362,8 +350,7 @@
       "flags": {
         "help": "boolean",
         "repo": "value",
-        "failed": "boolean",
-        "fail-fast": "boolean"
+        "failed": "boolean"
       },
       "positionals": 1,
       "repository": true
@@ -484,8 +471,8 @@
         "help": "boolean",
         "repo": "value"
       },
-      "positionals": 1,
-      "repository": false
+      "positionals": 0,
+      "repository": true
     },
     {
       "command": "repo list",
@@ -534,8 +521,7 @@
         "repo": "value",
         "filename": "value",
         "full": "boolean",
-        "files": "boolean",
-        "raw": "boolean"
+        "files": "boolean"
       },
       "positionals": 1,
       "repository": false

@@ -15,14 +15,13 @@ function route(command, values = '', booleans = '', positionals = 0, repository 
     ...Object.fromEntries(values.split(' ').filter(Boolean).map(name => [name, 'value'])),
     ...Object.fromEntries(booleans.split(' ').filter(Boolean).map(name => [name, 'boolean'])) }, positionals, repository })
 }
-route('home')
-route('issue list', 'fields state label assignee author milestone sort limit search', '', 0, true)
+route('issue list', 'fields state label assignee author milestone sort limit', '', 0, true)
 route('issue view', '', 'comments full', 1, true)
 route('issue subissue list', '', '', 1, true)
-route('pr list', 'fields state label assignee author base head limit search', 'draft', 0, true)
+route('pr list', 'fields state label assignee author base head limit', 'draft', 0, true)
 route('pr view', '', 'comments reviews checks full', 1, true)
-route('pr diff', '', 'full patch', 1, true)
-route('pr checks', '', 'failed fail-fast', 1, true)
+route('pr diff', '', 'full', 1, true)
+route('pr checks', '', 'failed', 1, true)
 route('discussion list', 'state category author label limit', '', 0, true)
 route('discussion view', 'limit order', 'comments full', 1, true)
 route('run list', 'fields limit workflow branch status event user commit', '', 0, true)
@@ -31,11 +30,11 @@ route('workflow list', 'limit', 'all', 0, true)
 route('workflow view', '', 'yaml', 1, true)
 route('release list', 'limit', 'exclude-drafts exclude-pre-releases', 0, true)
 route('release view', '', 'full', 1, true)
-route('repo view', '', '', 1)
+route('repo view', '', '', 0, true)
 route('repo list', 'limit visibility language', 'archived', 1)
 route('label list', 'limit', '', 0, true)
 route('gist list', 'limit fields', 'public secret')
-route('gist view', 'filename', 'full files raw', 1)
+route('gist view', 'filename', 'full files', 1)
 route('project list', 'owner limit', 'closed')
 route('project view', 'owner', '', 1)
 route('project item-list', 'owner query limit', '', 1)
@@ -67,9 +66,9 @@ const data = { generatedBy: 'scripts/gh-inventory.mjs', tool: 'gh-axi', ...pin,
   gh: JSON.parse(readFileSync(new URL('gh-source.json', root))),
   sources: [...sources(new URL('dist/', packageRoot), 'dist/'), ...sources(new URL('dist/', sdk), 'axi-sdk-js/dist/')],
   adapterBoundary: { unsafeOverrides: ['hostname', 'watch', 'attach', 'body-file', 'notes-file', 'input', 'file', 'add', 'field', 'raw-field', 'header'],
-    blockedCommands: ['update', 'setup', 'stack', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
+    blockedCommands: ['home', 'update', 'setup', 'stack', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
     nativeWrites: 'blocked', inputs: { stdin: 'unsupported', files: 'unsupported' } },
-  discovery: { commands: [...new Set(commands.map(route => route.command.split(' ')[0]))].filter(name => name !== 'home'),
+  discovery: { commands: [...new Set(commands.map(route => route.command.split(' ')[0]))],
     example: ['repo', 'list', '--limit', '1'],
     help: 'gh-axi repo list [<owner>] [--limit <n>]\nManaged read-only GitHub API access. Use -R OWNER/NAME for repository reads. api accepts [GET] <relative-path>; GraphQL and all writes are refused. No stdin or files.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }

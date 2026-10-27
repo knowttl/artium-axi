@@ -14,6 +14,7 @@ else if (args[0] === 'search') {
   console.log(JSON.stringify([{ number: 1, title: query, fullName: query, path: query, sha: query }]))
 }
 else if (args[0] === 'issue' && args[1] === 'list') console.log('[]')
+else if (args[0] === 'pr' && args[1] === 'diff') console.log('x'.repeat(21000))
 else if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: { repository: { issues: { totalCount: 0 } } } }))
 else if (args[0] === 'api' && args[1] === '/rate_limit' && args[2] === '--method' && args[3] === 'GET') {
   const bundle = readFileSync(process.env.SSL_CERT_FILE, 'utf8')

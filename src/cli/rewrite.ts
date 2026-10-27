@@ -9,6 +9,7 @@ import gh from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
+import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
@@ -43,9 +44,9 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 }
 
 // The pinned inventories record only the root help field as suggestions.
-export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
+export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
-  if (tool === 'gh-axi') return output
+  if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
   if (tool === 'checkpoint-axi') {
     try {
       const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], bin?: string, commands?: unknown }

@@ -259,6 +259,9 @@ See GitHub's [PAT guidance](https://docs.github.com/en/authentication/keeping-yo
 Save, run **Test credential**, enable the tool and grant it to a role.
 Try `artium-axi gh-axi repo list --limit 1`, then `artium-axi gh-axi issue list -R OWNER/NAME --limit 10`.
 Every repository-scoped read requires `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused.
+The bare dashboard and `home` are unsupported in this slice because published gh-axi 0.1.44 converts failed dashboard reads into successful empty results.
+Use `artium-axi gh-axi issue list -R OWNER/NAME` and `artium-axi gh-axi pr list -R OWNER/NAME` instead.
+Dashboard exposure is deferred until a published upstream release reports those failures.
 The [reviewed inventory](../tools/inventories/gh-axi.json) owns the read allow-list and upstream source digests.
 `api` accepts `[GET] <relative-path>` with optional output shaping; GraphQL, other methods, request fields, headers and input bodies are refused.
 Writes, setup/update, local git, watch, downloads, file uploads and stdin are unavailable.

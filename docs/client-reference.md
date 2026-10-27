@@ -44,6 +44,8 @@ The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
+The GitHub dashboard and `home` are unsupported because pinned gh-axi swallows dashboard read errors.
+Use `artium-axi gh-axi issue list -R OWNER/NAME` or `artium-axi gh-axi pr list -R OWNER/NAME`; `artium-axi gh-axi --help` lists the supported reads.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 The ADO, AWX, Azure, Check Point, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
