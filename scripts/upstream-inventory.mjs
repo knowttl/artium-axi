@@ -29,7 +29,7 @@ const azShortFlags = { h: 'help', s: 'subscription', g: 'resource-group', n: 'na
   l: 'location', w: 'workspace', t: 'timespan', q: 'graph-query' }
 const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
 const azUnsafeOverrides = ['config', 'profile', 'tenant']
-const mgAllowedCommands = ['home', 'doctor', 'entra', 'api get']
+const mgAllowedCommands = ['home', 'doctor', 'entra', 'api get', 'security hunting query']
 const mgUnsafeOverrides = ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
   'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint-sha256', 'federated-token-file']
 const inventories = {
@@ -202,10 +202,10 @@ for (const [tool, commands] of Object.entries(inventories)) {
     ...(tool === 'mg-axi' ? { adapterBoundary: {
       unsafeOverrides: mgUnsafeOverrides,
       allowedCommands: mgAllowedCommands,
-      inputs: { stdin: 'cursor - only', files: 'unsupported', cursor: 'opaque token or stdin; never a path',
+      inputs: { stdin: 'cursor - only', files: 'security hunting query only: one UTF-8 query.kql upload, at most 64 KiB; fixed runner leaf name', cursor: 'opaque token or stdin; never a path',
         api: 'reviewed GET routes only; pinned Graph destination and operation gates retained' },
       sensitiveFlags: ['cursor', 'filter', 'odata', 'conditions', 'grant-controls', 'session-controls', 'display-name'],
-      knownOutputScanValues: ['clientSecret and trimmed clientSecret', 'privateKey and normalized PEM'],
+      knownOutputScanValues: ['clientSecret and trimmed clientSecret', 'privateKey and normalized PEM', 'hunting query text'],
       outputScanLimit: 'Upstream-minted Graph tokens and assertions are not available during prepare; live redaction remains unverified.',
       resources: { nodeHeapMiB: 512, reason: 'Pinned 73 MiB operation inventory exceeds the default 128 MiB heap; fake read/write probes measure the bounded adapter allowance.' },
       nativeGates: ['configured writes.allowWrites', 'configured writes.operations', 'v1.0 operation scope',

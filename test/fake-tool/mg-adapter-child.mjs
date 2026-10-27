@@ -15,10 +15,20 @@ const application = { async credential(profile) {
     mode: 'application', cloud: 'commercial' }
 } }
 const transport = async request => {
-  assert.equal(request.method, 'GET')
   const url = new URL(request.url)
   assert.equal(url.origin, 'https://graph.microsoft.com')
   assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')
+  if (url.pathname === '/v1.0/security/runHuntingQuery') {
+    assert.equal(request.method, 'POST')
+    const body = JSON.parse(request.body)
+    assert.equal(body.Timespan, 'P1D')
+    assert.ok(body.Query.endsWith('\n| take 101'))
+    const value = body.Query.includes('CANARY-query-leak') ? body.Query.replace(/\n\| take 101$/, '')
+      : body.Query.includes('CANARY-secret-leak') ? Buffer.from(process.env.ARTIUM_SECRET_0).toString('base64') : 'Synthetic Device'
+    return { status: 200, headers: {}, body: JSON.stringify({ schema: [{ name: 'DeviceName', type: 'String' }],
+      results: [{ DeviceName: value }] }) }
+  }
+  assert.equal(request.method, 'GET')
   let body
   if (url.pathname === '/v1.0/users') body = { value: [{ id: userId,
     displayName: url.searchParams.get('$filter') === 'encoded-canary'

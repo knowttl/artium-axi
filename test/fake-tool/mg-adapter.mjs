@@ -28,6 +28,7 @@ const prepare = adapter.prepare.bind(adapter)
 adapter.prepare = async (...args) => {
   const call = await prepare(...args)
   return { ...call, executable: process.execPath,
+    fileArguments: call.fileArguments?.map(index => index + 1),
     args: [fileURLToPath(new URL('mg-adapter-child.mjs', import.meta.url)), ...call.args] }
 }
 const runner = await Runner.create(join(directory, 'calls'))
@@ -41,7 +42,7 @@ db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('
 const token = issueTestAccessToken(db, 'synthetic-user')
 const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]))
 let request = 0
-const run = args => runTool(db, audit, runner, token, { args }, adapter, resolver,
+const run = (args, input = {}) => runTool(db, audit, runner, token, { args, ...input }, adapter, resolver,
   { requestId: `synthetic-graph-run-${++request}`, clientAddress: '192.0.2.1' })
 const group = '00000000-0000-0000-0000-000000000003'
 const user = '00000000-0000-0000-0000-000000000004'
@@ -50,10 +51,29 @@ try {
   const read = await run(['entra', 'user', 'list'])
   assert.equal(read.exitCode, 0, read.stdout + read.stderr)
   assert.match(read.stdout, /Synthetic User/)
+  const hunting = ['security', 'hunting', 'query', '--file', 'query.kql']
+  const query = 'DeviceEvents | where ActionType == "CANARY-hunt" | take 1'
+  const input = { files: [{ name: 'query.kql', contentBase64: Buffer.from(query).toString('base64') }] }
+  await assert.rejects(run(hunting, input), error => error.code === 'FLAG_BLOCKED' && error.message.includes('enabledPacks'))
+  credential.enabledPacks = ['entra', 'security']
+  const hunted = await run(hunting, input)
+  assert.equal(hunted.exitCode, 0, hunted.stdout + hunted.stderr)
+  assert.match(hunted.stdout, /Synthetic Device/)
+  assert.ok(!JSON.stringify(hunted).includes(query))
+  await assert.rejects(run(hunting, { files: [{ ...input.files[0], name: '../query.kql' }] }), error => error.code === 'INVALID_INPUT')
+  await assert.rejects(run(hunting, { files: [...input.files, { ...input.files[0], name: 'extra.kql' }] }), error => error.code === 'UNSUPPORTED_INPUT')
+  await assert.rejects(run(hunting, { files: [{ ...input.files[0], contentBase64: Buffer.alloc(65537, 65).toString('base64') }] }), error => error.code === 'UNSUPPORTED_INPUT')
+  const leak = 'DeviceEvents | where ActionType == "CANARY-query-leak"'
+  await assert.rejects(run(hunting, { files: [{ ...input.files[0], contentBase64: Buffer.from(leak).toString('base64') }] }), error => error.code === 'SECRET_IN_OUTPUT')
+  const secretLeak = 'DeviceEvents | where ActionType == "CANARY-secret-leak"'
+  await assert.rejects(run(hunting, { files: [{ ...input.files[0], contentBase64: Buffer.from(secretLeak).toString('base64') }] }), error => error.code === 'SECRET_IN_OUTPUT')
+  const huntingAudit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+  for (const sensitive of [query, leak, secretLeak, credential.clientSecret, input.files[0].contentBase64]) assert.ok(!huntingAudit.includes(sensitive))
   const before = credentialReads
   await assert.rejects(run(['entra', 'user', 'list', '--profile=other']), error => error.code === 'FLAG_BLOCKED')
   assert.equal(credentialReads, before)
   db.exec('DELETE FROM role_tools')
+  await assert.rejects(run(hunting, input), error => error.code === 'TOOL_NOT_GRANTED')
   await assert.rejects(run(['entra', 'user', 'list']), error => error.code === 'TOOL_NOT_GRANTED')
   assert.equal(credentialReads, before)
   db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'mg-axi')")
@@ -87,7 +107,7 @@ try {
   assert.equal(records.filter(row => row.event === 'run-start').length, records.filter(row => row.event === 'run-terminal').length)
   assert.ok(!JSON.stringify(journal).includes('CANARY-'))
   assert.deepEqual(readdirSync(join(directory, 'calls')), [])
-  console.log('mg-adapter: fake Graph read, permission/override refusal, native preview/write/gates/audit and encoded canary scan passed; live consent unverified')
+  console.log('mg-adapter: fake Graph and hunting reads, opt-in/upload/role refusals, query/secret scanning, native preview/write/gates and audit passed; live consent unverified')
 } finally {
   await runner.shutdown()
   db.close()

@@ -99,7 +99,8 @@
       "home",
       "doctor",
       "entra",
-      "api get"
+      "api get",
+      "security hunting query"
     ],
     "example": [
       "entra",
@@ -199,11 +200,12 @@
       "home",
       "doctor",
       "entra",
-      "api get"
+      "api get",
+      "security hunting query"
     ],
     "inputs": {
       "stdin": "cursor - only",
-      "files": "unsupported",
+      "files": "security hunting query only: one UTF-8 query.kql upload, at most 64 KiB; fixed runner leaf name",
       "cursor": "opaque token or stdin; never a path",
       "api": "reviewed GET routes only; pinned Graph destination and operation gates retained"
     },
@@ -218,7 +220,8 @@
     ],
     "knownOutputScanValues": [
       "clientSecret and trimmed clientSecret",
-      "privateKey and normalized PEM"
+      "privateKey and normalized PEM",
+      "hunting query text"
     ],
     "outputScanLimit": "Upstream-minted Graph tokens and assertions are not available during prepare; live redaction remains unverified.",
     "resources": {

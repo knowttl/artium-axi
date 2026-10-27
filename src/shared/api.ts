@@ -268,7 +268,9 @@ export const nativeSettingsSchemas = {
   'awx-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'ldap-axi': z.strictObject({}),
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
-  'mg-axi': z.strictObject({ preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
+  'mg-axi': z.strictObject({ enabledPacks: z.array(z.enum(['entra', 'security'])).min(1).max(2)
+    .refine(packs => packs.includes('entra') && new Set(packs).size === packs.length).optional(),
+    preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
   'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional(), rtr: falconRtrSettingsSchema.optional(),
     writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(['rtr run', 'malquery search'])).min(1).max(2) }).optional() }),

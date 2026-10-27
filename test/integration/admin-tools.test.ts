@@ -368,8 +368,8 @@ test('schema-driven replacement reaches the isolated runner and keeps secrets ou
 })
 
 test.each([
-  { enabledPacks: ['security'] }, { enabledPacks: ['entra', 'security'] },
-])('mg-axi rejects security packs without saving a credential: $enabledPacks', async ({ enabledPacks }) => {
+  { enabledPacks: ['security'] }, { enabledPacks: ['entra', 'unknown'] },
+])('mg-axi rejects invalid pack selections without saving a credential: $enabledPacks', async ({ enabledPacks }) => {
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
   const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
@@ -381,6 +381,19 @@ test.each([
     auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks }
   await failure(await request('PUT', '/mg-axi/credential', { value, expectedRevision: 0, expectedToolRevision: 1 }), 'INVALID_INPUT')
   expect(store.findCredential('mg-axi')).toBeUndefined()
+})
+
+test('mg-axi administrator can opt into hunting and clear the opt-in', async () => {
+  const enabledPacks = ['entra', 'security']
+  const enabled = await request('PATCH', '/mg-axi', { nativeSettings: { enabledPacks }, expectedRevision: 1 })
+  expect(enabled.status).toBe(200)
+  expect(await enabled.json()).toMatchObject({ nativeSettings: { enabledPacks }, readOnly: true })
+  expect(store.readToolSettings!('mg-axi')).toEqual({ enabledPacks })
+  const cleared = await request('PATCH', '/mg-axi', { nativeSettings: {}, expectedRevision: 2 })
+  expect(cleared.status).toBe(200)
+  expect(store.readToolSettings!('mg-axi')).toEqual({})
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'admin-change'").all())
+    .toEqual([{ action: 'update-tool' }, { action: 'update-tool' }])
 })
 
 test.each([
@@ -395,7 +408,7 @@ test.each([
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'federated' } },
   { tool: 'mg-axi', value: { mode: 'delegated', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId } },
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
-    auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks: ['entra', 'security'] } },
+    auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks: ['security'] } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY interior token\n' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test/path', token: 'CANARY-token' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'http://appliance.test', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
