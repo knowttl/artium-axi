@@ -5,12 +5,15 @@ import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json'
 import mg from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
+import gh from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
+import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'gh-axi': gh.adapterBoundary.unsafeOverrides,
   'checkpoint-axi': checkpoint.adapterBoundary.unsafeOverrides,
   'hybrid-axi': hybrid.adapterBoundary.unsafeOverrides,
   'tenable-axi': tenable.adapterBoundary.unsafeOverrides,
@@ -41,8 +44,9 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 }
 
 // The pinned inventories record only the root help field as suggestions.
-export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
+export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
+  if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
   if (tool === 'checkpoint-axi') {
     try {
       const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], bin?: string, commands?: unknown }
@@ -133,7 +137,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   for (const span of [...spans].reverse()) {
     const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value))
     if (value === span.value) continue
-    output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi', 'awx-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi', 'awx-axi', 'gh-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
   }
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
@@ -239,6 +243,12 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
   }
   if (tool === 'falcon-axi') {
     help = help.replace(new RegExp(`^  (?:${falcon.blockedCommands.join('|')})(?=\\s|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
+  }
+  if (tool === 'gh-axi') {
+    const guidance = 'Artium manages the GitHub host and credential. Ask an Artium administrator to reconnect the GitHub credential. Only reviewed reads are available; use -R OWNER/NAME for repository reads. api accepts GET and relative paths only.'
+    help = help.split('\n').filter(line => !/\bgh auth\b|\bGH_[A-Z_]+\b|gh-axi (?:update|setup|stack)|--(?:hostname|watch|attach|input|field|raw-field|header|body-file|notes-file)\b/.test(line)).join('\n')
+    if (!help.trim()) help = guidance
+    else if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'ado-axi') {
     const guidance = 'Artium manages the organization, profile, config and PAT. api accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. Use pipeline watch --timeout 50 or less.'

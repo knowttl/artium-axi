@@ -4,6 +4,11 @@ import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type
 import { diagnosticError } from './health/diagnostic.js'
 
 export function toolEndpoints(tool: ToolName, credential: Record<string, unknown>): URL[] {
+  if (tool === 'gh-axi') {
+    const origin = new URL(String(credential.origin))
+    return [origin, origin.hostname === 'github.com' ? new URL('https://api.github.com')
+      : origin.hostname.endsWith('.ghe.com') ? new URL(`https://api.${origin.hostname}`) : new URL('/api/v3', origin)]
+  }
   if (tool === 'checkpoint-axi') {
     const origin = checkpoint.regions[credential.region as keyof typeof checkpoint.regions]
     if (!origin) throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: 'Invalid credential field: region.' })

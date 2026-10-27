@@ -3,12 +3,14 @@ import { readFileSync } from 'node:fs'
 import { ArtiumError } from '../shared/errors.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
+import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import { toolSkillPaths } from './config.js'
 import type { ToolName } from './store/credential-store.js'
 
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
+  'gh-axi': { sha256: ghInventory.skillSha256, sections: [] },
   'checkpoint-axi': { sha256: '69f0754d565fc1e65163435ef698ea6dca6009470f158171cb3b4258d27c647b', sections: [] },
   'hybrid-axi': { sha256: '0dc43810bcc0774457a33dba2454849e2c8588f0607bd770b30fefe09cd0d26c', sections: [] },
   'tenable-axi': { sha256: '788b612b4b89f6e390e42ca1619da3a7c146599284ff8ebd69c9e5e42aae5ae0', sections: [] },
@@ -33,7 +35,10 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       return source.slice(start, end === -1 ? undefined : end).trim()
     })
     let body = sections.join('\n\n')
-    if (tool === 'checkpoint-axi') {
+    if (tool === 'gh-axi') {
+      frontmatter = frontmatter.replace(/^description:.*$/m, 'description: Read GitHub repositories, issues, pull requests and automation through Artium with managed authentication.')
+      body = '## Managed GitHub reads\n\nUse `artium-axi gh-axi issue list -R OWNER/NAME --limit 10` and `artium-axi gh-axi pr view 42 -R OWNER/NAME`.\nEvery repository-scoped command requires -R OWNER/NAME; the administrator selects the GitHub host.\nThe dashboard and home are unsupported because pinned gh-axi swallows dashboard read errors; use issue list or pr list with -R OWNER/NAME.\nOnly reviewed reads are available. Writes, clone, checkout, stack, watch, download and local files are unavailable.\nThe api command accepts [GET] <relative-path>; GraphQL and other methods are refused.\nAsk an Artium administrator to reconnect the GitHub credential when authentication or permission checks fail.\n'
+    } else if (tool === 'checkpoint-axi') {
       frontmatter = frontmatter.replace(/^description:.*$/m, 'description: Investigate Check Point Email Security through Artium with administrator-selected writes and authenticated email and attachment saving.')
       body = '## Managed investigation and writes\n\nUse `artium-axi checkpoint-axi email search --limit 1`, email show, event list/show, task show and exception list/show to investigate.\nArtium manages the region, client ID, secret, SaaS and optional scope.\nWrites are off by default and require administrator-selected exact operations plus native preview, --execute, exact --confirm and durable journal.\nFor name-only event actions administrators select event.action.<exact-name> from the available event actions; parameterized actions remain unverified.\nException create/update accepts a private JSON upload through --input; stdin and server paths are unavailable. Updates replace the documented rule fields.\nThe six malware/URL/DLP remove/clear operations and click-time clear remain refused pending endpoint commissioning.\nUse `artium-axi download --help` for email.download, attachment.download and attachment.download-all, each separately administrator-enabled. Host-owned confirmation binds the transfer, destination, credential revision and exact selection; native output and SHA-256 are independently verified. There is no native download journal.\nEmail downloads use the managed profile scope; attachment downloads also use the managed scope. ZIP responses may contain only some attachments. Save only, never extract or execute.\nNever replay an ambiguous write or transfer; reconcile audit evidence and task IDs with reads.\nTokens are exchanged for each isolated hosted call. Live authentication shape, scopes, delete contracts and email/ZIP hash availability remain uncommissioned; missing hash headers fail closed.\nRun each command with --help for selectors, limits and examples.\n'
       body += '\nManaged commands: ' + toolManifests['checkpoint-axi'].commands.filter(route => route.effect !== 'blocked').map(route => '`artium-axi checkpoint-axi ' + route.command + '`').join(', ') + '.\n'

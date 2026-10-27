@@ -35,6 +35,12 @@ importers:
       awx-axi:
         specifier: 0.1.8
         version: 0.1.8
+      axi-sdk-js:
+        specifier: 0.1.13
+        version: 0.1.13
+      gh-axi:
+        specifier: 0.1.44
+        version: 0.1.44
 
 packages:
 
@@ -165,6 +171,11 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  gh-axi@0.1.44:
+    resolution: {integrity: sha512-iBH2a59aR/zQHWwMz/7ft6P6ldOBodfolFCgwoKviX8/hMkyAJ8R9hIf3BjRCWz7v11hXvuQXte7P1GQUci9tg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
@@ -476,6 +487,11 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.7
     optional: true
+
+  gh-axi@0.1.44:
+    dependencies:
+      '@toon-format/toon': 2.3.1
+      axi-sdk-js: 0.1.13
 
   graceful-fs@4.2.11:
     optional: true

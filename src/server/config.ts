@@ -1,4 +1,5 @@
 export const toolPaths = {
+  'gh-axi': '/opt/tools/node_modules/.bin/gh-axi',
   'checkpoint-axi': '/opt/tools/node_modules/.bin/checkpoint-axi',
   'hybrid-axi': '/opt/tools/node_modules/.bin/hybrid-axi',
   'tenable-axi': '/opt/tools/node_modules/.bin/tenable-axi',
@@ -11,6 +12,7 @@ export const toolPaths = {
   'ado-axi': '/opt/tools/node_modules/.bin/ado-axi',
 } as const
 export const toolSkillPaths = {
+  'gh-axi': '/opt/tools/node_modules/gh-axi/skills/gh-axi/SKILL.md',
   'checkpoint-axi': '/opt/tools/skills/checkpoint-axi/SKILL.md',
   'hybrid-axi': '/opt/tools/skills/hybrid-axi/SKILL.md',
   'tenable-axi': '/opt/tools/skills/tenable-axi/SKILL.md',
@@ -23,6 +25,7 @@ export const toolSkillPaths = {
   'ado-axi': '/opt/tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
+  'gh-axi': undefined,
   'checkpoint-axi': '/opt/tools/node_modules/@knowttl/checkpoint-axi/axi-credential.schema.json',
   'hybrid-axi': '/opt/tools/node_modules/@knowttl/hybrid-axi/axi-credential.schema.json',
   'tenable-axi': '/opt/tools/node_modules/@knowttl/tenable-axi/axi-credential.schema.json',

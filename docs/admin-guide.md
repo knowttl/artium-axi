@@ -294,6 +294,8 @@ Falcon calls report `read` unless they contain `--execute` or submit `malquery s
 Those calls report `write` only with valid native journal records; absent or empty evidence reports `unknown`, even after success.
 MalQuery submissions do not emit the native RTR journal.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+GitHub slice 1 also uses host classification, with reviewed reads only and no write switch.
+See [GitHub setup](tool-credentials.md#github) and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 Tenable, Hybrid Analysis and Check Point writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
 Check Point download evidence is host-owned and leaves native journal fields empty.
 For Azure, Graph, Vectra and Falcon calls requiring journal evidence, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.

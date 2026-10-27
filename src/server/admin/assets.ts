@@ -336,10 +336,15 @@ function showCertificateInspection(result) {
   form.hidden = !result.verificationError;
   form.elements.inspectionId.value = result.inspectionId;
   const hasCA = result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
+  const supportsPin = Boolean(form.elements.mode.querySelector('option[value="pin"]'));
+  if (!supportsPin && !hasCA) {
+    form.hidden = true;
+    line(details, 'This tool requires an issuing CA. Configure the server trusted CA bundle for a self-signed endpoint.', true);
+  }
   form.elements.mode.required = true;
   form.elements.mode.value = hasCA ? 'ca' : result.chain[0].selfSigned ? 'pin' : '';
   form.elements.mode.querySelector('option[value="ca"]').disabled = !hasCA;
-  if (result.verificationError && !hasCA && !result.chain[0].selfSigned) {
+  if (supportsPin && result.verificationError && !hasCA && !result.chain[0].selfSigned) {
     line(details, 'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.', true);
   }
   dialog.querySelector('[data-close-certificate]').onclick = () => dialog.close();

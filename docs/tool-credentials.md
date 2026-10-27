@@ -12,6 +12,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
+| GitHub (`gh-axi`) | GitHub HTTPS origin and one shared classic or fine-grained personal access token. | `api /rate_limit`. |
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
 | Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `card list --limit 1`; exposure-view read access is required. |
 | Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
@@ -238,6 +239,38 @@ Use `pipeline watch --timeout 50` or less to stay within the runner's call timeo
 Writes are journaled by Artium only; see [audit action classification](admin-guide.md#audit-screen-and-api).
 For an interrupted write, run the returned read-back command and follow its inspection guidance before retrying.
 Local fake-service checks do not establish live organization acceptance.
+
+#### GitHub
+
+Slice 1 bundles unmodified published gh-axi and GitHub CLI releases, pinned in [tools/package.json](../tools/package.json) and [gh-source.json](../tools/gh-source.json).
+At `/admin/tools/gh-axi`, set `origin` to `https://github.com`, your `https://SUBDOMAIN.ghe.com` origin or your GHES HTTPS origin, choose `auth=token`, and paste the PAT into `token`.
+One encrypted, admin-set credential is shared by every user granted this tool; upstream attribution and rate limits belong to that identity.
+Use a dedicated machine account and follow the [credential rotation procedure](runbook.md#roles-credentials-and-health) when replacing its PAT.
+Tokens only reach children through private environment injection and are scanned for output disclosure.
+The admin API never returns the token.
+
+Classic PAT setup uses `repo`, `read:org`, `gist`, `workflow` and `project` scopes so the planned operation set can work when enabled in later slices.
+Classic `repo` scope grants upstream write access even though Artium currently blocks all writes.
+Prefer a fine-grained PAT restricted to selected repositories and the corresponding contents, issues, pull requests, actions, discussions and projects permissions.
+Fine-grained tokens cannot access every classic-token feature; permission failures are errors, never empty results.
+Organization approval, SSO authorization and GHES token support depend on upstream policy and version.
+See GitHub's [PAT guidance](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
+
+Save, run **Test credential**, enable the tool and grant it to a role.
+Try `artium-axi gh-axi repo list --limit 1`, then `artium-axi gh-axi issue list -R OWNER/NAME --limit 10`.
+See the [supported GitHub boundary](../README.md#safety) for repository selection, dashboard limitations and blocked operations.
+The [reviewed inventory](../tools/inventories/gh-axi.json) owns the read allow-list and upstream source digests.
+`api` accepts `[GET] <relative-path>` with optional output shaping; GraphQL, other methods, request fields, headers and input bodies are refused.
+
+GitHub.com and `*.ghe.com` use `GH_TOKEN`; GHES uses `GH_ENTERPRISE_TOKEN`, always with the managed host.
+Callers cannot override the host or credential.
+GitHub CLI telemetry, prompts and update notifications are disabled.
+For private CAs, follow the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
+
+See the [supported GitHub boundary](../README.md#safety) for why SSH keys are out of scope.
+Device code flow and GitHub App installation authentication are planned separate slices and cannot be selected here.
+The planned device flow uses the GitHub CLI OAuth client ID: its tokens appear as **GitHub CLI**, carry `repo read:org gist workflow project`, and are non-expiring OAuth secrets without refresh handling.
+They must be stored, rotated and revoked like other secrets, through the account's GitHub authorized-application settings.
 
 #### AWX
 

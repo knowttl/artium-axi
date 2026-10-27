@@ -6,6 +6,9 @@ COPY package.json pnpm-lock.yaml ./
 COPY tools /opt/tools
 RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild argon2 better-sqlite3 esbuild && pnpm --dir /opt/tools install --frozen-lockfile
 RUN --network=none /opt/tools/node_modules/.bin/ado-axi --version
+COPY scripts/install-gh.mjs ./scripts/install-gh.mjs
+RUN node scripts/install-gh.mjs
+RUN --network=none /usr/local/bin/gh --version && /opt/tools/node_modules/.bin/gh-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/awx-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/tenable-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/checkpoint-axi --version
@@ -35,6 +38,7 @@ RUN pnpm exec tsc src/server/main.ts src/server/maintenance.ts src/server/artifa
 FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data
 COPY --from=builder /opt/falcon-axi /opt/falcon-axi
+COPY --from=builder /usr/local/bin/gh /usr/local/bin/gh
 COPY --from=builder /opt/tools /opt/tools
 COPY --from=builder /opt/artium /opt/artium
 ENV PATH="/opt/artium/bin:/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:$PATH"

@@ -1,0 +1,689 @@
+{
+  "generatedBy": "scripts/gh-inventory.mjs",
+  "tool": "gh-axi",
+  "version": "0.1.44",
+  "integrity": "sha512-iBH2a59aR/zQHWwMz/7ft6P6ldOBodfolFCgwoKviX8/hMkyAJ8R9hIf3BjRCWz7v11hXvuQXte7P1GQUci9tg==",
+  "parserEvidence": "Hand-reviewed published dispatch switches and per-command parsers; writes excluded",
+  "skillSha256": "3d01b3112442275d52cc5847cb17543c710128f4591346e77eeecc30c45e76f3",
+  "sdk": {
+    "version": "0.1.13",
+    "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA==",
+    "manifestSha256": "dbe3acffeb40dfcca73ce33f60f807bbba8cd5cec6a470b2c7f255b50e02e184"
+  },
+  "gh": {
+    "version": "2.101.0",
+    "url": "https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_linux_amd64.tar.gz",
+    "sha256": "9bca2d1c16825f109907a23307628a2f0698fbf99662b73a5cf0b020293072b8",
+    "checksums": "https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_checksums.txt"
+  },
+  "sources": [
+    {
+      "path": "dist/bin/gh-axi.js",
+      "sha256": "85bde76c2b7dd0c72bfb4c52a45c55177c907fa3ac08b68d83bcbc6e2343a4a8"
+    },
+    {
+      "path": "dist/src/args.js",
+      "sha256": "3a68da77f834d27668d0bb6645defa3884fe04edab1e6f255b7f88e9b590d6fd"
+    },
+    {
+      "path": "dist/src/attach.js",
+      "sha256": "37cc676365545ddc6eeddb0eb00e143c54f75e9d75e83f17108dafd17065d8eb"
+    },
+    {
+      "path": "dist/src/body.js",
+      "sha256": "460030cb2561e7188ca6b7aa0d441de64238d4ccc6df189ece5249b8bd4b56a6"
+    },
+    {
+      "path": "dist/src/cli.js",
+      "sha256": "546fa90992dcaad03178f9d869e5a74f2fc2859bc84443a795518e9b3c96f0e5"
+    },
+    {
+      "path": "dist/src/commands/api.js",
+      "sha256": "f40412051bea3b5c49c68224a5accd54b18fadada6cefab10280069506f311a1"
+    },
+    {
+      "path": "dist/src/commands/discussion.js",
+      "sha256": "3e806177d3bebbf2da08fafc07bccc8ca3e0dced78296dfe2d41d9d2baa50904"
+    },
+    {
+      "path": "dist/src/commands/gist.js",
+      "sha256": "2b80906f9860c5d6cae358f40e931b618eb9742f27567610201b967620c02683"
+    },
+    {
+      "path": "dist/src/commands/home.js",
+      "sha256": "15ff96c95b737444afb082f538ff55a204062a82a9179f85931015fff211ab16"
+    },
+    {
+      "path": "dist/src/commands/issue.js",
+      "sha256": "74a8d64041300ee24a14fc8488cd9099e919c211f7a4600b8740580115819185"
+    },
+    {
+      "path": "dist/src/commands/label.js",
+      "sha256": "54f6f35b114e9e965dd30602cab6fe16feb1d58b54a4062b1bbfcbea568bf896"
+    },
+    {
+      "path": "dist/src/commands/pr.js",
+      "sha256": "ba7d6333f08e1ebc32484f86e9017b57e37671c6e83cbd5300ee7aab4837a395"
+    },
+    {
+      "path": "dist/src/commands/project.js",
+      "sha256": "eb02ead1ab4828b6a5db7bd0a3f2c829e497e23a4c191ce5bd9f4003184fda9c"
+    },
+    {
+      "path": "dist/src/commands/release.js",
+      "sha256": "5a8bc903d81b94767cece3ab7ecb788e74803251720db79b0d6aadcf728ea738"
+    },
+    {
+      "path": "dist/src/commands/repo.js",
+      "sha256": "8226acc8724144767423474d181fd68edd7460d46e983b8b50c0903d0881f945"
+    },
+    {
+      "path": "dist/src/commands/run.js",
+      "sha256": "3e87712fa0296d561692fa635320948741c4b057f89ad4b5ee9c6ce730a933a4"
+    },
+    {
+      "path": "dist/src/commands/search.js",
+      "sha256": "1bf46a1673b537d9ca948800e9cd494938aa7d3f6dfd88f5b0ac75bf4ac56fbc"
+    },
+    {
+      "path": "dist/src/commands/secret.js",
+      "sha256": "40de397f4e9197230a548c18ede51b52f8351385e95e438f9d81b9c16999acd9"
+    },
+    {
+      "path": "dist/src/commands/setup.js",
+      "sha256": "028f7ef47f329e2873e84c06ced30567c01ddc8eb2e2bc174d7a1f02fa65d942"
+    },
+    {
+      "path": "dist/src/commands/stack.js",
+      "sha256": "ffabb16c0a7633b57e25856601708e7ed8a625d0668b9fc983e8be9840ab9fdb"
+    },
+    {
+      "path": "dist/src/commands/variable.js",
+      "sha256": "86355d036a38264762487647067e08ab8af8511320bb270cc38507603545c872"
+    },
+    {
+      "path": "dist/src/commands/workflow.js",
+      "sha256": "cf15c2416f2687ac236d1f825c1d1fa82c9ca349cd63c036814cb3744fc37962"
+    },
+    {
+      "path": "dist/src/comment.js",
+      "sha256": "bade28c489815a8d14d3478043c85070d915ee995289f8ce83aa0d288c1b4905"
+    },
+    {
+      "path": "dist/src/context.js",
+      "sha256": "4b3e45a3f1fd90e211b72c16c284809f4187d71eaa119385aef20fa7559a5610"
+    },
+    {
+      "path": "dist/src/debug.js",
+      "sha256": "fcf150a8eefe5f6848d7866da8bdf85bef26ffaa5ccdca7a248f05d665113320"
+    },
+    {
+      "path": "dist/src/errors.js",
+      "sha256": "83f11df70874ff3983c4da806f0b2f2c371c093764a81590c75eb08ecd9e6bc4"
+    },
+    {
+      "path": "dist/src/fields.js",
+      "sha256": "4470f2680ad5583f8de182e9db3ea43635982c08da59060fa550bb8fdc9a7fb3"
+    },
+    {
+      "path": "dist/src/format.js",
+      "sha256": "aa3f03c925fe809f0e083938be03668ec79837b1ecf01f7e1a00d314bded89bf"
+    },
+    {
+      "path": "dist/src/gh.js",
+      "sha256": "de6defe48e0258999199efd9075a9aef77056c0e4c45407cd9c1304267f24b7c"
+    },
+    {
+      "path": "dist/src/gistSelector.js",
+      "sha256": "0e42b44f8acb2721c1e41ca16693c089b3861351e3d379f14a9054e0eb2e8441"
+    },
+    {
+      "path": "dist/src/host.js",
+      "sha256": "31b33c1924fc1dfb0dd100d1ee0ab26aadd6b8110dc338bcba731360c05ce6f5"
+    },
+    {
+      "path": "dist/src/secretValue.js",
+      "sha256": "56b3ee3a50923a399e71a966fe6381774712ed7ec478ce0adf211ea66606d63b"
+    },
+    {
+      "path": "dist/src/skill.js",
+      "sha256": "96eb92d2ec2fc58178cf6e45d30f67819feaa0dda5ec72dd80eb3da316413a65"
+    },
+    {
+      "path": "dist/src/stdin.js",
+      "sha256": "fa82d2ff3096c71d9a3e20554c2fd70748ddd113020073fca89258e7e3560d81"
+    },
+    {
+      "path": "dist/src/suggestions.js",
+      "sha256": "411eed328a7edce95bb231cdcd7dda1de3e2293351fe27419a04054541a893f1"
+    },
+    {
+      "path": "dist/src/toon.js",
+      "sha256": "d9f6a6a757cd5166bb0be1120858c4a2c974f92ec5ea0e756135e061795a0355"
+    },
+    {
+      "path": "dist/src/totals.js",
+      "sha256": "a7e21c8a0ccdc70e11c8211d876d31ccc3ebe7cd3726958c5eb9a9c375784342"
+    },
+    {
+      "path": "dist/src/version.js",
+      "sha256": "6d3dc30d3422f2c22bb04cd5d2d29475d3dbcd3beff4fb57e2014a0d6df620c2"
+    },
+    {
+      "path": "axi-sdk-js/dist/cli.js",
+      "sha256": "7bda640cc33a6f5226e60b7df2ef7ea8c765431c0e89a267273993370bdd8121"
+    },
+    {
+      "path": "axi-sdk-js/dist/errors.js",
+      "sha256": "ae30f95f0a82cfbdb51051575ce713ad90acd8b89138c64fa26e76a8716fda4f"
+    },
+    {
+      "path": "axi-sdk-js/dist/fast-path.js",
+      "sha256": "a3733ac9e099d3d2f09183f1ad2977a7e9613fa3dd5a207ee5f5f838efbfa840"
+    },
+    {
+      "path": "axi-sdk-js/dist/hooks.js",
+      "sha256": "3bfe0ce4ec57b475cd69f63a1c9c6487317219540619534dbd583f1042fbb777"
+    },
+    {
+      "path": "axi-sdk-js/dist/index.js",
+      "sha256": "265f9730c582cb1e8e19dc832f3603006e52d73f22e79b62a995cec400a84b2e"
+    },
+    {
+      "path": "axi-sdk-js/dist/output.js",
+      "sha256": "87aea7c181989b802af98cbe895f9aae1e72d4bca039dafca6f975ff15fc482c"
+    },
+    {
+      "path": "axi-sdk-js/dist/update.js",
+      "sha256": "337c6ac93156d50e6ac2375ac436a7a94e87d9bd15d15d030dc060f65b6c88e4"
+    }
+  ],
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "hostname",
+      "watch",
+      "attach",
+      "body-file",
+      "notes-file",
+      "input",
+      "file",
+      "add",
+      "field",
+      "raw-field",
+      "header"
+    ],
+    "blockedCommands": [
+      "home",
+      "update",
+      "setup",
+      "stack",
+      "pr checkout",
+      "repo clone",
+      "gist clone",
+      "run watch",
+      "run download",
+      "release download"
+    ],
+    "nativeWrites": "blocked",
+    "inputs": {
+      "stdin": "unsupported",
+      "files": "unsupported"
+    }
+  },
+  "discovery": {
+    "commands": [
+      "issue",
+      "pr",
+      "discussion",
+      "run",
+      "workflow",
+      "release",
+      "repo",
+      "label",
+      "gist",
+      "project",
+      "secret",
+      "variable",
+      "search",
+      "api"
+    ],
+    "example": [
+      "repo",
+      "list",
+      "--limit",
+      "1"
+    ],
+    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged read-only GitHub API access. Use -R OWNER/NAME for repository reads. api accepts [GET] <relative-path>; GraphQL and all writes are refused. No stdin or files.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "issue list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "fields": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "milestone": "value",
+        "sort": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "issue view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "comments": "boolean",
+        "full": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "issue subissue list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "pr list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "fields": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "base": "value",
+        "head": "value",
+        "limit": "value",
+        "draft": "boolean"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "pr view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "comments": "boolean",
+        "reviews": "boolean",
+        "checks": "boolean",
+        "full": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "pr diff",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "full": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "pr checks",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "failed": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "discussion list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "state": "value",
+        "category": "value",
+        "author": "value",
+        "label": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "discussion view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value",
+        "order": "value",
+        "comments": "boolean",
+        "full": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "run list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "fields": "value",
+        "limit": "value",
+        "workflow": "value",
+        "branch": "value",
+        "status": "value",
+        "event": "value",
+        "user": "value",
+        "commit": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "run view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "job": "value",
+        "conclusion": "value",
+        "log": "boolean",
+        "verbose": "boolean",
+        "log-failed": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "workflow list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value",
+        "all": "boolean"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "workflow view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "yaml": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "release list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value",
+        "exclude-drafts": "boolean",
+        "exclude-pre-releases": "boolean"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "release view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "full": "boolean"
+      },
+      "positionals": 1,
+      "repository": true
+    },
+    {
+      "command": "repo view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "repo list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value",
+        "visibility": "value",
+        "language": "value",
+        "archived": "boolean"
+      },
+      "positionals": 1,
+      "repository": false
+    },
+    {
+      "command": "label list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "gist list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value",
+        "fields": "value",
+        "public": "boolean",
+        "secret": "boolean"
+      },
+      "positionals": 0,
+      "repository": false
+    },
+    {
+      "command": "gist view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "filename": "value",
+        "full": "boolean",
+        "files": "boolean"
+      },
+      "positionals": 1,
+      "repository": false
+    },
+    {
+      "command": "project list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "limit": "value",
+        "closed": "boolean"
+      },
+      "positionals": 0,
+      "repository": false
+    },
+    {
+      "command": "project view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value"
+      },
+      "positionals": 1,
+      "repository": false
+    },
+    {
+      "command": "project item-list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "query": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "repository": false
+    },
+    {
+      "command": "project field-list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "repository": false
+    },
+    {
+      "command": "secret list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "env": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "variable list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value"
+      },
+      "positionals": 0,
+      "repository": true
+    },
+    {
+      "command": "search issues",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "sort": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "positionals": "variadic",
+      "repository": false
+    },
+    {
+      "command": "search prs",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "sort": "value",
+        "limit": "value",
+        "review": "value",
+        "fields": "value",
+        "draft": "boolean"
+      },
+      "positionals": "variadic",
+      "repository": false
+    },
+    {
+      "command": "search repos",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "language": "value",
+        "stars": "value",
+        "sort": "value",
+        "limit": "value"
+      },
+      "positionals": "variadic",
+      "repository": false
+    },
+    {
+      "command": "search commits",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "author": "value",
+        "sort": "value",
+        "limit": "value"
+      },
+      "positionals": "variadic",
+      "repository": false
+    },
+    {
+      "command": "search code",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "language": "value",
+        "limit": "value"
+      },
+      "positionals": "variadic",
+      "repository": false
+    },
+    {
+      "command": "api",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "jq": "value",
+        "template": "value",
+        "paginate": "boolean",
+        "full": "boolean"
+      },
+      "positionals": 2,
+      "repository": false
+    }
+  ]
+}

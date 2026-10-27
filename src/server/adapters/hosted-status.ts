@@ -2,9 +2,16 @@ import { decode, encode } from '@toon-format/toon'
 import { ArtiumError } from '../../shared/errors.js'
 import type { RunnerResult } from '../runner/runner.js'
 import type { PreparedCall } from './types.js'
+import { hostedGhOutput } from './gh-output.js'
+import { rewriteGhSuggestions } from '../../shared/gh-suggestions.js'
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
+  if (tool === 'gh-axi') {
+    const output = hostedGhOutput(invocation, result)
+    return { ...output, stdout: rewriteGhSuggestions(output.stdout, invocation, output.truncated.stdout),
+      stderr: rewriteGhSuggestions(output.stderr, invocation, output.truncated.stderr) }
+  }
   if (!invocation || invocation.help || !['home', 'auth status'].includes(invocation.command)) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   if (result.stdout === '') return result

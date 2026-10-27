@@ -26,7 +26,7 @@ export async function prepareRunJournal(environment: Record<string, string>, too
       } catch { return 'unknown' }
     } }
   }
-  if (tool === 'ado-axi' || tool === 'awx-axi') {
+  if (tool === 'ado-axi' || tool === 'awx-axi' || tool === 'gh-axi') {
     if (!effect) throw new TypeError('Missing host-classified effect')
     return { environment, action: async (succeeded: boolean): Promise<RunAction> => effect === 'read' ? 'read' : succeeded ? 'write' : 'unknown' }
   }

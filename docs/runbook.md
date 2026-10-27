@@ -238,17 +238,20 @@ The confirmation window and inspection API report the leaf and trust anchor expi
 For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
 Expiry warnings do not block confirmation or change hostname and date verification.
 **Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
+GitHub is an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused because GitHub CLI cannot enforce it.
+For self-signed GitHub endpoints or a missing issuing CA, configure the server-wide bundle above.
+The GitHub CLI child receives system roots, the server bundle and credential CAs together through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections rather than restricted to the inspected endpoint.
 No certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
-Each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
+Except for the GitHub CLI child described above, each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
 Azure inspection includes login, ARM, Graph and Log Analytics.
 For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
-A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate.
+A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate for tools supporting leaf pins.
 CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
 The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
-For an endpoint with confirmed CA trust or strict pins, connections must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
+Except for the GitHub CLI child, connections to an endpoint with confirmed CA trust or strict pins must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On a pin mismatch, the error explains that the stored fingerprint differs from the presented one and directs the administrator to re-inspect the certificate on the tool page.
 For failed tool runs, including background health checks, the shared runner checks endpoints with strict pins and replaces the CLI error with this message if it observes a different leaf fingerprint.
@@ -369,6 +372,7 @@ Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
+See [GitHub setup and limitations](tool-credentials.md#github) before activation.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
 See the [Hybrid Analysis supported boundary](../README.md#safety) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.
 See [Check Point setup and commissioning](tool-credentials.md#check-point-email-security) before activation; enable only exact intended writes and independently selected downloads.
@@ -384,9 +388,9 @@ See the [hosted credential contract](credential-standard.md#per-tool-host-facing
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Write-policy changes, including changes through Native settings or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
 Stale revisions never mutate settings, and an audit failure rolls back the change.
-Tool lists and health responses report `readOnly`; LDAP always remains read-only.
+Tool lists and health responses report `readOnly`; LDAP and GitHub remain fixed read-only.
 Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
-The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
+The write-access endpoint rejects changes for LDAP and GitHub with the fixed read-only reason.
 See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and confirmation gates.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.

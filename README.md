@@ -43,12 +43,13 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 | Microsoft Graph | Application identity; optional allow-listed writes |
 | LDAP | Verified TLS simple bind; read-only |
 | Azure DevOps | PAT or application identity |
+| GitHub | Shared classic or fine-grained PAT; read-only (slice 1) |
 | AWX | Pasted token or one-time password sign-in; optional operational writes |
 | Tenable One | Access and secret API keys; optional allow-listed business writes and export jobs |
 | Hybrid Analysis | Managed API key; investigation reads and optional allow-listed submissions, YARA mutations and consuming matches |
 | Check Point Email Security | Regional client credentials; email, event, task and exception reads, guarded writes and authenticated email/attachment saving |
 
-[Package pins](tools/package.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
+[Package pins](tools/package.json), the [GitHub CLI release pin](tools/gh-source.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
 
 ## Quickstart
 
@@ -194,6 +195,7 @@ See [client input handling](docs/client-reference.md#command-surface-and-subcomm
 | --- | --- |
 | Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy literal search. RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
 | LDAP | Fixed read-only. |
+| GitHub | Reviewed reads only in slice 1, using classic or fine-grained PATs on GitHub.com, `*.ghe.com` or GHES. All writes and API non-GET methods, GraphQL escape paths, local git, setup/update, watch, downloads, stdin and file inputs stay blocked. Repository-scoped reads require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo list, gist list/view, search repos and api reject that selector. The bare dashboard and `home` are refused because pinned gh-axi swallows dashboard read errors; use issue list or pr list with `-R OWNER/NAME` until a published upstream release reports those failures. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](docs/tool-credentials.md#github). |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
 | Vectra | Administrator `writes.allowWrites: true` and an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and redacted journaling. Artium enforces the native read-only override while write access is off. |
