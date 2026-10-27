@@ -192,7 +192,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return readCredential('gh-axi')
     }).value
     invalidate(replacement)
-    try { await health.check('gh-axi', actor, request.id, request.ip, () => { authorize(request) }) }
+    try { await health.checkReplacement('gh-axi', actor, request.id, request.ip, () => { authorize(request) }) }
     catch (error) {
       authorize(request)
       if (!(error instanceof ArtiumError)) throw error

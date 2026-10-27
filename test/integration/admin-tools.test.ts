@@ -784,6 +784,109 @@ test.each([
   expect(network).toHaveBeenCalledTimes(3)
 })
 
+test('disabled GitHub device connection checks its revision once runner capacity returns', async () => {
+  await app.close()
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('gh-axi')
+  fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }))
+  runner = await Runner.create(join(directory, 'calls'))
+  let completed!: () => void
+  const terminal = new Promise<void>(resolve => { completed = resolve })
+  const audit = new Audit(db, Date.now, line => {
+    const record = JSON.parse(line)
+    if (record.event === 'health-check' && record.tool === 'gh-axi' && record.outcome === 'success') completed()
+  })
+  app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const controller = new AbortController()
+  const calls = Array.from({ length: runnerLimits.globalCalls }, (_, index) =>
+    runner.run(`synthetic-ordinary-${index}`, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [],
+      { signal: controller.signal }).catch(error => error))
+  try {
+    const started = await startGithubDevice()
+    vi.setSystemTime(Date.now() + 5000)
+    const response = await request('POST', '/gh-axi/device/poll', started)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 1 } })
+    expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ enabled: false, health: {
+      credentialRevision: 1, errorCode: 'TOO_MANY_CALLS', diagnostic: { message: 'Credential check pending: runner busy.' },
+    } })
+    expect(db.prepare('SELECT credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ credential_revision: 1, error_code: 'TOO_MANY_CALLS' })
+    controller.abort()
+    await Promise.all(calls)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await terminal
+    expect(db.prepare('SELECT status, credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ status: 'ok', credential_revision: 1, error_code: null })
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(db.prepare("SELECT credential_revision FROM audit WHERE event = 'health-check' AND tool = 'gh-axi' AND outcome = 'success'").all())
+      .toEqual([{ credential_revision: 1 }])
+  } finally {
+    controller.abort()
+    await Promise.all(calls)
+  }
+})
+
+test('GitHub reconnect during an in-flight check checks the new revision while disabled', async () => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('gh-axi')
+  store.replaceCredential('gh-axi', values['gh-axi'], 0, actor, Date.now())
+  fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }))
+  runner = await Runner.create(join(directory, 'calls'))
+  let admitted!: () => void
+  let release!: () => void
+  const running = new Promise<void>(resolve => { admitted = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(runner, 'run').mockImplementationOnce(async () => {
+    admitted()
+    await held
+    return { stdout: 'error: Bad credentials (HTTP 401)\ncode: UNKNOWN', stderr: '', exitCode: 1, durationMs: 1,
+      outputBytes: { stdout: 50, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+  })
+  let completed!: () => void
+  const terminal = new Promise<void>(resolve => { completed = resolve })
+  const audit = new Audit(db, Date.now, line => {
+    const record = JSON.parse(line)
+    if (record.event === 'health-check' && record.tool === 'gh-axi' && record.credential_revision === 2
+      && record.outcome === 'success') completed()
+  })
+  app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const oldCheck = request('POST', '/gh-axi/test', {})
+  await running
+  try {
+    const started = await startGithubDevice(1)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 5000)
+    const response = await request('POST', '/gh-axi/device/poll', started)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 2 } })
+    expect(db.prepare('SELECT credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ credential_revision: 2, error_code: 'TOO_MANY_CALLS' })
+    release()
+    expect((await oldCheck).status).toBe(503)
+    await terminal
+    expect(db.prepare('SELECT status, credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ status: 'ok', credential_revision: 2, error_code: null })
+    expect(db.prepare("SELECT credential_revision FROM audit WHERE event = 'health-check' AND tool = 'gh-axi' AND outcome = 'success'").all())
+      .toEqual([{ credential_revision: 2 }])
+  } finally {
+    release()
+    await oldCheck
+  }
+})
+
 test('GitHub pending connection cannot overwrite a concurrently rotated credential', async () => {
   const network = fakeGithubDevice()
   const started = await startGithubDevice()

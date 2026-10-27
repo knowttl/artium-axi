@@ -27,6 +27,7 @@ export class ToolHealth {
   private closed = false
   private readonly replaced = new Set<ToolName>()
   private readonly queued = new Set<ToolName>()
+  private readonly required = new Map<ToolName, CredentialReference['revision']>()
   private readonly generations = new Map<ToolName, number>()
   private readonly diagnostics = new Map<ToolName, Diagnostic>()
   private readonly due = new Map<ToolName, number>()
@@ -65,6 +66,7 @@ export class ToolHealth {
       return
     }
     this.queued.delete(tool)
+    this.required.delete(tool)
     const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
     const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
     if (failures) this.failures.set(tool, failures)
@@ -89,17 +91,19 @@ export class ToolHealth {
     const reference = this.store?.findCredential(tool)
     if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) { this.queued.delete(tool); return }
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
-    if (!row?.enabled || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
+    if (this.required.get(tool) !== reference.revision) this.required.delete(tool)
+    if ((!row?.enabled && !this.required.has(tool)) || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
     if (this.pending.size >= healthDefaults.backgroundCalls) {
       this.queued.add(tool)
       this.due.set(tool, Date.now())
       return
     }
     const generation = this.generations.get(tool) ?? 0
+    const required = this.required.has(tool)
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
       .then(
-        () => this.reschedule(tool, reference.revision, generation, undefined),
-        (error: unknown) => this.reschedule(tool, reference.revision, generation, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'),
+        () => { if (!required) this.reschedule(tool, reference.revision, generation, undefined) },
+        (error: unknown) => { if (!required) this.reschedule(tool, reference.revision, generation, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR') },
       )
       .finally(() => this.pending.delete(pending))
     this.pending.add(pending)
@@ -110,6 +114,33 @@ export class ToolHealth {
     this.closed = true
     clearInterval(this.timer)
     await Promise.allSettled(this.pending)
+  }
+
+  async checkReplacement(tool: ToolName, actor: string, requestId: string, clientAddress: string | null,
+    authorize: () => void) {
+    const reference = this.store?.findCredential(tool)
+    if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
+    const generation = (this.generations.get(tool) ?? 0) + 1
+    this.generations.set(tool, generation)
+    this.required.set(tool, reference.revision)
+    this.queued.add(tool)
+    try {
+      return await this.check(tool, actor, requestId, clientAddress, authorize)
+    } catch (error) {
+      const code = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
+      if (this.required.get(tool) === reference.revision) this.reschedule(tool, reference.revision, generation, code)
+      if (code === 'TOO_MANY_CALLS' && this.store?.findCredential(tool)?.revision === reference.revision
+        && this.generations.get(tool) === generation) {
+        const checkedAt = Date.now()
+        this.db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, 'error', ?)
+          ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
+          status = excluded.status, error_code = excluded.error_code`).run(tool, reference.revision, checkedAt, code)
+        this.diagnostics.set(tool, { stage: 'configuration', message: 'Credential check pending: runner busy.',
+          checkedAt, credentialRevision: reference.revision })
+        if (this.active.has(tool)) this.replaced.add(tool)
+      }
+      throw error
+    }
   }
 
   async check(tool: ToolName, actor: string, requestId: string, clientAddress: string | null,
@@ -175,7 +206,8 @@ export class ToolHealth {
         let result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
           { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
             authorize?.()
-            if (background && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
+            if (background && this.required.get(tool) !== reference.revision
+              && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')
             }
             if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
@@ -223,6 +255,7 @@ export class ToolHealth {
           if (diagnostic) this.diagnostics.set(tool, diagnostic)
         }
       })
+      if (this.required.get(tool) === reference.revision) this.reschedule(tool, reference.revision, generation, failure?.code)
       if (failure) throw failure
       return health
     } finally {
