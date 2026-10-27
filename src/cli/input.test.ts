@@ -11,6 +11,33 @@ const directory = mkdtempSync(join(tmpdir(), 'artium-input-'))
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
+test.each(['create', 'update'])('mail rule %s uploads a local file as the fixed rule.json leaf', async action => {
+  const path = join(directory, 'local-rule.json')
+  const text = '{"isEnabled":true}'
+  writeFileSync(path, text)
+  expect(await toolInput('mg-axi', ['mail', 'rule', action, `--file=${path}`])).toEqual({
+    args: ['mail', 'rule', action, '--file=rule.json'],
+    files: [{ name: 'rule.json', contentBase64: Buffer.from(text).toString('base64') }],
+  })
+})
+
+test.each([
+  ['--file', '-'], ['--file', '../rule.json'], ['--file', 'missing.json', '--file', 'extra.json'],
+])('mail rule upload refuses unsupported input %j', async (...flags) => {
+  await expect(toolInput('mg-axi', ['mail', 'rule', 'create', ...flags])).rejects.toBeDefined()
+})
+
+test('mail rule help does not read a local file', async () => {
+  const args = ['mail', 'rule', 'update', '--file', 'missing.json', '--help']
+  expect(await toolInput('mg-axi', args)).toEqual({ args })
+})
+
+test('mail rule upload enforces the byte cap before an API request', async () => {
+  const path = join(directory, 'large-rule.json')
+  writeFileSync(path, 'x'.repeat(65537))
+  await expect(toolInput('mg-axi', ['mail', 'rule', 'create', '--file', path])).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
 test.each([
   ['gist', 'create', '--filename=synthetic.txt', '--secret'],
   ['gist', 'edit', 'abc123', '--filename', 'synthetic.txt', '--confirm=synthetic-confirm'],

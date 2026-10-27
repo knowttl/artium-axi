@@ -1,9 +1,9 @@
 {
   "package": "@knowttl/mg-axi",
-  "version": "0.1.14",
-  "integrity": "sha512-XGsOHDrzAF0n8Sx57gREUuH1zysJnAzGmPt/7jm4tTF7uJl1db8oLx/E9NqSiG9mhhJXD5W36e6ucIHJO6x4AQ==",
-  "tarball": "https://registry.npmjs.org/@knowttl/mg-axi/-/mg-axi-0.1.14.tgz",
-  "reconfirmedAt": "2026-10-27T19:25:00Z",
-  "command": "npm view @knowttl/mg-axi@0.1.14 version dist.integrity dist.tarball --json",
+  "version": "0.1.15",
+  "integrity": "sha512-+5UfnLzVTZteAFRHtQmwulnhq9SWJGSkwQx7icmzBjfGOQXXru51JUwgCYy3UK637v7K6v7Hq2srIHT0Xa3vew==",
+  "tarball": "https://registry.npmjs.org/@knowttl/mg-axi/-/mg-axi-0.1.15.tgz",
+  "reconfirmedAt": "2026-10-27T22:29:00Z",
+  "command": "npm view @knowttl/mg-axi@0.1.15 version dist.integrity dist.tarball --json",
   "pinDisposition": "Updated tools/package.json, tools/integrity.json and tools/pnpm-lock.yaml to the latest published version."
 }

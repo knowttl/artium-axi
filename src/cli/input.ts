@@ -43,8 +43,10 @@ export async function toolInput(tool: string, original: string[]) {
     input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes, '--filename with closed stdin')).toString('utf8')
   }
   const hunting = tool === 'mg-axi' && args.slice(0, 3).join(' ') === 'security hunting query'
-  if ((tool === 'checkpoint-axi' || tool === 'az-axi' || tool === 'hybrid-axi' || tool === 'tenable-axi' || hunting) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
-    const fileFlags = hunting ? ['file'] : tool === 'checkpoint-axi' ? checkpoint.adapterBoundary.inputFileFlags : tool === 'tenable-axi' ? tenable.adapterBoundary.inputFileFlags
+  const rule = tool === 'mg-axi' && ['mail rule create', 'mail rule update'].includes(args.slice(0, 3).join(' '))
+  const mgUpload = hunting || rule
+  if ((tool === 'checkpoint-axi' || tool === 'az-axi' || tool === 'hybrid-axi' || tool === 'tenable-axi' || mgUpload) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
+    const fileFlags = mgUpload ? ['file'] : tool === 'checkpoint-axi' ? checkpoint.adapterBoundary.inputFileFlags : tool === 'tenable-axi' ? tenable.adapterBoundary.inputFileFlags
       : tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
     for (let index = 0; index < args.length; index++) {
       if (args[index] === '--') break
@@ -57,11 +59,11 @@ export async function toolInput(tool: string, original: string[]) {
         continue
       }
       if (!path || path === '-') throw new ArtiumError('UNSUPPORTED_INPUT', 'A file flag requires a local file path.')
-      if (hunting && (path.split(/[\\/]/).includes('..') || input.files?.length)) throw new ArtiumError('INVALID_INPUT')
-      const name = hunting ? 'query.kql' : basename(path)
+      if (mgUpload && (path.split(/[\\/]/).includes('..') || input.files?.length)) throw new ArtiumError('INVALID_INPUT')
+      const name = mgUpload ? hunting ? 'query.kql' : 'rule.json' : basename(path)
       if (input.files?.some(file => file.name === name)) throw new ArtiumError('INVALID_INPUT', 'Upload file names must be distinct.')
       if ((input.files?.length ?? 0) >= inputLimits.files) throw new ArtiumError('INVALID_INPUT', 'Too many upload files.')
-      const content = await readBounded(createReadStream(path), hunting ? 65536 : inputLimits.fileBytes)
+      const content = await readBounded(createReadStream(path), mgUpload ? 65536 : inputLimits.fileBytes)
       totalFileBytes += content.length
       if (totalFileBytes > inputLimits.totalFileBytes) throw new ArtiumError('INVALID_INPUT', 'Uploads exceed the total byte limit.')
       input.files ??= []

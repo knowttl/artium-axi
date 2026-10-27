@@ -93,7 +93,7 @@ try {
   for (const flag of ['--version', '-v', '-V']) {
     const result = spawnSync(process.execPath, [new URL(`${upstream}bin/mg-axi.js`, import.meta.url).pathname, flag], { encoding: 'utf8' })
     assert.equal(result.status, 0)
-    assert.equal(result.stdout.trim(), '0.1.14')
+    assert.equal(result.stdout.trim(), '0.1.15')
   }
   console.log(`headless-case: missing/env, encrypted/key, mode/file, symlink/file and invalid/profile refused; ${LEAVES.length} parser leaves verified`)
 } finally {

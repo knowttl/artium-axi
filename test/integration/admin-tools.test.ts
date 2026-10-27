@@ -1247,6 +1247,9 @@ test.each(['ldap-axi'] as const)('%s refuses write changes with the fixed read-o
 
 test.each([
   { tool: 'mg-axi', operations: ['mg.entra.group.member.add', 'entra.user.update'], settings: { preview: true } },
+  { tool: 'mg-axi', operations: ['mail.message.tag', 'mail.message.flag', 'mail.message.mark', 'mail.message.move',
+    'mail.message.copy', 'mail.message.trash', 'mail.folder.create', 'mail.folder.delete', 'mail.category.create',
+    'mail.rule.create', 'mail.rule.update', 'mail.rule.delete'], settings: { enabledPacks: ['entra', 'mail'] } },
   { tool: 'vectra-axi', operations: ['qux.host.tag.set', 'rux.detection.note.edit'], settings: {} },
 ] as const)('$tool selectable writes reach the real adapter and retain other settings', async ({ tool, operations, settings }) => {
   const source = new EmbeddedSecretSource(store)
@@ -1272,7 +1275,9 @@ test('Graph choices use native operation identities, including names that differ
   const response = await request('GET', '/mg-axi')
   expect((await response.json()).writeAccess.supportedOperations).toEqual([
     'entra.conditional-access.policy.update', 'entra.risky-user.dismiss', 'entra.user.revokeSessions',
-    'entra.user.update', 'mg.entra.group.member.add',
+    'entra.user.update', 'mail.category.create', 'mail.folder.create', 'mail.folder.delete',
+    'mail.message.copy', 'mail.message.flag', 'mail.message.mark', 'mail.message.move', 'mail.message.tag',
+    'mail.message.trash', 'mail.rule.create', 'mail.rule.delete', 'mail.rule.update', 'mg.entra.group.member.add',
   ])
 })
 
@@ -1468,7 +1473,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'falcon-axi', version: '0.8.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.10', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.13', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.14', health: { status: 'disabled' } },
+    { name: 'mg-axi', version: '0.1.15', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.4.7', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
@@ -1483,7 +1488,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
 })
 test.each([
   { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.13' },
-  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.14' },
+  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.15' },
 ] as const)('$tool upgrade reports the bundled version while retaining configuration', async ({ tool, previousVersion, version }) => {
   const { tenantId, clientId, auth, clientSecret } = values[tool]
   const credential = { tenantId, clientId, auth, clientSecret }

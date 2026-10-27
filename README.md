@@ -171,7 +171,6 @@ Administrators can opt in to nine mailbox read commands with `enabledPacks: ["en
 Mail supports folder list/show, message list/show with search, filters and conversations, attachment metadata, mailbox settings, inbox rule list/show and master category list.
 Hosted mail requires a `mode=application` credential profile; delegated profiles cannot enable the mail pack or execute mail commands.
 Every mail command requires `--mailbox <user-id|upn>`; `me` is unavailable in hosted mail.
-Pinned mg-axi 0.1.14 rejects UPNs containing apostrophe (`'`), `#`, `^` or `~`; use the mailbox object ID instead.
 For example, run `artium-axi mg-axi mail message list --mailbox mailbox@contoso.example --limit 10`, then `artium-axi mg-axi mail message show --mailbox mailbox@contoso.example --id <message-id>`.
 Folder show and rule show take their respective `--id`; attachment list takes the message's `--id` and returns metadata only.
 Message lists accept an optional `--folder` and one of `--search`, `--filter` or `--conversation`; these query values are sensitive.
@@ -181,7 +180,16 @@ Mail content, including rules and automatic replies, is untrusted data written b
 Lists return one bounded page, defaulting to `--limit 100`, with a maximum of 1000 and a requested page size equal to the limit; searches stop at 1000 cumulative rows.
 Resume with `--cursor <token>` and identical flags; cursors contain sensitive query text, and [Graph input handling](docs/client-reference.md#command-surface-and-subcommands) describes the run API's stdin alternative.
 Output remains TOON, and strings truncate at 500 characters; `--full` restores text within byte/time budgets and secret redaction.
-Mail writes, downloads, sending, reply, forward and permanent deletion are unavailable.
+Mail writes require administrator `writes.allowWrites: true` and the exact operation in `writes.operations`, in addition to the mail pack.
+Supported operations are `mail.message.tag`, `mail.message.flag`, `mail.message.mark`, `mail.message.move`, `mail.message.copy`, `mail.message.trash`, `mail.folder.create`, `mail.folder.delete`, `mail.category.create`, `mail.rule.create`, `mail.rule.update` and `mail.rule.delete`.
+Preview first, then repeat with `--execute` and `--confirm` listing every `--ids` target in identical order, with at most 20 targets; creation confirms the exact folder/category name or rule displayName.
+Each target has a fresh read and durable intent/outcome journal; batches stop on the first failed or unknown outcome, and writes are never retried.
+For example, preview `artium-axi mg-axi mail message tag --mailbox mailbox@contoso.example --ids <id1>,<id2> --add Reviewed` before confirming with `--execute --confirm <id1>,<id2>`.
+Tagging preserves other categories and unchanged values are no-ops; move/copy/trash return the old and new IDs, and trash moves to Deleted Items.
+Folder deletion requires empty custom folders without child folders and readable well-known folder IDs; a fresh check cannot prevent concurrent mailbox changes.
+Rule create/update accepts exactly one UTF-8 JSON upload through `--file rule.json`, at most 64 KiB; the CLI uploads local content, never a server path or stdin.
+Rule files are schema-checked and reject forwarding, redirect and permanent-delete actions.
+Downloads, sending, reply, forward and permanent deletion are unavailable.
 Raw `api get` mail routes and `--expand` remain refused; Graph mail error bodies are suppressed.
 See [Graph credential setup](docs/tool-credentials.md#microsoft-graph) for scoped mailbox authorization and credential-test limitations.
 Administrators can opt in to the single read-only `security hunting query` command for Defender XDR advanced hunting with `enabledPacks: ["entra", "security"]` in the managed tool settings.

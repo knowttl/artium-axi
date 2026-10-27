@@ -9,6 +9,8 @@ import type { MockInstance } from 'vitest'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
+import { createMgAdapter } from '../../src/server/adapters/mg.js'
+import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { decode } from '@toon-format/toon'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -213,6 +215,44 @@ test('sensitive flag and positional values are redacted in persisted run argumen
   expect(db.prepare("SELECT arguments FROM audit WHERE event = 'run-start'").get()).toEqual({
     arguments: JSON.stringify(['exit', '0', '--password', '[redacted]', '--password=[redacted]', '[redacted]']),
   })
+  expect(lines.join('')).not.toContain('CANARY-')
+})
+
+test.each([
+  ['move', ['--destination', 'CANARY-private-folder'], ['--destination', '[redacted]']],
+  ['move', ['--destination=CANARY-private-folder'], ['--destination=[redacted]']],
+  ['copy', ['--destination', 'CANARY-private-folder'], ['--destination', '[redacted]']],
+  ['copy', ['--destination=CANARY-private-folder'], ['--destination=[redacted]']],
+] as const)('mail message %s redacts destination IDs in persisted and streamed audits: %j', async (command, destination, safeDestination) => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'mg-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'mg-axi')")
+  const graph = createMgAdapter({ getCredential: async () => ({
+    mode: 'application', auth: 'client-secret', clientSecret: 'CANARY-graph-secret',
+    tenantId: '00000000-0000-0000-0000-000000000001', clientId: '00000000-0000-0000-0000-000000000002',
+    enabledPacks: ['entra', 'mail'], writes: { allowWrites: true, operations: [`mail.message.${command}`] },
+  }) }, join(directory, 'writes.log'), loadCredentialProfile('mg-axi',
+    join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!)
+  const prepare = graph.prepare.bind(graph)
+  vi.spyOn(graph, 'prepare').mockImplementation(async (...input) => {
+    const call = await prepare(...input)
+    return { ...call, executable: process.execPath,
+      args: [join(process.cwd(), 'test/fake-tool/mg-adapter-child.mjs'), ...call.args] }
+  })
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-graph', tool: 'mg-axi', revision: 1 }, value: {} },
+  ]))
+  const args = ['mail', 'message', command, '--mailbox', 'mailbox@contoso.example',
+    '--ids', 'synthetic-message', ...destination, '--execute', '--confirm', 'synthetic-message']
+  const result = await runTool(db, audit, runner, token, { args }, graph, identities, context)
+  expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+  expect(decode(result.stdout)).toMatchObject({ complete: true, fakeSends: 1, results: [{ status: 'success' }] })
+  expect(db.prepare("SELECT arguments FROM audit WHERE event = 'run-start'").get()).toEqual({
+    arguments: JSON.stringify(['mail', 'message', command, '--mailbox', '[redacted]', '--ids', '[redacted]',
+      ...safeDestination, '--execute', '--confirm', '[redacted]']),
+  })
+  const records = db.prepare('SELECT * FROM audit ORDER BY id').all()
+  expect(lines.map(line => JSON.parse(line))).toEqual(records)
+  expect(JSON.stringify(records)).not.toContain('CANARY-')
+  expect(JSON.stringify(records)).not.toContain('mailbox@contoso.example')
   expect(lines.join('')).not.toContain('CANARY-')
 })
 
