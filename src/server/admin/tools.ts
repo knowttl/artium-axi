@@ -192,7 +192,11 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return readCredential('gh-axi')
     }).value
     invalidate(replacement)
-    await health.refresh('gh-axi', true)
+    try { await health.check('gh-axi', actor, request.id, request.ip, () => { authorize(request) }) }
+    catch (error) {
+      authorize(request)
+      if (!(error instanceof ArtiumError)) throw error
+    }
     return reply.header('Cache-Control', 'no-store').send(githubDeviceRoutes.poll.response.parse({ status: 'connected', credential }))
   })
   app.route({ method: adminToolRoutes.list.method, url: adminToolRoutes.list.path, handler: async request => {

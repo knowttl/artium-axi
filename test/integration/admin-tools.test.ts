@@ -747,6 +747,43 @@ test('GitHub device approval stores a shared encrypted credential, audits once a
   await failure(await save('gh-axi', { origin: 'https://github.com', auth: 'device', accessToken: 'gho_CANARY-forged', login: 'synthetic' }, 2), 'INVALID_INPUT')
 })
 
+test.each([
+  { status: 'ok', errorCode: null, output: ['print', 'remaining: 4999'] },
+  { status: 'error', errorCode: 'CREDENTIAL_EXPIRED', output: ['failure', 'error: Bad credentials (HTTP 401)\ncode: UNKNOWN'] },
+])('first GitHub device connection records $status health while disabled', async ({ status, errorCode, output }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('gh-axi')
+  const network = fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, ...output] }))
+  runner = await Runner.create(join(directory, 'calls'))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect(store.findCredential('gh-axi')).toBeUndefined()
+  const started = await startGithubDevice()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.now() + 5000)
+  const response = await request('POST', '/gh-axi/device/poll', started)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 1,
+    metadata: { auth: 'device', login: 'synthetic-machine' } } })
+  expect(store.readCredential(store.findCredential('gh-axi')!)).toEqual({ origin: 'https://github.com', auth: 'device',
+    accessToken: 'gho_CANARY-connected-token', login: 'synthetic-machine' })
+  expect(db.prepare('SELECT status, error_code, credential_revision FROM tool_health WHERE tool = ?').get('gh-axi'))
+    .toEqual({ status, error_code: errorCode, credential_revision: 1 })
+  expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ enabled: false,
+    health: { status: 'disabled', credentialRevision: 1, checkedAt: expect.any(Number), errorCode } })
+  expect(db.prepare("SELECT outcome, credential_revision FROM audit WHERE event = 'credential-test' AND tool = 'gh-axi'").all())
+    .toEqual([{ outcome: errorCode ?? 'success', credential_revision: 1 }])
+  expect(db.prepare("SELECT action FROM audit WHERE action = 'connect-github-device'").all()).toEqual([{ action: 'connect-github-device' }])
+  expect(JSON.stringify(db.prepare('SELECT * FROM credentials').all())).not.toContain('gho_CANARY-connected-token')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/gho_CANARY|CANARY-private-device-code|ABCD-EFGH/)
+  expect(network).toHaveBeenCalledTimes(3)
+})
+
 test('GitHub pending connection cannot overwrite a concurrently rotated credential', async () => {
   const network = fakeGithubDevice()
   const started = await startGithubDevice()
