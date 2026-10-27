@@ -403,6 +403,47 @@ test.each([
 })
 
 test.each([
+  { mode: 'delegated', auth: undefined, token: 'CANARY-msal-cache', clientSecret: undefined,
+    status: errors.INVALID_INPUT.status, revision: undefined },
+  { mode: 'application', auth: 'client-secret', token: undefined, clientSecret: 'CANARY-graph-secret',
+    status: 200, revision: 1 },
+])('mg-axi saving $mode credentials with mail enabled returns $status', async ({ mode, auth, token, clientSecret, status, revision }) => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  vi.spyOn(adapter, 'prepare').mockRejectedValue(new Error('Synthetic credential check unavailable'))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect((await request('PATCH', '/mg-axi', { nativeSettings: { enabledPacks: ['entra', 'mail'] }, expectedRevision: 1 })).status).toBe(200)
+  const response = await request('PUT', '/mg-axi/credential', { value: {
+    mode, auth, token, clientSecret, tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
+  }, expectedRevision: 0, expectedToolRevision: 2 })
+  expect(response.status).toBe(status)
+  expect(store.findCredential('mg-axi')?.revision).toBe(revision)
+})
+
+test('mg-axi refuses enabling mail for an existing delegated credential', async () => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  const prepare = vi.spyOn(adapter, 'prepare').mockRejectedValue(new Error('Unexpected credential execution'))
+  store.replaceCredential('mg-axi', { mode: 'delegated', tenantId: azureTestTenant,
+    clientId: values['mg-axi'].clientId, token: 'CANARY-msal-cache' }, 0, actor, 123)
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  await failure(await request('PATCH', '/mg-axi', {
+    nativeSettings: { enabledPacks: ['entra', 'mail'] }, expectedRevision: 1,
+  }), 'INVALID_INPUT')
+  expect(store.readToolSettings!('mg-axi')).toEqual({})
+  expect(store.findCredential('mg-axi')!.revision).toBe(1)
+  expect(prepare).not.toHaveBeenCalled()
+})
+
+test.each([
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', tokenEnv: 'UNBOUND_TOKEN' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic' } },

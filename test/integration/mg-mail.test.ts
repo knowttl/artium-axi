@@ -44,6 +44,29 @@ test.each(reads)('$args requires the administrator mail opt-in', async ({ args }
     .rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
 })
 
+test.each(reads)('$args refuses stored delegated credentials before preparing a native call', async ({ args }) => {
+  const delegated = { mode: 'delegated', tenantId: credential.tenantId, clientId: credential.clientId,
+    token: 'CANARY-serialized-msal-cache' }
+  const getCredential = vi.fn(async () => delegated)
+  const managedProfile = profile()
+  const prepare = vi.spyOn(managedProfile, 'prepare')
+  const adapter = createMgAdapter({ getCredential, getSettings: () => ({ enabledPacks: ['entra', 'mail'] }) },
+    '/tmp/synthetic-writes.log', managedProfile)
+  await expect(adapter.prepare([...args, '--mailbox', 'me'], reference)).rejects.toMatchObject({
+    code: 'CREDENTIAL_INVALID', message: 'Hosted mail requires an application-mode credential profile.',
+  })
+  expect(prepare).not.toHaveBeenCalled()
+})
+
+test('delegated Entra credentials still prepare non-mail reads', async () => {
+  const delegated = { mode: 'delegated', tenantId: credential.tenantId, clientId: credential.clientId,
+    token: 'CANARY-serialized-msal-cache', enabledPacks: ['entra'] }
+  const adapter = createMgAdapter({ getCredential: async () => delegated }, '/tmp/synthetic-writes.log', profile())
+  const call = await adapter.prepare(['entra', 'user', 'list'], reference)
+  expect(call.args).toEqual(['entra', 'user', 'list'])
+  expect(call.secrets).toContain(delegated.token)
+})
+
 test.each([
   ['mail', 'message', 'tag'], ['mail', 'message', 'send'], ['mail', 'message', 'reply'],
   ['mail', 'message', 'forward'], ['mail', 'message', 'permanentDelete'],

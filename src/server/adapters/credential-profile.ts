@@ -12,6 +12,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
 import { toolAllowsWrites } from '../../shared/api.js'
 import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
+import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
 export { isCanonicalHttpsOrigin } from './credential-input.js'
 
 type Schema = Record<string, any>
@@ -66,6 +67,10 @@ export class CredentialProfile {
     if (tool === 'mg-axi') {
       this.inputSchema.properties.enabledPacks = { ...this.inputSchema.properties.enabledPacks,
         items: { enum: ['entra', 'security', 'mail'] }, minItems: 1, maxItems: 3, contains: { const: 'entra' } }
+      this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
+        if: { required: ['enabledPacks'], properties: { enabledPacks: { contains: { const: 'mail' } } } },
+        then: applicationMode,
+      }]
     }
     if (tool === 'hybrid-axi') {
       this.inputSchema.required = ['apiKey']

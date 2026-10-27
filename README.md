@@ -170,6 +170,7 @@ Microsoft Graph defaults to the `entra` pack.
 Administrators can opt in to nine mailbox read commands with `enabledPacks: ["entra", "mail"]`; `security` can be enabled alongside `mail`.
 Mail supports folder list/show, message list/show with search, filters and conversations, attachment metadata, mailbox settings, inbox rule list/show and master category list.
 Every mail command requires `--mailbox <user-id|upn>`; hosted application authentication cannot use `me`.
+Pinned mg-axi 0.1.14 rejects UPNs containing apostrophe (`'`), `#`, `^` or `~`; use the mailbox object ID instead.
 For example, run `artium-axi mg-axi mail message list --mailbox mailbox@contoso.example --limit 10`, then `artium-axi mg-axi mail message show --mailbox mailbox@contoso.example --id <message-id>`.
 Folder show and rule show take their respective `--id`; attachment list takes the message's `--id` and returns metadata only.
 Message lists accept an optional `--folder` and one of `--search`, `--filter` or `--conversation`; these query values are sensitive.
