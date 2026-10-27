@@ -1253,7 +1253,7 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, checkpoint-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: gh-axi, setup, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, checkpoint-axi, az-axi, mg-axi' },
   { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
@@ -1362,6 +1362,7 @@ test.each([
   { tool: 'falcon-axi', example: 'detection list', version: '0.8.0' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.0' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.7' },
+  { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.44' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.8' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.3' },
   { tool: 'hybrid-axi', example: 'quota', version: '0.1.2' },

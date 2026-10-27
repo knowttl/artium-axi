@@ -23,6 +23,7 @@ export interface RunnerLimits {
   timeoutMs?: number
   terminationGraceMs?: number
   runtime?: 'python'
+  systemCaBundle?: boolean
   nodeHeapMiB?: number
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
@@ -124,8 +125,12 @@ async function execute(
   pathPrefix?: string,
 ): Promise<RunnerResult> {
   const credentialTrust = limits.credentialTrust ?? []
-  const trustPem = trustedCa || credentialTrust.length
-    ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : [])].join('\n') : ''
+  if (limits.systemCaBundle && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
+    throw new RunnerError('INVALID_INPUT', 'This tool requires an issuing CA; certificate pinning is unavailable.')
+  }
+  const trustPem = trustedCa || credentialTrust.length || limits.systemCaBundle
+    ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : []),
+      ...(limits.systemCaBundle ? credentialTrust.map(certificate => certificate.pem) : [])].join('\n') : ''
   const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
     return { hostname: endpoint.hostname, port: endpoint.port, protocol: new URL(certificate.endpoint).protocol,
@@ -207,6 +212,7 @@ async function execute(
           ...(trustPem ? {
             NODE_EXTRA_CA_CERTS: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
             REQUESTS_CA_BUNDLE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
+            ...(limits.systemCaBundle ? { SSL_CERT_FILE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem') } : {}),
           } : {}),
           ...(credentialTrust.length ? {
             ARTIUM_CERTIFICATE_PINS: join(directories.XDG_CONFIG_HOME, 'artium-certificate-pins.json'),

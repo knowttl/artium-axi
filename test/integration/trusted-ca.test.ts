@@ -9,6 +9,7 @@ import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
@@ -29,6 +30,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
   await withFakeService(async ({ directory }) => {
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
+      'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
       'checkpoint-axi': { region: 'us', clientId: 'synthetic-client', clientSecret: 'CANARY-checkpoint-secret' },
       'hybrid-axi': { apiKey: 'CANARY-hybrid-key' },
       'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
@@ -43,6 +45,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const source = { getCredential: async () => credentials[tool] }
     const log = join(directory, 'writes.log')
     const adapters = {
+      'gh-axi': createGhAdapter(source),
       'checkpoint-axi': createCheckpointAdapter(source, log),
       'hybrid-axi': createHybridAdapter(source, log),
       'tenable-axi': createTenableAdapter(source, log),
@@ -54,13 +57,14 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       'mg-axi': createMgAdapter(source, log, profile('mg-axi')),
       'ldap-axi': createLdapAdapter(source),
     }
-    const args = { 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
+    const args = { 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
       'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)
     const node = `const fs = require('node:fs'); console.log(JSON.stringify({
       node: fs.readFileSync(process.env.NODE_EXTRA_CA_CERTS, 'utf8'),
       python: fs.readFileSync(process.env.REQUESTS_CA_BUNDLE, 'utf8'),
+      go: process.env.SSL_CERT_FILE ? fs.readFileSync(process.env.SSL_CERT_FILE, 'utf8') : undefined,
       files: JSON.parse(process.env.ARTIUM_TEST_CA_FILES).map(name => fs.readFileSync(name, 'utf8'))
     }))`
     const python = `import json,os; print(json.dumps({'node': open(os.environ['NODE_EXTRA_CA_CERTS']).read(), 'python': open(os.environ['REQUESTS_CA_BUNDLE']).read(), 'files': []}))`
@@ -69,13 +73,14 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
         tool === 'falcon-axi' ? ['-c', python] : ['-e', node],
         { ...call.environment, ARTIUM_TEST_CA_FILES: JSON.stringify(call.files.filter(file => file.appendTrustedCa).map(file => file.name)) },
         call.secrets, { ...call.limits, ...(trustSource === 'credential' ? { credentialTrust: [{
-          endpoint: 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: 'pin' as const,
+          endpoint: 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: tool === 'gh-axi' ? 'ca' as const : 'pin' as const,
         }] } : {}) }, {}, call.files)
       expect(result.exitCode, result.stderr).toBe(0)
       const output = JSON.parse(result.stdout)
-      if (trustSource === 'server') expect(output.node).toContain(pem)
+      if (trustSource === 'server' || tool === 'gh-axi') expect(output.node).toContain(pem)
       else expect(output.node).not.toContain(pem)
       expect(output.python).toBe(output.node)
+      if (tool === 'gh-axi') expect(output.go).toBe(output.node)
       expect(output.node.match(/BEGIN CERTIFICATE/g).length).toBeGreaterThan(1)
       for (const content of output.files) expect(content).toBe(pem + '\n' + output.node)
       expect(readdirSync(join(directory, 'calls'))).toEqual([])

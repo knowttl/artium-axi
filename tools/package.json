@@ -4,6 +4,8 @@
   "type": "module",
   "packageManager": "pnpm@10.22.0",
   "dependencies": {
+    "gh-axi": "0.1.44",
+    "axi-sdk-js": "0.1.13",
     "@knowttl/checkpoint-axi": "0.1.0",
     "@knowttl/hybrid-axi": "0.1.2",
     "@knowttl/tenable-axi": "0.1.3",

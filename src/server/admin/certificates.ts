@@ -88,6 +88,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (!item.inspection.verificationError) throw new ArtiumError('INVALID_INPUT', item.inspection.reason)
     const { anchor, chain } = item.inspection
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
+    if (reference.tool === 'gh-axi' && (mode !== 'ca' || !hasCA)) throw new ArtiumError('INVALID_INPUT',
+      'GitHub CLI requires the issuing CA. Strict leaf pinning is unavailable; configure the trusted CA bundle instead.')
     if (mode === 'ca' && !hasCA && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',
       'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.')
     save(request, actor, item.reference, item.inspection,

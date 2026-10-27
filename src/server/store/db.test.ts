@@ -55,6 +55,7 @@ it('opens an unconfigured store with every supported tool disabled', () => {
       { name: 'az-axi', enabled: 0, pinned_version: '' },
       { name: 'checkpoint-axi', enabled: 0, pinned_version: '' },
       { name: 'falcon-axi', enabled: 0, pinned_version: '' },
+      { name: 'gh-axi', enabled: 0, pinned_version: '' },
       { name: 'hybrid-axi', enabled: 0, pinned_version: '' },
       { name: 'ldap-axi', enabled: 0, pinned_version: '' },
       { name: 'mg-axi', enabled: 0, pinned_version: '' },

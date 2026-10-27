@@ -369,6 +369,10 @@ Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
+GitHub slice 1 is read-only and uses one shared PAT, with `api /rate_limit` as its credential test.
+Rotate the PAT in GitHub and replace the managed secret; never pass tokens in command arguments.
+Use the issuing CA or server trusted CA bundle for GHES; strict leaf pinning is unavailable for the Go binary.
+See [GitHub setup and limitations](tool-credentials.md#github) before activation.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
 See the [Hybrid Analysis supported boundary](../README.md#safety) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.
 See [Check Point setup and commissioning](tool-credentials.md#check-point-email-security) before activation; enable only exact intended writes and independently selected downloads.

@@ -6,7 +6,7 @@ import { loadToolSkill } from '../src/server/tool-skills.js'
 import { toolSchema } from '../src/shared/api.js'
 
 test.each(toolSchema.options)('%s overlay preserves tool guidance with managed command examples', tool => {
-  const source = tool === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : tool === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : tool === 'ado-axi' ? 'tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`
+  const source = tool === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : tool === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : tool === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : tool === 'ado-axi' ? 'tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`
   const skill = loadToolSkill(tool, source)
   expect(skill).toContain(`name: ${tool}`)
   expect(skill).toContain(`artium-axi ${tool}`)
@@ -14,7 +14,7 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
   expect(skill).not.toMatch(/uvx |npx |npm install|az login|--profile|--config|--tenant|FALCON_AXI_CLIENT_SECRET|LDAP_AXI_BIND_PASSWORD|AZ_AXI_READ_ONLY|VECTRA_AXI_READ_ONLY|\.\.\/\.\.\//)
   expect(skill).not.toMatch(new RegExp('`' + tool + '(?: |`)'))
   expect(skill).not.toMatch(/artium-axi (?:az|mg|vectra)-axi (?:setup|config|profile|login|auth login)/)
-  expect(skill).toContain(tool === 'checkpoint-axi' ? 'email search --limit 1 --help' : tool === 'hybrid-axi' ? 'quota --help' : tool === 'tenable-axi' ? 'card list --limit 1 --help' : tool === 'awx-axi' ? 'job list --limit 1 --help' : tool === 'ado-axi' ? 'project list --limit 1 --help' : tool === 'ldap-axi' ? 'entry search --help' : tool === 'falcon-axi' ? 'cve show <CVE-ID>' : tool === 'az-axi' ? 'rg query --file query.kql' : tool === 'mg-axi' ? 'entra user list' : 'detection list')
+  expect(skill).toContain(tool === 'gh-axi' ? 'repo list --limit 1 --help' : tool === 'checkpoint-axi' ? 'email search --limit 1 --help' : tool === 'hybrid-axi' ? 'quota --help' : tool === 'tenable-axi' ? 'card list --limit 1 --help' : tool === 'awx-axi' ? 'job list --limit 1 --help' : tool === 'ado-axi' ? 'project list --limit 1 --help' : tool === 'ldap-axi' ? 'entry search --help' : tool === 'falcon-axi' ? 'cve show <CVE-ID>' : tool === 'az-axi' ? 'rg query --file query.kql' : tool === 'mg-axi' ? 'entra user list' : 'detection list')
 })
 
 test.each([

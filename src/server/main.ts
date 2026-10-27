@@ -6,6 +6,7 @@ import { createAzAdapter } from './adapters/az.js'
 import { createMgAdapter } from './adapters/mg.js'
 import { createLdapAdapter } from './adapters/ldap.js'
 import { createAdoAdapter } from './adapters/ado.js'
+import { createGhAdapter } from './adapters/gh.js'
 import { createAwxAdapter } from './adapters/awx.js'
 import { createTenableAdapter } from './adapters/tenable.js'
 import { createHybridAdapter } from './adapters/hybrid.js'
@@ -55,7 +56,7 @@ async function main() {
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'), azureTokens),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
-        createLdapAdapter(source), createAdoAdapter(source, azureTokens),
+        createLdapAdapter(source), createAdoAdapter(source, azureTokens), createGhAdapter(source),
         createAwxAdapter(source), createTenableAdapter(source, join(dirname(database), 'tool-logs', 'tenable-axi', 'writes.log')),
         createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
         createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log'))] })

@@ -29,7 +29,7 @@ const server = createServer((request, reply) => {
   }
   reply.setHeader('content-type', 'application/json')
   reply.end(JSON.stringify(skillResponse ?? { skills: granted.map(name => ({ name,
-    content: loadToolSkill(name, name === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : name === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : name === 'ado-axi' ? 'tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${name}/skills/${name}/SKILL.md`) })) }))
+    content: loadToolSkill(name, name === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : name === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : name === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : name === 'ado-axi' ? 'tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${name}/skills/${name}/SKILL.md`) })) }))
 })
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-cli.mjs'])

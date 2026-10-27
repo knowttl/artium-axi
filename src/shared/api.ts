@@ -141,7 +141,7 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'gh-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -272,6 +272,7 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
   commands: z.array(z.enum(['cat', 'cd', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid',
     'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
 export const nativeSettingsSchemas = {
+  'gh-axi': z.strictObject({}),
   'checkpoint-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().regex(/^[a-z][A-Za-z0-9_.-]{0,255}$/)).min(1).max(126) }).optional() }),
   'hybrid-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
@@ -300,7 +301,7 @@ export const nativeSettingsSchemas = {
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
-  if (tool === 'ldap-axi') return false
+  if (tool === 'ldap-axi' || tool === 'gh-axi') return false
   if (tool === 'falcon-axi') return settings.writes
     ? (settings.writes as { allowWrites?: unknown }).allowWrites === true : settings.allowWrites === true
   if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi') {

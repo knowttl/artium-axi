@@ -10,6 +10,7 @@ import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
@@ -45,6 +46,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
   'hybrid-axi': { apiKey: 'CANARY-hybrid-key' },
   'checkpoint-axi': { region: 'us', clientId: 'synthetic-client', clientSecret: 'CANARY-checkpoint-secret' },
   'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
@@ -637,6 +639,31 @@ test('save replaces supplied secrets and evicts old Azure tokens', async () => {
   expect(store.readCredential(store.findCredential('az-axi')!)).toEqual({ ...values['az-axi'], clientSecret: 'CANARY-rotated' })
 })
 
+test('GitHub PAT save, rotation and health use private shared credentials and refuse write settings', async () => {
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'gh-axi'")
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  const calls = vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => {
+    const call = await prepare(args, reference, input)
+    return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }
+  })
+  adapters.push(adapter)
+  const saved = await replace('gh-axi')
+  expect(saved).toMatchObject({ metadata: { origin: 'https://github.com', auth: 'token' } })
+  expect(JSON.stringify(saved)).not.toContain(values['gh-axi'].token)
+  expect(JSON.stringify(db.prepare('SELECT * FROM credentials WHERE tool = ?').get('gh-axi'))).not.toContain(values['gh-axi'].token)
+  const response = await request('POST', '/gh-axi/test', {})
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ status: 'ok', readOnly: true })
+  expect(calls).toHaveBeenCalledWith(['api', '/rate_limit'], expect.objectContaining({ tool: 'gh-axi' }))
+  const rotated = await save('gh-axi', { ...values['gh-axi'], token: 'github_pat_CANARY-rotated' }, 1)
+  expect(rotated.status).toBe(200)
+  expect(store.readCredential(store.findCredential('gh-axi')!)).toEqual({ ...values['gh-axi'], token: 'github_pat_CANARY-rotated' })
+  const detail = await (await request('GET', '/gh-axi')).json()
+  await failure(await request('PATCH', '/gh-axi/write-access', { enabled: true, expectedRevision: detail.revision }), 'INVALID_INPUT')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/CANARY-github-token|github_pat_CANARY-rotated/)
+})
+
 test('save removes omitted optional non-secret fields', async () => {
   await replace('falcon-axi', { ...values['falcon-axi'], memberCid: 'synthetic-member' })
   expect((await save('falcon-axi', { clientId: values['falcon-axi'].clientId, region: 'us-2' }, 1)).status).toBe(200)
@@ -806,6 +833,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'tenable-axi', capable: true, enabled: false, reason: null },
       { name: 'hybrid-axi', capable: true, enabled: false, reason: null },
       { name: 'checkpoint-axi', capable: true, enabled: false, reason: null },
+      { name: 'gh-axi', capable: false, enabled: false, reason: expect.stringContaining('reads only') },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1127,6 +1155,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'tenable-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'hybrid-axi', version: '0.1.2', health: { status: 'disabled' } },
     { name: 'checkpoint-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'gh-axi', version: '0.1.44', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

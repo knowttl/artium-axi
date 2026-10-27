@@ -1,5 +1,6 @@
 import { CredentialProfile } from '../adapters/credential-profile.js'
 import { adoProfile } from '../adapters/ado.js'
+import { ghProfile } from '../adapters/gh.js'
 import { awxProfile } from '../adapters/awx.js'
 import { tenableProfile } from '../adapters/tenable.js'
 import { hybridProfile } from '../adapters/hybrid.js'
@@ -12,6 +13,7 @@ import { escape } from './escape.js'
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
   if (tool === 'checkpoint-axi') return checkpointProfile
   if (tool === 'ado-axi') return adoProfile
+  if (tool === 'gh-axi') return ghProfile
   if (tool === 'awx-axi') return awxProfile
   if (tool === 'tenable-axi') return tenableProfile
   if (tool === 'hybrid-axi') return hybridProfile

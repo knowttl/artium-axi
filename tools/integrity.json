@@ -1,4 +1,12 @@
 {
+  "axi-sdk-js": {
+    "version": "0.1.13",
+    "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA=="
+  },
+  "gh-axi": {
+    "version": "0.1.44",
+    "integrity": "sha512-iBH2a59aR/zQHWwMz/7ft6P6ldOBodfolFCgwoKviX8/hMkyAJ8R9hIf3BjRCWz7v11hXvuQXte7P1GQUci9tg=="
+  },
   "@knowttl/checkpoint-axi": {
     "version": "0.1.0",
     "integrity": "sha512-fbwTL0lbbJwCDjR8bt431kWHSCEuBmAEzk/QNJzsVcAbve2x8Ehtz/mr/aPzJ6I/WMRQiRPFpCE2zsW/2CRHlQ=="

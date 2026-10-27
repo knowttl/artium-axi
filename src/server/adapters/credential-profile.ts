@@ -57,6 +57,9 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'gh-axi') {
+      this.inputSchema.properties.token.not = { pattern: '^(gho_|ghu_|ghs_|ghr_)' }
+    }
     if (tool === 'checkpoint-axi') {
       this.inputSchema.required = ['region', 'clientId', 'clientSecret']
     }

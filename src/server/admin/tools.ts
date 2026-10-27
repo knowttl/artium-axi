@@ -12,6 +12,7 @@ import { azCredentialSchema, azWritePolicy } from '../adapters/az.js'
 import { mgCredentialSchema, mgWritePolicy } from '../adapters/mg.js'
 import { ldapCredentialSchema, ldapWritePolicy } from '../adapters/ldap.js'
 import { adoCredentialSchema, adoWritePolicy } from '../adapters/ado.js'
+import { ghCredentialSchema, ghWritePolicy } from '../adapters/gh.js'
 import { awxCredentialSchema, awxWritePolicy } from '../adapters/awx.js'
 import { tenableCredentialSchema, tenableWritePolicy } from '../adapters/tenable.js'
 import { hybridCredentialSchema, hybridWritePolicy } from '../adapters/hybrid.js'
@@ -36,10 +37,11 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const writePolicies = { 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+const credentialSchemas = { 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const writePolicies = { 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy }
 const publicFields = {
+  'gh-axi': ['origin', 'auth'],
   'checkpoint-axi': ['region', 'clientId', 'saas', 'scope'],
   'hybrid-axi': ['origin'],
   'tenable-axi': ['origin'],
@@ -52,6 +54,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'gh-axi': ['token'],
   'checkpoint-axi': ['clientSecret'],
   'hybrid-axi': ['apiKey'],
   'tenable-axi': ['accessKey', 'secretKey'],

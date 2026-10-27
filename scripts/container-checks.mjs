@@ -64,6 +64,12 @@ try {
       await command('docker', ['run', '--name', ldapPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/ldap-axi', image, 'user', 'list', '--help'])
       const adoPackage = `${builder}-ado-package`
+      for (const [name, executable] of [['gh', '/usr/local/bin/gh'], ['gh-axi', '/opt/tools/node_modules/.bin/gh-axi']]) {
+        const container = `${builder}-${name}-package`
+        recoveryContainers.push(container)
+        await command('docker', ['run', '--name', container, '--pull', 'never', '--network', 'none', '--read-only',
+          '--entrypoint', executable, image, '--version'])
+      }
       recoveryContainers.push(adoPackage)
       await command('docker', ['run', '--name', adoPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/ado-axi', image, '--version'])

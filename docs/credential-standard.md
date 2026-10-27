@@ -270,6 +270,13 @@ These az-axi schema details were approved separately during implementation.
 The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the shipped credential schema; [credential-profile.ts](../src/server/adapters/credential-profile.ts) owns its hosted input restrictions and CA materialization.
 See [LDAP credential setup](tool-credentials.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
 
+gh-axi is also a third-party tool bundled without upstream modifications.
+Its [host adapter](../src/server/adapters/gh.ts) owns the inline `origin`, `auth=token` and secret `token` profile.
+It injects only `GH_TOKEN` or `GH_ENTERPRISE_TOKEN`, with managed `GH_HOST`, into the isolated process.
+The reviewed allow-list provides reads only in slice 1; there is no upstream profile file or write override.
+GitHub CLI receives a combined system and trusted CA bundle through `SSL_CERT_FILE`; leaf pinning is refused.
+See [GitHub setup](tool-credentials.md#github).
+
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
 The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.
 It uses the shared credential editor and input normalization, but prepares its upstream profile itself instead of using the shared profile writer.
