@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.22.0",
   "dependencies": {
     "@knowttl/hybrid-axi": "0.1.2",
-    "@knowttl/tenable-axi": "0.1.2",
+    "@knowttl/tenable-axi": "0.1.3",
     "awx-axi": "0.1.8",
     "@jeffreyhaen/ado-axi": "0.4.7",
     "@knowttl/az-axi": "0.1.12",

@@ -54,8 +54,8 @@ See the [command reference](https://github.com/knowttl/tenable-axi/blob/main/doc
 | `npx -y @knowttl/tenable-axi combination show` | show combination |
 | `npx -y @knowttl/tenable-axi combination update` | Preview or update combination |
 | `npx -y @knowttl/tenable-axi config path` | Show selected config and state paths without reading files |
-| `npx -y @knowttl/tenable-axi connector logs` | Read connector sync logs; the API has no server paging parameters |
-| `npx -y @knowttl/tenable-axi doctor` | Check local security and one tag-properties read without retries |
+| `npx -y @knowttl/tenable-axi connector logs` | Read connector sync logs with sync identity, trigger, first FAILED stage and first ERROR summary (falling back to text); the API has no server paging parameters |
+| `npx -y @knowttl/tenable-axi doctor` | Check local security and read access to assets, findings, software, attack paths, attack techniques, initiatives, export jobs and connector logs without retries |
 | `npx -y @knowttl/tenable-axi export asset jobs` | List recent inventory asset export jobs |
 | `npx -y @knowttl/tenable-axi export asset start` | Preview or create an inventory asset export job |
 | `npx -y @knowttl/tenable-axi export attack download` | Download an attack export to a new file, redacting JSON/CSV within 128 MiB |
@@ -70,6 +70,7 @@ See the [command reference](https://github.com/knowttl/tenable-axi/blob/main/doc
 | `npx -y @knowttl/tenable-axi finding list` | Search findings |
 | `npx -y @knowttl/tenable-axi finding properties` | Discover finding properties and supported operators |
 | `npx -y @knowttl/tenable-axi finding show` | Find one finding by exact ID search |
+| `npx -y @knowttl/tenable-axi finding summary` | Count findings by each published severity and sensor_type value using limit-1 searches; no per-asset grouping |
 | `npx -y @knowttl/tenable-axi home` | Show profile state and up to five live exposure cards |
 | `npx -y @knowttl/tenable-axi hook` | Show compact local profile context without resolving secrets or HTTP |
 | `npx -y @knowttl/tenable-axi initiative create` | Preview or create initiative |

@@ -32,7 +32,7 @@ test('the credential form marks both keys secret and offers only the fixed origi
   expect(form).not.toContain('CANARY-')
 })
 
-test.each([['--help'], ['card', 'list', '--help'], ['export', 'asset', 'start', '--help']].map(args => ({ args })))('published help stays within managed commands: $args', ({ args }) => {
+test.each([['--help'], ['card', 'list', '--help'], ['finding', 'summary', '--help'], ['export', 'asset', 'start', '--help']].map(args => ({ args })))('published help stays within managed commands: $args', ({ args }) => {
   const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/tenable-axi/bin/tenable-axi.js', ...args], { encoding: 'utf8' })
   expect(result.status, result.stderr).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'tenable-axi')
@@ -51,6 +51,13 @@ test('both keys are secret references and writes default off with a fixed endpoi
   expect((await adapter.prepare(['card', 'list'], reference)).environment.TENABLE_AXI_CONFIG).toBe(call.environment.TENABLE_AXI_CONFIG)
   expect(tenableProfile.metadata(credential)).toEqual({})
   expect(toolEndpoints('tenable-axi', credential).map(url => url.origin)).toEqual(['https://cloud.tenable.com'])
+})
+
+test('finding summary is reachable as a managed read', async () => {
+  const call = await adapter.prepare(['finding', 'summary'], reference)
+  expect(call.args).toEqual(['finding', 'summary'])
+  expect(call.invocation).toEqual({ command: 'finding summary', help: false })
+  expect(call.effect).toBe('read')
 })
 
 test.each([
