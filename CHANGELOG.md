@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.21](https://github.com/knowttl/artium-axi/compare/v0.0.20...v0.0.21) (2026-10-27)
+
+
+### Features
+
+* add managed Check Point Email Security integration ([#187](https://github.com/knowttl/artium-axi/issues/187)) ([f49de2d](https://github.com/knowttl/artium-axi/commit/f49de2d038ce3bd9f4521dfa6fe6f1fcccf8d87b))
+
 ## [0.0.20](https://github.com/knowttl/artium-axi/compare/v0.0.19...v0.0.20) (2026-10-27)
 
 
