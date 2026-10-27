@@ -280,12 +280,8 @@ The [reviewed inventory](../tools/inventories/gh-axi.json) owns the command allo
 
 GitHub writes default off.
 An administrator enables exact operations under **Write access**, persisted as `{"writes":{"allowWrites":true,"operations":["issue comment"]}}` in native settings.
-The two tiers describe capabilities; selecting one operation never enables its siblings.
-
-| Tier | Exact operations |
-| --- | --- |
-| Collaboration | `issue create`, `issue edit`, `issue comment`, `issue close`, `issue reopen`; `pr create`, `pr edit`, `pr comment`, `pr ready`, `pr review`; `discussion comment`; `label create`, `label edit`; `project item-add`, `project item-create`, `project item-edit`, `project item-archive`. |
-| Repository | `pr merge`, `pr update-branch`, `pr revert`; `release create`, `release edit`; `workflow run`, `workflow enable`, `workflow disable`; `run rerun`, `run cancel`; `repo create`, `repo edit`, `repo fork`; `gist create`, `gist edit`, `gist rename`; `variable set`; `issue pin`, `issue transfer`. |
+The collaboration and repository tiers describe capabilities; selecting one operation never enables its siblings.
+For exact operation names and tier membership, use the `effect: "write"` command entries and their `tier` fields in the [reviewed inventory](../tools/inventories/gh-axi.json).
 
 Issue lock/unlock is unsupported because pinned gh-axi 0.1.44 requests the `locked` issue field, which gh 2.101.0 does not export.
 A compatible published upstream release is required before these operations can be enabled.
@@ -307,9 +303,12 @@ Gist creation requires `--public` or `--secret`, a `--filename` and piped conten
 Gist edits accept inline descriptions or piped replacement content with `--filename`; local paths and file removal stay blocked.
 Workflow `--field name=value` supports literal values; `@file` values are refused.
 Deletes, `secret set`, `pr merge --admin`, `--delete-branch` and `api` non-GET remain refused for everyone.
+An interrupted write or an ambiguous command failure, including a failed post-write read-back, returns `UNKNOWN_OUTCOME` with a scoped read-back command and is never automatically retried.
+Known pre-mutation refusals retain their ordinary errors.
 After `UNKNOWN_OUTCOME`, never retry blindly: execute the provided read-back command, inspect all relevant pages and reconcile GitHub audit evidence.
 For project item edits, identify the project from the returned owner-scoped project list, then inspect its item list with the same owner; absence from a limited page does not establish failure.
-Artium records confirmed successful writes as writes and interrupted writes as unknown, while redacting titles, bodies, field values, search queries and confirmation values from its audit.
+For audit classification, see the [audit guide](admin-guide.md#audit-screen-and-api).
+GitHub audit arguments redact titles, bodies, field values, search queries and confirmation values while retaining the command, repository and resource number.
 
 GitHub.com and `*.ghe.com` use `GH_TOKEN`; GHES uses `GH_ENTERPRISE_TOKEN`, always with the managed host.
 Callers cannot override the host or credential.
