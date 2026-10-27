@@ -8,14 +8,23 @@ if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
     console.error('unknown flag: --no-type')
     process.exit(1)
   }
-  if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
+  if (args[0] === 'workflow' && args[1] === 'list') {
+    const workflows = [...Array.from({ length: 50 }, (_, index) => ({ id: index + 1, name: `synthetic-${index + 1}`, state: 'active' })),
+      { id: 123, name: 'CI: tests', state: 'disabled_manually' }]
+    const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : 50
+    console.log(JSON.stringify(workflows.slice(0, limit)))
+  }
+  else if (args[0] === 'api' && /^\/repos\/canary\/repo\/actions\/workflows(?:\/123|\?per_page=100)$/.test(args[1])) {
+    const workflow = { id: 123, name: 'CI: tests', state: 'disabled_manually' }
+    console.log(JSON.stringify(args[1].endsWith('/123') ? workflow : { workflows: [workflow] }))
+  }
+  else if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
     repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' } },
     addDiscussionComment: { comment: { id: 'synthetic-comment', url: 'https://github.example/canary/repo/discussions/1#comment' } },
     node: { state: 'MERGED', mergeStateStatus: 'CLEAN' },
   } }))
   else if (args.includes('--json') || args.includes('--format')) console.log(JSON.stringify(
-    args[0] === 'workflow' && args[1] === 'list' ? [{ id: 123, name: 'synthetic', state: 'disabled_manually' }]
-      : ['label', 'pr'].includes(args[0]) && args[1] === 'list' || args[0] === 'search' ? []
+    ['label', 'pr'].includes(args[0]) && args[1] === 'list' || args[0] === 'search' ? []
       : { id: 'synthetic-id', number: 1, title: 'synthetic', state: 'OPEN', isDraft: true, isLocked: false, isPinned: false,
         comments: [{ id: 'unrelated-comment', author: { login: 'other-participant' }, body: 'unrelated later comment',
           url: 'https://github.com/canary/repo/issues/1#issuecomment-999' }],

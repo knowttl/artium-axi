@@ -170,6 +170,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   const command = route.command.split(' ')
   const nativeGh = !help && (route.command === 'issue comment'
+    || ['workflow enable', 'workflow disable'].includes(route.command)
     || flags.get('body') === '' && ['issue create', 'issue edit', 'pr create', 'pr edit', 'project item-create', 'project item-edit'].includes(route.command)
     || flags.get('description') === '' && ['label edit', 'repo edit'].includes(route.command))
   const nativeRepoEdit = nativeGh && route.command === 'repo edit'
@@ -191,13 +192,16 @@ function readBack(call: ReturnType<typeof ghArguments>) {
     '--owner', flags.get('owner')!, '--limit', '100']
   else if (group === 'label' || group === 'variable') checkArgs = [group, 'list']
   else if (group === 'workflow' && action === 'run') checkArgs = ['run', 'list', '--workflow', rest[0], '--limit', '100']
+  else if (group === 'workflow') checkArgs = /^\d+$/.test(rest[0])
+    ? ['api', `/repos/${repo}/actions/workflows/${rest[0]}`]
+    : ['api', `/repos/${repo}/actions/workflows?per_page=100`, '--paginate']
   else if (route === 'pr revert') checkArgs = ['pr', 'list', '--state', 'all', '--limit', '100']
   else if (route === 'issue transfer') checkArgs = ['issue', 'list', '--state', 'all', '--limit', '100']
   else if (group === 'repo' && action === 'create') checkArgs = ['repo', 'list', rest[0].split('/')[0], '--limit', '100']
   else if (group === 'repo' && action === 'fork') checkArgs = ['api', `/repos/${repo}/forks?per_page=100`]
   else if (action === 'create') checkArgs = [group, 'list', '--limit', '100', ...(['issue', 'pr'].includes(group) ? ['--state', 'all'] : [])]
   else checkArgs = [group, 'view', ...(group === 'repo' ? [] : [rest[0]]), ...(['issue', 'pr', 'discussion'].includes(group) ? ['--comments'] : [])]
-  if (repo && !(group === 'repo' && action === 'fork')) checkArgs.push('-R', route === 'issue transfer' ? flags.get('to-repo')! : repo)
+  if (repo && checkArgs[0] !== 'api') checkArgs.push('-R', route === 'issue transfer' ? flags.get('to-repo')! : repo)
   if (route === 'pr review') checkArgs.push('--reviews')
   return { operation: route, target: repo ?? 'managed GitHub resource', checkArgs,
     afterCheck: 'Inspect the affected resource, all relevant pages and GitHub audit evidence. A missing result does not prove failure; never blindly replay the write' }

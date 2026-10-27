@@ -119,6 +119,35 @@ test('workflow dispatch preserves every field and binds every value to confirmat
   await expect(adapter.prepare([...args, '--field=third=c', '--confirm', confirm], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
 })
 
+test.each(['enable', 'disable'])('workflow %s reaches an ID beyond the first 50 workflows and scopes its recovery', async action => {
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  const listing = executeWrite(await adapter.prepare(['workflow', 'list', '-R', 'canary/repo', '--all', '--limit=100'], reference))
+  const document = decode(listing.result.stdout.split(/\nhelp\[\d+\]:/)[0]) as { workflows: { id: number }[] }
+  expect(document.workflows).toHaveLength(51)
+  expect(document.workflows[50].id).toBe(123)
+  const call = await confirmed(['workflow', action, '123', '-R', 'canary/repo'])
+  const { result, calls } = executeWrite(call)
+  expect(calls).toEqual([['workflow', action, '123', '--repo=canary/repo']])
+  expect(decode(result.stdout)).toMatchObject({ operation: `workflow ${action}`, status: 'completed' })
+  expect(call.write?.checkArgs).toEqual(['api', '/repos/canary/repo/actions/workflows/123'])
+  const recovery = await adapter.prepare(call.write!.checkArgs, reference)
+  expect(recovery.effect).toBe('read')
+  const read = executeWrite(recovery)
+  expect(read.calls).toEqual([['api', '/repos/canary/repo/actions/workflows/123', '--method', 'GET']])
+  expect(decode(read.result.stdout)).toMatchObject({ id: 123, name: 'CI: tests', state: 'disabled_manually' })
+})
+
+test.each(['enable', 'disable'])('workflow %s keeps name-based mutations and paginates their scoped recovery', async action => {
+  const call = await confirmed(['workflow', action, 'CI: tests', '-R', 'canary/repo'])
+  expect(executeWrite(call).calls).toEqual([['workflow', action, 'CI: tests', '--repo=canary/repo']])
+  expect(call.write?.checkArgs).toEqual(['api', '/repos/canary/repo/actions/workflows?per_page=100', '--paginate'])
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  const recovery = await adapter.prepare(call.write!.checkArgs, reference)
+  const read = executeWrite(recovery)
+  expect(read.calls).toEqual([['api', '/repos/canary/repo/actions/workflows?per_page=100', '--method', 'GET', '--paginate']])
+  expect(decode(read.result.stdout)).toMatchObject({ workflows: [{ id: 123, name: 'CI: tests' }] })
+})
+
 test.each([
   ['--field=first=@/tmp/secret', '--field=second=b'],
   ['--field=first=a', '--field=second=@/tmp/secret'],
