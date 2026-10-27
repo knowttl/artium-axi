@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { execFile } from 'node:child_process'
+import { once } from 'node:events'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+import { SessionStore } from '../../dist/src/cli/session.js'
+import { errorResponse } from '../../dist/src/shared/errors.js'
 import { createMgAdapter } from '../../dist/src/server/adapters/mg.js'
 import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
@@ -47,6 +53,37 @@ const run = (args, input = {}) => runTool(db, audit, runner, token, { args, ...i
 const group = '00000000-0000-0000-0000-000000000003'
 const user = '00000000-0000-0000-0000-000000000004'
 const write = ['entra', 'group', 'member', 'add', '--group', group, '--user', user]
+const cliRequests = []
+const server = createServer(async (request, reply) => {
+  assert.equal(request.url, '/v1/tools/mg-axi/run')
+  assert.equal(request.headers.authorization, `Bearer ${token}`)
+  let body = ''
+  for await (const chunk of request) body += chunk
+  const input = JSON.parse(body)
+  cliRequests.push(input)
+  try {
+    const { stdout, stderr, exitCode, durationMs, outputBytes, truncated } = await run(input.args, input)
+    reply.writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify({ source: 'mg-axi', stdout, stderr, exitCode, durationMs, outputBytes, truncated }))
+  } catch (error) {
+    reply.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify(errorResponse(error, 'synthetic-cli-run')))
+  }
+})
+server.listen(0, '127.0.0.1')
+await once(server, 'listening')
+const url = `http://127.0.0.1:${server.address().port}`
+new SessionStore(url, join(directory, 'artium-axi', 'session.json')).write({
+  status: 'authenticated', accessToken: token, refreshToken: 'CANARY-cli-refresh',
+  accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000,
+})
+const execute = promisify(execFile)
+const cli = async args => {
+  try {
+    return { ...await execute(process.execPath, [fileURLToPath(new URL('../../dist/cli/artium-axi.mjs', import.meta.url)), 'mg-axi', ...args],
+      { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory,
+        ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } }), code: 0 }
+  } catch (error) { return { code: error.code, stdout: error.stdout, stderr: error.stderr } }
+}
 try {
   const read = await run(['entra', 'user', 'list'])
   assert.equal(read.exitCode, 0, read.stdout + read.stderr)
@@ -60,6 +97,51 @@ try {
   assert.equal(hunted.exitCode, 0, hunted.stdout + hunted.stderr)
   assert.match(hunted.stdout, /Synthetic Device/)
   assert.ok(!JSON.stringify(hunted).includes(query))
+  writeFileSync(join(directory, 'query.kql'), query)
+  for (const fileArgs of [['--file', 'query.kql'], ['--file=query.kql']]) {
+    const result = await cli(['security', 'hunting', 'query', ...fileArgs])
+    assert.equal(result.code, 0, result.stdout + result.stderr)
+    assert.match(result.stdout, /Synthetic Device/)
+    assert.ok(!result.stdout.includes(query))
+    assert.deepEqual(cliRequests.at(-1), { args: ['security', 'hunting', 'query', ...fileArgs], ...input })
+  }
+  writeFileSync(join(directory, 'query.kql'), query.padEnd(65536, ' '))
+  const boundary = await cli(hunting)
+  assert.equal(boundary.code, 0, boundary.stdout + boundary.stderr)
+  assert.match(boundary.stdout, /Synthetic Device/)
+  writeFileSync(join(directory, 'query.kql'), query.padEnd(65537, ' '))
+  for (const fileArgs of [['--file', 'query.kql'], ['--file=query.kql']]) {
+    const before = cliRequests.length
+    const result = await cli(['security', 'hunting', 'query', ...fileArgs])
+    assert.equal(result.code, 2, result.stdout + result.stderr)
+    assert.equal(cliRequests.length, before)
+    assert.ok(!result.stdout.includes(query))
+  }
+  writeFileSync(join(directory, 'query.kql'), query)
+  mkdirSync(join(directory, 'nested'))
+  for (const fileArgs of [
+    ['--file', 'nested/../query.kql'], ['--file=nested/../query.kql'], ['--file=..\\query.kql'],
+    ['--file', '-'], ['--file'], ['--file='], ['--file', 'missing.kql'],
+    ['--file', 'query.kql', '--file', 'query.kql'],
+    ['--file=query.kql', '--file=query.kql'],
+    ['--file', 'query.kql', '--file=other.kql'],
+  ]) {
+    const before = cliRequests.length
+    const result = await cli(['security', 'hunting', 'query', ...fileArgs])
+    assert.equal(result.code, 2, result.stdout + result.stderr)
+    assert.equal(cliRequests.length, before)
+  }
+  const cliRead = await cli(['entra', 'user', 'list'])
+  assert.equal(cliRead.code, 0, cliRead.stdout + cliRead.stderr)
+  assert.match(cliRead.stdout, /Synthetic User/)
+  for (const args of [
+    ['entra', 'user', 'list', '--file', 'query.kql'],
+    ['api', 'get', '/users', '--file=query.kql'],
+    [...hunting, '--help'],
+  ]) {
+    await cli(args)
+    assert.deepEqual(cliRequests.at(-1), { args })
+  }
   await assert.rejects(run(hunting, { files: [{ ...input.files[0], name: '../query.kql' }] }), error => error.code === 'INVALID_INPUT')
   await assert.rejects(run(hunting, { files: [...input.files, { ...input.files[0], name: 'extra.kql' }] }), error => error.code === 'UNSUPPORTED_INPUT')
   await assert.rejects(run(hunting, { files: [{ ...input.files[0], contentBase64: Buffer.alloc(65537, 65).toString('base64') }] }), error => error.code === 'UNSUPPORTED_INPUT')
@@ -109,6 +191,7 @@ try {
   assert.deepEqual(readdirSync(join(directory, 'calls')), [])
   console.log('mg-adapter: fake Graph and hunting reads, opt-in/upload/role refusals, query/secret scanning, native preview/write/gates and audit passed; live consent unverified')
 } finally {
+  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   await runner.shutdown()
   db.close()
   rmSync(directory, { recursive: true, force: true })
