@@ -258,9 +258,9 @@ See GitHub's [PAT guidance](https://docs.github.com/en/authentication/keeping-yo
 
 For a shared bot identity, choose `auth=github-app` instead, enter your numeric `appId` and `installationId`, and paste the App's RSA PEM `privateKey`.
 Register and install your own GitHub App on the managed host, selecting only the repositories and permissions it needs.
-The key is encrypted in the credential store and never returned by the admin API or passed to gh.
+The key is encrypted in the credential store and never returned by the admin API or passed to gh; the output secret scanner covers both the key and minted tokens.
 Artium signs a short-lived RS256 JWT and requests an [installation access token](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app) before a call.
-Concurrent calls share an in-memory token cache keyed by credential revision and trust; tokens expire after at most one hour and renew five minutes early.
+Concurrent calls share an in-memory token cache keyed by credential identity, revision, grant selection and trust; cached tokens are reused until five minutes before the provider expiry or the one-hour lifetime cap, whichever comes first.
 Saving or rotating the credential discards cached tokens; no installation token is persisted.
 Optional `repositories` (repository names, up to 500) and `permissions` (a JSON map such as `{"contents":"read","issues":"read"}`) narrow the installation grant, never expand it.
 GitHub rejects requests for repositories or permissions outside that installation; Artium never retries with a broader grant or another authentication method.
