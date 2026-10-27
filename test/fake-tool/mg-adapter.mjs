@@ -137,9 +137,18 @@ try {
   for (const args of [
     ['entra', 'user', 'list', '--file', 'query.kql'],
     ['api', 'get', '/users', '--file=query.kql'],
-    [...hunting, '--help'],
   ]) {
     await cli(args)
+    assert.deepEqual(cliRequests.at(-1), { args })
+  }
+  for (const fileArgs of [[], ['--file', 'query.kql'], ['--file=query.kql'], ['--file', 'missing.kql'], ['--file=missing.kql']]) {
+    const args = ['security', 'hunting', 'query', ...fileArgs, '--help']
+    const result = await cli(args)
+    assert.equal(result.code, 0, result.stdout + result.stderr)
+    assert.equal(result.stderr, '')
+    assert.match(result.stdout, /--file/)
+    assert.match(result.stdout, /--timespan/)
+    assert.match(result.stdout, /--limit/)
     assert.deepEqual(cliRequests.at(-1), { args })
   }
   await assert.rejects(run(hunting, { files: [{ ...input.files[0], name: '../query.kql' }] }), error => error.code === 'INVALID_INPUT')

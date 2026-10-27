@@ -50,7 +50,7 @@ try {
       sends++
       return { status: 204, headers: {}, body: '' }
     } })
-  console.log(encode({ ...result, fakeSends: sends }))
+  console.log(typeof result === 'string' ? result : encode({ ...result, fakeSends: sends }))
 } catch (error) {
   if (!error.code) throw error
   assert.equal(sends, 0)

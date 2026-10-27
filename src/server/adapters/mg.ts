@@ -75,7 +75,7 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   if (input.stdin !== undefined && flags.cursor !== '-') throw new ArtiumError('UNSUPPORTED_INPUT')
-  if (hunting && (flags.file !== undefined || flags.help !== true || input.files?.length)) {
+  if (hunting && (flags.help !== true || input.files?.length)) {
     const file = input.files?.[0]
     if (flags.file !== 'query.kql' || input.files?.length !== 1 || file?.name !== 'query.kql'
       || !inputFileSchema.safeParse(file).success || file.contentBase64.length > 4 * Math.ceil(65536 / 3)) {
@@ -87,7 +87,7 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
     catch { throw new ArtiumError('UNSUPPORTED_INPUT') }
     if (bytes.length > 65536 || !text.trim() || /\p{Cc}/u.test(text.replace(/[\t\r\n]/g, ''))) throw new ArtiumError('UNSUPPORTED_INPUT')
   }
-  return { args: hunting ? normalized : [...args], fileArguments,
+  return { args: hunting && flags.help !== true ? normalized : [...args], fileArguments: flags.help === true ? [] : fileArguments,
     invocation: { command: route.command, help: flags.help === true } }
 }
 
