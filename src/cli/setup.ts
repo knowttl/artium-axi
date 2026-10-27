@@ -103,10 +103,11 @@ export async function setup(args: string[]): Promise<string> {
     throw new ArtiumError('INVALID_INPUT', `Hook installation is unsupported for ${host}: this installer has no verified ${host} hook implementation. No files were written.`, `Install the skill with artium-axi setup --host ${host} without --hook; Claude Code supports --hook.`)
   }
   const executable = resolve(process.argv[1])
+  const gitBashQuote = (path: string) => `"${path.replaceAll('\\', '/').replaceAll(/["$`]/g, '\\$&')}"`
   const invocation = process.platform === 'win32'
-    ? `& '${process.execPath.replaceAll("'", "''")}' '${executable.replaceAll("'", "''")}'`
-    : `${quote(process.execPath)} ${quote(executable)}`
-  const executableBlock = `<!-- artium-axi executable -->\n\n\`\`\`sh\n${invocation}\n\`\`\`\n\n<!-- /artium-axi executable -->`
+    ? `PowerShell:\n\n\`\`\`powershell\n& '${process.execPath.replaceAll("'", "''")}' '${executable.replaceAll("'", "''")}'\n\`\`\`\n\nGit Bash:\n\n\`\`\`sh\n${gitBashQuote(process.execPath)} ${gitBashQuote(executable)}\n\`\`\``
+    : `\`\`\`sh\n${quote(process.execPath)} ${quote(executable)}\n\`\`\``
+  const executableBlock = `<!-- artium-axi executable -->\n\n${invocation}\n\n<!-- /artium-axi executable -->`
   const content = skill.replace(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/, () => executableBlock)
   const hostDirectory = host === 'claude' && process.env.CLAUDE_CONFIG_DIR
     ? resolve(process.env.CLAUDE_CONFIG_DIR)

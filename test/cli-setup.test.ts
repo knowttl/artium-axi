@@ -5,11 +5,15 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { Client } from '../src/cli/http.js'
+import { setup } from '../src/cli/setup.js'
 import { SessionStore } from '../src/cli/session.js'
 import { loadToolSkill } from '../src/server/tool-skills.js'
 import { toolSchema } from '../src/shared/api.js'
 import type { ToolName } from '../src/server/store/credential-store.js'
+
+vi.mock('../skill/artium-axi/SKILL.md', () => ({ default: readFileSync('skill/artium-axi/SKILL.md', 'utf8') }))
 
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), "artium-setup-$&-$`-$'-$$-"))
@@ -46,6 +50,50 @@ function write(path: string, content: string) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content)
 }
+
+test('Windows setup installs labelled PowerShell and Git Bash invocations in every skill', async () => {
+  const target = home()
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+  const execPath = Object.getOwnPropertyDescriptor(process, 'execPath')!
+  const executable = process.argv[1]
+  vi.stubEnv('CLAUDE_CONFIG_DIR', target)
+  vi.stubEnv('ARTIUM_AXI_URL', 'https://synthetic.invalid')
+  vi.stubEnv('APPDATA', target)
+  vi.spyOn(Client.prototype, 'authenticated').mockResolvedValue({ skills: [{ name: 'az-axi',
+    content: '---\nname: az-axi\n---\n\nSynthetic tool skill.\n' }] })
+  try {
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    Object.defineProperty(process, 'execPath', { value: 'C:\\Program Files\\nodejs\\node.exe' })
+    process.argv[1] = '/synthetic/artium-axi.mjs'
+    await setup(['--host', 'claude'])
+    for (const name of ['artium-axi', 'az-axi']) {
+      const content = read(join(target, 'skills', name, 'SKILL.md'))
+      expect(content.match(/<!-- artium-axi executable -->[\s\S]*?<!-- \/artium-axi executable -->/)?.[0]).toMatchInlineSnapshot(`
+        "<!-- artium-axi executable -->
+
+        PowerShell:
+
+        \`\`\`powershell
+        & 'C:\\Program Files\\nodejs\\node.exe' '/synthetic/artium-axi.mjs'
+        \`\`\`
+
+        Git Bash:
+
+        \`\`\`sh
+        \"C:/Program Files/nodejs/node.exe\" \"/synthetic/artium-axi.mjs\"
+        \`\`\`
+
+        <!-- /artium-axi executable -->"
+      `)
+    }
+  } finally {
+    Object.defineProperty(process, 'platform', platform)
+    Object.defineProperty(process, 'execPath', execPath)
+    process.argv[1] = executable
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  }
+})
 async function cli(home: string, args: string[], executable = bundle, claudeConfigDir?: string, piAgentDir?: string) {
   if (!sessions.has(home)) {
     const config = mkdtempSync(join(directory, 'session-'))
@@ -92,7 +140,7 @@ test.each([
   for (const tool of ['artium-axi', ...toolSchema.options]) {
     const content = read(join(target, location, tool, 'SKILL.md'))
     expect(content).toContain('in place of `artium-axi` in every example')
-    const invocation = content.match(/```sh\n([^\n]+)\n```/)![1]
+    const invocation = content.match(process.platform === 'win32' ? /```powershell\n([^\n]+)\n```/ : /```sh\n([^\n]+)\n```/)![1]
     const result = await execute(process.platform === 'win32' ? 'powershell.exe' : 'sh',
       process.platform === 'win32' ? ['-NoProfile', '-Command', `${invocation} --help`] : ['-c', `${invocation} --help`],
       { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, HOME: target, USERPROFILE: target } })

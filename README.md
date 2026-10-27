@@ -155,6 +155,7 @@ Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those 
 Only Claude Code supports the optional `SessionStart` hook, which injects the `tools` discovery output.
 Setup preserves unrelated settings and refuses edited/unmanaged skills unless `--force` is explicit.
 Re-run setup after moving the executable or changing grants; skills for removed grants are retained and reported.
+On Windows, installed skills include labelled PowerShell and Git Bash invocations; use the command for your shell.
 See [installation paths and manual removal](docs/client-reference.md#agent-installation) before uninstalling.
 Artium's authenticated setup fetches managed skills; a standalone skill installer does not configure this server account.
 

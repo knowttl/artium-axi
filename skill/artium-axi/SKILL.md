@@ -10,6 +10,7 @@ Follow the returned next commands; they already include the Artium prefix.
 Keep upstream arguments intact and use the managed credentials rather than configuring an upstream CLI directly.
 
 If artium-axi is absent from PATH, use the installed command below in place of `artium-axi` in every example:
+On Windows, choose the labelled PowerShell or Git Bash command for your shell.
 
 <!-- artium-axi executable -->
 The setup command records the standalone bundle's Node invocation here.
