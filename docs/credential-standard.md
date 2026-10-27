@@ -15,7 +15,7 @@ Round 3 recorded all six board decisions:
 
 The text where each decision applies is marked `[D#]`.
 
-Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, hybrid-axi, azure-axi.
+Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, hybrid-axi, checkpoint-axi, azure-axi.
 artium-axi is the host that consumes the standard (section 9).
 The key words MUST, SHOULD and MAY are used as described in RFC 2119.
 
@@ -301,6 +301,11 @@ hybrid-axi uses its shipped apiKey SecretRef schema and the fixed `https://hybri
 Artium requires one secret API key, injects it through an environment SecretRef and keeps native writes disabled unless the administrator enables named operations.
 Native preview, execute, exact confirmation and durable journaling remain required.
 See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis) for credential setup and key-level failures, and the [capability boundary](../README.md#safety) for supported operations.
+
+checkpoint-axi uses its shipped clientSecret SecretRef schema, mandatory region/client ID and the fixed regional map in its reviewed inventory.
+Artium requires a client secret explicitly and injects it only in the child environment through a private config reference.
+Native write settings retain exact operation IDs; download enablement is scoped to an authenticated hosted transfer and its host-owned confirmation, never an ordinary tool run.
+See [Check Point setup](tool-credentials.md#check-point-email-security) for commissioning and capability boundaries.
 
 ## 10. Migration
 

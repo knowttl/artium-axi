@@ -18,6 +18,19 @@ import { migrate } from './store/db.js'
 import { createTransferScope, transferTargetDigest } from './transfer.js'
 
 const now = Date.UTC(2026, 0, 1)
+test.each([
+  { digest: createHash('sha256').update('different bytes').digest('hex'), nativeAuditId: null, nativeJournalResult: null },
+  { digest: createHash('sha256').update('inert').digest('hex'), nativeAuditId: 'synthetic-native-id', nativeJournalResult: 'SUCCESS' as const },
+])('the artifact store refuses contradictory Check Point byte or native journal evidence: %j', async ({ digest, nativeAuditId, nativeJournalResult }) => {
+  db.exec("INSERT INTO tools (name, pinned_version) VALUES ('checkpoint-axi', 'synthetic')")
+  const reservation = await store.reserve({ ...scope(),
+    selection: { operation: 'email.download', selector: 'synthetic-email', type: 'email' } }, context)
+  await expect(reservation.execute(async output => {
+    await writeFile(output, 'inert', { mode: 0o600, flag: 'wx' })
+    return { archiveBytes: 5, verifiedSha256: digest, nativeAuditId, nativeJournalResult }
+  })).rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
+  expect(await readdir(root)).toEqual([])
+})
 const context = { requestId: 'synthetic-request', clientAddress: null }
 const request = { selection: { operation: 'hash-download-bin' as const, selector: 'a'.repeat(64), type: 'bin' as const },
   targetDigest: transferTargetDigest('/synthetic/new-archive.gz') }

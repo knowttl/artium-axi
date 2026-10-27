@@ -5,12 +5,10 @@ import { finished } from 'node:stream/promises'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { transferExecuteSchema, transferPrepareSchema, transferReceiptSchema, transferRetrieveSchema,
-  transferRoutes, transferStatusSchema, transferWarning } from '../shared/api.js'
-import { transferSelectionSchema } from '../shared/api.js'
+  transferRoutesFor, transferStatusSchema, transferWarning, transferTool } from '../shared/api.js'
 import type { TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
-import { hybridWritePolicy } from './adapters/hybrid.js'
 import { ArtifactStore } from './artifacts.js'
 import type { ArtifactArchive, ArtifactReservation } from './artifacts.js'
 import type { Audit } from './audit/audit.js'
@@ -33,16 +31,13 @@ interface Entry {
 }
 
 export function registerTransfers(app: FastifyInstance, db: Database.Database, audit: Audit, runner: Runner,
-  resolver: IdentityResolver, adapter: Adapter<unknown> | undefined, providedStore?: ArtifactStore) {
+  resolver: IdentityResolver, adapters: readonly Adapter<unknown>[], providedStore?: ArtifactStore) {
   const entries = new Map<string, Entry>()
   let store: Promise<ArtifactStore> | undefined = providedStore ? Promise.resolve(providedStore) : undefined
   audit.recoverInterruptedTransfers()
   app.addHook('onReady', async () => {
-    if (store || !adapter?.prepareArtifact) return
-    const tool = db.prepare("SELECT native_settings FROM tools WHERE name = 'hybrid-axi'").get() as { native_settings: string } | undefined
-    const supported = tool ? hybridWritePolicy.read(JSON.parse(tool.native_settings)).supportedOperations : null
+    if (store || !adapters.some(adapter => adapter.prepareArtifact)) return
     // Purge stale bytes before serving, even with writes off.
-    if (!transferSelectionSchema.options.some(selection => supported?.includes(selection.shape.operation.value))) return
     store = ArtifactStore.create(audit)
     try { await store }
     catch (error) {
@@ -61,15 +56,15 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     // only used by the common access check; it is never a replacement for proof.
     return { userId, sessionFamilyId: family.family_id, reauthenticatedAt: Date.now() }
   }
-  function revision(): number {
-    const row = db.prepare("SELECT revision FROM credentials WHERE tool = 'hybrid-axi'").get() as { revision: number } | undefined
+  function revision(tool: 'hybrid-axi' | 'checkpoint-axi'): number {
+    const row = db.prepare('SELECT revision FROM credentials WHERE tool = ?').get(tool) as { revision: number } | undefined
     if (!row) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     return row.revision
   }
   function access(scope: TransferScope) {
     checkTransferAccess(db, { userId: scope.userId, sessionFamilyId: scope.sessionFamilyId,
       reauthenticatedAt: Date.now() }, scope.selection.operation)
-    if (revision() !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+    if (revision(transferTool(scope.selection.operation)) !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
     if (scope.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')
   }
   async function discard(entry: Entry) {
@@ -85,13 +80,15 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     const scope = entry.reservation.scope
     // An unrelated caller must not be able to cancel the owner's transfer.
     if (identity?.user_id !== scope.userId || identity.family_id !== scope.sessionFamilyId) throw new ArtiumError('TOKEN_INVALID')
-    try { checkTransferScope(scope, ownerFor(request), revision(), { selection: input.selection, targetDigest: input.targetDigest }); access(scope) }
+    try { checkTransferScope(scope, ownerFor(request), revision(transferTool(scope.selection.operation)), { selection: input.selection, targetDigest: input.targetDigest }); access(scope) }
     catch (error) { await discard(entry); throw error }
     return entry
   }
   async function native(entry: Entry) {
+    const tool = transferTool(entry.reservation.scope.selection.operation)
+    const adapter = adapters.find(adapter => adapter.name === tool)
     if (!adapter?.prepareArtifact) throw new ArtiumError('FLAG_BLOCKED')
-    const reference = await resolver.resolve(entry.reservation.scope.userId, 'hybrid-axi')
+    const reference = await resolver.resolve(entry.reservation.scope.userId, tool)
     if (reference.revision !== entry.reservation.scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
     return async (args: string[]) => {
       const prepared = await adapter.prepareArtifact!(args, reference, entry.reservation.scope)
@@ -104,14 +101,18 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
   app.addHook('onSend', async (request, _reply, payload) => {
     // Retrieval has already claimed the entry and checks authority while reading.
     // A revoking mutation's response still waits for cancellation below.
-    if (request.routeOptions.url === transferRoutes.retrieve.path) return payload
+    if ((['hybrid-axi', 'checkpoint-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
     for (const entry of entries.values()) {
       try { access(entry.reservation.scope) }
       catch { await discard(entry) }
     }
     return payload
   })
-  for (const route of Object.values(transferRoutes)) {
+  const routeGroups = (['hybrid-axi', 'checkpoint-axi'] as const).flatMap(tool => {
+    const routes = transferRoutesFor(tool)
+    return Object.values(routes).map(route => ({ tool, routes, route }))
+  })
+  for (const { tool, routes: transferRoutes, route } of routeGroups) {
     app.post(route.path, async (request, reply) => {
       reply.header('cache-control', 'no-store')
       const controller = new AbortController()
@@ -127,11 +128,12 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
       try {
         const parsed = route.input.safeParse(request.body)
         if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+        if (transferTool(parsed.data.selection.operation) !== tool) throw new ArtiumError('INVALID_INPUT')
         if (route === transferRoutes.prepare) {
           const input = transferPrepareSchema.parse(parsed.data)
           const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
-          const scope = createTransferScope(owner, revision(), input)
+          const scope = createTransferScope(owner, revision(tool), input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })
           const reservation = await (await store).reserve(scope, context(request, controller.signal))
           entry = { reservation, delivered: false, receipt: false,
@@ -173,13 +175,14 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
             || receipt.archive.archiveSha256 !== entry.archive.archiveSha256) throw new ArtiumError('INVALID_INPUT')
           const prior = db.prepare("SELECT * FROM audit WHERE transfer_id = ? AND outcome = 'delivery-completed' ORDER BY id DESC LIMIT 1")
             .get(scope.transferId) as Record<string, unknown>
-          audit.record({ event: 'transfer', userId: scope.userId, tool: 'hybrid-axi', requestId: request.id,
+          audit.record({ event: 'transfer', userId: scope.userId, tool, requestId: request.id,
             clientAddress: request.ip, credentialRevision: scope.credentialRevision, outcome: 'delivery-completed',
             transfer: { transfer_id: scope.transferId, session_family_id: scope.sessionFamilyId,
               transfer_operation: scope.selection.operation, artifact_type: scope.selection.type,
               artifact_selector: scope.selection.selector, requested_target_digest: scope.targetDigest,
               archive_bytes: entry.archive.archiveBytes, archive_sha256: entry.archive.archiveSha256,
-              native_audit_id: prior.native_audit_id as string, native_journal_result: 'SUCCESS', client_save_outcome: receipt.saveOutcome } })
+              native_audit_id: prior.native_audit_id as string | null, native_journal_result: prior.native_journal_result as 'SUCCESS' | null,
+              client_save_outcome: receipt.saveOutcome } })
           entry.receipt = true
           await discard(entry)
           return reply.code(204).send()
@@ -222,7 +225,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (error instanceof ArtiumError && !reply.raw.headersSent) {
           let userId: string | null = null
           try { userId = verifyAccessToken(db, tokenFor(request)) } catch { /* Unauthenticated denials retain no actor. */ }
-          audit.record({ event: 'denial', userId, tool: 'hybrid-axi', requestId: request.id,
+          audit.record({ event: 'denial', userId, tool, requestId: request.id,
             clientAddress: request.ip, outcome: error.code })
         }
         throw error

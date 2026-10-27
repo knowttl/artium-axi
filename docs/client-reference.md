@@ -14,7 +14,7 @@
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
 | `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |
-| `artium-axi download --help` | Inspect the [archive-saving command](#hybrid-analysis-archive-saving). |
+| `artium-axi download --help` | Inspect saving for [Hybrid Analysis archives](#hybrid-analysis-archive-saving) and [Check Point emails and attachments](#check-point-email-and-attachment-saving). |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
@@ -26,6 +26,7 @@
 | `artium-axi awx-axi job list --limit 1` | Read a managed AWX job. |
 | `artium-axi tenable-axi card list --limit 1` | Read a managed Tenable One exposure card. |
 | `artium-axi hybrid-axi quota` | Read managed Hybrid Analysis key level and quota. |
+| `artium-axi checkpoint-axi email search --limit 1` | Read managed Check Point Email Security emails. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Top-level help lists command purposes.
@@ -44,7 +45,7 @@ A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-a
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-The ADO, AWX, Azure, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
+The ADO, AWX, Azure, Check Point, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
 Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
 It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`) and `logs query` (also `monitor log-analytics query`) only with no uploaded file, positional query or explicit query flag (`--graph-query`, `-q`, `--analytics-query`).
@@ -66,6 +67,8 @@ Its native upload confirmation remains bound to the uploaded bytes and a stable 
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
 Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
+Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
+Check Point stdin and server paths are unavailable.
 For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the local file as `query.kql` and rewrite the argument to that fixed name.
 Local paths containing a `..` component are refused.
 The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.
@@ -80,6 +83,36 @@ Artium also returns this error when its runner times out, cancels or receives a 
 Before submitting the write again, follow the returned read commands and inspect the changed state.
 Keep `--full` on recovery API GET commands so long changed values are not truncated, including both `Check current state before trying again` and `Verify with` suggestions.
 Runner-generated recovery for Sentinel incident updates and comment creation first resolves the incident ID with the suggested `incident show` command, then uses that ID in the suggested API GET to inspect all incident fields or the comments collection.
+
+### Check Point email and attachment saving
+
+Use `artium-axi download` after the [shared artifact-mount prerequisites](runbook.md#scope-and-prerequisites) and the [Check Point administrator selections](tool-credentials.md#check-point-email-security) pass.
+All operations are off by default and require the write switch plus their exact operation ID.
+
+| Operation | Selector | Type |
+| --- | --- | --- |
+| `email.download` | Entity ID | `email` or `original` |
+| `attachment.download` | Entity ID followed by `/` and attachment ID | `attachment` |
+| `attachment.download-all` | Entity ID | `zip` |
+
+```sh
+artium-axi download --operation email.download --selector <entity-id> --type email --destination /controlled/artifacts/new-message.eml --sso
+artium-axi download --operation attachment.download --selector <entity-id>/<attachment-id> --type attachment --destination /controlled/artifacts/new-attachment.bin --sso
+artium-axi download --operation attachment.download-all --selector <entity-id> --type zip --destination /controlled/artifacts/new-attachments.zip --sso
+```
+
+Omit `--sso` for local password confirmation, or use `--password-stdin`.
+Preview launches no native downloader and makes no upstream request.
+Review the exact selection and new destination, then repeat them with `--transfer <transferId> --execute --confirm <exact-confirm>`.
+The host-owned confirmation binds the transfer ID, destination digest, credential revision, exact selection and absolute expiry.
+The native download executes once, verifies the upstream SHA-256 header and returns path, size and digest; Artium validates that response and independently verifies the private file bytes before delivery.
+The 50 MiB native cap, shared global capacity, ten-minute expiry, recent identity proof, revocation checks, one-shot delivery and private 0700 destination requirements remain enforced.
+Transfer audit records identify `checkpoint-axi`; native audit ID and native journal result are empty because this is host-owned evidence.
+The CLI checks delivered bytes again and sends a verified-save receipt; missing receipt remains unconfirmed.
+Save only, never extract or execute, and never retry an uncertain transfer automatically.
+Managed scope controls email and attachment authorization; no arbitrary URL, output path or scope override enters the transfer selection.
+Email/ZIP hash availability and live scopes remain uncommissioned; missing headers fail closed, and ZIP responses may be partial.
+Ordinary `artium-axi checkpoint-axi ... download` commands and browser artifact saving are unavailable.
 
 ### Hybrid Analysis archive saving
 
@@ -181,7 +214,7 @@ Concurrent login or logout can produce `SESSION_CHANGED`; check the current sess
 Logout removes local tokens even if remote revocation fails, reporting `remoteRevocation: unverified` in that case.
 
 Certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`, and authenticated redirects are refused.
-For ordinary authenticated requests other than password changes and [archive saving](#hybrid-analysis-archive-saving), stored access tokens refresh under the session lock before use when expired or within 30 seconds of expiry.
+For ordinary authenticated requests other than password changes and `download`, stored access tokens refresh under the session lock before use when expired or within 30 seconds of expiry.
 An explicit pre-execution `TOKEN_EXPIRED` response still permits one serialized refresh and retry.
 A network failure or uncertain command outcome is never retried automatically.
 
@@ -217,7 +250,7 @@ The login server-version warning still appears on stderr when versions differ.
 If a local account requires a password change, fd 4 instead receives `{serverUrl, status: "password-change-required", passwordChangeToken, passwordChangeExpiresAt}` and the command returns `PASSWORD_CHANGE_REQUIRED` (exit 1).
 That restricted record is not valid managed-session input; the caller must complete the password change through the server API and sign in again.
 
-Except for [archive saving](#hybrid-analysis-archive-saving), an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
+Except for `download`, an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
 Concurrent requests within one managed invocation share a refresh and rotation record.
 Without a refresh token, or if refresh is refused, the CLI returns the authentication error for the caller to handle.
 Network failures and uncertain outcomes are never automatically retried.

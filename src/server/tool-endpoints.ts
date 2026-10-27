@@ -1,8 +1,14 @@
 import { nativeSettingsSchemas } from '../shared/api.js'
 import type { ToolName } from './store/credential-store.js'
+import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 import { diagnosticError } from './health/diagnostic.js'
 
 export function toolEndpoints(tool: ToolName, credential: Record<string, unknown>): URL[] {
+  if (tool === 'checkpoint-axi') {
+    const origin = checkpoint.regions[credential.region as keyof typeof checkpoint.regions]
+    if (!origin) throw diagnosticError('CREDENTIAL_INVALID', { stage: 'configuration', message: 'Invalid credential field: region.' })
+    return [new URL(origin)]
+  }
   if (tool === 'hybrid-axi') return [new URL('https://hybrid-analysis.com')]
   if (tool === 'tenable-axi') return [new URL('https://cloud.tenable.com')]
   if (tool === 'vectra-axi' || tool === 'awx-axi') return [new URL(String(credential.origin))]

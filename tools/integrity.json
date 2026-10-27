@@ -1,4 +1,8 @@
 {
+  "@knowttl/checkpoint-axi": {
+    "version": "0.1.0",
+    "integrity": "sha512-fbwTL0lbbJwCDjR8bt431kWHSCEuBmAEzk/QNJzsVcAbve2x8Ehtz/mr/aPzJ6I/WMRQiRPFpCE2zsW/2CRHlQ=="
+  },
   "@knowttl/hybrid-axi": {
     "version": "0.1.2",
     "integrity": "sha512-rveeeytckjW+8lFwKQppSEAncC3yk8KpGqI7Qh3ziJvQtf4ycUrOw+6Tzp9a69gcTamGiYf805OC0+rhIhh6ag=="

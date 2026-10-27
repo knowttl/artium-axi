@@ -32,7 +32,13 @@ export const transferSelectionSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('report-download-bin'), selector: reportIdSchema, type: z.literal('bin') }),
   z.strictObject({ operation: z.literal('report-download-dropped-files'), selector: reportIdSchema, type: z.literal('dropped-files') }),
   z.strictObject({ operation: z.literal('report-download-memory'), selector: reportIdSchema, type: z.literal('memory') }),
+  z.strictObject({ operation: z.literal('email.download'), selector: transferOwnerIdSchema, type: z.enum(['email', 'original']) }),
+  z.strictObject({ operation: z.literal('attachment.download'), selector: z.string().regex(/^[A-Za-z0-9_-]{1,256}\/[A-Za-z0-9_-]{1,256}$/), type: z.literal('attachment') }),
+  z.strictObject({ operation: z.literal('attachment.download-all'), selector: transferOwnerIdSchema, type: z.literal('zip') }),
 ])
+export function transferTool(operation: z.infer<typeof transferSelectionSchema>['operation']): 'hybrid-axi' | 'checkpoint-axi' {
+  return ['email.download', 'attachment.download', 'attachment.download-all'].includes(operation) ? 'checkpoint-axi' : 'hybrid-axi'
+}
 export const transferPrepareSchema = z.strictObject({ selection: transferSelectionSchema, targetDigest: sha256Schema })
 export const transferIdSchema = z.uuid()
 export const transferScopeSchema = z.strictObject({
@@ -72,16 +78,21 @@ export const transferRoutes = {
   cancel: { method: 'POST', path: '/v1/transfers/hybrid/cancel', input: transferRetrieveSchema },
   status: { method: 'POST', path: '/v1/transfers/hybrid/status', input: transferRetrieveSchema, response: transferStatusSchema },
 } as const
+export function transferRoutesFor(tool: 'hybrid-axi' | 'checkpoint-axi') {
+  return Object.fromEntries(Object.entries(transferRoutes).map(([name, route]) => [name,
+    { ...route, path: route.path.replace('/hybrid/', tool === 'checkpoint-axi' ? '/checkpoint/' : '/hybrid/') }])) as {
+      [K in keyof typeof transferRoutes]: Omit<typeof transferRoutes[K], 'path'> & { path: string }
+    }
+}
 export type TransferScope = Readonly<Omit<z.infer<typeof transferScopeSchema>, 'selection'> & {
   selection: Readonly<z.infer<typeof transferSelectionSchema>>,
 }>
 
 export const transferAuditSchema = z.strictObject({
   transfer_id: transferIdSchema, session_family_id: transferOwnerIdSchema,
-  transfer_operation: transferSelectionSchema.options[0].shape.operation.or(transferSelectionSchema.options[1].shape.operation)
-    .or(transferSelectionSchema.options[2].shape.operation).or(transferSelectionSchema.options[3].shape.operation),
-  artifact_type: z.enum(['bin', 'dropped-files', 'memory']),
-  artifact_selector: sha256Schema.or(reportIdSchema), requested_target_digest: sha256Schema,
+  transfer_operation: z.enum(transferSelectionSchema.options.map(option => option.shape.operation.value)),
+  artifact_type: z.enum(['bin', 'dropped-files', 'memory', 'email', 'original', 'attachment', 'zip']),
+  artifact_selector: z.string().min(1).max(513), requested_target_digest: sha256Schema,
   archive_bytes: z.number().int().nonnegative().max(transferLimits.artifactBytes).nullable(),
   archive_sha256: sha256Schema.nullable(), native_audit_id: z.uuid().nullable(),
   native_journal_result: z.enum(['SUCCESS', 'FAILED', 'NOT_SENT', 'OUTCOME_UNKNOWN']).nullable(),
@@ -130,7 +141,7 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -261,6 +272,8 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
   commands: z.array(z.enum(['cat', 'cd', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid',
     'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
 export const nativeSettingsSchemas = {
+  'checkpoint-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
+    operations: z.array(z.string().regex(/^[a-z][A-Za-z0-9_.-]{0,255}$/)).min(1).max(126) }).optional() }),
   'hybrid-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string()) }).optional() }),
   'tenable-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
@@ -290,7 +303,7 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   if (tool === 'ldap-axi') return false
   if (tool === 'falcon-axi') return settings.writes
     ? (settings.writes as { allowWrites?: unknown }).allowWrites === true : settings.allowWrites === true
-  if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi') {
+  if (tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }
   return settings.allowWrites === true

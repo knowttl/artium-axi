@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, readFile, readdir, rm, statfs } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { transferLimits, transferScopeSchema } from '../shared/api.js'
+import { transferLimits, transferScopeSchema, transferTool } from '../shared/api.js'
 import type { TransferScope } from '../shared/api.js'
 import type { transferOutcomeSchema } from '../shared/api.js'
 import type { z } from 'zod'
@@ -55,13 +55,14 @@ export interface ArtifactArchive {
 }
 
 export interface NativeArtifactIdentity {
-  nativeAuditId: string
-  nativeJournalResult: 'SUCCESS' | 'FAILED' | 'NOT_SENT' | 'OUTCOME_UNKNOWN'
+  nativeAuditId: string | null
+  nativeJournalResult: 'SUCCESS' | 'FAILED' | 'NOT_SENT' | 'OUTCOME_UNKNOWN' | null
 }
 
 export interface NativeArtifactEvidence extends NativeArtifactIdentity {
   archiveBytes: number
-  nativeJournalResult: 'SUCCESS'
+  nativeJournalResult: 'SUCCESS' | null
+  verifiedSha256?: string
 }
 
 export class ArtifactGenerationFailure extends Error {
@@ -149,7 +150,7 @@ export class ArtifactStore {
       const bytes = await this.inventory()
       if (host.freeBytes + bytes < (this.entries.size + 1) * transferLimits.artifactBytes) unavailable()
       const record = (outcome: z.infer<typeof transferOutcomeSchema>, evidence?: NativeArtifactIdentity, archive?: ArtifactArchive) => {
-        this.audit.record({ event: 'transfer', userId: scope.userId, tool: 'hybrid-axi', requestId: context.requestId,
+        this.audit.record({ event: 'transfer', userId: scope.userId, tool: transferTool(scope.selection.operation), requestId: context.requestId,
           clientAddress: context.clientAddress, outcome, credentialRevision: scope.credentialRevision,
           transfer: { transfer_id: scope.transferId, session_family_id: scope.sessionFamilyId,
             transfer_operation: scope.selection.operation, artifact_type: scope.selection.type, artifact_selector: scope.selection.selector,
@@ -289,14 +290,16 @@ export class ArtifactReservation {
       this.alive()
       if (await artifactBytes(this.directory) !== 0) unavailable()
       const evidence = await native(this.outputPath, this.controller.signal)
+      const checkpoint = transferTool(this.scope.selection.operation) === 'checkpoint-axi'
+      if (checkpoint ? evidence.nativeAuditId !== null || evidence.nativeJournalResult !== null || !/^[a-f0-9]{64}$/.test(evidence.verifiedSha256 ?? '')
+        : evidence.nativeJournalResult !== 'SUCCESS') unavailable()
       this.evidence = evidence
       this.alive()
       await artifactBytes(this.directory)
       const file = await open(this.outputPath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
       try {
         const info = await file.stat()
-        if (!info.isFile() || info.size > transferLimits.artifactBytes || info.size !== evidence.archiveBytes
-          || evidence.nativeJournalResult !== 'SUCCESS') unavailable()
+        if (!info.isFile() || info.size > (checkpoint ? 50 * 1024 * 1024 : transferLimits.artifactBytes) || info.size !== evidence.archiveBytes) unavailable()
         const hash = createHash('sha256')
         const buffer = Buffer.alloc(64 * 1024)
         let size = 0
@@ -310,7 +313,9 @@ export class ArtifactReservation {
         }
         if (size !== info.size || (await file.stat()).size !== size) unavailable()
         this.alive()
-        const archive = Object.freeze({ ...evidence, archiveBytes: size, archiveSha256: hash.digest('hex') })
+        const archiveSha256 = hash.digest('hex')
+        if (checkpoint && archiveSha256 !== evidence.verifiedSha256) unavailable()
+        const archive = Object.freeze({ ...evidence, archiveBytes: size, archiveSha256 })
         // Synchronous durable audit must succeed before ready state can be observed.
         this.record('ready', evidence, archive)
         this.evidence = evidence

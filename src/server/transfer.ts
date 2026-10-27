@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { z } from 'zod'
-import { transferLimits, transferPrepareSchema, transferScopeSchema } from '../shared/api.js'
+import { transferLimits, transferPrepareSchema, transferScopeSchema, transferTool } from '../shared/api.js'
 import type { TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { hybridWritePolicy } from './adapters/hybrid.js'
+import { checkpointWritePolicy } from './adapters/checkpoint.js'
 import { authDefaults } from './config.js'
 import { checkToolPolicy } from './policy/policy.js'
 
@@ -62,9 +63,10 @@ export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
   if (!family) throw new ArtiumError('TOKEN_INVALID')
   if (owner.reauthenticatedAt === null || owner.reauthenticatedAt > now
     || owner.reauthenticatedAt + authDefaults.recentAuthMs <= now) throw new ArtiumError('REAUTH_REQUIRED')
-  checkToolPolicy(db, owner.userId, 'hybrid-axi')
-  const tool = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get('hybrid-axi') as { native_settings: string }
-  const state = hybridWritePolicy.read(JSON.parse(tool.native_settings))
+  const name = transferTool(operation)
+  checkToolPolicy(db, owner.userId, name)
+  const tool = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(name) as { native_settings: string }
+  const state = (name === 'checkpoint-axi' ? checkpointWritePolicy : hybridWritePolicy).read(JSON.parse(tool.native_settings))
   // A global write switch never enables an unselected download operation.
   if (!state.enabled || !state.supportedOperations?.includes(operation) || !state.allowedOperations.includes(operation)) {
     throw new ArtiumError('FLAG_BLOCKED')

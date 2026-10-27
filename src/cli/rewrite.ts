@@ -8,8 +8,10 @@ import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
+import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'checkpoint-axi': checkpoint.adapterBoundary.unsafeOverrides,
   'hybrid-axi': hybrid.adapterBoundary.unsafeOverrides,
   'tenable-axi': tenable.adapterBoundary.unsafeOverrides,
   'awx-axi': awx.adapterBoundary.unsafeOverrides,
@@ -41,6 +43,21 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
+  if (tool === 'checkpoint-axi') {
+    try {
+      const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], bin?: string, commands?: unknown }
+      if (document.command && document.flags) return encode({ ...document,
+        command: document.command.startsWith('artium-axi ') ? document.command : `artium-axi checkpoint-axi ${document.command}`,
+        flags: Object.fromEntries(Object.entries(document.flags).filter(([name]) => !checkpoint.adapterBoundary.unsafeOverrides.includes(name.replace(/^--/, '')))),
+        examples: (document.examples ?? []).filter(example => !/--(?:config|profile|out)\b/.test(example))
+          .map(example => example.replace(/^checkpoint-axi\b/, 'artium-axi checkpoint-axi')),
+        help: [checkpoint.discovery.help.replaceAll('checkpoint-axi ', 'artium-axi checkpoint-axi ')] }) + '\n'
+      if (document.bin || document.commands) return encode({ bin: 'artium-axi checkpoint-axi',
+        description: 'Investigate Check Point Email Security with managed credentials.',
+        commands: checkpoint.commands.filter(route => route.effect !== 'blocked').map(route => route.command),
+        help: [checkpoint.discovery.help.replaceAll('checkpoint-axi ', 'artium-axi checkpoint-axi ')] }) + '\n'
+    } catch { /* Other output uses the normal suggestion contract below. */ }
+  }
   if (tool === 'hybrid-axi') {
     try {
       const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[] }
@@ -195,6 +212,10 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'checkpoint-axi') {
+    help = help.split('\n').filter(line => !/CHECKPOINT_AXI_|SecretRef|checkpoint-axi (?:config|profile)|Valid commands:/.test(line)).join('\n')
+    if (!help.trim()) help = checkpoint.discovery.help
+  }
   if (tool === 'hybrid-axi') {
     help = help.split('\n').filter(line => !/HYBRID_AXI_|SecretRefs|hybrid-axi (?:setup|config|profile)|--(?:config|profile|origin|output)\b/.test(line)).join('\n')
     const guidance = 'Artium manages the API key and fixed origin. Submissions, YARA mutations, consuming matches and four reviewed archive downloads require independently selected administrator-enabled operations, native preview, execute, exact confirmation and journal. Quick scans transmit the supplied sample or URL. Use artium-axi download --help for authenticated one-shot CLI verified saving and live-malware warnings.'

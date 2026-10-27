@@ -2,6 +2,7 @@ import { createServer } from 'node:https'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { hybridResponse } from './hybrid.mjs'
+import { checkpointResponse } from './checkpoint.mjs'
 
 const requests = []
 const resources = new Map()
@@ -44,6 +45,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (req.headers.host === 'hybrid-analysis.com') {
     hybridResponse(req, res, url, requests, resources, () => { mutations++ })
+    return
+  }
+  if (/^cloudinfra-gw(?:[.-][a-z]+)?\.portal\.checkpoint\.com$/.test(req.headers.host ?? '')) {
+    checkpointResponse(req, res, url, requests, () => { mutations++ })
     return
   }
   if (req.headers.host === 'cloud.tenable.com') {

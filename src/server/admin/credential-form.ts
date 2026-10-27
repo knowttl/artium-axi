@@ -3,12 +3,14 @@ import { adoProfile } from '../adapters/ado.js'
 import { awxProfile } from '../adapters/awx.js'
 import { tenableProfile } from '../adapters/tenable.js'
 import { hybridProfile } from '../adapters/hybrid.js'
+import { checkpointProfile } from '../adapters/checkpoint.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
 
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
+  if (tool === 'checkpoint-axi') return checkpointProfile
   if (tool === 'ado-axi') return adoProfile
   if (tool === 'awx-axi') return awxProfile
   if (tool === 'tenable-axi') return tenableProfile
@@ -46,7 +48,7 @@ const fieldHelp: Record<string, string> = {
   tenantId: 'Directory tenant ID (UUID). Changing it requires new secrets.',
   clientId: 'Application client ID. Changing it requires new secrets.',
   origin: 'HTTPS origin only, for example https://appliance.example. Changing it requires new secrets.',
-  region: 'Falcon API region, for example us-1.', memberCid: 'Optional member account ID.',
+  memberCid: 'Optional member account ID.',
   url: 'Directory URL, for example ldaps://directory.example. LDAP requires Start TLS.',
   bindDn: 'Directory bind identity, for example cn=reader,dc=example.', base: 'Optional search base, for example dc=example.',
   caFile: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
@@ -75,6 +77,8 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     const value = secret ? undefined : metadata[name]
     const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
     const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
+    const help = name === 'region' && tool === 'checkpoint-axi' ? 'Check Point API region for your tenant, for example us.'
+      : name === 'region' && tool === 'falcon-axi' ? 'Falcon API region, for example us-1.' : fieldHelp[name]
     let input: string
     if (schema.enum) {
       input = `<select ${attributes} data-profile-type="json"><option value="">Choose a value</option>${schema.enum.map((choice: unknown) =>
@@ -89,7 +93,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     } else {
       input = `<input ${attributes} data-profile-type="${schema.type === 'string' ? 'string' : 'json'}" type="${schema.type === 'string' ? 'text' : 'number'}" value="${escape(value ?? '')}"${schema.type === 'number' ? ' step="any"' : ''}>`
     }
-    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p>${escape(fieldHelp[name] ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
+    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p>${escape(help ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
   return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin or organization requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
     <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>

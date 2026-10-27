@@ -234,7 +234,7 @@ export function createApp(options: {
   registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db)
-  registerTransfers(app, db, audit, runner, resolver, adapters.find(adapter => adapter.name === 'hybrid-axi'), options.artifactStore)
+  registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')

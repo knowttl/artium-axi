@@ -9,6 +9,7 @@ import { createAdoAdapter } from './adapters/ado.js'
 import { createAwxAdapter } from './adapters/awx.js'
 import { createTenableAdapter } from './adapters/tenable.js'
 import { createHybridAdapter } from './adapters/hybrid.js'
+import { createCheckpointAdapter } from './adapters/checkpoint.js'
 import { AzureTokenCache } from './adapters/azure-token-cache.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { retainRunJournals } from './adapters/run-journal.js'
@@ -56,7 +57,8 @@ async function main() {
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
         createLdapAdapter(source), createAdoAdapter(source, azureTokens),
         createAwxAdapter(source), createTenableAdapter(source, join(dirname(database), 'tool-logs', 'tenable-axi', 'writes.log')),
-        createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log'))] })
+        createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
+        createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log'))] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }

@@ -13,6 +13,7 @@ The [credential standard](credential-standard.md) is the canonical contract.
 | awx-axi | The managed pin ships the profile schema and SecretRefs; see the [host-facing integration](credential-standard.md#per-tool-host-facing-schemas) and [supported boundary](tool-credentials.md#awx). |
 | tenable-axi | The managed pin ships both API-key SecretRefs and a fixed cloud origin; see [Tenable One setup](tool-credentials.md#tenable-one). |
 | hybrid-axi | The managed pin ships one API-key SecretRef and a fixed origin; see [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis). |
+| checkpoint-axi | The managed pin ships a client-secret SecretRef and fixed regional origins; see [Check Point setup](tool-credentials.md#check-point-email-security). |
 | azure-axi | Keep ambient credentials; adopt tenant/subscription profiles, AZURE_AXI variables and auth status. |
 | artium-axi | Use one schema-driven profile writer, admin form and validation; retire legacy credential schemas and guide strings as each pinned tool migrates; use ARTIUM_SECRET_<n> holders; keep the az token broker. Addresses I-14 (certificate field alignment) and I-15 (bespoke onboarding). |
 | ado-axi | No upstream migration required; see the [host-owned integration](credential-standard.md#per-tool-host-facing-schemas) and [current authentication scope](tool-credentials.md#azure-devops). |

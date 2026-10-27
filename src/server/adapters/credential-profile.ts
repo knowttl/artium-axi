@@ -57,6 +57,9 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'checkpoint-axi') {
+      this.inputSchema.required = ['region', 'clientId', 'clientSecret']
+    }
     if (tool === 'mg-axi') {
       this.inputSchema.properties.enabledPacks = { ...this.inputSchema.properties.enabledPacks,
         items: { enum: ['entra', 'security'] }, minItems: 1, maxItems: 2, contains: { const: 'entra' } }

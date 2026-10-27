@@ -46,6 +46,7 @@ const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
   'hybrid-axi': { apiKey: 'CANARY-hybrid-key' },
+  'checkpoint-axi': { region: 'us', clientId: 'synthetic-client', clientSecret: 'CANARY-checkpoint-secret' },
   'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
   'awx-axi': { origin: 'https://controller.example', token: 'CANARY-awx-token' },
   'ado-axi': { org: 'synthetic-org', auth: 'pat', token: 'CANARY-ado-pat' },
@@ -529,6 +530,23 @@ test.each([
     .toEqual([replacement.clientSecret])
 })
 
+test.each([
+  { tool: 'checkpoint-axi', help: 'Check Point API region for your tenant, for example us.', otherHelp: 'Falcon API region, for example us-1.' },
+  { tool: 'falcon-axi', help: 'Falcon API region, for example us-1.', otherHelp: 'Check Point API region for your tenant, for example us.' },
+])('$tool credential page displays provider-specific region guidance', async ({ tool, help, otherHelp }) => {
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}`,
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain(`<p>${help}</p>`)
+  expect(page.body).not.toContain(otherHelp)
+})
+
 test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s without exposing secrets', async enabled => {
   for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
     expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0, expectedToolRevision: 1 })).status).toBe(200)
@@ -787,6 +805,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'awx-axi', capable: true, enabled: false, reason: null },
       { name: 'tenable-axi', capable: true, enabled: false, reason: null },
       { name: 'hybrid-axi', capable: true, enabled: false, reason: null },
+      { name: 'checkpoint-axi', capable: true, enabled: false, reason: null },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1107,6 +1126,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
     { name: 'tenable-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'hybrid-axi', version: '0.1.2', health: { status: 'disabled' } },
+    { name: 'checkpoint-axi', version: '0.1.0', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])
