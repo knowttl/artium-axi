@@ -417,11 +417,12 @@ test.each([
     resolver: new SharedIdentityResolver(store) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect((await request('PATCH', '/mg-axi', { nativeSettings: { enabledPacks: ['entra', 'mail'] }, expectedRevision: 1 })).status).toBe(200)
-  const response = await request('PUT', '/mg-axi/credential', { value: {
+  const response = await request('PATCH', '/mg-axi/credential', { value: {
     mode, auth, token, clientSecret, tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
   }, expectedRevision: 0, expectedToolRevision: 2 })
   expect(response.status).toBe(status)
   expect(store.findCredential('mg-axi')?.revision).toBe(revision)
+  expect(store.readToolSettings!('mg-axi')).toEqual({ enabledPacks: ['entra', 'mail'] })
 })
 
 test('mg-axi refuses enabling mail for an existing delegated credential', async () => {
