@@ -72,11 +72,21 @@ export async function toolInput(tool: string, original: string[]) {
       for (let index = leading + route.command.split(' ').length; index < args.length; index++) {
         const token = args[index]
         if (token === '--') { positional = index + 1 < args.length; break }
-        if (!token.startsWith('-')) { positional = true; break }
-        const name = token.startsWith('--') ? token.slice(2).split('=')[0]
-          : (route.shortFlags as Partial<Record<string, string>>)[token.slice(1)] ?? ''
+        if (!token.startsWith('-') || token === '-') { positional = true; break }
+        const raw = token.slice(token.startsWith('--') ? 2 : 1).split('=')[0]
+        const expanded = token.startsWith('--') ? raw : (route.shortFlags as Partial<Record<string, string>>)[raw] ?? raw
+        const name = (route.flagAliases as Partial<Record<string, string>>)[expanded] ?? expanded
         const kind = (route.flags as Partial<Record<string, string>>)[name]
-        if (!token.includes('=') && kind && (kind !== 'boolean' || ['true', 'false'].includes(args[index + 1]))) index++
+        if (token.includes('=') || !kind) continue
+        if (kind === 'boolean') {
+          if (['true', 'false'].includes(args[index + 1])) index++
+        } else {
+          while (args[index + 1] !== undefined && (!args[index + 1].startsWith('-') || /^-\d/.test(args[index + 1]) ||
+            (az.adapterBoundary.inputFileFlags.includes(name) && input.files?.some(file => file.name === args[index + 1])))) {
+            index++
+            if (!['list', 'literal-list'].includes(kind) || route.positionalInput) break
+          }
+        }
       }
     }
     if (tool === 'az-axi' && route && !input.files?.length && !positional && !process.stdin.isTTY) {

@@ -17,6 +17,10 @@ test.each([
   ['--subscription', 'synthetic', 'rg', 'query', '--full', 'true', 'Resources'],
   ['api', 'GET', '/synthetic'],
   ['logs', 'query', '--', 'Heartbeat'],
+  ['rg', 'query', '--subscription', 'synthetic', 'Resources'],
+  ['logs', 'query', '--fields', 'name', 'Heartbeat'],
+  ['api', '--fields', 'name', 'GET', '/synthetic'],
+  ['logs', 'query', '-'],
 ].map(args => ({ args })))('Azure positional input leaves an open pipe unread: $args', async ({ args }) => {
   const pipe = new PassThrough()
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(pipe as unknown as typeof process.stdin)
@@ -41,7 +45,24 @@ test('Azure uploads a file without reading an open stdin pipe', async () => {
   } finally { pipe.destroy() }
 }, 1000)
 
-test.each([['logs', 'query', '--workspace', 'synthetic'], ['rg', 'query', '--limit=1'], ['api']])(
+test.each([
+  ['logs', 'query', '--workspace', 'synthetic'],
+  ['rg', 'query', '--limit=1'],
+  ['api'],
+  ['graph', 'query', '--first', '1'],
+  ['graph', 'query', '--first=1'],
+  ['graph', 'query', '--subscriptions', 'sub-a', 'sub-b'],
+  ['graph', 'query', '--subscription', 'sub-a', 'sub-b'],
+  ['graph', 'query', '-s', 'sub-a', 'sub-b'],
+  ['graph', 'query', '-s=sub-a'],
+  ['graph', 'query', '--fields', 'id', 'name'],
+  ['graph', 'query', '--management-groups', 'group-a', 'group-b'],
+  ['graph', 'query', '--subscriptions=sub-a', '--fields', 'id', 'name', '--full', 'false'],
+  ['monitor', 'log-analytics', 'query', '--subscription', 'sub-a', 'sub-b'],
+  ['monitor', 'log-analytics', 'query', '-s', 'sub-a', 'sub-b'],
+  ['monitor', 'log-analytics', 'query', '--fields', 'id', 'name'],
+  ['graph', 'query', '--first', '-1'],
+])(
   'Azure reads piped input when only flag values were supplied: %j', async (...args) => {
     vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['Heartbeat']) as typeof process.stdin)
     expect(await toolInput('az-axi', args)).toEqual({ args, stdin: 'Heartbeat' })
