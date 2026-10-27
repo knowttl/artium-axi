@@ -6,7 +6,7 @@ The [credential standard](credential-standard.md) is the canonical contract.
 
 | Tool | Changes |
 | --- | --- |
-| gh-axi | No upstream migration or fork. The host owns a shared PAT profile, private environment injection and reviewed read-only boundary; see [GitHub setup](tool-credentials.md#github). |
+| gh-axi | No upstream migration or fork. The host owns shared PAT and GitHub App profiles, private environment injection and the reviewed read-only boundary; existing PAT credentials remain valid. See [GitHub setup](tool-credentials.md#github). |
 | vectra-axi | Move to XDG; replace tokenEnv/secretEnv with SecretRefs; add permission checks, the env profile and auth status; ship the profile schema. |
 | az-axi | Move to XDG; drop cwd discovery; write config atomically; validate SecretRefs on load; add auth status and ship the schema. Keep ambient az authentication. Changes stay in knowttl/az-axi, with matching UPSTREAM.md local-change records. |
 | mg-axi | Move to XDG; add config/profile selection; flatten credentialRef into SecretRefs; add auth login/logout/status; use thumbprintSha256; store delegated credentials in the protected state file; enforce Windows DACLs. |

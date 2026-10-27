@@ -271,7 +271,8 @@ The generated [LDAP inventory](../tools/inventories/ldap-axi.json) includes the 
 See [LDAP credential setup](tool-credentials.md#ldap) for the authentication choice, required inputs and multi-line private CA editor.
 
 gh-axi is also a third-party tool bundled without upstream modifications.
-Its [host adapter](../src/server/adapters/gh.ts) owns the inline `origin`, `auth=token` and secret `token` profile.
+Its [host adapter](../src/server/adapters/gh.ts) owns the inline PAT and GitHub App installation profiles.
+The App profile stores an encrypted private key and mints short-lived installation tokens into a revision-keyed in-memory cache.
 It injects only `GH_TOKEN` or `GH_ENTERPRISE_TOKEN`, with managed `GH_HOST`, into the isolated process.
 The reviewed allow-list provides reads only in slice 1; there is no upstream profile file or write override.
 See the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui) for Go TLS handling.

@@ -11,6 +11,8 @@ import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
+import { GithubAppTokenCache } from '../../src/server/adapters/github-app-tokens.js'
+import { generateKeyPairSync } from 'node:crypto'
 import { preflight } from '../../src/server/health/preflight.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
@@ -662,6 +664,34 @@ test('GitHub PAT save, rotation and health use private shared credentials and re
   const detail = await (await request('GET', '/gh-axi')).json()
   await failure(await request('PATCH', '/gh-axi/write-access', { enabled: true, expectedRevision: detail.revision }), 'INVALID_INPUT')
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/CANARY-github-token|github_pat_CANARY-rotated/)
+})
+
+test('GitHub App save encrypts the key, rotates tokens and requires a key for a new installation', async () => {
+  const privateKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
+  const value = { origin: 'https://github.com', auth: 'github-app', appId: '123', installationId: '456', privateKey,
+    repositories: ['canary'], permissions: { contents: 'read' } }
+  const mint = vi.fn(async () => new Response(JSON.stringify({ token: 'CANARY-app-installation',
+    expires_at: new Date(Date.now() + 3_600_000).toISOString() }), { status: 201 }))
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store), new GithubAppTokenCache(mint))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => {
+    const call = await prepare(args, reference, input)
+    return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }
+  })
+  adapters.push(adapter)
+  const saved = await replace('gh-axi', value)
+  const { privateKey: _key, ...metadata } = value
+  expect(saved.metadata).toEqual(metadata)
+  expect(JSON.stringify(db.prepare('SELECT * FROM credentials WHERE tool = ?').get('gh-axi'))).not.toContain('PRIVATE KEY')
+  const old = store.findCredential('gh-axi')!
+  await adapter.prepare(['api', '/rate_limit'], old)
+  expect(mint).toHaveBeenCalledTimes(1)
+  expect((await save('gh-axi', metadata, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('gh-axi')!)).toEqual(value)
+  await expect(adapter.prepare(['api', '/rate_limit'], old)).rejects.toMatchObject({ code: 'REVISION_CONFLICT' })
+  expect(mint).toHaveBeenCalledTimes(2)
+  await failure(await save('gh-axi', { ...metadata, installationId: '789' }, 2), 'INVALID_INPUT')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/PRIVATE KEY|CANARY-app-installation/)
 })
 
 test('save removes omitted optional non-secret fields', async () => {
