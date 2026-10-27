@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.20](https://github.com/knowttl/artium-axi/compare/v0.0.19...v0.0.20) (2026-10-27)
+
+
+### Features
+
+* **tools:** update bundled tools with query validation and full host details ([#186](https://github.com/knowttl/artium-axi/issues/186)) ([23a30d7](https://github.com/knowttl/artium-axi/commit/23a30d7e4a122a82bfec71f82f9c9a1683c33e69))
+
+
+### Bug Fixes
+
+* **cli:** correct Azure stdin handling and bound pipe waits ([#184](https://github.com/knowttl/artium-axi/issues/184)) ([b57f3fb](https://github.com/knowttl/artium-axi/commit/b57f3fbb5371fdf287ecdb14cc7f9e8b4952c37b))
+
 ## [0.0.19](https://github.com/knowttl/artium-axi/compare/v0.0.18...v0.0.19) (2026-10-27)
 
 
