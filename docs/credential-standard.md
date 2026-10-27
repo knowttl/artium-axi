@@ -274,7 +274,7 @@ gh-axi is also a third-party tool bundled without upstream modifications.
 Its [host adapter](../src/server/adapters/gh.ts) owns the inline `origin`, `auth=token` and secret `token` profile.
 It injects only `GH_TOKEN` or `GH_ENTERPRISE_TOKEN`, with managed `GH_HOST`, into the isolated process.
 The reviewed allow-list provides reads only in slice 1; there is no upstream profile file or write override.
-GitHub CLI receives a combined system and trusted CA bundle through `SSL_CERT_FILE`; leaf pinning is refused.
+See the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui) for Go TLS handling.
 See [GitHub setup](tool-credentials.md#github).
 
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.

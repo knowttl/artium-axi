@@ -11,7 +11,7 @@
 | `artium-axi passwd` | Change your password, then sign in again. |
 | `artium-axi whoami` | Show identity, roles, session and access-token expiry, and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
-| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories with the managed PAT. Repository-scoped reads require `-R OWNER/NAME`; `api` is GET only. |
+| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories with the managed PAT; see the [supported boundary](../README.md#safety). |
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
 | `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |
@@ -44,11 +44,10 @@ The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
-The GitHub dashboard and `home` are unsupported because pinned gh-axi swallows dashboard read errors.
-Use `artium-axi gh-axi issue list -R OWNER/NAME` or `artium-axi gh-axi pr list -R OWNER/NAME`; `artium-axi gh-axi --help` lists the supported reads.
+For GitHub's dashboard limitation and repository selection, see the [supported boundary](../README.md#safety); `artium-axi gh-axi --help` lists the supported reads.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-The ADO, AWX, Azure, Check Point, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
+The ADO, AWX, Azure, Check Point, GitHub, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
 Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
 It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`) and `logs query` (also `monitor log-analytics query`) only with no uploaded file, positional query or explicit query flag (`--graph-query`, `-q`, `--analytics-query`).
@@ -155,6 +154,8 @@ For managed tools, recognized TOON or JSON root `help` suggestions, plain upstre
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
 Per-flag help removes each managed flag's entire description and preserves retained flag descriptions, including comma-separated defaults.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](tool-credentials.md#ldap).
+GitHub help lists only reviewed commands and flags; recognized authentication failures direct callers to an Artium administrator.
+GitHub suggestion filtering uses the invocation to preserve API resource content while adapting upstream hints, and long run logs expose only their captured tail with no server-local file recovery path.
 Outside hosted status filtering, suggestion adaptation leaves unrelated content, literal argument values, unknown formats and truncated streams unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
