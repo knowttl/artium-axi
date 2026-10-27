@@ -19,7 +19,7 @@ export const ghProfile = new CredentialProfile({ type: 'object', additionalPrope
     auth: { enum: ['token', 'github-app', 'device'], title: 'Authentication' },
     accessToken: { type: 'string', 'x-secret': true, description: 'Managed by Connect with GitHub.' },
     accessTokenExpiresAt: { type: 'integer', minimum: 1 },
-    login: { type: 'string', pattern: '^[A-Za-z0-9-]+$', maxLength: 100 },
+    login: { type: 'string', pattern: '^[A-Za-z0-9_-]+$', maxLength: 100 },
     token: { type: 'string', 'x-secret': true, title: 'Personal access token',
       description: 'Classic or fine-grained PAT. Shared by everyone granted this tool. Classic repo scope permits writes outside Artium.' },
     appId: { type: 'string', pattern: '^[1-9][0-9]*$', title: 'GitHub App ID' },

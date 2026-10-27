@@ -95,12 +95,29 @@ test('GitHub device connection shows the code, stores approval and cancels recon
     check(await page.eval(() => document.body.innerText.includes('Connected account: synthetic-machine')), 'Connected identity missing');
     check(await page.eval(() => !document.body.innerHTML.includes('gho_CANARY-browser-device')), 'Token was exposed');
     const revision = await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value);
+    await page.eval(() => {
+      const originalFetch = window.fetch.bind(window);
+      let releasePoll;
+      window.fetch = async (url, options) => {
+        if (url === '/v1/admin/tools/gh-axi/device/poll') {
+          document.body.dataset.githubPoll = 'waiting';
+          return new Promise(resolve => { releasePoll = resolve; });
+        }
+        const response = await originalFetch(url, options);
+        if (url === '/v1/admin/tools/gh-axi/device/cancel') {
+          document.body.dataset.githubCancel = String(response.status);
+          releasePoll(new Response(JSON.stringify({ status: 'connected' }), { status: 200 }));
+        }
+        return response;
+      };
+    });
     await page.click('[data-connect-github] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-github-authorization]:not([hidden])');
+    await page.wait('body[data-github-poll="waiting"]');
     await page.click('[data-cancel-github]');
-    await page.wait('[data-cancel-github]:disabled');
+    await page.wait('body[data-github-cancel="200"] [data-cancel-github]:disabled');
     check(await page.eval(() => document.querySelector('[data-github-status]').textContent.includes('Connection cancelled.')), 'Cancellation not confirmed');
     check(await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value) === revision, 'Cancel replaced credential');
   `)

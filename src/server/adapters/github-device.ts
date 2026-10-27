@@ -97,7 +97,7 @@ export class GithubDeviceFlow {
       if (!token.success) throw new ArtiumError('UPSTREAM_AUTH_FAILED')
       const acquiredAt = Date.now()
       const api = toolEndpoints('gh-axi', { origin: connection.origin })[1].href.replace(/\/$/, '')
-      const identity = z.object({ login: z.string().regex(/^[A-Za-z0-9-]+$/).max(100) }).safeParse(await this.json(api + '/user', {
+      const identity = z.object({ login: z.string().regex(/^[A-Za-z0-9_-]+$/).max(100) }).safeParse(await this.json(api + '/user', {
         method: 'GET', headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token.data.access_token}`,
           'User-Agent': 'artium-axi' } }, connection.trust))
       if (!identity.success) throw new ArtiumError('UPSTREAM_AUTH_FAILED')

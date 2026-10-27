@@ -48,6 +48,40 @@ test('enforces interval, slow_down, actor binding and single-flight polls before
   await expect(flow.poll('synthetic-admin', connectionId)).rejects.toMatchObject({ code: 'NOT_FOUND' })
 })
 
+test('enterprise managed login survives device approval and credential preparation', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  const login = 'synthetic-machine_demo'
+  const flow = new GithubDeviceFlow(vi.fn().mockResolvedValueOnce(json(code))
+    .mockResolvedValueOnce(json({ access_token: token, token_type: 'bearer' })).mockResolvedValueOnce(json({ login })))
+  const { connectionId } = await flow.start('synthetic-admin', input, [])
+  vi.setSystemTime(Date.now() + 5000)
+  const result = await flow.poll('synthetic-admin', connectionId)
+  expect(result).toEqual({ status: 'connected', value: { ...device, login } })
+  if (result.status !== 'connected') throw new Error('Expected approval')
+  const prepared = await createGhAdapter({ getCredential: async () => result.value }).prepare(['api', '/rate_limit'], reference)
+  expect(prepared.environment.GH_ENTERPRISE_TOKEN).toBe(token)
+})
+
+test.each(['token', 'identity'])('cancellation invalidates approval during the %s request', async stage => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  let release!: (response: Response) => void
+  let requested!: () => void
+  const waiting = new Promise<Response>(resolve => { release = resolve })
+  const started = new Promise<void>(resolve => { requested = resolve })
+  const approved = { access_token: token, token_type: 'bearer' }
+  const request = vi.fn().mockResolvedValueOnce(json(code))
+  if (stage === 'identity') request.mockResolvedValueOnce(json(approved))
+  request.mockImplementationOnce(() => { requested(); return waiting })
+  const flow = new GithubDeviceFlow(request)
+  const { connectionId } = await flow.start('synthetic-admin', input, [])
+  vi.setSystemTime(Date.now() + 5000)
+  const poll = flow.poll('synthetic-admin', connectionId)
+  await started
+  flow.cancel('synthetic-admin', connectionId)
+  release(json(stage === 'token' ? approved : { login: device.login }))
+  await expect(poll).rejects.toMatchObject({ code: 'NOT_FOUND' })
+})
+
 test.each(['access_denied', 'expired_token', 'device_flow_disabled'])('stops on %s without reflecting provider secrets', async error => {
   vi.useFakeTimers({ toFake: ['Date'] })
   const flow = new GithubDeviceFlow(vi.fn().mockResolvedValueOnce(json(code)).mockResolvedValueOnce(json({ error, error_description: token })))

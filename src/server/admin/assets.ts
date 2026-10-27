@@ -361,6 +361,7 @@ async function connectGithub(connection, csrf, message) {
   link.href = connection.verificationUri;
   link.textContent = connection.verificationUri;
   let cancelled = false;
+  let cancellation;
   let release;
   const send = async action => {
     const request = () => fetch('/v1/admin/tools/gh-axi/device/' + action, { method: 'POST',
@@ -372,8 +373,16 @@ async function connectGithub(connection, csrf, message) {
     }
     return response;
   };
-  cancel.onclick = () => { cancelled = true; if (release) release(); };
+  cancel.onclick = () => {
+    if (cancelled) return;
+    cancelled = true;
+    cancellation = send('cancel').then(response => {
+      status.textContent = response.ok ? 'Connection cancelled. The saved credential is unchanged.' : 'Cancellation could not be confirmed. Reload to check the credential.';
+    }).catch(() => { status.textContent = 'Cancellation could not be confirmed. Reload to check the credential.'; });
+    if (release) release();
+  };
   const countdown = () => {
+    if (cancelled) return;
     const remaining = Math.max(0, Math.ceil((connection.expiresAt - Date.now()) / 1000));
     status.textContent = remaining ? 'Waiting for GitHub approval. Code expires in ' + remaining + ' seconds.' : 'Code expired. Start a new connection.';
   };
@@ -384,15 +393,13 @@ async function connectGithub(connection, csrf, message) {
     while (Date.now() < connection.expiresAt) {
       await new Promise(resolve => { const wait = setTimeout(resolve, interval * 1000); release = () => { clearTimeout(wait); resolve(); }; });
       release = undefined;
-      if (cancelled) {
-        const response = await send('cancel');
-        status.textContent = response.ok ? 'Connection cancelled. The saved credential is unchanged.' : 'Cancellation could not be confirmed. Reload to check the credential.';
-        return;
-      }
+      if (cancelled) break;
       if (Date.now() >= connection.expiresAt) break;
       const response = await send('poll');
+      if (cancelled) break;
       if (response.redirected) { location.assign(response.url); return; }
       const result = await response.json();
+      if (cancelled) break;
       if (!response.ok) {
         status.textContent = 'Connection stopped. Start a new connection after following the error below.';
         showError(message, result.error);
@@ -401,7 +408,8 @@ async function connectGithub(connection, csrf, message) {
       if (result.status === 'connected') { location.reload(); return; }
       interval = result.interval;
     }
-    status.textContent = 'Code expired. Start a new connection.';
+    if (cancelled) await cancellation;
+    else status.textContent = 'Code expired. Start a new connection.';
   } finally { clearInterval(timer); cancel.disabled = true; }
 }
 document.addEventListener('submit', async event => {
