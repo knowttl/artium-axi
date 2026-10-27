@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.22](https://github.com/knowttl/artium-axi/compare/v0.0.21...v0.0.22) (2026-10-27)
+
+
+### Features
+
+* add GitHub device-flow authentication ([#193](https://github.com/knowttl/artium-axi/issues/193)) ([31e5b1c](https://github.com/knowttl/artium-axi/commit/31e5b1c842ed245fa20ae4bbad0e152cdb63c22c))
+* add guarded GitHub write operations ([#194](https://github.com/knowttl/artium-axi/issues/194)) ([2023829](https://github.com/knowttl/artium-axi/commit/202382942f35fe23dcb25bc3a00aaf051e1018a3))
+* add managed read-only GitHub access ([#189](https://github.com/knowttl/artium-axi/issues/189)) ([7b4f29c](https://github.com/knowttl/artium-axi/commit/7b4f29ca4424c14fbad80a11b7e3f6308d94b842))
+* expose opt-in Microsoft Graph mailbox reads ([#192](https://github.com/knowttl/artium-axi/issues/192)) ([823894e](https://github.com/knowttl/artium-axi/commit/823894e7d5ead986c36520eacf7f9c2739b41d97))
+* support GitHub App installation authentication ([#191](https://github.com/knowttl/artium-axi/issues/191)) ([2deb886](https://github.com/knowttl/artium-axi/commit/2deb886ceef878ad53e8d7e388ad135fd1f5bec7))
+
 ## [0.0.21](https://github.com/knowttl/artium-axi/compare/v0.0.20...v0.0.21) (2026-10-27)
 
 
