@@ -16,7 +16,7 @@ export function rewriteGhSuggestions(output: string, invocation?: { command: str
       const line = row.replace(/`(?:artium-axi )?gh-axi ([^`]+)`/g, (_, command: string) => {
         const route = inventory.commands.find(route => command === route.command || command.startsWith(route.command + ' '))
         const flags = [...command.matchAll(/(?:^|\s)(--[a-z][a-z-]*|-R)(?==|\s|$)/g)].map(match => match[1])
-        if (!route || route.command === 'api' || /https?:\/\//.test(command)
+        if (!route || route.effect === 'write' || route.command === 'api' || /https?:\/\//.test(command)
           || flags.some(flag => !Object.hasOwn(route.flags, flag === '-R' ? 'repo' : flag.slice(2)))
           || route.repository && !flags.some(flag => flag === '-R' || flag === '--repo')) allowed = false
         return `\`artium-axi gh-axi ${command}\``

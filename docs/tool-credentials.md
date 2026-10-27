@@ -266,7 +266,7 @@ Optional `repositories` (repository names, up to 500) and `permissions` (a JSON 
 GitHub rejects requests for repositories or permissions outside that installation; Artium never retries with a broader grant or another authentication method.
 Omitting those fields uses the installation's existing selection and permissions.
 For the planned read/write operation set, configure the App's corresponding contents, issues, pull requests, actions, discussions, projects and workflows permissions, with organization members read access where needed.
-Artium's read-only boundary still applies even when the App has upstream write permissions.
+Artium's exact-operation write policy still applies even when the App has upstream write permissions.
 Installation tokens act as the App bot and cannot use gists or user-only endpoints such as notifications; not every gh command supports installation authentication.
 Those commands fail rather than falling back to a PAT.
 To rotate, save a newly generated private key for the same App, test the credential, then revoke the old key in the App settings.
@@ -275,8 +275,33 @@ Changing the App or installation ID requires entering its key again.
 Save, run **Test credential**, enable the tool and grant it to a role.
 Try `artium-axi gh-axi repo list --limit 1`, then `artium-axi gh-axi issue list -R OWNER/NAME --limit 10`.
 See the [supported GitHub boundary](../README.md#safety) for repository selection, dashboard limitations and blocked operations.
-The [reviewed inventory](../tools/inventories/gh-axi.json) owns the read allow-list and upstream source digests.
+The [reviewed inventory](../tools/inventories/gh-axi.json) owns the command allow-list, write tiers and upstream source digests.
 `api` accepts `[GET] <relative-path>` with optional output shaping; GraphQL, other methods, request fields, headers and input bodies are refused.
+
+GitHub writes default off.
+An administrator enables exact operations under **Write access**, persisted as `{"writes":{"allowWrites":true,"operations":["issue comment"]}}` in native settings.
+The two tiers describe capabilities; selecting one operation never enables its siblings.
+
+| Tier | Exact operations |
+| --- | --- |
+| Collaboration | `issue create`, `issue edit`, `issue comment`, `issue close`, `issue reopen`; `pr create`, `pr edit`, `pr comment`, `pr ready`, `pr review`; `discussion comment`; `label create`, `label edit`; `project item-add`, `project item-create`, `project item-edit`, `project item-archive`. |
+| Repository | `pr merge`, `pr update-branch`, `pr revert`; `release create`, `release edit`; `workflow run`, `workflow enable`, `workflow disable`; `run rerun`, `run cancel`; `repo create`, `repo edit`, `repo fork`; `gist create`, `gist edit`, `gist rename`; `variable set`; `issue lock`, `issue pin`, `issue transfer`. |
+
+Artium owns write preview and confirmation because upstream gh-axi has neither.
+Run the intended command without `--confirm` to obtain a preview without starting gh-axi or minting an installation token.
+Review the request, then repeat its exact arguments and stdin with `--confirm <returned-value>`.
+Confirmation binds normalized arguments, input, credential identity/revision and write settings; changing any requires a fresh preview.
+For example, preview `artium-axi gh-axi issue comment 42 -R OWNER/NAME --body "Reviewed comment"`, then repeat it with the returned confirmation.
+Keep the command before its flags.
+PR creation requires explicit title, body, base and head branches; local git sources remain unavailable.
+Release creation accepts no asset paths.
+Gist creation requires `--public` or `--secret`, a `--filename` and piped content; a secret gist is unlisted, not private.
+Gist edits accept inline descriptions or piped replacement content with `--filename`; local paths and file removal stay blocked.
+Workflow `--field name=value` supports literal values; `@file` values are refused.
+Deletes, `secret set`, `pr merge --admin`, `--delete-branch` and `api` non-GET remain refused for everyone.
+After `UNKNOWN_OUTCOME`, never retry blindly: execute the provided read-back command, inspect all relevant pages and reconcile GitHub audit evidence.
+For project item edits, identify the project from the returned project list, then inspect its item list; absence from a limited page does not establish failure.
+Artium records confirmed successful writes as writes and interrupted writes as unknown, while redacting titles, bodies, field values, search queries and confirmation values from its audit.
 
 GitHub.com and `*.ghe.com` use `GH_TOKEN`; GHES uses `GH_ENTERPRISE_TOKEN`, always with the managed host.
 Callers cannot override the host or credential.

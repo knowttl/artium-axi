@@ -6,8 +6,8 @@ import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import { transferLimits, transferWarning } from '../shared/api.js'
 
 const commands = {
-  'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read GitHub data with managed credentials.',
-    flags: ['Repository reads require -R OWNER/NAME. Host and PAT are managed by Artium. api is GET only; writes, local git, file inputs and downloads are unavailable.'], example: 'artium-axi gh-axi repo list --limit 1' },
+  'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
+    flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git, files and downloads are unavailable. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
   setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and an optional Claude Code session hook.',
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },

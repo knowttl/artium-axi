@@ -3,7 +3,7 @@
   "tool": "gh-axi",
   "version": "0.1.44",
   "integrity": "sha512-iBH2a59aR/zQHWwMz/7ft6P6ldOBodfolFCgwoKviX8/hMkyAJ8R9hIf3BjRCWz7v11hXvuQXte7P1GQUci9tg==",
-  "parserEvidence": "Hand-reviewed published dispatch switches and per-command parsers; writes excluded",
+  "parserEvidence": "Hand-reviewed published dispatch switches and per-command parsers; exact writes use host preview and confirmation",
   "skillSha256": "3d01b3112442275d52cc5847cb17543c710128f4591346e77eeecc30c45e76f3",
   "sdk": {
     "version": "0.1.13",
@@ -208,9 +208,14 @@
       "input",
       "file",
       "add",
-      "field",
       "raw-field",
-      "header"
+      "header",
+      "admin",
+      "delete-branch",
+      "source",
+      "push",
+      "clone",
+      "remote"
     ],
     "blockedCommands": [
       "home",
@@ -224,9 +229,9 @@
       "run download",
       "release download"
     ],
-    "nativeWrites": "blocked",
+    "nativeWrites": "host-classified; exact operations, preview and confirmation",
     "inputs": {
-      "stdin": "unsupported",
+      "stdin": "gist create/edit with filename only",
       "files": "unsupported"
     }
   },
@@ -253,7 +258,7 @@
       "--limit",
       "1"
     ],
-    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged read-only GitHub API access. Use -R OWNER/NAME for repository reads. api accepts [GET] <relative-path>; GraphQL and all writes are refused. No stdin or files.\n"
+    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; no files.\n"
   },
   "suggestionFields": [
     "help"
@@ -684,6 +689,565 @@
       },
       "positionals": 2,
       "repository": false
+    },
+    {
+      "command": "issue create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "title": "value",
+        "body": "value",
+        "assignee": "value",
+        "label": "value",
+        "milestone": "value",
+        "project": "value",
+        "type": "value",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "issue edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "title": "value",
+        "body": "value",
+        "add-label": "value",
+        "remove-label": "value",
+        "add-assignee": "value",
+        "remove-assignee": "value",
+        "milestone": "value",
+        "type": "value",
+        "no-type": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "issue comment",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "issue close",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "reason": "value",
+        "duplicate-of": "value",
+        "comment": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "issue reopen",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "title": "value",
+        "body": "value",
+        "base": "value",
+        "head": "value",
+        "assignee": "value",
+        "reviewer": "value",
+        "label": "value",
+        "milestone": "value",
+        "project": "value",
+        "draft": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "title": "value",
+        "body": "value",
+        "add-label": "value",
+        "remove-label": "value",
+        "add-assignee": "value",
+        "remove-assignee": "value",
+        "add-reviewer": "value",
+        "remove-reviewer": "value",
+        "milestone": "value",
+        "base": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr comment",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr ready",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "undo": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr review",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "match-head-commit": "value",
+        "approve": "boolean",
+        "request-changes": "boolean",
+        "comment": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "discussion comment",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "label create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "name": "value",
+        "color": "value",
+        "description": "value",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "label edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "name": "value",
+        "color": "value",
+        "description": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "project item-add",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "url": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "collaboration"
+    },
+    {
+      "command": "project item-create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "title": "value",
+        "body": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "collaboration"
+    },
+    {
+      "command": "project item-edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "id": "value",
+        "project-id": "value",
+        "field-id": "value",
+        "text": "value",
+        "number": "value",
+        "date": "value",
+        "single-select-option-id": "value",
+        "iteration-id": "value",
+        "title": "value",
+        "body": "value",
+        "clear": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": false,
+      "tier": "collaboration"
+    },
+    {
+      "command": "project item-archive",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "id": "value",
+        "undo": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr merge",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "method": "value",
+        "body": "value",
+        "subject": "value",
+        "match-head-commit": "value",
+        "merge": "boolean",
+        "squash": "boolean",
+        "rebase": "boolean",
+        "auto": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "pr update-branch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "pr revert",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "release create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "title": "value",
+        "notes": "value",
+        "target": "value",
+        "discussion-category": "value",
+        "notes-start-tag": "value",
+        "draft": "boolean",
+        "prerelease": "boolean",
+        "generate-notes": "boolean",
+        "verify-tag": "boolean",
+        "notes-from-tag": "boolean",
+        "fail-on-no-commits": "boolean",
+        "latest": "boolean-value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "release edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "title": "value",
+        "notes": "value",
+        "draft": "boolean-value",
+        "prerelease": "boolean-value",
+        "latest": "boolean-value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "workflow run",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "ref": "value",
+        "field": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "workflow enable",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "workflow disable",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "run rerun",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "job": "value",
+        "failed": "boolean",
+        "debug": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "run cancel",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "repo create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "description": "value",
+        "template": "value",
+        "public": "boolean",
+        "private": "boolean",
+        "internal": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "repo edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "description": "value",
+        "visibility": "value",
+        "default-branch": "value",
+        "enable-issues": "value",
+        "enable-wiki": "value",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "repo fork",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "gist create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "desc": "value",
+        "filename": "value",
+        "public": "boolean",
+        "secret": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "gist edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "desc": "value",
+        "filename": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "gist rename",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 3,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "variable set",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "body": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "issue lock",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "issue pin",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "issue transfer",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "to-repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
     }
   ]
 }

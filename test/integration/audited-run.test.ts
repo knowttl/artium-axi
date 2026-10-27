@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { MockInstance } from 'vitest'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { createGhAdapter } from '../../src/server/adapters/gh.js'
+import { decode } from '@toon-format/toon'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import type { AuditRecord } from '../../src/server/audit/audit.js'
@@ -16,7 +18,7 @@ import { issueLoginTokens } from '../../src/server/auth/tokens.js'
 import { tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { runTool } from '../../src/server/runner/run.js'
-import { Runner } from '../../src/server/runner/runner.js'
+import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
@@ -243,6 +245,29 @@ test('a classified write ending on a signal records an unknown outcome', async (
     .rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME', message: 'Unknown outcome for synthetic-write synthetic-target.',
       next: expect.stringContaining('artium-axi falcon-axi print synthetic-state') })
   expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'write' })
+})
+
+test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
+  const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
+  ]))
+  const run = vi.spyOn(runner, 'run').mockRejectedValue(Object.assign(new RunnerError(code), { processStarted: true }))
+  const args = ['issue', 'comment', '42', '-R', 'canary/repo', '--body=CANARY-private-comment']
+  const preview = await runTool(db, audit, runner, token, { args }, github, identities, context)
+  const document = decode(preview.stdout) as { preview: { confirm: string } }
+  expect(run).not.toHaveBeenCalled()
+  expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
+  await expect(runTool(db, audit, runner, token, { args: [...args, '--confirm', document.preview.confirm] }, github, identities,
+    { ...context, requestId: 'synthetic-execute' })).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
+    next: expect.stringContaining('artium-axi gh-axi issue view 42 --comments -R canary/repo') })
+  expect(run).toHaveBeenCalledOnce()
+  expect(db.prepare("SELECT action, outcome FROM audit WHERE event = 'run-terminal' AND request_id = 'synthetic-execute'").get())
+    .toEqual({ action: 'unknown', outcome: 'UNKNOWN_OUTCOME' })
+  expect(lines.join('')).not.toMatch(/CANARY-github-token|CANARY-private-comment/)
+  expect(lines.join('')).not.toContain(document.preview.confirm)
 })
 
 describe.each(['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG'])('%s missing evidence', variable => {

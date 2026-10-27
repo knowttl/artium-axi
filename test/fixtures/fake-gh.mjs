@@ -2,6 +2,20 @@
 import { readFileSync } from 'node:fs'
 
 const args = process.argv.slice(2)
+if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
+  if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
+    repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' } },
+    addDiscussionComment: { comment: { id: 'synthetic-comment', url: 'https://github.example/canary/repo/discussions/1#comment' } },
+    node: { state: 'MERGED', mergeStateStatus: 'CLEAN' },
+  } }))
+  else if (args.includes('--json') || args.includes('--format')) console.log(JSON.stringify(
+    args[0] === 'workflow' && args[1] === 'list' ? [{ id: 123, name: 'synthetic', state: 'disabled_manually' }]
+      : args[0] === 'label' && args[1] === 'list' ? []
+      : { id: 'synthetic-id', number: 1, title: 'synthetic', state: 'OPEN', isDraft: true, isLocked: false, isPinned: false,
+        comments: [], reviews: [], body: 'synthetic', url: 'https://github.example/canary/repo/issues/1', files: {} }))
+  else console.log(`https://github.com/canary/repo/${args[0] === 'pr' ? 'pull' : args[0] === 'gist' ? 'gist' : 'issues'}/1`)
+  process.exit(0)
+}
 if (args[0] === 'run' && args[1] === 'view') {
   if (args.includes('--log') || args.includes('--log-failed')) console.log('x'.repeat(args.includes('124') ? 10 : 21000) + JSON.stringify(args))
   else console.log(JSON.stringify({ databaseId: 123, jobs: [

@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3'
+import { encode } from '@toon-format/toon'
 import { runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter, PreparedCall } from '../adapters/types.js'
@@ -52,7 +53,14 @@ export async function runTool<Credential>(
     const prepared = await adapter.prepare(args, reference, input)
     write = prepared.write
     journal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect)
-    result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
+    if (prepared.preview) {
+      const stdout = encode({ preview: prepared.preview, help: [
+        'No operation was sent. Review the exact request, then repeat it with --confirm <confirm> using the value above.',
+        'Confirmation applies only to this request, input, credential revision and write policy. Never retry an unknown outcome without checking current state.',
+      ] }) + '\n'
+      result = { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
+        outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+    } else result = await runner.run(userId, prepared.executable, prepared.args, journal.environment,
       prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
     result = hostedStatus(adapter.name, prepared.invocation, result)

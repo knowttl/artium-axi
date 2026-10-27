@@ -36,6 +36,12 @@ export async function toolInput(tool: string, original: string[]) {
   const args = [...original]
   const input: RunInput = {}
   let totalFileBytes = 0
+  if (tool === 'gh-axi' && ['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))
+    && args.some(arg => arg === '--filename' || arg.startsWith('--filename='))
+    && !args.some(arg => ['--help', '-h'].includes(arg))) {
+    if (process.stdin.isTTY) throw new ArtiumError('UNSUPPORTED_INPUT', 'Pipe gist content on stdin.')
+    input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes, '--filename with closed stdin')).toString('utf8')
+  }
   const hunting = tool === 'mg-axi' && args.slice(0, 3).join(' ') === 'security hunting query'
   if ((tool === 'checkpoint-axi' || tool === 'az-axi' || tool === 'hybrid-axi' || tool === 'tenable-axi' || hunting) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
     const fileFlags = hunting ? ['file'] : tool === 'checkpoint-axi' ? checkpoint.adapterBoundary.inputFileFlags : tool === 'tenable-axi' ? tenable.adapterBoundary.inputFileFlags

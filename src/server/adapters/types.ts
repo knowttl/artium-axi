@@ -23,6 +23,7 @@ export interface PreparedCall {
   fileArguments?: readonly number[]
   effect?: 'read' | 'write'
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
+  preview?: { operation: string, target: string, confirm: string }
   limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean }
 }
 

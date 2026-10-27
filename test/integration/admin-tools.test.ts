@@ -1087,7 +1087,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'tenable-axi', capable: true, enabled: false, reason: null },
       { name: 'hybrid-axi', capable: true, enabled: false, reason: null },
       { name: 'checkpoint-axi', capable: true, enabled: false, reason: null },
-      { name: 'gh-axi', capable: false, enabled: false, reason: expect.stringContaining('reads only') },
+      { name: 'gh-axi', capable: true, enabled: false, reason: null },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1096,6 +1096,29 @@ test('admin list and detail expose write capability for every tool, including un
     expect(tool.writeAccess.unlocks.length).toBeGreaterThan(0)
     expect(tool.writeAccess.blocked.length).toBeGreaterThan(0)
   }
+})
+
+test('GitHub admin selects exact write operations and preserves them through disable and credential rotation', async () => {
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'gh-axi'")
+  await replace('gh-axi')
+  const selected = ['issue comment', 'workflow run']
+  const enabled = await request('PATCH', '/gh-axi/write-access', { enabled: true, operations: selected, expectedRevision: 2 })
+  expect(enabled.status).toBe(200)
+  expect(await enabled.json()).toMatchObject({ readOnly: false, revision: 3,
+    writeAccess: { capable: true, enabled: true, allowedOperations: selected } })
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const args = ['issue', 'comment', '1', '-R', 'canary/repo', '--body=synthetic private comment']
+  expect(await adapter.prepare(args, store.findCredential('gh-axi')!)).toMatchObject({ preview: { operation: 'issue comment' } })
+  await expect(adapter.prepare(['issue', 'close', '1', '-R', 'canary/repo'], store.findCredential('gh-axi')!))
+    .rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  await failure(await request('PATCH', '/gh-axi/write-access', { enabled: true, operations: ['secret set'], expectedRevision: 3 }), 'INVALID_INPUT')
+  expect((await request('PATCH', '/gh-axi/write-access', { enabled: false, expectedRevision: 3 })).status).toBe(200)
+  await expect(adapter.prepare(args, store.findCredential('gh-axi')!)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect((await save('gh-axi', { ...values['gh-axi'], token: 'github_pat_CANARY-rotated' }, 3)).status).toBe(200)
+  const detail = await (await request('GET', '/gh-axi')).json()
+  expect(detail.writeAccess).toMatchObject({ enabled: false, allowedOperations: selected })
+  expect((await request('PATCH', '/gh-axi/write-access', { enabled: true, expectedRevision: detail.revision })).status).toBe(200)
+  expect(await adapter.prepare(args, store.findCredential('gh-axi')!)).toMatchObject({ preview: { operation: 'issue comment' } })
 })
 
 test('Falcon write switch exposes MalQuery separately and persists the selection across disable/enable', async () => {

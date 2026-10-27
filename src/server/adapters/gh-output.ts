@@ -12,9 +12,9 @@ function managedHelp(command: string): string {
         : Array.from({ length: Number(route.positionals) }, () => ' [<argument>]').join('')
     const flags = Object.entries(route.flags).map(([name, type]) => name === 'repo'
       ? `${route.repository ? '-R OWNER/NAME' : '[-R OWNER/NAME]'}`
-      : `[--${name}${type === 'value' ? ' <value>' : ''}]`).join(' ')
+      : `[--${name}${type === 'value' ? ' <value>' : type === 'boolean-value' ? '[=true|false]' : ''}]`).join(' ')
     return `artium-axi gh-axi ${route.command}${positional} ${flags}`
-  }), help: ['Artium supplies the managed GitHub host and credential. Only reviewed reads are available. Use -R OWNER/NAME for repository reads. API requests accept GET and relative paths only; GraphQL, writes, stdin and files are refused. Ask an Artium administrator to reconnect the GitHub credential or check its permissions.'] }) + '\n'
+  }), help: ['Artium supplies the managed GitHub host and credential. Use -R OWNER/NAME for repository commands. Writes default off and require an administrator-enabled exact operation. Preview without --confirm, then repeat the exact request with its returned --confirm value. API requests accept GET and relative paths only. Deletes, secret set, merge --admin, local git, downloads and files are refused. Only gist create/edit with --filename accepts stdin. Ask an Artium administrator to reconnect the GitHub credential or check its permissions.'] }) + '\n'
 }
 
 export function hostedGhOutput(invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
