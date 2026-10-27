@@ -54,7 +54,7 @@ See the [command reference](https://github.com/knowttl/hybrid-axi/blob/main/docs
 | `npx -y @knowttl/hybrid-axi api get` | read | Reviewed JSON GET only: same decoders, redaction, fields and bounds as named reads; rejects binary, mixed-effect, consuming, refresh and unbound routes |
 | `npx -y @knowttl/hybrid-axi auth status` | read | Verify local SecretRef availability and file protections without HTTP |
 | `npx -y @knowttl/hybrid-axi config path` | read | Show selected config and platform state paths without reading files |
-| `npx -y @knowttl/hybrid-axi doctor` | read | Verify credentials and read key level, submission quota and observed limit headers; other access is unverified |
+| `npx -y @knowttl/hybrid-axi doctor` | read | Verify credentials, key level, quota and one read per system/report/search/feed/hash group; each probe uses API quota; denied operations are permission-denied |
 | `npx -y @knowttl/hybrid-axi feed abuse` | read | Read one page of qualified-removal hashes |
 | `npx -y @knowttl/hybrid-axi feed detonation` | read | Read the most recent report feed, capped upstream at 250 |
 | `npx -y @knowttl/hybrid-axi feed latest` | read | Deprecated latest feed, at most 250 reports from 24h; use feed detonation for the current feed |
@@ -86,7 +86,7 @@ See the [command reference](https://github.com/knowttl/hybrid-axi/blob/main/docs
 | `npx -y @knowttl/hybrid-axi report state` | read | Show submission state |
 | `npx -y @knowttl/hybrid-axi search results` | read | Experimental Labs results for a known query ID; never starts a query |
 | `npx -y @knowttl/hybrid-axi search run` | read | Experimental Labs query: start once, then fetch asynchronous results once; resume pending queries by ID |
-| `npx -y @knowttl/hybrid-axi search terms` | read | Search using at least one documented named filter |
+| `npx -y @knowttl/hybrid-axi search terms` | read | Search using at least one documented named filter; count is upstream total, returned is result rows, complete is false when fewer rows return. Hybrid Analysis does not page search terms; narrow with --date-from/--date-to |
 | `npx -y @knowttl/hybrid-axi setup` | read | Show a read-only config template and SecretRef setup guidance without writing files |
 | `npx -y @knowttl/hybrid-axi setup hooks` | write | Explicitly install or repair local-only Claude Code, Codex and OpenCode session integrations; no API calls |
 | `npx -y @knowttl/hybrid-axi submit dropped-file` | write | Preview analysis of an exact dropped SHA256 from a report; the API accepts no environment override |

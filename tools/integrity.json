@@ -1,7 +1,7 @@
 {
   "@knowttl/hybrid-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-8K39EZadEq302GcuCKrWmdKJ6NvtFegpGWiStTF8T8gn+lbzbYNiBnRMt5lI0o+hCm7glUdOFahZqw62ylpi7w=="
+    "version": "0.1.2",
+    "integrity": "sha512-rveeeytckjW+8lFwKQppSEAncC3yk8KpGqI7Qh3ziJvQtf4ycUrOw+6Tzp9a69gcTamGiYf805OC0+rhIhh6ag=="
   },
   "@knowttl/tenable-axi": {
     "version": "0.1.2",
@@ -16,8 +16,8 @@
     "integrity": "sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw=="
   },
   "@knowttl/az-axi": {
-    "version": "0.1.11",
-    "integrity": "sha512-XiCwLaSh6A6xb9sk7RQ7T3FvkYpkWFIoGUCi7HxYlHF4kssVpF5gun4V7Taw9eKcm0HEWftnLci9l4EBSaFj0w=="
+    "version": "0.1.12",
+    "integrity": "sha512-xPhoFLQ8XWjWqLR2e80apWA1pkCqQcFZ5r5V7XW+uj0zXKaO9RHfjG7gsxkrMa44jWqWLiU8ssZxWZPl6uj8KQ=="
   },
   "@knowttl/vectra-axi": {
     "version": "0.1.9",

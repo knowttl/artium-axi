@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/hybrid-inventory.mjs",
   "tool": "hybrid-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-8K39EZadEq302GcuCKrWmdKJ6NvtFegpGWiStTF8T8gn+lbzbYNiBnRMt5lI0o+hCm7glUdOFahZqw62ylpi7w==",
+  "version": "0.1.2",
+  "integrity": "sha512-rveeeytckjW+8lFwKQppSEAncC3yk8KpGqI7Qh3ziJvQtf4ycUrOw+6Tzp9a69gcTamGiYf805OC0+rhIhh6ag==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "0244f912f05d7a491651b70015a80bfa15d39ed57b691174d8d4f15d89e8a907"
+      "sha256": "cf353500382a0c33a6fa2c1735543ae43ecc10eb53c68e727a8940f7f881b380"
     },
     {
       "path": "dist/src/cli.js",
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/src/report-catalogue.js",
-      "sha256": "387cbfd2c687cb0ec4a4813132057fdd3cf1145cb8a9760ccdaad99ed9732169"
+      "sha256": "3c3346176cf5aabaf177c40a03efd1c67683640a95c8899f71cab1ec4bd95195"
     },
     {
       "path": "dist/src/report-file.js",
@@ -55,11 +55,11 @@
     },
     {
       "path": "dist/src/reports.js",
-      "sha256": "be256f71a04c2f19371b6eb862b88caff9f2e481b95551749bca172058d70396"
+      "sha256": "167fa9b8a542b149b8056dbb5f27bbe70c0ed4385662fc6ae9698c40e421a8d7"
     },
     {
       "path": "dist/src/search-catalogue.js",
-      "sha256": "e5cba3e769308123a560f7e9bcbb0f0ab36e428ce3631a173298953f063b8f7e"
+      "sha256": "42fa4e7e979914c67f99fd9b083f18030ed58c01dc6cbaddea3a03553ac2a353"
     },
     {
       "path": "dist/src/search-contracts.js",
@@ -67,11 +67,11 @@
     },
     {
       "path": "dist/src/search.js",
-      "sha256": "bd9362c96f6ff2a90c3297308cb7e1ef91469a4b233228abfa3d7a8849d28204"
+      "sha256": "cf6192817869625e1d70030c2df748535c39d48632d8e5604cd020003807ef37"
     },
     {
       "path": "dist/src/session.js",
-      "sha256": "e75476c1db36aa635d6f3f675e95dfcde6bdda5c66abd0f8f905db881c7d9cf5"
+      "sha256": "c55dce9aea70c4f213a040968783bb81296127395367136593985bfe99b4788c"
     },
     {
       "path": "dist/src/setup.js",
@@ -182,7 +182,7 @@
       }
     }
   },
-  "skillSha256": "1d0266cf0237630d063531b567a6b960dca48a731e7917e72b50fb59f757d384",
+  "skillSha256": "0dc43810bcc0774457a33dba2454849e2c8588f0607bd770b30fefe09cd0d26c",
   "nativeWriteSettings": {
     "supportedOperations": [
       "convertQuickScan",
