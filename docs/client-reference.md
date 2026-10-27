@@ -44,7 +44,7 @@ The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
-For GitHub's dashboard limitation and repository selection, see the [supported boundary](../README.md#safety); `artium-axi gh-axi --help` lists the supported reads.
+For GitHub's dashboard limitation and repository selection, see the [supported boundary](../README.md#safety); `artium-axi gh-axi --help` lists the reviewed commands and write gates.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 The ADO, AWX, Azure, Check Point, GitHub, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
@@ -61,6 +61,10 @@ Closed empty stdin remains valid transport input; the tool validates whether its
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
+GitHub writes require an administrator-enabled exact operation, then an Artium preview and `--confirm <returned-value>` on the same request.
+GitHub gist create/edit with `--filename` captures bounded piped stdin; repeat identical content when confirming.
+Other GitHub commands leave stdin unread and reject input through the API; local files are unavailable.
+See [GitHub write setup](tool-credentials.md#github) for operation tiers and recovery after `UNKNOWN_OUTCOME`.
 Vectra file inputs use named uploads through the run API, or bounded stdin where the upstream flag accepts `-`; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the accepted file flags.
 The bundled CLI does not upload Vectra files or capture Vectra stdin, and server file paths are unavailable.
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.

@@ -15,7 +15,7 @@ export interface TemporaryFile {
 export interface PreparedCall {
   executable: string
   args: string[]
-  invocation?: { command: string, help: boolean, credentialAuth?: 'device' }
+  invocation?: { command: string, help: boolean, credentialAuth?: 'device', nativeGh?: boolean, checkArgs?: string[] }
   environment: Record<string, string>
   pathPrefix?: string
   files: TemporaryFile[]
@@ -23,6 +23,7 @@ export interface PreparedCall {
   fileArguments?: readonly number[]
   effect?: 'read' | 'write'
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
+  preview?: { operation: string, target: string, confirm: string }
   limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean }
 }
 

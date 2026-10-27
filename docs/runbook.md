@@ -388,9 +388,10 @@ See the [hosted credential contract](credential-standard.md#per-tool-host-facing
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
 Write-policy changes, including changes through Native settings or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
 Stale revisions never mutate settings, and an audit failure rolls back the change.
-Tool lists and health responses report `readOnly`; LDAP and GitHub remain fixed read-only.
+Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.
+GitHub writes require exact administrator-selected operations and Artium-owned preview/confirmation; see [GitHub setup](tool-credentials.md#github) for the tiers and interrupted-write recovery.
 Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
-The write-access endpoint rejects changes for LDAP and GitHub with the fixed read-only reason.
+The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
 See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and confirmation gates.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.

@@ -245,7 +245,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     help = help.replace(new RegExp(`^  (?:${falcon.blockedCommands.join('|')})(?=\\s|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
   }
   if (tool === 'gh-axi') {
-    const guidance = 'Artium manages the GitHub host and credential. Ask an Artium administrator to reconnect the GitHub credential. Only reviewed reads are available; use -R OWNER/NAME for repository reads. api accepts GET and relative paths only.'
+    const guidance = 'Artium manages the GitHub host and credential. Ask an Artium administrator to reconnect the GitHub credential. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation: preview, then repeat the exact request with its --confirm value. api accepts GET and relative paths only.'
     help = help.split('\n').filter(line => !/\bgh auth\b|\bGH_[A-Z_]+\b|gh-axi (?:update|setup|stack)|--(?:hostname|watch|attach|input|field|raw-field|header|body-file|notes-file)\b/.test(line)).join('\n')
     if (!help.trim()) help = guidance
     else if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'

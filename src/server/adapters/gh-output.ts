@@ -1,7 +1,7 @@
 import { decode, encode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/gh-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
-import type { RunnerResult } from '../runner/runner.js'
+import { RunnerError, type RunnerResult } from '../runner/runner.js'
 import type { PreparedCall } from './types.js'
 
 function managedHelp(command: string): string {
@@ -12,15 +12,40 @@ function managedHelp(command: string): string {
         : Array.from({ length: Number(route.positionals) }, () => ' [<argument>]').join('')
     const flags = Object.entries(route.flags).map(([name, type]) => name === 'repo'
       ? `${route.repository ? '-R OWNER/NAME' : '[-R OWNER/NAME]'}`
-      : `[--${name}${type === 'value' ? ' <value>' : ''}]`).join(' ')
+      : name === 'owner' && route.effect === 'write' && route.command.startsWith('project ') ? '--owner OWNER'
+      : `[--${name}${type === 'value' ? ' <value>' : type === 'boolean-value' ? '[=true|false]' : ''}]`).join(' ')
     return `artium-axi gh-axi ${route.command}${positional} ${flags}`
-  }), help: ['Artium supplies the managed GitHub host and credential. Only reviewed reads are available. Use -R OWNER/NAME for repository reads. API requests accept GET and relative paths only; GraphQL, writes, stdin and files are refused. Ask an Artium administrator to reconnect the GitHub credential or check its permissions.'] }) + '\n'
+  }), help: ['Artium supplies the managed GitHub host and credential. Use -R OWNER/NAME for repository commands. Writes default off and require an administrator-enabled exact operation. Preview without --confirm, then repeat the exact request with its returned --confirm value. API requests accept GET and relative paths only. Deletes, secret set, merge --admin, local git, downloads and files are refused. Only gist create/edit with --filename accepts stdin. Ask an Artium administrator to reconnect the GitHub credential or check its permissions.'] }) + '\n'
 }
 
 export function hostedGhOutput(invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
   if (!invocation) return result
+  if (invocation.checkArgs && result.exitCode !== 0) {
+    const output = result.stdout.trim() === '' ? result.stderr : result.stderr.trim() === '' ? result.stdout : ''
+    const singleMutation = ['issue comment', 'pr comment', 'discussion comment', 'workflow run', 'workflow enable', 'workflow disable'].includes(invocation.command)
+    let refusal = false
+    if (!result.truncated.stdout && !result.truncated.stderr) {
+      const localValidation = /^(?:--[a-z][a-z-]* (?:requires|is required|must|may only|does not|needs)\b|Choose (?:only one|either|exactly one)\b|Use only one\b|unknown flag\b|Unknown issue type\b|Issue types are not configured\b)/i
+      const authentication = /\b(?:HTTP (?:401|403)|Bad credentials \(HTTP 401\))/i
+      if (invocation.nativeGh) refusal = localValidation.test(output) || singleMutation && authentication.test(output)
+      else {
+        try {
+          const document = (output.trimStart().startsWith('{') ? JSON.parse(output)
+            : decode(output.split(/\nhelp\[\d+\]:/)[0])) as Record<string, unknown>
+          if (typeof document.error === 'string' && Object.keys(document).every(name => ['error', 'code', 'help'].includes(name))) {
+            refusal = document.code === 'VALIDATION_ERROR' && localValidation.test(document.error)
+              || singleMutation && (['AUTH_REQUIRED', 'FORBIDDEN'].includes(String(document.code)) || authentication.test(document.error))
+          }
+        } catch {}
+      }
+    }
+    if (!refusal) throw Object.assign(new RunnerError('UNKNOWN_OUTCOME'), {
+      processStarted: true, durationMs: result.durationMs, outputBytes: result.outputBytes,
+    })
+  }
   if (invocation.credentialAuth === 'device' && result.exitCode !== 0) {
     const revoked = ([result.stdout, result.stderr]).some(output => {
+      if (invocation.nativeGh && /\bBad credentials \(HTTP 401\)/i.test(output)) return true
       try {
         const document = (output.trimStart().startsWith('{') ? JSON.parse(output)
           : decode(output.split(/\nhelp\[\d+\]:/)[0])) as Record<string, unknown>
@@ -46,6 +71,11 @@ export function hostedGhOutput(invocation: PreparedCall['invocation'], result: R
     }
     return { ...result, stdout: diagnostic(result.stdout, result.truncated.stdout), stderr: diagnostic(result.stderr, result.truncated.stderr) }
   }
+  if (!invocation.help && invocation.command === 'issue transfer') return { ...result,
+    stdout: encode({ status: 'transferred', checkArgs: invocation.checkArgs }) + '\n', stderr: '' }
+  if (invocation.nativeGh) return { ...result, stdout: encode(invocation.command === 'issue comment'
+    ? { comment: { url: result.stdout.trim() } }
+    : { operation: invocation.command, status: 'completed', output: result.stdout.trim() }) + '\n' }
   if (invocation.command !== 'run view' || !result.stdout.startsWith('run_log:')) return result
   if (result.truncated.stdout) throw new ArtiumError('INVALID_RESPONSE', 'The hosted run output was truncated.')
   const document = decode(result.stdout.split(/\nhelp\[\d+\]:/)[0]) as { run_log?: Record<string, unknown>, help?: string[] }

@@ -12,6 +12,27 @@ afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 test.each([
+  ['gist', 'create', '--filename=synthetic.txt', '--secret'],
+  ['gist', 'edit', 'abc123', '--filename', 'synthetic.txt', '--confirm=synthetic-confirm'],
+])('GitHub captures explicit gist content for %j', async (...args) => {
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['synthetic content']) as typeof process.stdin)
+  expect(await toolInput('gh-axi', args)).toEqual({ args, stdin: 'synthetic content' })
+})
+
+test.each([
+  ['gist', 'create', '--filename=synthetic.txt', '--secret', '--help'],
+  ['gist', 'edit', 'abc123', '--desc=synthetic'], ['issue', 'list', '-R', 'canary/repo'],
+])('GitHub leaves unrelated stdin unread for %j', async (...args) => {
+  const pipe = new PassThrough()
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(pipe as unknown as typeof process.stdin)
+  const reading = vi.spyOn(pipe, Symbol.asyncIterator)
+  try {
+    expect(await toolInput('gh-axi', args)).toEqual({ args })
+    expect(reading).not.toHaveBeenCalled()
+  } finally { pipe.destroy() }
+})
+
+test.each([
   ['logs', 'query', '--workspace', 'synthetic', 'Heartbeat | count'],
   ['rg', 'query', '--limit', '1', 'Resources | count'],
   ['--subscription', 'synthetic', 'rg', 'query', '--full', 'true', 'Resources'],
