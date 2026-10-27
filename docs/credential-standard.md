@@ -272,12 +272,11 @@ See [LDAP credential setup](tool-credentials.md#ldap) for the authentication cho
 
 gh-axi is also a third-party tool bundled without upstream modifications.
 Its [host adapter](../src/server/adapters/gh.ts) owns the inline PAT, device-flow OAuth and GitHub App installation profiles.
-Device credentials are minted only through the admin Connect with GitHub flow; `accessToken` is secret, while `login` and optional `accessTokenExpiresAt` are public metadata.
-The fixed GitHub CLI client ID requests `repo read:org gist workflow project`; tokens are non-expiring unless the provider explicitly supplies an expiry, with reconnect instead of refresh on expiry or revocation.
+Device credentials are minted only through the admin Connect with GitHub flow; the host adapter owns their secret fields and the [admin boundary](../src/server/admin/tools.ts) owns public metadata.
 It injects only `GH_TOKEN` or `GH_ENTERPRISE_TOKEN`, with managed `GH_HOST`, into the isolated process.
 There is no upstream profile file; the [supported GitHub boundary](../README.md#safety) owns operation restrictions.
 See the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui) for Go TLS handling.
-See [GitHub setup](tool-credentials.md#github) for authentication, token caching and key rotation.
+See [GitHub setup](tool-credentials.md#github) for authentication, device-flow scopes and token lifecycle, token caching and key rotation.
 
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
 The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.

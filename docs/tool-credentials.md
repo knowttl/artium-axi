@@ -292,7 +292,7 @@ Denied, expired or unsupported flows require a new connection; GHES must support
 Pending codes live only in server memory and disappear on restart; leaving the page stops polling.
 Starting another connection replaces the deployment's pending connection.
 The previous saved credential remains until authorization succeeds; concurrent credential or settings changes prevent stale approval from overwriting them.
-On success Artium verifies the connected account, stores only the access token in its encrypted credential store, records a credential change without secrets, and checks health.
+On success Artium verifies the connected account, replaces the encrypted credential as a new revision, records a credential change without secrets, and requests the [post-connection health check](runbook.md#roles-credentials-and-health).
 The connected account login is displayed, and the token is never returned to the browser or accepted through the ordinary credential editor.
 
 These are **non-expiring OAuth tokens** appearing as **GitHub CLI** in GitHub Settings, Applications, Authorized OAuth Apps and organization OAuth policies.
@@ -303,7 +303,7 @@ Store and rotate them like every other secret: choose **Reconnect with GitHub**,
 Revoking GitHub CLI's authorization can affect that account's other CLI sessions too.
 No refresh token is stored and no refresh code runs.
 If a provider returns `expires_in`, Artium records the expiry and refuses calls at that time with `CREDENTIAL_EXPIRED`.
-Revoked device-token authentication failures also return `CREDENTIAL_EXPIRED`; health turns red and the page asks the administrator to reconnect.
+Revoked device-token authentication failures also return `CREDENTIAL_EXPIRED`; credential checks record this error and the tool page asks the administrator to reconnect.
 Permission failures remain permission errors rather than expired-credential errors.
 See GitHub's [device-flow protocol](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow).
 
