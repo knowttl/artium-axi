@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.16](https://github.com/knowttl/artium-axi/compare/v0.0.15...v0.0.16) (2026-10-27)
+
+
+### Bug Fixes
+
+* update bundled AXI tools and enforce Graph pack limits ([#175](https://github.com/knowttl/artium-axi/issues/175)) ([9412de4](https://github.com/knowttl/artium-axi/commit/9412de46dbbedabd36e674d2c4de2e35e1d0bc9d))
+
+
+### Performance Improvements
+
+* trim CLI startup and authenticated request overhead ([#173](https://github.com/knowttl/artium-axi/issues/173)) ([7e83c04](https://github.com/knowttl/artium-axi/commit/7e83c041759233b53d0d110cce81366480631d5c))
+
 ## [0.0.15](https://github.com/knowttl/artium-axi/compare/v0.0.14...v0.0.15) (2026-10-24)
 
 
