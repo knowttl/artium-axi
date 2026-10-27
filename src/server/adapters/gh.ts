@@ -16,7 +16,10 @@ export const ghProfile = new CredentialProfile({ type: 'object', additionalPrope
   required: ['origin', 'auth'], properties: {
     origin: { type: 'string', format: 'canonical-https-origin', default: 'https://github.com', title: 'GitHub origin',
       description: 'https://github.com or your GitHub Enterprise HTTPS origin.' },
-    auth: { enum: ['token', 'github-app'], title: 'Authentication' },
+    auth: { enum: ['token', 'github-app', 'device'], title: 'Authentication' },
+    accessToken: { type: 'string', 'x-secret': true, description: 'Managed by Connect with GitHub.' },
+    accessTokenExpiresAt: { type: 'integer', minimum: 1 },
+    login: { type: 'string', pattern: '^[A-Za-z0-9_-]+$', maxLength: 100 },
     token: { type: 'string', 'x-secret': true, title: 'Personal access token',
       description: 'Classic or fine-grained PAT. Shared by everyone granted this tool. Classic repo scope permits writes outside Artium.' },
     appId: { type: 'string', pattern: '^[1-9][0-9]*$', title: 'GitHub App ID' },
@@ -28,8 +31,11 @@ export const ghProfile = new CredentialProfile({ type: 'object', additionalPrope
       additionalProperties: { enum: ['read', 'write'] }, description: 'Optional GitHub permission map to narrow the installation grant, for example {"contents":"read"}.' },
   }, oneOf: [
     { properties: { auth: { const: 'token' } }, required: ['token'],
-      not: { anyOf: ['appId', 'installationId', 'privateKey', 'repositories', 'permissions'].map(name => ({ required: [name] })) } },
-    { properties: { auth: { const: 'github-app' } }, required: ['appId', 'installationId', 'privateKey'], not: { required: ['token'] } },
+      not: { anyOf: ['appId', 'installationId', 'privateKey', 'repositories', 'permissions', 'accessToken', 'accessTokenExpiresAt', 'login'].map(name => ({ required: [name] })) } },
+    { properties: { auth: { const: 'github-app' } }, required: ['appId', 'installationId', 'privateKey'],
+      not: { anyOf: ['token', 'accessToken', 'accessTokenExpiresAt', 'login'].map(name => ({ required: [name] })) } },
+    { properties: { auth: { const: 'device' } }, required: ['accessToken', 'login'],
+      not: { anyOf: ['token', 'appId', 'installationId', 'privateKey', 'repositories', 'permissions'].map(name => ({ required: [name] })) } },
   ] }, 'gh-axi')
 export const ghCredentialSchema = ghProfile.credentialSchema
 
@@ -113,9 +119,13 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
       const parsed = ghCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const host = new URL(parsed.data.origin as string).host
+      if (parsed.data.auth === 'device' && typeof parsed.data.accessTokenExpiresAt === 'number'
+        && parsed.data.accessTokenExpiresAt <= Date.now()) throw new ArtiumError('CREDENTIAL_EXPIRED')
       const token = parsed.data.auth === 'github-app'
-        ? await tokens.acquire(reference, parsed.data, source.getTrust?.(reference)) : parsed.data.token as string
-      return { executable: toolPaths['gh-axi'], ...call, environment: {
+        ? await tokens.acquire(reference, parsed.data, source.getTrust?.(reference))
+        : (parsed.data.auth === 'device' ? parsed.data.accessToken : parsed.data.token) as string
+      return { executable: toolPaths['gh-axi'], ...call,
+        invocation: { ...call.invocation, ...(parsed.data.auth === 'device' ? { credentialAuth: 'device' as const } : {}) }, environment: {
         [host === 'github.com' || host.endsWith('.ghe.com') ? 'GH_TOKEN' : 'GH_ENTERPRISE_TOKEN']: token,
         GH_HOST: host, GH_BIN: '/usr/local/bin/gh', GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1',
         GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_SPINNER_DISABLED: '1', GH_TELEMETRY: '0', NO_COLOR: '1',

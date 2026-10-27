@@ -12,6 +12,7 @@ import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { GithubAppTokenCache } from '../../src/server/adapters/github-app-tokens.js'
+import * as credentialTls from '../../src/server/credential-tls.js'
 import { generateKeyPairSync } from 'node:crypto'
 import { preflight } from '../../src/server/health/preflight.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
@@ -109,6 +110,7 @@ beforeEach(async () => {
     })
   }
   runner = await Runner.create(join(directory, 'calls'))
+  vi.spyOn(credentialTls, 'credentialFetch').mockRejectedValue(new Error('Unexpected synthetic network request'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters,
     resolver: new SharedIdentityResolver(store) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
@@ -119,6 +121,7 @@ afterEach(async () => {
   await app.close()
   db.close()
   vi.restoreAllMocks()
+  vi.useRealTimers()
   rmSync(directory, { recursive: true, force: true })
 })
 
@@ -692,6 +695,227 @@ test('GitHub App save encrypts the key, rotates tokens and requires a key for a 
   expect(mint).toHaveBeenCalledTimes(2)
   await failure(await save('gh-axi', { ...metadata, installationId: '789' }, 2), 'INVALID_INPUT')
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/PRIVATE KEY|CANARY-app-installation/)
+})
+
+function fakeGithubDevice() {
+  return vi.mocked(credentialTls.credentialFetch).mockResolvedValueOnce(new Response(JSON.stringify({
+    device_code: 'CANARY-private-device-code', user_code: 'ABCD-EFGH', verification_uri: 'https://github.com/login/device', expires_in: 900, interval: 5,
+  }))).mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'gho_CANARY-connected-token', token_type: 'bearer' })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ login: 'synthetic-machine' })))
+}
+
+async function startGithubDevice(expectedRevision = 0) {
+  const detail = await (await request('GET', '/gh-axi')).json()
+  const response = await request('POST', '/gh-axi/device', { origin: 'https://github.com', expectedRevision, expectedToolRevision: detail.revision })
+  expect(response.status).toBe(200)
+  const { connectionId } = await response.json() as { connectionId: string }
+  return { connectionId }
+}
+
+test('GitHub credential HTTP is denied by the fake installed before application creation', async () => {
+  const detail = await (await request('GET', '/gh-axi')).json()
+  await failure(await request('POST', '/gh-axi/device', { origin: 'https://github.com', expectedRevision: 0,
+    expectedToolRevision: detail.revision }), 'UPSTREAM_AUTH_FAILED')
+  expect(credentialTls.credentialFetch).toHaveBeenCalledTimes(1)
+  expect(vi.mocked(credentialTls.credentialFetch).mock.calls[0][0]).toBe('https://github.com/login/device/code')
+  expect(store.findCredential('gh-axi')).toBeUndefined()
+})
+
+test('GitHub device approval stores a shared encrypted credential, audits once and runs health', async () => {
+  const network = fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }))
+  adapters.push(adapter)
+  await replace('gh-axi')
+  const started = await startGithubDevice(1)
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.now() + 5000)
+  const response = await request('POST', '/gh-axi/device/poll', started)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 2,
+    metadata: { origin: 'https://github.com', auth: 'device', login: 'synthetic-machine' } } })
+  expect(store.readCredential(store.findCredential('gh-axi')!)).toEqual({ origin: 'https://github.com', auth: 'device',
+    accessToken: 'gho_CANARY-connected-token', login: 'synthetic-machine' })
+  expect(JSON.stringify(db.prepare('SELECT * FROM credentials').all())).not.toContain('gho_CANARY-connected-token')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/gho_CANARY|CANARY-private-device-code|ABCD-EFGH/)
+  expect(db.prepare("SELECT action FROM audit WHERE action = 'connect-github-device'").all()).toEqual([{ action: 'connect-github-device' }])
+  expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ health: { status: 'ok', credentialRevision: 2 } })
+  expect(network).toHaveBeenCalledTimes(3)
+  await failure(await request('POST', '/gh-axi/device/poll', started), 'NOT_FOUND')
+  await failure(await save('gh-axi', { origin: 'https://github.com', auth: 'device', accessToken: 'gho_CANARY-forged', login: 'synthetic' }, 2), 'INVALID_INPUT')
+})
+
+test.each([
+  { status: 'ok', errorCode: null, output: ['print', 'remaining: 4999'] },
+  { status: 'error', errorCode: 'CREDENTIAL_EXPIRED', output: ['failure', 'error: Bad credentials (HTTP 401)\ncode: UNKNOWN'] },
+])('first GitHub device connection records $status health while disabled', async ({ status, errorCode, output }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('gh-axi')
+  const network = fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, ...output] }))
+  runner = await Runner.create(join(directory, 'calls'))
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect(store.findCredential('gh-axi')).toBeUndefined()
+  const started = await startGithubDevice()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.now() + 5000)
+  const response = await request('POST', '/gh-axi/device/poll', started)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 1,
+    metadata: { auth: 'device', login: 'synthetic-machine' } } })
+  expect(store.readCredential(store.findCredential('gh-axi')!)).toEqual({ origin: 'https://github.com', auth: 'device',
+    accessToken: 'gho_CANARY-connected-token', login: 'synthetic-machine' })
+  expect(db.prepare('SELECT status, error_code, credential_revision FROM tool_health WHERE tool = ?').get('gh-axi'))
+    .toEqual({ status, error_code: errorCode, credential_revision: 1 })
+  expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ enabled: false,
+    health: { status: 'disabled', credentialRevision: 1, checkedAt: expect.any(Number), errorCode } })
+  expect(db.prepare("SELECT outcome, credential_revision FROM audit WHERE event = 'credential-test' AND tool = 'gh-axi'").all())
+    .toEqual([{ outcome: errorCode ?? 'success', credential_revision: 1 }])
+  expect(db.prepare("SELECT action FROM audit WHERE action = 'connect-github-device'").all()).toEqual([{ action: 'connect-github-device' }])
+  expect(JSON.stringify(db.prepare('SELECT * FROM credentials').all())).not.toContain('gho_CANARY-connected-token')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/gho_CANARY|CANARY-private-device-code|ABCD-EFGH/)
+  expect(network).toHaveBeenCalledTimes(3)
+})
+
+test('disabled GitHub device connection checks its revision once runner capacity returns', async () => {
+  await app.close()
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('gh-axi')
+  fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }))
+  runner = await Runner.create(join(directory, 'calls'))
+  let completed!: () => void
+  const terminal = new Promise<void>(resolve => { completed = resolve })
+  const audit = new Audit(db, Date.now, line => {
+    const record = JSON.parse(line)
+    if (record.event === 'health-check' && record.tool === 'gh-axi' && record.outcome === 'success') completed()
+  })
+  app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const controller = new AbortController()
+  const calls = Array.from({ length: runnerLimits.globalCalls }, (_, index) =>
+    runner.run(`synthetic-ordinary-${index}`, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [],
+      { signal: controller.signal }).catch(error => error))
+  try {
+    const started = await startGithubDevice()
+    vi.setSystemTime(Date.now() + 5000)
+    const response = await request('POST', '/gh-axi/device/poll', started)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 1 } })
+    expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ enabled: false, health: {
+      credentialRevision: 1, errorCode: 'TOO_MANY_CALLS', diagnostic: { message: 'Credential check pending: runner busy.' },
+    } })
+    expect(db.prepare('SELECT credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ credential_revision: 1, error_code: 'TOO_MANY_CALLS' })
+    controller.abort()
+    await Promise.all(calls)
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    await terminal
+    expect(db.prepare('SELECT status, credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ status: 'ok', credential_revision: 1, error_code: null })
+    await vi.advanceTimersByTimeAsync(healthDefaults.tickMs)
+    expect(db.prepare("SELECT credential_revision FROM audit WHERE event = 'health-check' AND tool = 'gh-axi' AND outcome = 'success'").all())
+      .toEqual([{ credential_revision: 1 }])
+  } finally {
+    controller.abort()
+    await Promise.all(calls)
+  }
+})
+
+test('GitHub reconnect during an in-flight check checks the new revision while disabled', async () => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('gh-axi')
+  store.replaceCredential('gh-axi', values['gh-axi'], 0, actor, Date.now())
+  fakeGithubDevice()
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }))
+  runner = await Runner.create(join(directory, 'calls'))
+  let admitted!: () => void
+  let release!: () => void
+  const running = new Promise<void>(resolve => { admitted = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(runner, 'run').mockImplementationOnce(async () => {
+    admitted()
+    await held
+    return { stdout: 'error: Bad credentials (HTTP 401)\ncode: UNKNOWN', stderr: '', exitCode: 1, durationMs: 1,
+      outputBytes: { stdout: 50, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+  })
+  let completed!: () => void
+  const terminal = new Promise<void>(resolve => { completed = resolve })
+  const audit = new Audit(db, Date.now, line => {
+    const record = JSON.parse(line)
+    if (record.event === 'health-check' && record.tool === 'gh-axi' && record.credential_revision === 2
+      && record.outcome === 'success') completed()
+  })
+  app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters: [adapter],
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const oldCheck = request('POST', '/gh-axi/test', {})
+  await running
+  try {
+    const started = await startGithubDevice(1)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 5000)
+    const response = await request('POST', '/gh-axi/device/poll', started)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 2 } })
+    expect(db.prepare('SELECT credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ credential_revision: 2, error_code: 'TOO_MANY_CALLS' })
+    release()
+    expect((await oldCheck).status).toBe(503)
+    await terminal
+    expect(db.prepare('SELECT status, credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
+      .toEqual({ status: 'ok', credential_revision: 2, error_code: null })
+    expect(db.prepare("SELECT credential_revision FROM audit WHERE event = 'health-check' AND tool = 'gh-axi' AND outcome = 'success'").all())
+      .toEqual([{ credential_revision: 2 }])
+  } finally {
+    release()
+    await oldCheck
+  }
+})
+
+test('GitHub pending connection cannot overwrite a concurrently rotated credential', async () => {
+  const network = fakeGithubDevice()
+  const started = await startGithubDevice()
+  await replace('gh-axi')
+  await failure(await request('POST', '/gh-axi/device/poll', started), 'REVISION_CONFLICT')
+  expect(network).toHaveBeenCalledTimes(1)
+  expect(store.readCredential(store.findCredential('gh-axi')!)).toEqual(values['gh-axi'])
+})
+
+test.each(['/gh-axi/device', '/gh-axi/device/poll', '/gh-axi/device/cancel'])(
+  'GitHub connection %s requires an administrator and recent authentication', async path => {
+    const network = fakeGithubDevice()
+    const ordinary = await adminHeaders('synthetic-ordinary')
+    await failure(await request('POST', path, {}, ordinary), 'ADMIN_REQUIRED')
+    const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+    await failure(await request('POST', path, {}, missing), 'REAUTH_REQUIRED')
+    expect(network).not.toHaveBeenCalled()
+  })
+
+test('GitHub revoked device credentials turn health red with reconnect guidance', async () => {
+  store.replaceCredential('gh-axi', { origin: 'https://github.com', auth: 'device', accessToken: 'gho_CANARY-revoked',
+    login: 'synthetic-machine' }, 0, actor, Date.now())
+  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', 'error: Bad credentials (HTTP 401)\ncode: UNKNOWN'] }))
+  adapters.push(adapter)
+  await failure(await request('POST', '/gh-axi/test', {}), 'CREDENTIAL_EXPIRED')
+  expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ health: { status: 'error', errorCode: 'CREDENTIAL_EXPIRED' } })
 })
 
 test('save removes omitted optional non-secret fields', async () => {

@@ -350,6 +350,68 @@ function showCertificateInspection(result) {
   dialog.querySelector('[data-close-certificate]').onclick = () => dialog.close();
   dialog.showModal();
 }
+async function connectGithub(connection, csrf, message) {
+  const panel = document.querySelector('[data-github-authorization]');
+  const status = panel.querySelector('[data-github-status]');
+  const cancel = panel.querySelector('[data-cancel-github]');
+  cancel.disabled = false;
+  const link = panel.querySelector('[data-github-link]');
+  panel.hidden = false;
+  panel.querySelector('[data-github-code]').textContent = connection.userCode;
+  link.href = connection.verificationUri;
+  link.textContent = connection.verificationUri;
+  let cancelled = false;
+  let cancellation;
+  let release;
+  const send = async action => {
+    const request = () => fetch('/v1/admin/tools/gh-axi/device/' + action, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ connectionId: connection.connectionId, _csrf: csrf }) });
+    let response = await request();
+    if (response.status === 401 && (await response.clone().json()).error?.code === 'REAUTH_REQUIRED') {
+      if (await reauthenticate(csrf)) response = await request();
+    }
+    return response;
+  };
+  cancel.onclick = () => {
+    if (cancelled) return;
+    cancelled = true;
+    cancellation = send('cancel').then(response => {
+      status.textContent = response.ok ? 'Connection cancelled. The saved credential is unchanged.' : 'Cancellation could not be confirmed. Reload to check the credential.';
+    }).catch(() => { status.textContent = 'Cancellation could not be confirmed. Reload to check the credential.'; });
+    if (release) release();
+  };
+  const countdown = () => {
+    if (cancelled) return;
+    const remaining = Math.max(0, Math.ceil((connection.expiresAt - Date.now()) / 1000));
+    status.textContent = remaining ? 'Waiting for GitHub approval. Code expires in ' + remaining + ' seconds.' : 'Code expired. Start a new connection.';
+  };
+  countdown();
+  const timer = setInterval(countdown, 1000);
+  try {
+    let interval = connection.interval;
+    while (Date.now() < connection.expiresAt) {
+      await new Promise(resolve => { const wait = setTimeout(resolve, interval * 1000); release = () => { clearTimeout(wait); resolve(); }; });
+      release = undefined;
+      if (cancelled) break;
+      if (Date.now() >= connection.expiresAt) break;
+      const response = await send('poll');
+      if (cancelled) break;
+      if (response.redirected) { location.assign(response.url); return; }
+      const result = await response.json();
+      if (cancelled) break;
+      if (!response.ok) {
+        status.textContent = 'Connection stopped. Start a new connection after following the error below.';
+        showError(message, result.error);
+        return;
+      }
+      if (result.status === 'connected') { location.reload(); return; }
+      interval = result.interval;
+    }
+    if (cancelled) await cancellation;
+    else status.textContent = 'Code expired. Start a new connection.';
+  } finally { clearInterval(timer); cancel.disabled = true; }
+}
 document.addEventListener('submit', async event => {
   const form = event.target;
   if (form.matches('[data-filters]')) {
@@ -407,6 +469,10 @@ document.addEventListener('submit', async event => {
       }
     }
     if (response.redirected) { location.assign(response.url); return; }
+    if (response.ok && form.hasAttribute('data-connect-github')) {
+      await connectGithub(await response.json(), body._csrf, message);
+      return;
+    }
     if (response.ok && form.hasAttribute('data-inspect-certificate')) {
       showCertificateInspection(await response.json());
       return;

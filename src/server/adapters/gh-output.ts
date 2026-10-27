@@ -19,6 +19,17 @@ function managedHelp(command: string): string {
 
 export function hostedGhOutput(invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
   if (!invocation) return result
+  if (invocation.credentialAuth === 'device' && result.exitCode !== 0) {
+    const revoked = ([result.stdout, result.stderr]).some(output => {
+      try {
+        const document = (output.trimStart().startsWith('{') ? JSON.parse(output)
+          : decode(output.split(/\nhelp\[\d+\]:/)[0])) as Record<string, unknown>
+        return document.code === 'AUTH_REQUIRED' || document.code === 'UNKNOWN'
+          && typeof document.error === 'string' && /\bBad credentials \(HTTP 401\)/i.test(document.error)
+      } catch { return false }
+    })
+    if (revoked) throw new ArtiumError('CREDENTIAL_EXPIRED')
+  }
   if (invocation.help && result.exitCode === 0) return { ...result, stdout: managedHelp(invocation.command), stderr: '' }
   if (result.exitCode !== 0) {
     const diagnostic = (output: string, truncated: boolean) => {

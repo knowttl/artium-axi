@@ -20,6 +20,7 @@ import { createVectraAdapter } from '../../dist/src/server/adapters/vectra.js'
 import { createMgAdapter } from '../../dist/src/server/adapters/mg.js'
 import { createAzAdapter } from '../../dist/src/server/adapters/az.js'
 import { createLdapAdapter } from '../../dist/src/server/adapters/ldap.js'
+import { createGhAdapter } from '../../dist/src/server/adapters/gh.js'
 import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport } from '../../dist/test/fixtures/azure-token-transport.js'
@@ -41,7 +42,7 @@ const profile = tool => loadCredentialProfile(tool, join(process.cwd(), `tools/n
 const adapters = [createFalconAdapter(source), createVectraAdapter(source, join(directory, 'writes.log'), profile('vectra-axi')),
   createMgAdapter(source, join(directory, 'mg-writes.log'), profile('mg-axi')),
   createAzAdapter(source, join(directory, 'az-writes.log'), new AzureTokenCache(new FakeTokenTransport())),
-  createLdapAdapter(source, profile('ldap-axi'))]
+  createLdapAdapter(source, profile('ldap-axi')), createGhAdapter(source)]
 const deliveryFile = join(directory, 'ldap-delivery.json')
 // Use the real preparation and secret scan, replacing only the executable boundary.
 for (const adapter of adapters) {
@@ -70,6 +71,21 @@ Date.now = () => realNow() + offset
 server.post('/test/trust-ca', async () => {
   setDefaultCACertificates([...getCACertificates('default'), readFileSync(join(directory, 'ca.crt'), 'utf8')])
   return { trusted: true }
+})
+server.post('/login/device/code', async request => {
+  const input = new URLSearchParams(request.body)
+  if (input.get('client_id') !== '178c6fc778ccc68e1d6a' || input.get('scope') !== 'repo read:org gist workflow project') throw new Error('Unexpected device request')
+  return { device_code: 'CANARY-browser-device', user_code: 'ABCD-EFGH',
+    verification_uri: `https://${request.headers.host}/login/device`, expires_in: 900, interval: 1 }
+})
+server.post('/login/oauth/access_token', async request => {
+  const input = new URLSearchParams(request.body)
+  if (input.get('device_code') !== 'CANARY-browser-device') throw new Error('Unexpected device code')
+  return { access_token: 'gho_CANARY-browser-device', token_type: 'bearer' }
+})
+server.get('/api/v3/user', async request => {
+  if (request.headers.authorization !== 'Bearer gho_CANARY-browser-device') throw new Error('Unexpected device token')
+  return { login: 'synthetic-machine' }
 })
 server.post('/test/clock', async request => {
   const { advanceMs } = request.body

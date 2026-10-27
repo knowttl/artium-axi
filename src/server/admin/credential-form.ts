@@ -71,6 +71,7 @@ const fieldHelp: Record<string, string> = {
 
 export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
   const excluded = new Set([...(tool ? Object.keys(nativeSettingsSchemas[tool].shape) : []), 'tokenEnv', 'secretEnv'])
+  if (tool === 'gh-axi') for (const name of ['accessToken', 'accessTokenExpiresAt', 'login']) excluded.add(name)
   const fields = profile.fields().filter(field => !excluded.has(field.name))
     .sort((a, b) => Number(['signIn', 'mode', 'auth', 'kind'].includes(b.name)) - Number(['signIn', 'mode', 'auth', 'kind'].includes(a.name)))
     .map(({ name, schema, required }) => {
@@ -83,7 +84,8 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
       : name === 'region' && tool === 'falcon-axi' ? 'Falcon API region, for example us-1.' : fieldHelp[name]
     let input: string
     if (schema.enum) {
-      input = `<select ${attributes} data-profile-type="json"><option value="">Choose a value</option>${schema.enum.map((choice: unknown) =>
+      const choices = tool === 'gh-axi' && name === 'auth' ? schema.enum.filter((choice: unknown) => choice !== 'device') : schema.enum
+      input = `<select ${attributes} data-profile-type="json"><option value="">Choose a value</option>${choices.map((choice: unknown) =>
         `<option value="${escape(JSON.stringify(choice))}"${choice === value ? ' selected' : ''}>${escape(String(choice))}</option>`).join('')}</select>`
     } else if (schema.type === 'boolean') {
       input = `<select ${attributes} data-profile-type="json"><option value="">Use the default</option><option value="true"${value === true ? ' selected' : ''}>True</option><option value="false"${value === false ? ' selected' : ''}>False</option></select>`

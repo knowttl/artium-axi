@@ -427,6 +427,10 @@ Success resets the retry backoff; authentication, TLS and configuration failures
 Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.
 Credential, native-settings, write-access and certificate-trust changes reset the backoff and request a fresh check for enabled configured tools without a manual test.
 While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
+GitHub device connection explicitly checks the new credential revision even when the tool is disabled.
+If runner capacity is occupied or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`
+The existing health refresh mechanism retries that revision once capacity is available, including for disabled tools; completion of an older revision cannot overwrite its result.
+Disabled tools retain their `disabled` health status while exposing the recorded check's revision, timestamp and error details.
 Results superseded by a later configuration change cannot change the schedule or cached health, even when the credential revision is unchanged.
 At most two background checks run at once, including replacement checks; work deferred by this cap stays due for a later tick.
 Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.

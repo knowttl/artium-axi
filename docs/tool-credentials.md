@@ -12,7 +12,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
-| GitHub (`gh-axi`) | GitHub HTTPS origin and one shared PAT or GitHub App installation credential. | `api /rate_limit`. |
+| GitHub (`gh-axi`) | GitHub HTTPS origin and one shared PAT, device-flow OAuth token or GitHub App installation credential. | `api /rate_limit`. |
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
 | Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `card list --limit 1`; exposure-view read access is required. |
 | Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
@@ -284,9 +284,28 @@ GitHub CLI telemetry, prompts and update notifications are disabled.
 For private CAs, follow the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 
 See the [supported GitHub boundary](../README.md#safety) for why SSH keys are out of scope.
-Device code flow is a planned separate slice and cannot be selected here.
-The planned device flow uses the GitHub CLI OAuth client ID: its tokens appear as **GitHub CLI**, carry `repo read:org gist workflow project`, and are non-expiring OAuth secrets without refresh handling.
-They must be stored, rotated and revoked like other secrets, through the account's GitHub authorized-application settings.
+For device flow, open **Connect with GitHub** on `/admin/tools/gh-axi`, enter the HTTPS origin and confirm your admin identity when prompted.
+Artium uses GitHub CLI's public OAuth client ID `178c6fc778ccc68e1d6a`, without a client secret or app registration, and requests `repo read:org gist workflow project`.
+Enter only the code displayed by your own connection at the displayed GitHub verification URL.
+The page shows the countdown, waits for approval, honours GitHub's polling interval and `slow_down`, and offers cancellation.
+Denied, expired or unsupported flows require a new connection; GHES must support device flow for its GitHub CLI app, otherwise use a PAT or GitHub App.
+Pending codes live only in server memory and disappear on restart; leaving the page stops polling.
+Starting another connection replaces the deployment's pending connection.
+The previous saved credential remains until authorization succeeds; concurrent credential or settings changes prevent stale approval from overwriting them.
+On success Artium verifies the connected account, replaces the encrypted credential as a new revision, records a credential change without secrets, and requests the [post-connection health check](runbook.md#roles-credentials-and-health).
+The connected account login is displayed, and the token is never returned to the browser or accepted through the ordinary credential editor.
+
+These are **non-expiring OAuth tokens** appearing as **GitHub CLI** in GitHub Settings, Applications, Authorized OAuth Apps and organization OAuth policies.
+Organizations restricting OAuth apps must approve GitHub CLI.
+The broad scopes permit upstream writes even while Artium writes are off.
+Use a dedicated machine account: these tokens share GitHub CLI's per-user/app/scope token budget with that account's other CLI logins, and GitHub can revoke old or inactive tokens.
+Store and rotate them like every other secret: choose **Reconnect with GitHub**, test the replacement, and revoke the old authorization in the account's GitHub settings when it is no longer needed.
+Revoking GitHub CLI's authorization can affect that account's other CLI sessions too.
+No refresh token is stored and no refresh code runs.
+If a provider returns `expires_in`, Artium records the expiry and refuses calls at that time with `CREDENTIAL_EXPIRED`.
+Revoked device-token authentication failures also return `CREDENTIAL_EXPIRED`; credential checks record this error and the tool page asks the administrator to reconnect.
+Permission failures remain permission errors rather than expired-credential errors.
+See GitHub's [device-flow protocol](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow).
 
 #### AWX
 
