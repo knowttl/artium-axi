@@ -17,6 +17,10 @@ if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
     console.error('POST /repos/canary/repo/issues/42/comments: unexpected EOF')
     process.exit(1)
   }
+  if (process.env.ARTIUM_TEST_GH_FAILURE === 'mutation-response-lost' && args[0] === 'pr' && args[1] === 'revert') {
+    console.error('GraphQL: unexpected EOF while reverting pull request')
+    process.exit(1)
+  }
   if (process.env.ARTIUM_TEST_GH_FAILURE === 'followup-read-failed' && args[0] === 'issue' && args[1] === 'view') {
     console.error('gh: Bad credentials (HTTP 401)')
     process.exit(1)

@@ -169,7 +169,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   const command = route.command.split(' ')
-  const nativeGh = !help && (route.command === 'issue comment'
+  const nativeGh = !help && (['issue comment', 'pr revert'].includes(route.command)
     || ['workflow enable', 'workflow disable'].includes(route.command) && /^\d+$/.test(rest[0])
     || flags.get('body') === '' && ['issue create', 'issue edit', 'pr create', 'pr edit', 'project item-create', 'project item-edit'].includes(route.command)
     || flags.get('description') === '' && ['label edit', 'repo edit'].includes(route.command))
