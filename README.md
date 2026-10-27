@@ -169,7 +169,8 @@ Administrator capability alone grants no tool access; upstream permissions remai
 Microsoft Graph defaults to the `entra` pack.
 Administrators can opt in to nine mailbox read commands with `enabledPacks: ["entra", "mail"]`; `security` can be enabled alongside `mail`.
 Mail supports folder list/show, message list/show with search, filters and conversations, attachment metadata, mailbox settings, inbox rule list/show and master category list.
-Every mail command requires `--mailbox <user-id|upn>`; hosted application authentication cannot use `me`.
+Hosted mail requires a `mode=application` credential profile; delegated profiles cannot enable the mail pack or execute mail commands.
+Every mail command requires `--mailbox <user-id|upn>`; `me` is unavailable in hosted mail.
 Pinned mg-axi 0.1.14 rejects UPNs containing apostrophe (`'`), `#`, `^` or `~`; use the mailbox object ID instead.
 For example, run `artium-axi mg-axi mail message list --mailbox mailbox@contoso.example --limit 10`, then `artium-axi mg-axi mail message show --mailbox mailbox@contoso.example --id <message-id>`.
 Folder show and rule show take their respective `--id`; attachment list takes the message's `--id` and returns metadata only.
