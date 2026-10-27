@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.13",
-  "integrity": "sha512-V9f/H1xISbn1ar3ARVnYvtT4NDUDRgvhCkrnQd6lqNdj1MeQjF4JESS6PA6hY3epXKrqE+g/2nCfgJV1JDmDTQ==",
+  "version": "0.1.14",
+  "integrity": "sha512-XGsOHDrzAF0n8Sx57gREUuH1zysJnAzGmPt/7jm4tTF7uJl1db8oLx/E9NqSiG9mhhJXD5W36e6ucIHJO6x4AQ==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "2357d6568740146d05a0ad67fb8e0be3c871261726d3cf110fed83e216001dc9",
-  "skillSha256": "98ff12e741b04592afae76853a00f572940dee6edf0e868d2ccba04a742b24ad",
+  "packageManifestSha256": "b000465e5f21bdff8b6afb76e64bf2850debae765f36361977a6e6ac0f45a309",
+  "skillSha256": "0954c03b28e235ac9c94e0032db2ee8f869ba11e67f11990eb8ad3c5339abdb5",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -43,7 +43,7 @@
   "environmentSources": [
     {
       "path": "dist/profiles.js",
-      "sha256": "5a683251d3427b1642a3d60b5168ae56656506d12aae614ad4469dde6c6d624e"
+      "sha256": "2f681aeb6e28398b3850865ff239490f74569f02a21926af97f7777fa4350b1f"
     },
     {
       "path": "dist/mutations.js",
@@ -83,7 +83,7 @@
     "sources": [
       {
         "path": "dist/profiles.js",
-        "sha256": "5a683251d3427b1642a3d60b5168ae56656506d12aae614ad4469dde6c6d624e"
+        "sha256": "2f681aeb6e28398b3850865ff239490f74569f02a21926af97f7777fa4350b1f"
       },
       {
         "path": "dist/mutations.js",
@@ -101,7 +101,16 @@
       "doctor",
       "entra",
       "api get",
-      "security hunting query"
+      "security hunting query",
+      "mail folder list",
+      "mail folder show",
+      "mail message list",
+      "mail message show",
+      "mail attachment list",
+      "mail settings show",
+      "mail rule list",
+      "mail rule show",
+      "mail category list"
     ],
     "example": [
       "entra",
@@ -163,15 +172,15 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "b6a764b7e50c3f4c84d40dcef1290a2e6a784fe73809977d6b04c06884b7a516"
+        "sha256": "d73aa0bb4411aa3da6f2345af80dbb15faac403d704992ac8c135c9d0e991fe0"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "723f00e5031068211b541ee43447fb559833bea924c91131e0d074349d5b9a4e"
+        "sha256": "217e731835772f4f625811cde4733a67b43dee8f2ef5603e9058730998e1a26d"
       },
       {
         "path": "dist/profiles.js",
-        "sha256": "5a683251d3427b1642a3d60b5168ae56656506d12aae614ad4469dde6c6d624e"
+        "sha256": "2f681aeb6e28398b3850865ff239490f74569f02a21926af97f7777fa4350b1f"
       },
       {
         "path": "dist/msal-app-provider.js",
@@ -202,8 +211,29 @@
       "doctor",
       "entra",
       "api get",
-      "security hunting query"
+      "security hunting query",
+      "mail folder list",
+      "mail folder show",
+      "mail message list",
+      "mail message show",
+      "mail attachment list",
+      "mail settings show",
+      "mail rule list",
+      "mail rule show",
+      "mail category list"
     ],
+    "commandPacks": {
+      "security hunting query": "security",
+      "mail folder list": "mail",
+      "mail folder show": "mail",
+      "mail message list": "mail",
+      "mail message show": "mail",
+      "mail attachment list": "mail",
+      "mail settings show": "mail",
+      "mail rule list": "mail",
+      "mail rule show": "mail",
+      "mail category list": "mail"
+    },
     "inputs": {
       "stdin": "cursor - only",
       "files": "security hunting query only: one UTF-8 query.kql upload, at most 64 KiB; fixed runner leaf name",
@@ -212,7 +242,9 @@
     },
     "sensitiveFlags": [
       "cursor",
+      "search",
       "filter",
+      "conversation",
       "odata",
       "conditions",
       "grant-controls",
@@ -241,11 +273,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "b6a764b7e50c3f4c84d40dcef1290a2e6a784fe73809977d6b04c06884b7a516"
+        "sha256": "d73aa0bb4411aa3da6f2345af80dbb15faac403d704992ac8c135c9d0e991fe0"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "723f00e5031068211b541ee43447fb559833bea924c91131e0d074349d5b9a4e"
+        "sha256": "217e731835772f4f625811cde4733a67b43dee8f2ef5603e9058730998e1a26d"
       }
     ]
   },
@@ -284,6 +316,9 @@
       "name": "assignment-id"
     },
     {
+      "name": "body"
+    },
+    {
       "name": "certificate-key-env"
     },
     {
@@ -315,6 +350,9 @@
     },
     {
       "name": "confirm"
+    },
+    {
+      "name": "conversation"
     },
     {
       "name": "cursor"
@@ -353,6 +391,9 @@
       "name": "filter"
     },
     {
+      "name": "folder"
+    },
+    {
       "name": "full"
     },
     {
@@ -360,6 +401,9 @@
     },
     {
       "name": "group"
+    },
+    {
+      "name": "headers"
     },
     {
       "name": "help"
@@ -372,6 +416,9 @@
     },
     {
       "name": "limit"
+    },
+    {
+      "name": "mailbox"
     },
     {
       "name": "member-id"
@@ -420,6 +467,9 @@
     },
     {
       "name": "scopes"
+    },
+    {
+      "name": "search"
     },
     {
       "name": "select"
@@ -4795,6 +4845,142 @@
         "timespan": "value",
         "limit": "value",
         "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail attachment list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "cursor": "value",
+        "id": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail settings show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "full": "boolean",
+        "fields": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail rule list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "cursor": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail rule show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail category list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "cursor": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "id": "value",
+        "body": "value",
+        "headers": "boolean",
+        "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "fields": "value",
+        "full": "boolean",
+        "folder": "value",
+        "search": "value",
+        "filter": "value",
+        "conversation": "value",
+        "limit": "value",
+        "cursor": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail folder list",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "fields": "value",
+        "full": "boolean",
+        "limit": "value",
+        "cursor": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail folder show",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "fields": "value",
+        "full": "boolean",
+        "id": "value",
         "config": "value"
       },
       "positionalInput": false

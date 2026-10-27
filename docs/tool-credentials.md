@@ -9,7 +9,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Falcon (`falcon-axi`) | Falcon API client ID, client secret, cloud region, optional Flight Control member CID. | `auth status`, followed by a permitted detection read to confirm API access. |
 | Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
-| Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
+| Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Entra Graph permissions; optional scoped Exchange mail roles. | `entra user list --limit 1`; cannot check mail permissions or Exchange scope. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
 | GitHub (`gh-axi`) | GitHub HTTPS origin and one shared PAT or GitHub App installation credential. | `api /rate_limit`. |
@@ -171,7 +171,27 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.13/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.14/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+
+For mailbox reads, opt in with `enabledPacks: ["entra", "mail"]` in managed tool settings.
+Entra remains required and the default; `security` may also be selected.
+Artium uses application authentication only, so pass a mailbox user ID or UPN, never `me`.
+Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
+Keep `User.Read.All` for the credential test, which cannot verify mail authorization or scope.
+
+| Mail reads | Scoped Exchange RBAC role |
+| --- | --- |
+| Folders, message lists, search, filters, conversations | Application Mail.ReadBasic |
+| Message bodies, headers and attachment metadata | Application Mail.Read |
+| Mailbox settings, inbox rules and master categories | Application MailboxSettings.Read |
+
+An Exchange administrator registers the application's service principal in Exchange Online, creates a management scope whose `MemberOfGroup` filter selects an owner-chosen mail-enabled group, then assigns only the required application roles to that service principal with that resource scope.
+Use `New-ServicePrincipal`, `New-ManagementScope` and `New-ManagementRoleAssignment` following Microsoft's [RBAC for Applications procedure](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac).
+Use the Enterprise application's service-principal object ID when registering it in Exchange, and confirm the group contains only the intended mailboxes.
+Check an included and an excluded synthetic mailbox with `Test-ServicePrincipalAuthorization`; it bypasses the authorization cache, while runtime permission changes may take 30 minutes to two hours.
+Do not create Application Access Policies, which RBAC for Applications replaces.
+Live authorization and scope acceptance remain unverified by offline checks.
+Mail writes, sending, permanent deletion and downloads are unavailable through the managed read surface.
 Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 

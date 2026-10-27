@@ -108,9 +108,10 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
       const parsed = (profile?.credentialSchema ?? mgCredentialSchema).safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? parsed.data
-      if (normalized.invocation.command === 'security hunting query'
-        && !(settings.enabledPacks as string[] | undefined)?.includes('security')) {
-        throw new ArtiumError('FLAG_BLOCKED', 'Hunting requires the administrator enabledPacks: ["entra", "security"] opt-in.')
+      const packs: Record<string, string> = mgManifest.commandPacks
+      const pack = packs[normalized.invocation.command]
+      if (pack && !(settings.enabledPacks as string[] | undefined)?.includes(pack)) {
+        throw new ArtiumError('FLAG_BLOCKED', `Command requires the administrator enabledPacks: ["entra", "${pack}"] opt-in.`)
       }
       const query = input?.files?.[0] ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
       if (profile) {

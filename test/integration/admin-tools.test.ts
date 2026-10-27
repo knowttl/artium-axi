@@ -388,8 +388,9 @@ test.each([
   expect(store.findCredential('mg-axi')).toBeUndefined()
 })
 
-test('mg-axi administrator can opt into hunting and clear the opt-in', async () => {
-  const enabledPacks = ['entra', 'security']
+test.each([
+  ['entra', 'security'], ['entra', 'mail'], ['entra', 'security', 'mail'],
+])('mg-axi administrator can opt into packs %j and clear the opt-in', async (...enabledPacks) => {
   const enabled = await request('PATCH', '/mg-axi', { nativeSettings: { enabledPacks }, expectedRevision: 1 })
   expect(enabled.status).toBe(200)
   expect(await enabled.json()).toMatchObject({ nativeSettings: { enabledPacks }, readOnly: true })
@@ -1178,7 +1179,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'falcon-axi', version: '0.8.0', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.10', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.13', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.13', health: { status: 'disabled' } },
+    { name: 'mg-axi', version: '0.1.14', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.4.7', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
@@ -1193,7 +1194,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
 })
 test.each([
   { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.13' },
-  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.13' },
+  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.14' },
 ] as const)('$tool upgrade reports the bundled version while retaining configuration', async ({ tool, previousVersion, version }) => {
   const { tenantId, clientId, auth, clientSecret } = values[tool]
   const credential = { tenantId, clientId, auth, clientSecret }

@@ -65,7 +65,7 @@ export class CredentialProfile {
     }
     if (tool === 'mg-axi') {
       this.inputSchema.properties.enabledPacks = { ...this.inputSchema.properties.enabledPacks,
-        items: { enum: ['entra', 'security'] }, minItems: 1, maxItems: 2, contains: { const: 'entra' } }
+        items: { enum: ['entra', 'security', 'mail'] }, minItems: 1, maxItems: 3, contains: { const: 'entra' } }
     }
     if (tool === 'hybrid-axi') {
       this.inputSchema.required = ['apiKey']
