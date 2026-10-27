@@ -1,0 +1,595 @@
+{
+  "generatedBy": "scripts/checkpoint-inventory.mjs",
+  "tool": "checkpoint-axi",
+  "version": "0.1.0",
+  "integrity": "sha512-fbwTL0lbbJwCDjR8bt431kWHSCEuBmAEzk/QNJzsVcAbve2x8Ehtz/mr/aPzJ6I/WMRQiRPFpCE2zsW/2CRHlQ==",
+  "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
+  "sources": [
+    {
+      "path": "dist/src/catalogue.js",
+      "sha256": "59b9568b614a101e2746a8275768c238ba8eb7166185119875a40f7eac191f7a"
+    },
+    {
+      "path": "dist/src/cli.js",
+      "sha256": "11a2e7f6c8ba3fc5507aa8ca33d480337a5a64bf79c241f4ed478f512ac8fa92"
+    },
+    {
+      "path": "dist/src/doctor.js",
+      "sha256": "7f25c415bc59b12e6d0a6155d701c3646bd3370e0b2024a29efdbaf5e4c0ffed"
+    },
+    {
+      "path": "dist/src/downloads.js",
+      "sha256": "206f08ec7d978e41fe1c9c4ba744f1cf4c3f47ee909a1f761645a802371c8d6e"
+    },
+    {
+      "path": "dist/src/exceptions.js",
+      "sha256": "8264427dd5871a447e3e8759341251779454490a387cdca801a0e68b81265327"
+    },
+    {
+      "path": "dist/src/local-commands.js",
+      "sha256": "ed9c39e204d42f45ae3c5b8008bf1c719d88f8e7214168f68de4d15921e35299"
+    },
+    {
+      "path": "dist/src/private-file.js",
+      "sha256": "574a40223d0bba130f903eb89e2cfd2d96bf01a4df237738af993272ebee0332"
+    },
+    {
+      "path": "dist/src/profiles.js",
+      "sha256": "db013b041bb6302993d7045fe3bd411bbd1a3593b5b2a84a3d8411645f55d3e6"
+    },
+    {
+      "path": "dist/src/reads.js",
+      "sha256": "02a5478edb3d44ab51ea300095794abc69d9e4a353060af4faed0d6e4ce592a7"
+    },
+    {
+      "path": "dist/src/redact.js",
+      "sha256": "9793e98af5c93c09e89748e26675b2d48663904a27e3aa42655954f93025c35a"
+    },
+    {
+      "path": "dist/src/regions.js",
+      "sha256": "44288abe19a68fa672bc04ad167141717aed5c3a333b2420b14ee68e13abee78"
+    },
+    {
+      "path": "dist/src/transport.js",
+      "sha256": "7beb28cc283e876db4f6aeaf5c308280e1fce482c20c19dd9924e29985e54e56"
+    },
+    {
+      "path": "dist/src/write-exceptions.js",
+      "sha256": "34114e0b2a3e04462914118ba6108f6d7eb7bf38a417f1f80ec4126deff786a8"
+    },
+    {
+      "path": "dist/src/write-sectools.js",
+      "sha256": "c962f2180d34625c9a0be1ad468e17b3e25d93390b0efae3dec02e9ab8f1dd9e"
+    },
+    {
+      "path": "dist/src/writes.js",
+      "sha256": "4f683a01ab151b4b1e61588b6c3fe86f3d8a34ebdbdb1a257dc42cae21e6f5ed"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/knowttl/checkpoint-axi/axi-credential.schema.json",
+    "title": "Check Point AXI credential profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "region",
+      "clientId"
+    ],
+    "properties": {
+      "region": {
+        "type": "string",
+        "enum": [
+          "us",
+          "eu",
+          "ca",
+          "au",
+          "uk",
+          "uae",
+          "in"
+        ]
+      },
+      "clientId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      },
+      "clientSecret": {
+        "$ref": "#/$defs/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "CHECKPOINT_AXI_CLIENT_SECRET"
+        }
+      },
+      "saas": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S",
+        "default": "office365_emails"
+      },
+      "scope": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      },
+      "downloads": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allow"
+        ],
+        "default": {
+          "allow": false
+        },
+        "properties": {
+          "allow": {
+            "type": "boolean"
+          }
+        }
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "default": {
+          "allowWrites": false,
+          "operations": []
+        },
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9_.-]*$"
+            }
+          }
+        }
+      }
+    },
+    "$defs": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "regions": {
+    "us": "https://cloudinfra-gw-us.portal.checkpoint.com",
+    "eu": "https://cloudinfra-gw.portal.checkpoint.com",
+    "ca": "https://cloudinfra-gw.ca.portal.checkpoint.com",
+    "au": "https://cloudinfra-gw.ap.portal.checkpoint.com",
+    "uk": "https://cloudinfra-gw.uk.portal.checkpoint.com",
+    "uae": "https://cloudinfra-gw.me.portal.checkpoint.com",
+    "in": "https://cloudinfra-gw.in.portal.checkpoint.com"
+  },
+  "skillSha256": "69f0754d565fc1e65163435ef698ea6dca6009470f158171cb3b4258d27c647b",
+  "nativeWriteSettings": {
+    "supportedOperations": [
+      "attachment.download",
+      "attachment.download-all",
+      "email.download",
+      "email.quarantine",
+      "email.restore",
+      "exception.anomaly.create",
+      "exception.anomaly.remove",
+      "exception.click-time.create",
+      "exception.click-time.remove",
+      "exception.click-time.remove-items",
+      "exception.click-time.update",
+      "exception.dlp.create",
+      "exception.dlp.update",
+      "exception.malware.create",
+      "exception.malware.update",
+      "exception.phishing-allow.create",
+      "exception.phishing-allow.remove",
+      "exception.phishing-allow.update",
+      "exception.phishing-block.create",
+      "exception.phishing-block.remove",
+      "exception.phishing-block.update",
+      "exception.spam-allow.create",
+      "exception.spam-allow.remove",
+      "exception.spam-allow.update",
+      "exception.url.create",
+      "exception.url.update"
+    ],
+    "dynamicOperation": "event.action.<exact available action name>"
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "out"
+    ],
+    "inputFileFlags": [
+      "input"
+    ],
+    "blockedCommands": [
+      "profile list",
+      "config path",
+      "exception clear",
+      "email download",
+      "attachment download",
+      "attachment download-all"
+    ],
+    "downloadCommands": [
+      "email download",
+      "attachment download",
+      "attachment download-all"
+    ],
+    "inputs": {
+      "stdin": "unsupported",
+      "files": "uploaded private JSON leaves only",
+      "downloads": "authenticated hosted transfers only"
+    },
+    "nativeWrites": "native preview, exact operation allow-list, execute, exact confirm and durable journal; ambiguous deletes refused"
+  },
+  "discovery": {
+    "commands": [
+      "auth",
+      "doctor",
+      "email",
+      "event",
+      "exception",
+      "home",
+      "task"
+    ],
+    "example": [
+      "email",
+      "search",
+      "--limit",
+      "1"
+    ],
+    "help": "checkpoint-axi email search [--limit <n>]\nArtium manages region, client ID and secret. Writes require administrator-enabled exact operations and native preview, --execute and exact --confirm. Upload private JSON with --input. Use artium-axi download for authenticated email and attachment saving with host-owned confirmation; ordinary downloads and local configuration are blocked.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "attachment download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "help": "Show concise command help; default false",
+        "out": "Required absolute new output file; mode 0600, never stdout or overwrite",
+        "scope": "Optional authorized scope query; default profile scope when configured; live behavior unverified"
+      }
+    },
+    {
+      "command": "attachment download-all",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "help": "Show concise command help; default false",
+        "out": "Required absolute new output file; mode 0600, never stdout or overwrite",
+        "scope": "Optional authorized scope query; default profile scope when configured; live behavior unverified"
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "config path",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "saas": "SaaS override; default selected profile saas or office365_emails"
+      }
+    },
+    {
+      "command": "email download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "help": "Show concise command help; default false",
+        "out": "Required absolute new output file; mode 0600, never stdout or overwrite",
+        "original": "Download original email without processing modifications; default false"
+      }
+    },
+    {
+      "command": "email quarantine",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "ids": "Required comma-separated unique entity IDs; maximum 20",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and the comma-separated IDs in supplied order"
+      }
+    },
+    {
+      "command": "email restore",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "ids": "Required comma-separated unique entity IDs; maximum 20",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and the comma-separated IDs in supplied order"
+      }
+    },
+    {
+      "command": "email search",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "saas": "SaaS override; default selected profile saas or office365_emails",
+        "saas-entity": "Optional SaaS entity type selector",
+        "start-date": "ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days",
+        "end-date": "ISO timestamp with timezone; default now",
+        "limit": "Maximum rows; default 50, range 1-1000; cannot combine with --all",
+        "all": "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
+        "cursor": "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
+        "filter": "JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20)"
+      }
+    },
+    {
+      "command": "email show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "event action",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "ids": "Required comma-separated unique event IDs; maximum 20",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and the comma-separated IDs in supplied order",
+        "name": "Required available action name; nonempty action parameters are unverified"
+      }
+    },
+    {
+      "command": "event list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "start-date": "ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days",
+        "end-date": "ISO timestamp with timezone; default now",
+        "limit": "Maximum rows; default 50, range 1-1000; cannot combine with --all",
+        "all": "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
+        "cursor": "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
+        "saas": "Comma-separated SaaS overrides; default selected profile saas or office365_emails",
+        "event-types": "Comma-separated event types; default unfiltered",
+        "event-states": "Comma-separated event states; default unfiltered",
+        "severities": "Comma-separated severities; default unfiltered",
+        "event-ids": "Comma-separated event IDs; default unfiltered",
+        "confidence-indicator": "Confidence indicator selector; default unfiltered",
+        "description": "Description selector; default unfiltered"
+      }
+    },
+    {
+      "command": "event show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "exception clear",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and every target from preview (payload sha256 for create and malware/url/dlp update, exception ID or comma-separated item IDs otherwise)"
+      }
+    },
+    {
+      "command": "exception create",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and every target from preview (payload sha256 for create and malware/url/dlp update, exception ID or comma-separated item IDs otherwise)",
+        "input": "Required absolute private JSON file containing documented requestData fields directly; fields depend on kind; update sends a replacement PUT",
+        "specific": "Malware/url/dlp only: use the documented create-specific /exceptions route; default false; included in confirmation digest"
+      }
+    },
+    {
+      "command": "exception list",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "type": "Required for malware: hash,micro_hash,file_type,ppat_sender_name,allow_file_type,sender_email; url: allow-url,allow-domain,block-url,block-domain; dlp: hash,text_content,sender_email,recipient_email",
+        "items": "Click-time item routes instead of list routes; default false",
+        "limit": "Maximum rows; default 50, range 1-1000; cannot combine with --all",
+        "all": "Return up to 1000 rows within transport budgets; no server continuation parameter is documented"
+      }
+    },
+    {
+      "command": "exception remove",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and every target from preview (payload sha256 for create and malware/url/dlp update, exception ID or comma-separated item IDs otherwise)"
+      }
+    },
+    {
+      "command": "exception remove-items",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and every target from preview (payload sha256 for create and malware/url/dlp update, exception ID or comma-separated item IDs otherwise)",
+        "ids": "Required 1-20 unique comma-separated click-time item IDs"
+      }
+    },
+    {
+      "command": "exception show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "type": "Required for malware: hash,micro_hash,file_type,ppat_sender_name,allow_file_type,sender_email; url: allow-url,allow-domain,block-url,block-domain; dlp: hash,text_content,sender_email,recipient_email",
+        "items": "Click-time item route instead of list route; default false"
+      }
+    },
+    {
+      "command": "exception update",
+      "effect": "write",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false",
+        "execute": "Send once after all write gates; default false (preview)",
+        "dry-run": "Explicit preview; cannot combine with --execute",
+        "confirm": "Exact operation followed by a space and every target from preview (payload sha256 for create and malware/url/dlp update, exception ID or comma-separated item IDs otherwise)",
+        "input": "Required absolute private JSON file containing documented requestData fields directly; fields depend on kind; update sends a replacement PUT"
+      }
+    },
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "profile list",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "task show",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
+        "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
+        "fields": "Comma-separated output fields; default all",
+        "full": "Show full strings instead of 500-character previews; default false",
+        "help": "Show concise command help; default false"
+      }
+    }
+  ]
+}

@@ -46,6 +46,7 @@ Agents keep a command-line interface with TOON discovery rather than implementin
 | AWX | Pasted token or one-time password sign-in; optional operational writes |
 | Tenable One | Access and secret API keys; optional allow-listed business writes and export jobs |
 | Hybrid Analysis | Managed API key; investigation reads and optional allow-listed submissions, YARA mutations and consuming matches |
+| Check Point Email Security | Regional client credentials; email, event, task and exception reads, guarded writes and authenticated email/attachment saving |
 
 [Package pins](tools/package.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
 
@@ -199,6 +200,7 @@ See [client input handling](docs/client-reference.md#command-surface-and-subcomm
 | Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |
 | AWX | Launch/cancel/relaunch, workflow approval/denial, project/inventory-source sync and notification tests with `allowWrites: true` and upstream `--confirm`; configuration, deletion and security writes stay blocked. |
 | Tenable One | Business writes and export-job creation with administrator `writes.allowWrites: true`, an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and durable journaling; downloads and local configuration stay blocked. |
+| Check Point Email Security | Email and exception writes require administrator `writes.allowWrites: true`, exact selected operations and native preview, execute, confirmation and journal gates. Name-only event actions require their exact `event.action.<name>` scope. The six malware/URL/DLP remove/clear operations and click-time clear remain refused. Three separately selected downloads use [authenticated CLI saving](docs/client-reference.md#check-point-email-and-attachment-saving) with host-owned confirmation and independent SHA-256 verification; native download journal fields remain empty. Ordinary tool-run downloads and credential/origin overrides stay blocked. Live API contracts remain uncommissioned. |
 | Hybrid Analysis | Sandbox submissions, YARA create/update/delete, consuming hunting matches and the four reviewed archive downloads require administrator `writes.allowWrites: true`, independently selected operations, native preview, `--execute`, exact `--confirm` and durable journaling. Downloads are limited to `hash-download-bin`, `report-download-bin`, `report-download-dropped-files` and `report-download-memory`, through the [authenticated CLI verified-save path](docs/client-reference.md#hybrid-analysis-archive-saving) after the [operator prerequisites](docs/runbook.md#scope-and-prerequisites) pass. All operations default off; enabling other writes never enables downloads or grants upstream entitlement. The browser provides warnings, command guidance and metadata/save status only. Ordinary tool-run downloads, local configuration and credential/origin overrides are blocked. |
 
 Hybrid Analysis quick scans transmit the supplied sample or URL as read exceptions without a write gate; sandbox submission previews disclose that samples and reports can become visible to the community.
@@ -221,6 +223,7 @@ After an unknown write outcome, inspect state using returned guidance before ret
 | AWX job list | Token identity with job read access |
 | Tenable One card list | See [Tenable One credential permissions](docs/tool-credentials.md#tenable-one). |
 | Hybrid Analysis quota | A valid API key; resource permissions vary by key level. See [Hybrid Analysis setup](docs/tool-credentials.md#hybrid-analysis). |
+| Check Point doctor | Regional authentication and one bounded email search. See [Check Point setup and commissioning](docs/tool-credentials.md#check-point-email-security). |
 
 See [tool credentials](docs/tool-credentials.md) for dedicated identities, permissions and safe credential entry.
 Artium stores shared service credentials encrypted with AES-256-GCM and never returns saved secrets to clients.
@@ -261,9 +264,9 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
-| `download` | Preview and explicitly verify/save administrator-selected Hybrid Analysis archives through the local CLI. Run `artium-axi download --help` for guards and warnings. |
+| `download` | Preview and explicitly verify/save administrator-selected Hybrid Analysis archives and Check Point emails/attachments through the local CLI. Run `artium-axi download --help` for guards and warnings. |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
-| `<tool> <args>` | Run any of the nine managed tools above |
+| `<tool> <args>` | Run any of the ten managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |
 
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.

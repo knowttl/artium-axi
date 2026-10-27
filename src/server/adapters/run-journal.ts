@@ -10,8 +10,8 @@ export type RunAction = 'read' | 'write' | 'unknown'
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG', 'FALCON_AXI_WRITE_LOG']
 
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
-  if (tool === 'tenable-axi' || tool === 'hybrid-axi') {
-    const path = environment[tool === 'hybrid-axi' ? 'HYBRID_AXI_WRITE_LOG' : 'TENABLE_AXI_WRITE_LOG']
+  if (tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi') {
+    const path = environment[`${tool.toUpperCase().replaceAll('-', '_')}_WRITE_LOG`]
     if (!path || !effect) throw new TypeError('Missing native write journal contract')
     return { environment, async action(succeeded: boolean, stdout?: string): Promise<RunAction> {
       if (effect === 'read') return succeeded ? 'read' : 'unknown'
@@ -61,7 +61,7 @@ export async function prepareRunJournal(environment: Record<string, string>, too
   } }
 }
 
-export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName, 'falcon-axi' | 'tenable-axi' | 'hybrid-axi'>, now = Date.now()): Promise<void> {
+export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName, 'falcon-axi' | 'tenable-axi' | 'hybrid-axi' | 'checkpoint-axi'>, now = Date.now()): Promise<void> {
   const root = `${writeLog}.runs`
   let entries
   try { entries = await readdir(root, { withFileTypes: true }) }

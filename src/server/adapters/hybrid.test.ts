@@ -98,7 +98,7 @@ test.each(['hash-download-bin', 'report-download-bin', 'report-download-dropped-
     const initial = hybridWritePolicy.read({})
     expect(initial).toMatchObject({ capable: true, enabled: false, allowedOperations: [] })
     expect(initial.supportedOperations!.filter(name => name.includes('-download-')).sort())
-      .toEqual(transferSelectionSchema.options.map(selection => selection.shape.operation.value).sort())
+      .toEqual(transferSelectionSchema.options.map(selection => selection.shape.operation.value).filter(operation => operation.includes('-download-')).sort())
     const settings = hybridWritePolicy.update({}, { enabled: true, operations: [operation], expectedRevision: 1 })
     expect(hybridWritePolicy.read(settings)).toMatchObject({ enabled: true, allowedOperations: [operation] })
     expect(hybridCredentialSchema.safeParse({ ...credential, ...settings }).success).toBe(true)

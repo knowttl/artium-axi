@@ -17,6 +17,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 const settingsGuide = {
   'hybrid-axi': 'Optional writes: {"allowWrites": true, "operations": ["submitUrl"]}. Submissions, YARA mutations, consuming matches and four reviewed archive downloads are off by default and selected independently; native preview, execute, exact confirmation and journal gates remain required. Use artium-axi download for CLI verified saving after artifact-mount and operator prerequisites pass. Use {} to turn writes off.',
   'tenable-axi': 'Optional writes: {"allowWrites": true, "operations": ["tags-create-tag-category"]}. Writes and export jobs require native preview, execute and exact confirmation. Use {} to turn writes off.',
+  'checkpoint-axi': 'Optional writes: {"allowWrites": true, "operations": ["email.quarantine"]}. Exact event.action.<name> entries can be added here using an available event action name. Writes require native preview, execute and exact confirmation. Downloads require separately selected operations and artium-axi download with host-owned confirmation. Ambiguous deletes remain blocked. Use {} to turn writes off.',
   'awx-axi': 'Optional allowWrites (boolean), off by default, enables operational actions only (launch, cancel, sync, approval and notification tests). Configuration, deletion and security writes are always blocked. Use {} to turn writes off.',
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
@@ -28,6 +29,7 @@ const settingsGuide = {
 const testGuide = {
   'hybrid-axi': 'Hybrid Analysis quota',
   'tenable-axi': 'Tenable card list --limit 1',
+  'checkpoint-axi': 'Check Point doctor (authentication and bounded email search)',
   'awx-axi': 'AWX job list --limit 1',
   'ado-axi': 'Azure DevOps project list --limit 1',
   'falcon-axi': 'Falcon auth status', 'vectra-axi': 'Vectra health list', 'az-axi': 'Azure account list',

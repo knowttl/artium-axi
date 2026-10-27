@@ -72,6 +72,10 @@ try {
       await command('docker', ['run', '--name', awxPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/awx-axi', image, '--version'])
       const tenablePackage = `${builder}-tenable-package`
+      const checkpointPackage = `${builder}-checkpoint-package`
+      recoveryContainers.push(checkpointPackage)
+      await command('docker', ['run', '--name', checkpointPackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/checkpoint-axi', image, '--version'])
       const hybridPackage = `${builder}-hybrid-package`
       recoveryContainers.push(hybridPackage)
       await command('docker', ['run', '--name', hybridPackage, '--pull', 'never', '--network', 'none', '--read-only',

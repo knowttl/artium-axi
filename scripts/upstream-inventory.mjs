@@ -5,6 +5,7 @@ import './ldap-inventory.mjs'
 import './ado-inventory.mjs'
 import './awx-inventory.mjs'
 import './tenable-inventory.mjs'
+import './checkpoint-inventory.mjs'
 import './hybrid-inventory.mjs'
 
 const root = new URL('../tools/', import.meta.url)

@@ -15,6 +15,7 @@ import { adoCredentialSchema, adoWritePolicy } from '../adapters/ado.js'
 import { awxCredentialSchema, awxWritePolicy } from '../adapters/awx.js'
 import { tenableCredentialSchema, tenableWritePolicy } from '../adapters/tenable.js'
 import { hybridCredentialSchema, hybridWritePolicy } from '../adapters/hybrid.js'
+import { checkpointCredentialSchema, checkpointWritePolicy } from '../adapters/checkpoint.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -35,10 +36,11 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const writePolicies = { 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+const credentialSchemas = { 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const writePolicies = { 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy }
 const publicFields = {
+  'checkpoint-axi': ['region', 'clientId', 'saas', 'scope'],
   'hybrid-axi': ['origin'],
   'tenable-axi': ['origin'],
   'awx-axi': ['origin'],
@@ -50,6 +52,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'checkpoint-axi': ['clientSecret'],
   'hybrid-axi': ['apiKey'],
   'tenable-axi': ['accessKey', 'secretKey'],
   'awx-axi': ['token'],

@@ -1224,7 +1224,7 @@ test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['
   })
 
 test.each([[], ['tools'], ['tools', 'show'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'],
-  ['falcon-axi'], ['vectra-axi'], ['ldap-axi'], ['ado-axi'], ['awx-axi'], ['tenable-axi'], ['hybrid-axi'], ['az-axi'], ['mg-axi']].map(command => ({ command })))(
+  ['falcon-axi'], ['vectra-axi'], ['ldap-axi'], ['ado-axi'], ['awx-axi'], ['tenable-axi'], ['hybrid-axi'], ['checkpoint-axi'], ['az-axi'], ['mg-axi']].map(command => ({ command })))(
   'prefix help uses the local layout without configuration or network: $command', async ({ command }) => {
     requests = []
     const result = await cli(['--help', ...command], { ARTIUM_AXI_URL: undefined })
@@ -1253,7 +1253,7 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: setup, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, checkpoint-axi, az-axi, mg-axi' },
   { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
@@ -1365,6 +1365,7 @@ test.each([
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.8' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.3' },
   { tool: 'hybrid-axi', example: 'quota', version: '0.1.2' },
+  { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.0' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])

@@ -39,7 +39,7 @@ Live malware: this archive may contain executable malware.
 Save only; do not extract or execute.
 Password protection is unverified; bytes are saved exactly as provided.
 Upstream success, completed server delivery and a client verified-save receipt are separate outcomes; missing receipt is unconfirmed.
-For `/v1/transfers/hybrid/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
+For `/v1/transfers/hybrid/*` and `/v1/transfers/checkpoint/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
 Unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.
@@ -371,6 +371,9 @@ The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns th
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
 See the [Hybrid Analysis supported boundary](../README.md#safety) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.
+See [Check Point setup and commissioning](tool-credentials.md#check-point-email-security) before activation; enable only exact intended writes and independently selected downloads.
+Check Point uses the same artifact mount, global capacity, expiry and revocation contract as Hybrid Analysis, with a 50 MiB native limit and host-owned download confirmation/evidence.
+The owner commissions live authentication, permissions, scopes and hash availability through Artium after the complete build; local checks use fakes only.
 For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
 Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.
@@ -456,7 +459,8 @@ Azure, Graph and Vectra use isolated native journals at `<configured write-log p
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Falcon execution uses isolated redacted native journals at `<database directory>/tool-logs/falcon-axi/writes.log.runs/run-*/writes.log`; these persist after calls and are not pruned by run-journal retention.
-Tenable and Hybrid Analysis each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
+Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
+Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.
 These journals are not pruned by run-journal retention.
 Successful reads for these tools report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.

@@ -26,6 +26,7 @@
 | `artium-axi awx-axi job list --limit 1` | Read a managed AWX job. |
 | `artium-axi tenable-axi card list --limit 1` | Read a managed Tenable One exposure card. |
 | `artium-axi hybrid-axi quota` | Read managed Hybrid Analysis key level and quota. |
+| `artium-axi checkpoint-axi email search --limit 1` | Read managed Check Point Email Security emails. |
 
 Add `--help` to a local command to inspect its accepted flags.
 Top-level help lists command purposes.
@@ -66,6 +67,8 @@ Its native upload confirmation remains bound to the uploaded bytes and a stable 
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
 Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
+Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
+Check Point stdin and server paths are unavailable.
 For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the local file as `query.kql` and rewrite the argument to that fixed name.
 Local paths containing a `..` component are refused.
 The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.
@@ -80,6 +83,36 @@ Artium also returns this error when its runner times out, cancels or receives a 
 Before submitting the write again, follow the returned read commands and inspect the changed state.
 Keep `--full` on recovery API GET commands so long changed values are not truncated, including both `Check current state before trying again` and `Verify with` suggestions.
 Runner-generated recovery for Sentinel incident updates and comment creation first resolves the incident ID with the suggested `incident show` command, then uses that ID in the suggested API GET to inspect all incident fields or the comments collection.
+
+### Check Point email and attachment saving
+
+Use `artium-axi download` after the [shared artifact-mount prerequisites](runbook.md#scope-and-prerequisites) and the [Check Point administrator selections](tool-credentials.md#check-point-email-security) pass.
+All operations are off by default and require the write switch plus their exact operation ID.
+
+| Operation | Selector | Type |
+| --- | --- | --- |
+| `email.download` | Entity ID | `email` or `original` |
+| `attachment.download` | Entity ID followed by `/` and attachment ID | `attachment` |
+| `attachment.download-all` | Entity ID | `zip` |
+
+```sh
+artium-axi download --operation email.download --selector <entity-id> --type email --destination /controlled/artifacts/new-message.eml --sso
+artium-axi download --operation attachment.download --selector <entity-id>/<attachment-id> --type attachment --destination /controlled/artifacts/new-attachment.bin --sso
+artium-axi download --operation attachment.download-all --selector <entity-id> --type zip --destination /controlled/artifacts/new-attachments.zip --sso
+```
+
+Omit `--sso` for local password confirmation, or use `--password-stdin`.
+Preview launches no native downloader and makes no upstream request.
+Review the exact selection and new destination, then repeat them with `--transfer <transferId> --execute --confirm <exact-confirm>`.
+The host-owned confirmation binds the transfer ID, destination digest, credential revision, exact selection and absolute expiry.
+The native download executes once, verifies the upstream SHA-256 header and returns path, size and digest; Artium validates that response and independently verifies the private file bytes before delivery.
+The 50 MiB native cap, shared global capacity, ten-minute expiry, recent identity proof, revocation checks, one-shot delivery and private 0700 destination requirements remain enforced.
+Transfer audit records identify `checkpoint-axi`; native audit ID and native journal result are empty because this is host-owned evidence.
+The CLI checks delivered bytes again and sends a verified-save receipt; missing receipt remains unconfirmed.
+Save only, never extract or execute, and never retry an uncertain transfer automatically.
+Managed scope controls email and attachment authorization; no arbitrary URL, output path or scope override enters the transfer selection.
+Email/ZIP hash availability and live scopes remain uncommissioned; missing headers fail closed, and ZIP responses may be partial.
+Ordinary `artium-axi checkpoint-axi ... download` commands and browser artifact saving are unavailable.
 
 ### Hybrid Analysis archive saving
 

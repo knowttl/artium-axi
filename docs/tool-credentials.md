@@ -14,6 +14,36 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
 | Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `card list --limit 1`; exposure-view read access is required. |
+| Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
+
+#### Check Point Email Security
+
+At `/admin/tools/checkpoint-axi`, enter `region`, `clientId` and the secret value in `clientSecret`.
+Regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; the pinned package owns their fixed HTTPS origins.
+The credential schema captured in the [reviewed inventory](../tools/inventories/checkpoint-axi.json) supplies the managed form and validation; Artium injects the encrypted secret through a private environment SecretRef.
+No credentials belong in arguments or output.
+The optional `saas` defaults upstream to `office365_emails`; `scope` is required for email download and used for attachment download authorization.
+Each hosted invocation exchanges a token again because its private XDG directory is removed after execution.
+
+Save the credential, test it, enable the tool and grant it to a role.
+The credential test runs `doctor`, which authenticates and performs one bounded email search without printing tenant data.
+Local fake-only evidence does not establish live permissions or response contracts.
+The owner commissions all capabilities together through Artium after the build, including token shape/lifetime, permissions, scopes and email/ZIP hash availability.
+`AUTH_SHAPE_UNVERIFIED` requires owner commissioning; it is not an empty result or a successful credential test.
+
+Every write and download defaults off behind the administrator write switch and exact operation allow-list.
+The [reviewed inventory](../tools/inventories/checkpoint-axi.json) owns static operation IDs.
+For an event action offered by `event show`, add its exact `event.action.<name>` entry through native settings or the write-access API; wildcards are refused.
+Parameterized event actions remain unverified.
+Email and exception writes retain native preview, `--execute`, exact `--confirm`, durable intent and read-back reconciliation.
+Exception create/update uploads a private JSON file with `--input`; updates replace documented fields, and stdin/server paths are unavailable.
+Malware, URL and DLP remove/clear and click-time clear remain unavailable pending endpoint commissioning, regardless of administrator settings.
+Unknown outcomes require read-only reconciliation rather than replay.
+
+Select `email.download`, `attachment.download` and `attachment.download-all` independently to enable [hosted saving](client-reference.md#check-point-email-and-attachment-saving).
+The adapter enables native `downloads.allow` only for an authenticated transfer after current policy checks; a stored profile field cannot enable ordinary tool-run downloads.
+Downloads use host-owned confirmation and evidence because the published native downloader has no preview or write journal.
+Missing or mismatched upstream SHA-256 fails closed; attachment ZIP HTTP 200 can contain only some attachments.
 
 #### Tenable One
 
