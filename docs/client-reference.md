@@ -47,7 +47,8 @@ Arguments after a tool name belong to upstream, subject to adapter restrictions 
 The ADO, AWX, Azure, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
 Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
-It captures bounded non-terminal stdin only for Azure `rg query` (also `graph query`), `logs query` (also `monitor log-analytics query`) and `api` calls.
+It captures bounded non-terminal stdin only for Azure `rg query` (also `graph query`), `logs query` (also `monitor log-analytics query`) and `api` calls with no uploaded file or positional input.
+Flag values such as `--workspace <workspace>` do not count as positional input.
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
@@ -57,6 +58,8 @@ Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` i
 Its run API accepts uploaded leaf names only; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
+Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
+Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the local file as `query.kql` and rewrite the argument to that fixed name.
 Local paths containing a `..` component are refused.
 The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.

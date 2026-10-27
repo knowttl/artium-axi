@@ -3,6 +3,7 @@ import { basename } from 'node:path'
 import type { Readable } from 'node:stream'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
+import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
@@ -31,15 +32,16 @@ export async function toolInput(tool: string, original: string[]) {
   const input: RunInput = {}
   let totalFileBytes = 0
   const hunting = tool === 'mg-axi' && args.slice(0, 3).join(' ') === 'security hunting query'
-  if ((tool === 'az-axi' || tool === 'hybrid-axi' || hunting) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
-    const fileFlags = hunting ? ['file'] : tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
+  if ((tool === 'az-axi' || tool === 'hybrid-axi' || tool === 'tenable-axi' || hunting) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
+    const fileFlags = hunting ? ['file'] : tool === 'tenable-axi' ? tenable.adapterBoundary.inputFileFlags
+      : tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
     for (let index = 0; index < args.length; index++) {
       if (args[index] === '--') break
       const [flag] = args[index].split('=')
       if (!fileFlags.some(name => flag === `--${name}`)) continue
       const equals = args[index].indexOf('=')
       const path = equals < 0 ? args[++index] : args[index].slice(equals + 1)
-      if (path === '-' && tool === 'hybrid-axi' && flag === '--body-file') {
+      if (path === '-' && (tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file')) {
         input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes)).toString('utf8')
         continue
       }
@@ -63,9 +65,31 @@ export async function toolInput(tool: string, original: string[]) {
       leading++
       if (!token.includes('=') && (name !== 'full' || ['true', 'false'].includes(args[leading]))) leading++
     }
-    const consumesStdin = az.commands.some(route => ['rg query', 'logs query', 'api'].includes(route.handlerCommand) &&
+    const route = az.commands.find(route => ['rg query', 'logs query', 'api'].includes(route.handlerCommand) &&
       route.command.split(' ').every((word, index) => args[leading + index] === word))
-    if (tool === 'az-axi' && consumesStdin && !process.stdin.isTTY) {
+    let positional = false
+    if (route) {
+      for (let index = leading + route.command.split(' ').length; index < args.length; index++) {
+        const token = args[index]
+        if (token === '--') { positional = index + 1 < args.length; break }
+        if (!token.startsWith('-') || token === '-') { positional = true; break }
+        const raw = token.slice(token.startsWith('--') ? 2 : 1).split('=')[0]
+        const expanded = token.startsWith('--') ? raw : (route.shortFlags as Partial<Record<string, string>>)[raw] ?? raw
+        const name = (route.flagAliases as Partial<Record<string, string>>)[expanded] ?? expanded
+        const kind = (route.flags as Partial<Record<string, string>>)[name]
+        if (token.includes('=') || !kind) continue
+        if (kind === 'boolean') {
+          if (['true', 'false'].includes(args[index + 1])) index++
+        } else {
+          while (args[index + 1] !== undefined && (!args[index + 1].startsWith('-') || /^-\d/.test(args[index + 1]) ||
+            (az.adapterBoundary.inputFileFlags.includes(name) && input.files?.some(file => file.name === args[index + 1])))) {
+            index++
+            if (!['list', 'literal-list'].includes(kind) || route.positionalInput) break
+          }
+        }
+      }
+    }
+    if (tool === 'az-axi' && route && !input.files?.length && !positional && !process.stdin.isTTY) {
       const stdin = await readBounded(process.stdin, inputLimits.stdinBytes)
       if (stdin.length) input.stdin = stdin.toString('utf8')
     }
