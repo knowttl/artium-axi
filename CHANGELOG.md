@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.17](https://github.com/knowttl/artium-axi/compare/v0.0.16...v0.0.17) (2026-10-27)
+
+
+### Features
+
+* enable Defender XDR hunting through artium-axi ([#176](https://github.com/knowttl/artium-axi/issues/176)) ([4957a91](https://github.com/knowttl/artium-axi/commit/4957a910881c9f4193971905f31be83c55d650fa))
+
 ## [0.0.16](https://github.com/knowttl/artium-axi/compare/v0.0.15...v0.0.16) (2026-10-27)
 
 
