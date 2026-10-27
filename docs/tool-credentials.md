@@ -285,12 +285,20 @@ The two tiers describe capabilities; selecting one operation never enables its s
 | Tier | Exact operations |
 | --- | --- |
 | Collaboration | `issue create`, `issue edit`, `issue comment`, `issue close`, `issue reopen`; `pr create`, `pr edit`, `pr comment`, `pr ready`, `pr review`; `discussion comment`; `label create`, `label edit`; `project item-add`, `project item-create`, `project item-edit`, `project item-archive`. |
-| Repository | `pr merge`, `pr update-branch`, `pr revert`; `release create`, `release edit`; `workflow run`, `workflow enable`, `workflow disable`; `run rerun`, `run cancel`; `repo create`, `repo edit`, `repo fork`; `gist create`, `gist edit`, `gist rename`; `variable set`; `issue lock`, `issue pin`, `issue transfer`. |
+| Repository | `pr merge`, `pr update-branch`, `pr revert`; `release create`, `release edit`; `workflow run`, `workflow enable`, `workflow disable`; `run rerun`, `run cancel`; `repo create`, `repo edit`, `repo fork`; `gist create`, `gist edit`, `gist rename`; `variable set`; `issue pin`, `issue transfer`. |
+
+Issue lock/unlock is unsupported because pinned gh-axi 0.1.44 requests the `locked` issue field, which gh 2.101.0 does not export.
+A compatible published upstream release is required before these operations can be enabled.
+Repository creation requires an explicit `OWNER/NAME`; unqualified and host-qualified names are refused.
+Repository visibility changes are unavailable.
+PR merge uses `--method merge|squash|rebase`; release create/edit uses `--notes` for inline release notes.
+Every project write requires `--owner OWNER` so recovery checks inspect the intended user's or organization's projects.
+For `project item-edit`, Artium uses this owner for confirmation and recovery; the mutation itself selects the item by ID.
 
 Artium owns write preview and confirmation because upstream gh-axi has neither.
 Run the intended command without `--confirm` to obtain a preview without starting gh-axi or minting an installation token.
 Review the request, then repeat its exact arguments and stdin with `--confirm <returned-value>`.
-Confirmation binds normalized arguments, input, credential identity/revision and write settings; changing any requires a fresh preview.
+Confirmation binds normalized arguments, recovery scope, input, credential identity/revision and write settings; changing any requires a fresh preview.
 For example, preview `artium-axi gh-axi issue comment 42 -R OWNER/NAME --body "Reviewed comment"`, then repeat it with the returned confirmation.
 Keep the command before its flags.
 PR creation requires explicit title, body, base and head branches; local git sources remain unavailable.
@@ -300,7 +308,7 @@ Gist edits accept inline descriptions or piped replacement content with `--filen
 Workflow `--field name=value` supports literal values; `@file` values are refused.
 Deletes, `secret set`, `pr merge --admin`, `--delete-branch` and `api` non-GET remain refused for everyone.
 After `UNKNOWN_OUTCOME`, never retry blindly: execute the provided read-back command, inspect all relevant pages and reconcile GitHub audit evidence.
-For project item edits, identify the project from the returned project list, then inspect its item list; absence from a limited page does not establish failure.
+For project item edits, identify the project from the returned owner-scoped project list, then inspect its item list with the same owner; absence from a limited page does not establish failure.
 Artium records confirmed successful writes as writes and interrupted writes as unknown, while redacting titles, bodies, field values, search queries and confirmation values from its audit.
 
 GitHub.com and `*.ghe.com` use `GH_TOKEN`; GHES uses `GH_ENTERPRISE_TOKEN`, always with the managed host.

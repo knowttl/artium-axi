@@ -247,7 +247,7 @@ test('a classified write ending on a signal records an unknown outcome', async (
   expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'write' })
 })
 
-test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
+test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
   const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
     getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
@@ -268,6 +268,39 @@ test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'] as const)('GitHub preview s
     .toEqual({ action: 'unknown', outcome: 'UNKNOWN_OUTCOME' })
   expect(lines.join('')).not.toMatch(/CANARY-github-token|CANARY-private-comment/)
   expect(lines.join('')).not.toContain(document.preview.confirm)
+})
+
+test.each([
+  { interruption: 'secret detection', script: 'process.stdout.write(process.env.GH_TOKEN)' },
+  { interruption: 'output flooding', script: "process.stderr.write('x'.repeat(64 * 1024 * 1024))" },
+])('a real GitHub write stopped by $interruption suppresses output and returns recovery guidance', async ({ script }) => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
+  const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
+  const prepare = github.prepare.bind(github)
+  vi.spyOn(github, 'prepare').mockImplementation(async (...input) => {
+    const call = await prepare(...input)
+    return { ...call, executable: process.execPath, args: ['-e', script] }
+  })
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
+  ]))
+  const run = vi.spyOn(runner, 'run')
+  const args = ['issue', 'comment', '42', '-R', 'canary/repo', '--body=CANARY-private-comment']
+  const preview = await runTool(db, audit, runner, token, { args }, github, identities, context)
+  const document = decode(preview.stdout) as { preview: { confirm: string } }
+  expect(run).not.toHaveBeenCalled()
+  const failure = await runTool(db, audit, runner, token, { args: [...args, '--confirm', document.preview.confirm] }, github, identities,
+    { ...context, requestId: 'synthetic-execute' }).catch(error => error)
+  expect(failure).toMatchObject({ code: 'UNKNOWN_OUTCOME',
+    next: expect.stringContaining('artium-axi gh-axi issue view 42 --comments -R canary/repo') })
+  expect(failure).not.toHaveProperty('stdout')
+  expect(failure).not.toHaveProperty('stderr')
+  expect(JSON.stringify(failure)).not.toMatch(/CANARY-github-token|CANARY-private-comment|xxxxxxxx/)
+  expect(run).toHaveBeenCalledOnce()
+  expect(db.prepare("SELECT action, outcome FROM audit WHERE event = 'run-terminal' AND request_id = 'synthetic-execute'").get())
+    .toEqual({ action: 'unknown', outcome: 'UNKNOWN_OUTCOME' })
+  expect(lines.join('')).not.toMatch(/CANARY-github-token|CANARY-private-comment|xxxxxxxx/)
 })
 
 describe.each(['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG'])('%s missing evidence', variable => {

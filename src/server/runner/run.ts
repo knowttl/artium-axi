@@ -66,7 +66,7 @@ export async function runTool<Credential>(
     result = hostedStatus(adapter.name, prepared.invocation, result)
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
-    if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL'].includes(runnerError.code)) {
+    if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT'].includes(runnerError.code)) {
       const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
         /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
       error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,

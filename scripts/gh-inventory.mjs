@@ -67,26 +67,25 @@ write('label create', 'collaboration', 'name color description', '', 0)
 write('label edit', 'collaboration', 'name color description')
 write('project item-add', 'collaboration', 'owner url', '', 1, false)
 write('project item-create', 'collaboration', 'owner title body', '', 1, false)
-write('project item-edit', 'collaboration', 'id project-id field-id text number date single-select-option-id iteration-id title body', 'clear', 0, false)
+write('project item-edit', 'collaboration', 'owner id project-id field-id text number date single-select-option-id iteration-id title body', 'clear', 0, false)
 write('project item-archive', 'collaboration', 'owner id', 'undo', 1, false)
-write('pr merge', 'repository', 'method body subject match-head-commit', 'merge squash rebase auto')
+write('pr merge', 'repository', 'method body subject match-head-commit', 'auto')
 write('pr update-branch', 'repository')
 write('pr revert', 'repository')
-write('release create', 'repository', 'body title notes target discussion-category notes-start-tag', 'draft prerelease generate-notes verify-tag notes-from-tag fail-on-no-commits latest')
-write('release edit', 'repository', 'body title notes', 'draft prerelease latest')
+write('release create', 'repository', 'title notes target discussion-category notes-start-tag', 'draft prerelease generate-notes verify-tag notes-from-tag fail-on-no-commits latest')
+write('release edit', 'repository', 'title notes', 'draft prerelease latest')
 write('workflow run', 'repository', 'ref field')
 write('workflow enable', 'repository')
 write('workflow disable', 'repository')
 write('run rerun', 'repository', 'job', 'failed debug')
 write('run cancel', 'repository')
 write('repo create', 'repository', 'description template', 'public private internal', 1, false)
-write('repo edit', 'repository', 'description visibility default-branch enable-issues enable-wiki', '', 0)
+write('repo edit', 'repository', 'description default-branch enable-issues enable-wiki', '', 0)
 write('repo fork', 'repository', '', '', 0)
 write('gist create', 'repository', 'desc filename', 'public secret', 0, false)
 write('gist edit', 'repository', 'desc filename', '', 1, false)
 write('gist rename', 'repository', '', '', 3, false)
 write('variable set', 'repository', 'body')
-write('issue lock', 'repository')
 write('issue pin', 'repository')
 write('issue transfer', 'repository', 'to-repo')
 for (const command of commands.filter(route => ['release create', 'release edit'].includes(route.command))) {
@@ -111,7 +110,7 @@ const data = { generatedBy: 'scripts/gh-inventory.mjs', tool: 'gh-axi', ...pin,
   gh: JSON.parse(readFileSync(new URL('gh-source.json', root))),
   sources: [...sources(new URL('dist/', packageRoot), 'dist/'), ...sources(new URL('dist/', sdk), 'axi-sdk-js/dist/')],
   adapterBoundary: { unsafeOverrides: ['hostname', 'watch', 'attach', 'body-file', 'notes-file', 'input', 'file', 'add', 'raw-field', 'header', 'admin', 'delete-branch', 'source', 'push', 'clone', 'remote'],
-    blockedCommands: ['home', 'update', 'setup', 'stack', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
+    blockedCommands: ['home', 'update', 'setup', 'stack', 'issue lock', 'issue unlock', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
     nativeWrites: 'host-classified; exact operations, preview and confirmation', inputs: { stdin: 'gist create/edit with filename only', files: 'unsupported' } },
   discovery: { commands: [...new Set(commands.map(route => route.command.split(' ')[0]))],
     example: ['repo', 'list', '--limit', '1'],

@@ -27,9 +27,9 @@ const samples = [
   ['label create', [], ['--name=synthetic', '--color=abcdef']], ['label edit', ['synthetic'], ['--color=abcdef']],
   ['project item-add', ['1'], ['--owner=canary', '--url=https://github.com/canary/repo/issues/1']],
   ['project item-create', ['1'], ['--owner=canary', '--title=synthetic', '--body=content']],
-  ['project item-edit', [], ['--id=synthetic-item', '--title=synthetic']],
+  ['project item-edit', [], ['--owner=canary', '--id=synthetic-item', '--title=synthetic']],
   ['project item-archive', ['1'], ['--owner=canary', '--id=synthetic-item']],
-  ['pr merge', ['1'], ['--squash']], ['pr update-branch', ['1'], []], ['pr revert', ['1'], []],
+  ['pr merge', ['1'], ['--method=squash']], ['pr update-branch', ['1'], []], ['pr revert', ['1'], []],
   ['release create', ['v1'], ['--title=synthetic', '--notes=content']],
   ['release edit', ['v1'], ['--title=synthetic', '--draft=false', '--prerelease=false', '--latest=true']],
   ['workflow run', ['123'], ['--ref=main', '--field=message=synthetic']],
@@ -40,7 +40,7 @@ const samples = [
   ['gist create', [], ['--filename=synthetic.txt', '--secret']],
   ['gist edit', ['abc123'], ['--filename=synthetic.txt']], ['gist rename', ['abc123', 'old.txt', 'new.txt'], []],
   ['variable set', ['SYNTHETIC'], ['--body=content']],
-  ['issue lock', ['1'], []], ['issue pin', ['1'], []], ['issue transfer', ['1'], ['--to-repo=canary/destination']],
+  ['issue pin', ['1'], []], ['issue transfer', ['1'], ['--to-repo=canary/destination']],
 ] satisfies [string, string[], string[]][]
 
 test.each(samples)('%s requires its exact admin operation and host confirmation', async (operation, rest, flags) => {
@@ -197,11 +197,10 @@ test.each([
   ['pr', 'edit', '1', '-R', 'canary/repo', '--body='],
   ['release', 'create', 'v1', '-R', 'canary/repo', '--notes='],
   ['release', 'edit', 'v1', '-R', 'canary/repo', '--notes='],
-  ['release', 'edit', 'v1', '-R', 'canary/repo', '--body='],
   ['gist', 'edit', 'abc123', '--desc='],
-  ['project', 'item-create', '1', '--title=synthetic', '--body='],
-  ['project', 'item-edit', '--id=synthetic-item', '--body='],
-  ['project', 'item-edit', '--id=synthetic-item', '--project-id=synthetic-project', '--field-id=synthetic-field', '--text='],
+  ['project', 'item-create', '1', '--owner=canary', '--title=synthetic', '--body='],
+  ['project', 'item-edit', '--owner=canary', '--id=synthetic-item', '--body='],
+  ['project', 'item-edit', '--owner=canary', '--id=synthetic-item', '--project-id=synthetic-project', '--field-id=synthetic-field', '--text='],
   ['label', 'edit', 'synthetic', '-R', 'canary/repo', '--description='],
   ['repo', 'edit', '-R', 'canary/repo', '--description='],
 ])('forwards explicitly empty editable content through %j', async (...args) => {
@@ -282,4 +281,136 @@ test('audit preserves operation, repository and number while hiding write text a
   expect(redactArguments(args, adapter.sensitiveArguments(args))).toEqual([
     'issue', 'comment', '42', '-R', 'canary/repo', '--body', '[redacted]', '--confirm=[redacted]',
   ])
+})
+
+test.each(['synthetic', 'other.example/canary/repo', '//canary/repo', 'https://other.example/canary/repo'])
+  ('repository creation refuses noncanonical selectors before preview: %s', async name => {
+    const getCredential = vi.fn(async () => credential)
+    const adapter = createGhAdapter({ getCredential,
+      getSettings: () => ({ writes: { allowWrites: true, operations: ['repo create'] } }) })
+    await expect(adapter.prepare(['repo', 'create', name, '--private'], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+    await expect(adapter.prepare(['repo', 'create', name, '--private', '--confirm=anything'], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+    expect(getCredential).not.toHaveBeenCalled()
+  })
+
+test.each([
+  ['issue', 'view', '1', '-R', 'other.example/canary/repo'],
+  ['issue', 'view', '1', '--repo=synthetic'],
+  ['issue', 'transfer', '1', '-R', 'canary/repo', '--to-repo=other.example/canary/destination'],
+  ['issue', 'transfer', '1', '-R', 'canary/repo', '--to-repo=destination'],
+  ['repo', 'create', 'canary/new', '--private', '--template=other.example/canary/template'],
+  ['repo', 'create', 'canary/new', '--private', '--template=template'],
+].map(args => [args]))('every repository-name representation refuses host overrides: %j', async args => {
+  const getCredential = vi.fn(async () => credential)
+  await expect(createGhAdapter({ getCredential }).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each(['lock', 'unlock'])('issue %s reports its upstream incompatibility before credential retrieval', async action => {
+  const getCredential = vi.fn(async () => credential)
+  const adapter = createGhAdapter({ getCredential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: [`issue ${action}`] } }) })
+  await expect(adapter.prepare(['issue', action, '1', '-R', 'canary/repo'], reference)).rejects.toMatchObject({
+    code: 'INVALID_INPUT', message: expect.stringContaining('gh-axi 0.1.44'),
+    next: expect.stringContaining('compatible published upstream release'),
+  })
+  await expect(adapter.prepare(['issue', action, '--help'], reference)).rejects.toMatchObject({
+    message: expect.stringContaining('gh 2.101.0 does not export'),
+  })
+  expect(getCredential).not.toHaveBeenCalled()
+  expect(() => ghWritePolicy.update({}, { enabled: true, operations: [`issue ${action}`], expectedRevision: 1 })).toThrow()
+})
+
+test.each([
+  ['repo', 'edit', '-R', 'canary/repo', '--visibility=private'],
+  ['repo', 'edit', '-R', 'canary/repo', '--description=', '--visibility=private'],
+  ['pr', 'merge', '1', '-R', 'canary/repo', '--merge'],
+  ['pr', 'merge', '1', '-R', 'canary/repo', '--squash'],
+  ['pr', 'merge', '1', '-R', 'canary/repo', '--rebase'],
+  ['pr', 'merge', '1', '-R', 'canary/repo', '-X', 'squash'],
+  ['release', 'create', 'v1', '-R', 'canary/repo', '--body=notes'],
+  ['release', 'edit', 'v1', '-R', 'canary/repo', '--body='],
+].map(args => [args]))('removed write options stay unavailable: %j', async args => {
+  const getCredential = vi.fn(async () => credential)
+  const adapter = createGhAdapter({ getCredential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['repo edit', 'pr merge', 'release create', 'release edit'] } }) })
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each(['merge', 'squash', 'rebase'])('the primary merge-method flag executes %s', async method => {
+  const { result } = executeWrite(await confirmed(['pr', 'merge', '1', '-R', 'canary/repo', `--method=${method}`]))
+  expect(result.exitCode).toBe(0)
+})
+
+test.each(['issues', 'prs', 'repos', 'commits', 'code'])('audit redacts numeric and textual %s search terms', command => {
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  const args = ['search', command, '123456789', 'CANARY-query', '--limit', '1']
+  adapter.validateArgs(args)
+  expect(redactArguments(args, adapter.sensitiveArguments(args))).toEqual(['search', command, '[redacted]', '[redacted]', '--limit', '[redacted]'])
+})
+
+test.each([
+  { args: ['--limit', '123', 'search', 'code', '456'], expected: ['--limit', '[redacted]', 'search', 'code', '[redacted]'] },
+  { args: ['-R', 'canary/repo', 'issue', 'view', '42'], expected: ['-R', 'canary/repo', 'issue', 'view', '42'] },
+  { args: ['issue', '--repo', 'canary/repo', 'view', '42'], expected: ['issue', '--repo', 'canary/repo', 'view', '42'] },
+  { args: ['pr', 'view', '42', '-R', 'canary/repo'], expected: ['pr', 'view', '42', '-R', 'canary/repo'] },
+  { args: ['discussion', 'view', '42', '-R', 'canary/repo'], expected: ['discussion', 'view', '42', '-R', 'canary/repo'] },
+  { args: ['run', 'view', '42', '-R', 'canary/repo'], expected: ['run', 'view', '42', '-R', 'canary/repo'] },
+  { args: ['workflow', 'view', '42', '-R', 'canary/repo'], expected: ['workflow', 'view', '42', '-R', 'canary/repo'] },
+  { args: ['project', 'view', '42', '--owner=canary'], expected: ['project', 'view', '42', '--owner=[redacted]'] },
+  { args: ['release', 'view', '123', '-R', 'canary/repo'], expected: ['release', 'view', '[redacted]', '-R', 'canary/repo'] },
+  { args: ['label', 'edit', '123', '-R', 'canary/repo', '--color=abcdef'], expected: ['label', 'edit', '[redacted]', '-R', 'canary/repo', '--color=[redacted]'] },
+  { args: ['gist', 'view', '123'], expected: ['gist', 'view', '[redacted]'] },
+  { args: ['repo', 'list', '123'], expected: ['repo', 'list', '[redacted]'] },
+  { args: ['api', '123'], expected: ['api', '[redacted]'] },
+])('audit preserves only actual resource-number positionals in $args', ({ args, expected }) => {
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  adapter.validateArgs(args)
+  expect(redactArguments(args, adapter.sensitiveArguments(args))).toEqual(expected)
+})
+
+test.each([
+  { args: ['repo', 'create', 'canary-org/new', '--private'], checkArgs: ['repo', 'list', 'canary-org', '--limit', '100'] },
+  { args: ['repo', 'fork', '-R', 'canary-org/source'], checkArgs: ['api', '/repos/canary-org/source/forks?per_page=100'] },
+  { args: ['project', 'item-add', '1', '--owner=canary-org', '--url=https://github.com/canary-org/repo/issues/1'],
+    checkArgs: ['project', 'item-list', '1', '--owner', 'canary-org', '--limit', '100'] },
+  { args: ['project', 'item-create', '1', '--owner=canary-org', '--title=synthetic'],
+    checkArgs: ['project', 'item-list', '1', '--owner', 'canary-org', '--limit', '100'] },
+  { args: ['project', 'item-edit', '--owner=canary-org', '--id=synthetic-item', '--title=synthetic'],
+    checkArgs: ['project', 'list', '--owner', 'canary-org', '--limit', '100'] },
+  { args: ['project', 'item-archive', '1', '--owner=canary-org', '--id=synthetic-item'],
+    checkArgs: ['project', 'item-list', '1', '--owner', 'canary-org', '--limit', '100'] },
+])('write recovery retains the explicit scope for $args', async ({ args, checkArgs }) => {
+  const call = await confirmed(args)
+  expect(call.write?.checkArgs).toEqual(checkArgs)
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  expect((await adapter.prepare(checkArgs, reference)).effect).toBe('read')
+})
+
+test.each([
+  ['project', 'item-add', '1', '--url=https://github.com/canary/repo/issues/1'],
+  ['project', 'item-create', '1', '--title=synthetic'],
+  ['project', 'item-edit', '--id=synthetic-item', '--title=synthetic'],
+  ['project', 'item-archive', '1', '--id=synthetic-item'],
+  ['project', 'item-edit', '--owner=@me', '--id=synthetic-item', '--title=synthetic'],
+].map(args => [args]))('project writes require a concrete owner before preview: %j', async args => {
+  const getCredential = vi.fn(async () => credential)
+  await expect(createGhAdapter({ getCredential }).prepare(args, reference)).rejects.toMatchObject({
+    code: 'INVALID_INPUT', next: expect.stringContaining('--owner OWNER'),
+  })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each(['--title=synthetic', '--body='])('project item edits bind host-owned recovery context for %s', async edit => {
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['project item-edit'] } }) })
+  const args = ['project', 'item-edit', '--id=synthetic-item', edit]
+  const confirm = (await adapter.prepare([...args, '--owner=canary-org'], reference)).preview!.confirm
+  await expect(adapter.prepare([...args, '--owner=other-org', '--confirm', confirm], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  const call = await adapter.prepare([...args, '--owner=canary-org', '--confirm', confirm], reference)
+  const { calls } = executeWrite(call)
+  expect(calls).toHaveLength(1)
+  expect(calls[0]).toContain('item-edit')
+  expect(calls[0].join(' ')).not.toContain('--owner')
 })

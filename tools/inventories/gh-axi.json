@@ -222,6 +222,8 @@
       "update",
       "setup",
       "stack",
+      "issue lock",
+      "issue unlock",
       "pr checkout",
       "repo clone",
       "gist clone",
@@ -932,6 +934,7 @@
       "effect": "write",
       "flags": {
         "help": "boolean",
+        "owner": "value",
         "id": "value",
         "project-id": "value",
         "field-id": "value",
@@ -973,9 +976,6 @@
         "body": "value",
         "subject": "value",
         "match-head-commit": "value",
-        "merge": "boolean",
-        "squash": "boolean",
-        "rebase": "boolean",
         "auto": "boolean",
         "confirm": "value"
       },
@@ -1013,7 +1013,6 @@
       "flags": {
         "help": "boolean",
         "repo": "value",
-        "body": "value",
         "title": "value",
         "notes": "value",
         "target": "value",
@@ -1038,7 +1037,6 @@
       "flags": {
         "help": "boolean",
         "repo": "value",
-        "body": "value",
         "title": "value",
         "notes": "value",
         "draft": "boolean-value",
@@ -1138,7 +1136,6 @@
         "help": "boolean",
         "repo": "value",
         "description": "value",
-        "visibility": "value",
         "default-branch": "value",
         "enable-issues": "value",
         "enable-wiki": "value",
@@ -1206,18 +1203,6 @@
         "help": "boolean",
         "repo": "value",
         "body": "value",
-        "confirm": "value"
-      },
-      "positionals": 1,
-      "repository": true,
-      "tier": "repository"
-    },
-    {
-      "command": "issue lock",
-      "effect": "write",
-      "flags": {
-        "help": "boolean",
-        "repo": "value",
         "confirm": "value"
       },
       "positionals": 1,

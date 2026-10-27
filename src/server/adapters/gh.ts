@@ -46,22 +46,20 @@ export const ghProfile = new CredentialProfile({ type: 'object', additionalPrope
   ] }, 'gh-axi')
 export const ghCredentialSchema = ghProfile.credentialSchema
 
-function ghArguments(args: readonly string[], input: RunnerInput = {}) {
-  if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
-  if (input.stdin !== undefined && !['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))) throw new ArtiumError('UNSUPPORTED_INPUT')
-  if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
-    return { args: ['--version'], invocation: { command: 'version', help: false } }
-  }
+const repositoryName = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+
+function parseGhArguments(args: readonly string[]) {
   const flags = new Map<string, string>()
   const fields: string[] = []
   const positionals: string[] = []
+  const positionalIndices: number[] = []
   const allFlags: Record<string, string> = Object.assign({}, ...inventory.commands.map(route => route.flags))
   const hint = inventory.commands.find(route => {
     const words: string[] = []
     for (let index = 0; index < args.length; index++) {
       const token = args[index]
       if (!token.startsWith('-')) { words.push(token); continue }
-      const name = ({ '-R': 'repo', '-h': 'help', '-X': 'method' } as Record<string, string>)[token.split('=')[0]]
+      const name = ({ '-R': 'repo', '-h': 'help' } as Record<string, string>)[token.split('=')[0]]
         ?? token.split('=')[0].replace(/^--/, '')
       const type = (route.flags as Record<string, string>)[name]
       if (!type) return false
@@ -73,10 +71,10 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   Object.assign(allFlags, hint?.flags)
   for (let index = 0; index < args.length; index++) {
     const token = args[index]
-    if (!token.startsWith('-')) { positionals.push(token); continue }
-    const match = /^(--[a-z][a-z-]*|-R|-h|-X)(?:=(.*))?$/s.exec(token)
+    if (!token.startsWith('-')) { positionals.push(token); positionalIndices.push(index); continue }
+    const match = /^(--[a-z][a-z-]*|-R|-h)(?:=(.*))?$/s.exec(token)
     if (!match) throw unknownFlag('gh-axi', positionals.join(' ') || 'home', token, Object.keys(allFlags))
-    const name = ({ '-R': 'repo', '-h': 'help', '-X': 'method' } as Record<string, string>)[match[1]] ?? match[1].slice(2)
+    const name = ({ '-R': 'repo', '-h': 'help' } as Record<string, string>)[match[1]] ?? match[1].slice(2)
     if (ghManifest.unsafeOverrides.includes(name) || name === 'method' && hint?.command !== 'pr merge') throw new ArtiumError('FLAG_BLOCKED')
     if (!Object.hasOwn(allFlags, name)) throw unknownFlag('gh-axi', positionals.join(' ') || 'home', token, Object.keys(allFlags))
     if (flags.has(name) && !(hint?.command === 'workflow run' && name === 'field')) throw new ArtiumError('INVALID_INPUT')
@@ -97,6 +95,21 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
       if (name === 'field') fields.push(value)
     }
   }
+  const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
+    .find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
+  return { flags, fields, positionals, positionalIndices, allFlags, route }
+}
+
+function ghArguments(args: readonly string[], input: RunnerInput = {}) {
+  if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
+  if (input.stdin !== undefined && !['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))) throw new ArtiumError('UNSUPPORTED_INPUT')
+  if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
+    return { args: ['--version'], invocation: { command: 'version', help: false } }
+  }
+  const { flags, fields, positionals, allFlags, route } = parseGhArguments(args)
+  if (positionals[0] === 'issue' && ['lock', 'unlock'].includes(positionals[1])) throw new ArtiumError('INVALID_INPUT',
+    'Issue lock/unlock is unsupported: gh-axi 0.1.44 requests the locked issue field, which gh 2.101.0 does not export.',
+    'A compatible published upstream release is required. Issue pin and transfer remain available.')
   if (flags.size === 1 && flags.has('help') && positionals.length === 0) {
     return { args: ['--help'], invocation: { command: 'help', help: true } }
   }
@@ -107,8 +120,6 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
     && inventory.discovery.commands.includes(positionals[0])) {
     return { args: [...positionals, '--help'], invocation: { command: positionals[0], help: true } }
   }
-  const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
-    .find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('gh-axi', positionals, inventory.commands.map(route => route.command))
   const rest = positionals.slice(route.command.split(' ').length)
   if (route.positionals !== 'variadic' && rest.length > Number(route.positionals) || rest.some(value => /[\x00-\x1f\x7f]/.test(value))) throw new ArtiumError('INVALID_INPUT')
@@ -119,6 +130,10 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   const stdin = ['gist create', 'gist edit'].includes(route.command) && flags.has('filename') && !help
   if (input.stdin !== undefined && !stdin || stdin && !input.stdin?.trim()) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (!help && route.effect === 'write' && rest.length !== Number(route.positionals)) throw new ArtiumError('INVALID_INPUT')
+  if (route.command === 'repo create' && rest.some(value => !repositoryName.test(value))) throw new ArtiumError('FLAG_BLOCKED')
+  if (!help && route.effect === 'write' && route.command.startsWith('project ')
+    && !/^[A-Za-z0-9_-]+$/.test(flags.get('owner') ?? '')) throw new ArtiumError('INVALID_INPUT',
+    'Project writes require an explicit owner login.', 'Pass --owner OWNER for the affected project and its recovery commands.')
   if (route.command === 'repo create' && !help && ['public', 'private', 'internal'].filter(name => flags.has(name)).length !== 1) throw new ArtiumError('INVALID_INPUT')
   if (route.command === 'gist create' && !help && (!stdin || ['public', 'secret'].filter(name => flags.has(name)).length !== 1)) throw new ArtiumError('INVALID_INPUT')
   if (route.command === 'gist edit' && !help && !stdin && !flags.has('desc')) throw new ArtiumError('INVALID_INPUT')
@@ -130,11 +145,11 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   if (!help && (route.command === 'issue transfer' && !flags.has('to-repo')
     || route.command === 'project item-add' && !flags.has('url')
     || ['project item-edit', 'project item-archive'].includes(route.command) && !flags.has('id'))) throw new ArtiumError('INVALID_INPUT')
-  if (flags.has('to-repo') && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(flags.get('to-repo')!)) throw new ArtiumError('FLAG_BLOCKED')
-  if (flags.has('template') && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(flags.get('template')!)) throw new ArtiumError('FLAG_BLOCKED')
+  if (flags.has('to-repo') && !repositoryName.test(flags.get('to-repo')!)) throw new ArtiumError('FLAG_BLOCKED')
+  if (flags.has('template') && !repositoryName.test(flags.get('template')!)) throw new ArtiumError('FLAG_BLOCKED')
   if (route.command === 'workflow run' && fields.some(value => value.split('=').slice(1).join('=').startsWith('@'))) throw new ArtiumError('FLAG_BLOCKED')
   // A host-qualified repo or selector URL can override GH_HOST inside gh.
-  if (flags.has('repo') && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(flags.get('repo')!)) throw new ArtiumError('FLAG_BLOCKED')
+  if (flags.has('repo') && !repositoryName.test(flags.get('repo')!)) throw new ArtiumError('FLAG_BLOCKED')
   const selectors = ['issue', 'pr', 'discussion', 'gist', 'project', 'run'].includes(route.command.split(' ')[0])
     ? rest.slice(0, 1) : route.command.startsWith('repo ') ? rest : []
   if (selectors.some(value => value.includes(':') || value.startsWith('//'))) {
@@ -157,14 +172,10 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   const nativeGh = !help && (route.command === 'issue comment'
     || flags.get('body') === '' && ['issue create', 'issue edit', 'pr create', 'pr edit', 'project item-create', 'project item-edit'].includes(route.command)
     || flags.get('description') === '' && ['label edit', 'repo edit'].includes(route.command))
-  if (route.command.startsWith('release ') && flags.get('body') === '') {
-    if (flags.has('notes')) throw new ArtiumError('INVALID_INPUT')
-    flags.delete('body')
-    flags.set('notes', '')
-  }
   const nativeRepoEdit = nativeGh && route.command === 'repo edit'
   return { args: [...command, ...(nativeRepoEdit ? [flags.get('repo')!] : rest),
-    ...[...flags].filter(([name]) => name !== 'confirm' && !(nativeRepoEdit && name === 'repo')).flatMap(([name, value]) => name === 'field'
+    ...[...flags].filter(([name]) => name !== 'confirm' && !(nativeRepoEdit && name === 'repo')
+      && !(route.command === 'project item-edit' && name === 'owner')).flatMap(([name, value]) => name === 'field'
     ? fields.map(value => `--field=${value}`) : allFlags[name] === 'boolean'
     ? [nativeGh && route.command === 'issue edit' && name === 'no-type' ? '--remove-type' : `--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
       ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help, nativeGh },
@@ -177,13 +188,13 @@ function readBack(call: ReturnType<typeof ghArguments>) {
   const repo = flags.get('repo')
   let checkArgs: string[]
   if (group === 'project') checkArgs = ['project', ...(action === 'item-edit' ? ['list'] : ['item-list', ...rest]),
-    ...(flags.has('owner') ? ['--owner', flags.get('owner')!] : []), '--limit', '100']
+    '--owner', flags.get('owner')!, '--limit', '100']
   else if (group === 'label' || group === 'variable') checkArgs = [group, 'list']
   else if (group === 'workflow' && action === 'run') checkArgs = ['run', 'list', '--workflow', rest[0], '--limit', '100']
   else if (route === 'pr revert') checkArgs = ['pr', 'list', '--state', 'all', '--limit', '100']
   else if (route === 'issue transfer') checkArgs = ['issue', 'list', '--state', 'all', '--limit', '100']
-  else if (group === 'repo' && action === 'create') checkArgs = ['repo', 'list', '--limit', '100']
-  else if (group === 'repo' && action === 'fork') checkArgs = ['repo', 'list', '--limit', '100']
+  else if (group === 'repo' && action === 'create') checkArgs = ['repo', 'list', rest[0].split('/')[0], '--limit', '100']
+  else if (group === 'repo' && action === 'fork') checkArgs = ['api', `/repos/${repo}/forks?per_page=100`]
   else if (action === 'create') checkArgs = [group, 'list', '--limit', '100', ...(['issue', 'pr'].includes(group) ? ['--state', 'all'] : [])]
   else checkArgs = [group, 'view', ...(group === 'repo' ? [] : [rest[0]]), ...(['issue', 'pr', 'discussion'].includes(group) ? ['--comments'] : [])]
   if (repo && !(group === 'repo' && action === 'fork')) checkArgs.push('-R', route === 'issue transfer' ? flags.get('to-repo')! : repo)
@@ -195,9 +206,14 @@ function readBack(call: ReturnType<typeof ghArguments>) {
 export function createGhAdapter(source: SecretSource, tokens = new GithubAppTokenCache()): Adapter<unknown> {
   return { name: 'gh-axi', executable: toolPaths['gh-axi'], credentialSchema: ghCredentialSchema, credentialProfile: ghProfile,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: ghManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
-    sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].filter(name => name !== 'repo').map(name => `--${name}`),
-      positions: args.map((_, index) => index).filter(index => index > 1 && !/^\d+$/.test(args[index])
-        && !args[index].startsWith('-') && args[index - 1] !== '-R' && args[index - 1] !== '--repo') }),
+    sensitiveArguments: args => {
+      const flags = [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].filter(name => name !== 'repo').map(name => `--${name}`)
+      if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) return { flags, positions: [] }
+      const { positionals, positionalIndices, route } = parseGhArguments(args)
+      const numericSelector = ['issue', 'pr', 'discussion', 'run', 'workflow', 'project'].includes(positionals[0])
+      return { flags, positions: positionalIndices.slice(route?.command.split(' ').length ?? positionals.length)
+        .filter((index, ordinal) => !(numericSelector && ordinal === 0 && /^\d+$/.test(args[index]))) }
+    },
     validateArgs: (args, input) => { ghArguments(args, input) },
     invalidateCredential: reference => tokens.replace(reference.id, reference.revision ?? 0),
     async prepare(args, reference, input): Promise<PreparedCall> {
@@ -215,7 +231,7 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
         && parsed.data.accessTokenExpiresAt <= Date.now()) throw new ArtiumError('CREDENTIAL_EXPIRED')
       const write = call.mutation ? readBack(call) : undefined
       if (call.mutation) {
-        const confirm = createHash('sha256').update(JSON.stringify({ args: call.args, input, reference, settings })).digest('hex')
+        const confirm = createHash('sha256').update(JSON.stringify({ args: call.args, input, reference, settings, checkArgs: write!.checkArgs })).digest('hex')
         if (!call.mutation.confirm) return { executable: toolPaths['gh-axi'], args: [], environment: {}, files: [], secrets: [],
           effect: 'read', preview: { operation: write!.operation, target: write!.target, confirm }, limits: { timeoutMs: runnerLimits.timeoutMs } }
         if (call.mutation.confirm !== confirm) throw new ArtiumError('INVALID_INPUT', 'Confirmation does not match this request, input, credential revision and write policy.', 'Preview the exact request again without --confirm.')
