@@ -12,8 +12,8 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
-See the [Hybrid Analysis capability boundary](../README.md#safety) for hosted download availability and [the approved design](hybrid-download-design.md) for the implemented transfer contract.
-Their internal artifact owner requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
+See the [supported capability boundaries](../README.md#safety) for hosted Hybrid Analysis and Check Point download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
+Both tools share an internal artifact owner that requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
 It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
 The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
 The executable host admission contract is in [src/server/artifacts.ts](../src/server/artifacts.ts); transfer limits are defined in [src/shared/api.ts](../src/shared/api.ts).
@@ -34,7 +34,7 @@ Artium does not automatically change AV/EDR policy.
 Security software can quarantine or lock even compressed samples, causing delivery failure, changed availability or blocked cleanup; resolve those failures under the approved narrowly scoped policy.
 Use a dedicated controlled Linux analysis client and dedicated private download directory, without sync, indexing or automatic opening.
 Keep subsequent analysis outside Artium.
-See [CLI archive saving](client-reference.md#hybrid-analysis-archive-saving) for destination requirements and verified saving, and [the account screen](admin-guide.md#browser-administration) for browser guidance and metadata.
+See CLI saving for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving) and [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) for destination requirements and verified saving, and [the account screen](admin-guide.md#browser-administration) for browser guidance and metadata.
 Live malware: this archive may contain executable malware.
 Save only; do not extract or execute.
 Password protection is unverified; bytes are saved exactly as provided.

@@ -88,8 +88,8 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
 | `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 
-For users granted Hybrid Analysis, `/account` also shows archive warnings, [CLI save guidance](client-reference.md#hybrid-analysis-archive-saving) and metadata for their latest 20 transfers, including delivery and client-save receipts.
-The browser receives no artifact bytes and never saves, renders, opens or executes an archive.
+For users granted Hybrid Analysis or Check Point, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving) and [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
+The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
 See the [capability boundary](../README.md#safety) for current availability.
 
 Administrator capability is separate from tool grants.
@@ -275,7 +275,7 @@ Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
-For hosted download availability, see the [Hybrid Analysis capability boundary](../README.md#safety).
+For hosted download availability, see the [supported capability boundaries](../README.md#safety).
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.

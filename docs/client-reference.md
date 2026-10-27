@@ -14,7 +14,7 @@
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
 | `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |
-| `artium-axi download --help` | Inspect the [archive-saving command](#hybrid-analysis-archive-saving). |
+| `artium-axi download --help` | Inspect saving for [Hybrid Analysis archives](#hybrid-analysis-archive-saving) and [Check Point emails and attachments](#check-point-email-and-attachment-saving). |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
 | `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
@@ -45,7 +45,7 @@ A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-a
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-The ADO, AWX, Azure, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
+The ADO, AWX, Azure, Check Point, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
 Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
 It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`) and `logs query` (also `monitor log-analytics query`) only with no uploaded file, positional query or explicit query flag (`--graph-query`, `-q`, `--analytics-query`).
@@ -214,7 +214,7 @@ Concurrent login or logout can produce `SESSION_CHANGED`; check the current sess
 Logout removes local tokens even if remote revocation fails, reporting `remoteRevocation: unverified` in that case.
 
 Certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZED=0`, and authenticated redirects are refused.
-For ordinary authenticated requests other than password changes and [archive saving](#hybrid-analysis-archive-saving), stored access tokens refresh under the session lock before use when expired or within 30 seconds of expiry.
+For ordinary authenticated requests other than password changes and `download`, stored access tokens refresh under the session lock before use when expired or within 30 seconds of expiry.
 An explicit pre-execution `TOKEN_EXPIRED` response still permits one serialized refresh and retry.
 A network failure or uncertain command outcome is never retried automatically.
 
@@ -250,7 +250,7 @@ The login server-version warning still appears on stderr when versions differ.
 If a local account requires a password change, fd 4 instead receives `{serverUrl, status: "password-change-required", passwordChangeToken, passwordChangeExpiresAt}` and the command returns `PASSWORD_CHANGE_REQUIRED` (exit 1).
 That restricted record is not valid managed-session input; the caller must complete the password change through the server API and sign in again.
 
-Except for [archive saving](#hybrid-analysis-archive-saving), an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
+Except for `download`, an explicit `TOKEN_EXPIRED` response permits a single refresh and retry of that request.
 Concurrent requests within one managed invocation share a refresh and rotation record.
 Without a refresh token, or if refresh is refused, the CLI returns the authentication error for the caller to handle.
 Network failures and uncertain outcomes are never automatically retried.
