@@ -530,6 +530,23 @@ test.each([
     .toEqual([replacement.clientSecret])
 })
 
+test.each([
+  { tool: 'checkpoint-axi', help: 'Check Point API region for your tenant, for example us.', otherHelp: 'Falcon API region, for example us-1.' },
+  { tool: 'falcon-axi', help: 'Falcon API region, for example us-1.', otherHelp: 'Check Point API region for your tenant, for example us.' },
+])('$tool credential page displays provider-specific region guidance', async ({ tool, help, otherHelp }) => {
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}`,
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain(`<p>${help}</p>`)
+  expect(page.body).not.toContain(otherHelp)
+})
+
 test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s without exposing secrets', async enabled => {
   for (const tool of ['falcon-axi', 'vectra-axi', 'az-axi'] as const) {
     expect((await request('PUT', `/${tool}/credential`, { value: values[tool], expectedRevision: 0, expectedToolRevision: 1 })).status).toBe(200)
