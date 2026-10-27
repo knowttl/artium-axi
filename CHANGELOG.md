@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.19](https://github.com/knowttl/artium-axi/compare/v0.0.18...v0.0.19) (2026-10-27)
+
+
+### Features
+
+* **tools:** upgrade Falcon and Tenable AXI releases ([#183](https://github.com/knowttl/artium-axi/issues/183)) ([7bd5251](https://github.com/knowttl/artium-axi/commit/7bd52511996a000993e7216fe27438d71e315724))
+
+
+### Bug Fixes
+
+* update bundled AXI tools to patched releases ([#181](https://github.com/knowttl/artium-axi/issues/181)) ([1fd9abb](https://github.com/knowttl/artium-axi/commit/1fd9abb66ca973586467b4b5f0288eba36dda996))
+
 ## [0.0.18](https://github.com/knowttl/artium-axi/compare/v0.0.17...v0.0.18) (2026-10-27)
 
 
