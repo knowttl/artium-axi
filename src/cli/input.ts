@@ -76,7 +76,7 @@ export async function toolInput(tool: string, original: string[]) {
     if (route) {
       for (let index = leading + route.command.split(' ').length; index < args.length; index++) {
         const token = args[index]
-        if (token === '--') { positional = index + 1 < args.length; break }
+        if (token === '--') { positional ||= index + 1 < args.length; break }
         if (!token.startsWith('-') || token === '-') { positional = true; continue }
         const raw = token.slice(token.startsWith('--') ? 2 : 1).split('=')[0]
         const expanded = token.startsWith('--') ? raw : (route.shortFlags as Partial<Record<string, string>>)[raw] ?? raw

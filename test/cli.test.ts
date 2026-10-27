@@ -822,6 +822,8 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
 test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list'],
   ['logs', 'query', '--workspace', 'synthetic', 'Heartbeat | count'],
   ['rg', 'query', '--limit=1', 'Resources | count'],
+  ['rg', 'query', 'Resources', '--'], ['logs', 'query', 'Resources', '--'],
+  ['graph', 'query', 'Resources', '--'], ['monitor', 'log-analytics', 'query', 'Heartbeat', '--'],
   ['graph', 'query', '--graph-query', 'Resources'], ['graph', 'query', '-q=Resources'],
   ['monitor', 'log-analytics', 'query', '--analytics-query=Heartbeat'],
   ['api', 'POST', '/synthetic', '--body', '{}'], ['api', 'POST', '/synthetic', '--data={}'],
