@@ -368,6 +368,22 @@ test('schema-driven replacement reaches the isolated runner and keeps secrets ou
 })
 
 test.each([
+  { enabledPacks: ['security'] }, { enabledPacks: ['entra', 'security'] },
+])('mg-axi rejects security packs without saving a credential: $enabledPacks', async ({ enabledPacks }) => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'calls'))
+  const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
+  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
+  app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(store) })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const value = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
+    auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks }
+  await failure(await request('PUT', '/mg-axi/credential', { value, expectedRevision: 0, expectedToolRevision: 1 }), 'INVALID_INPUT')
+  expect(store.findCredential('mg-axi')).toBeUndefined()
+})
+
+test.each([
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', tokenEnv: 'UNBOUND_TOKEN' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'https://appliance.test', clientId: 'synthetic' } },
@@ -378,6 +394,8 @@ test.each([
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate', thumbprintSha256: 'a'.repeat(64) } },
   { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'federated' } },
   { tool: 'mg-axi', value: { mode: 'delegated', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId } },
+  { tool: 'mg-axi', value: { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
+    auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks: ['entra', 'security'] } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test', token: 'CANARY interior token\n' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'token', origin: 'https://appliance.test/path', token: 'CANARY-token' } },
   { tool: 'vectra-axi', value: { kind: 'qux', apiVersion: '2.5', auth: 'oauth', origin: 'http://appliance.test', clientId: 'synthetic', clientSecret: 'CANARY-secret' } },
@@ -1069,21 +1087,21 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
     { name: 'falcon-axi', version: '0.7.2', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.9', health: { status: 'unconfigured' } },
-    { name: 'az-axi', version: '0.1.10', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.10', health: { status: 'disabled' } },
+    { name: 'az-axi', version: '0.1.11', health: { status: 'unconfigured' } },
+    { name: 'mg-axi', version: '0.1.12', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.0', health: { status: 'disabled' } },
-    { name: 'ado-axi', version: '0.4.6', health: { status: 'disabled' } },
+    { name: 'ado-axi', version: '0.4.7', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.8', health: { status: 'disabled' } },
-    { name: 'tenable-axi', version: '0.1.1', health: { status: 'disabled' } },
-    { name: 'hybrid-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'tenable-axi', version: '0.1.2', health: { status: 'disabled' } },
+    { name: 'hybrid-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])
   await failure(await request('POST', '', { executable: '/synthetic' }), 'NOT_FOUND')
 })
 test.each([
-  { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.10' },
-  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.10' },
+  { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.11' },
+  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.12' },
 ] as const)('$tool upgrade reports the bundled version while retaining configuration', async ({ tool, previousVersion, version }) => {
   const { tenantId, clientId, auth, clientSecret } = values[tool]
   const credential = { tenantId, clientId, auth, clientSecret }

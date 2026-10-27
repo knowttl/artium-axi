@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-ukWwVny4DeEBLqqWJhaM0au4Z5dvQTsDKoE2NhROIE3p114WUz2tT5dOfWL8MaalVrmU/zSMhk+S29sUocR3xg==",
+  "version": "0.1.2",
+  "integrity": "sha512-csjV0urIUbZZlkA9VQpEGbsOWOnLgZTFMi0yRQD3uGlmlyPIxA6gKyvMzifSqcRvfyOaBEv7U5OjcWL1rs5NAw==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -23,7 +23,7 @@
     },
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "d05c8dfebce3219c2ee0a305888fa336e62db5fc3b3b4bc95a27c0588943587b"
+      "sha256": "d99e739f4a9d61cf13c91fd18e69a248f639c33d3e2e5b37efb320f0f50cef16"
     },
     {
       "path": "dist/src/cli.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/exposure.js",
-      "sha256": "5e93b01dc54368627f1f7c1ac4a96579af2f4beae7c2b10189ba190cf5cc9af6"
+      "sha256": "ef5fbe0d3525b741cc14a51b2ab9cc0cbd5289a1ec97fe01312b4d351beaf0b0"
     },
     {
       "path": "dist/src/hook-install.js",
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/src/inventory-catalogue.js",
-      "sha256": "ccd42834a43aabffbd90e7326926660e9cff788997ab836cb2eb858fc36f1119"
+      "sha256": "a0cc6abc55f11815fbacf4e7f869ce0e70e06f678ebbb012afe7500a26fb4de8"
     },
     {
       "path": "dist/src/inventory-export-catalogue.js",
@@ -59,7 +59,7 @@
     },
     {
       "path": "dist/src/inventory.js",
-      "sha256": "83bd3b19b1ad54785fdf107b57a66ffc882141706337bb886108b67f75565bb1"
+      "sha256": "bc712463ee14db76ff511c4b3ec8d6cadd43b3895e08f1baee785fe3a415916f"
     },
     {
       "path": "dist/src/inventory/schema.js",
@@ -67,7 +67,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "4bb2769049b72126c47857f850b3cd008a371f952c479e0b288d5279d7aaa77a"
+      "sha256": "4169d7a4bc6753d202d515b488ca8863b7368e31e8166f9e958c2fd1c6b05d22"
     },
     {
       "path": "dist/src/platform-tag-catalogue.js",
@@ -79,11 +79,11 @@
     },
     {
       "path": "dist/src/private-file.js",
-      "sha256": "a5f01182fe09394ecf508deb46d54c9fb0b39c9fd205094d155ace212bbd1c8b"
+      "sha256": "436847d36438fa3d73edfbd45cb14faf9935308230fb8b24573926b7f07b6979"
     },
     {
       "path": "dist/src/profiles.js",
-      "sha256": "12defbf234e4da8584e1f6ba601eb3826733ff85c76445197b0162ac52299b4a"
+      "sha256": "b52aa17032f025a81682f0459dcdbed45cf0ed84e10e5aefe31677c31f26414a"
     },
     {
       "path": "dist/src/redact.js",
@@ -290,14 +290,14 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated display or wire properties; display names: id, name, class, exposureScore; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
         "cursor": "Opaque resume cursor; retain the original selectors and filters",
         "query": "Simple query text",
-        "filter": "Repeatable: <property> <operator> <JSON string array>",
+        "filter": "Repeatable: <property> <operator> <JSON string array>, e.g. asset_class = [\"DEVICE\"]",
         "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
         "sort": "Wire property:asc|desc",
         "extra-properties": "Comma-separated extra wire properties",
@@ -311,7 +311,7 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated output fields; accepted: key, readable_name, operators, sortable, filterable, control, description; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
@@ -326,7 +326,7 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated display or wire properties; display names: id, name, class, exposureScore; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "id": "Required exact inventory ID",
@@ -376,7 +376,7 @@
       "command": "auth status",
       "effect": "read",
       "flags": {
-        "config": "Config path; default TENABLE_AXI_CONFIG or platform path",
+        "config": "Config path; default environment override or platform path",
         "profile": "Profile name; default credential precedence",
         "fields": "Comma-separated output fields; default all",
         "full": "Show full text; default false",
@@ -719,14 +719,14 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
         "cursor": "Opaque resume cursor; retain the original selectors and filters",
         "query": "Simple query text",
-        "filter": "Repeatable: <property> <operator> <JSON string array>",
+        "filter": "Repeatable: <property> <operator> <JSON string array>, e.g. severity = [\"HIGH\"]",
         "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
         "sort": "Wire property:asc|desc",
         "extra-properties": "Comma-separated extra wire properties",
@@ -739,7 +739,7 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated output fields; accepted: key, readable_name, operators, sortable, filterable, control, description; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
@@ -753,7 +753,7 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "id": "Required exact inventory ID",
@@ -879,14 +879,14 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated display or wire properties; display names: name, version, publisher; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
         "cursor": "Opaque resume cursor; retain the original selectors and filters",
         "query": "Simple query text",
-        "filter": "Repeatable: <property> <operator> <JSON string array>",
+        "filter": "Repeatable: <property> <operator> <JSON string array>, e.g. application = [\"example-app\"]",
         "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
         "sort": "Wire property:asc|desc",
         "extra-properties": "Comma-separated extra wire properties",
@@ -899,7 +899,7 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; default compact view",
+        "fields": "Comma-separated output fields; accepted: key, readable_name, operators, sortable, filterable, control, description; default compact view",
         "full": "Show full text; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",

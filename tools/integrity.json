@@ -1,23 +1,23 @@
 {
   "@knowttl/hybrid-axi": {
-    "version": "0.1.0",
-    "integrity": "sha512-eQdks/92bP8wCn7mpLGqkl5bAI/kYLgRzrRXumtuwpe4sQytNXuAiXY/lNyTYdPT6/WXEFGL9JoaTwWA37F01A=="
+    "version": "0.1.1",
+    "integrity": "sha512-8K39EZadEq302GcuCKrWmdKJ6NvtFegpGWiStTF8T8gn+lbzbYNiBnRMt5lI0o+hCm7glUdOFahZqw62ylpi7w=="
   },
   "@knowttl/tenable-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-ukWwVny4DeEBLqqWJhaM0au4Z5dvQTsDKoE2NhROIE3p114WUz2tT5dOfWL8MaalVrmU/zSMhk+S29sUocR3xg=="
+    "version": "0.1.2",
+    "integrity": "sha512-csjV0urIUbZZlkA9VQpEGbsOWOnLgZTFMi0yRQD3uGlmlyPIxA6gKyvMzifSqcRvfyOaBEv7U5OjcWL1rs5NAw=="
   },
   "awx-axi": {
     "version": "0.1.8",
     "integrity": "sha512-tkheZgSTjs6nZT3KWo0e/+SH43ZacfvZpo7COktmpIs8lNr8VLhUtrGARz+mvwj8pov4zscdfmxAHL/8V025Bw=="
   },
   "@jeffreyhaen/ado-axi": {
-    "version": "0.4.6",
-    "integrity": "sha512-DThi4K9uO/jz93QQMBXtpnCXeHaYsOWSt6TFdYGhnqDN8aScow3bwbhVTIg4KEMVT0KHPYPdH00V9UOPX0c2fA=="
+    "version": "0.4.7",
+    "integrity": "sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw=="
   },
   "@knowttl/az-axi": {
-    "version": "0.1.10",
-    "integrity": "sha512-9RGnZrFOKpCIMC66nwxpWAzFLYrNlUJqaZWz8i/W1WexcP3sRj6BK4JWg0loc4zn+X7QKHRynKIx3pkdDOpTyw=="
+    "version": "0.1.11",
+    "integrity": "sha512-XiCwLaSh6A6xb9sk7RQ7T3FvkYpkWFIoGUCi7HxYlHF4kssVpF5gun4V7Taw9eKcm0HEWftnLci9l4EBSaFj0w=="
   },
   "@knowttl/vectra-axi": {
     "version": "0.1.9",
@@ -28,7 +28,7 @@
     "integrity": "sha512-QVectHNsRxYWNBf0im5DjeN78mcgK0Te0Sxh7uXGNb+AhQjsS5ywiCrnKAk0/INA/oxiZ1TiXaDX7jHAg5OvDg=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.10",
-    "integrity": "sha512-rsd8KjyXxojDF3Gu6C95xsJokATeEmUaIRO7Zcaw9h/sF9WLXpW/gh6tKB1niU2QTGe2tsZjPsqXvzpyG34UUA=="
+    "version": "0.1.12",
+    "integrity": "sha512-TBt2y2rpfn8oi4YOq95uIo43RTsV/iOc0xFa3e3YCjhqd/ZL/y2is+7W0+B5/g1sdwb95yJbcU1eqeJEzmKJ5g=="
   }
 }

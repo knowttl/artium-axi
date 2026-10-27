@@ -69,7 +69,7 @@ test('every classified route, alias and default dispatches through the pinned bi
       recovery: { response: { relations: expect.arrayContaining([expect.objectContaining({ rel: 'System.LinkTypes.Related' })]) } } },
     { command: 'pr list', values: [], method: 'GET', path: `${project}/_apis/git/pullrequests`,
       result: { 'pull-requests': [{ id: 42, title: 'Synthetic PR' }] } },
-    { command: 'pr get', values: ['42'], method: 'GET', path: `${org}/_apis/git/pullrequests/42`,
+    { command: 'pr get', values: ['42'], method: 'GET', path: `${project}/_apis/git/pullrequests/42`,
       result: { 'pull-request': { id: 42, title: 'Synthetic PR' } } },
     { command: 'pr create', values: [...repo, '--source', 'feature', '--title', 'Synthetic created PR'], method: 'POST', path: `${git}/pullrequests`,
       body: { title: 'Synthetic created PR', sourceRefName: 'refs/heads/feature', targetRefName: 'refs/heads/main' },
@@ -201,7 +201,7 @@ test('every classified route, alias and default dispatches through the pinned bi
         ['--help', '--project=Other Project'], ['--version'], ['-v'], ['pr', 'reviewer', '--help'], ['pr', 'update', '42', '--help']]) {
         const result = await runPinned(runner, port, await adapter(false).prepare(args, reference))
         expect(result.exitCode, result.stdout).toBe(0)
-        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.4.6')
+        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.4.7')
       }
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
     } finally { await runner.shutdown() }

@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.10",
-  "integrity": "sha512-rsd8KjyXxojDF3Gu6C95xsJokATeEmUaIRO7Zcaw9h/sF9WLXpW/gh6tKB1niU2QTGe2tsZjPsqXvzpyG34UUA==",
+  "version": "0.1.12",
+  "integrity": "sha512-TBt2y2rpfn8oi4YOq95uIo43RTsV/iOc0xFa3e3YCjhqd/ZL/y2is+7W0+B5/g1sdwb95yJbcU1eqeJEzmKJ5g==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "9526463c1fff30f32a30a58dffbbb2e3d6eaf21a3e06edb904f223d7a535da4d",
+  "packageManifestSha256": "e686938dd356bffe87d9884d656a139b91e7eb6d62370f6aba3b5fd14283fb45",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -42,7 +42,7 @@
   "environmentSources": [
     {
       "path": "dist/profiles.js",
-      "sha256": "97c12ad60bc54bb4180c12eda9a324411070ad08a2cf4555db12eaade1ef3f30"
+      "sha256": "5a683251d3427b1642a3d60b5168ae56656506d12aae614ad4469dde6c6d624e"
     },
     {
       "path": "dist/mutations.js",
@@ -82,7 +82,7 @@
     "sources": [
       {
         "path": "dist/profiles.js",
-        "sha256": "97c12ad60bc54bb4180c12eda9a324411070ad08a2cf4555db12eaade1ef3f30"
+        "sha256": "5a683251d3427b1642a3d60b5168ae56656506d12aae614ad4469dde6c6d624e"
       },
       {
         "path": "dist/mutations.js",
@@ -161,15 +161,15 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "4f7710d0feb1bdaeaae1ae68f4e9e41d67f77f20620b824d2f44a95f2c63ee31"
+        "sha256": "b6a764b7e50c3f4c84d40dcef1290a2e6a784fe73809977d6b04c06884b7a516"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "19485f95fc3eeb5447fe05a55eec028dcf5d3c4e17a12f3bee1e0cffc239f00d"
+        "sha256": "613fc3ac4870e5538d2c53b0760244c7e3bb3837fa3d97c1b89b7916c557af44"
       },
       {
         "path": "dist/profiles.js",
-        "sha256": "97c12ad60bc54bb4180c12eda9a324411070ad08a2cf4555db12eaade1ef3f30"
+        "sha256": "5a683251d3427b1642a3d60b5168ae56656506d12aae614ad4469dde6c6d624e"
       },
       {
         "path": "dist/msal-app-provider.js",
@@ -237,11 +237,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "4f7710d0feb1bdaeaae1ae68f4e9e41d67f77f20620b824d2f44a95f2c63ee31"
+        "sha256": "b6a764b7e50c3f4c84d40dcef1290a2e6a784fe73809977d6b04c06884b7a516"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "19485f95fc3eeb5447fe05a55eec028dcf5d3c4e17a12f3bee1e0cffc239f00d"
+        "sha256": "613fc3ac4870e5538d2c53b0760244c7e3bb3837fa3d97c1b89b7916c557af44"
       }
     ]
   },
@@ -343,6 +343,9 @@
       "name": "fields"
     },
     {
+      "name": "file"
+    },
+    {
       "name": "filter"
     },
     {
@@ -434,6 +437,9 @@
     },
     {
       "name": "tenant-id"
+    },
+    {
+      "name": "timespan"
     },
     {
       "name": "transitive"
@@ -4774,6 +4780,20 @@
         "description": "Server-relative Graph path, e.g. /users",
         "required": true
       }
+    },
+    {
+      "command": "security hunting query",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "file": "value",
+        "timespan": "value",
+        "limit": "value",
+        "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": false
     },
     {
       "command": "login",

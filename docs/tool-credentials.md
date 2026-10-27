@@ -141,11 +141,12 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.10/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.12/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 
 In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
+Keep `enabledPacks` set to `["entra"]`, matching the [managed capability boundary](../README.md#safety).
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
 Save, run **Test credential**, follow the [activation requirements](admin-guide.md#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
