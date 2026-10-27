@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.2",
-  "integrity": "sha512-csjV0urIUbZZlkA9VQpEGbsOWOnLgZTFMi0yRQD3uGlmlyPIxA6gKyvMzifSqcRvfyOaBEv7U5OjcWL1rs5NAw==",
+  "version": "0.1.3",
+  "integrity": "sha512-1Ji117XJv7tssAgqq0vQyQP6m3llQdqOoM6TG7tmMrma9iH9tqq+eESkXGnmHqUuJFjlS8TyyctViWk+zpTTjA==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
       "path": "dist/src/attack-catalogue.js",
-      "sha256": "022f9d46c0e0a76b62ed528b17552fccae9634208698e541146f8af2f6107316"
+      "sha256": "8e691131c15c0a25703a2f3c53f9e6f081b13d83e41b132df47f0196b9f3a192"
     },
     {
       "path": "dist/src/attack-export-catalogue.js",
@@ -19,11 +19,11 @@
     },
     {
       "path": "dist/src/attack.js",
-      "sha256": "76905fe54d1038ffbaa6b4a82b4cb4fadb6473462d28679319a98ab7cdd08650"
+      "sha256": "9e37ff7bb1371f3b16b36fe18ecc0286f6f89956d96d3b243c7c37538a9504be"
     },
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "d99e739f4a9d61cf13c91fd18e69a248f639c33d3e2e5b37efb320f0f50cef16"
+      "sha256": "44e7f1adc29b56741b71af0fb1b95239f4fa7c0293f137b8fb9e5e03befcbd72"
     },
     {
       "path": "dist/src/cli.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/exposure.js",
-      "sha256": "ef5fbe0d3525b741cc14a51b2ab9cc0cbd5289a1ec97fe01312b4d351beaf0b0"
+      "sha256": "db005db00fbf1dba311bad8e78a872836994909a9ce46b9bd8d498d72cfc7d2d"
     },
     {
       "path": "dist/src/hook-install.js",
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/src/inventory-catalogue.js",
-      "sha256": "a0cc6abc55f11815fbacf4e7f869ce0e70e06f678ebbb012afe7500a26fb4de8"
+      "sha256": "9000156bdbc7e9e8a461f89a602f6fa1e9d7217eabe30a67195be79442f8afe6"
     },
     {
       "path": "dist/src/inventory-export-catalogue.js",
@@ -59,7 +59,7 @@
     },
     {
       "path": "dist/src/inventory.js",
-      "sha256": "bc712463ee14db76ff511c4b3ec8d6cadd43b3895e08f1baee785fe3a415916f"
+      "sha256": "700efba15d086ba88be5444d66f131c9d7482e198dfd050eefc7ecd4f1b96bfe"
     },
     {
       "path": "dist/src/inventory/schema.js",
@@ -201,7 +201,7 @@
       }
     }
   },
-  "skillSha256": "ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a",
+  "skillSha256": "788b612b4b89f6e390e42ca1619da3a7c146599284ff8ebd69c9e5e42aae5ae0",
   "nativeWriteSettings": {
     "supportedOperations": [
       "apa-export-attack-path",
@@ -291,7 +291,7 @@
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
         "fields": "Comma-separated display or wire properties; display names: id, name, class, exposureScore; default compact view",
-        "full": "Show full text; default false",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
@@ -299,7 +299,7 @@
         "query": "Simple query text",
         "filter": "Repeatable: <property> <operator> <JSON string array>, e.g. asset_class = [\"DEVICE\"]",
         "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
-        "sort": "Wire property:asc|desc",
+        "sort": "Sortable display or wire property:asc|desc; unknown names report valid choices",
         "extra-properties": "Comma-separated extra wire properties",
         "offset": "Starting record; default 0; excludes --cursor",
         "class": "Server-side asset class filter"
@@ -312,7 +312,7 @@
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
         "fields": "Comma-separated output fields; accepted: key, readable_name, operators, sortable, filterable, control, description; default compact view",
-        "full": "Show full text; default false",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
@@ -326,8 +326,8 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; display names: id, name, class, exposureScore; default compact view",
-        "full": "Show full text; default false",
+        "fields": "Comma-separated display or wire properties; display names: id, name, class, exposureScore, fqdns, last_observed_at; default compact view",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "id": "Required exact inventory ID",
         "extra-properties": "Comma-separated extra wire properties"
@@ -719,8 +719,8 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state; default compact view",
-        "full": "Show full text; default false",
+        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state, sensor_type; default compact view",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
@@ -728,7 +728,7 @@
         "query": "Simple query text",
         "filter": "Repeatable: <property> <operator> <JSON string array>, e.g. severity = [\"HIGH\"]",
         "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
-        "sort": "Wire property:asc|desc",
+        "sort": "Sortable display or wire property:asc|desc; unknown names report valid choices",
         "extra-properties": "Comma-separated extra wire properties",
         "offset": "Starting record; default 0; excludes --cursor"
       }
@@ -740,7 +740,7 @@
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
         "fields": "Comma-separated output fields; accepted: key, readable_name, operators, sortable, filterable, control, description; default compact view",
-        "full": "Show full text; default false",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
@@ -753,11 +753,20 @@
       "flags": {
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
-        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state; default compact view",
-        "full": "Show full text; default false",
+        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state, sensor_type, asset_id, cves; default compact view",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "id": "Required exact inventory ID",
         "extra-properties": "Comma-separated extra wire properties"
+      }
+    },
+    {
+      "command": "finding summary",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "help": "Show help"
       }
     },
     {
@@ -880,7 +889,7 @@
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
         "fields": "Comma-separated display or wire properties; display names: name, version, publisher; default compact view",
-        "full": "Show full text; default false",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
@@ -888,7 +897,7 @@
         "query": "Simple query text",
         "filter": "Repeatable: <property> <operator> <JSON string array>, e.g. application = [\"example-app\"]",
         "filter-file": "JSON flat array of {property, operator, value: string[]}; '-' reads stdin; excludes --filter",
-        "sort": "Wire property:asc|desc",
+        "sort": "Sortable display or wire property:asc|desc; unknown names report valid choices",
         "extra-properties": "Comma-separated extra wire properties",
         "offset": "Starting record; default 0; excludes --cursor"
       }
@@ -900,7 +909,7 @@
         "config": "Config path; default credential precedence",
         "profile": "Profile name; default credential precedence",
         "fields": "Comma-separated output fields; accepted: key, readable_name, operators, sortable, filterable, control, description; default compact view",
-        "full": "Show full text; default false",
+        "full": "Show untruncated text; does not add fields or rows; default false",
         "help": "Show help",
         "limit": "Maximum emitted rows, 1-10000; default 100",
         "all": "Read up to 10000 rows within invocation budgets; excludes --limit",

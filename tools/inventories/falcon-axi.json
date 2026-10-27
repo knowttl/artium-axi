@@ -2,13 +2,13 @@
   "generatedBy": "scripts/falcon-inventory.mjs",
   "tool": "falcon-axi",
   "repository": "https://github.com/knowttl/falcon-axi.git",
-  "tag": "v0.7.3",
-  "commit": "acacca678fd821a38a998dbbfc5a4e2e1edd6705",
-  "version": "0.7.3",
+  "tag": "v0.7.4",
+  "commit": "bca4a08c71beb415e3fabb37443aea8ad61bc08c",
+  "version": "0.7.4",
   "distribution": {
-    "filename": "falcon_axi-0.7.3-py3-none-any.whl",
-    "sha256": "acad48bc43a5c005d4716325d8a696c9694cdd3d423e99576ecb73b2d4e41060",
-    "provenance": "https://pypi.org/integrity/falcon-axi/0.7.3/falcon_axi-0.7.3-py3-none-any.whl/provenance"
+    "filename": "falcon_axi-0.7.4-py3-none-any.whl",
+    "sha256": "bce4cfb033fd6537eb8a518fe3286799884f6b7a5ef95faffc347ac6c336d28e",
+    "provenance": "https://pypi.org/integrity/falcon-axi/0.7.4/falcon_axi-0.7.4-py3-none-any.whl/provenance"
   },
   "parser": {
     "path": "falcon_axi/cli.py",
@@ -287,7 +287,9 @@
         "profile": "value",
         "filter": "value",
         "limit": "value",
-        "cursor": "value"
+        "cursor": "value",
+        "fields": "value",
+        "full": "boolean"
       },
       "input": "No file or raw URL input; cursors and queries remain native values"
     },

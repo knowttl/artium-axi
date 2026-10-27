@@ -10,7 +10,7 @@ import type { ToolName } from './store/credential-store.js'
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
   'hybrid-axi': { sha256: '0dc43810bcc0774457a33dba2454849e2c8588f0607bd770b30fefe09cd0d26c', sections: [] },
-  'tenable-axi': { sha256: 'ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a', sections: [] },
+  'tenable-axi': { sha256: '788b612b4b89f6e390e42ca1619da3a7c146599284ff8ebd69c9e5e42aae5ae0', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
   'az-axi': { sha256: '480265a76475dc5ca0697a9447938822601ba4ee0495bc90c01a99cfd9b51acf', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
