@@ -75,7 +75,8 @@ For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the lo
 Local paths containing a `..` component are refused.
 The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.
 Other Graph commands do not upload local files; hunting help and version requests leave local files and stdin unread.
-See the [Graph capability boundary](../README.md#safety) for the hunting command, content limits and administrator opt-in.
+For Graph collection commands, including mail lists, the run API accepts the cursor token in `stdin` with `--cursor -`; the bundled CLI does not capture Graph cursor stdin, so use `--cursor <token>` there.
+See the [Graph capability boundary](../README.md#safety) for supported mail reads, hunting, content limits and administrator opt-in.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.

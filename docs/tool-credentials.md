@@ -147,7 +147,8 @@ Keep `allowWrites` false unless writes are wanted and the corresponding Azure ro
 
 On the app registration, open **API permissions > Add a permission > Microsoft Graph > Application permissions**.
 Add `User.Read.All` for Artium's credential test and first user read, then have an authorized administrator [grant tenant-wide admin consent](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/grant-admin-consent).
-Add only the application permissions for the additional command families you intend to use, and grant admin consent again after changes.
+For command families other than mail, add only the application permissions you intend to use, and grant admin consent again after changes.
+Mailbox authorization uses the scoped Exchange roles below instead of Entra mail application grants.
 Delegated permissions and interactive `User.Read` consent do not authorize this application flow.
 
 | Optional read area | Graph application permissions |
@@ -173,9 +174,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 
 For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.14/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 
-For mailbox reads, opt in with `enabledPacks: ["entra", "mail"]` in managed tool settings.
-Entra remains required and the default; `security` may also be selected.
-Artium uses application authentication only, so pass a mailbox user ID or UPN, never `me`.
+For mailbox opt-in, supported reads and mailbox selectors, see the [managed capability boundary](../README.md#safety).
 Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
 Keep `User.Read.All` for the credential test, which cannot verify mail authorization or scope.
 
@@ -191,13 +190,11 @@ Use the Enterprise application's service-principal object ID when registering it
 Check an included and an excluded synthetic mailbox with `Test-ServicePrincipalAuthorization`; it bypasses the authorization cache, while runtime permission changes may take 30 minutes to two hours.
 Do not create Application Access Policies, which RBAC for Applications replaces.
 Live authorization and scope acceptance remain unverified by offline checks.
-Mail writes, sending, permanent deletion and downloads are unavailable through the managed read surface.
 Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 
 In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
-For the default pack and administrator opt-in to Defender XDR hunting, see the [managed capability boundary](../README.md#safety).
-Security-only profiles are refused so existing Entra reads and credential tests remain available.
+Profiles without `entra` are refused so existing Entra reads and credential tests remain available; see the [managed capability boundary](../README.md#safety) for pack selection and Defender XDR hunting.
 The app registration used by Artium requires `ThreatHunting.Read.All` with administrator consent; tenant acceptance remains unverified.
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
