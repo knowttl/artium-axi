@@ -45,21 +45,7 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 // The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false): string {
   if (truncated) return output
-  if (tool === 'gh-axi') {
-    try {
-      const json = output.trimStart().startsWith('{')
-      const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
-      if (['AUTH_REQUIRED', 'FORBIDDEN'].includes(String(document.code)) && typeof document.error === 'string') {
-        const managed = { ...document, error: 'GitHub authentication or permission check failed.',
-          help: ['Ask an Artium administrator to reconnect the GitHub credential and check its permissions.'] }
-        return (json ? JSON.stringify(managed) : encode(managed)) + '\n'
-      }
-    } catch { /* Plain command help follows the managed help path below. */ }
-  }
-  if (tool === 'gh-axi' && /^usage: gh-axi /m.test(output)) {
-    return encode({ commands: gh.commands.map(route => route.command),
-      help: [gh.discovery.help.replaceAll('gh-axi ', 'artium-axi gh-axi ')] }) + '\n'
-  }
+  if (tool === 'gh-axi') return output
   if (tool === 'checkpoint-axi') {
     try {
       const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], bin?: string, commands?: unknown }
@@ -259,8 +245,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
   }
   if (tool === 'gh-axi') {
     const guidance = 'Artium manages the GitHub host and credential. Ask an Artium administrator to reconnect the GitHub credential. Only reviewed reads are available; use -R OWNER/NAME for repository reads. api accepts GET and relative paths only.'
-    if (commands) help = gh.discovery.help
-    else help = help.split('\n').filter(line => !/\bgh auth\b|\bGH_[A-Z_]+\b|gh-axi (?:update|setup|stack)|--(?:hostname|watch|attach|input|field|raw-field|header|body-file|notes-file)\b/.test(line)).join('\n')
+    help = help.split('\n').filter(line => !/\bgh auth\b|\bGH_[A-Z_]+\b|gh-axi (?:update|setup|stack)|--(?:hostname|watch|attach|input|field|raw-field|header|body-file|notes-file)\b/.test(line)).join('\n')
     if (!help.trim()) help = guidance
     else if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }

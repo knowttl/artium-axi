@@ -56,7 +56,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
       : positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('gh-axi', positionals, inventory.commands.map(route => route.command))
   const rest = positionals.slice(route.command === 'home' && !positionals.length ? 0 : route.command.split(' ').length)
-  if (rest.length > route.positionals || rest.some(value => /[\x00-\x1f\x7f]/.test(value))) throw new ArtiumError('INVALID_INPUT')
+  if (route.positionals !== 'variadic' && rest.length > Number(route.positionals) || rest.some(value => /[\x00-\x1f\x7f]/.test(value))) throw new ArtiumError('INVALID_INPUT')
   for (const name of flags.keys()) if (!Object.hasOwn(route.flags, name)) {
     throw unknownFlag('gh-axi', route.command, `--${name}`, Object.keys(route.flags))
   }
@@ -81,7 +81,8 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   const command = route.command === 'home' ? [] : route.command.split(' ')
   return { args: [...command, ...rest, ...[...flags].flatMap(([name, value]) => allFlags[name] === 'boolean'
-    ? [`--${name}`] : [`--${name}=${value}`])], invocation: { command: route.command, help: flags.has('help') } }
+    ? [`--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
+      ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help: flags.has('help') } }
 }
 
 export function createGhAdapter(source: SecretSource): Adapter<unknown> {

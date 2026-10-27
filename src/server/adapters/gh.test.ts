@@ -11,6 +11,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 import { prepareRunJournal } from './run-journal.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
+import { hostedStatus } from './hosted-status.js'
 
 const reference = { id: 'synthetic-github', tool: 'gh-axi' as const, revision: 1 }
 const credential = { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }
@@ -84,29 +85,121 @@ test('exposes the origin and API endpoint for trust inspection', () => {
   expect(() => ghWritePolicy.update({}, { enabled: true, expectedRevision: 1 })).toThrow()
 })
 
-test.each(['api', 'issue', 'pr', 'gist', '--help'])('rewrites published %s help with the managed read boundary', command => {
+test.each(['api', 'issue', 'pr', 'gist', '--help', 'discussion view'])('rewrites published %s help with the managed read boundary', async command => {
+  const args = command === '--help' ? ['--help'] : [...command.split(' '), '--help']
   const output = spawnSync(process.execPath, ['tools/node_modules/gh-axi/dist/bin/gh-axi.js',
-    ...command === '--help' ? ['--help'] : [command, '--help']], { encoding: 'utf8' })
+    ...args], { encoding: 'utf8' })
   expect(output.status, output.stderr).toBe(0)
-  const rewritten = rewriteSuggestions(output.stdout, 'gh-axi')
+  const call = await adapter.prepare(args, reference)
+  const rewritten = rewriteSuggestions(hostedStatus('gh-axi', call.invocation, { ...result, stdout: output.stdout }).stdout, 'gh-axi')
   expect(rewritten).toContain('artium-axi gh-axi')
   expect(rewritten).not.toMatch(/gh auth|--hostname|gh-axi (?:setup|update|stack)|--watch/)
 })
 
-test('rewrites auth hints without changing resource data', () => {
+test.each([
+  { args: ['discussion', 'view', '--help'], syntax: 'discussion view', flags: ['--comments', '--limit <value>', '--order <value>'] },
+  { args: ['api', '--help'], syntax: 'api [GET] <relative-path>', flags: ['--jq <value>', '--template <value>', '--full'] },
+])('exposes reviewed command help for $syntax', async ({ args, syntax, flags }) => {
+  const call = await adapter.prepare(args, reference)
+  const output = hostedStatus('gh-axi', call.invocation, result)
+  const document = decode(output.stdout) as { commands: string[] }
+  expect(document.commands).toHaveLength(1)
+  expect(document.commands[0]).toContain(`artium-axi gh-axi ${syntax}`)
+  expect(document.commands[0]).toEqual(expect.stringContaining(flags[0]))
+  expect(document.commands[0]).toEqual(expect.stringContaining(flags[1]))
+  expect(document.commands[0]).toEqual(expect.stringContaining(flags[2]))
+})
+
+test('preserves resource help fields', () => {
   const original = { body: 'gh auth login', help: ['Run gh auth login', 'Run gh auth refresh -s repo'] }
   const output = decode(rewriteSuggestions(encode(original), 'gh-axi')) as typeof original
   expect(output.body).toBe(original.body)
-  expect(output.help).toEqual(Array(2).fill(expect.stringContaining('administrator to reconnect')))
+  expect(output.help).toEqual(original.help)
   expect(toolView({ name: 'gh-axi', version: '0.1.44', status: 'unconfigured' })).toContain('artium-axi gh-axi repo list')
 })
 
-test.each(['json', 'toon'])('replaces upstream auth diagnostics in %s output', format => {
-  const document = { error: 'GitHub auth required - run gh auth login first', code: 'AUTH_REQUIRED' }
-  const output = rewriteSuggestions(format === 'json' ? JSON.stringify(document) : encode(document), 'gh-axi')
+test.each([
+  { format: 'json', code: 'AUTH_REQUIRED', stream: 'stdout' },
+  { format: 'toon', code: 'AUTH_REQUIRED', stream: 'stderr' },
+  { format: 'json', code: 'FORBIDDEN', stream: 'stderr' },
+  { format: 'toon', code: 'FORBIDDEN', stream: 'stdout' },
+] as const)('replaces upstream $code diagnostics in $format $stream', ({ format, code, stream }) => {
+  const document = { error: 'GitHub auth required - run gh auth login first', code }
+  const serialized = format === 'json' ? JSON.stringify(document) : encode(document) + '\nhelp[1]:\n  Run gh auth login'
+  const output = hostedStatus('gh-axi', { command: 'api', help: false }, { ...result, exitCode: 1, [stream]: serialized })[stream]
   const managed = format === 'json' ? JSON.parse(output) : decode(output)
-  expect(managed).toMatchObject({ code: 'AUTH_REQUIRED', help: [expect.stringContaining('administrator to reconnect')] })
+  expect(managed).toMatchObject({ code, help: [expect.stringContaining('administrator to reconnect')] })
   expect(output).not.toContain('gh auth')
+})
+
+const result = { stdout: '', stderr: '', exitCode: 0, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 },
+  timedOut: false, truncated: { stdout: false, stderr: false } }
+
+test.each([
+  'A resource body\nusage: gh-axi api [<method>] <path>',
+  JSON.stringify({ code: 'FORBIDDEN', error: 'resource data', help: ['gh auth login'] }),
+  encode({ code: 'AUTH_REQUIRED', error: 'resource data', help: ['gh auth login'] }),
+])('preserves successful API resource content: %s', async stdout => {
+  const call = await adapter.prepare(['api', '/repos/canary/repo/issues/1', '--jq', '.body'], reference)
+  const hosted = hostedStatus('gh-axi', call.invocation, { ...result, stdout, stderr: stdout })
+  expect(rewriteSuggestions(hosted.stdout, 'gh-axi')).toBe(stdout)
+  expect(rewriteSuggestions(hosted.stderr, 'gh-axi')).toBe(stdout)
+})
+
+async function executeHostedGh(args: string[]) {
+  const directory = mkdtempSync(join(tmpdir(), 'artium-gh-read-'))
+  try {
+    const fake = join(directory, 'gh.mjs')
+    copyFileSync('test/fixtures/fake-gh.mjs', fake)
+    chmodSync(fake, 0o755)
+    const call = await adapter.prepare(args, reference)
+    const child = spawnSync(process.execPath, [resolve('tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args], {
+      cwd: directory, encoding: 'utf8', env: { PATH: process.env.PATH, ...call.environment,
+        GH_BIN: fake, TMPDIR: directory },
+    })
+    expect(child.status, child.stdout + child.stderr).toBe(0)
+    return hostedStatus('gh-axi', call.invocation, { ...result, stdout: child.stdout, stderr: child.stderr })
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+}
+
+test.each([
+  ['--job', '456', '--conclusion', 'failure'],
+  ['--job=456', '--conclusion=failure'],
+])('preserves run job and conclusion selections: %j', async (...flags) => {
+  const output = await executeHostedGh(['run', 'view', '123', '-R', 'canary/repo', ...flags])
+  expect(decode(output.stdout)).toMatchObject({ job: { id: 456, conclusion: 'failure' } })
+  expect(output.stdout).not.toContain('successful-job')
+})
+
+test('preserves a conclusion filter without a job selector', async () => {
+  const output = await executeHostedGh(['run', 'view', '123', '-R', 'canary/repo', '--conclusion=failure'])
+  expect(output.stdout).toContain('failed-job')
+  expect(output.stdout).not.toContain('successful-job')
+})
+
+test('preserves an unfiltered run view', async () => {
+  const output = await executeHostedGh(['run', 'view', '123', '-R', 'canary/repo'])
+  expect(output.stdout).toContain('failed-job')
+  expect(output.stdout).toContain('successful-job')
+})
+
+test.each(['--log', '--verbose', '--log-failed'])('returns an honest hosted tail for %s', async mode => {
+  const output = await executeHostedGh(['run', 'view', '123', '-R', 'canary/repo', '--job=456', mode])
+  const document = decode(output.stdout) as { run_log: { output: string }, help: string[] }
+  expect(document.run_log).toMatchObject({ truncated: true, original_length: expect.any(Number) })
+  expect(document.run_log).not.toHaveProperty('full_log')
+  expect(document.run_log.output).toContain('"--job","456"')
+  expect(document.help).toEqual(['Log output is truncated to its tail. The complete log is unavailable through Artium.'])
+})
+
+test('preserves a short run log', async () => {
+  const output = await executeHostedGh(['run', 'view', '124', '-R', 'canary/repo', '--log'])
+  expect(decode(output.stdout)).toMatchObject({ run_log: { truncated: false, output: expect.stringContaining('xxxxxxxxxx') } })
+})
+
+test.each(['issues', 'prs', 'repos', 'commits', 'code'])('forwards separate %s search qualifiers', async command => {
+  const output = await executeHostedGh(['search', command, 'is:open', 'label:bug', '--owner', 'canary'])
+  expect(output.stdout).toContain('is:open|label:bug')
 })
 
 test('inventory drift fails the executable freshness check', () => {

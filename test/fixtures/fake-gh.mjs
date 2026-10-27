@@ -2,7 +2,18 @@
 import { readFileSync } from 'node:fs'
 
 const args = process.argv.slice(2)
-if (args[0] === 'issue' && args[1] === 'list') console.log('[]')
+if (args[0] === 'run' && args[1] === 'view') {
+  if (args.includes('--log') || args.includes('--log-failed')) console.log('x'.repeat(args.includes('124') ? 10 : 21000) + JSON.stringify(args))
+  else console.log(JSON.stringify({ databaseId: 123, jobs: [
+    { databaseId: 456, name: 'failed-job', conclusion: 'failure', steps: [] },
+    { databaseId: 789, name: 'successful-job', conclusion: 'success', steps: [] },
+  ] }))
+}
+else if (args[0] === 'search') {
+  const query = args.slice(args.indexOf('--') + 1).join('|')
+  console.log(JSON.stringify([{ number: 1, title: query, fullName: query, path: query, sha: query }]))
+}
+else if (args[0] === 'issue' && args[1] === 'list') console.log('[]')
 else if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: { repository: { issues: { totalCount: 0 } } } }))
 else if (args[0] === 'api' && args[1] === '/rate_limit' && args[2] === '--method' && args[3] === 'GET') {
   const bundle = readFileSync(process.env.SSL_CERT_FILE, 'utf8')

@@ -625,7 +625,7 @@
         "limit": "value",
         "fields": "value"
       },
-      "positionals": 1,
+      "positionals": "variadic",
       "repository": false
     },
     {
@@ -645,7 +645,7 @@
         "fields": "value",
         "draft": "boolean"
       },
-      "positionals": 1,
+      "positionals": "variadic",
       "repository": false
     },
     {
@@ -660,7 +660,7 @@
         "sort": "value",
         "limit": "value"
       },
-      "positionals": 1,
+      "positionals": "variadic",
       "repository": false
     },
     {
@@ -674,7 +674,7 @@
         "sort": "value",
         "limit": "value"
       },
-      "positionals": 1,
+      "positionals": "variadic",
       "repository": false
     },
     {
@@ -687,7 +687,7 @@
         "language": "value",
         "limit": "value"
       },
-      "positionals": 1,
+      "positionals": "variadic",
       "repository": false
     },
     {
