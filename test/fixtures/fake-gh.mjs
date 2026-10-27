@@ -4,19 +4,33 @@ import { appendFileSync, readFileSync } from 'node:fs'
 const args = process.argv.slice(2)
 if (process.env.ARTIUM_TEST_GH_LOG) appendFileSync(process.env.ARTIUM_TEST_GH_LOG, JSON.stringify(args) + '\n')
 if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
+  const state = process.env.ARTIUM_TEST_GH_WORKFLOW_STATE ?? 'active'
+  const workflows = [...Array.from({ length: 50 }, (_, index) => ({ id: index + 1,
+    name: index === 0 ? 'CI: tests' : `synthetic-${index + 1}`, state: index === 0 ? state : 'active' })),
+  { id: 123, name: 'synthetic-late', state: 'disabled_manually' }]
+  if (args[0] === 'workflow' && args[2] === 'CI: tests'
+    && (args[1] === 'enable' && state === 'active' || args[1] === 'disable' && state === 'disabled_manually')) {
+    console.error('could not find any workflows named CI: tests')
+    process.exit(1)
+  }
+  if (process.env.ARTIUM_TEST_GH_FAILURE === 'mutation-response-lost' && args[0] === 'issue' && args[1] === 'comment') {
+    console.error('POST /repos/canary/repo/issues/42/comments: unexpected EOF')
+    process.exit(1)
+  }
+  if (process.env.ARTIUM_TEST_GH_FAILURE === 'followup-read-failed' && args[0] === 'issue' && args[1] === 'view') {
+    console.error('gh: Bad credentials (HTTP 401)')
+    process.exit(1)
+  }
   if (args[0] === 'issue' && args[1] === 'edit' && args.includes('--no-type')) {
     console.error('unknown flag: --no-type')
     process.exit(1)
   }
   if (args[0] === 'workflow' && args[1] === 'list') {
-    const workflows = [...Array.from({ length: 50 }, (_, index) => ({ id: index + 1, name: `synthetic-${index + 1}`, state: 'active' })),
-      { id: 123, name: 'CI: tests', state: 'disabled_manually' }]
     const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : 50
     console.log(JSON.stringify(workflows.slice(0, limit)))
   }
   else if (args[0] === 'api' && /^\/repos\/canary\/repo\/actions\/workflows(?:\/123|\?per_page=100)$/.test(args[1])) {
-    const workflow = { id: 123, name: 'CI: tests', state: 'disabled_manually' }
-    console.log(JSON.stringify(args[1].endsWith('/123') ? workflow : { workflows: [workflow] }))
+    console.log(JSON.stringify(args[1].endsWith('/123') ? workflows[50] : { workflows }))
   }
   else if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
     repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' } },

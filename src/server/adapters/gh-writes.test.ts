@@ -67,7 +67,7 @@ test.each(samples)('%s requires its exact admin operation and host confirmation'
   executeWrite(call, input)
 })
 
-function executeWrite(call: PreparedCall, input?: { stdin?: string }) {
+function executeWrite(call: PreparedCall, input?: { stdin?: string }, environment: Record<string, string> = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'artium-gh-write-'))
   try {
     const fake = join(directory, 'gh.mjs')
@@ -76,7 +76,7 @@ function executeWrite(call: PreparedCall, input?: { stdin?: string }) {
     const log = join(directory, 'calls.jsonl')
     const child = spawnSync(process.execPath, [call.invocation?.nativeGh ? fake : resolve('tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args], {
       cwd: directory, encoding: 'utf8', input: input?.stdin,
-      env: { PATH: process.env.PATH, ...call.environment, GH_BIN: fake, ARTIUM_TEST_GH_WRITES: '1', ARTIUM_TEST_GH_LOG: log },
+      env: { PATH: process.env.PATH, ...call.environment, GH_BIN: fake, ARTIUM_TEST_GH_WRITES: '1', ARTIUM_TEST_GH_LOG: log, ...environment },
     })
     expect(child.status, child.stdout + child.stderr).toBe(0)
     expect(child.stdout + child.stderr).not.toContain(credential.token)
@@ -134,18 +134,36 @@ test.each(['enable', 'disable'])('workflow %s reaches an ID beyond the first 50 
   expect(recovery.effect).toBe('read')
   const read = executeWrite(recovery)
   expect(read.calls).toEqual([['api', '/repos/canary/repo/actions/workflows/123', '--method', 'GET']])
-  expect(decode(read.result.stdout)).toMatchObject({ id: 123, name: 'CI: tests', state: 'disabled_manually' })
+  expect(decode(read.result.stdout)).toMatchObject({ id: 123, name: 'synthetic-late', state: 'disabled_manually' })
 })
 
-test.each(['enable', 'disable'])('workflow %s keeps name-based mutations and paginates their scoped recovery', async action => {
+test.each([
+  { action: 'enable', state: 'active', expected: { enable: 'already_enabled', workflow: 'CI: tests' } },
+  { action: 'disable', state: 'disabled_manually', expected: { disable: 'already_disabled', workflow: 'CI: tests' } },
+])('workflow $action by name succeeds when already in state $state', async ({ action, state, expected }) => {
   const call = await confirmed(['workflow', action, 'CI: tests', '-R', 'canary/repo'])
-  expect(executeWrite(call).calls).toEqual([['workflow', action, 'CI: tests', '--repo=canary/repo']])
+  const { calls, result } = executeWrite(call, undefined, { ARTIUM_TEST_GH_WORKFLOW_STATE: state })
+  expect(calls).toEqual([['workflow', 'list', '--json', 'id,name,state,path', '--all', '--repo', 'canary/repo']])
+  expect(decode(result.stdout.split(/\nhelp\[\d+\]:/)[0])).toEqual(expected)
   expect(call.write?.checkArgs).toEqual(['api', '/repos/canary/repo/actions/workflows?per_page=100', '--paginate'])
   const adapter = createGhAdapter({ getCredential: async () => credential })
   const recovery = await adapter.prepare(call.write!.checkArgs, reference)
-  const read = executeWrite(recovery)
+  const read = executeWrite(recovery, undefined, { ARTIUM_TEST_GH_WORKFLOW_STATE: state })
   expect(read.calls).toEqual([['api', '/repos/canary/repo/actions/workflows?per_page=100', '--method', 'GET', '--paginate']])
-  expect(decode(read.result.stdout)).toMatchObject({ workflows: [{ id: 123, name: 'CI: tests' }] })
+  expect(decode(read.result.stdout)).toMatchObject({ workflows: expect.arrayContaining([{ id: 1, name: 'CI: tests', state }]) })
+})
+
+test.each([
+  { action: 'enable', state: 'disabled_manually', expected: { enable: 'ok', workflow: 'CI: tests' } },
+  { action: 'disable', state: 'active', expected: { disable: 'ok', workflow: 'CI: tests' } },
+])('workflow $action by name changes state $state through upstream', async ({ action, state, expected }) => {
+  const call = await confirmed(['workflow', action, 'CI: tests', '-R', 'canary/repo'])
+  const { calls, result } = executeWrite(call, undefined, { ARTIUM_TEST_GH_WORKFLOW_STATE: state })
+  expect(calls).toEqual([
+    ['workflow', 'list', '--json', 'id,name,state,path', '--all', '--repo', 'canary/repo'],
+    ['workflow', action, 'CI: tests', '--repo', 'canary/repo'],
+  ])
+  expect(decode(result.stdout.split(/\nhelp\[\d+\]:/)[0])).toEqual(expected)
 })
 
 test.each([
@@ -204,6 +222,34 @@ test.each(['stdout', 'stderr'] as const)('native device writes identify revoked 
     stdout: '', stderr: '', exitCode: 1, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 },
     timedOut: false, truncated: { stdout: false, stderr: false }, [stream]: 'gh: Bad credentials (HTTP 401)',
   })).toThrow(expect.objectContaining({ code: 'CREDENTIAL_EXPIRED' }))
+})
+
+test.each([
+  { args: ['issue', 'comment', '1', '-R', 'canary/repo', '--body=synthetic'], stderr: 'unknown flag: --synthetic', stdout: '' },
+  { args: ['issue', 'comment', '1', '-R', 'canary/repo', '--body=synthetic'], stderr: 'gh: Bad credentials (HTTP 401)', stdout: '' },
+  { args: ['workflow', 'enable', '123', '-R', 'canary/repo'], stderr: 'HTTP 403: Resource not accessible by integration', stdout: '' },
+  { args: ['pr', 'comment', '1', '-R', 'canary/repo', '--body=synthetic'], stderr: '', stdout: '{"error":"Insufficient permissions for this action","code":"FORBIDDEN"}' },
+  { args: ['pr', 'merge', '1', '-R', 'canary/repo', '--method=invalid'], stderr: '', stdout: 'error: "--method must be one of: merge, squash, rebase"\ncode: VALIDATION_ERROR\n' },
+])('confirmed writes retain concrete pre-send refusals for $args', async ({ args, stdout, stderr }) => {
+  const call = await confirmed(args)
+  const result = hostedStatus('gh-axi', call.invocation, { stdout, stderr, exitCode: 1, durationMs: 1,
+    outputBytes: { stdout: Buffer.byteLength(stdout), stderr: Buffer.byteLength(stderr) },
+    timedOut: false, truncated: { stdout: false, stderr: false } })
+  expect(result.exitCode).toBe(1)
+})
+
+test.each([
+  { stdout: 'error: upstream connection closed\ncode: UNKNOWN\n', truncated: false },
+  { stdout: '{"error":"Insufficient permissions for this action","code":"FORBIDDEN"}', truncated: false },
+  { stdout: '{"error":"GitHub auth required","code":"AUTH_REQUIRED"}', truncated: false },
+  { stdout: 'error: "--body requires text"\ncode: VALIDATION_ERROR\n', truncated: true },
+])('multi-step write failures preserve uncertainty for $stdout', async ({ stdout, truncated }) => {
+  const call = await confirmed(['issue', 'create', '-R', 'canary/repo', '--title=synthetic', '--body=content'])
+  expect(() => hostedStatus('gh-axi', { ...call.invocation!, credentialAuth: 'device' }, {
+    stdout, stderr: '', exitCode: 1, durationMs: 42, outputBytes: { stdout: 100, stderr: 0 },
+    timedOut: false, truncated: { stdout: truncated, stderr: false },
+  })).toThrow(expect.objectContaining({ code: 'UNKNOWN_OUTCOME', processStarted: true, durationMs: 42,
+    outputBytes: { stdout: 100, stderr: 0 } }))
 })
 
 test.each([

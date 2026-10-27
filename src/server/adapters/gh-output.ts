@@ -1,7 +1,7 @@
 import { decode, encode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/gh-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
-import type { RunnerResult } from '../runner/runner.js'
+import { RunnerError, type RunnerResult } from '../runner/runner.js'
 import type { PreparedCall } from './types.js'
 
 function managedHelp(command: string): string {
@@ -20,6 +20,29 @@ function managedHelp(command: string): string {
 
 export function hostedGhOutput(invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
   if (!invocation) return result
+  if (invocation.checkArgs && result.exitCode !== 0) {
+    const output = result.stdout.trim() === '' ? result.stderr : result.stderr.trim() === '' ? result.stdout : ''
+    const singleMutation = ['issue comment', 'pr comment', 'discussion comment', 'workflow run', 'workflow enable', 'workflow disable'].includes(invocation.command)
+    let refusal = false
+    if (!result.truncated.stdout && !result.truncated.stderr) {
+      const localValidation = /^(?:--[a-z][a-z-]* (?:requires|is required|must|may only|does not|needs)\b|Choose (?:only one|either|exactly one)\b|Use only one\b|unknown flag\b|Unknown issue type\b|Issue types are not configured\b)/i
+      const authentication = /\b(?:HTTP (?:401|403)|Bad credentials \(HTTP 401\))/i
+      if (invocation.nativeGh) refusal = localValidation.test(output) || singleMutation && authentication.test(output)
+      else {
+        try {
+          const document = (output.trimStart().startsWith('{') ? JSON.parse(output)
+            : decode(output.split(/\nhelp\[\d+\]:/)[0])) as Record<string, unknown>
+          if (typeof document.error === 'string' && Object.keys(document).every(name => ['error', 'code', 'help'].includes(name))) {
+            refusal = document.code === 'VALIDATION_ERROR' && localValidation.test(document.error)
+              || singleMutation && (['AUTH_REQUIRED', 'FORBIDDEN'].includes(String(document.code)) || authentication.test(document.error))
+          }
+        } catch {}
+      }
+    }
+    if (!refusal) throw Object.assign(new RunnerError('UNKNOWN_OUTCOME'), {
+      processStarted: true, durationMs: result.durationMs, outputBytes: result.outputBytes,
+    })
+  }
   if (invocation.credentialAuth === 'device' && result.exitCode !== 0) {
     const revoked = ([result.stdout, result.stderr]).some(output => {
       if (invocation.nativeGh && /\bBad credentials \(HTTP 401\)/i.test(output)) return true
