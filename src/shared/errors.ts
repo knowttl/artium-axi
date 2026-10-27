@@ -57,6 +57,7 @@ const definitions = {
   TOOL_NOT_GRANTED: { status: 403, message: 'The user has no role granting this tool.', next: 'Ask the administrator to assign a role granting the tool.' },
   MASTER_KEY_INVALID: { status: 503, message: 'The master key is missing or invalid.', next: 'Supply a 32-byte master key file or a base64 master key.' },
   CREDENTIAL_INVALID: { status: 503, message: 'The stored credential is invalid.', next: 'Ask an administrator to check the named field, matching master key and credential JSON, then save and test again.' },
+  CREDENTIAL_EXPIRED: { status: 503, message: 'The GitHub credential expired or was revoked.', next: 'Ask an administrator to reconnect at /admin/tools/gh-axi. Tokens are never refreshed automatically.' },
   FLAG_BLOCKED: { status: 400, message: 'The arguments override the managed tool boundary.', next: 'Remove destination, tenant, credential or local configuration overrides.' },
   CREDENTIAL_NOT_CONFIGURED: { status: 503, message: 'No credential is configured for the tool.', next: 'Ask an administrator to save a credential and run Test credential.' },
   UPSTREAM_AUTH_FAILED: { status: 503, message: 'The upstream service rejected the credential.', next: 'Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again.' },

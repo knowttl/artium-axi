@@ -15,7 +15,7 @@ export interface TemporaryFile {
 export interface PreparedCall {
   executable: string
   args: string[]
-  invocation?: { command: string, help: boolean }
+  invocation?: { command: string, help: boolean, credentialAuth?: 'device' }
   environment: Record<string, string>
   pathPrefix?: string
   files: TemporaryFile[]

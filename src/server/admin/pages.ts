@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
-import { adminToolRoutes, toolSchema } from '../../shared/api.js'
+import { adminToolRoutes, toolSchema, githubDeviceRoutes } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
@@ -79,6 +79,17 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       ].map(([done, label, attribute]) => `<li${attribute ? ' ' + attribute : ''}>${done ? 'Done' : 'To do'}: ${label}</li>`).join('')}</ol><p>Assign the role to people on Users to give them access.</p></details>${changed(db, tool)}`
     content += form(api, 'PATCH', tool.enabled ? 'Disable tool' : 'Enable tool', revision(tool.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}">`, tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?')
     content += `<h3>Credential</h3><p>Credential: ${credential.configured ? 'Configured' : 'Not configured'}. Secrets are never displayed.</p>${changed(db, credential)}`
+    if (tool.name === 'gh-axi') {
+      content += `<div data-github-device><h4>${credential.metadata.auth === 'device' ? 'Reconnect' : 'Connect'} with GitHub</h4>
+        <p>One shared identity for this deployment. Use a dedicated machine account. This reuses the GitHub CLI OAuth client ID and requests repo, read:org, gist, workflow and project. These broad scopes permit writes outside Artium even while Artium writes are off.</p>
+        <p>The non-expiring OAuth token appears as GitHub CLI in GitHub Settings, Applications, Authorized OAuth Apps. Revoke it there. Store and rotate it like every other secret. No automatic refresh is performed. Connecting replaces the shared credential only after approval.</p>
+        ${credential.metadata.auth === 'device' ? `<p>Connected account: <strong>${escape(credential.metadata.login)}</strong>. ${credential.metadata.accessTokenExpiresAt ? 'Provider expiry: ' + timestamp(Number(credential.metadata.accessTokenExpiresAt)) : 'No scheduled expiry.'}</p>` : ''}
+        ${tool.health.errorCode === 'CREDENTIAL_EXPIRED' ? '<p role="alert">The credential expired or was revoked. Reconnect below.</p>' : ''}`
+      content += form(githubDeviceRoutes.start.path, 'POST', credential.metadata.auth === 'device' ? 'Reconnect with GitHub' : 'Connect with GitHub',
+        revision(credential.revision) + `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}"><label>GitHub HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? 'https://github.com')}"></label>`,
+        'Connect a shared GitHub account with repo, read:org, gist, workflow and project scopes? This replaces the deployment credential after authorization.', 'data-connect-github')
+      content += '<div data-github-authorization hidden><p>Enter <strong data-github-code></strong> at <a data-github-link target="_blank" rel="noopener noreferrer"></a>.</p><p data-github-status role="status"></p><button type="button" data-cancel-github>Cancel connection</button></div></div><p>Alternatively, choose token or github-app below to replace the credential using another method.</p>'
+    }
     if (tool.name === 'awx-axi') {
       content += '<p>For password sign-in, save the controller address first. Inspect its certificate below and approve it if needed, then enter the username and password and save the credential. Changing the saved address removes the previous token and certificate trust.</p>'
       content += form(api + '/origin', 'PUT', 'Save controller address', revision(credential.revision) +

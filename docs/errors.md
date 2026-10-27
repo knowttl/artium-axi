@@ -63,6 +63,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | TOOL_NOT_GRANTED | artium-axi | 403 | 1 | The user has no role granting this tool. | Ask the administrator to assign a role granting the tool. |
 | MASTER_KEY_INVALID | artium-axi | 503 | 1 | The master key is missing or invalid. | Supply a 32-byte master key file or a base64 master key. |
 | CREDENTIAL_INVALID | artium-axi | 503 | 1 | The stored credential is invalid. | Ask an administrator to check the named field, matching master key and credential JSON, then save and test again. |
+| CREDENTIAL_EXPIRED | artium-axi | 503 | 1 | The GitHub credential expired or was revoked. | Ask an administrator to reconnect at /admin/tools/gh-axi. Tokens are never refreshed automatically. |
 | FLAG_BLOCKED | artium-axi | 400 | 2 | The arguments override the managed tool boundary. | Remove destination, tenant, credential or local configuration overrides. |
 | CREDENTIAL_NOT_CONFIGURED | artium-axi | 503 | 1 | No credential is configured for the tool. | Ask an administrator to save a credential and run Test credential. |
 | UPSTREAM_AUTH_FAILED | artium-axi | 503 | 1 | The upstream service rejected the credential. | Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again. |

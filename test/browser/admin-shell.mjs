@@ -80,6 +80,32 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('GitHub device connection shows the code, stores approval and cancels reconnect without replacement', () => {
+  browser(`
+    await page.open(base + '/admin/tools/gh-axi');
+    await page.eval(async () => { await fetch('/test/trust-ca', { method: 'POST' }); });
+    await page.fill('[data-connect-github] [name=origin]', base);
+    await page.click('[data-connect-github] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-github-authorization]:not([hidden])');
+    check(await page.eval(() => document.querySelector('[data-github-code]').textContent === 'ABCD-EFGH'), 'Device code missing');
+    check(await page.eval(() => document.querySelector('[data-github-link]').href === location.origin + '/login/device'), 'Wrong verification URL');
+    await page.wait('[data-connect-github] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.body.innerText.includes('Connected account: synthetic-machine')), 'Connected identity missing');
+    check(await page.eval(() => !document.body.innerHTML.includes('gho_CANARY-browser-device')), 'Token was exposed');
+    const revision = await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value);
+    await page.click('[data-connect-github] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-github-authorization]:not([hidden])');
+    await page.click('[data-cancel-github]');
+    await page.wait('[data-cancel-github]:disabled');
+    check(await page.eval(() => document.querySelector('[data-github-status]').textContent.includes('Connection cancelled.')), 'Cancellation not confirmed');
+    check(await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value) === revision, 'Cancel replaced credential');
+  `)
+})
+
 test('user detail designates a break-glass administrator and removing it signs them out', () => {
   browser(`await page.open(base + '/admin/users/synthetic-development-user');
     await page.wait('form[action="/v1/admin/users/synthetic-development-user"] [name=breakGlass]');

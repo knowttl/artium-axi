@@ -9,6 +9,8 @@ const requests = []
 const resources = new Map()
 let mutations = 0
 let basicAuthEnabled = true
+let githubDeviceScenario = 'success'
+let githubDevicePolls = 0
 const certs = process.argv[2] ?? '/certs'
 const githubAppPublicKey = new X509Certificate(readFileSync(join(certs, 'server.crt'))).publicKey
 
@@ -28,6 +30,42 @@ function basicPassword(header) {
 const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/__github/device') {
+    githubDeviceScenario = url.searchParams.get('scenario') ?? 'success'
+    githubDevicePolls = 0
+    res.end('{}')
+    return
+  }
+  if (['/login/device/code', '/login/oauth/access_token'].includes(url.pathname)) {
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const fields = new URLSearchParams(body)
+      const valid = req.method === 'POST' && fields.get('client_id') === '178c6fc778ccc68e1d6a'
+      requests.push({ method: req.method, path: url.pathname, validClient: valid,
+        ...(url.pathname === '/login/device/code' ? { scope: fields.get('scope') }
+          : { validGrant: fields.get('grant_type') === 'urn:ietf:params:oauth:grant-type:device_code' }) })
+      if (!valid) { res.writeHead(400); res.end('{}'); return }
+      if (githubDeviceScenario === 'disabled') { res.end(JSON.stringify({ error: 'device_flow_disabled' })); return }
+      if (url.pathname === '/login/device/code') {
+        res.end(JSON.stringify({ device_code: 'CANARY-device-code', user_code: 'ABCD-EFGH',
+          verification_uri: `https://${req.headers.host}/login/device`, expires_in: 900, interval: 5 }))
+        return
+      }
+      if (fields.get('device_code') !== 'CANARY-device-code') { res.writeHead(400); res.end('{}'); return }
+      githubDevicePolls++
+      const error = githubDeviceScenario === 'denied' ? 'access_denied' : githubDeviceScenario === 'expired' ? 'expired_token'
+        : githubDevicePolls === 1 ? 'authorization_pending' : githubDevicePolls === 2 ? 'slow_down' : undefined
+      res.end(JSON.stringify(error ? { error } : { access_token: 'gho_CANARY-device-token', token_type: 'bearer',
+        scope: 'repo,read:org,gist,workflow,project', ...(githubDeviceScenario === 'expiring' ? { expires_in: 3600 } : {}) }))
+    })
+    return
+  }
+  if (url.pathname === '/api/v3/user' && req.headers.authorization === 'Bearer gho_CANARY-device-token') {
+    requests.push({ method: req.method, path: url.pathname, canaryReceived: true })
+    res.end(JSON.stringify({ login: 'synthetic-machine' }))
+    return
+  }
   if (/^\/(?:api\/v3\/)?app\/installations\/[0-9]+\/access_tokens$/.test(url.pathname)) {
     const jwt = String(req.headers.authorization ?? '').replace(/^Bearer /, '').split('.')
     let valid = false

@@ -9,6 +9,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 import type { Adapter } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import { falconManifest } from '../adapters/falcon.js'
+import { hostedGhOutput } from '../adapters/gh-output.js'
 import type { Audit } from '../audit/audit.js'
 import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
@@ -171,7 +172,7 @@ export class ToolHealth {
         secrets.push(...prepared.secrets)
         journal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
         // Per-tool accounting leaves background reads governed by the global slots.
-        const result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
+        let result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
           { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
             authorize?.()
             if (background && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
@@ -179,6 +180,7 @@ export class ToolHealth {
             }
             if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
           }, prepared.pathPrefix)
+        if (tool === 'gh-axi') result = hostedGhOutput(prepared.invocation, result)
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes

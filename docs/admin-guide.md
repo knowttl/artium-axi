@@ -296,6 +296,9 @@ MalQuery submissions do not emit the native RTR journal.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 GitHub also uses host classification; see its [supported boundary](../README.md#safety).
 See [GitHub setup](tool-credentials.md#github) and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
+For OAuth device flow, use Connect with GitHub on the tool page and approve its displayed code at the displayed GitHub URL.
+The shared account login appears after connection; Reconnect replaces its encrypted token and records an admin change.
+These non-expiring tokens appear as GitHub CLI and are revoked in GitHub account settings; `CREDENTIAL_EXPIRED` requires reconnecting, with no automatic refresh.
 Tenable, Hybrid Analysis and Check Point writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
 Check Point download evidence is host-owned and leaves native journal fields empty.
 For Azure, Graph, Vectra and Falcon calls requiring journal evidence, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.

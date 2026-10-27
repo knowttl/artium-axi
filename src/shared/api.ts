@@ -369,6 +369,20 @@ export const adminCertificateRoutes = {
   remove: { method: 'DELETE', path: '/v1/admin/tools/:tool/certificates',
     input: z.strictObject({ id: z.string() }), response: z.strictObject({ removed: z.literal(true) }) },
 } as const
+const githubConnectionInput = z.strictObject({ connectionId: z.uuid() })
+export const githubDeviceRoutes = {
+  start: { method: 'POST', path: '/v1/admin/tools/gh-axi/device',
+    input: z.strictObject({ origin: z.string(), expectedRevision: z.number().int().nonnegative(),
+      expectedToolRevision: z.number().int().positive() }),
+    response: z.strictObject({ connectionId: z.uuid(), userCode: z.string(), verificationUri: z.url(),
+      expiresAt: z.number().int(), interval: z.number().int().positive() }) },
+  poll: { method: 'POST', path: '/v1/admin/tools/gh-axi/device/poll', input: githubConnectionInput,
+    response: z.union([z.strictObject({ status: z.literal('pending'), interval: z.number().int().positive() }),
+      z.strictObject({ status: z.literal('connected'), credential: adminCredentialSchema })]) },
+  cancel: { method: 'POST', path: '/v1/admin/tools/gh-axi/device/cancel', input: githubConnectionInput,
+    response: z.strictObject({ status: z.literal('cancelled') }) },
+} as const
+
 export const adminToolRoutes = {
   get: { method: 'GET', path: '/v1/admin/tools/:tool', input: z.strictObject({}),
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
