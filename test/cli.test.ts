@@ -821,7 +821,10 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
 
 test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list'],
   ['logs', 'query', '--workspace', 'synthetic', 'Heartbeat | count'],
-  ['rg', 'query', '--limit=1', 'Resources | count'], ['api', 'GET', '/synthetic'],
+  ['rg', 'query', '--limit=1', 'Resources | count'],
+  ['graph', 'query', '--graph-query', 'Resources'], ['graph', 'query', '-q=Resources'],
+  ['monitor', 'log-analytics', 'query', '--analytics-query=Heartbeat'],
+  ['api', 'POST', '/synthetic', '--body', '{}'], ['api', 'POST', '/synthetic', '--data={}'],
 ].map(args => [args]))(
   'Azure commands that consume no input complete with stdin left open: %j', async args => {
     requests = []
@@ -835,7 +838,7 @@ test.each([
   ['graph', 'query'], ['logs', 'query', '-w', 'synthetic'],
   ['monitor', 'log-analytics', 'query', '-w', 'synthetic'],
   ['--subscription', 'synthetic', 'rg', 'query'],
-  ['api'],
+  ['api', 'POST', '/synthetic'],
 ].map(args => [args]))('Azure query and body commands retain piped stdin: %j', async args => {
   requests = []
   response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
@@ -844,6 +847,20 @@ test.each([
     .toMatchObject({ code: 0, stdout: 'synthetic result' })
   expect(requests[0].body).toEqual({ args, stdin: 'synthetic input' })
 })
+
+test.each([
+  { tool: 'az-axi', args: ['graph', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['api', 'POST', '/synthetic'], alternative: '--data' },
+  { tool: 'tenable-axi', args: ['asset', 'list', '--filter-file', '-'], alternative: '--filter-file' },
+  { tool: 'hybrid-axi', args: ['api', '--body-file', '-'], alternative: '--body-file' },
+])('open tool stdin fails visibly before any request: $tool $args', async ({ tool, args, alternative }) => {
+  requests = []
+  const result = await cli([tool, ...args])
+  expect(result).toMatchObject({ code: 2, stderr: '' })
+  expect(result.stdout).toContain('INVALID_INPUT')
+  expect(result.stdout).toContain(`no stdin EOF after 5 s; close stdin or pass ${alternative}`)
+  expect(requests).toEqual([])
+}, 10_000)
 
 test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bounded %s input through the API', async kind => {
   requests = []

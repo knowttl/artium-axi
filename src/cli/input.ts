@@ -8,9 +8,13 @@ import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 
-async function readBounded(stream: Readable, limit: number): Promise<Buffer> {
+async function readBounded(stream: Readable, limit: number, stdinAlternative?: string): Promise<Buffer> {
   const chunks: Buffer[] = []
   let bytes = 0
+  // Keep the deadline referenced: an idle pipe must fail rather than exit silently.
+  const deadline = stdinAlternative === undefined ? undefined : setTimeout(() => {
+    stream.destroy(new ArtiumError('INVALID_INPUT', `no stdin EOF after 5 s; close stdin or pass ${stdinAlternative}`))
+  }, 5000)
   try {
     for await (const chunk of stream) {
       const buffer = Buffer.from(chunk)
@@ -21,7 +25,7 @@ async function readBounded(stream: Readable, limit: number): Promise<Buffer> {
   } catch (error) {
     if (error instanceof ArtiumError) throw error
     throw new ArtiumError('INVALID_INPUT', 'Tool input could not be read.', 'Check the local input file or stdin.')
-  }
+  } finally { clearTimeout(deadline) }
   return Buffer.concat(chunks)
 }
 
@@ -42,7 +46,7 @@ export async function toolInput(tool: string, original: string[]) {
       const equals = args[index].indexOf('=')
       const path = equals < 0 ? args[++index] : args[index].slice(equals + 1)
       if (path === '-' && (tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file')) {
-        input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes)).toString('utf8')
+        input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes, flag)).toString('utf8')
         continue
       }
       if (!path || path === '-') throw new ArtiumError('UNSUPPORTED_INPUT', 'A file flag requires a local file path.')
@@ -68,14 +72,16 @@ export async function toolInput(tool: string, original: string[]) {
     const route = az.commands.find(route => ['rg query', 'logs query', 'api'].includes(route.handlerCommand) &&
       route.command.split(' ').every((word, index) => args[leading + index] === word))
     let positional = false
+    let explicitInput = false
     if (route) {
       for (let index = leading + route.command.split(' ').length; index < args.length; index++) {
         const token = args[index]
         if (token === '--') { positional = index + 1 < args.length; break }
-        if (!token.startsWith('-') || token === '-') { positional = true; break }
+        if (!token.startsWith('-') || token === '-') { positional = true; continue }
         const raw = token.slice(token.startsWith('--') ? 2 : 1).split('=')[0]
         const expanded = token.startsWith('--') ? raw : (route.shortFlags as Partial<Record<string, string>>)[raw] ?? raw
         const name = (route.flagAliases as Partial<Record<string, string>>)[expanded] ?? expanded
+        if ((route.handlerCommand === 'api' ? ['body', 'body-file', 'data'] : ['graph-query', 'analytics-query']).includes(name)) explicitInput = true
         const kind = (route.flags as Partial<Record<string, string>>)[name]
         if (token.includes('=') || !kind) continue
         if (kind === 'boolean') {
@@ -89,8 +95,9 @@ export async function toolInput(tool: string, original: string[]) {
         }
       }
     }
-    if (tool === 'az-axi' && route && !input.files?.length && !positional && !process.stdin.isTTY) {
-      const stdin = await readBounded(process.stdin, inputLimits.stdinBytes)
+    if (tool === 'az-axi' && route && !input.files?.length && !explicitInput &&
+      (route.handlerCommand === 'api' || !positional) && !process.stdin.isTTY) {
+      const stdin = await readBounded(process.stdin, inputLimits.stdinBytes, route.handlerCommand === 'api' ? '--data (supported body flag: --body)' : '--file')
       if (stdin.length) input.stdin = stdin.toString('utf8')
     }
   }

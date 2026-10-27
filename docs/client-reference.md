@@ -47,8 +47,14 @@ Arguments after a tool name belong to upstream, subject to adapter restrictions 
 The ADO, AWX, Azure, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
 Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
-It captures bounded non-terminal stdin only for Azure `rg query` (also `graph query`), `logs query` (also `monitor log-analytics query`) and `api` calls with no uploaded file or positional input.
+It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`) and `logs query` (also `monitor log-analytics query`) only with no uploaded file, positional query or explicit query flag (`--graph-query`, `-q`, `--analytics-query`).
+Azure `api` captures stdin only without an explicit body source (`--body`, `--body-file` or `--data`); method and path positionals do not supply a body.
+The pinned upstream accepts `--body` and `--body-file`; `--data` is left unread and forwarded for normal unsupported-flag rejection.
 Flag values such as `--workspace <workspace>` do not count as positional input.
+Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-` and Hybrid Analysis `--body-file -`.
+An open pipe that does not reach EOF fails with `INVALID_INPUT` and exit code 2 before sending a request, even if it has already supplied bytes.
+Close stdin, pass a local file with the relevant file flag, or use `--body`/`--body-file` for Azure `api`.
+Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
