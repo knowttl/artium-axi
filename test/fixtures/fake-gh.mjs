@@ -4,6 +4,10 @@ import { appendFileSync, readFileSync } from 'node:fs'
 const args = process.argv.slice(2)
 if (process.env.ARTIUM_TEST_GH_LOG) appendFileSync(process.env.ARTIUM_TEST_GH_LOG, JSON.stringify(args) + '\n')
 if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
+  if (args[0] === 'issue' && args[1] === 'edit' && args.includes('--no-type')) {
+    console.error('unknown flag: --no-type')
+    process.exit(1)
+  }
   if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
     repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' } },
     addDiscussionComment: { comment: { id: 'synthetic-comment', url: 'https://github.example/canary/repo/discussions/1#comment' } },

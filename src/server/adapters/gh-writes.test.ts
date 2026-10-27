@@ -158,6 +158,18 @@ test('native repository description edits retain the explicit repository target'
   expect(calls).toEqual([['repo', 'edit', 'canary/repo', '--description=']])
 })
 
+test.each([
+  { body: ['--body='], expected: ['--body=', '--remove-type'] },
+  { body: ['--body', ''], expected: ['--body=', '--remove-type'] },
+  { body: ['--body=content'], expected: ['--body=content', '--no-type'] },
+  { body: [], expected: ['--no-type'] },
+])('issue edits preserve type removal with body $body', async ({ body, expected }) => {
+  const call = await confirmed(['issue', 'edit', '1', '-R', 'canary/repo', ...body, '--no-type'])
+  expect(call.args).toEqual(['issue', 'edit', '1', '--repo=canary/repo', ...expected])
+  const { result } = executeWrite(call)
+  expect(result.exitCode).toBe(0)
+})
+
 test.each(['stdout', 'stderr'] as const)('native device writes identify revoked credentials on %s', stream => {
   expect(() => hostedStatus('gh-axi', { command: 'issue comment', help: false, nativeGh: true, credentialAuth: 'device' }, {
     stdout: '', stderr: '', exitCode: 1, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 },

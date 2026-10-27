@@ -166,7 +166,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   return { args: [...command, ...(nativeRepoEdit ? [flags.get('repo')!] : rest),
     ...[...flags].filter(([name]) => name !== 'confirm' && !(nativeRepoEdit && name === 'repo')).flatMap(([name, value]) => name === 'field'
     ? fields.map(value => `--field=${value}`) : allFlags[name] === 'boolean'
-    ? [`--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
+    ? [nativeGh && route.command === 'issue edit' && name === 'no-type' ? '--remove-type' : `--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
       ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help, nativeGh },
     mutation: route.effect === 'write' && !help ? { route: route.command, rest, flags, confirm: flags.get('confirm') } : undefined }
 }
