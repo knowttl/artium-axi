@@ -550,18 +550,18 @@ test('whoami shows the session deadline in UTC and time remaining', async () => 
 test.each([{ args: ['whoami'] }, { args: [] }])('managed access-only identity shows both deadlines for $args', async ({ args }) => {
   const accessExpiresAt = Date.now() + 300_000
   const sessionExpiresAt = Date.now() + 11 * 3600_000
-  responseSequence = [
-    { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+  doctorResponses = {
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt, sessionExpiresAt } },
-    { status: 200, body: { tools: [] } },
-  ]
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
   try {
     const result = await managedCli(args, { json: JSON.stringify({ serverUrl: url, accessToken: managedTokens.accessToken }) })
     expect(result).toMatchObject({ code: 0, stderr: '', rotations: '' })
     expect(result.stdout).toContain(`accessExpiresAt: ${new Date(accessExpiresAt).toISOString().replace('.000Z', 'Z')} (`)
     expect(result.stdout).toContain(`sessionExpiresAt: ${new Date(sessionExpiresAt).toISOString().replace('.000Z', 'Z')} (`)
     expect(result.stdout).toContain('note: Access tokens refresh automatically when a refresh token is available.\n')
-  } finally { responseSequence = undefined }
+  } finally { doctorResponses = undefined }
 })
 
 test.each([
