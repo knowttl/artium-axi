@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.11",
-  "integrity": "sha512-XiCwLaSh6A6xb9sk7RQ7T3FvkYpkWFIoGUCi7HxYlHF4kssVpF5gun4V7Taw9eKcm0HEWftnLci9l4EBSaFj0w==",
+  "version": "0.1.12",
+  "integrity": "sha512-xPhoFLQ8XWjWqLR2e80apWA1pkCqQcFZ5r5V7XW+uj0zXKaO9RHfjG7gsxkrMa44jWqWLiU8ssZxWZPl6uj8KQ==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "8bdf756d4f0b3d006543471320eb14d83f258122752bd1e07c76a2a74868691c",
+  "packageManifestSha256": "2d829dc31fd552a154b439ad40c39ff8fd53b35527d8134a0dd18f4ffab09334",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -263,7 +263,7 @@
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "1b0354317f721989465190b4a276fce811d559bcbbd9871129b02dd366a5beb5"
+      "sha256": "67a29a57b906ee0a17dc0bf917123308ee2d160ef43106f5d15bf73f8cb874d3"
     },
     {
       "path": "dist/lib/client.js",
@@ -291,11 +291,11 @@
     },
     {
       "path": "dist/commands/logs.js",
-      "sha256": "07fc272e2947f12f8c03b9f818ec98fe2fb35beee43f544dcd0d0db15f37574b"
+      "sha256": "f3c0112c4be7a8996163d323bd9945950ab1a212eae2cc42af044388adc77199"
     },
     {
       "path": "dist/commands/doctor.js",
-      "sha256": "3c5e9c56bf0371a3654c04c296291c8d8a95dc05f9c5679b5544e0b2c3a5c475"
+      "sha256": "02f26a4af30ed142b4187394c356e2204ad80f03fee52f65c2daf5c312150b06"
     },
     {
       "path": "dist/commands/api.js",

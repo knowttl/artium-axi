@@ -9,11 +9,11 @@ import type { ToolName } from './store/credential-store.js'
 // Each digest binds an overlay review to the complete pinned upstream skill.
 // New upstream content must be reviewed before it can reach an agent.
 const overlays = {
-  'hybrid-axi': { sha256: '1d0266cf0237630d063531b567a6b960dca48a731e7917e72b50fb59f757d384', sections: [] },
+  'hybrid-axi': { sha256: '0dc43810bcc0774457a33dba2454849e2c8588f0607bd770b30fefe09cd0d26c', sections: [] },
   'tenable-axi': { sha256: 'ea35fe90d39fee3982f731ccc3c717c92aabd0799ff2371f6f3cc5e12d7aea9a', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
-  'az-axi': { sha256: 'a5df0a4e7603f8c960eacd2b57c3353b74b4c0ba0665d1d850374a90cc773123', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
+  'az-axi': { sha256: '480265a76475dc5ca0697a9447938822601ba4ee0495bc90c01a99cfd9b51acf', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: 'a9fb66ac59a325958e19470286f27e8d2e1e9e65a4e93f5ee93fca6467fb2303', sections: ['Safety'] },
   'mg-axi': { sha256: 'f2867005e792f594662cee7883f6fc34617e5d59d06827e2403f0f5c7d76397b', sections: ['Safety'] },
   'ldap-axi': { sha256: 'e20365f41164061268067d0caa6055fe8417dc6c610d70a5c3108d1e6ae0dcfc', sections: ['Workflow', 'Safety'] },
