@@ -7,18 +7,30 @@ import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
+import { GithubAppTokenCache } from './github-app-tokens.js'
 
 export const ghManifest = { ...inventory, ...inventory.adapterBoundary }
 export const ghWritePolicy = writePolicy({ reason: 'This slice supports reads only.', unlocks: 'Read-only GitHub API access.',
   blocked: 'All writes, local git commands, downloads and arbitrary API methods are unavailable.' })
 export const ghProfile = new CredentialProfile({ type: 'object', additionalProperties: false,
-  required: ['origin', 'auth', 'token'], properties: {
+  required: ['origin', 'auth'], properties: {
     origin: { type: 'string', format: 'canonical-https-origin', default: 'https://github.com', title: 'GitHub origin',
       description: 'https://github.com or your GitHub Enterprise HTTPS origin.' },
-    auth: { const: 'token', title: 'Authentication' },
+    auth: { enum: ['token', 'github-app'], title: 'Authentication' },
     token: { type: 'string', 'x-secret': true, title: 'Personal access token',
       description: 'Classic or fine-grained PAT. Shared by everyone granted this tool. Classic repo scope permits writes outside Artium.' },
-  } }, 'gh-axi')
+    appId: { type: 'string', pattern: '^[1-9][0-9]*$', title: 'GitHub App ID' },
+    installationId: { type: 'string', pattern: '^[1-9][0-9]*$', title: 'Installation ID' },
+    privateKey: { type: 'string', 'x-secret': true, title: 'App private key', description: 'PEM RSA private key, stored encrypted.' },
+    repositories: { type: 'array', minItems: 1, maxItems: 500, uniqueItems: true, items: { type: 'string', pattern: '^[A-Za-z0-9_.-]+$' },
+      description: 'Optional repository names within the installation. Omit to retain the installation selection. Never widens access.' },
+    permissions: { type: 'object', minProperties: 1, propertyNames: { pattern: '^[a-z][a-z_]*$' },
+      additionalProperties: { enum: ['read', 'write'] }, description: 'Optional GitHub permission map to narrow the installation grant, for example {"contents":"read"}.' },
+  }, oneOf: [
+    { properties: { auth: { const: 'token' } }, required: ['token'],
+      not: { anyOf: ['appId', 'installationId', 'privateKey', 'repositories', 'permissions'].map(name => ({ required: [name] })) } },
+    { properties: { auth: { const: 'github-app' } }, required: ['appId', 'installationId', 'privateKey'], not: { required: ['token'] } },
+  ] }, 'gh-axi')
 export const ghCredentialSchema = ghProfile.credentialSchema
 
 function ghArguments(args: readonly string[], input: RunnerInput = {}) {
@@ -89,23 +101,26 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
       ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help: flags.has('help') } }
 }
 
-export function createGhAdapter(source: SecretSource): Adapter<unknown> {
+export function createGhAdapter(source: SecretSource, tokens = new GithubAppTokenCache()): Adapter<unknown> {
   return { name: 'gh-axi', executable: toolPaths['gh-axi'], credentialSchema: ghCredentialSchema, credentialProfile: ghProfile,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: ghManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: ['--query'], positions: args.map((_, index) => index).filter(index => index > 1) }),
     validateArgs: (args, input) => { ghArguments(args, input) },
+    invalidateCredential: reference => tokens.replace(reference.id, reference.revision ?? 0),
     async prepare(args, reference, input) {
       const call = ghArguments(args, input)
       if (reference.tool !== 'gh-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = ghCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const host = new URL(parsed.data.origin as string).host
-      const token = parsed.data.token as string
+      const token = parsed.data.auth === 'github-app'
+        ? await tokens.acquire(reference, parsed.data, source.getTrust?.(reference)) : parsed.data.token as string
       return { executable: toolPaths['gh-axi'], ...call, environment: {
         [host === 'github.com' || host.endsWith('.ghe.com') ? 'GH_TOKEN' : 'GH_ENTERPRISE_TOKEN']: token,
         GH_HOST: host, GH_BIN: '/usr/local/bin/gh', GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1',
         GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_SPINNER_DISABLED: '1', GH_TELEMETRY: '0', NO_COLOR: '1',
         GH_PAGER: 'cat', GOMEMLIMIT: '256MiB',
-      }, files: [], secrets: [token], effect: 'read', limits: { timeoutMs: runnerLimits.timeoutMs, systemCaBundle: true } }
+      }, files: [], secrets: [token, ...(parsed.data.auth === 'github-app' ? [parsed.data.privateKey as string] : [])],
+      effect: 'read', limits: { timeoutMs: runnerLimits.timeoutMs, systemCaBundle: true } }
     } }
 }

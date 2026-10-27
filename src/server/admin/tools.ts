@@ -41,7 +41,7 @@ const credentialSchemas = { 'gh-axi': ghCredentialSchema, 'checkpoint-axi': chec
 const writePolicies = { 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy }
 const publicFields = {
-  'gh-axi': ['origin', 'auth'],
+  'gh-axi': ['origin', 'auth', 'appId', 'installationId', 'repositories', 'permissions'],
   'checkpoint-axi': ['region', 'clientId', 'saas', 'scope'],
   'hybrid-axi': ['origin'],
   'tenable-axi': ['origin'],
@@ -54,7 +54,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
-  'gh-axi': ['token'],
+  'gh-axi': ['token', 'privateKey'],
   'checkpoint-axi': ['clientSecret'],
   'hybrid-axi': ['apiKey'],
   'tenable-axi': ['accessKey', 'secretKey'],
@@ -298,7 +298,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       let next = value
       if (saving) {
         const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
-        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org'].every(key => stored[key] === value[key])
+        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId'].every(key => stored[key] === value[key])
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
           .map(field => field.name) ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}

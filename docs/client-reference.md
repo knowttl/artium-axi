@@ -11,7 +11,7 @@
 | `artium-axi passwd` | Change your password, then sign in again. |
 | `artium-axi whoami` | Show identity, roles, session and access-token expiry, and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
-| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories with the managed PAT; see the [supported boundary](../README.md#safety). |
+| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories; see [managed authentication](tool-credentials.md#github) and the [supported boundary](../README.md#safety). |
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
 | `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |

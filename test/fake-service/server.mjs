@@ -1,4 +1,5 @@
 import { createServer } from 'node:https'
+import { verify, X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { hybridResponse } from './hybrid.mjs'
@@ -9,6 +10,7 @@ const resources = new Map()
 let mutations = 0
 let basicAuthEnabled = true
 const certs = process.argv[2] ?? '/certs'
+const githubAppPublicKey = new X509Certificate(readFileSync(join(certs, 'server.crt'))).publicKey
 
 function authorizationScheme(header) {
   if (typeof header !== 'string') return 'none'
@@ -26,6 +28,24 @@ function basicPassword(header) {
 const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (/^\/(?:api\/v3\/)?app\/installations\/[0-9]+\/access_tokens$/.test(url.pathname)) {
+    const jwt = String(req.headers.authorization ?? '').replace(/^Bearer /, '').split('.')
+    let valid = false
+    try {
+      const claims = JSON.parse(Buffer.from(jwt[1], 'base64url').toString())
+      valid = verify('RSA-SHA256', Buffer.from(jwt.slice(0, 2).join('.')), githubAppPublicKey, Buffer.from(jwt[2], 'base64url'))
+        && claims.iss === '123' && claims.iat <= Date.now() / 1000 && claims.exp > Date.now() / 1000
+    } catch {}
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      requests.push({ method: req.method, path: url.pathname, signed: valid, narrowing: JSON.parse(body || '{}') })
+      if (!valid || req.method !== 'POST') { res.writeHead(401); res.end('{}'); return }
+      res.writeHead(201)
+      res.end(JSON.stringify({ token: 'CANARY-github-installation', expires_at: new Date(Date.now() + 3_600_000).toISOString() }))
+    })
+    return
+  }
   if (url.pathname === '/__evidence') {
     res.end(JSON.stringify({ requests, mutations }))
     return
