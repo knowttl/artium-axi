@@ -2,6 +2,12 @@ import inventory from '../../tools/inventories/gh-axi.json' with { type: 'json' 
 
 export function rewriteGhSuggestions(output: string, invocation?: { command: string, help: boolean }, truncated = false): string {
   if (!invocation || invocation.help || invocation.command === 'api' || truncated) return output
+  if (invocation.command === 'pr view') {
+    output = output.replace(/^(  merge_state: [^\n]*?); gh-axi pr update-branch [^\n]*$/gm, '$1')
+  }
+  if (invocation.command === 'release list') {
+    output = output.replace(/^(count: \d+ \(showing first \d+); run `gh-axi repo view` for total count\)$/gm, '$1)')
+  }
   return output.replace(/(^|\n)help\[(\d+)\]:\n((?:  [^\n]*\n)*  [^\n]*)(?=\n|$)/g, (block, prefix: string, count: string, body: string) => {
     const rows = body.trimEnd().split('\n')
     if (rows.length !== Number(count)) return block

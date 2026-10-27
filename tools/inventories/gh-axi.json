@@ -479,7 +479,6 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "repo": "value",
         "limit": "value",
         "visibility": "value",
         "language": "value",
@@ -504,7 +503,6 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "repo": "value",
         "limit": "value",
         "fields": "value",
         "public": "boolean",
@@ -518,7 +516,6 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "repo": "value",
         "filename": "value",
         "full": "boolean",
         "files": "boolean"
@@ -639,7 +636,6 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "repo": "value",
         "owner": "value",
         "language": "value",
         "stars": "value",
@@ -681,7 +677,6 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "repo": "value",
         "jq": "value",
         "template": "value",
         "paginate": "boolean",

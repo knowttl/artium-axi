@@ -26,7 +26,8 @@ export function hostedGhOutput(invocation: PreparedCall['invocation'], result: R
       try {
         const json = output.trimStart().startsWith('{')
         const document = (json ? JSON.parse(output) : decode(output.split(/\nhelp\[\d+\]:/)[0])) as Record<string, unknown>
-        if (!['AUTH_REQUIRED', 'FORBIDDEN'].includes(String(document.code)) || typeof document.error !== 'string') return output
+        if (typeof document.error !== 'string' || !(['AUTH_REQUIRED', 'FORBIDDEN'].includes(String(document.code))
+          || document.code === 'UNKNOWN' && /\bBad credentials \(HTTP 401\)/i.test(document.error))) return output
         const managed = { ...document, error: 'GitHub authentication or permission check failed.',
           help: ['Ask an Artium administrator to reconnect the GitHub credential and check its permissions.'] }
         return (json ? JSON.stringify(managed) : encode(managed)) + '\n'

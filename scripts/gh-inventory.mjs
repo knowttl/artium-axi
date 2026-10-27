@@ -11,7 +11,7 @@ if (pkg.version !== pin.version) throw new Error('Pin mismatch for gh-axi')
 // the host boundary. Internal GraphQL query transport is separate from api.
 const commands = []
 function route(command, values = '', booleans = '', positionals = 0, repository = false) {
-  commands.push({ command, effect: 'read', flags: { help: 'boolean', repo: 'value',
+  commands.push({ command, effect: 'read', flags: { help: 'boolean', ...repository ? { repo: 'value' } : {},
     ...Object.fromEntries(values.split(' ').filter(Boolean).map(name => [name, 'value'])),
     ...Object.fromEntries(booleans.split(' ').filter(Boolean).map(name => [name, 'boolean'])) }, positionals, repository })
 }
@@ -35,17 +35,17 @@ route('repo list', 'limit visibility language', 'archived', 1)
 route('label list', 'limit', '', 0, true)
 route('gist list', 'limit fields', 'public secret')
 route('gist view', 'filename', 'full files', 1)
-route('project list', 'owner limit', 'closed')
-route('project view', 'owner', '', 1)
-route('project item-list', 'owner query limit', '', 1)
-route('project field-list', 'owner limit', '', 1)
+route('project list', 'repo owner limit', 'closed')
+route('project view', 'repo owner', '', 1)
+route('project item-list', 'repo owner query limit', '', 1)
+route('project field-list', 'repo owner limit', '', 1)
 route('secret list', 'env', '', 0, true)
 route('variable list', '', '', 0, true)
-route('search issues', 'owner state label assignee author sort limit fields', '', 'variadic')
-route('search prs', 'owner state label assignee author sort limit review fields', 'draft', 'variadic')
+route('search issues', 'repo owner state label assignee author sort limit fields', '', 'variadic')
+route('search prs', 'repo owner state label assignee author sort limit review fields', 'draft', 'variadic')
 route('search repos', 'owner language stars sort limit', '', 'variadic')
-route('search commits', 'owner author sort limit', '', 'variadic')
-route('search code', 'owner language limit', '', 'variadic')
+route('search commits', 'repo owner author sort limit', '', 'variadic')
+route('search code', 'repo owner language limit', '', 'variadic')
 route('api', 'jq template', 'paginate full', 2)
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex')
 function sources(directory, prefix) {
