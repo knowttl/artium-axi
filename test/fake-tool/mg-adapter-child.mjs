@@ -30,6 +30,30 @@ const transport = async request => {
       results: [{ DeviceName: value }] }) }
   }
   assert.equal(request.method, 'GET')
+  const mailRoot = '/v1.0/users/mailbox%40contoso.example'
+  const mailPath = url.pathname.slice(mailRoot.length)
+  if (url.pathname.startsWith(mailRoot + '/')) {
+    const folder = { id: 'inbox', displayName: 'Synthetic Inbox', totalItemCount: 1, unreadItemCount: 1 }
+    const message = { id: 'synthetic-message', subject: 'Synthetic Mail', isRead: false,
+      body: { contentType: 'text', content: 'Outside sender content' } }
+    const rule = { id: 'synthetic-rule', displayName: 'Synthetic Rule', sequence: 1, isEnabled: true }
+    const routes = {
+      '/mailFolders': { value: [folder] }, '/mailFolders/inbox': folder,
+      '/messages': { value: [message] }, '/messages/synthetic-message': message,
+      '/messages/synthetic-message/attachments': { value: [{ id: 'synthetic-attachment', name: 'metadata.txt',
+        contentType: 'text/plain', size: 12, isInline: false, '@odata.type': '#microsoft.graph.fileAttachment', contentBytes: 'DO-NOT-PRINT' }] },
+      '/mailboxSettings': { timeZone: 'UTC' },
+      '/mailFolders/inbox/messageRules': { value: [rule] },
+      '/mailFolders/inbox/messageRules/synthetic-rule': rule,
+      '/outlook/masterCategories': { value: [{ id: 'synthetic-category', displayName: 'Synthetic Category', color: 'preset0' }] },
+    }
+    assert.ok(Object.hasOwn(routes, mailPath), 'Unreviewed fake mail route')
+    if (mailPath === '/messages') {
+      assert.equal(url.searchParams.get('$top'), '100')
+      assert.equal(url.searchParams.get('$select'), 'id,subject,receivedDateTime,isRead')
+    }
+    return { status: 200, headers: {}, body: JSON.stringify(routes[mailPath]) }
+  }
   let body
   if (url.pathname === '/v1.0/users') body = { value: [{ id: userId,
     displayName: url.searchParams.get('$filter') === 'encoded-canary'

@@ -1,0 +1,4 @@
+{
+  "required": ["mode"],
+  "properties": { "mode": { "const": "application" } }
+}

@@ -9,7 +9,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Falcon (`falcon-axi`) | Falcon API client ID, client secret, cloud region, optional Flight Control member CID. | `auth status`, followed by a permitted detection read to confirm API access. |
 | Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
-| Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Graph application permissions. | `entra user list --limit 1`; other domains need their own permissions. |
+| Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Entra Graph permissions; optional scoped Exchange mail roles. | `entra user list --limit 1`; cannot check mail permissions or Exchange scope. |
 | LDAP (`ldap-axi`) | Verified LDAPS or StartTLS URL, read-only bind identity and password, optional search base and private CA PEM. | `auth status`; binds once and reports the selected identity. |
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
 | GitHub (`gh-axi`) | GitHub HTTPS origin and one shared PAT, device-flow OAuth token or GitHub App installation credential. | `api /rate_limit`. |
@@ -147,7 +147,8 @@ Keep `allowWrites` false unless writes are wanted and the corresponding Azure ro
 
 On the app registration, open **API permissions > Add a permission > Microsoft Graph > Application permissions**.
 Add `User.Read.All` for Artium's credential test and first user read, then have an authorized administrator [grant tenant-wide admin consent](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/grant-admin-consent).
-Add only the application permissions for the additional command families you intend to use, and grant admin consent again after changes.
+For command families other than mail, add only the application permissions you intend to use, and grant admin consent again after changes.
+Mailbox authorization uses the scoped Exchange roles below instead of Entra mail application grants.
 Delegated permissions and interactive `User.Read` consent do not authorize this application flow.
 
 | Optional read area | Graph application permissions |
@@ -171,13 +172,29 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.13/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.14/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+
+For mailbox opt-in, supported reads and mailbox selectors, see the [managed capability boundary](../README.md#safety).
+Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
+Keep `User.Read.All` for the credential test, which cannot verify mail authorization or scope.
+
+| Mail reads | Scoped Exchange RBAC role |
+| --- | --- |
+| Folders, message lists, search, filters, conversations | Application Mail.ReadBasic |
+| Message bodies, headers and attachment metadata | Application Mail.Read |
+| Mailbox settings, inbox rules and master categories | Application MailboxSettings.Read |
+
+An Exchange administrator registers the application's service principal in Exchange Online, creates a management scope whose `MemberOfGroup` filter selects an owner-chosen mail-enabled group, then assigns only the required application roles to that service principal with that resource scope.
+Use `New-ServicePrincipal`, `New-ManagementScope` and `New-ManagementRoleAssignment` following Microsoft's [RBAC for Applications procedure](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac).
+Use the Enterprise application's service-principal object ID when registering it in Exchange, and confirm the group contains only the intended mailboxes.
+Check an included and an excluded synthetic mailbox with `Test-ServicePrincipalAuthorization`; it bypasses the authorization cache, while runtime permission changes may take 30 minutes to two hours.
+Do not create Application Access Policies, which RBAC for Applications replaces.
+Live authorization and scope acceptance remain unverified by offline checks.
 Licences still apply: PIM and risk/governance features can fail despite consent, and some commands support only delegated identities.
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 
 In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
-For the default pack and administrator opt-in to Defender XDR hunting, see the [managed capability boundary](../README.md#safety).
-Security-only profiles are refused so existing Entra reads and credential tests remain available.
+Profiles without `entra` are refused so existing Entra reads and credential tests remain available; see the [managed capability boundary](../README.md#safety) for pack selection and Defender XDR hunting.
 The app registration used by Artium requires `ThreatHunting.Read.All` with administrator consent; tenant acceptance remains unverified.
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.

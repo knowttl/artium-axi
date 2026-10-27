@@ -10,6 +10,7 @@ import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
 import { loadCredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
+import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
 const guid = z.string().regex(/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/)
@@ -105,12 +106,17 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
       const normalized = mgArguments(args, input)
       if (reference.tool !== 'mg-axi' || !profile && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
       const value = await source.getCredential(reference)
+      const packs: Record<string, string> = mgManifest.commandPacks
+      const pack = packs[normalized.invocation.command]
+      if (profile && pack === 'mail' && (!value || typeof value !== 'object'
+        || !('mode' in value) || value.mode !== applicationMode.properties.mode.const)) {
+        throw new ArtiumError('CREDENTIAL_INVALID', 'Hosted mail requires an application-mode credential profile.')
+      }
       const parsed = (profile?.credentialSchema ?? mgCredentialSchema).safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? parsed.data
-      if (normalized.invocation.command === 'security hunting query'
-        && !(settings.enabledPacks as string[] | undefined)?.includes('security')) {
-        throw new ArtiumError('FLAG_BLOCKED', 'Hunting requires the administrator enabledPacks: ["entra", "security"] opt-in.')
+      if (pack && !(settings.enabledPacks as string[] | undefined)?.includes(pack)) {
+        throw new ArtiumError('FLAG_BLOCKED', `Command requires the administrator enabledPacks: ["entra", "${pack}"] opt-in.`)
       }
       const query = input?.files?.[0] ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
       if (profile) {

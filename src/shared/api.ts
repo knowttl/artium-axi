@@ -282,7 +282,7 @@ export const nativeSettingsSchemas = {
   'awx-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'ldap-axi': z.strictObject({}),
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
-  'mg-axi': z.strictObject({ enabledPacks: z.array(z.enum(['entra', 'security'])).min(1).max(2)
+  'mg-axi': z.strictObject({ enabledPacks: z.array(z.enum(['entra', 'security', 'mail'])).min(1).max(3)
     .refine(packs => packs.includes('entra') && new Set(packs).size === packs.length).optional(),
     preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),

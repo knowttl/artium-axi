@@ -18,7 +18,7 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
 })
 
 test.each([
-  { tool: 'mg-axi' as const, source: 'tools/node_modules/@knowttl/mg-axi/skills/mg-axi/SKILL.md', examples: ['artium-axi mg-axi security hunting query --file query.kql', 'enabledPacks: ["entra", "security"]', '64 KiB'] },
+  { tool: 'mg-axi' as const, source: 'tools/node_modules/@knowttl/mg-axi/skills/mg-axi/SKILL.md', examples: ['artium-axi mg-axi security hunting query --file query.kql', 'enabledPacks: ["entra", "security"]', '64 KiB', 'enabledPacks: ["entra", "mail"]', 'mail message list --mailbox', 'The run API accepts the cursor token in stdin with --cursor -', 'the bundled CLI does not capture Graph cursor stdin, so use --cursor <token> there.', 'untrusted data written by outside senders', 'Exchange RBAC for Applications', 'Pinned mg-axi 0.1.14 rejects UPNs containing apostrophe (U+0027), #, ^ or ~; use the mailbox object ID instead.'] },
   { tool: 'vectra-axi' as const, source: 'tools/node_modules/@knowttl/vectra-axi/skills/vectra-axi/SKILL.md', examples: ['artium-axi vectra-axi host list --name <text>', 'artium-axi vectra-axi detection show <id> --full'] },
   { tool: 'ldap-axi' as const, source: 'tools/node_modules/@knowttl/ldap-axi/skills/ldap-axi/SKILL.md', examples: ['artium-axi ldap-axi user groups <identifier-or-dn>', '--fields name,description,display_name'] },
   { tool: 'falcon-axi' as const, source: 'test/fixtures/falcon-SKILL.md', examples: ['artium-axi falcon-axi search start --query', 'artium-axi falcon-axi search status <id> --wait 30', '1-50 seconds', 'formatTime(', 'Stop search jobs when no longer needed.'] },

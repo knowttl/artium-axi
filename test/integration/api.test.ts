@@ -818,7 +818,7 @@ test('the real server remains available after startup encounters a damaged nativ
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'mg-axi'")
     const graphListing = await fetch(`${origin}/v1/tools`, { headers })
     expect(graphListing.status, await graphListing.clone().text()).toBe(200)
-    expect(toolsResponseSchema.parse(await graphListing.json()).tools).toContainEqual({ name: 'mg-axi', version: '0.1.13', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await graphListing.json()).tools).toContainEqual({ name: 'mg-axi', version: '0.1.14', status: 'unconfigured', readOnly: true })
     expect(readFileSync(journal, 'utf8')).toBe(damaged)
   } finally {
     child.kill('SIGTERM')
