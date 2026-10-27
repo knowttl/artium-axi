@@ -8,20 +8,35 @@ import { inputLimits } from '../shared/api.js'
 import { toolInput } from './input.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-input-'))
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 test.each([
   ['logs', 'query', '--workspace', 'synthetic', 'Heartbeat | count'],
   ['rg', 'query', '--limit', '1', 'Resources | count'],
   ['--subscription', 'synthetic', 'rg', 'query', '--full', 'true', 'Resources'],
-  ['api', 'GET', '/synthetic'],
+  ['graph', 'query', 'Resources'],
+  ['monitor', 'log-analytics', 'query', 'Heartbeat'],
+  ['graph', 'query', '--graph-query', 'Resources'],
+  ['graph', 'query', '--graph-query=Resources'],
+  ['graph', 'query', '-q', 'Resources'],
+  ['graph', 'query', '-q=Resources'],
+  ['monitor', 'log-analytics', 'query', '--analytics-query', 'Heartbeat'],
+  ['monitor', 'log-analytics', 'query', '--analytics-query=Heartbeat'],
+  ['api', 'POST', '/synthetic', '--body', '{}'],
+  ['api', 'POST', '/synthetic', '--body={}'],
+  ['api', 'POST', '/synthetic', '--data', '{}'],
+  ['api', 'POST', '/synthetic', '--data={}'],
   ['logs', 'query', '--', 'Heartbeat'],
+  ['rg', 'query', 'Resources', '--'],
+  ['logs', 'query', 'Resources', '--'],
+  ['graph', 'query', 'Resources', '--'],
+  ['monitor', 'log-analytics', 'query', 'Heartbeat', '--'],
   ['rg', 'query', '--subscription', 'synthetic', 'Resources'],
   ['logs', 'query', '--fields', 'name', 'Heartbeat'],
-  ['api', '--fields', 'name', 'GET', '/synthetic'],
+  ['api', '--fields', 'name', 'POST', '/synthetic', '--body', '{}'],
   ['logs', 'query', '-'],
-].map(args => ({ args })))('Azure positional input leaves an open pipe unread: $args', async ({ args }) => {
+].map(args => ({ args })))('Azure explicit input leaves an open pipe unread: $args', async ({ args }) => {
   const pipe = new PassThrough()
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(pipe as unknown as typeof process.stdin)
   const reading = vi.spyOn(pipe, Symbol.asyncIterator)
@@ -31,15 +46,21 @@ test.each([
   } finally { pipe.destroy() }
 }, 1000)
 
-test('Azure uploads a file without reading an open stdin pipe', async () => {
+test.each([
+  ['logs', 'query', '--file'],
+  ['rg', 'query', '--file'],
+  ['graph', 'query', '--file'],
+  ['monitor', 'log-analytics', 'query', '--file'],
+  ['api', 'POST', '/synthetic', '--body-file'],
+])('Azure uploads a file without reading an open stdin pipe: %j', async (...prefix) => {
   const path = join(directory, 'query.kql')
   writeFileSync(path, 'Heartbeat')
   const pipe = new PassThrough()
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(pipe as unknown as typeof process.stdin)
   const reading = vi.spyOn(pipe, Symbol.asyncIterator)
   try {
-    expect(await toolInput('az-axi', ['logs', 'query', '--file', path, '--workspace', 'synthetic']))
-      .toEqual({ args: ['logs', 'query', '--file', 'query.kql', '--workspace', 'synthetic'],
+    expect(await toolInput('az-axi', [...prefix, path]))
+      .toEqual({ args: [...prefix, 'query.kql'],
         files: [{ name: 'query.kql', contentBase64: Buffer.from('Heartbeat').toString('base64') }] })
     expect(reading).not.toHaveBeenCalled()
   } finally { pipe.destroy() }
@@ -48,7 +69,10 @@ test('Azure uploads a file without reading an open stdin pipe', async () => {
 test.each([
   ['logs', 'query', '--workspace', 'synthetic'],
   ['rg', 'query', '--limit=1'],
+  ['rg', 'query', '--'],
+  ['logs', 'query', '--'],
   ['api'],
+  ['api', 'POST', '/synthetic'],
   ['graph', 'query', '--first', '1'],
   ['graph', 'query', '--first=1'],
   ['graph', 'query', '--subscriptions', 'sub-a', 'sub-b'],
@@ -67,6 +91,30 @@ test.each([
     vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['Heartbeat']) as typeof process.stdin)
     expect(await toolInput('az-axi', args)).toEqual({ args, stdin: 'Heartbeat' })
   })
+
+test.each([
+  { tool: 'az-axi', args: ['logs', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['rg', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['graph', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['monitor', 'log-analytics', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['api', 'POST', '/synthetic'], alternative: '--data' },
+  { tool: 'hybrid-axi', args: ['api', '--body-file', '-'], alternative: '--body-file' },
+  ...tenable.adapterBoundary.inputFileFlags.map(flag => ({ tool: 'tenable-axi', args: ['asset', 'list', `--${flag}`, '-'], alternative: `--${flag}` })),
+])('$tool fails at the stdin deadline: $args', async ({ tool, args, alternative }) => {
+  vi.useFakeTimers()
+  const pipe = new PassThrough()
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(pipe as unknown as typeof process.stdin)
+  const rejected = expect(toolInput(tool, args)).rejects.toMatchObject({ code: 'INVALID_INPUT',
+    message: expect.stringContaining(`no stdin EOF after 5 s; close stdin or pass ${alternative}`) })
+  await vi.advanceTimersByTimeAsync(5000)
+  await rejected
+  expect(pipe.destroyed).toBe(true)
+})
+
+test('Azure accepts closed empty stdin', async () => {
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from([]) as typeof process.stdin)
+  expect(await toolInput('az-axi', ['logs', 'query'])).toEqual({ args: ['logs', 'query'] })
+})
 
 test.each(tenable.adapterBoundary.inputFileFlags)('Tenable uploads only declared --%s inputs', async flag => {
   const path = join(directory, 'input.json')
