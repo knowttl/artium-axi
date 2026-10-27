@@ -80,7 +80,7 @@ const execute = promisify(execFile)
 const cli = async args => {
   try {
     return { ...await execute(process.execPath, [fileURLToPath(new URL('../../dist/cli/artium-axi.mjs', import.meta.url)), 'mg-axi', ...args],
-      { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory,
+      { cwd: directory, timeout: 10_000, env: { PATH: process.env.PATH, HOME: directory, XDG_CONFIG_HOME: directory,
         ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } }), code: 0 }
   } catch (error) { return { code: error.code, stdout: error.stdout, stderr: error.stderr } }
 }
