@@ -89,7 +89,7 @@ try {
           if (body.categories) assert.deepEqual(body.categories, ['Existing', 'Reviewed'])
           if (body.flag) assert.deepEqual(body.flag, { flagStatus: 'flagged' })
           if (Object.hasOwn(body, 'isRead')) assert.equal(body.isRead, true)
-          if (body.destinationId) assert.ok(['archive', 'deleteditems'].includes(body.destinationId))
+          if (body.destinationId) assert.ok(['archive', 'deleteditems', 'CANARY-private-folder'].includes(body.destinationId))
         } else if (path === '/mailFolders') {
           assert.equal(request.method, 'POST'); assert.deepEqual(body, { displayName: 'Reviewed' })
         } else if (path === '/mailFolders/custom-folder') {

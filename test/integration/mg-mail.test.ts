@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { redactArguments } from '../../src/server/audit/redact.js'
 import { withFakeService } from '../fake-service/fixture.js'
 
 const credential = { mode: 'application', auth: 'client-secret', clientSecret: 'CANARY-graph-secret',
@@ -78,8 +79,9 @@ test.each([
   expect(getCredential).not.toHaveBeenCalled()
 })
 
-test.each(['search', 'filter', 'conversation', 'ids', 'confirm'])('mail --%s values are sensitive audit arguments', flag => {
+test.each(['search', 'filter', 'conversation', 'mailbox', 'id', 'ids', 'folder', 'destination', 'confirm'])('mail --%s values are redacted audit arguments', flag => {
   const adapter = createMgAdapter({ getCredential: vi.fn() }, '/tmp/synthetic-writes.log', profile())
-  expect(adapter.sensitiveArguments?.(['mail', 'message', 'list', `--${flag}`, 'synthetic-query']).flags)
-    .toContain(`--${flag}`)
+  const args = ['mail', 'message', 'list', `--${flag}`, 'CANARY-private-value', `--${flag}=CANARY-private-value`]
+  expect(redactArguments(args, adapter.sensitiveArguments(args)))
+    .toEqual(['mail', 'message', 'list', `--${flag}`, '[redacted]', `--${flag}=[redacted]`])
 })
