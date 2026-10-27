@@ -8,8 +8,7 @@ Run `artium-axi tools` to discover the tools available to this account before ch
 Run `artium-axi tools show <tool>` for its commands and a vetted example, then run `artium-axi <tool> <args>`.
 Follow the returned next commands; they already include the Artium prefix.
 Keep upstream arguments intact and use the managed credentials rather than configuring an upstream CLI directly.
-Azure query and API calls read piped stdin only without uploaded files or positional input.
-Tenable accepts local paths for `--filter-file`, `--body-file`, `--ids-file`, `--asset-ids-file` and `--tag-ids-file`; use `-` to read bounded stdin instead.
+See [client input handling](https://github.com/knowttl/artium-axi/blob/main/docs/client-reference.md#command-surface-and-subcommands) for Azure stdin selection and Tenable local uploads or explicit stdin.
 
 If artium-axi is absent from PATH, use the installed command below in place of `artium-axi` in every example:
 

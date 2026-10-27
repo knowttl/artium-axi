@@ -55,10 +55,11 @@ The API supports bounded stdin and named uploads through the [shared API contrac
 Vectra file inputs use named uploads through the run API, or bounded stdin where the upstream flag accepts `-`; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the accepted file flags.
 The bundled CLI does not upload Vectra files or capture Vectra stdin, and server file paths are unavailable.
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
-Tenable uploads local `--filter-file`, `--body-file`, `--ids-file`, `--asset-ids-file` and `--tag-ids-file` inputs; each accepts `-` to read bounded stdin instead.
 Its run API accepts uploaded leaf names only; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
+Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
+Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the local file as `query.kql` and rewrite the argument to that fixed name.
 Local paths containing a `..` component are refused.
 The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.
