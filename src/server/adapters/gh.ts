@@ -61,7 +61,7 @@ function parseGhArguments(args: readonly string[]) {
       if (!token.startsWith('-')) { words.push(token); continue }
       const name = ({ '-R': 'repo', '-h': 'help' } as Record<string, string>)[token.split('=')[0]]
         ?? token.split('=')[0].replace(/^--/, '')
-      const type = (route.flags as Record<string, string>)[name]
+      const type = (route.flags as Record<string, string | undefined>)[name]
       if (!type) return false
       if (!token.includes('=') && type === 'value') index++
       else if (!token.includes('=') && type === 'boolean-value' && ['true', 'false'].includes(args[index + 1])) index++
