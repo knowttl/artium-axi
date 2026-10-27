@@ -819,7 +819,10 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
     stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
 })
 
-test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list']].map(args => [args]))(
+test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list'],
+  ['logs', 'query', '--workspace', 'synthetic', 'Heartbeat | count'],
+  ['rg', 'query', '--limit=1', 'Resources | count'], ['api', 'GET', '/synthetic'],
+].map(args => [args]))(
   'Azure commands that consume no input complete with stdin left open: %j', async args => {
     requests = []
     response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
@@ -832,7 +835,7 @@ test.each([
   ['graph', 'query'], ['logs', 'query', '-w', 'synthetic'],
   ['monitor', 'log-analytics', 'query', '-w', 'synthetic'],
   ['--subscription', 'synthetic', 'rg', 'query'],
-  ['api', 'POST', '/providers/Microsoft.ResourceGraph/resources'],
+  ['api'],
 ].map(args => [args]))('Azure query and body commands retain piped stdin: %j', async args => {
   requests = []
   response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
@@ -850,7 +853,7 @@ test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bound
   const path = join(directory, 'query.kql')
   writeFileSync(path, query)
   const args = kind === 'stdin' ? [] : kind === 'file' ? ['--file', path] : [`--file=${path}`]
-  expect(await cli(['az-axi', 'rg', 'query', ...args], {}, false, kind === 'stdin' ? query : ''))
+  expect(await cli(['az-axi', 'rg', 'query', ...args], {}, false, kind === 'stdin' ? query : undefined))
     .toMatchObject({ code: 0, stdout: 'synthetic result' })
   expect(requests[0].body).toEqual(kind === 'stdin' ? { args: ['rg', 'query'], stdin: query }
     : { args: ['rg', 'query', ...(kind === 'file' ? ['--file', 'query.kql'] : ['--file=query.kql'])],

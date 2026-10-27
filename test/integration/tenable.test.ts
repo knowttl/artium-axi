@@ -1,7 +1,8 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { Readable } from 'node:stream'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { toolInput } from '../../src/cli/input.js'
 import { createApp } from '../../src/server/app.js'
 import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
@@ -107,14 +108,18 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       const written = await run([...create, '--execute', '--confirm', plan.preview.confirm])
       expect(written.exitCode, written.stdout).toBe(0)
-      const exportPreview = await run(['export', 'asset', 'start', '--body-file=body.json', '--full'], {
-        files: [{ name: 'body.json', contentBase64: Buffer.from('{}').toString('base64') }],
-      })
+      const bodyPath = join(directory, 'body.json')
+      writeFileSync(bodyPath, '{}')
+      const uploaded = await toolInput('tenable-axi', ['export', 'asset', 'start', `--body-file=${bodyPath}`, '--full'])
+      const exportPreview = await run(uploaded.args, uploaded)
       expect(exportPreview.exitCode, exportPreview.stdout).toBe(0)
       const exportPlan = decode(exportPreview.stdout) as { preview: { confirm: string } }
       const exportArgs = ['export', 'asset', 'start', '--body-file', '-', '--execute', '--confirm', exportPlan.preview.confirm,
         '--intent-id', 'synthetic-export']
-      const exported = await run(exportArgs, { stdin: '{}' })
+      const stdin = vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['{}']) as typeof process.stdin)
+      let piped
+      try { piped = await toolInput('tenable-axi', exportArgs) } finally { stdin.mockRestore() }
+      const exported = await run(piped.args, piped)
       expect(exported.exitCode, exported.stdout).toBe(0)
       expect((await run(exportArgs, { stdin: '{}' })).stdout).toContain('ALREADY_EXECUTED')
       expect(db.prepare("SELECT action FROM audit WHERE tool = 'tenable-axi' AND event = 'run-terminal' ORDER BY rowid DESC LIMIT 1").get())
