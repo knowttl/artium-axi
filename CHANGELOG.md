@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.18](https://github.com/knowttl/artium-axi/compare/v0.0.17...v0.0.18) (2026-10-27)
+
+
+### Bug Fixes
+
+* **cli:** correct Azure stdin selection and forward Tenable file inputs ([#180](https://github.com/knowttl/artium-axi/issues/180)) ([09ed07e](https://github.com/knowttl/artium-axi/commit/09ed07e18ad161dfd9083c1e56a546a8cad27dbe))
+* **cli:** include PowerShell and Git Bash commands in Windows skills ([#178](https://github.com/knowttl/artium-axi/issues/178)) ([45145d4](https://github.com/knowttl/artium-axi/commit/45145d4080dc0baa6d1b3ec556b718db51b97f04))
+
 ## [0.0.17](https://github.com/knowttl/artium-axi/compare/v0.0.16...v0.0.17) (2026-10-27)
 
 
