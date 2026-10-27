@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 
 const args = process.argv.slice(2)
+if (process.env.ARTIUM_TEST_GH_LOG) appendFileSync(process.env.ARTIUM_TEST_GH_LOG, JSON.stringify(args) + '\n')
 if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
   if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
     repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' } },
@@ -10,9 +11,13 @@ if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
   } }))
   else if (args.includes('--json') || args.includes('--format')) console.log(JSON.stringify(
     args[0] === 'workflow' && args[1] === 'list' ? [{ id: 123, name: 'synthetic', state: 'disabled_manually' }]
-      : args[0] === 'label' && args[1] === 'list' ? []
+      : ['label', 'pr'].includes(args[0]) && args[1] === 'list' || args[0] === 'search' ? []
       : { id: 'synthetic-id', number: 1, title: 'synthetic', state: 'OPEN', isDraft: true, isLocked: false, isPinned: false,
-        comments: [], reviews: [], body: 'synthetic', url: 'https://github.example/canary/repo/issues/1', files: {} }))
+        comments: [{ id: 'unrelated-comment', author: { login: 'other-participant' }, body: 'unrelated later comment',
+          url: 'https://github.com/canary/repo/issues/1#issuecomment-999' }],
+        reviews: [], body: 'synthetic', url: 'https://github.example/canary/repo/issues/1', files: {} }))
+  else if (args[0] === 'issue' && args[1] === 'comment') console.log('https://github.com/canary/repo/issues/1#issuecomment-123')
+  else if (args[0] === 'issue' && args[1] === 'transfer') console.log('https://github.com/canary/destination/issues/99')
   else console.log(`https://github.com/canary/repo/${args[0] === 'pr' ? 'pull' : args[0] === 'gist' ? 'gist' : 'issues'}/1`)
   process.exit(0)
 }

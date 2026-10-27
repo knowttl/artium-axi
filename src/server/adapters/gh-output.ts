@@ -21,6 +21,7 @@ export function hostedGhOutput(invocation: PreparedCall['invocation'], result: R
   if (!invocation) return result
   if (invocation.credentialAuth === 'device' && result.exitCode !== 0) {
     const revoked = ([result.stdout, result.stderr]).some(output => {
+      if (invocation.nativeGh && /\bBad credentials \(HTTP 401\)/i.test(output)) return true
       try {
         const document = (output.trimStart().startsWith('{') ? JSON.parse(output)
           : decode(output.split(/\nhelp\[\d+\]:/)[0])) as Record<string, unknown>
@@ -46,6 +47,11 @@ export function hostedGhOutput(invocation: PreparedCall['invocation'], result: R
     }
     return { ...result, stdout: diagnostic(result.stdout, result.truncated.stdout), stderr: diagnostic(result.stderr, result.truncated.stderr) }
   }
+  if (!invocation.help && invocation.command === 'issue transfer') return { ...result,
+    stdout: encode({ status: 'transferred', checkArgs: invocation.checkArgs }) + '\n', stderr: '' }
+  if (invocation.nativeGh) return { ...result, stdout: encode(invocation.command === 'issue comment'
+    ? { comment: { url: result.stdout.trim() } }
+    : { operation: invocation.command, status: 'completed', output: result.stdout.trim() }) + '\n' }
   if (invocation.command !== 'run view' || !result.stdout.startsWith('run_log:')) return result
   if (result.truncated.stdout) throw new ArtiumError('INVALID_RESPONSE', 'The hosted run output was truncated.')
   const document = decode(result.stdout.split(/\nhelp\[\d+\]:/)[0]) as { run_log?: Record<string, unknown>, help?: string[] }

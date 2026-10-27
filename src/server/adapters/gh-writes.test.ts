@@ -1,14 +1,17 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, copyFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { chmodSync, copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, vi } from 'vitest'
+import { decode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/gh-axi.json' with { type: 'json' }
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import { createGhAdapter, ghWritePolicy } from './gh.js'
 import { prepareRunJournal } from './run-journal.js'
 import { redactArguments } from '../audit/redact.js'
 import { GithubAppTokenCache } from './github-app-tokens.js'
+import { hostedStatus } from './hosted-status.js'
+import type { PreparedCall } from './types.js'
 
 const reference = { id: 'synthetic-github', tool: 'gh-axi' as const, revision: 1 }
 const credential = { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }
@@ -61,18 +64,137 @@ test.each(samples)('%s requires its exact admin operation and host confirmation'
   expect((await adapter.prepare(call.write!.checkArgs, reference)).effect).toBe('read')
   expect(await (await prepareRunJournal(call.environment, 'gh-axi', call.effect)).action(true)).toBe('write')
   expect(await (await prepareRunJournal(call.environment, 'gh-axi', call.effect)).action(false)).toBe('unknown')
+  executeWrite(call, input)
+})
+
+function executeWrite(call: PreparedCall, input?: { stdin?: string }) {
   const directory = mkdtempSync(join(tmpdir(), 'artium-gh-write-'))
   try {
     const fake = join(directory, 'gh.mjs')
     copyFileSync('test/fixtures/fake-gh.mjs', fake)
     chmodSync(fake, 0o755)
-    const child = spawnSync(process.execPath, [resolve('tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args], {
+    const log = join(directory, 'calls.jsonl')
+    const child = spawnSync(process.execPath, [call.invocation?.nativeGh ? fake : resolve('tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args], {
       cwd: directory, encoding: 'utf8', input: input?.stdin,
-      env: { PATH: process.env.PATH, ...call.environment, GH_BIN: fake, ARTIUM_TEST_GH_WRITES: '1' },
+      env: { PATH: process.env.PATH, ...call.environment, GH_BIN: fake, ARTIUM_TEST_GH_WRITES: '1', ARTIUM_TEST_GH_LOG: log },
     })
     expect(child.status, child.stdout + child.stderr).toBe(0)
     expect(child.stdout + child.stderr).not.toContain(credential.token)
+    const result = hostedStatus('gh-axi', call.invocation, { stdout: child.stdout, stderr: child.stderr,
+      exitCode: child.status!, durationMs: 1, outputBytes: { stdout: Buffer.byteLength(child.stdout), stderr: Buffer.byteLength(child.stderr) },
+      timedOut: false, truncated: { stdout: false, stderr: false } })
+    return { result, calls: readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line) as string[]) }
   } finally { rmSync(directory, { recursive: true, force: true }) }
+}
+
+async function confirmed(args: string[]) {
+  const operation = args.slice(0, 2).join(' ')
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: [operation] } }) })
+  const confirm = (await adapter.prepare(args, reference)).preview!.confirm
+  return adapter.prepare([...args, '--confirm', confirm], reference)
+}
+
+test('transfer acknowledges completion without returning the destination issue at the old number', async () => {
+  const call = await confirmed(['issue', 'transfer', '42', '-R', 'canary/repo', '--to-repo=canary/destination'])
+  const { result } = executeWrite(call)
+  expect(decode(result.stdout)).toEqual({ status: 'transferred', checkArgs: ['issue', 'list', '--state', 'all', '--limit', '100', '-R', 'canary/destination'] })
+})
+
+test('issue comments return the created identity without reading a later participant comment', async () => {
+  const call = await confirmed(['issue', 'comment', '1', '-R', 'canary/repo', '--body=created comment'])
+  const { result, calls } = executeWrite(call)
+  expect(decode(result.stdout)).toEqual({ comment: { url: 'https://github.com/canary/repo/issues/1#issuecomment-123' } })
+  expect(calls).toEqual([['issue', 'comment', '1', '--repo=canary/repo', '--body=created comment']])
+})
+
+test('workflow dispatch preserves every field and binds every value to confirmation', async () => {
+  const args = ['workflow', 'run', '123', '-R', 'canary/repo', '--field=first=a', '--field', 'second=b']
+  const call = await confirmed(args)
+  const { calls } = executeWrite(call)
+  expect(calls).toEqual([['workflow', 'run', '123', '--field', 'first=a', '--field', 'second=b', '--repo', 'canary/repo']])
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['workflow run'] } }) })
+  const confirm = (await adapter.prepare(args, reference)).preview!.confirm
+  await expect(adapter.prepare([...args, '--field=third=c', '--confirm', confirm], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test.each([
+  ['--field=first=@/tmp/secret', '--field=second=b'],
+  ['--field=first=a', '--field=second=@/tmp/secret'],
+])('workflow dispatch refuses local files in every field: %s %s', async (first, second) => {
+  await expect(confirmed(['workflow', 'run', '123', '-R', 'canary/repo', first, second])).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+})
+
+test.each([
+  ['pr', 'list', '--draft'], ['search', 'prs', '--draft'],
+])('resolves boolean types with leading flags for %s %s', async (group, action, flag) => {
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  const scope = group === 'pr' ? ['-R', 'canary/repo'] : ['--owner', 'canary']
+  const call = await adapter.prepare([...scope, group, action, flag], reference)
+  expect(call.args).toEqual([group, action, group === 'pr' ? '--repo=canary/repo' : '--owner=canary', '--draft'])
+  executeWrite(call)
+})
+
+test('resolves flag types between command words', async () => {
+  const adapter = createGhAdapter({ getCredential: async () => credential })
+  const call = await adapter.prepare(['pr', '--draft', 'list', '-R', 'canary/repo'], reference)
+  expect(call.args).toEqual(['pr', 'list', '--draft', '--repo=canary/repo'])
+  executeWrite(call)
+})
+
+test('resolves release boolean values with leading flags', async () => {
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['release edit'] } }) })
+  const args = ['-R', 'canary/repo', '--draft', 'false', 'release', 'edit', 'v1']
+  const confirm = (await adapter.prepare(args, reference)).preview!.confirm
+  const call = await adapter.prepare([...args, '--confirm', confirm], reference)
+  expect(call.args).toEqual(['release', 'edit', 'v1', '--repo=canary/repo', '--draft=false'])
+  executeWrite(call)
+})
+
+test('native repository description edits retain the explicit repository target', async () => {
+  const { calls } = executeWrite(await confirmed(['repo', 'edit', '-R', 'canary/repo', '--description=']))
+  expect(calls).toEqual([['repo', 'edit', 'canary/repo', '--description=']])
+})
+
+test.each(['stdout', 'stderr'] as const)('native device writes identify revoked credentials on %s', stream => {
+  expect(() => hostedStatus('gh-axi', { command: 'issue comment', help: false, nativeGh: true, credentialAuth: 'device' }, {
+    stdout: '', stderr: '', exitCode: 1, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 },
+    timedOut: false, truncated: { stdout: false, stderr: false }, [stream]: 'gh: Bad credentials (HTTP 401)',
+  })).toThrow(expect.objectContaining({ code: 'CREDENTIAL_EXPIRED' }))
+})
+
+test.each([
+  ['label', 'edit', 'priority:high', '-R', 'canary/repo', '--color=abcdef'],
+  ['workflow', 'run', 'CI: tests', '-R', 'canary/repo'],
+  ['workflow', 'enable', 'CI: tests', '-R', 'canary/repo'],
+  ['workflow', 'disable', 'CI: tests', '-R', 'canary/repo'],
+  ['release', 'edit', 'v1:canary', '-R', 'canary/repo', '--title=synthetic'],
+  ['gist', 'rename', 'abc123', 'old:name.txt', 'new:name.txt'],
+])('accepts punctuation in names through %j', async (...args) => {
+  const call = await confirmed(args)
+  expect(call.args).toContain(args[2])
+})
+
+test.each([
+  ['issue', 'create', '-R', 'canary/repo', '--title=synthetic'],
+  ['issue', 'create', '-R', 'canary/repo', '--title=synthetic', '--body='],
+  ['issue', 'edit', '1', '-R', 'canary/repo', '--body='],
+  ['pr', 'create', '-R', 'canary/repo', '--title=synthetic', '--body=', '--base=main', '--head=canary'],
+  ['pr', 'edit', '1', '-R', 'canary/repo', '--body='],
+  ['release', 'create', 'v1', '-R', 'canary/repo', '--notes='],
+  ['release', 'edit', 'v1', '-R', 'canary/repo', '--notes='],
+  ['release', 'edit', 'v1', '-R', 'canary/repo', '--body='],
+  ['gist', 'edit', 'abc123', '--desc='],
+  ['project', 'item-create', '1', '--title=synthetic', '--body='],
+  ['project', 'item-edit', '--id=synthetic-item', '--body='],
+  ['project', 'item-edit', '--id=synthetic-item', '--project-id=synthetic-project', '--field-id=synthetic-field', '--text='],
+  ['label', 'edit', 'synthetic', '-R', 'canary/repo', '--description='],
+  ['repo', 'edit', '-R', 'canary/repo', '--description='],
+])('forwards explicitly empty editable content through %j', async (...args) => {
+  const { calls } = executeWrite(await confirmed(args))
+  expect(calls.some(call => call.includes('') || call.some(arg => /^(?:--(?:body|notes|desc|description|text)=|description=)$/.test(arg)))).toBe(true)
 })
 
 test('confirmation fails after request, input, credential revision or policy changes', async () => {

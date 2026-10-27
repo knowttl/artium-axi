@@ -53,9 +53,24 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
     return { args: ['--version'], invocation: { command: 'version', help: false } }
   }
   const flags = new Map<string, string>()
+  const fields: string[] = []
   const positionals: string[] = []
-  const hint = inventory.commands.find(route => args.slice(0, route.command.split(' ').length).join(' ') === route.command)
-  const allFlags: Record<string, string> = Object.assign({}, ...inventory.commands.map(route => route.flags), hint?.flags)
+  const allFlags: Record<string, string> = Object.assign({}, ...inventory.commands.map(route => route.flags))
+  const hint = inventory.commands.find(route => {
+    const words: string[] = []
+    for (let index = 0; index < args.length; index++) {
+      const token = args[index]
+      if (!token.startsWith('-')) { words.push(token); continue }
+      const name = ({ '-R': 'repo', '-h': 'help', '-X': 'method' } as Record<string, string>)[token.split('=')[0]]
+        ?? token.split('=')[0].replace(/^--/, '')
+      const type = (route.flags as Record<string, string>)[name]
+      if (!type) return false
+      if (!token.includes('=') && type === 'value') index++
+      else if (!token.includes('=') && type === 'boolean-value' && ['true', 'false'].includes(args[index + 1])) index++
+    }
+    return words.slice(0, route.command.split(' ').length).join(' ') === route.command
+  })
+  Object.assign(allFlags, hint?.flags)
   for (let index = 0; index < args.length; index++) {
     const token = args[index]
     if (!token.startsWith('-')) { positionals.push(token); continue }
@@ -64,7 +79,7 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
     const name = ({ '-R': 'repo', '-h': 'help', '-X': 'method' } as Record<string, string>)[match[1]] ?? match[1].slice(2)
     if (ghManifest.unsafeOverrides.includes(name) || name === 'method' && hint?.command !== 'pr merge') throw new ArtiumError('FLAG_BLOCKED')
     if (!Object.hasOwn(allFlags, name)) throw unknownFlag('gh-axi', positionals.join(' ') || 'home', token, Object.keys(allFlags))
-    if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
+    if (flags.has(name) && !(hint?.command === 'workflow run' && name === 'field')) throw new ArtiumError('INVALID_INPUT')
     if (allFlags[name] === 'boolean-value') {
       const value = match[2] ?? (['true', 'false'].includes(args[index + 1]) ? args[++index] : 'true')
       if (!['true', 'false'].includes(value)) throw new ArtiumError('INVALID_INPUT')
@@ -75,9 +90,11 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
     } else {
       const value = match[2] ?? args[++index]
       const text = ['body', 'notes', 'desc', 'description', 'title', 'comment', 'text', 'subject'].includes(name)
-      if (!value || value.startsWith('-') && match[2] === undefined
+      const emptyContent = ['body', 'notes', 'desc', 'description', 'text'].includes(name)
+      if (value === undefined || value === '' && !emptyContent || value.startsWith('-') && match[2] === undefined
         || (text ? /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/ : /[\x00-\x1f\x7f]/).test(value)) throw new ArtiumError('INVALID_INPUT')
       flags.set(name, value)
+      if (name === 'field') fields.push(value)
     }
   }
   if (flags.size === 1 && flags.has('help') && positionals.length === 0) {
@@ -93,7 +110,6 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
     .find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('gh-axi', positionals, inventory.commands.map(route => route.command))
-  if (route.effect === 'write' && hint?.command !== route.command) throw new ArtiumError('INVALID_INPUT', 'Place the write command before its flags.')
   const rest = positionals.slice(route.command.split(' ').length)
   if (route.positionals !== 'variadic' && rest.length > Number(route.positionals) || rest.some(value => /[\x00-\x1f\x7f]/.test(value))) throw new ArtiumError('INVALID_INPUT')
   for (const name of flags.keys()) if (!Object.hasOwn(route.flags, name)) {
@@ -108,16 +124,20 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   if (route.command === 'gist edit' && !help && !stdin && !flags.has('desc')) throw new ArtiumError('INVALID_INPUT')
   if (route.command === 'pr create' && !help && (!flags.has('title') || !flags.has('body') || !flags.has('base') || !flags.has('head'))) throw new ArtiumError('INVALID_INPUT')
   if (!help && ['issue create', 'project item-create'].includes(route.command) && !flags.has('title')) throw new ArtiumError('INVALID_INPUT')
-  if (!help && ['issue comment', 'pr comment', 'discussion comment', 'variable set'].includes(route.command) && !flags.has('body')) throw new ArtiumError('INVALID_INPUT')
+  if (!help && route.command === 'issue create' && !flags.has('body')) flags.set('body', '')
+  if (!help && ['issue comment', 'pr comment', 'discussion comment'].includes(route.command) && !flags.get('body')?.trim()) throw new ArtiumError('INVALID_INPUT')
+  if (!help && route.command === 'variable set' && !flags.has('body')) throw new ArtiumError('INVALID_INPUT')
   if (!help && (route.command === 'issue transfer' && !flags.has('to-repo')
     || route.command === 'project item-add' && !flags.has('url')
     || ['project item-edit', 'project item-archive'].includes(route.command) && !flags.has('id'))) throw new ArtiumError('INVALID_INPUT')
   if (flags.has('to-repo') && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(flags.get('to-repo')!)) throw new ArtiumError('FLAG_BLOCKED')
   if (flags.has('template') && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(flags.get('template')!)) throw new ArtiumError('FLAG_BLOCKED')
-  if (route.command === 'workflow run' && flags.get('field')?.split('=').slice(1).join('=').startsWith('@')) throw new ArtiumError('FLAG_BLOCKED')
+  if (route.command === 'workflow run' && fields.some(value => value.split('=').slice(1).join('=').startsWith('@'))) throw new ArtiumError('FLAG_BLOCKED')
   // A host-qualified repo or selector URL can override GH_HOST inside gh.
   if (flags.has('repo') && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(flags.get('repo')!)) throw new ArtiumError('FLAG_BLOCKED')
-  if (route.command !== 'api' && !route.command.startsWith('search ') && rest.some(value => value.includes(':') || value.startsWith('//'))) {
+  const selectors = ['issue', 'pr', 'discussion', 'gist', 'project', 'run'].includes(route.command.split(' ')[0])
+    ? rest.slice(0, 1) : route.command.startsWith('repo ') ? rest : []
+  if (selectors.some(value => value.includes(':') || value.startsWith('//'))) {
     throw new ArtiumError('FLAG_BLOCKED')
   }
   if (route.repository && !flags.has('help') && !flags.has('repo')) throw new ArtiumError('INVALID_INPUT',
@@ -134,9 +154,20 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   const command = route.command.split(' ')
-  return { args: [...command, ...rest, ...[...flags].filter(([name]) => name !== 'confirm').flatMap(([name, value]) => allFlags[name] === 'boolean'
+  const nativeGh = !help && (route.command === 'issue comment'
+    || flags.get('body') === '' && ['issue create', 'issue edit', 'pr create', 'pr edit', 'project item-create', 'project item-edit'].includes(route.command)
+    || flags.get('description') === '' && ['label edit', 'repo edit'].includes(route.command))
+  if (route.command.startsWith('release ') && flags.get('body') === '') {
+    if (flags.has('notes')) throw new ArtiumError('INVALID_INPUT')
+    flags.delete('body')
+    flags.set('notes', '')
+  }
+  const nativeRepoEdit = nativeGh && route.command === 'repo edit'
+  return { args: [...command, ...(nativeRepoEdit ? [flags.get('repo')!] : rest),
+    ...[...flags].filter(([name]) => name !== 'confirm' && !(nativeRepoEdit && name === 'repo')).flatMap(([name, value]) => name === 'field'
+    ? fields.map(value => `--field=${value}`) : allFlags[name] === 'boolean'
     ? [`--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
-      ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help },
+      ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help, nativeGh },
     mutation: route.effect === 'write' && !help ? { route: route.command, rest, flags, confirm: flags.get('confirm') } : undefined }
 }
 
@@ -192,8 +223,8 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
       const token = parsed.data.auth === 'github-app'
         ? await tokens.acquire(reference, parsed.data, source.getTrust?.(reference))
         : (parsed.data.auth === 'device' ? parsed.data.accessToken : parsed.data.token) as string
-      return { executable: toolPaths['gh-axi'], ...call,
-        invocation: { ...call.invocation, ...(parsed.data.auth === 'device' ? { credentialAuth: 'device' as const } : {}) }, environment: {
+      return { ...call, executable: call.invocation.nativeGh ? '/usr/local/bin/gh' : toolPaths['gh-axi'],
+        invocation: { ...call.invocation, ...(write ? { checkArgs: write.checkArgs } : {}), ...(parsed.data.auth === 'device' ? { credentialAuth: 'device' as const } : {}) }, environment: {
         [host === 'github.com' || host.endsWith('.ghe.com') ? 'GH_TOKEN' : 'GH_ENTERPRISE_TOKEN']: token,
         GH_HOST: host, GH_BIN: '/usr/local/bin/gh', GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1',
         GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_SPINNER_DISABLED: '1', GH_TELEMETRY: '0', NO_COLOR: '1',
