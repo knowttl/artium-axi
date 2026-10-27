@@ -163,7 +163,13 @@ Artium's authenticated setup fetches managed skills; a standalone skill installe
 All tools start disabled; write access defaults to off.
 Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
 
-Microsoft Graph supports the `entra` pack only; the bundled upstream `security hunting query` command for Defender XDR advanced hunting is unavailable through Artium.
+Microsoft Graph defaults to the `entra` pack.
+Administrators can opt in to the single read-only `security hunting query` command for Defender XDR advanced hunting with `enabledPacks: ["entra", "security"]` in the managed tool settings.
+Hunting accepts exactly one UTF-8 plain-text upload named `query.kql`, at most 64 KiB, through `artium-axi mg-axi security hunting query --file query.kql`.
+See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for local file paths and upload restrictions.
+Queries must use the upstream restricted read-only KQL subset.
+The existing mg-axi role grant is required; other security commands remain unavailable.
+See [Graph credential setup](docs/tool-credentials.md#microsoft-graph) for hunting permissions and consent; tenant acceptance remains unverified.
 
 Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
 

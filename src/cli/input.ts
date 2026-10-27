@@ -30,8 +30,9 @@ export async function toolInput(tool: string, original: string[]) {
   const args = [...original]
   const input: RunInput = {}
   let totalFileBytes = 0
-  if ((tool === 'az-axi' || tool === 'hybrid-axi') && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
-    const fileFlags = tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
+  const hunting = tool === 'mg-axi' && args.slice(0, 3).join(' ') === 'security hunting query'
+  if ((tool === 'az-axi' || tool === 'hybrid-axi' || hunting) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
+    const fileFlags = hunting ? ['file'] : tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
     for (let index = 0; index < args.length; index++) {
       if (args[index] === '--') break
       const [flag] = args[index].split('=')
@@ -43,10 +44,11 @@ export async function toolInput(tool: string, original: string[]) {
         continue
       }
       if (!path || path === '-') throw new ArtiumError('UNSUPPORTED_INPUT', 'A file flag requires a local file path.')
-      const name = basename(path)
+      if (hunting && (path.split(/[\\/]/).includes('..') || input.files?.length)) throw new ArtiumError('INVALID_INPUT')
+      const name = hunting ? 'query.kql' : basename(path)
       if (input.files?.some(file => file.name === name)) throw new ArtiumError('INVALID_INPUT', 'Upload file names must be distinct.')
       if ((input.files?.length ?? 0) >= inputLimits.files) throw new ArtiumError('INVALID_INPUT', 'Too many upload files.')
-      const content = await readBounded(createReadStream(path), inputLimits.fileBytes)
+      const content = await readBounded(createReadStream(path), hunting ? 65536 : inputLimits.fileBytes)
       totalFileBytes += content.length
       if (totalFileBytes > inputLimits.totalFileBytes) throw new ArtiumError('INVALID_INPUT', 'Uploads exceed the total byte limit.')
       input.files ??= []

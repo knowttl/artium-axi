@@ -1,14 +1,14 @@
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/mg-axi.json' with { type: 'json' }
-import { nativeSettingsSchemas } from '../../shared/api.js'
+import { inputFileSchema, nativeSettingsSchemas } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { Adapter } from './types.js'
-import { loadCredentialProfile, withCredentialProfile } from './credential-profile.js'
+import { loadCredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 const nonempty = z.string().min(1).refine(value => value.trim().length > 0)
@@ -26,7 +26,8 @@ export const mgWritePolicy = writePolicy({ supportedOperations: inventory.native
   blocked: 'Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
 
 function mgArguments(args: readonly string[], input: RunnerInput = {}) {
-  if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
+  const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
+  if (input.files?.length && !hunting) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--help', '--version', '-v', '-V'].includes(args[0])) {
     if (input.stdin !== undefined) throw new ArtiumError('UNSUPPORTED_INPUT')
     return { args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' } }
@@ -47,9 +48,15 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   const schema: Record<string, string | undefined> = route.flags
   const flags: Record<string, string | boolean> = Object.create(null)
+  const normalized = [...words]
+  const fileArguments: number[] = []
   for (let index = words.length; index < args.length; index++) {
+    if (hunting && (!args[index].startsWith('--') || !Object.hasOwn(schema, args[index].slice(2).split('=')[0]))) {
+      throw new ArtiumError('INVALID_INPUT')
+    }
     if (!args[index].startsWith('-')) throw new ArtiumError('INVALID_INPUT', `Unexpected argument ${JSON.stringify(args[index])} for mg-axi ${route.command}.`)
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(args[index])
+    if (!match && hunting) throw new ArtiumError('INVALID_INPUT')
     if (!match) throw unknownFlag('mg-axi', route.command, args[index], Object.keys(schema).filter(name => !mgManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
     if (mgManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
@@ -58,30 +65,62 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
     if (schema[name] === 'boolean') {
       if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
       flags[name] = true
+      normalized.push(`--${name}`)
     } else {
       const value = inline ?? args[++index]
-      if (!value?.trim() || value.startsWith('-') && !(name === 'cursor' && value === '-')) throw new ArtiumError('INVALID_INPUT')
+      if (!value?.trim() || value.startsWith('-') && !(['cursor', 'file'].includes(name) && value === '-')) throw new ArtiumError('INVALID_INPUT')
       flags[name] = value
+      normalized.push(`--${name}`, value)
+      if (hunting && name === 'file') fileArguments.push(normalized.length - 1)
     }
   }
   if (input.stdin !== undefined && flags.cursor !== '-') throw new ArtiumError('UNSUPPORTED_INPUT')
-  return { args: [...args], invocation: { command: route.command, help: flags.help === true } }
+  if (hunting && (flags.help !== true || input.files?.length)) {
+    const file = input.files?.[0]
+    if (flags.file !== 'query.kql' || input.files?.length !== 1 || file?.name !== 'query.kql'
+      || !inputFileSchema.safeParse(file).success || file.contentBase64.length > 4 * Math.ceil(65536 / 3)) {
+      throw new ArtiumError('UNSUPPORTED_INPUT', 'Hunting requires exactly one UTF-8 query.kql upload of at most 64 KiB.')
+    }
+    const bytes = Buffer.from(file.contentBase64, 'base64')
+    let text: string
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+    catch { throw new ArtiumError('UNSUPPORTED_INPUT') }
+    if (bytes.length > 65536 || !text.trim() || /\p{Cc}/u.test(text.replace(/[\t\r\n]/g, ''))) throw new ArtiumError('UNSUPPORTED_INPUT')
+  }
+  return { args: hunting && flags.help !== true ? normalized : [...args], fileArguments: flags.help === true ? [] : fileArguments,
+    invocation: { command: route.command, help: flags.help === true } }
 }
 
 export function createMgAdapter(source: SecretSource, writeLog: string,
   profile = loadCredentialProfile('mg-axi')): Adapter<unknown> {
   if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
-  return withCredentialProfile({
-    name: 'mg-axi', executable: toolPaths['mg-axi'], credentialSchema: mgCredentialSchema,
+  return {
+    name: 'mg-axi', executable: toolPaths['mg-axi'], credentialSchema: profile?.credentialSchema ?? mgCredentialSchema,
+    credentialProfile: profile,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: mgManifest.unsafeOverrides.map(name => `--${name}`),
-    allowedFlagValues: {}, sensitiveArguments: () => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`), positions: [] }),
+    allowedFlagValues: {}, sensitiveArguments: args => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`),
+      positions: args.slice(0, 3).join(' ') === 'security hunting query' ? args.map((_, index) => index) : [] }),
     validateArgs: (args, input) => { mgArguments(args, input) },
     async prepare(args, reference, input) {
       const normalized = mgArguments(args, input)
-      if (reference.tool !== 'mg-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
-      const parsed = mgCredentialSchema.safeParse(await source.getCredential(reference))
+      if (reference.tool !== 'mg-axi' || !profile && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
+      const value = await source.getCredential(reference)
+      const parsed = (profile?.credentialSchema ?? mgCredentialSchema).safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const credential = parsed.data
+      const settings = source.getSettings?.(reference) ?? parsed.data
+      if (normalized.invocation.command === 'security hunting query'
+        && !(settings.enabledPacks as string[] | undefined)?.includes('security')) {
+        throw new ArtiumError('FLAG_BLOCKED', 'Hunting requires the administrator enabledPacks: ["entra", "security"] opt-in.')
+      }
+      const query = input?.files?.[0] ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
+      if (profile) {
+        const prepared = profile.prepare('mg-axi', parsed.data, writeLog,
+          (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true)
+        return { executable: toolPaths['mg-axi'], ...normalized, ...prepared,
+          secrets: [...prepared.secrets, ...(query ? [query] : [])],
+          limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 } }
+      }
+      const credential = mgCredentialSchema.parse(parsed.data)
       const { tenantId, clientId, preview = false, writes } = credential
       const secret = credential.auth === 'secret' ? credential.clientSecret : credential.privateKey
       const holder = 'ARTIUM_SECRET_0'
@@ -94,14 +133,13 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
           MG_AXI_READ_ONLY: String(writes?.allowWrites !== true), [holder]: secret },
         files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
           artium: { mode: 'application', tenantId, clientId, cloud: 'commercial', preview,
-            allowDeviceCode: false, enabledPacks: ['entra'], sensitiveAreas: [], credentialRef,
+            allowDeviceCode: false, enabledPacks: credential.enabledPacks ?? ['entra'], sensitiveAreas: [], credentialRef,
             ...(writes === undefined ? {} : { writes }) },
         } }) }],
         secrets: [...new Set([secret, credential.auth === 'secret' ? secret.trim()
-          : secret.includes('\n') ? secret : secret.replace(/\\n/g, '\n')])],
+          : secret.includes('\n') ? secret : secret.replace(/\\n/g, '\n'), ...(query ? [query] : [])])],
         limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
       }
     },
-  }, source, writeLog, profile, mgArguments,
-  { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 })
+  }
 }

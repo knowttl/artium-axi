@@ -146,7 +146,9 @@ Licences still apply: PIM and risk/governance features can fail despite consent,
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 
 In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
-Keep `enabledPacks` set to `["entra"]`, matching the [managed capability boundary](../README.md#safety).
+For the default pack and administrator opt-in to Defender XDR hunting, see the [managed capability boundary](../README.md#safety).
+Security-only profiles are refused so existing Entra reads and credential tests remain available.
+The app registration used by Artium requires `ThreatHunting.Read.All` with administrator consent; tenant acceptance remains unverified.
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
 Save, run **Test credential**, follow the [activation requirements](admin-guide.md#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.

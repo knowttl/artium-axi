@@ -57,6 +57,11 @@ Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` i
 Its run API accepts uploaded leaf names only; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
 See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
+For Graph hunting, `--file <local-path>` and `--file=<local-path>` upload the local file as `query.kql` and rewrite the argument to that fixed name.
+Local paths containing a `..` component are refused.
+The run API requires that fixed upload name; server file paths, stdin and multiple files are unavailable for hunting.
+Other Graph commands do not upload local files; hunting help and version requests leave local files and stdin unread.
+See the [Graph capability boundary](../README.md#safety) for the hunting command, content limits and administrator opt-in.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.
