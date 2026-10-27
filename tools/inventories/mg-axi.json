@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.14",
-  "integrity": "sha512-XGsOHDrzAF0n8Sx57gREUuH1zysJnAzGmPt/7jm4tTF7uJl1db8oLx/E9NqSiG9mhhJXD5W36e6ucIHJO6x4AQ==",
+  "version": "0.1.15",
+  "integrity": "sha512-+5UfnLzVTZteAFRHtQmwulnhq9SWJGSkwQx7icmzBjfGOQXXru51JUwgCYy3UK637v7K6v7Hq2srIHT0Xa3vew==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "b000465e5f21bdff8b6afb76e64bf2850debae765f36361977a6e6ac0f45a309",
-  "skillSha256": "0954c03b28e235ac9c94e0032db2ee8f869ba11e67f11990eb8ad3c5339abdb5",
+  "packageManifestSha256": "4127ee06aa70f12615e3b1676af6bdf49ee8a3e8df13553f23c3b98255a7e9d4",
+  "skillSha256": "35034cef05d0031e40f195a070bb269499464e26436524753eba384480c58eb0",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "3eb2034208df61d76de43d826baa3e191792e9441b0157f278302e31e2cabb08"
+      "sha256": "50afbe4618bc52175e3194634ff4e12b541ac0a7c349c7c920566cd7ee857f26"
     },
     {
       "path": "dist/msal-app-provider.js",
@@ -69,6 +69,18 @@
       "entra.risky-user.dismiss",
       "entra.user.revokeSessions",
       "entra.user.update",
+      "mail.category.create",
+      "mail.folder.create",
+      "mail.folder.delete",
+      "mail.message.copy",
+      "mail.message.flag",
+      "mail.message.mark",
+      "mail.message.move",
+      "mail.message.tag",
+      "mail.message.trash",
+      "mail.rule.create",
+      "mail.rule.delete",
+      "mail.rule.update",
       "mg.entra.group.member.add"
     ],
     "profileFields": {
@@ -87,7 +99,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "3eb2034208df61d76de43d826baa3e191792e9441b0157f278302e31e2cabb08"
+        "sha256": "50afbe4618bc52175e3194634ff4e12b541ac0a7c349c7c920566cd7ee857f26"
       }
     ]
   },
@@ -110,7 +122,19 @@
       "mail settings show",
       "mail rule list",
       "mail rule show",
-      "mail category list"
+      "mail category list",
+      "mail message tag",
+      "mail message flag",
+      "mail message mark",
+      "mail message move",
+      "mail message copy",
+      "mail message trash",
+      "mail folder create",
+      "mail folder delete",
+      "mail category create",
+      "mail rule create",
+      "mail rule update",
+      "mail rule delete"
     ],
     "example": [
       "entra",
@@ -172,11 +196,11 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "d73aa0bb4411aa3da6f2345af80dbb15faac403d704992ac8c135c9d0e991fe0"
+        "sha256": "b69b2f56ef08ccb088354bd3387621de5e18b5a480e3938f7c37a2cd7faf5d8e"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "217e731835772f4f625811cde4733a67b43dee8f2ef5603e9058730998e1a26d"
+        "sha256": "90e18714c71d17e46b6b8b5ac9e4f22550caa8284e801fdd6edd499dee5447d3"
       },
       {
         "path": "dist/profiles.js",
@@ -188,7 +212,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "3eb2034208df61d76de43d826baa3e191792e9441b0157f278302e31e2cabb08"
+        "sha256": "50afbe4618bc52175e3194634ff4e12b541ac0a7c349c7c920566cd7ee857f26"
       }
     ]
   },
@@ -220,7 +244,19 @@
       "mail settings show",
       "mail rule list",
       "mail rule show",
-      "mail category list"
+      "mail category list",
+      "mail message tag",
+      "mail message flag",
+      "mail message mark",
+      "mail message move",
+      "mail message copy",
+      "mail message trash",
+      "mail folder create",
+      "mail folder delete",
+      "mail category create",
+      "mail rule create",
+      "mail rule update",
+      "mail rule delete"
     ],
     "commandPacks": {
       "security hunting query": "security",
@@ -232,11 +268,23 @@
       "mail settings show": "mail",
       "mail rule list": "mail",
       "mail rule show": "mail",
-      "mail category list": "mail"
+      "mail category list": "mail",
+      "mail message tag": "mail",
+      "mail message flag": "mail",
+      "mail message mark": "mail",
+      "mail message move": "mail",
+      "mail message copy": "mail",
+      "mail message trash": "mail",
+      "mail folder create": "mail",
+      "mail folder delete": "mail",
+      "mail category create": "mail",
+      "mail rule create": "mail",
+      "mail rule update": "mail",
+      "mail rule delete": "mail"
     },
     "inputs": {
       "stdin": "cursor - only",
-      "files": "security hunting query only: one UTF-8 query.kql upload, at most 64 KiB; fixed runner leaf name",
+      "files": "security hunting query or mail rule create/update only: one UTF-8 query.kql or rule.json upload, at most 64 KiB; fixed runner leaf name",
       "cursor": "opaque token or stdin; never a path",
       "api": "reviewed GET routes only; pinned Graph destination and operation gates retained"
     },
@@ -245,6 +293,11 @@
       "search",
       "filter",
       "conversation",
+      "ids",
+      "confirm",
+      "add",
+      "remove",
+      "name",
       "odata",
       "conditions",
       "grant-controls",
@@ -273,11 +326,27 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "d73aa0bb4411aa3da6f2345af80dbb15faac403d704992ac8c135c9d0e991fe0"
+        "sha256": "b69b2f56ef08ccb088354bd3387621de5e18b5a480e3938f7c37a2cd7faf5d8e"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "217e731835772f4f625811cde4733a67b43dee8f2ef5603e9058730998e1a26d"
+        "sha256": "90e18714c71d17e46b6b8b5ac9e4f22550caa8284e801fdd6edd499dee5447d3"
+      },
+      {
+        "path": "dist/mail-message-writes.js",
+        "sha256": "350a94c175579289e3408466bdf84e93ad426a9139604707a60f0a09dbdf3a53"
+      },
+      {
+        "path": "dist/mail-folder-writes.js",
+        "sha256": "3423c53402bc08e47d291da47067ead7affeba158e41c53469f0d9d8e0796270"
+      },
+      {
+        "path": "dist/mail-rule-writes.js",
+        "sha256": "47a9a632d16e44aa06c2f97fb5b098ab274916eb9e9bd3257b60022705168896"
+      },
+      {
+        "path": "dist/mail-write-runner.js",
+        "sha256": "5baeb554c6f4c7a329eef51b8e5d5f477d3dead71e1074028033f718eb4a141c"
       }
     ]
   },
@@ -290,6 +359,9 @@
     },
     {
       "name": "acknowledge-lockout-risk"
+    },
+    {
+      "name": "add"
     },
     {
       "name": "administrative-unit"
@@ -340,6 +412,9 @@
       "name": "cloud"
     },
     {
+      "name": "color"
+    },
+    {
       "name": "commerce-subscription-id"
     },
     {
@@ -359,6 +434,9 @@
     },
     {
       "name": "definition"
+    },
+    {
+      "name": "destination"
     },
     {
       "name": "detail-id"
@@ -412,6 +490,9 @@
       "name": "id"
     },
     {
+      "name": "ids"
+    },
+    {
       "name": "instance"
     },
     {
@@ -451,6 +532,9 @@
       "name": "profile"
     },
     {
+      "name": "remove"
+    },
+    {
       "name": "report"
     },
     {
@@ -485,6 +569,9 @@
     },
     {
       "name": "state"
+    },
+    {
+      "name": "status"
     },
     {
       "name": "tenant"
@@ -4844,6 +4931,194 @@
         "file": "value",
         "timespan": "value",
         "limit": "value",
+        "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail folder create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "name": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail folder delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "ids": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail category create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "name": "value",
+        "color": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail rule create",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "file": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail rule update",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "file": "value",
+        "ids": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail rule delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "ids": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message tag",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "add": "value",
+        "remove": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message flag",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "status": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message mark",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "state": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message move",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "destination": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message copy",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "full": "boolean",
+        "destination": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message trash",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "ids": "value",
+        "execute": "boolean",
+        "confirm": "value",
         "full": "boolean",
         "config": "value"
       },

@@ -40,7 +40,7 @@
     "integrity": "sha512-QVectHNsRxYWNBf0im5DjeN78mcgK0Te0Sxh7uXGNb+AhQjsS5ywiCrnKAk0/INA/oxiZ1TiXaDX7jHAg5OvDg=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.14",
-    "integrity": "sha512-XGsOHDrzAF0n8Sx57gREUuH1zysJnAzGmPt/7jm4tTF7uJl1db8oLx/E9NqSiG9mhhJXD5W36e6ucIHJO6x4AQ=="
+    "version": "0.1.15",
+    "integrity": "sha512-+5UfnLzVTZteAFRHtQmwulnhq9SWJGSkwQx7icmzBjfGOQXXru51JUwgCYy3UK637v7K6v7Hq2srIHT0Xa3vew=="
   }
 }

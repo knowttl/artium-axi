@@ -23,12 +23,15 @@ export const mgCredentialSchema = z.discriminatedUnion('auth', [
 export type MgCredential = z.infer<typeof mgCredentialSchema>
 export const mgManifest = { ...inventory, ...inventory.adapterBoundary }
 export const mgWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
-  unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal and conditional-access policy operations; native execution and confirmation gates still apply.',
+  unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal, conditional-access policy and mail operations; native execution and confirmation gates still apply.',
   blocked: 'Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
 
 function mgArguments(args: readonly string[], input: RunnerInput = {}) {
   const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
-  if (input.files?.length && !hunting) throw new ArtiumError('UNSUPPORTED_INPUT')
+  const rule = ['mail rule create', 'mail rule update'].includes(args.slice(0, 3).join(' '))
+  const upload = hunting || rule
+  const uploadName = hunting ? 'query.kql' : 'rule.json'
+  if (input.files?.length && !upload) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--help', '--version', '-v', '-V'].includes(args[0])) {
     if (input.stdin !== undefined) throw new ArtiumError('UNSUPPORTED_INPUT')
     return { args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' } }
@@ -52,12 +55,12 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
   const normalized = [...words]
   const fileArguments: number[] = []
   for (let index = words.length; index < args.length; index++) {
-    if (hunting && (!args[index].startsWith('--') || !Object.hasOwn(schema, args[index].slice(2).split('=')[0]))) {
+    if (upload && (!args[index].startsWith('--') || !Object.hasOwn(schema, args[index].slice(2).split('=')[0]))) {
       throw new ArtiumError('INVALID_INPUT')
     }
     if (!args[index].startsWith('-')) throw new ArtiumError('INVALID_INPUT', `Unexpected argument ${JSON.stringify(args[index])} for mg-axi ${route.command}.`)
     const match = /^--([a-z-]+)(?:=(.*))?$/.exec(args[index])
-    if (!match && hunting) throw new ArtiumError('INVALID_INPUT')
+    if (!match && upload) throw new ArtiumError('INVALID_INPUT')
     if (!match) throw unknownFlag('mg-axi', route.command, args[index], Object.keys(schema).filter(name => !mgManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
     if (mgManifest.unsafeOverrides.includes(name)) throw new ArtiumError('FLAG_BLOCKED')
@@ -72,15 +75,15 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
       if (!value?.trim() || value.startsWith('-') && !(['cursor', 'file'].includes(name) && value === '-')) throw new ArtiumError('INVALID_INPUT')
       flags[name] = value
       normalized.push(`--${name}`, value)
-      if (hunting && name === 'file') fileArguments.push(normalized.length - 1)
+      if (upload && name === 'file') fileArguments.push(normalized.length - 1)
     }
   }
   if (input.stdin !== undefined && flags.cursor !== '-') throw new ArtiumError('UNSUPPORTED_INPUT')
-  if (hunting && (flags.help !== true || input.files?.length)) {
+  if (upload && (flags.help !== true || input.files?.length)) {
     const file = input.files?.[0]
-    if (flags.file !== 'query.kql' || input.files?.length !== 1 || file?.name !== 'query.kql'
+    if (flags.file !== uploadName || input.files?.length !== 1 || file?.name !== uploadName
       || !inputFileSchema.safeParse(file).success || file.contentBase64.length > 4 * Math.ceil(65536 / 3)) {
-      throw new ArtiumError('UNSUPPORTED_INPUT', 'Hunting requires exactly one UTF-8 query.kql upload of at most 64 KiB.')
+      throw new ArtiumError('UNSUPPORTED_INPUT', `Command requires exactly one UTF-8 ${uploadName} upload of at most 64 KiB.`)
     }
     const bytes = Buffer.from(file.contentBase64, 'base64')
     let text: string
@@ -88,7 +91,7 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
     catch { throw new ArtiumError('UNSUPPORTED_INPUT') }
     if (bytes.length > 65536 || !text.trim() || /\p{Cc}/u.test(text.replace(/[\t\r\n]/g, ''))) throw new ArtiumError('UNSUPPORTED_INPUT')
   }
-  return { args: hunting && flags.help !== true ? normalized : [...args], fileArguments: flags.help === true ? [] : fileArguments,
+  return { args: upload && flags.help !== true ? normalized : [...args], fileArguments: flags.help === true ? [] : fileArguments,
     invocation: { command: route.command, help: flags.help === true } }
 }
 
@@ -118,7 +121,8 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
       if (pack && !(settings.enabledPacks as string[] | undefined)?.includes(pack)) {
         throw new ArtiumError('FLAG_BLOCKED', `Command requires the administrator enabledPacks: ["entra", "${pack}"] opt-in.`)
       }
-      const query = input?.files?.[0] ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
+      const query = normalized.invocation.command === 'security hunting query' && input?.files?.[0]
+        ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
       if (profile) {
         const prepared = profile.prepare('mg-axi', parsed.data, writeLog,
           (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true)

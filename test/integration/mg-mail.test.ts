@@ -68,7 +68,7 @@ test('delegated Entra credentials still prepare non-mail reads', async () => {
 })
 
 test.each([
-  ['mail', 'message', 'tag'], ['mail', 'message', 'send'], ['mail', 'message', 'reply'],
+  ['mail', 'message', 'send'], ['mail', 'message', 'reply'],
   ['mail', 'message', 'forward'], ['mail', 'message', 'permanentDelete'],
   ['mail', 'message', 'export'], ['mail', 'attachment', 'save'],
 ])('unavailable command %j refuses before credentials', async (...args) => {
@@ -78,7 +78,7 @@ test.each([
   expect(getCredential).not.toHaveBeenCalled()
 })
 
-test.each(['search', 'filter', 'conversation'])('mail --%s values are sensitive audit arguments', flag => {
+test.each(['search', 'filter', 'conversation', 'ids', 'confirm'])('mail --%s values are sensitive audit arguments', flag => {
   const adapter = createMgAdapter({ getCredential: vi.fn() }, '/tmp/synthetic-writes.log', profile())
   expect(adapter.sensitiveArguments?.(['mail', 'message', 'list', `--${flag}`, 'synthetic-query']).flags)
     .toContain(`--${flag}`)

@@ -206,6 +206,26 @@ try {
     .flatMap(path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line)))
   assert.deepEqual(journal.map(row => row.kind), ['intent', 'outcome'])
   assert.equal(journal[1].outcome, 'SUCCESS')
+  credential.enabledPacks = ['entra', 'mail']
+  credential.writes.operations = ['mail.rule.create', 'mail.message.trash']
+  const ruleText = JSON.stringify({ displayName: 'Reviewed', sequence: 1, isEnabled: true,
+    conditions: { subjectContains: ['Synthetic private condition'] }, actions: { markAsRead: true } })
+  writeFileSync(join(directory, 'rule.json'), ruleText)
+  const rulePreview = await cli(['mail', 'rule', 'create', '--mailbox', 'mailbox@contoso.example', '--file=rule.json'])
+  assert.equal(rulePreview.code, 0, rulePreview.stdout + rulePreview.stderr)
+  assert.match(rulePreview.stdout, /dry-run/)
+  assert.deepEqual(cliRequests.at(-1).files, [{ name: 'rule.json', contentBase64: Buffer.from(ruleText).toString('base64') }])
+  const ruleCreated = await cli(['mail', 'rule', 'create', '--mailbox', 'mailbox@contoso.example', '--file', 'rule.json',
+    '--execute', '--confirm', 'Reviewed'])
+  assert.equal(ruleCreated.code, 0, ruleCreated.stdout + ruleCreated.stderr)
+  assert.match(ruleCreated.stdout, /fakeSends: 1/)
+  const selection = 'synthetic-message,another-message'
+  const trashed = await run(['mail', 'message', 'trash', '--mailbox', 'mailbox@contoso.example', '--ids', selection,
+    '--execute', '--confirm', selection])
+  assert.equal(trashed.exitCode, 0, trashed.stdout + trashed.stderr)
+  assert.match(trashed.stdout, /fakeSends: 2/)
+  const mailAudit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
+  for (const privateValue of [selection, ruleText, Buffer.from(ruleText).toString('base64')]) assert.ok(!mailAudit.includes(privateValue))
   await assert.rejects(run(['entra', 'user', 'list', '--filter', 'encoded-canary']), error => error.code === 'SECRET_IN_OUTPUT')
   const records = db.prepare('SELECT event, outcome FROM audit ORDER BY id').all()
   assert.ok(records.some(row => row.event === 'denial' && row.outcome === 'FLAG_BLOCKED'))
