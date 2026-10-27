@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "@knowttl/mg-axi 0.1.12 headless application profile",
+  "title": "@knowttl/mg-axi 0.1.13 headless application profile",
   "type": "object",
   "additionalProperties": false,
   "required": [

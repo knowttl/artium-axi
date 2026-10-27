@@ -26,6 +26,7 @@ const blocked = ['allow-unknown-origin', 'no-member-cid', 'config', 'profile']
 const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout']
 const inventory = {
   generatedBy: 'scripts/falcon-inventory.mjs', tool: 'falcon-axi', ...pin,
+  skillSha256: createHash('sha256').update(readFileSync(join(source, 'skills/falcon-axi/SKILL.md'))).digest('hex'),
   parser: { path: 'falcon_axi/cli.py', sha256: createHash('sha256').update(readFileSync(parser)).digest('hex'),
     aliases: {}, shortFlags: {}, repeats: 'last value wins', equals: true,
     doubleDash: 'invalid empty flag; not a positional delimiter' },

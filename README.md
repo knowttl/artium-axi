@@ -169,10 +169,20 @@ Administrators can opt in to the single read-only `security hunting query` comma
 Hunting accepts exactly one UTF-8 plain-text upload named `query.kql`, at most 64 KiB, through `artium-axi mg-axi security hunting query --file query.kql`.
 See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for local file paths and upload restrictions.
 Queries must use the upstream restricted read-only KQL subset.
+Hunting parses KQL before the read-only allowlist and upstream authentication; syntax errors return positioned diagnostics without query excerpts or quoted literals.
+Parsing does not check tables, columns, types or permissions; recognized Graph 400 errors expose only the error class and line/column, while unknown error shapes remain opaque.
 The existing mg-axi role grant is required; other security commands remain unavailable.
 See [Graph credential setup](docs/tool-credentials.md#microsoft-graph) for hunting permissions and consent; tenant acceptance remains unverified.
 
+Azure Resource Graph and Log Analytics queries parse KQL before upstream authentication or requests, returning positioned syntax diagnostics and query excerpts on failure.
+Successful parsing does not validate tables, columns, functions, permissions or service-specific restrictions.
+
 Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
+NG-SIEM `search start` checks CQL structure before upstream authentication, reporting code, line, column and token class without echoing query text; function names, fields and semantics remain unchecked, and ambiguous syntax passes.
+Rejected searches preserve redacted server diagnostics, completed searches include server warnings when present, and `search start --wait` advises when the normalized filter differs.
+
+Vectra `host show` and `entity show --type host`, plus the matching raw host reads, retain every returned API field under `host`, separate from CLI metadata.
+Use `--full` on host/entity detail commands for complete returned text; secret redaction still applies, and upstream omissions cannot be restored.
 
 Vectra supports selected QUX/RUX writes for detection close/open and mark-fixed, host/account close, key assets, tags, notes (including bulk notes), assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, internal-network settings, syslog/Kafka, notification destinations and Match, subject to deployment support in the [reviewed inventory](tools/inventories/vectra-axi.json).
 User, role, API-client and credential administration remains blocked.

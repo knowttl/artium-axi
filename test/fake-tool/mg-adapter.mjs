@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { decode } from '@toon-format/toon'
 import { SessionStore } from '../../dist/src/cli/session.js'
 import { errorResponse } from '../../dist/src/shared/errors.js'
 import { createMgAdapter } from '../../dist/src/server/adapters/mg.js'
@@ -109,6 +110,21 @@ try {
   const boundary = await cli(hunting)
   assert.equal(boundary.code, 0, boundary.stdout + boundary.stderr)
   assert.match(boundary.stdout, /Synthetic Device/)
+  const invalidQuery = 'DeviceEvents | wher ActionType == "CANARY-invalid-hunt"'
+  const invalidInput = { files: [{ name: 'query.kql', contentBase64: Buffer.from(invalidQuery).toString('base64') }] }
+  const invalid = await run(hunting, invalidInput)
+  assert.equal(invalid.exitCode, 2, invalid.stdout + invalid.stderr)
+  const diagnostics = [
+    { line: 1, column: 16, code: 'KS176', token: 'wher', message: 'Query operator expected.' },
+    { line: 1, column: 21, code: 'KS005', token: 'ActionType', message: 'Expected: ;' },
+  ]
+  assert.deepEqual(decode(invalid.stdout).diagnostics, diagnostics)
+  writeFileSync(join(directory, 'query.kql'), invalidQuery)
+  const invalidCli = await cli(hunting)
+  assert.equal(invalidCli.code, 2, invalidCli.stdout + invalidCli.stderr)
+  assert.deepEqual(decode(invalidCli.stdout).diagnostics, diagnostics)
+  assert.ok(!JSON.stringify([invalid, invalidCli]).includes(invalidQuery))
+  assert.ok(!JSON.stringify(db.prepare('SELECT * FROM audit').all()).includes(invalidQuery))
   writeFileSync(join(directory, 'query.kql'), query.padEnd(65537, ' '))
   for (const fileArgs of [['--file', 'query.kql'], ['--file=query.kql']]) {
     const before = cliRequests.length

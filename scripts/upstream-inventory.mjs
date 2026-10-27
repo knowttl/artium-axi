@@ -127,6 +127,7 @@ for (const [tool, commands] of Object.entries(inventories)) {
     parserEvidence: tool === 'mg-axi' ? 'Installed pinned catalogue exports'
       : 'Installed pinned catalogue exports, provisional until adapter acceptance',
     packageManifestSha256: createHash('sha256').update(readFileSync(packageUrl)).digest('hex'),
+    skillSha256: createHash('sha256').update(readFileSync(new URL(`node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`, root))).digest('hex'),
     environment: environments[tool].native.map(name => tool === 'mg-axi' ? { name } : { name, disposition: tool === 'az-axi'
       ? ['AZ_AXI_CONFIG', 'AZ_AXI_WRITE_LOG', ...azResources.map(resource => azConfig.tokenEnvFor({}, resource))].includes(name)
         ? 'set by server' : 'unsafe override' : 'server-owned' }),
