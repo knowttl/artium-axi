@@ -88,7 +88,7 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
 | `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 
-For users granted Hybrid Analysis or Check Point, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving) and [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
+For users granted Hybrid Analysis, Check Point or Microsoft Graph, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
 See the [capability boundary](../README.md#safety) for current availability.
 
