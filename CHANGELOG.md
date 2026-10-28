@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.23](https://github.com/knowttl/artium-axi/compare/v0.0.22...v0.0.23) (2026-10-28)
+
+
+### Features
+
+* add administrator-controlled Graph mail writes ([#195](https://github.com/knowttl/artium-axi/issues/195)) ([2966dee](https://github.com/knowttl/artium-axi/commit/2966dee9f1527725bb48a544b902897b1036ab62))
+* add verified Microsoft Graph mail downloads ([#197](https://github.com/knowttl/artium-axi/issues/197)) ([d052610](https://github.com/knowttl/artium-axi/commit/d0526108ad200b06e06b2aabb9f64f898d717977))
+
 ## [0.0.22](https://github.com/knowttl/artium-axi/compare/v0.0.21...v0.0.22) (2026-10-27)
 
 
