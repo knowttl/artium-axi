@@ -96,32 +96,9 @@ Transfer audit selectors are hashed; mailbox and resource IDs are not retained i
 
 ### Command surface and subcommands
 
-| Command | Purpose |
-| --- | --- |
-| `artium-axi` | Show identity, roles and available tools. |
-| `artium-axi --version` | Print only the client package version and a newline, then exit without configuration, sign-in or network access. |
-| `artium-axi login --username synthetic-user` | Sign in with a local account. |
-| `artium-axi login --sso` | Sign in through browser approval with an enabled SSO provider; works on headless and SSH hosts. |
-| `artium-axi passwd` | Change your password, then sign in again. |
-| `artium-axi whoami` | Show identity, roles, session and access-token expiry, and server URL. |
-| `artium-axi tools` | List enabled runtime tools granted through your roles. |
-| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories; see [managed authentication](tool-credentials.md#github) and the [supported boundary](safety.md). |
-| `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
-| `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
-| `artium-axi update` | Update the [server-downloaded client](client-reference.md#verified-client); see the [npm alternative](client-reference.md#npm-client-alternative) for npm installations. |
-| `artium-axi download --help` | Inspect saving for [Hybrid Analysis archives](#hybrid-analysis-archive-saving), [Check Point emails and attachments](#check-point-email-and-attachment-saving) and [Microsoft Graph mail](#microsoft-graph-mail-saving). |
-| `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
-| `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
-| `artium-axi falcon-axi detection list` | Run a Falcon read through the managed adapter. |
-| `artium-axi vectra-axi detection list` | Run a Vectra read through the managed adapter. |
-| `artium-axi mg-axi entra user list --limit 1` | Run a bounded Graph read through the managed adapter. |
-| `artium-axi ldap-axi user list --limit 1` | Run a bounded directory read through the managed adapter. |
-| `artium-axi az-axi sub list` | Read managed Azure subscriptions. |
-| `artium-axi ado-axi project list --limit 1` | Read a managed Azure DevOps project. |
-| `artium-axi awx-axi job list --limit 1` | Read a managed AWX job. |
-| `artium-axi tenable-axi card list --limit 1` | Read a managed Tenable One exposure card. |
-| `artium-axi hybrid-axi quota` | Read managed Hybrid Analysis key level and quota. |
-| `artium-axi checkpoint-axi email search --limit 1` | Read managed Check Point Email Security emails. |
+See the [command reference](commands.md) for client commands and all eleven managed tool entry points.
+`artium-axi --version` prints only the client package version and a newline, then exits without configuration, sign-in or network access.
+Browser SSO works on headless and SSH hosts.
 
 Add `--help` to a local command to inspect its accepted flags.
 Top-level help lists command purposes.
@@ -262,10 +239,11 @@ Artium failures withhold captured output and return exit 2 for usage or client c
 See the [generated error reference](errors.md) for codes, HTTP status, CLI exit status and recovery steps.
 
 Doctor reads cached tool health rather than running a fresh platform test.
+Each request has a five-second deadline; address or TLS connection failure stops dependent probes.
 Its certificate diagnostic reports whether the liveness request verified TLS, independently of the HTTP status or response body.
 If the connection or CA-file read fails before verification, the certificate remains unverified.
 `ok` passes; `checking` is reported as a pending pass while a check is running or queued, and `unknown`, `unconfigured`, `error` and `disabled` fail the health diagnostic.
-If the client reports `CLI_OUTDATED`, follow the README's [client update guidance](client-reference.md#verified-client) or [npm alternative](client-reference.md#npm-client-alternative), according to your installation.
+If the client reports `CLI_OUTDATED`, follow the [client update guidance](#verified-client) or [npm alternative](#npm-client-alternative), according to your installation.
 
 ## Agent installation
 
