@@ -1,5 +1,23 @@
 # AXI Credential Standard - v2 (agreed)
 
+Contents:
+
+- [0. Terms](#0-terms)
+- [1. Paths](#1-paths)
+- [2. Environment variables](#2-environment-variables)
+- [3. Profile model](#3-profile-model)
+- [4. Permissions](#4-permissions)
+- [4.1 Linux and macOS](#41-linux-and-macos)
+- [4.2 Windows](#42-windows)
+- [4.3 Both platforms](#43-both-platforms)
+- [5. Precedence](#5-precedence)
+- [6. Secret storage](#6-secret-storage)
+- [7. Commands](#7-commands)
+- [8. Redaction](#8-redaction)
+- [9. Hosted contract (artium-axi)](#9-hosted-contract-artium-axi)
+- [Per-tool host-facing schemas](#per-tool-host-facing-schemas)
+- [10. Migration](#10-migration)
+
 Status: AGREED.
 The owner approved it on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
 This is the agreed contract; current host rollout and remaining tool migrations are tracked in [credential-migration.md](credential-migration.md).
@@ -274,7 +292,7 @@ gh-axi is also a third-party tool bundled without upstream modifications.
 Its [host adapter](../src/server/adapters/gh.ts) owns the inline PAT, device-flow OAuth and GitHub App installation profiles.
 Device credentials are minted only through the admin Connect with GitHub flow; the host adapter owns their secret fields and the [admin boundary](../src/server/admin/tools.ts) owns public metadata.
 It injects only `GH_TOKEN` or `GH_ENTERPRISE_TOKEN`, with managed `GH_HOST`, into the isolated process.
-There is no upstream profile file; the [supported GitHub boundary](../README.md#safety) owns operation restrictions.
+There is no upstream profile file; the [supported GitHub boundary](safety.md) owns operation restrictions.
 See the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui) for Go TLS handling.
 See [GitHub setup](tool-credentials.md#github) for authentication, device-flow scopes and token lifecycle, token caching and key rotation.
 
@@ -308,7 +326,7 @@ See [Tenable One setup](tool-credentials.md#tenable-one) for the supported bound
 hybrid-axi uses its shipped apiKey SecretRef schema and the fixed `https://hybrid-analysis.com` origin.
 Artium requires one secret API key, injects it through an environment SecretRef and keeps native writes disabled unless the administrator enables named operations.
 Native preview, execute, exact confirmation and durable journaling remain required.
-See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis) for credential setup and key-level failures, and the [capability boundary](../README.md#safety) for supported operations.
+See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis) for credential setup and key-level failures, and the [capability boundary](safety.md) for supported operations.
 
 checkpoint-axi uses its shipped clientSecret SecretRef schema, mandatory region/client ID and the fixed regional map in its reviewed inventory.
 Artium requires a client secret explicitly and injects it only in the child environment through a private config reference.

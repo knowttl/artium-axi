@@ -1,10 +1,28 @@
 # Contributing
 
+[Build from source](#build-from-source) · [Local validation and delivery](#local-validation-and-delivery) · [Container acceptance](#container-acceptance) · [Compatibility policy](#compatibility-policy) · [Private hygiene check](#private-hygiene-check) · [Historical verification records](#historical-verification-records)
+
 Use Linux and the Node and pnpm versions declared in [package.json](package.json).
-The [source toolchain](README.md#build-from-source) lists the remaining build prerequisites and approved native dependencies.
+The [source toolchain](#build-from-source) lists the remaining build prerequisites and approved native dependencies.
 Develop only against fakes, synthetic identities and canary credentials.
 Never contact real tenants, appliances or services during validation.
 Keep code, documentation, fixtures and generated output generic.
+
+## Build from source
+
+Use Node 24.11.0+, pnpm 10.22.0, OpenSSL, Python 3, curl and sha256sum on Linux.
+
+```sh
+git clone https://github.com/knowttl/artium-axi.git
+cd artium-axi
+pnpm install --frozen-lockfile
+pnpm build
+node dist/cli/artium-axi.mjs --help
+```
+
+Use `node dist/cli/artium-axi.mjs` in place of `artium-axi` for the same login and discovery steps.
+The root install also installs frozen upstream dependencies; native build approval is limited to argon2, better-sqlite3 and esbuild.
+`pnpm build:npm` stages the public client in `dist/npm`; `npm pack --dry-run ./dist/npm` inspects its contents.
 
 ## Local validation and delivery
 

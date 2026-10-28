@@ -1,335 +1,167 @@
 # artium-axi
 
-Managed command-line tools for agents and the humans running them, with one sign-in, role-based access and server-held service credentials.
+Client CLI and embedded skill for the Artium managed tools server.
 
-[![License: MIT](https://img.shields.io/github/license/knowttl/artium-axi)](LICENSE)
-[![npm](https://img.shields.io/npm/v/@knowttl/artium-axi)](https://www.npmjs.com/package/@knowttl/artium-axi)
-[![Node](https://img.shields.io/badge/Node-%3E%3D24.11.0-green)](package.json)
-[![Release provenance](https://img.shields.io/badge/release-provenance-blue)](https://github.com/knowttl/artium-axi/attestations)
+[![npm](https://img.shields.io/npm/v/@knowttl/artium-axi)](https://www.npmjs.com/package/@knowttl/artium-axi) [![License: MIT](https://img.shields.io/github/license/knowttl/artium-axi)](LICENSE) [![Node](https://img.shields.io/badge/Node-%3E%3D24.11.0-green)](package.json) [![npm provenance](https://img.shields.io/badge/npm-provenance-blue)](https://github.com/knowttl/artium-axi/attestations) [![AXI](https://img.shields.io/badge/AXI-TOON-blue)](https://github.com/knowttl/axi)
 
-[Quickstart](#quickstart) • [Use with your agent](#use-with-your-agent) • [Features](#features) • [Safety](#safety) • [Configuration](#configuration) • [Commands](#commands)
-
-```mermaid
-flowchart LR
-  Agent[Agent or human] --> CLI[Artium CLI]
-  CLI -->|HTTPS and Artium identity| Server[Artium server]
-  Admin[Administrator] -->|Browser administration| Server
-  Server --> Store[Encrypted credentials and audit]
-  Server --> Runner[Bounded tool runner]
-  Runner --> APIs[Vendor APIs]
-```
+[Why this exists](#why-this-exists) · [Quickstart](#quickstart) · [Use with your agent](#use-with-your-agent) · [What it covers](#what-it-covers) · [Safety](#safety) · [Configuration](#configuration) · [Output and exit codes](#output-and-exit-codes) · [Troubleshooting](#troubleshooting) · [Contributing](#contributing) · [Security](#security) · [License](#license)
 
 ## Why this exists
 
-Separate vendor CLIs require separate credentials and access controls on every agent host.
-Artium runs pinned tools on a shared server, checks each user's roles and supplies the service credential after audited admission.
-Agents keep a command-line interface with TOON discovery rather than implementing each vendor's REST authentication or an MCP integration.
-
-## Features
-
-- **Access:** local or browser SSO sign-in, role grants and session revocation.
-- **Credentials:** encrypted shared service identities, private per-call profiles and credential tests.
-- **Discovery:** available tools, cached health, pinned versions and contextual first-call suggestions.
-- **Agent setup:** managed skills for Claude Code, Codex, OpenCode and Pi; optional Claude Code session hook.
-- **Audit:** authentication, administration and tool-call records with filtered CSV/JSON-lines export.
-- **Limits:** reviewed command inventories, write switches, bounded runtime, output and concurrency.
-
-### Supported pinned tools
-| Tool | Managed access |
-| --- | --- |
-| Falcon | API client; see [supported capabilities](#safety) |
-| Vectra | Token or OAuth; optional allow-listed writes |
-| Azure | Application identity and resource-token broker |
-| Microsoft Graph | Application identity; optional allow-listed writes |
-| LDAP | Verified TLS simple bind; read-only |
-| Azure DevOps | PAT or application identity |
-| GitHub | Shared identity; see [supported authentication and capabilities](#safety) |
-| AWX | Pasted token or one-time password sign-in; optional operational writes |
-| Tenable One | Access and secret API keys; optional allow-listed business writes and export jobs |
-| Hybrid Analysis | Managed API key; investigation reads and optional allow-listed submissions, YARA mutations and consuming matches |
-| Check Point Email Security | Regional client credentials; email, event, task and exception reads, guarded writes and authenticated email/attachment saving |
-
-[Package pins](tools/package.json), the [GitHub CLI release pin](tools/gh-source.json) and the [Falcon source pin](tools/falcon-source.json) own bundled versions; [reviewed inventories](tools/inventories) define the supported command boundary.
+Separate vendor CLIs put credentials, access controls and API guesswork on every agent host.
+Artium runs pinned tools on a shared server for agents and the humans running them, checking roles and supplying server-held credentials after audited admission.
+Bounded execution, TOON discovery and contextual next steps help agents find a permitted read before attempting a gated write.
+Administrators deploy and configure the server; client users sign in and discover their granted tools.
 
 ## Quickstart
 
-### Deploy a server with your agent
-Give this prompt to the agent helping you administer the server:
+Use Linux with Node **24.11.0+** and a trusted HTTPS server URL and account from your administrator.
 
-> Deploy artium-axi on my Linux host.
-> Check Docker/Compose, host capacity, ports, DNS and the HTTPS/TLS plan first.
-> Use the repository's Compose file to build the server, or a published image only after verifying its release digest and provenance as described in the runbook.
-> Generate an exactly 32-byte random master key into a protected file, make it readable by container UID 10001, and keep an offline escrow copy separate from database backups.
-> Create the first administrator through the documented first-start password-file bootstrap, change its temporary password and remove bootstrap inputs.
-> Configure tool credentials through the administrator UI, test each credential, enable the intended tools and grant roles.
-> Run liveness, readiness and a permitted read for each enabled tool; report results and remaining limits without secrets.
-> Never ask me to paste passwords, tokens or keys into chat or command arguments.
-> Use hidden prompts, protected stdin or files with safe permissions for secrets.
-> Follow docs/admin-guide.md, docs/tool-credentials.md and docs/runbook.md for the exact steps.
+```sh
+npm install --global @knowttl/artium-axi
+artium-axi doctor
+# Without a global install: npx -y @knowttl/artium-axi doctor
+```
 
-For manual deployment, follow the [administrator guide](docs/admin-guide.md#set-up-a-host).
-
-### Verified client
-Use Linux with Node **24.11.0+**, curl and sha256sum, and obtain the trusted HTTPS URL and account from your administrator.
-For a private CA, set `ARTIUM_AXI_CA_FILE` to a readable PEM file and add `--cacert "$ARTIUM_AXI_CA_FILE"` to both curl commands.
+Before configuration, doctor reports failures such as `fail: server address (CLIENT_CONFIG_INVALID)`.
+Configure and sign in, then discover a first read:
 
 ```sh
 export ARTIUM_AXI_URL='https://artium.example.test'
-mkdir -p "$HOME/.local/bin"
-cd "$HOME/.local/bin"
-curl --fail --output artium-axi.mjs "$ARTIUM_AXI_URL/cli/artium-axi.mjs" &&
-curl --fail --output artium-axi.mjs.sha256 "$ARTIUM_AXI_URL/cli/artium-axi.mjs.sha256" &&
-sha256sum --check artium-axi.mjs.sha256 &&
-mv artium-axi.mjs artium-axi &&
-chmod 755 artium-axi &&
-rm artium-axi.mjs.sha256
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Stop if a download or checksum fails.
-The checksum detects corruption and mixed releases; trust still comes from the HTTPS server.
-
-```sh
 artium-axi login --username synthetic-user
-artium-axi tools
+artium-axi
 artium-axi tools show falcon-axi
 artium-axi falcon-axi detection list
 ```
 
-Replace the synthetic username with your account; login uses a hidden terminal password prompt.
-For `PASSWORD_CHANGE_REQUIRED`, run `artium-axi passwd`, then log in again.
-For SSO, use `artium-axi login --sso` and approve only the browser code matching your own terminal.
-After ordinary login, later commands, installed hooks and skills use [saved connection settings](docs/client-reference.md#client-settings).
-After a server upgrade, run `artium-axi update` if your client has that command, then `artium-axi --version`.
-For clients without `update`, repeat the verified download and checksum check above to install the server's current client.
-For `CLI_OUTDATED`, the server uses the client version header to select the update hint or safe download guidance; the capability boundary is defined by `firstVersionWithUpdate` in [the version contract](src/shared/version.ts).
-The updater uses those connection settings, verifies the server download’s SHA-256, replaces the running client file and keeps the previous client beside it as `<client-file>.bak`.
-The client file and its directory must be writable.
-The Falcon read requires an enabled tool, a role grant and API permissions; choose the example from an available tool's detail view.
-
-With no enabled tools granted, `artium-axi tools` succeeds with:
-
-```text
-tools: 0 available
-reason: No enabled runtime tool is available through your assigned roles.
-contact: Ask an administrator to check your role assignments and enabled tools.
-next[1]:
-  - artium-axi whoami
-```
-
-### npm client alternative
-The server download supplies its matching client; npm is an alternative client-only distribution.
-
-```sh
-npm install -g @knowttl/artium-axi
-export ARTIUM_AXI_URL='https://artium.example.test'
-artium-axi login --username synthetic-user
-```
-
-Login warns about version differences; minimum server API requirements still apply.
-`artium-axi update` refuses npm installations; update them with `npm install -g @knowttl/artium-axi@latest`.
-Install `@knowttl/artium-axi@<server-version>` or download from the server to match it.
-
-### Build from source
-Use Node 24.11.0+, pnpm 10.22.0, OpenSSL, Python 3, curl and sha256sum on Linux.
-
-```sh
-git clone https://github.com/knowttl/artium-axi.git
-cd artium-axi
-pnpm install --frozen-lockfile
-pnpm build
-node dist/cli/artium-axi.mjs --help
-```
-
-Use `node dist/cli/artium-axi.mjs` in place of `artium-axi` for the same login and discovery steps.
-The root install also installs frozen upstream dependencies; native build approval is limited to argon2, better-sqlite3 and esbuild.
-`pnpm build:npm` stages the public client in `dist/npm`; `npm pack --dry-run ./dist/npm` inspects its contents.
+Login prompts privately for a password; replace the synthetic account and choose a tool granted to you.
+For SSO, use `artium-axi login --sso` and approve only your terminal's browser code.
+For a private CA, set `ARTIUM_AXI_CA_FILE` to a readable PEM file before login.
+Login saves connection settings; shared service credentials and tool profiles are configured by administrators.
+See [verified server downloads and updates](docs/client-reference.md#verified-client) or [server deployment](docs/admin-guide.md#set-up-a-host).
 
 ## Use with your agent
 
-After signing in, install the base skill and your granted tools' adapted skills:
+After sign-in, install managed skills and the optional Claude Code discovery hook:
 
 ```sh
 artium-axi setup --host claude --hook
 ```
 
-Use `--host codex`, `--host opencode` or `--host pi` without `--hook` for those hosts.
-Only Claude Code supports the optional `SessionStart` hook, which injects the `tools` discovery output.
-Setup preserves unrelated settings and refuses edited/unmanaged skills unless `--force` is explicit.
-Re-run setup after moving the executable or changing grants; skills for removed grants are retained and reported.
-On Windows, installed skills include labelled PowerShell and Git Bash invocations; use the command for your shell.
-See [installation paths and manual removal](docs/client-reference.md#agent-installation) before uninstalling.
-Artium's authenticated setup fetches managed skills; a standalone skill installer does not configure this server account.
+For Codex, OpenCode or Pi, use `--host codex`, `--host opencode` or `--host pi` without `--hook`.
+The Claude `SessionStart` hook injects `tools` output; skills teach managed command discovery and grant no permissions.
+Artium's authenticated setup fetches granted tools' adapted skills; a standalone skill installer does not configure this server account.
+See the [base SKILL.md](skill/artium-axi/SKILL.md), [command reference](docs/commands.md) and authenticated `artium-axi tools show <tool>` for commands.
+Re-run setup after moving the executable or changing grants.
+To remove the hook, delete only objects labelled `statusMessage: "artium-axi managed tools"` from `hooks.SessionStart` in the Claude host's `settings.json`.
+See [installation paths and manual skill removal](docs/client-reference.md#agent-installation).
+
+<a id="features"></a>
+<a id="commands"></a>
+
+## What it covers
+
+All eleven managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+Write capabilities below require administrator opt-in.
+
+| Group | Purpose | Access | Reference |
+| --- | --- | --- | --- |
+| Discovery and sessions | Identity, login, tools, doctor, update and setup | Client/session operations | [Commands](docs/commands.md) |
+| Falcon | Endpoint investigations, guarded RTR and MalQuery | Reads; selected execution/search | [Capabilities](docs/safety.md#write-gates-by-tool) |
+| Vectra | Hosts, detections and response workflows | Reads; selected writes | [Credentials](docs/tool-credentials.md#vectra) |
+| Azure | Subscriptions, resources and queries | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure) |
+| Microsoft Graph | Entra, optional mail and hunting packs | Reads; selected writes | [Capabilities](docs/safety.md#microsoft-graph) |
+| LDAP | Directory investigation over verified TLS | Read-only | [Credentials](docs/tool-credentials.md#ldap) |
+| Azure DevOps | Organization and project workflows | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure-devops) |
+| GitHub | Repository investigation and collaboration | Reads; selected writes | [Credentials](docs/tool-credentials.md#github) |
+| AWX | Jobs, workflows and operational actions | Reads; selected writes | [Credentials](docs/tool-credentials.md#awx) |
+| Tenable One | Exposure investigation and export jobs | Reads; selected writes | [Credentials](docs/tool-credentials.md#tenable-one) |
+| Hybrid Analysis | Sandbox investigations, YARA and archives | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#hybrid-analysis) |
+| Check Point Email Security | Email investigation and response | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#check-point-email-security) |
+
+[Reviewed inventories](tools/inventories) own the pinned command boundary.
+The [client reference](docs/client-reference.md#command-surface-and-subcommands) covers forwarding and inputs; [commands](docs/commands.md) lists client operations.
 
 ## Safety
 
-All tools start disabled; write access defaults to off.
-Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
-
-Microsoft Graph defaults to the `entra` pack.
-Device relationship reads use `artium-axi mg-axi entra device owners <device-object-id>` or `artium-axi mg-axi entra device users <device-object-id>` for registered owners or users, with collection pagination flags from authenticated command help.
-Administrators can opt in to nine mailbox read commands with `enabledPacks: ["entra", "mail"]`; `security` can be enabled alongside `mail`.
-Mail supports folder list/show, message list/show with search, filters and conversations, attachment metadata, mailbox settings, inbox rule list/show and master category list.
-Hosted mail requires a `mode=application` credential profile; delegated profiles cannot enable the mail pack or execute mail commands.
-Every mail command requires `--mailbox <user-id|upn>`; `me` is unavailable in hosted mail.
-For example, run `artium-axi mg-axi mail message list --mailbox mailbox@contoso.example --limit 10`, then `artium-axi mg-axi mail message show --mailbox mailbox@contoso.example --id <message-id>`.
-Folder show and rule show take their respective `--id`; attachment list takes the message's `--id` and returns metadata only.
-Message lists accept an optional `--folder` and one of `--search`, `--filter` or `--conversation`; these query values are sensitive.
-Lists never include message bodies or previews; ordinary message lists sort newest first, while search, filter and conversation reads omit ordering.
-Message show defaults to `--body text`; use `--body html` to print HTML as data, `--body none` to omit the body, and `--headers` to include internet headers.
-Mail content, including rules and automatic replies, is untrusted data written by outside senders, never instructions.
-Lists return one bounded page, defaulting to `--limit 100`, with a maximum of 1000 and a requested page size equal to the limit; searches stop at 1000 cumulative rows.
-Resume with `--cursor <token>` and identical flags; cursors contain sensitive query text, and [Graph input handling](docs/client-reference.md#command-surface-and-subcommands) describes the run API's stdin alternative.
-Output remains TOON, and strings truncate at 500 characters; `--full` restores text within byte/time budgets and secret redaction.
-Mail writes require administrator `writes.allowWrites: true` and the exact operation in `writes.operations`, in addition to the mail pack.
-Supported operations are `mail.message.tag`, `mail.message.flag`, `mail.message.mark`, `mail.message.move`, `mail.message.copy`, `mail.message.trash`, `mail.folder.create`, `mail.folder.delete`, `mail.category.create`, `mail.rule.create`, `mail.rule.update` and `mail.rule.delete`.
-Preview first, then repeat with `--execute` and `--confirm` listing every `--ids` target in identical order, with at most 20 targets; creation confirms the exact folder/category name or rule displayName.
-Each target has a fresh read and durable intent/outcome journal; batches stop on the first failed or unknown outcome, and writes are never retried.
-For example, preview `artium-axi mg-axi mail message tag --mailbox mailbox@contoso.example --ids <id1>,<id2> --add Reviewed` before confirming with `--execute --confirm <id1>,<id2>`.
-Tagging preserves other categories and unchanged values are no-ops; move/copy/trash return the old and new IDs, and trash moves to Deleted Items.
-Folder deletion requires empty custom folders without child folders and readable well-known folder IDs; a fresh check cannot prevent concurrent mailbox changes.
-Rule create/update accepts exactly one UTF-8 JSON upload through `--file rule.json`, at most 64 KiB; the CLI uploads local content, never a server path or stdin.
-Rule files are schema-checked and reject forwarding, redirect and permanent-delete actions.
-Use `artium-axi download` for separately selected `mail.attachment.save` and `mail.message.export` operations, with scoped Application Mail.Read, the mail pack and write opt-in.
-See the [hosted saving path](docs/client-reference.md#microsoft-graph-mail-saving) for selectors, confirmation, limits and safe handling of untrusted mail content.
-Ordinary tool-run downloads, sending, reply, forward and permanent deletion remain unavailable.
-Raw `api get` mail routes and `--expand` remain refused; Graph mail error bodies are suppressed.
-See [Graph credential setup](docs/tool-credentials.md#microsoft-graph) for scoped mailbox authorization and credential-test limitations.
-Administrators can opt in to the single read-only `security hunting query` command for Defender XDR advanced hunting with `enabledPacks: ["entra", "security"]` in the managed tool settings.
-Hunting accepts exactly one UTF-8 plain-text upload named `query.kql`, at most 64 KiB, through `artium-axi mg-axi security hunting query --file query.kql`.
-See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for local file paths and upload restrictions.
-Queries must use the upstream restricted read-only KQL subset.
-Hunting parses KQL before the read-only allowlist and upstream authentication; syntax errors return positioned diagnostics without query excerpts or quoted literals.
-Parsing does not check tables, columns, types or permissions; recognized Graph 400 errors expose only the error class and line/column, while unknown error shapes remain opaque.
-The existing mg-axi role grant is required; other security commands remain unavailable.
-See [Graph credential setup](docs/tool-credentials.md#microsoft-graph) for hunting permissions and consent; tenant acceptance remains unverified.
-
-Azure Resource Graph and Log Analytics queries parse KQL before upstream authentication or requests, returning positioned syntax diagnostics and query excerpts on failure.
-Successful parsing does not validate tables, columns, functions, permissions or service-specific restrictions.
-
-Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
-NG-SIEM `search start` checks CQL structure before upstream authentication, reporting code, line, column and token class without echoing query text; function names, fields and semantics remain unchecked, and ambiguous syntax passes.
-Rejected searches preserve redacted server diagnostics, completed searches include server warnings when present, and `search start --wait` advises when the normalized filter differs.
-
-Vectra `host show` and `entity show --type host`, plus the matching raw host reads, retain every returned API field under `host`, separate from CLI metadata.
-Use `--full` on host/entity detail commands for complete returned text; secret redaction still applies, and upstream omissions cannot be restored.
-QUX collection reads support bounded `--all` traversal and opaque `--cursor` continuation with the original filters.
-Detection and host IDs must be positive integers, including detection-list host and ID-range filters.
-Detection `--fields` can include triage, assignment and filtering metadata; the [reviewed Vectra inventory](tools/inventories/vectra-axi.json) owns the field names and pagination budgets.
-
-Vectra supports selected QUX/RUX writes for detection close/open and mark-fixed, host/account close, key assets, tags, notes (including bulk notes), assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, internal-network settings, syslog/Kafka, notification destinations and Match, subject to deployment support in the [reviewed inventory](tools/inventories/vectra-axi.json).
-User, role, API-client and credential administration remains blocked.
-Review the [Vectra grant warnings](docs/admin-guide.md#browser-administration) before enabling operations.
-See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for Vectra file inputs.
-
-| Tool | Write capability and unlock |
-| --- | --- |
-| Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy literal search. RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](docs/runbook.md#falcon-rtr-execution). |
-| LDAP | Fixed read-only. |
-| GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](docs/tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
-| Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
-| Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
-| Vectra | Administrator `writes.allowWrites: true` and an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and redacted journaling. Artium enforces the native read-only override while write access is off. |
-| Azure DevOps | Reviewed mutations with administrator `allowWrites: true`; raw `api` remains GET-only. |
-| AWX | Launch/cancel/relaunch, workflow approval/denial, project/inventory-source sync and notification tests with `allowWrites: true` and upstream `--confirm`; configuration, deletion and security writes stay blocked. |
-| Tenable One | Business writes and export-job creation with administrator `writes.allowWrites: true`, an explicit operations allow-list, native preview, `--execute`, exact `--confirm` and durable journaling; downloads and local configuration stay blocked. |
-| Check Point Email Security | Email and exception writes require administrator `writes.allowWrites: true`, exact selected operations and native preview, execute, confirmation and journal gates. Name-only event actions require their exact `event.action.<name>` scope. The six malware/URL/DLP remove/clear operations and click-time clear remain refused. Three separately selected downloads use [authenticated CLI saving](docs/client-reference.md#check-point-email-and-attachment-saving) with host-owned confirmation and independent SHA-256 verification; native download journal fields remain empty. Ordinary tool-run downloads and credential/origin overrides stay blocked. Live API contracts remain uncommissioned. |
-| Hybrid Analysis | Sandbox submissions, YARA create/update/delete, consuming hunting matches and the four reviewed archive downloads require administrator `writes.allowWrites: true`, independently selected operations, native preview, `--execute`, exact `--confirm` and durable journaling. Downloads are limited to `hash-download-bin`, `report-download-bin`, `report-download-dropped-files` and `report-download-memory`, through the [authenticated CLI verified-save path](docs/client-reference.md#hybrid-analysis-archive-saving) after the [operator prerequisites](docs/runbook.md#scope-and-prerequisites) pass. All operations default off; enabling other writes never enables downloads or grants upstream entitlement. The browser provides warnings, command guidance and metadata/save status only. Ordinary tool-run downloads, local configuration and credential/origin overrides are blocked. |
-
-Hybrid Analysis quick scans transmit the supplied sample or URL as read exceptions without a write gate; sandbox submission previews disclose that samples and reports can become visible to the community.
-Consuming hunting matches is account-wide across all rules, with no rule selector, and irreversibly marks every returned match delivered; reconcile ambiguous outcomes using the audit ID, durable native journal and returned read-back guidance before retrying.
-Updating a YARA rule with `reset_counter:true` resets its all-time match counter and changes its rule ID; use the returned ID for subsequent commands.
-Labs hunting and search contracts are experimental.
-
-There is no universal Artium confirmation flag.
-Use authenticated tool help and the [write-access runbook](docs/runbook.md#roles-credentials-and-health) for operation-specific gates.
-After an unknown write outcome, inspect state using returned guidance before retrying.
-
-| Initial read | Required upstream permission |
-| --- | --- |
-| Falcon detections | `Alerts:read` |
-| Vectra credential test | Health reads plus permissions for intended data |
-| Azure subscription list | Application access to intended subscriptions; data-plane roles separately |
-| Graph first-user read | Application `User.Read.All` with administrator consent |
-| LDAP | Bind identity with directory read access |
-| Azure DevOps project list | Identity permitted to view the organization/project |
-| AWX job list | Token identity with job read access |
-| Tenable One card list | See [Tenable One credential permissions](docs/tool-credentials.md#tenable-one). |
-| Hybrid Analysis quota | A valid API key; resource permissions vary by key level. See [Hybrid Analysis setup](docs/tool-credentials.md#hybrid-analysis). |
-| Check Point doctor | Regional authentication and one bounded email search. See [Check Point setup and commissioning](docs/tool-credentials.md#check-point-email-security). |
-
-See [tool credentials](docs/tool-credentials.md) for dedicated identities, permissions and safe credential entry.
-Artium stores shared service credentials encrypted with AES-256-GCM and never returns saved secrets to clients.
-The data volume also holds the plaintext master key beside SQLite: protect the entire volume and keep offline escrow separate.
-Linux client sessions use a mode-0700 directory and mode-0600 file under `${XDG_CONFIG_HOME:-~/.config}/artium-axi`.
-Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; password changes revoke sessions.
-
-Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
-Audit excludes injected credentials, request bodies, stdin, uploads and output streams.
-The runner scans known secret encodings and discards output on a match; unknown upstream-minted tokens cannot be identified by exact-value scanning.
-Its restricted environment, private directories and process limits are not a complete sandbox; descendants starting a new session can escape process-group termination.
+Managed writes are off by default: administrator capability alone grants no tool access.
+Enabled tools are read-only by default, with documented exceptions such as Hybrid Analysis quick scans that transmit samples or URLs.
+There is no universal Artium confirmation flag or `ARTIUM_AXI_READ_ONLY` environment switch.
+Administrators keep writes disabled or narrow operation allowlists; native gates can require preview, `--execute` and exact `--confirm`.
+After an unknown outcome, inspect state before retrying.
+Shared credentials are encrypted and never returned to clients; protect the entire data volume because it also holds the plaintext master key.
+Client tokens are stored privately; never share session files or paste credentials into chat.
+Linux client and Linux amd64 container paths have fake-service acceptance; Windows/macOS execution and agent-host loading remain unverified.
+See [per-tool gates, storage and limits](docs/safety.md), [permissions](docs/tool-credentials.md), [deployment prerequisites](docs/runbook.md#scope-and-prerequisites) and [security boundaries](docs/admin-guide.md#security-and-acceptance-boundaries).
 
 ## Configuration
 
-| Setting or flag | Purpose |
+Connection settings are saved in `config.json` beside `session.json`; tool profiles and upstream credentials live on the server.
+
+| Platform | Client configuration directory |
 | --- | --- |
-| `ARTIUM_AXI_URL`, `ARTIUM_AXI_CA_FILE` | Connection overrides; see [client settings](docs/client-reference.md#client-settings) |
-| `XDG_CONFIG_HOME` | Linux session-storage base, default `~/.config` |
-| `--password-stdin` | Login/new password via protected stdin |
-| `--host`, `--hook`, `--force` | Setup host, optional Claude hook, explicit skill replacement |
-| `--managed-session` | Caller-owned tokens through private pipes; see client reference |
-| `--help`, `--version` | Local discovery without sign-in |
+| Linux/macOS | `${XDG_CONFIG_HOME:-~/.config}/artium-axi` |
+| Windows | `%APPDATA%\artium-axi` (execution unverified) |
 
-See the [client reference](docs/client-reference.md) for password inputs, refresh behavior, uploads and managed sessions.
-Server settings, SSO and browser administration live in the [administrator guide](docs/admin-guide.md).
-Recovery, rotation, retention, backups and release gates live in the [operations runbook](docs/runbook.md).
+| Client environment variable | Purpose | Default |
+| --- | --- | --- |
+| `ARTIUM_AXI_URL` | HTTPS server URL override | Saved URL; required initially |
+| `ARTIUM_AXI_CA_FILE` | Additional PEM CA file | Saved CA path or Node trust |
+| `ARTIUM_AXI_PASSWORD` | Ordinary login password, before terminal prompt | Unset; refused in managed mode |
+| `ARTIUM_AXI_CURRENT_PASSWORD` | Ordinary password-change current password | Terminal prompt |
+| `XDG_CONFIG_HOME` | Linux/macOS config base | `~/.config` |
+| `APPDATA` | Windows config base | Required on Windows |
+| `CLAUDE_CONFIG_DIR` | Claude setup directory | `~/.claude` |
+| `PI_CODING_AGENT_DIR` | Pi setup directory | `~/.pi/agent` |
+| `ARTIUM_AXI_TEST_HTTP` | Test-only loopback HTTP when `1` | Disabled |
+| `ARTIUM_AXI_SESSION_ACL_PATH`, `ARTIUM_AXI_SESSION_ACL_KIND` | Internal Windows ACL subprocess inputs | Set by client; do not configure |
 
-## Commands
+Prefer hidden password prompts or protected `--password-stdin`; clear password environment values after use.
+See [client settings and refresh behavior](docs/client-reference.md#client-settings) and [server settings](docs/admin-guide.md#server-settings-and-custody) for the separate server environment and profile reference.
 
-This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --help` prints its complete current command list.
+<a id="toon-output-and-errors"></a>
 
-| Command | Purpose |
-| --- | --- |
-| `artium-axi` | Identity, roles and available tools |
-| `login --username <username>` / `login --sso` | Local password / browser approval |
-| `passwd` / `logout` | Change password / remove local tokens and attempt revocation |
-| `whoami` | Identity, roles, [session and access-token expiry](docs/client-reference.md#toon-output-behavior) and server |
-| `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
-| `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
-| `update` | Update the [server-downloaded client](#verified-client) |
-| `download` | Preview and explicitly verify/save administrator-selected Hybrid Analysis archives, Check Point emails/attachments and Graph mail exports through the local CLI. Run `artium-axi download --help` for guards and warnings. |
-| `setup --host <host>` | Install managed skills and optional Claude hook |
-| `<tool> <args>` | Run any of the ten managed tools above |
-| `--managed-session --help` | Private-pipe session protocol |
+## Output and exit codes
 
-`artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
-The [full client reference](docs/client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
-
-### TOON output and errors
 Discovery and Artium errors use TOON on stdout; progress uses stderr.
 Upstream stdout, stderr and exit status pass through, subject to managed suggestion adaptation and hosted status filtering.
-Hosted home and authentication status omit server executable and configuration paths; secret references report only their source kind, `env` or `file`.
-Malformed or truncated hosted status output is withheld with `INVALID_RESPONSE`.
-Artium exits 0 for success, 2 for usage/configuration errors and 1 for authentication/server/transport failures.
-See the generated [error catalogue](docs/errors.md) for actionable codes and retry guidance.
+Hosted status omits server paths and secret references expose only their source kind; malformed or truncated hosted status is withheld with `INVALID_RESPONSE`.
+Tool output limits vary; `--full` restores supported text within byte/time budgets and secret redaction.
 
-## Platform limits
+| Artium exit | Meaning |
+| --- | --- |
+| 0 | Success |
+| 1 | Authentication, server or transport failure |
+| 2 | Usage or configuration error |
 
-Linux client and Linux amd64 container paths have local fake-service acceptance.
-Windows/macOS execution, token storage and actual agent-host loading remain unverified.
-Local tests do not establish live vendor permissions or production host acceptance.
-LDAP uses simple bind over verified TLS; ambient Kerberos, per-user upstream credentials and external secret stores are unsupported.
-Azure has reviewed bounded input/upload support; ADO and AWX reject stdin and file uploads.
-See [client input handling](docs/client-reference.md#command-surface-and-subcommands) for Hybrid Analysis uploads and explicit JSON stdin, and [Safety](#safety) for its capability boundaries.
-See [adapter limits](docs/tool-credentials.md) and [deployment requirements](docs/runbook.md#scope-and-prerequisites).
+See [output behavior](docs/client-reference.md#toon-output-behavior) and the generated [error catalogue](docs/errors.md).
+
+## Troubleshooting
+
+| Symptom | Next step |
+| --- | --- |
+| `CLIENT_CONFIG_INVALID` | Set the HTTPS URL and a readable CA file if needed, then sign in. |
+| `PASSWORD_CHANGE_REQUIRED` | Run `artium-axi passwd`, then sign in again. |
+| `CLI_OUTDATED` | Follow [installation-specific update guidance](docs/client-reference.md#verified-client). |
+| No available tools | Ask an administrator to check enabled tools and role grants. |
+| `CERTIFICATE_INVALID` | Check server TLS and the [private CA setup](docs/runbook.md#proxy-and-certificate-trust). |
+
+<a id="verified-client"></a>
+<a id="npm-client-alternative"></a>
+<a id="build-from-source"></a>
+<a id="platform-limits"></a>
+
+Installation details live in the [client reference](docs/client-reference.md#verified-client), [source-build guide](CONTRIBUTING.md#build-from-source) and [platform limits](docs/runbook.md#platform-limits).
 
 ## Contributing
 
-Use Linux and run `pnpm check`; every change uses local no-mistakes validation, with no hosted test CI.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for hygiene checks, conditional container acceptance and the mandatory release container gate.
+Use Linux and follow [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
+Development and release validation run locally through no-mistakes with fakes and synthetic identities; there is no hosted test CI.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for security boundaries and handling sensitive reports.
 
 ## License
 
 [MIT](LICENSE).
-
-If this project saved you time or helped your workflow, please consider giving it a ⭐ on GitHub to help others find it!

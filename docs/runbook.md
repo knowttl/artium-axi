@@ -1,5 +1,24 @@
 # Operations runbook
 
+Contents:
+
+- [Scope and prerequisites](#scope-and-prerequisites)
+- [Platform limits](#platform-limits)
+- [npm client releases](#npm-client-releases)
+- [Verify a later published image](#verify-a-later-published-image)
+- [Proxy and certificate trust](#proxy-and-certificate-trust)
+- [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas)
+- [Trusting one tool from the administration UI](#trusting-one-tool-from-the-administration-ui)
+- [CLI launchers and password changes](#cli-launchers-and-password-changes)
+- [Scripted administrator sessions](#scripted-administrator-sessions)
+- [Roles, credentials and health](#roles-credentials-and-health)
+- [Falcon RTR execution](#falcon-rtr-execution)
+- [Retention and export](#retention-and-export)
+- [First administrator and offline recovery](#first-administrator-and-offline-recovery)
+- [Offline master key rotation](#offline-master-key-rotation)
+- [Backup, restore and upgrade rollback](#backup-restore-and-upgrade-rollback)
+- [Upgrading stores without a key binding](#upgrading-stores-without-a-key-binding)
+
 ## Scope and prerequisites
 
 This runbook covers local operation of the packaged server and client, npm client releases and GHCR server-image releases.
@@ -12,7 +31,7 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
-See the [supported capability boundaries](../README.md#safety) for hosted Hybrid Analysis, Check Point and Microsoft Graph download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
+See the [supported capability boundaries](safety.md) for hosted Hybrid Analysis, Check Point and Microsoft Graph download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
 These tools share an internal artifact owner that requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
 It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
 The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
@@ -57,7 +76,7 @@ For rootless Docker or user-namespace remapping, use the mapped host UID corresp
 See [master-key custody](#backup-restore-and-upgrade-rollback) for key formats and the saved local copy.
 The owner decides key creation; the synthetic key used in rehearsal is not a production provisioning recommendation.
 
-For source-based local rehearsal, use the [source toolchain](../README.md#build-from-source).
+For source-based local rehearsal, use the [source toolchain](../CONTRIBUTING.md#build-from-source).
 From the repository root, run:
 
 ```sh
@@ -71,6 +90,17 @@ The Compose validation creates no stack and reads no secret contents.
 Container acceptance uses only task-owned fake networks, stores and images and removes them before returning.
 Check the [container-test prerequisites](../CONTRIBUTING.md#container-acceptance) before running `pnpm test:containers`; arrange verification on a permitted host when local container acceptance is unverified.
 Do not use real adapter credentials or globally prune Docker resources.
+
+## Platform limits
+
+
+Linux client and Linux amd64 container paths have local fake-service acceptance.
+Windows/macOS execution, token storage and actual agent-host loading remain unverified.
+Local tests do not establish live vendor permissions or production host acceptance.
+LDAP uses simple bind over verified TLS; ambient Kerberos, per-user upstream credentials and external secret stores are unsupported.
+Azure has reviewed bounded input/upload support; ADO and AWX reject stdin and file uploads.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for Hybrid Analysis uploads and explicit JSON stdin, and [Safety](safety.md) for its capability boundaries.
+See [adapter limits](tool-credentials.md) and [deployment requirements](runbook.md#scope-and-prerequisites).
 
 ## npm client releases
 
@@ -284,7 +314,7 @@ Use the server-wide bundle above for organization-wide inspection CAs instead of
 
 ## CLI launchers and password changes
 
-Follow the [Linux download and launcher installation](../README.md#verified-client), including both downloads and checksum verification before executing the bundle.
+Follow the [Linux download and launcher installation](client-reference.md#verified-client), including both downloads and checksum verification before executing the bundle.
 Keep Node on PATH and retain the installed launcher path; rerun setup if the bundle moves.
 Install agent skills using the [skill installation guidance](../README.md#use-with-your-agent) for your host.
 With that installation and trust configured, the following commands are the local-account operator checks:
@@ -374,7 +404,7 @@ The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns th
 See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
 See [GitHub setup and limitations](tool-credentials.md#github) before activation.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
-See the [Hybrid Analysis supported boundary](../README.md#safety) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.
+See the [Hybrid Analysis supported boundary](safety.md) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.
 See [Check Point setup and commissioning](tool-credentials.md#check-point-email-security) before activation; enable only exact intended writes and independently selected downloads.
 Check Point uses the same artifact mount, global capacity, expiry and revocation contract as Hybrid Analysis, with a 50 MiB native limit and host-owned download confirmation/evidence.
 The owner commissions live authentication, permissions, scopes and hash availability through Artium after the complete build; local checks use fakes only.
@@ -449,7 +479,7 @@ Enable Falcon's audited **Write access** switch and select `rtr run` with recent
 Native settings replace the whole object, so preserve the `writes` selection when saving the profile opt-in.
 Existing `allowWrites: true` settings retain RTR permission only; saving the write switch converts them to the explicit operation selection.
 Select `malquery search` separately in **Write access** to enable it; existing RTR grants do not select it.
-See [supported Falcon capabilities](../README.md#safety), [upstream permissions and licensing](tool-credentials.md#falcon) and [audit classification](admin-guide.md#audit-screen-and-api) before enabling it.
+See [supported Falcon capabilities](safety.md), [upstream permissions and licensing](tool-credentials.md#falcon) and [audit classification](admin-guide.md#audit-screen-and-api) before enabling it.
 Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
 The switch never supplies profile opt-in or execution confirmation for the caller.
 Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then execute the same call with `--execute --confirm '<device_id>:ps'`.
@@ -549,7 +579,7 @@ Recovery checks the mounted key against the store's active key ID, authenticates
 An unrelated key fails with `MASTER_KEY_INVALID` even if the store has no credentials or rotation history.
 An audit failure rolls back the entire recovery.
 After success, restart the server, sign in with the recovery password and change it.
-Use the [CLI quickstart](../README.md#verified-client) or the administrator guide's [browser sign-in and forced password-change flow](admin-guide.md#browser-administration).
+Use the [CLI quickstart](client-reference.md#verified-client) or the administrator guide's [browser sign-in and forced password-change flow](admin-guide.md#browser-administration).
 
 ## Offline master key rotation
 

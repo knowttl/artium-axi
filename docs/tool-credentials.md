@@ -1,5 +1,20 @@
 # Tool credentials
 
+Contents:
+
+- [Check Point Email Security](#check-point-email-security)
+- [Tenable One](#tenable-one)
+- [Falcon](#falcon)
+- [Vectra](#vectra)
+- [Entra application registration for Azure and Graph](#entra-application-registration-for-azure-and-graph)
+- [Azure](#azure)
+- [Microsoft Graph](#microsoft-graph)
+- [LDAP](#ldap)
+- [Azure DevOps](#azure-devops)
+- [GitHub](#github)
+- [AWX](#awx)
+- [Hybrid Analysis](#hybrid-analysis)
+
 Configure only the tools you intend to use.
 At `/admin/tools`, open the tool, save its credential, then use **Test credential** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
@@ -72,7 +87,7 @@ These are optional domain requirements and do not justify granting other write o
 The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
 The fixed `host usb` search requires `NGSIEM:write`; see [Falcon execution setup](runbook.md#falcon-rtr-execution) for its host capability gate.
 MalQuery metadata, quota and request-status reads require `MalQuery:read`.
-MalQuery search requires `MalQuery:write` and product licensing; see [supported Falcon capabilities](../README.md#safety) for its boundaries.
+MalQuery search requires `MalQuery:write` and product licensing; see [supported Falcon capabilities](safety.md) for its boundaries.
 See [Falcon RTR execution setup](runbook.md#falcon-rtr-execution) for history reads, profile opt-in, execution confirmation and the read-only override.
 Falcon's fixed `auth status` test reports local credential resolution, so also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool.
 
@@ -174,7 +189,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 
 For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.17/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 
-For mailbox opt-in, supported reads and writes, and mailbox selectors, see the [managed capability boundary](../README.md#safety).
+For mailbox opt-in, supported reads and writes, and mailbox selectors, see the [managed capability boundary](safety.md).
 Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
 Keep `User.Read.All` for the credential test, which cannot verify mail authorization or scope.
 
@@ -196,7 +211,7 @@ Licences still apply: PIM and risk/governance features can fail despite consent,
 Do not add `User.Export.All` just to make a read-only setup pass; data-policy export is a write-class permission.
 
 In the Graph credential form, choose `mode=application`, `cloud=commercial`, `auth=client-secret`, then enter `tenantId`, `clientId` and the secret value in `clientSecret`.
-Profiles without `entra` are refused so existing Entra reads and credential tests remain available; see the [managed capability boundary](../README.md#safety) for pack selection and Defender XDR hunting.
+Profiles without `entra` are refused so existing Entra reads and credential tests remain available; see the [managed capability boundary](safety.md) for pack selection and Defender XDR hunting.
 The app registration used by Artium requires `ThreatHunting.Read.All` with administrator consent; tenant acceptance remains unverified.
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
@@ -293,7 +308,7 @@ Changing the App or installation ID requires entering its key again.
 
 Save, run **Test credential**, enable the tool and grant it to a role.
 Try `artium-axi gh-axi repo list --limit 1`, then `artium-axi gh-axi issue list -R OWNER/NAME --limit 10`.
-See the [supported GitHub boundary](../README.md#safety) for repository selection, dashboard limitations and blocked operations.
+See the [supported GitHub boundary](safety.md) for repository selection, dashboard limitations and blocked operations.
 The [reviewed inventory](../tools/inventories/gh-axi.json) owns the command allow-list, write tiers and upstream source digests.
 `api` accepts `[GET] <relative-path>` with optional output shaping; GraphQL, other methods, request fields, headers and input bodies are refused.
 
@@ -334,7 +349,7 @@ Callers cannot override the host or credential.
 GitHub CLI telemetry, prompts and update notifications are disabled.
 For private CAs, follow the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 
-See the [supported GitHub boundary](../README.md#safety) for why SSH keys are out of scope.
+See the [supported GitHub boundary](safety.md) for why SSH keys are out of scope.
 For device flow, open **Connect with GitHub** on `/admin/tools/gh-axi`, enter the HTTPS origin and confirm your admin identity when prompted.
 Artium uses GitHub CLI's public OAuth client ID `178c6fc778ccc68e1d6a`, without a client secret or app registration, and requests `repo read:org gist workflow project`.
 Enter only the code displayed by your own connection at the displayed GitHub verification URL.
@@ -394,7 +409,7 @@ Save, run **Test credential**, enable the tool and grant it to a role, then run 
 The credential test reads key level and submission quota; it does not prove permission for other resources.
 Structured 403 failures preserve upstream key-level guidance and never become empty results.
 
-Review the [Hybrid Analysis capability boundary](../README.md#safety) before enabling operations.
+Review the [Hybrid Analysis capability boundary](safety.md) before enabling operations.
 The [inventory](../tools/inventories/hybrid-axi.json) owns supported operation names and reviewed command/source digests.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for local uploads and explicit JSON stdin, and the [shared API contract](../src/shared/api.ts) for bounded input.
 Local fake-service checks do not establish live service acceptance.

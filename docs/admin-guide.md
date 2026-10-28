@@ -1,5 +1,15 @@
 # Administrator guide
 
+Contents:
+
+- [Set up a host](#set-up-a-host)
+- [Deploy a server with your agent](#deploy-a-server-with-your-agent)
+- [Browser administration](#browser-administration)
+- [Sign-in settings](#sign-in-settings)
+- [Audit screen and API](#audit-screen-and-api)
+- [Server settings and custody](#server-settings-and-custody)
+- [Security and acceptance boundaries](#security-and-acceptance-boundaries)
+
 Deploy and administer the managed tools server.
 For daily client use, see the [README](../README.md); for recovery and upgrades, see the [runbook](runbook.md).
 
@@ -11,7 +21,7 @@ Upstream accounts are shared server-side service identities; users sign in with 
 
 1. **Prepare the host.**
    Install Git and Docker with Compose and reserve HTTPS port 443 for the reverse proxy.
-   The image supplies Node, Python and the pinned tools; see [Build from source](../README.md#build-from-source) for the source toolchain.
+   The image supplies Node, Python and the pinned tools; see [Build from source](../CONTRIBUTING.md#build-from-source) for the source toolchain.
    Allow package and image downloads during the build and runtime access to the enabled tools' upstream APIs and identity endpoints.
    See [runbook prerequisites](runbook.md#scope-and-prerequisites) for the runtime limits, writable data directory and UID 10001 ownership, including rootless UID mapping.
 
@@ -64,9 +74,26 @@ Upstream accounts are shared server-side service identities; users sign in with 
    Follow [Tool credentials](tool-credentials.md) to save and test each credential, then follow the [activation requirements](admin-guide.md#browser-administration) before enabling the tool at `/admin/tools`.
    Create a role at `/admin/roles`, grant it the enabled tools, create local users at `/admin`, and assign that role to them.
    Assign a tool role to your administrator too if that account will run CLI calls; administrator capability alone grants no tool access.
-   Finish with [Download and first call](../README.md#verified-client) and [Skill installation](../README.md#use-with-your-agent) on each agent host.
+   Finish with [Download and first call](client-reference.md#verified-client) and [Skill installation](../README.md#use-with-your-agent) on each agent host.
 
 Recovery, rotation, backups, retention and upgrades remain in the [operations runbook](runbook.md).
+
+### Deploy a server with your agent
+
+Give this prompt to the agent helping you administer the server:
+
+> Deploy artium-axi on my Linux host.
+> Check Docker/Compose, host capacity, ports, DNS and the HTTPS/TLS plan first.
+> Use the repository's Compose file to build the server, or a published image only after verifying its release digest and provenance as described in the runbook.
+> Generate an exactly 32-byte random master key into a protected file, make it readable by container UID 10001, and keep an offline escrow copy separate from database backups.
+> Create the first administrator through the documented first-start password-file bootstrap, change its temporary password and remove bootstrap inputs.
+> Configure tool credentials through the administrator UI, test each credential, enable the intended tools and grant roles.
+> Run liveness, readiness and a permitted read for each enabled tool; report results and remaining limits without secrets.
+> Never ask me to paste passwords, tokens or keys into chat or command arguments.
+> Use hidden prompts, protected stdin or files with safe permissions for secrets.
+> Follow docs/admin-guide.md, docs/tool-credentials.md and docs/runbook.md for the exact steps.
+
+For manual deployment, follow the [administrator guide](admin-guide.md#set-up-a-host).
 
 ### Browser administration
 
@@ -90,7 +117,7 @@ Administrators land on `/admin`; ordinary users land on `/account` for tool acce
 
 For users granted Hybrid Analysis, Check Point or Microsoft Graph, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
-See the [capability boundary](../README.md#safety) for current availability.
+See the [capability boundary](safety.md) for current availability.
 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
@@ -167,7 +194,7 @@ Review the current grant, actions enabled by the switch and actions that always 
 For Falcon, Graph, Vectra, Tenable, Hybrid Analysis and Check Point, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
 Check Point email/attachment downloads are separately selected and use [host-owned CLI confirmation](client-reference.md#check-point-email-and-attachment-saving), while mutations retain their native gates.
-See the [Vectra supported boundary and native write gates](../README.md#safety) before selecting operations.
+See the [Vectra supported boundary and native write gates](safety.md) before selecting operations.
 Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
 Choose **Save write access** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
@@ -275,7 +302,7 @@ Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
-For hosted download availability, see the [supported capability boundaries](../README.md#safety).
+For hosted download availability, see the [supported capability boundaries](safety.md).
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
@@ -294,7 +321,7 @@ Falcon calls report `read` unless they contain `--execute` or submit `malquery s
 Those calls report `write` only with valid native journal records; absent or empty evidence reports `unknown`, even after success.
 MalQuery submissions do not emit the native RTR journal.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
-GitHub also uses host classification; see its [supported boundary](../README.md#safety).
+GitHub also uses host classification; see its [supported boundary](safety.md).
 See [GitHub setup](tool-credentials.md#github) for device connection, token lifecycle and reconnect guidance, and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 Tenable, Hybrid Analysis and Check Point writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
 Check Point download evidence is host-owned and leaves native journal fields empty.

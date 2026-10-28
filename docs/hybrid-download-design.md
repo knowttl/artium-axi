@@ -1,8 +1,16 @@
 # Hosted Hybrid Analysis downloads
 
+Contents:
+
+- [Evidence and boundaries](#evidence-and-boundaries)
+- [Proposed transit and storage](#proposed-transit-and-storage)
+- [Authorization, audit and user guidance](#authorization-audit-and-user-guidance)
+- [Threat model and limits](#threat-model-and-limits)
+- [Storage decision and implementation slices](#storage-decision-and-implementation-slices)
+
 Status: all four implementation slices are implemented, including the four reviewed download operations behind independently selected, off-by-default write permissions and host admission.
 See the [runbook prerequisites](runbook.md#scope-and-prerequisites) for artifact-owner startup, storage admission and deployment requirements.
-See the [Hybrid Analysis capability boundary](../README.md#safety) for current availability.
+See the [Hybrid Analysis capability boundary](safety.md) for current availability.
 This design specifies a hosted path for sample archives, dropped-file archives and process-memory dumps without turning Artium into a malware analysis service.
 
 ## Evidence and boundaries
