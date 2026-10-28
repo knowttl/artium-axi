@@ -14,13 +14,11 @@ RUN --network=none /opt/tools/node_modules/.bin/tenable-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/checkpoint-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/hybrid-axi --version
 RUN python3 -m venv /opt/falcon-build && python3 -m venv /opt/falcon-axi
-RUN /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/build-requirements.txt -d /build-wheels && /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/requirements.txt -d /runtime-wheels
+RUN /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/requirements.txt -d /runtime-wheels
 RUN node --input-type=module -e 'import {readFileSync} from "node:fs"; import {execFileSync} from "node:child_process"; const pin=JSON.parse(readFileSync("/opt/tools/falcon-source.json")); for(const args of [["init","/source"],["-C","/source","remote","add","origin",pin.repository],["-C","/source","fetch","--depth=1","origin",pin.commit],["-C","/source","checkout","--detach",pin.commit]]) execFileSync("git",args,{stdio:"inherit"})'
-RUN --network=none /opt/falcon-build/bin/pip install --no-index --find-links=/build-wheels --require-hashes -r /opt/tools/build-requirements.txt
 WORKDIR /source
 RUN mkdir -p /opt/tools/skills/falcon-axi && cp skills/falcon-axi/SKILL.md /opt/tools/skills/falcon-axi/SKILL.md
-RUN --network=none /opt/falcon-build/bin/python -m hatchling build -t wheel
-RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runtime-wheels --require-hashes -r /opt/tools/requirements.txt && /opt/falcon-axi/bin/pip install --no-deps --no-index dist/falcon_axi-0.8.0-py3-none-any.whl && /opt/falcon-axi/bin/pip check
+RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runtime-wheels --require-hashes -r /opt/tools/requirements.txt && /opt/falcon-axi/bin/pip check
 WORKDIR /opt/artium
 COPY tsconfig.json ./
 COPY src ./src

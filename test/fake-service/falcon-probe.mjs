@@ -242,11 +242,16 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     const result = await run(execute)
     assert.equal(result.exitCode, 0, result.stdout)
     assert.match(result.stdout, /synthetic process list/)
+    assert.match(result.stdout, /synthetic remaining processes/)
+    assert.match(result.stdout, /complete: true/)
+    assert.match(result.stdout, /truncated: false/)
     assert.match(result.stdout, /cleanup: deleted/)
     assert.deepEqual((await evidence()).requests.slice(beforeRun).map(({ method, path }) => ({ method, path })), [
       { method: 'POST', path: '/oauth2/token' },
       { method: 'POST', path: '/real-time-response/entities/sessions/v1' },
       { method: 'POST', path: '/real-time-response/entities/command/v1' },
+      { method: 'GET', path: '/real-time-response/entities/command/v1' },
+      { method: 'GET', path: '/real-time-response/entities/command/v1' },
       { method: 'GET', path: '/real-time-response/entities/command/v1' },
       { method: 'DELETE', path: '/real-time-response/entities/sessions/v1' },
     ])

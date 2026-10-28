@@ -396,8 +396,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname === '/real-time-response/entities/command/v1') {
     req.resume()
     if (req.method === 'POST') mutations++
+    const sequence = Number(url.searchParams.get('sequence_id') ?? 0)
+    const output = ['synthetic process list\n', 'synthetic remaining processes'][sequence] ?? ''
     res.end(JSON.stringify({ resources: [req.method === 'POST' ? { cloud_request_id: 'synthetic-rtr-command' }
-      : { stdout: 'synthetic process list', stderr: '', complete: true, sequence_id: 0 }] }))
+      : { stdout: output, stderr: '', complete: true, sequence_id: sequence }] }))
   } else if (url.pathname === '/alerts/queries/alerts/v2') {
     if (req.headers.host === 'api-redirect.crowdstrike.com') {
       res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })

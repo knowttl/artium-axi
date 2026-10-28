@@ -24,14 +24,14 @@ importers:
         specifier: 0.3.0
         version: 0.3.0
       '@knowttl/mg-axi':
-        specifier: 0.1.16
-        version: 0.1.16
+        specifier: 0.1.17
+        version: 0.1.17
       '@knowttl/tenable-axi':
         specifier: 0.1.3
         version: 0.1.3
       '@knowttl/vectra-axi':
-        specifier: 0.1.10
-        version: 0.1.10
+        specifier: 0.1.11
+        version: 0.1.11
       awx-axi:
         specifier: 0.1.8
         version: 0.1.8
@@ -81,8 +81,8 @@ packages:
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/mg-axi@0.1.16':
-    resolution: {integrity: sha512-tTVeROr9DiRA/QQE/OTxfQeAZ+ZZpdgp1Y8nsPJQMs69AJ/ozbrFim//lae/r4kaV4Z9k+TUSblg+eSKTQqbjw==}
+  '@knowttl/mg-axi@0.1.17':
+    resolution: {integrity: sha512-pbMFGVz3VYwYlAsoIc0h8XcsjFZBV+NyDJFu5CO0Wl/Z02GabXoD9Z/UJtBFvXIcvnX5zPdonITBjmdc352SCg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -91,8 +91,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/vectra-axi@0.1.10':
-    resolution: {integrity: sha512-X7yttDlwpQJW/j0eNox5vLf7nWlFejXjtaq90N7ezJ+ACNqEFspODrwQ/mYqbXFnqjpIugQnhSGcnaI8YNMeLw==}
+  '@knowttl/vectra-axi@0.1.11':
+    resolution: {integrity: sha512-BlbZkUhkqqGaJBX+7skqE22ZAurhqqOIO/LF0zwi1t9Y8vwAz8Ju0BBahfmPYWPnQijrxZ69e/a8B3yDV69XnA==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -403,7 +403,7 @@ snapshots:
       node-addon-api: 8.9.2
       node-gyp: 12.4.0
 
-  '@knowttl/mg-axi@0.1.16':
+  '@knowttl/mg-axi@0.1.17':
     dependencies:
       '@azure/msal-node': 7.0.1
       '@kusto/language-service-next': 12.4.1
@@ -418,7 +418,7 @@ snapshots:
       smol-toml: 1.9.1
       zod: 4.3.6
 
-  '@knowttl/vectra-axi@0.1.10':
+  '@knowttl/vectra-axi@0.1.11':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

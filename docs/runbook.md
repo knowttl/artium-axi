@@ -456,6 +456,7 @@ Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then exec
 Confirmation must match the device ID and complete command exactly.
 Without the `rtr run` capability enabled, the [native read-only override](credential-standard.md#per-tool-host-facing-schemas) blocks RTR execution, NG-SIEM job start/stop, `host usb` and identity activity; RTR session and audit history reads and local previews remain available.
 Execution deletes its session afterward and records a durable redacted journal; see [retention and export](#retention-and-export).
+RTR reads successive output chunks and reports `complete` and `truncated`; check both before treating the returned output as complete.
 Avoid overlapping sessions for the same host and API client, including from other machines.
 After ambiguous session initialization or failed deletion, reconcile sessions in Falcon before retrying; never replay automatically.
 Keep the example deployment's shutdown grace period when adapting it so native session cleanup can complete before container termination.

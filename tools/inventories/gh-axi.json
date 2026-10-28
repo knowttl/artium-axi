@@ -11,10 +11,10 @@
     "manifestSha256": "dbe3acffeb40dfcca73ce33f60f807bbba8cd5cec6a470b2c7f255b50e02e184"
   },
   "gh": {
-    "version": "2.101.0",
-    "url": "https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_linux_amd64.tar.gz",
-    "sha256": "9bca2d1c16825f109907a23307628a2f0698fbf99662b73a5cf0b020293072b8",
-    "checksums": "https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_checksums.txt"
+    "version": "2.103.3",
+    "url": "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_linux_amd64.tar.gz",
+    "sha256": "4c806978ffce1cec70853302a56d70ac6da4f19bae7adca4e1a8ab00633dd91d",
+    "checksums": "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_checksums.txt"
   },
   "sources": [
     {

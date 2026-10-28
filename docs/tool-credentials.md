@@ -65,7 +65,7 @@ In the Falcon console, open **Support and resources > API clients and keys** and
 Copy its client ID and secret and record its cloud region: `us-1`, `us-2`, `eu-1` or `us-gov-1`.
 At `/admin/tools/falcon-axi`, enter `clientId`, `clientSecret` and `region`, with `memberCid` only when targeting a Flight Control member tenant.
 Grant `Alerts:read` for detection reads, including the first-call example.
-Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.8.0/README.md#api-client-permissions) and its offline `scopes` command.
+Grant additional scopes only for the domains you use, following the pinned [API client permission matrix](https://github.com/knowttl/falcon-axi/blob/v0.8.1/README.md#api-client-permissions) and its offline `scopes` command.
 For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
 NG-SIEM search requires `NGSIEM:write`; Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
@@ -84,7 +84,7 @@ QUX OAuth requires appliance release 9.1 or later; `applianceRelease` is optiona
 For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clientSecret`; leave `applianceRelease` blank.
 Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
 Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
-See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.10#configuration) for deployment-specific requirements.
+See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.11#configuration) for deployment-specific requirements.
 For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
 For shared trust across tools, follow the [private CA runbook](runbook.md#tls-inspection-and-private-upstream-cas).
 Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
@@ -172,7 +172,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.16/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.17/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 
 For mailbox opt-in, supported reads and writes, and mailbox selectors, see the [managed capability boundary](../README.md#safety).
 Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
@@ -302,7 +302,7 @@ An administrator enables exact operations under **Write access**, persisted as `
 The collaboration and repository tiers describe capabilities; selecting one operation never enables its siblings.
 For exact operation names and tier membership, use the `effect: "write"` command entries and their `tier` fields in the [reviewed inventory](../tools/inventories/gh-axi.json).
 
-Issue lock/unlock is unsupported because pinned gh-axi 0.1.44 requests the `locked` issue field, which gh 2.101.0 does not export.
+Issue lock/unlock is unsupported because pinned gh-axi 0.1.44 requests the `locked` issue field, which gh 2.103.3 does not export.
 A compatible published upstream release is required before these operations can be enabled.
 Repository creation requires an explicit `OWNER/NAME`; unqualified and host-qualified names are refused.
 Repository visibility changes are unavailable.

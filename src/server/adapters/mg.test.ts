@@ -75,6 +75,19 @@ test('reviewed API GET retains its path and flags', async () => {
   expect((await adapter.prepare(args, reference)).args).toEqual(args)
 })
 
+test.each(['owners', 'users'])('device %s retains its positional ID and pagination flags', async command => {
+  const adapter = createMgAdapter({ getCredential: async () => ({ ...identity, auth: 'secret', clientSecret: 'CANARY-secret' }) }, '/tmp/writes.log')
+  const args = ['entra', 'device', command, '00000000-0000-0000-0000-000000000003', '--all']
+  expect((await adapter.prepare(args, reference)).args).toEqual(args)
+})
+
+test.each(['owners', 'users'])('device %s refuses extra positional IDs before credential retrieval', async command => {
+  const getCredential = vi.fn()
+  await expect(createMgAdapter({ getCredential }, '/tmp/writes.log')
+    .prepare(['entra', 'device', command, 'synthetic-device', 'extra'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
 const hunting = ['security', 'hunting', 'query', '--file=query.kql']
 const query = 'DeviceEvents | where ActionType == "CANARY-query" | take 1'
 const upload = { name: 'query.kql', contentBase64: Buffer.from(query).toString('base64') }

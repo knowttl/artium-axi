@@ -390,7 +390,7 @@ test.each(['lock', 'unlock'])('issue %s reports its upstream incompatibility bef
     next: expect.stringContaining('compatible published upstream release'),
   })
   await expect(adapter.prepare(['issue', action, '--help'], reference)).rejects.toMatchObject({
-    message: expect.stringContaining('gh 2.101.0 does not export'),
+    message: expect.stringContaining('gh 2.103.3 does not export'),
   })
   expect(getCredential).not.toHaveBeenCalled()
   expect(() => ghWritePolicy.update({}, { enabled: true, operations: [`issue ${action}`], expectedRevision: 1 })).toThrow()
