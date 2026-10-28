@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.24](https://github.com/knowttl/artium-axi/compare/v0.0.23...v0.0.24) (2026-10-28)
+
+
+### Features
+
+* update bundled tools and enable Entra device relationship reads ([#198](https://github.com/knowttl/artium-axi/issues/198)) ([bccced3](https://github.com/knowttl/artium-axi/commit/bccced369388626b3e7e6feec8865e78c59eb97b))
+
 ## [0.0.23](https://github.com/knowttl/artium-axi/compare/v0.0.22...v0.0.23) (2026-10-28)
 
 
