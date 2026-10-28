@@ -3,8 +3,8 @@ name: artium-axi
 description: Discover and run managed commands through Artium, using the signed-in account and its granted tools.
 ---
 
-Use artium-axi tools first for requests involving data from Artium-managed tools.
-Run `artium-axi tools` to discover the tools available to this account before choosing a tool.
+For requests involving data from Artium-managed tools, discover the tools available to this account before choosing one.
+Run `artium-axi` for identity and tools together, or `artium-axi tools` when only tool discovery is needed.
 Run `artium-axi tools show <tool>` for its commands and a vetted example, then run `artium-axi <tool> <args>`.
 Follow the returned next commands; they already include the Artium prefix.
 Keep upstream arguments intact and use the managed credentials rather than configuring an upstream CLI directly.
@@ -17,11 +17,66 @@ On Windows, choose the labelled PowerShell or Git Bash command for your shell.
 The setup command records the standalone bundle's Node invocation here.
 <!-- /artium-axi executable -->
 
-If sign-in is required, ask the user to follow `artium-axi login --help` for their SSO or local account.
+If sign-in is required, ask the user to sign in with their SSO or local account.
 Never request or print tokens or put passwords in arguments.
 An empty tool list means no enabled runtime tool is available through the account's roles; ask an administrator to check grants and enabled tools.
 Use `artium-axi doctor` for connection or cached health diagnostics.
 Do not retry an uncertain command outcome, especially a write.
+
+## Investigation quick guide
+
+Start with these reads using an already signed-in account, without running help first.
+Artium is a managed transport; vendor investigation syntax and one-call pivots belong to the tool skills installed by setup.
+Use the matching installed skill once you know the granted tool.
+
+| Read command and example | What it answers |
+| --- | --- |
+| `artium-axi` | Identity, roles and available tools together in one call. |
+| `artium-axi tools` | Granted enabled tools, status, pinned version and `readOnly`; no flags required. |
+| `artium-axi tools show falcon-axi` | One tool's reviewed command inventory, vetted upstream help and first read example; substitute a granted tool name. |
+| `artium-axi whoami` | Identity, roles, session expiry and server; no flags required. |
+| `artium-axi doctor` | Connection, certificate, token, version and cached tool health; does not run a fresh upstream credential test. |
+| `artium-axi falcon-axi detection list` | First endpoint detection read when Falcon is granted; keep all upstream arguments after the tool name. |
+
+The home view combines identity and tool discovery, so skip separate whoami and tools calls when it already answers the question.
+Tools show combines command inventory, vetted help and a first call, avoiding help probes for every listed command.
+Artium has no generic batch, start-and-wait, list-with-details or lookup-and-pivot flag.
+Use only single-call forms documented by the granted tool's installed skill and supported by its pinned command inventory; upstream support does not imply managed availability.
+
+### Keep output small
+
+Client discovery has no `--fields`, `--limit` or `--full` flags.
+Tools already returns only `name`, `status`, `version` and `readOnly`; use tools show for one tool's details only when needed.
+Forward tool-specific filters, `--fields` and `--limit` only where its skill documents them.
+Prefer identifiers, status, timestamps and summary fields; fetch long descriptions only for relevant records.
+Upstream `--full`, where supported, restores text but never bypasses redaction, execution budgets or output caps.
+Heed stderr truncation notices and narrow the query rather than treating partial output as complete; see [output limits](https://github.com/knowttl/artium-axi/blob/main/docs/client-reference.md#toon-output-behavior).
+
+### Help is recovery
+
+Use help for a command that fails or whose arguments are unclear, not to start an investigation.
+`artium-axi --help` returns the local client command list, usage, flags and an example without signing in.
+Client command help, such as `artium-axi tools --help`, `artium-axi tools show --help`, `artium-axi whoami --help` and `artium-axi doctor --help`, describes only that client command.
+`artium-axi --help falcon-axi` is local entry help describing forwarding and managed boundaries.
+`artium-axi falcon-axi --help` and `artium-axi falcon-axi detection list --help` authenticate and forward help to the pinned tool at the requested level.
+The same before/after-tool distinction applies to other granted tools.
+
+### Read allowlist and state changes
+
+The six reads above are candidates for a reviewed allowlist, scoped to their exact argument forms.
+Authenticated reads can refresh local session tokens and create server audit records.
+Never allow an unrestricted tool prefix merely because its discovery row says `readOnly`.
+Login, passwd and logout change session/account state; setup writes skills/hooks; update replaces the executable; download prepares transfers or saves artifacts.
+Forwarded writes and job creation need separate review and administrator enablement where supported.
+Hybrid Analysis quick scans can transmit samples or URLs even with managed writes disabled.
+Native preview, execute and exact confirmation gates still apply; there is no universal Artium confirmation flag.
+
+### Failures and next action
+
+Artium errors are TOON on stdout with `error.code`, `source`, `message` and `next`; follow `next` rather than retrying blindly.
+Exit 0 means success, 2 means usage/configuration error and 1 means authentication/server/transport failure; upstream exit status passes through.
+
+Use the [generated error reference](https://github.com/knowttl/artium-axi/blob/main/docs/errors.md) for code-specific recovery and exit codes.
 
 ## Commands
 
