@@ -3,8 +3,8 @@ name: artium-axi
 description: Discover and run managed commands through Artium, using the signed-in account and its granted tools.
 ---
 
-Use artium-axi tools first for requests involving data from Artium-managed tools.
-Run `artium-axi tools` to discover the tools available to this account before choosing a tool.
+For requests involving data from Artium-managed tools, discover the tools available to this account before choosing one.
+Run `artium-axi` for identity and tools together, or `artium-axi tools` when only tool discovery is needed.
 Run `artium-axi tools show <tool>` for its commands and a vetted example, then run `artium-axi <tool> <args>`.
 Follow the returned next commands; they already include the Artium prefix.
 Keep upstream arguments intact and use the managed credentials rather than configuring an upstream CLI directly.
@@ -50,7 +50,7 @@ Tools already returns only `name`, `status`, `version` and `readOnly`; use tools
 Forward tool-specific filters, `--fields` and `--limit` only where its skill documents them.
 Prefer identifiers, status, timestamps and summary fields; fetch long descriptions only for relevant records.
 Upstream `--full`, where supported, restores text but never bypasses redaction, execution budgets or output caps.
-The default managed stream cap is 4 MiB per stream; heed stderr truncation notices and narrow the query rather than treating partial output as complete.
+Heed stderr truncation notices and narrow the query rather than treating partial output as complete; see [output limits](https://github.com/knowttl/artium-axi/blob/main/docs/client-reference.md#toon-output-behavior).
 
 ### Help is recovery
 
@@ -76,16 +76,7 @@ Native preview, execute and exact confirmation gates still apply; there is no un
 Artium errors are TOON on stdout with `error.code`, `source`, `message` and `next`; follow `next` rather than retrying blindly.
 Exit 0 means success, 2 means usage/configuration error and 1 means authentication/server/transport failure; upstream exit status passes through.
 
-| Code | Action |
-| --- | --- |
-| `INVALID_INPUT`, `FLAG_BLOCKED` | Correct syntax or remove destination, tenant, credential and local configuration overrides; use the failing command's help if needed. |
-| `CLIENT_CONFIG_INVALID`, `CERTIFICATE_INVALID` | Correct the HTTPS server/CA settings; never disable certificate verification. |
-| `TOKEN_INVALID`, `TOKEN_EXPIRED`, `PASSWORD_CHANGE_REQUIRED` | Have the account owner sign in again or change the temporary password first. |
-| `TOOL_DISABLED`, `TOOL_NOT_GRANTED`, `CREDENTIAL_NOT_CONFIGURED`, `UPSTREAM_AUTH_FAILED` | Ask the administrator to check enablement, grants or managed credentials; changing upstream login locally cannot repair them. |
-| `CLI_OUTDATED` | Follow the returned installation-specific update instructions. |
-| `TOO_MANY_CALLS`, `SESSION_BUSY` | Wait for the active call/session holder to finish; avoid parallel retries. |
-| `TIMEOUT`, `UNKNOWN_OUTCOME`, `SERVER_UNAVAILABLE` | Inspect current state before trying again, especially after a write. |
-| `OUTPUT_LIMIT` | Narrow filters or reduce the upstream result limit. |
+Use the [generated error reference](https://github.com/knowttl/artium-axi/blob/main/docs/errors.md) for code-specific recovery and exit codes.
 
 ## Commands
 
