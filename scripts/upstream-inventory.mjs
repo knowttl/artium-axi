@@ -42,9 +42,11 @@ const mgCommandPacks = {
   'mail folder create': 'mail', 'mail folder delete': 'mail', 'mail category create': 'mail',
   'mail rule create': 'mail', 'mail rule update': 'mail', 'mail rule delete': 'mail',
 }
+const mgDownloads = { 'mail attachment save': 'mail', 'mail message export': 'mail' }
 // Mail handlers derive coordinator operation IDs from these reviewed command paths.
 mgWriteOperations.push(...mg.LEAVES.filter(leaf => mgCommandPacks[leaf.path] === 'mail' && leaf.flags?.execute)
   .map(leaf => leaf.path.replaceAll(' ', '.')))
+mgWriteOperations.push(...Object.keys(mgDownloads).map(command => command.replaceAll(' ', '.')))
 const mgAllowedCommands = ['home', 'doctor', 'entra', 'api get', ...Object.keys(mgCommandPacks)]
 const mgUnsafeOverrides = ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
   'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint-sha256', 'federated-token-file']
@@ -219,16 +221,17 @@ for (const [tool, commands] of Object.entries(inventories)) {
     ...(tool === 'mg-axi' ? { adapterBoundary: {
       unsafeOverrides: mgUnsafeOverrides,
       allowedCommands: mgAllowedCommands,
-      commandPacks: mgCommandPacks,
+      commandPacks: { ...mgCommandPacks, ...mgDownloads },
+      downloadCommands: Object.keys(mgDownloads),
       inputs: { stdin: 'cursor - only', files: 'security hunting query or mail rule create/update only: one UTF-8 query.kql or rule.json upload, at most 64 KiB; fixed runner leaf name', cursor: 'opaque token or stdin; never a path',
         api: 'reviewed GET routes only; pinned Graph destination and operation gates retained' },
-      sensitiveFlags: ['cursor', 'search', 'filter', 'conversation', 'mailbox', 'id', 'ids', 'folder', 'destination', 'confirm', 'add', 'remove', 'name', 'odata', 'conditions', 'grant-controls', 'session-controls', 'display-name'],
+      sensitiveFlags: ['cursor', 'search', 'filter', 'conversation', 'mailbox', 'id', 'ids', 'attachment', 'out', 'folder', 'destination', 'confirm', 'add', 'remove', 'name', 'odata', 'conditions', 'grant-controls', 'session-controls', 'display-name'],
       knownOutputScanValues: ['clientSecret and trimmed clientSecret', 'privateKey and normalized PEM', 'hunting query text'],
       outputScanLimit: 'Upstream-minted Graph tokens and assertions are not available during prepare; live redaction remains unverified.',
       resources: { nodeHeapMiB: 512, reason: 'Pinned 73 MiB operation inventory exceeds the default 128 MiB heap; fake read/write probes measure the bounded adapter allowance.' },
       nativeGates: ['configured writes.allowWrites', 'configured writes.operations', 'v1.0 operation scope',
         '--execute', '--confirm for disruptive writes', 'durable intent before single send', 'durable outcome'],
-      parserSources: ['catalogue.js', 'cli.js', 'mail-message-writes.js', 'mail-folder-writes.js', 'mail-rule-writes.js', 'mail-write-runner.js'].map(path => ({ path: `dist/${path}`, sha256: createHash('sha256')
+      parserSources: ['catalogue.js', 'cli.js', 'mail-message-writes.js', 'mail-folder-writes.js', 'mail-rule-writes.js', 'mail-write-runner.js', 'mail-download.js', 'mutations.js'].map(path => ({ path: `dist/${path}`, sha256: createHash('sha256')
         .update(readFileSync(new URL(`node_modules/@knowttl/mg-axi/dist/${path}`, root))).digest('hex') })),
     } } : {}),
     flags: [...new Set(commands.flatMap(command => [...Object.keys(command.flags), ...Object.keys(command.flagAliases ?? {})]))].sort()

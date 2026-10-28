@@ -26,7 +26,7 @@ export const mgWritePolicy = writePolicy({ supportedOperations: inventory.native
   unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal, conditional-access policy and mail operations; native execution and confirmation gates still apply.',
   blocked: 'Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
 
-function mgArguments(args: readonly string[], input: RunnerInput = {}) {
+function mgArguments(args: readonly string[], input: RunnerInput = {}, artifact = false) {
   const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
   const rule = ['mail rule create', 'mail rule update'].includes(args.slice(0, 3).join(' '))
   const upload = hunting || rule
@@ -47,7 +47,9 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}) {
     }
     throw invalidCommand('mg-axi', words, inventory.commands.filter(route => mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(command + ' '))).map(route => route.command))
   }
-  if (!mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(`${command} `))) {
+  const download = mgManifest.downloadCommands.includes(route.command)
+  if (download && !artifact) throw new ArtiumError('FLAG_BLOCKED', 'Use artium-axi download --help for authenticated mail saving.')
+  if (!(artifact && download) && !mgManifest.allowedCommands.some(command => route.command === command || route.command.startsWith(`${command} `))) {
     throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
   }
   const schema: Record<string, string | undefined> = route.flags
@@ -105,51 +107,65 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: args => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`),
       positions: args.slice(0, 3).join(' ') === 'security hunting query' ? args.map((_, index) => index) : [] }),
     validateArgs: (args, input) => { mgArguments(args, input) },
-    async prepare(args, reference, input) {
-      const normalized = mgArguments(args, input)
-      if (reference.tool !== 'mg-axi' || !profile && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
-      const value = await source.getCredential(reference)
-      const packs: Record<string, string> = mgManifest.commandPacks
-      const pack = packs[normalized.invocation.command]
-      if (profile && pack === 'mail' && (!value || typeof value !== 'object'
-        || !('mode' in value) || value.mode !== applicationMode.properties.mode.const)) {
-        throw new ArtiumError('CREDENTIAL_INVALID', 'Hosted mail requires an application-mode credential profile.')
-      }
-      const parsed = (profile?.credentialSchema ?? mgCredentialSchema).safeParse(value)
-      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const settings = source.getSettings?.(reference) ?? parsed.data
-      if (pack && !(settings.enabledPacks as string[] | undefined)?.includes(pack)) {
-        throw new ArtiumError('FLAG_BLOCKED', `Command requires the administrator enabledPacks: ["entra", "${pack}"] opt-in.`)
-      }
-      const query = normalized.invocation.command === 'security hunting query' && input?.files?.[0]
-        ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
-      if (profile) {
-        const prepared = profile.prepare('mg-axi', parsed.data, writeLog,
-          (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true)
-        return { executable: toolPaths['mg-axi'], ...normalized, ...prepared,
-          secrets: [...prepared.secrets, ...(query ? [query] : [])],
-          limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 } }
-      }
-      const credential = mgCredentialSchema.parse(parsed.data)
-      const { tenantId, clientId, preview = false, writes } = credential
-      const secret = credential.auth === 'secret' ? credential.clientSecret : credential.privateKey
-      const holder = 'ARTIUM_SECRET_0'
-      const credentialRef = credential.auth === 'secret'
-        ? { provider: 'client-secret', key: clientId, secretEnv: holder }
-        : { provider: 'certificate', key: clientId, thumbprint: credential.thumbprint.toLowerCase(), keyEnv: holder }
-      return {
-        executable: toolPaths['mg-axi'], ...normalized,
-        environment: { MG_AXI_CONFIG: 'mg-profile.json', MG_AXI_WRITE_LOG: writeLog,
-          MG_AXI_READ_ONLY: String(writes?.allowWrites !== true), [holder]: secret },
-        files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
-          artium: { mode: 'application', tenantId, clientId, cloud: 'commercial', preview,
-            allowDeviceCode: false, enabledPacks: credential.enabledPacks ?? ['entra'], sensitiveAreas: [], credentialRef,
-            ...(writes === undefined ? {} : { writes }) },
-        } }) }],
-        secrets: [...new Set([secret, credential.auth === 'secret' ? secret.trim()
-          : secret.includes('\n') ? secret : secret.replace(/\\n/g, '\n'), ...(query ? [query] : [])])],
+    prepare,
+    async prepareArtifact(args, reference, scope) {
+      if (reference.tool !== 'mg-axi' || !scope.selection.operation.startsWith('mail.')
+        || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const prepared = await prepare(args, reference, undefined, true)
+      prepared.environment.MG_AXI_WRITE_LOG = `${writeLog}.${scope.transferId}`
+      return prepared
+    },
+  }
+
+  async function prepare(args: readonly string[], reference: Parameters<Adapter<unknown>['prepare']>[1], input?: RunnerInput, artifact = false) {
+    const normalized = mgArguments(args, input, artifact)
+    if (reference.tool !== 'mg-axi' || !profile && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
+    const value = await source.getCredential(reference)
+    const packs: Record<string, string> = mgManifest.commandPacks
+    const pack = packs[normalized.invocation.command]
+    if (profile && pack === 'mail' && (!value || typeof value !== 'object'
+      || !('mode' in value) || value.mode !== applicationMode.properties.mode.const)) {
+      throw new ArtiumError('CREDENTIAL_INVALID', 'Hosted mail requires an application-mode credential profile.')
+    }
+    const parsed = (profile?.credentialSchema ?? mgCredentialSchema).safeParse(value)
+    if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
+    const settings = source.getSettings?.(reference) ?? parsed.data
+    if (pack && !(settings.enabledPacks as string[] | undefined)?.includes(pack)) {
+      throw new ArtiumError('FLAG_BLOCKED', `Command requires the administrator enabledPacks: ["entra", "${pack}"] opt-in.`)
+    }
+    if (artifact) {
+      const state = mgWritePolicy.read(settings)
+      if (!state.enabled || !state.allowedOperations.includes(normalized.invocation.command.replaceAll(' ', '.'))) throw new ArtiumError('FLAG_BLOCKED')
+    }
+    const query = normalized.invocation.command === 'security hunting query' && input?.files?.[0]
+      ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
+    if (profile) {
+      const prepared = profile.prepare('mg-axi', parsed.data, writeLog,
+        (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true)
+      return { executable: toolPaths['mg-axi'], ...normalized, ...prepared,
+        secrets: [...prepared.secrets, ...(query ? [query] : [])],
         limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
       }
-    },
+    }
+    const credential = mgCredentialSchema.parse(parsed.data)
+    const { tenantId, clientId, preview = false, writes } = credential
+    const secret = credential.auth === 'secret' ? credential.clientSecret : credential.privateKey
+    const holder = 'ARTIUM_SECRET_0'
+    const credentialRef = credential.auth === 'secret'
+      ? { provider: 'client-secret', key: clientId, secretEnv: holder }
+      : { provider: 'certificate', key: clientId, thumbprint: credential.thumbprint.toLowerCase(), keyEnv: holder }
+    return {
+      executable: toolPaths['mg-axi'], ...normalized,
+      environment: { MG_AXI_CONFIG: 'mg-profile.json', MG_AXI_WRITE_LOG: writeLog,
+        MG_AXI_READ_ONLY: String(writes?.allowWrites !== true), [holder]: secret },
+      files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
+        artium: { mode: 'application', tenantId, clientId, cloud: 'commercial', preview,
+          allowDeviceCode: false, enabledPacks: credential.enabledPacks ?? ['entra'], sensitiveAreas: [], credentialRef,
+          ...(writes === undefined ? {} : { writes }) },
+      } }) }],
+      secrets: [...new Set([secret, credential.auth === 'secret' ? secret.trim()
+        : secret.includes('\n') ? secret : secret.replace(/\\n/g, '\n'), ...(query ? [query] : [])])],
+      limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
+    }
   }
 }

@@ -172,7 +172,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.15/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.16/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 
 For mailbox opt-in, supported reads and writes, and mailbox selectors, see the [managed capability boundary](../README.md#safety).
 Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
@@ -181,7 +181,7 @@ Keep `User.Read.All` for the credential test, which cannot verify mail authoriza
 | Mail operations | Scoped Exchange RBAC role |
 | --- | --- |
 | Folders, message lists, search, filters, conversations | Application Mail.ReadBasic |
-| Message bodies, headers and attachment metadata | Application Mail.Read |
+| Message bodies, headers, attachment metadata, attachment saving and MIME export | Application Mail.Read |
 | Mailbox settings, inbox rules and master categories | Application MailboxSettings.Read |
 | Message and folder writes | Application Mail.ReadWrite |
 | Rule and category writes | Application MailboxSettings.ReadWrite |

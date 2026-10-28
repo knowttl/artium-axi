@@ -12,8 +12,8 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
-See the [supported capability boundaries](../README.md#safety) for hosted Hybrid Analysis and Check Point download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
-Both tools share an internal artifact owner that requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
+See the [supported capability boundaries](../README.md#safety) for hosted Hybrid Analysis, Check Point and Microsoft Graph download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
+These tools share an internal artifact owner that requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
 It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
 The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
 The executable host admission contract is in [src/server/artifacts.ts](../src/server/artifacts.ts); transfer limits are defined in [src/shared/api.ts](../src/shared/api.ts).
@@ -34,12 +34,12 @@ Artium does not automatically change AV/EDR policy.
 Security software can quarantine or lock even compressed samples, causing delivery failure, changed availability or blocked cleanup; resolve those failures under the approved narrowly scoped policy.
 Use a dedicated controlled Linux analysis client and dedicated private download directory, without sync, indexing or automatic opening.
 Keep subsequent analysis outside Artium.
-See CLI saving for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving) and [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) for destination requirements and verified saving, and [the account screen](admin-guide.md#browser-administration) for browser guidance and metadata.
+See CLI saving for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving) for destination requirements and verified saving, and [the account screen](admin-guide.md#browser-administration) for browser guidance and metadata.
 Live malware: this archive may contain executable malware.
 Save only; do not extract or execute.
 Password protection is unverified; bytes are saved exactly as provided.
 Upstream success, completed server delivery and a client verified-save receipt are separate outcomes; missing receipt is unconfirmed.
-For `/v1/transfers/hybrid/*` and `/v1/transfers/checkpoint/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
+For `/v1/transfers/hybrid/*`, `/v1/transfers/checkpoint/*` and `/v1/transfers/mg/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
 Unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.
@@ -464,9 +464,10 @@ Keep the example deployment's shutdown grace period when adapting it so native s
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
-Azure, Graph and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
+Azure, ordinary Graph runs and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
+Graph mail downloads instead retain native intent/outcome journals at `<configured write-log path>.<transferId>`; run-journal retention does not prune these files.
 Falcon execution uses isolated redacted native journals at `<database directory>/tool-logs/falcon-axi/writes.log.runs/run-*/writes.log`; these persist after calls and are not pruned by run-journal retention.
 Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
 Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.

@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { encode } from '@toon-format/toon'
 import { ZodError } from 'zod'
 import { deviceStartResponseSchema, reauthResponseSchema, transferExecuteSchema, transferLimits,
-  transferPrepareSchema, transferPreviewSchema, transferRoutesFor, transferTool, transferStatusSchema, transferWarning, ssoReauthResponseSchema } from '../shared/api.js'
+  transferPrepareSchema, transferPreviewSchema, transferRoutesFor, transferTool, transferStatusSchema, transferWarningFor, ssoReauthResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { artifactDestination } from './artifact-save.js'
 import { Client } from './http.js'
@@ -16,7 +16,7 @@ export async function download(args: string[], output: (text: string) => void, m
     if (managed) managed.notice(text)
     else output(text)
   }
-  announce({ warning: transferWarning })
+  announce({ warning: transferWarningFor(args[args.indexOf('--operation') + 1] ?? '') })
   const flags = new Map<string, string>()
   for (let index = 0; index < args.length; index++) {
     const name = args[index]

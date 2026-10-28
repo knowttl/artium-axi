@@ -189,7 +189,9 @@ Tagging preserves other categories and unchanged values are no-ops; move/copy/tr
 Folder deletion requires empty custom folders without child folders and readable well-known folder IDs; a fresh check cannot prevent concurrent mailbox changes.
 Rule create/update accepts exactly one UTF-8 JSON upload through `--file rule.json`, at most 64 KiB; the CLI uploads local content, never a server path or stdin.
 Rule files are schema-checked and reject forwarding, redirect and permanent-delete actions.
-Downloads, sending, reply, forward and permanent deletion are unavailable.
+Use `artium-axi download` for separately selected `mail.attachment.save` and `mail.message.export` operations, with scoped Application Mail.Read, the mail pack and write opt-in.
+See the [hosted saving path](docs/client-reference.md#microsoft-graph-mail-saving) for selectors, confirmation, limits and safe handling of untrusted mail content.
+Ordinary tool-run downloads, sending, reply, forward and permanent deletion remain unavailable.
 Raw `api get` mail routes and `--expand` remain refused; Graph mail error bodies are suppressed.
 See [Graph credential setup](docs/tool-credentials.md#microsoft-graph) for scoped mailbox authorization and credential-test limitations.
 Administrators can opt in to the single read-only `security hunting query` command for Defender XDR advanced hunting with `enabledPacks: ["entra", "security"]` in the managed tool settings.
@@ -291,7 +293,7 @@ This summary follows the [CLI help registry](src/cli/help.ts); `artium-axi --hel
 | `tools` / `tools show <tool>` | Granted enabled tools / pinned help and first call |
 | `doctor` | Server, TLS, token, version and cached health; five-second request deadlines |
 | `update` | Update the [server-downloaded client](#verified-client) |
-| `download` | Preview and explicitly verify/save administrator-selected Hybrid Analysis archives and Check Point emails/attachments through the local CLI. Run `artium-axi download --help` for guards and warnings. |
+| `download` | Preview and explicitly verify/save administrator-selected Hybrid Analysis archives, Check Point emails/attachments and Graph mail exports through the local CLI. Run `artium-axi download --help` for guards and warnings. |
 | `setup --host <host>` | Install managed skills and optional Claude hook |
 | `<tool> <args>` | Run any of the ten managed tools above |
 | `--managed-session --help` | Private-pipe session protocol |
