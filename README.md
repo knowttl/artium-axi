@@ -167,6 +167,7 @@ All tools start disabled; write access defaults to off.
 Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
 
 Microsoft Graph defaults to the `entra` pack.
+Device relationship reads use `artium-axi mg-axi entra device owners <device-object-id>` or `artium-axi mg-axi entra device users <device-object-id>` for registered owners or users, with collection pagination flags from authenticated command help.
 Administrators can opt in to nine mailbox read commands with `enabledPacks: ["entra", "mail"]`; `security` can be enabled alongside `mail`.
 Mail supports folder list/show, message list/show with search, filters and conversations, attachment metadata, mailbox settings, inbox rule list/show and master category list.
 Hosted mail requires a `mode=application` credential profile; delegated profiles cannot enable the mail pack or execute mail commands.
@@ -212,6 +213,9 @@ Rejected searches preserve redacted server diagnostics, completed searches inclu
 
 Vectra `host show` and `entity show --type host`, plus the matching raw host reads, retain every returned API field under `host`, separate from CLI metadata.
 Use `--full` on host/entity detail commands for complete returned text; secret redaction still applies, and upstream omissions cannot be restored.
+QUX collection reads support bounded `--all` traversal and opaque `--cursor` continuation with the original filters.
+Detection and host IDs must be positive integers, including detection-list host and ID-range filters.
+Detection `--fields` can include triage, assignment and filtering metadata; the [reviewed Vectra inventory](tools/inventories/vectra-axi.json) owns the field names and pagination budgets.
 
 Vectra supports selected QUX/RUX writes for detection close/open and mark-fixed, host/account close, key assets, tags, notes (including bulk notes), assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, internal-network settings, syslog/Kafka, notification destinations and Match, subject to deployment support in the [reviewed inventory](tools/inventories/vectra-axi.json).
 User, role, API-client and credential administration remains blocked.
