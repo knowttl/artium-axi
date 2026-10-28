@@ -1,5 +1,7 @@
 # Contributing
 
+[Build from source](#build-from-source) · [Local validation and delivery](#local-validation-and-delivery) · [Container acceptance](#container-acceptance) · [Compatibility policy](#compatibility-policy) · [Private hygiene check](#private-hygiene-check) · [Historical verification records](#historical-verification-records)
+
 Use Linux and the Node and pnpm versions declared in [package.json](package.json).
 The [source toolchain](#build-from-source) lists the remaining build prerequisites and approved native dependencies.
 Develop only against fakes, synthetic identities and canary credentials.
