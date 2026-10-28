@@ -6,6 +6,7 @@ import type { TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { hybridWritePolicy } from './adapters/hybrid.js'
 import { checkpointWritePolicy } from './adapters/checkpoint.js'
+import { mgWritePolicy } from './adapters/mg.js'
 import { authDefaults } from './config.js'
 import { checkToolPolicy } from './policy/policy.js'
 
@@ -19,6 +20,10 @@ export interface TransferOwner {
 // or retain the absolute client destination in server metadata.
 export function transferTargetDigest(destination: string): string {
   return createHash('sha256').update(destination, 'utf8').digest('hex')
+}
+
+export function transferAuditSelector(scope: TransferScope): string {
+  return scope.selection.operation.startsWith('mail.') ? transferTargetDigest(scope.selection.selector) : scope.selection.selector
 }
 
 export function createTransferScope(owner: TransferOwner, credentialRevision: number,
@@ -66,7 +71,9 @@ export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
   const name = transferTool(operation)
   checkToolPolicy(db, owner.userId, name)
   const tool = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(name) as { native_settings: string }
-  const state = (name === 'checkpoint-axi' ? checkpointWritePolicy : hybridWritePolicy).read(JSON.parse(tool.native_settings))
+  const settings = JSON.parse(tool.native_settings)
+  if (name === 'mg-axi' && !settings.enabledPacks?.includes('mail')) throw new ArtiumError('FLAG_BLOCKED')
+  const state = (name === 'mg-axi' ? mgWritePolicy : name === 'checkpoint-axi' ? checkpointWritePolicy : hybridWritePolicy).read(settings)
   // A global write switch never enables an unselected download operation.
   if (!state.enabled || !state.supportedOperations?.includes(operation) || !state.allowedOperations.includes(operation)) {
     throw new ArtiumError('FLAG_BLOCKED')

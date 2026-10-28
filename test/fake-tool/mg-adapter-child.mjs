@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { unlinkSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { executeArgv } from '../../tools/node_modules/@knowttl/mg-axi/dist/cli.js'
 import { resolveSecret } from '../../tools/node_modules/@knowttl/mg-axi/dist/secrets.js'
@@ -76,6 +77,20 @@ const transport = async request => {
 }
 try {
   const result = await executeArgv(process.argv.slice(2), { application, delegated: {}, transport,
+    binaryTransport: async request => {
+      const url = new URL(request.url)
+      assert.equal(url.origin, 'https://graph.microsoft.com')
+      assert.equal(request.method, 'GET')
+      assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')
+      assert.ok(url.pathname.startsWith('/v1.0/users/mailbox%40contoso.example/messages/'))
+      const metadata = !url.pathname.endsWith('/$value')
+      const bytes = Buffer.from(metadata ? JSON.stringify({
+        '@odata.type': url.pathname.includes('reference-attachment') ? '#microsoft.graph.referenceAttachment' : '#microsoft.graph.fileAttachment',
+        size: url.pathname.includes('oversize-attachment') ? 50 * 1024 * 1024 + 1 : 31,
+      }) : 'Synthetic inert Graph artifact\n')
+      return { status: 200, headers: { 'content-type': metadata ? 'application/json' : 'message/rfc822', 'content-length': String(bytes.length) },
+        body: (async function* () { yield bytes })() }
+    },
     mutationTransport: async request => {
       const url = new URL(request.url)
       const root = '/v1.0/users/mailbox%40contoso.example'
@@ -113,7 +128,10 @@ try {
       sends++
       return { status: 204, headers: {}, body: '' }
     } })
-  console.log(typeof result === 'string' ? result : encode({ ...result, fakeSends: sends, fakeReads: reads, credentialCalls }))
+  const download = ['mail attachment save', 'mail message export'].includes(process.argv.slice(2, 5).join(' '))
+  if (download && process.argv.includes('bad-hash')) result.sha256 = '0'.repeat(64)
+  if (download && process.argv.includes('missing-journal')) unlinkSync(process.env.MG_AXI_WRITE_LOG)
+  console.log(typeof result === 'string' ? result : encode(download ? result : { ...result, fakeSends: sends, fakeReads: reads, credentialCalls }))
 } catch (error) {
   if (!error.code) throw error
   assert.equal(sends, 0)

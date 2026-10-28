@@ -7,7 +7,7 @@ import type { TransferScope } from '../shared/api.js'
 import type { transferOutcomeSchema } from '../shared/api.js'
 import type { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
-import { checkTransferCapacity } from './transfer.js'
+import { checkTransferCapacity, transferAuditSelector } from './transfer.js'
 import type { Audit } from './audit/audit.js'
 import type { RunContext } from './runner/run.js'
 
@@ -153,7 +153,7 @@ export class ArtifactStore {
         this.audit.record({ event: 'transfer', userId: scope.userId, tool: transferTool(scope.selection.operation), requestId: context.requestId,
           clientAddress: context.clientAddress, outcome, credentialRevision: scope.credentialRevision,
           transfer: { transfer_id: scope.transferId, session_family_id: scope.sessionFamilyId,
-            transfer_operation: scope.selection.operation, artifact_type: scope.selection.type, artifact_selector: scope.selection.selector,
+            transfer_operation: scope.selection.operation, artifact_type: scope.selection.type, artifact_selector: transferAuditSelector(scope),
             requested_target_digest: scope.targetDigest, archive_bytes: archive?.archiveBytes ?? null,
             archive_sha256: archive?.archiveSha256 ?? null, native_audit_id: evidence?.nativeAuditId ?? null,
             native_journal_result: evidence?.nativeJournalResult ?? null, client_save_outcome: 'unconfirmed' } })
@@ -291,15 +291,17 @@ export class ArtifactReservation {
       if (await artifactBytes(this.directory) !== 0) unavailable()
       const evidence = await native(this.outputPath, this.controller.signal)
       const checkpoint = transferTool(this.scope.selection.operation) === 'checkpoint-axi'
+      const boundedMail = transferTool(this.scope.selection.operation) !== 'hybrid-axi'
       if (checkpoint ? evidence.nativeAuditId !== null || evidence.nativeJournalResult !== null || !/^[a-f0-9]{64}$/.test(evidence.verifiedSha256 ?? '')
         : evidence.nativeJournalResult !== 'SUCCESS') unavailable()
+      if (boundedMail && !/^[a-f0-9]{64}$/.test(evidence.verifiedSha256 ?? '')) unavailable()
       this.evidence = evidence
       this.alive()
       await artifactBytes(this.directory)
       const file = await open(this.outputPath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
       try {
         const info = await file.stat()
-        if (!info.isFile() || info.size > (checkpoint ? 50 * 1024 * 1024 : transferLimits.artifactBytes) || info.size !== evidence.archiveBytes) unavailable()
+        if (!info.isFile() || info.size > (boundedMail ? 50 * 1024 * 1024 : transferLimits.artifactBytes) || info.size !== evidence.archiveBytes) unavailable()
         const hash = createHash('sha256')
         const buffer = Buffer.alloc(64 * 1024)
         let size = 0
@@ -314,7 +316,7 @@ export class ArtifactReservation {
         if (size !== info.size || (await file.stat()).size !== size) unavailable()
         this.alive()
         const archiveSha256 = hash.digest('hex')
-        if (checkpoint && archiveSha256 !== evidence.verifiedSha256) unavailable()
+        if (boundedMail && archiveSha256 !== evidence.verifiedSha256) unavailable()
         const archive = Object.freeze({ ...evidence, archiveBytes: size, archiveSha256 })
         // Synchronous durable audit must succeed before ready state can be observed.
         this.record('ready', evidence, archive)

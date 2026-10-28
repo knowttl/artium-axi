@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.15",
-  "integrity": "sha512-+5UfnLzVTZteAFRHtQmwulnhq9SWJGSkwQx7icmzBjfGOQXXru51JUwgCYy3UK637v7K6v7Hq2srIHT0Xa3vew==",
+  "version": "0.1.16",
+  "integrity": "sha512-tTVeROr9DiRA/QQE/OTxfQeAZ+ZZpdgp1Y8nsPJQMs69AJ/ozbrFim//lae/r4kaV4Z9k+TUSblg+eSKTQqbjw==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "4127ee06aa70f12615e3b1676af6bdf49ee8a3e8df13553f23c3b98255a7e9d4",
-  "skillSha256": "35034cef05d0031e40f195a070bb269499464e26436524753eba384480c58eb0",
+  "packageManifestSha256": "eecaf8767ac5067212273b8a98370c5a826fd11937215c1d3a0a2d27270d68b3",
+  "skillSha256": "5389d7ceaae9a1c1995bc8377464c02df44eff5878659075b711b1530b396b7f",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "50afbe4618bc52175e3194634ff4e12b541ac0a7c349c7c920566cd7ee857f26"
+      "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
     },
     {
       "path": "dist/msal-app-provider.js",
@@ -69,10 +69,12 @@
       "entra.risky-user.dismiss",
       "entra.user.revokeSessions",
       "entra.user.update",
+      "mail.attachment.save",
       "mail.category.create",
       "mail.folder.create",
       "mail.folder.delete",
       "mail.message.copy",
+      "mail.message.export",
       "mail.message.flag",
       "mail.message.mark",
       "mail.message.move",
@@ -99,7 +101,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "50afbe4618bc52175e3194634ff4e12b541ac0a7c349c7c920566cd7ee857f26"
+        "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
       }
     ]
   },
@@ -196,11 +198,11 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "b69b2f56ef08ccb088354bd3387621de5e18b5a480e3938f7c37a2cd7faf5d8e"
+        "sha256": "59e7ffdac99c5e407e37324ca5af8919e969e5c028ac8b1a1db996cf797d08f2"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "90e18714c71d17e46b6b8b5ac9e4f22550caa8284e801fdd6edd499dee5447d3"
+        "sha256": "e02109aef50bad0da2c6d1780c62486b421963c1b237e3365a6b525d6de3de0f"
       },
       {
         "path": "dist/profiles.js",
@@ -212,7 +214,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "50afbe4618bc52175e3194634ff4e12b541ac0a7c349c7c920566cd7ee857f26"
+        "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
       }
     ]
   },
@@ -280,8 +282,14 @@
       "mail category create": "mail",
       "mail rule create": "mail",
       "mail rule update": "mail",
-      "mail rule delete": "mail"
+      "mail rule delete": "mail",
+      "mail attachment save": "mail",
+      "mail message export": "mail"
     },
+    "downloadCommands": [
+      "mail attachment save",
+      "mail message export"
+    ],
     "inputs": {
       "stdin": "cursor - only",
       "files": "security hunting query or mail rule create/update only: one UTF-8 query.kql or rule.json upload, at most 64 KiB; fixed runner leaf name",
@@ -296,6 +304,8 @@
       "mailbox",
       "id",
       "ids",
+      "attachment",
+      "out",
       "folder",
       "destination",
       "confirm",
@@ -330,11 +340,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "b69b2f56ef08ccb088354bd3387621de5e18b5a480e3938f7c37a2cd7faf5d8e"
+        "sha256": "59e7ffdac99c5e407e37324ca5af8919e969e5c028ac8b1a1db996cf797d08f2"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "90e18714c71d17e46b6b8b5ac9e4f22550caa8284e801fdd6edd499dee5447d3"
+        "sha256": "e02109aef50bad0da2c6d1780c62486b421963c1b237e3365a6b525d6de3de0f"
       },
       {
         "path": "dist/mail-message-writes.js",
@@ -351,6 +361,14 @@
       {
         "path": "dist/mail-write-runner.js",
         "sha256": "5baeb554c6f4c7a329eef51b8e5d5f477d3dead71e1074028033f718eb4a141c"
+      },
+      {
+        "path": "dist/mail-download.js",
+        "sha256": "5d400935ec7abddb0780bf8d0a763c0da92c2465a1faae2a4a24f9864987b4fc"
+      },
+      {
+        "path": "dist/mutations.js",
+        "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
       }
     ]
   },
@@ -390,6 +408,9 @@
     },
     {
       "name": "assignment-id"
+    },
+    {
+      "name": "attachment"
     },
     {
       "name": "body"
@@ -525,6 +546,9 @@
     },
     {
       "name": "organization"
+    },
+    {
+      "name": "out"
     },
     {
       "name": "pki"
@@ -5124,6 +5148,37 @@
         "execute": "boolean",
         "confirm": "value",
         "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail attachment save",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "id": "value",
+        "out": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "attachment": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "mail message export",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "mailbox": "value",
+        "id": "value",
+        "out": "value",
+        "execute": "boolean",
+        "confirm": "value",
         "config": "value"
       },
       "positionalInput": false

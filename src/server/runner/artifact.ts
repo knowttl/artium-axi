@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { decode } from '@toon-format/toon'
 import { z } from 'zod'
 import type { TransferScope } from '../../shared/api.js'
-import { transferPreviewSchema, transferTool } from '../../shared/api.js'
+import { transferPreviewSchema, transferTool, transferWarningFor } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { PreparedCall } from '../adapters/types.js'
 import type { ArtifactReservation, NativeArtifactEvidence, NativeArtifactIdentity } from '../artifacts.js'
@@ -47,6 +47,11 @@ async function nativeJournal(path: string | undefined, scope: TransferScope, out
 }
 
 function nativeArguments(scope: TransferScope, output: string): string[] {
+  if (transferTool(scope.selection.operation) === 'mg-axi') {
+    const [mailbox, message, attachment] = scope.selection.selector.split('/')
+    return ['mail', attachment ? 'attachment' : 'message', attachment ? 'save' : 'export',
+      '--mailbox', mailbox, '--id', message, ...(attachment ? ['--attachment', attachment] : []), '--out', output]
+  }
   if (transferTool(scope.selection.operation) === 'checkpoint-axi') {
     const selection = scope.selection
     const [entity, attachment] = selection.selector.split('/')
@@ -59,7 +64,7 @@ function nativeArguments(scope: TransferScope, output: string): string[] {
     ...(scope.selection.operation === 'hash-download-bin' ? [] : ['--type', scope.selection.type]), '--output', output]
 }
 
-function checkpointConfirmation(scope: TransferScope): string {
+function hostedConfirmation(scope: TransferScope): string {
   return JSON.stringify([scope.transferId, scope.targetDigest, scope.credentialRevision, scope.selection, scope.expiresAt])
 }
 
@@ -68,13 +73,15 @@ export async function previewNativeArtifact(reservation: ArtifactReservation, ru
   context: Pick<RunContext, 'signal'> = {}) {
   return reservation.preview(async (output, signal) => {
     const profile = await prepare(nativeArguments(reservation.scope, output))
-    if (transferTool(reservation.scope.selection.operation) === 'checkpoint-axi') {
+    if (transferTool(reservation.scope.selection.operation) !== 'hybrid-axi') {
       // Preparation resolves credentials and policy but never launches the native
-      // downloader. Its published contract has no dry-run or write journal.
+      // downloader. The host binds the full selection and destination because
+      // native confirmation alone does not bind both for these tools.
       authorize()
       return transferPreviewSchema.parse({ transferId: reservation.scope.transferId,
         expiresAt: reservation.scope.expiresAt, targetDigest: reservation.scope.targetDigest,
-        confirm: checkpointConfirmation(reservation.scope), warnings: [
+        confirm: hostedConfirmation(reservation.scope), warnings: transferTool(reservation.scope.selection.operation) === 'mg-axi'
+          ? [transferWarningFor(reservation.scope.selection.operation)] : [
           'Host-owned confirmation. Download once, save only; do not extract or execute. Native SHA-256 verification is mandatory; live scopes and email/ZIP hash availability remain unverified. ZIP responses may contain only some attachments.',
         ] })
     }
@@ -102,8 +109,29 @@ export async function executeNativeArtifact(reservation: ArtifactReservation, ru
     let result: RunnerResult | undefined
     let profile: PreparedCall | undefined
     try {
+      if (transferTool(scope.selection.operation) === 'mg-axi') {
+        if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
+        const target = scope.selection.selector.split('/').at(-1)!
+        profile = await prepare([...nativeArguments(scope, output), '--execute', '--confirm', target])
+        result = await runner.run(scope.userId, profile.executable, profile.args, profile.environment, profile.secrets,
+          { ...profile.limits, signal }, {}, profile.files, () => { authorize(); launched = true })
+        if (result.exitCode !== 0 || result.timedOut || result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('UNKNOWN_OUTCOME')
+        const completion = z.strictObject({ path: z.literal(output), size: z.number().int().nonnegative().max(50 * 1024 * 1024),
+          sha256: z.string().regex(/^[a-f0-9]{64}$/), contentType: z.string(), kind: z.literal(scope.selection.type) }).parse(decode(result.stdout))
+        const journal = await readFile(profile.environment.MG_AXI_WRITE_LOG, 'utf8')
+        if (!journal.endsWith('\n')) throw new Error('Incomplete journal')
+        const records = journal.trim().split('\n').map(line => z.object({ id: z.uuid(), intentKey: z.string(),
+          operation: z.literal(scope.selection.operation), target: z.literal('[mail resource]'),
+          method: z.literal('GET'), effect: z.literal('disruptive'), kind: z.enum(['intent', 'outcome']),
+          outcome: z.literal('SUCCESS').optional() }).parse(JSON.parse(line)))
+        const [intent, outcome] = records
+        if (records.length !== 2 || intent.kind !== 'intent' || intent.outcome !== undefined || outcome.kind !== 'outcome'
+          || outcome.outcome !== 'SUCCESS' || intent.id !== outcome.id || intent.intentKey !== outcome.intentKey) throw new Error('Missing native evidence')
+        return { archiveBytes: completion.size, verifiedSha256: completion.sha256,
+          nativeAuditId: intent.id, nativeJournalResult: 'SUCCESS' }
+      }
       if (transferTool(scope.selection.operation) === 'checkpoint-axi') {
-        if (confirm !== checkpointConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
+        if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
         profile = await prepare(nativeArguments(scope, output))
         result = await runner.run(scope.userId, profile.executable, profile.args, profile.environment, profile.secrets,
           { ...profile.limits, signal }, {}, profile.files, () => { authorize(); launched = true })

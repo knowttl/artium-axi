@@ -5,7 +5,7 @@ import { finished } from 'node:stream/promises'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { transferExecuteSchema, transferPrepareSchema, transferReceiptSchema, transferRetrieveSchema,
-  transferRoutesFor, transferStatusSchema, transferWarning, transferTool } from '../shared/api.js'
+  transferRoutesFor, transferStatusSchema, transferWarningFor, transferTool } from '../shared/api.js'
 import type { TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
@@ -17,7 +17,7 @@ import type { IdentityResolver } from './policy/identity-resolver.js'
 import { previewNativeArtifact, executeNativeArtifact } from './runner/artifact.js'
 import type { Runner } from './runner/runner.js'
 import { readCredentialTrust } from './store/trusted-certificates.js'
-import { checkTransferAccess, checkTransferScope, createTransferScope } from './transfer.js'
+import { checkTransferAccess, checkTransferScope, createTransferScope, transferAuditSelector } from './transfer.js'
 import type { TransferOwner } from './transfer.js'
 
 interface Entry {
@@ -56,7 +56,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     // only used by the common access check; it is never a replacement for proof.
     return { userId, sessionFamilyId: family.family_id, reauthenticatedAt: Date.now() }
   }
-  function revision(tool: 'hybrid-axi' | 'checkpoint-axi'): number {
+  function revision(tool: ReturnType<typeof transferTool>): number {
     const row = db.prepare('SELECT revision FROM credentials WHERE tool = ?').get(tool) as { revision: number } | undefined
     if (!row) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     return row.revision
@@ -101,14 +101,14 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
   app.addHook('onSend', async (request, _reply, payload) => {
     // Retrieval has already claimed the entry and checks authority while reading.
     // A revoking mutation's response still waits for cancellation below.
-    if ((['hybrid-axi', 'checkpoint-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
+    if ((['hybrid-axi', 'checkpoint-axi', 'mg-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
     for (const entry of entries.values()) {
       try { access(entry.reservation.scope) }
       catch { await discard(entry) }
     }
     return payload
   })
-  const routeGroups = (['hybrid-axi', 'checkpoint-axi'] as const).flatMap(tool => {
+  const routeGroups = (['hybrid-axi', 'checkpoint-axi', 'mg-axi'] as const).flatMap(tool => {
     const routes = transferRoutesFor(tool)
     return Object.values(routes).map(route => ({ tool, routes, route }))
   })
@@ -143,7 +143,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const prepared = await native(entry)
           const preview = await previewNativeArtifact(reservation, runner, prepared, () => { ownerFor(request); access(scope) }, context(request, controller.signal))
           entry.confirm = preview.confirm
-          return { ...preview, warnings: [...new Set([transferWarning, ...preview.warnings])] }
+          return { ...preview, warnings: [...new Set([transferWarningFor(scope.selection.operation), ...preview.warnings])] }
         }
         if (!('transferId' in parsed.data)) throw new ArtiumError('INVALID_INPUT')
         const input = transferRetrieveSchema.parse({ transferId: parsed.data.transferId,
@@ -179,7 +179,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
             clientAddress: request.ip, credentialRevision: scope.credentialRevision, outcome: 'delivery-completed',
             transfer: { transfer_id: scope.transferId, session_family_id: scope.sessionFamilyId,
               transfer_operation: scope.selection.operation, artifact_type: scope.selection.type,
-              artifact_selector: scope.selection.selector, requested_target_digest: scope.targetDigest,
+              artifact_selector: transferAuditSelector(scope), requested_target_digest: scope.targetDigest,
               archive_bytes: entry.archive.archiveBytes, archive_sha256: entry.archive.archiveSha256,
               native_audit_id: prior.native_audit_id as string | null, native_journal_result: prior.native_journal_result as 'SUCCESS' | null,
               client_save_outcome: receipt.saveOutcome } })
