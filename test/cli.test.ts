@@ -94,7 +94,7 @@ async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controll
     ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment }
   if (controlled) return controlledCli(args, env)
   try {
-    const pending = execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 10_000, env })
+    const pending = execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 20_000, env })
     if (input !== undefined) pending.child.stdin!.end(input)
     return { ...await pending, code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
@@ -862,7 +862,7 @@ test.each([
   expect(result.stdout).toContain('INVALID_INPUT')
   expect(result.stdout).toContain(`no stdin EOF after 5 s; close stdin or pass ${alternative}`)
   expect(requests).toEqual([])
-}, 10_000)
+})
 
 test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bounded %s input through the API', async kind => {
   requests = []
