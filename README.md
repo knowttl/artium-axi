@@ -51,7 +51,8 @@ artium-axi setup --host claude --hook
 For Codex, OpenCode or Pi, use `--host codex`, `--host opencode` or `--host pi` without `--hook`.
 The Claude `SessionStart` hook injects `tools` output; skills teach managed command discovery and grant no permissions.
 Artium's authenticated setup fetches granted tools' adapted skills; a standalone skill installer does not configure this server account.
-See the [base SKILL.md](skill/artium-axi/SKILL.md), [command reference](docs/commands.md) and authenticated `artium-axi tools show <tool>` for commands.
+Start with the [compact investigation guide](skill/artium-axi/SKILL.md#investigation-quick-guide) in the base skill.
+See the [command reference](docs/commands.md) and authenticated `artium-axi tools show <tool>` for commands.
 Re-run setup after moving the executable or changing grants.
 To remove the hook, delete only objects labelled `statusMessage: "artium-axi managed tools"` from `hooks.SessionStart` in the Claude host's `settings.json`.
 See [installation paths and manual skill removal](docs/client-reference.md#agent-installation).
