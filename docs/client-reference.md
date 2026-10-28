@@ -1,5 +1,80 @@
 # Client reference
 
+Contents:
+
+- [Verified client](#verified-client)
+- [npm client alternative](#npm-client-alternative)
+- [Microsoft Graph mail saving](#microsoft-graph-mail-saving)
+- [Command surface and subcommands](#command-surface-and-subcommands)
+- [Check Point email and attachment saving](#check-point-email-and-attachment-saving)
+- [Hybrid Analysis archive saving](#hybrid-analysis-archive-saving)
+- [TOON output behavior](#toon-output-behavior)
+- [Agent installation](#agent-installation)
+- [Client settings](#client-settings)
+- [Externally managed client sessions](#externally-managed-client-sessions)
+
+## Verified client
+Use Linux with Node **24.11.0+**, curl and sha256sum, and obtain the trusted HTTPS URL and account from your administrator.
+For a private CA, set `ARTIUM_AXI_CA_FILE` to a readable PEM file and add `--cacert "$ARTIUM_AXI_CA_FILE"` to both curl commands.
+
+```sh
+export ARTIUM_AXI_URL='https://artium.example.test'
+mkdir -p "$HOME/.local/bin"
+cd "$HOME/.local/bin"
+curl --fail --output artium-axi.mjs "$ARTIUM_AXI_URL/cli/artium-axi.mjs" &&
+curl --fail --output artium-axi.mjs.sha256 "$ARTIUM_AXI_URL/cli/artium-axi.mjs.sha256" &&
+sha256sum --check artium-axi.mjs.sha256 &&
+mv artium-axi.mjs artium-axi &&
+chmod 755 artium-axi &&
+rm artium-axi.mjs.sha256
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Stop if a download or checksum fails.
+The checksum detects corruption and mixed releases; trust still comes from the HTTPS server.
+
+```sh
+artium-axi login --username synthetic-user
+artium-axi tools
+artium-axi tools show falcon-axi
+artium-axi falcon-axi detection list
+```
+
+Replace the synthetic username with your account; login uses a hidden terminal password prompt.
+For `PASSWORD_CHANGE_REQUIRED`, run `artium-axi passwd`, then log in again.
+For SSO, use `artium-axi login --sso` and approve only the browser code matching your own terminal.
+After ordinary login, later commands, installed hooks and skills use [saved connection settings](client-reference.md#client-settings).
+After a server upgrade, run `artium-axi update` if your client has that command, then `artium-axi --version`.
+For clients without `update`, repeat the verified download and checksum check above to install the server's current client.
+For `CLI_OUTDATED`, the server uses the client version header to select the update hint or safe download guidance; the capability boundary is defined by `firstVersionWithUpdate` in [the version contract](../src/shared/version.ts).
+The updater uses those connection settings, verifies the server download’s SHA-256, replaces the running client file and keeps the previous client beside it as `<client-file>.bak`.
+The client file and its directory must be writable.
+The Falcon read requires an enabled tool, a role grant and API permissions; choose the example from an available tool's detail view.
+
+With no enabled tools granted, `artium-axi tools` succeeds with:
+
+```text
+tools: 0 available
+reason: No enabled runtime tool is available through your assigned roles.
+contact: Ask an administrator to check your role assignments and enabled tools.
+next[1]:
+  - artium-axi whoami
+```
+
+### npm client alternative
+The server download supplies its matching client; npm is an alternative client-only distribution.
+
+```sh
+npm install -g @knowttl/artium-axi
+export ARTIUM_AXI_URL='https://artium.example.test'
+artium-axi login --username synthetic-user
+```
+
+Login warns about version differences; minimum server API requirements still apply.
+`artium-axi update` refuses npm installations; update them with `npm install -g @knowttl/artium-axi@latest`.
+Install `@knowttl/artium-axi@<server-version>` or download from the server to match it.
+
+
 ## Microsoft Graph mail saving
 
 Administrators enable the mail pack, application sign-in, `writes.allowWrites` and each exact `mail.message.export` or `mail.attachment.save` operation independently.
@@ -30,10 +105,10 @@ Transfer audit selectors are hashed; mailbox and resource IDs are not retained i
 | `artium-axi passwd` | Change your password, then sign in again. |
 | `artium-axi whoami` | Show identity, roles, session and access-token expiry, and server URL. |
 | `artium-axi tools` | List enabled runtime tools granted through your roles. |
-| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories; see [managed authentication](tool-credentials.md#github) and the [supported boundary](../README.md#safety). |
+| `artium-axi gh-axi repo list --limit 1` | Read GitHub repositories; see [managed authentication](tool-credentials.md#github) and the [supported boundary](safety.md). |
 | `artium-axi tools show falcon-axi` | Show cached status, vetted pinned help and a first-call example. |
 | `artium-axi doctor` | Check server address, certificate, token, CLI version and cached tool health, with a five-second deadline per request. Stop dependent probes after address or TLS connection failure. |
-| `artium-axi update` | Update the [server-downloaded client](../README.md#verified-client); see the [npm alternative](../README.md#npm-client-alternative) for npm installations. |
+| `artium-axi update` | Update the [server-downloaded client](client-reference.md#verified-client); see the [npm alternative](client-reference.md#npm-client-alternative) for npm installations. |
 | `artium-axi download --help` | Inspect saving for [Hybrid Analysis archives](#hybrid-analysis-archive-saving), [Check Point emails and attachments](#check-point-email-and-attachment-saving) and [Microsoft Graph mail](#microsoft-graph-mail-saving). |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi setup --host claude --hook` | Install your granted skills and optional Claude Code hook after sign-in. |
@@ -63,7 +138,7 @@ The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
-For GitHub's dashboard limitation and repository selection, see the [supported boundary](../README.md#safety); `artium-axi gh-axi --help` lists the reviewed commands and write gates.
+For GitHub's dashboard limitation and repository selection, see the [supported boundary](safety.md); `artium-axi gh-axi --help` lists the reviewed commands and write gates.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
 The ADO, AWX, Azure, Check Point, GitHub, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
@@ -89,7 +164,7 @@ The bundled CLI does not upload Vectra files or capture Vectra stdin, and server
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
 Its run API accepts uploaded leaf names or `-` for explicit JSON stdin with `--body-file`; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.
-See the [Hybrid Analysis capability boundary](../README.md#safety) for current download availability.
+See the [Hybrid Analysis capability boundary](safety.md) for current download availability.
 Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
@@ -100,7 +175,7 @@ The run API requires the corresponding fixed upload name; the [reviewed Graph in
 Server file paths, stdin and multiple files are unavailable for these uploads.
 Other Graph commands do not upload local files; help and version requests leave local files and stdin unread.
 For Graph collection commands, including mail lists, the run API accepts the cursor token in `stdin` with `--cursor -`; the bundled CLI does not capture Graph cursor stdin, so use `--cursor <token>` there.
-See the [Graph capability boundary](../README.md#safety) for supported mail reads and writes, hunting, content limits and administrator opt-in.
+See the [Graph capability boundary](safety.md) for supported mail reads and writes, hunting, content limits and administrator opt-in.
 
 See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
 Artium does not add a universal confirmation flag.
@@ -144,7 +219,7 @@ Ordinary `artium-axi checkpoint-axi ... download` commands and browser artifact 
 ### Hybrid Analysis archive saving
 
 `artium-axi download` implements preview and explicit verified saving through the local Linux CLI, separately from forwarded `hybrid-axi` commands.
-See the [capability boundary](../README.md#safety) for availability, `artium-axi download --help` for accepted flags and limits, and the [runbook prerequisites](runbook.md#scope-and-prerequisites) for the required controlled client and AV/EDR policy.
+See the [capability boundary](safety.md) for availability, `artium-axi download --help` for accepted flags and limits, and the [runbook prerequisites](runbook.md#scope-and-prerequisites) for the required controlled client and AV/EDR policy.
 The [shared API contract](../src/shared/api.ts) owns operation/type pairs and transfer limits.
 
 Choose a new normalized absolute destination in an existing directory owned by the current user with mode 0700 and no symlink components.
@@ -190,7 +265,7 @@ Doctor reads cached tool health rather than running a fresh platform test.
 Its certificate diagnostic reports whether the liveness request verified TLS, independently of the HTTP status or response body.
 If the connection or CA-file read fails before verification, the certificate remains unverified.
 `ok` passes; `checking` is reported as a pending pass while a check is running or queued, and `unknown`, `unconfigured`, `error` and `disabled` fail the health diagnostic.
-If the client reports `CLI_OUTDATED`, follow the README's [client update guidance](../README.md#verified-client) or [npm alternative](../README.md#npm-client-alternative), according to your installation.
+If the client reports `CLI_OUTDATED`, follow the README's [client update guidance](client-reference.md#verified-client) or [npm alternative](client-reference.md#npm-client-alternative), according to your installation.
 
 ## Agent installation
 

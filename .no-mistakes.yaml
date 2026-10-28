@@ -25,7 +25,7 @@ review:
 document:
   instructions: |
     README.md owns the generic introduction, installation and quick start.
-    README.md owns the supported capability boundaries.
+    README.md owns the group-level capability summary; docs/safety.md owns supported capability boundaries and docs/commands.md owns the client command reference.
     CONTRIBUTING.md owns local validation, container acceptance and compatibility policy.
     docs/runbook.md owns deployment, bootstrap, recovery, rotation, retention and rollback.
     src/shared/api.ts owns API contracts and src/shared/errors.ts owns the error catalogue.
