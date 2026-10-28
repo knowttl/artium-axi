@@ -39,6 +39,7 @@ function mgArguments(args: readonly string[], input: RunnerInput = {}, artifact 
   const words = args.slice(0, args.findIndex(arg => arg.startsWith('-')) < 0
     ? args.length : args.findIndex(arg => arg.startsWith('-')))
   const route = inventory.commands.find(route => route.command === (words.join(' ') || 'home'))
+    ?? inventory.commands.find(route => route.positionalInput && route.command === words.slice(0, -1).join(' '))
     ?? (words.length === 3 && words[0] === 'api' && words[1] === 'get'
       ? inventory.commands.find(route => route.command === 'api get') : undefined)
   if (!route) {

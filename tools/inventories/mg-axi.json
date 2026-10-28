@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.16",
-  "integrity": "sha512-tTVeROr9DiRA/QQE/OTxfQeAZ+ZZpdgp1Y8nsPJQMs69AJ/ozbrFim//lae/r4kaV4Z9k+TUSblg+eSKTQqbjw==",
+  "version": "0.1.17",
+  "integrity": "sha512-pbMFGVz3VYwYlAsoIc0h8XcsjFZBV+NyDJFu5CO0Wl/Z02GabXoD9Z/UJtBFvXIcvnX5zPdonITBjmdc352SCg==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "eecaf8767ac5067212273b8a98370c5a826fd11937215c1d3a0a2d27270d68b3",
-  "skillSha256": "5389d7ceaae9a1c1995bc8377464c02df44eff5878659075b711b1530b396b7f",
+  "packageManifestSha256": "e76e43e35fe944b949eaccffa53e2e381e64ee0b0222d9a80f87926111c7e5f3",
+  "skillSha256": "325769d3237f5481626d934fb89be2a48f9b74f84a34ec96a3d5f264d48fcf86",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -198,11 +198,11 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "59e7ffdac99c5e407e37324ca5af8919e969e5c028ac8b1a1db996cf797d08f2"
+        "sha256": "cb5ceac3c11aa79697cb0b51bf416d70e3a5b3382058b102de128ea147dbe318"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "e02109aef50bad0da2c6d1780c62486b421963c1b237e3365a6b525d6de3de0f"
+        "sha256": "d11e0f6b5c5c694b0be07d7862d59bc74609cfe01c02ceee8627122bf9c1a683"
       },
       {
         "path": "dist/profiles.js",
@@ -340,11 +340,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "59e7ffdac99c5e407e37324ca5af8919e969e5c028ac8b1a1db996cf797d08f2"
+        "sha256": "cb5ceac3c11aa79697cb0b51bf416d70e3a5b3382058b102de128ea147dbe318"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "e02109aef50bad0da2c6d1780c62486b421963c1b237e3365a6b525d6de3de0f"
+        "sha256": "d11e0f6b5c5c694b0be07d7862d59bc74609cfe01c02ceee8627122bf9c1a683"
       },
       {
         "path": "dist/mail-message-writes.js",
@@ -1295,6 +1295,44 @@
         "config": "value"
       },
       "positionalInput": false
+    },
+    {
+      "command": "entra device owners",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "cursor": "value",
+        "scopes": "value",
+        "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": {
+        "name": "id",
+        "description": "Device object ID",
+        "required": true
+      }
+    },
+    {
+      "command": "entra device users",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "limit": "value",
+        "all": "boolean",
+        "cursor": "value",
+        "scopes": "value",
+        "full": "boolean",
+        "config": "value"
+      },
+      "positionalInput": {
+        "name": "id",
+        "description": "Device object ID",
+        "required": true
+      }
     },
     {
       "command": "entra administrative-unit list",

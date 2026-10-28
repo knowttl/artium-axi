@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.10",
-  "integrity": "sha512-X7yttDlwpQJW/j0eNox5vLf7nWlFejXjtaq90N7ezJ+ACNqEFspODrwQ/mYqbXFnqjpIugQnhSGcnaI8YNMeLw==",
+  "version": "0.1.11",
+  "integrity": "sha512-BlbZkUhkqqGaJBX+7skqE22ZAurhqqOIO/LF0zwi1t9Y8vwAz8Ju0BBahfmPYWPnQijrxZ69e/a8B3yDV69XnA==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "3f4d4e3ec1b37690087e3c8850ffd5390574e6686cafbd723fb01f83b775ea97",
-  "skillSha256": "58978bfd2468e9fac8d17644df1de46768572b1cd9a719a9eec64cdcb547ff9c",
+  "packageManifestSha256": "6b4f5e6de7d416c9bfa568f8391c0d8b47952f4ef856d19fd091ef950c57490c",
+  "skillSha256": "a60ef2e69a9e569e3884800e57edcfecc262c3f5211a3ee9c84748f60c35cece",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -261,15 +261,15 @@
         "--state <state>": "Filter by server-side detection state",
         "--detection-type <type>": "Filter by server-side detection type",
         "--detection-category <category>": "Filter by server-side detection category",
-        "--host-id <id>": "Filter by server-side host ID (non-negative integer); find it with host list --name <text>, then detection list --host-id <id>",
+        "--host-id <id>": "Filter by server-side host ID (positive integer); find it with host list --name <text>, then detection list --host-id <id>",
         "--tags <tags>": "Filter by server-side tags",
         "--certainty-gte <score>": "Filter by server-side minimum certainty",
         "--threat-gte <score>": "Filter by server-side minimum threat",
         "--ordering <ordering>": "Server-side result ordering",
-        "--min-id <id>": "Server-side minimum detection ID (non-negative integer)",
-        "--max-id <id>": "Server-side maximum detection ID (non-negative integer)",
+        "--min-id <id>": "Server-side minimum detection ID (positive integer)",
+        "--max-id <id>": "Server-side maximum detection ID (positive integer)",
         "--limit <rows>": "Row window for this read; default 100",
-        "--fields <list>": "Comma-separated detection fields, including first_timestamp,last_timestamp,src_ip,src_host,summary,grouped_details; default id,detection_type,state,threat,certainty",
+        "--fields <list>": "Comma-separated detection fields, including first_timestamp,last_timestamp,src_ip,src_host,summary,grouped_details,is_triaged,triage_rule_id,triage_category,assigned_to,assigned_date,filtered_by_rule,filtered_by_user,filtered_by_ai,is_marked_custom; default id,detection_type,state,threat,certainty",
         "--all": "Traverse pages within 10 requests, 8 MiB, 60 seconds and 10000 rows; cannot combine with --limit",
         "--cursor <cursor>": "Resume a capped list with its original filters"
       },
@@ -305,7 +305,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "02e2443a4b6d6aef9faae51e0c4418c0c565ac5b0f73969a34a4c33a110bfabf"
+      "sha256": "f918b36346a7cae2b164c89263275e4571b9d6bd07688019a789c7e0463434b2"
     }
   },
   "flags": [

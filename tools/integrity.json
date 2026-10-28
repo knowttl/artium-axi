@@ -32,15 +32,15 @@
     "integrity": "sha512-qltNokGPKFvUxFxNVf25gV2jtgw9MpxT5k6Zlbhz0b/Y5pvbc04SpORpUurDZNXE7runLZZhoBmm38qXcA3M7Q=="
   },
   "@knowttl/vectra-axi": {
-    "version": "0.1.10",
-    "integrity": "sha512-X7yttDlwpQJW/j0eNox5vLf7nWlFejXjtaq90N7ezJ+ACNqEFspODrwQ/mYqbXFnqjpIugQnhSGcnaI8YNMeLw=="
+    "version": "0.1.11",
+    "integrity": "sha512-BlbZkUhkqqGaJBX+7skqE22ZAurhqqOIO/LF0zwi1t9Y8vwAz8Ju0BBahfmPYWPnQijrxZ69e/a8B3yDV69XnA=="
   },
   "@knowttl/ldap-axi": {
     "version": "0.3.0",
     "integrity": "sha512-QVectHNsRxYWNBf0im5DjeN78mcgK0Te0Sxh7uXGNb+AhQjsS5ywiCrnKAk0/INA/oxiZ1TiXaDX7jHAg5OvDg=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.16",
-    "integrity": "sha512-tTVeROr9DiRA/QQE/OTxfQeAZ+ZZpdgp1Y8nsPJQMs69AJ/ozbrFim//lae/r4kaV4Z9k+TUSblg+eSKTQqbjw=="
+    "version": "0.1.17",
+    "integrity": "sha512-pbMFGVz3VYwYlAsoIc0h8XcsjFZBV+NyDJFu5CO0Wl/Z02GabXoD9Z/UJtBFvXIcvnX5zPdonITBjmdc352SCg=="
   }
 }
