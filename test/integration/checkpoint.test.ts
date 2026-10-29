@@ -130,6 +130,62 @@ test('published CLI reads and health run through managed credentials before admi
   })
 })
 
+test.each([
+  { command: ['email', 'search'], field: 'emails', detail: { entityInfo: { entityId: 'synthetic-email' } } },
+  { command: ['event', 'list'], field: 'events', detail: { eventId: 'synthetic-event' } },
+])('published $field expansion stays read-only through the managed API', async ({ command, field, detail }) => {
+  await withCheckpoint(async ({ run, evidence, db }) => {
+    const result = await run([...command, '--limit', '1', '--expand-limit', '1', '--expand-requests', '3', '--expand'])
+    expect(result.exitCode, result.stdout).toBe(0)
+    const output = decode(result.stdout) as Record<string, unknown>
+    expect(output[field]).toMatchObject([{ detail }])
+    expect(output.expansion).toMatchObject({ expanded: 1, itemLimit: 1, requestLimit: 3, complete: true })
+    expect((await evidence()).requests).toHaveLength(3)
+    expect((await evidence()).mutations).toBe(0)
+    expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' ORDER BY rowid DESC LIMIT 1").get()).toEqual({ action: 'read' })
+  })
+})
+
+test('published expansion preserves list rows when authentication and listing exhaust the request cap', async () => {
+  await withCheckpoint(async ({ run, evidence }) => {
+    const result = await run(['email', 'search', '--expand', '--expand-requests', '2'])
+    expect(result.exitCode, result.stdout).toBe(0)
+    expect(decode(result.stdout)).toMatchObject({ emails: [{ id: 'synthetic-email' }], expansion: {
+      expanded: 0, complete: false, notExpanded: [{ id: 'synthetic-email', reason: 'request-cap-reached' }],
+    } })
+    expect((await evidence()).requests).toHaveLength(2)
+    expect((await evidence()).mutations).toBe(0)
+  })
+})
+
+test('published task wait returns the existing terminal task without enabling writes', async () => {
+  await withCheckpoint(async ({ run, evidence }) => {
+    const result = await run(['task', 'show', 'synthetic-task', '--timeout', '30', '--poll-interval', '1', '--wait-requests', '2', '--wait'])
+    expect(result.exitCode, result.stdout).toBe(0)
+    expect(decode(result.stdout)).toMatchObject({ task: { status: 'completed' }, wait: { terminal: true, polls: 1, reason: 'terminal' } })
+    expect((await evidence()).requests).toHaveLength(2)
+    expect((await evidence()).mutations).toBe(0)
+  })
+})
+
+test.each([
+  ['email', 'search', '--expand', '--expand-limit', '9'],
+  ['event', 'list', '--expand', '--expand-requests', '11'],
+  ['email', 'search', '--expand-limit', '1'],
+  ['task', 'show', 'synthetic-task', '--wait'],
+  ['task', 'show', 'synthetic-task', '--wait', '--timeout', '61'],
+  ['task', 'show', 'synthetic-task', '--wait', '--timeout', '30', '--poll-interval', '11'],
+  ['task', 'show', 'synthetic-task', '--wait', '--timeout', '30', '--wait-requests', '11'],
+  ['task', 'show', 'synthetic-task', '--timeout', '30'],
+].map(args => ({ args })))('published bounds refuse $args before network access', async ({ args }) => {
+  await withCheckpoint(async ({ run, evidence }) => {
+    const result = await run(args)
+    expect(result.exitCode).toBe(2)
+    expect(result.stdout).toContain('VALIDATION_ERROR')
+    expect((await evidence()).requests).toEqual([])
+  })
+})
+
 test('private exception uploads preserve native preview, confirmation and journal through the published CLI', async () => {
   await withCheckpoint(async ({ run, enable, directory, evidence }) => {
     await enable(['exception.spam-allow.create'])

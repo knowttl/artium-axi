@@ -68,6 +68,8 @@ Local fake-only evidence does not establish live permissions or response contrac
 The owner commissions all capabilities together through Artium after the build, including token shape/lifetime, permissions, scopes and email/ZIP hash availability.
 `AUTH_SHAPE_UNVERIFIED` requires owner commissioning; it is not an empty result or a successful credential test.
 
+See the [Check Point command reference](commands.md#check-point-email-security) for detail expansion and bounded task waiting.
+
 Every write and download defaults off behind the administrator write switch and exact operation allow-list.
 The [reviewed inventory](../tools/inventories/checkpoint-axi.json) owns static operation IDs.
 For an event action offered by `event show`, add its exact `event.action.<name>` entry through native settings or the write-access API; wildcards are refused.

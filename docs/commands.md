@@ -37,3 +37,21 @@ Tool reference links describe upstream commands; Artium controls availability, c
 The [full client reference](client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
 GitHub PR details support field selection, for example `artium-axi gh-axi pr view 42 -R OWNER/NAME --fields number,title,mergeStateStatus,body`.
 The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
+
+## Check Point Email Security
+
+The [reviewed Check Point inventory](../tools/inventories/checkpoint-axi.json) owns accepted flags, their defaults and bounds.
+Run each command with `--help` for selectors and limits.
+`artium-axi checkpoint-axi email search --expand` and `artium-axi checkpoint-axi event list --expand` opt in to read-only show details on returned rows.
+`--expand-limit` caps detail attempts; `--expand-requests` caps total HTTP requests including authentication, list pages, details and retries.
+Both limits require `--expand`.
+Expansion shares the native transport budgets with listing; inspect `expansion.complete` and `expansion.notExpanded` for partial results.
+Partial expansion preserves list rows and successful details; list completion and cursors describe pagination separately.
+
+Use `artium-axi checkpoint-axi task show <id> --wait --timeout 30` for read-only polling of an existing task.
+`--timeout` is required with `--wait`; `--poll-interval` sets seconds between status reads, and `--wait-requests` caps total HTTP requests including authentication and retries.
+All wait limit flags require `--wait`.
+Inspect `wait.terminal` and `wait.reason` even on exit 0; a timeout or budget stop can return the last non-terminal snapshot, and a terminal task may have failed or stopped.
+Use `--timeout 50` or less to leave startup and output time within Artium's [runner limit](../src/server/config.ts).
+A wait using the native maximum timeout may be cut off with `TIMEOUT` before its final snapshot returns; read `task show` again rather than resubmitting an action.
+The [client request deadline](../src/cli/http.ts) does not extend the runner limit.

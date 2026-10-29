@@ -49,6 +49,14 @@ The guide defines operators globally, without a per-field compatibility matrix; 
 saasAttrValue is a string.
 See [email-read guidance](../../docs/reads.md#email-reads) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
+Email search and event list accept --expand for read-only show details in each successful row's detail field.
+Expansion is off by default; --expand-limit caps detail attempts (default 5, range 1-8), and --expand-requests caps total HTTP requests (default 10, range 2-10), including auth, list pages and retries.
+Both limit flags require --expand; listing runs first and shares the 60-second and 8 MiB transport budgets with detail reads.
+Inspect the expansion object's expanded, complete and notExpanded fields for every unexpanded ID and its reason: item-cap-reached, request-cap-reached, budget-exhausted or per-item-error (with an error code).
+Partial expansion keeps every list row and successful detail; list complete/cursor describe pagination separately.
+Use --fields emails,expansion or --fields events,expansion to retain expansion status; --full restores full strings after redaction.
+With --all, list pages can consume the entire request budget before any detail is expanded; reduce the list limit or use individual show reads for remaining IDs.
+Expansion never downloads files, invokes available actions or changes remote state.
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
 Downloads require file-profile downloads.allow and an absolute new --out file, created exclusively with mode 0600 or a protected Windows DACL.
@@ -64,7 +72,14 @@ Event action --ids <ids> --name <action> previews by default and requires the ex
 Every target must offer the action on both reads; nonempty actionParameter objects or repeated action names refuse ENDPOINT_UNVERIFIED until live commissioning resolves the object/string contradiction (guide pages 36-37, 43).
 Use event show <id> to inspect all available actions, including deferred parameterized actions.
 Accepted actions return task IDs; use task show <taskId> to inspect asynchronous execution without replaying ambiguous outcomes.
-Event list supports documented selectors and shares email search bounds and continuation; event show preserves actions and task show reads asynchronous status without polling (guide pages 30-42).
+Event list supports documented selectors and shares email search bounds and continuation; event show preserves actions and task show reads asynchronous status (guide pages 30-42).
+Task show reads once by default; use task show <id> --wait --timeout 30 for bounded read-only polling.
+--timeout is required with --wait (integer seconds, range 1-60); --poll-interval defaults to 2 seconds (range 1-10), and --wait-requests defaults to 10 total HTTP requests (range 2-10), including auth and retries.
+Wait stops on completed, failed or stopped; init, inprogress and paused remain non-terminal.
+The task snapshot contains the final status; wait reports terminal, polls (validated status snapshots) and reason (terminal, timeout or budget).
+A non-terminal stop exits 0 with the last snapshot and a read-only next-step hint; inspect wait even on exit 0 and include task,wait,help with --fields.
+Timeout covers auth, requests, retries and delays within the shared 8 MiB response cap; failures before any snapshot remain errors.
+Waiting never resubmits an action or changes remote state; a failed or stopped task is terminal, not successful execution.
 Exception list/show accept phishing-allow, phishing-block, spam-allow, anomaly, click-time, malware, url and dlp (guide pages 49-123).
 For malware, url and dlp, --type is required; run exception list --help for the documented values.
 Click-time --items selects item routes; by default list routes are used.
@@ -105,4 +120,4 @@ All live-only facts remain unverified, including token response shape and lifeti
 | `npx -y @knowttl/checkpoint-axi exception update` | Preview or replace one exception; phishing/spam/click-time require an ID; malware/url/dlp identify it in --input without an ID; anomaly unsupported (guide pages 64-67, 78-81, 94-96, 105-107, 116-117, 126-127) |
 | `npx -y @knowttl/checkpoint-axi home` | Show local profile context without resolving secrets or making API calls |
 | `npx -y @knowttl/checkpoint-axi profile list` | List file profiles without resolving secrets; --profile does not filter this list |
-| `npx -y @knowttl/checkpoint-axi task show` | Show asynchronous task status and per-action details (API guide pages 30-33) |
+| `npx -y @knowttl/checkpoint-axi task show` | Show asynchronous task status and per-action details, optionally waiting within explicit bounds (API guide pages 30-33) |

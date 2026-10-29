@@ -1485,7 +1485,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'awx-axi', version: '0.1.9', health: { status: 'disabled' } },
     { name: 'tenable-axi', version: '0.1.4', health: { status: 'disabled' } },
     { name: 'hybrid-axi', version: '0.1.3', health: { status: 'disabled' } },
-    { name: 'checkpoint-axi', version: '0.1.2', health: { status: 'disabled' } },
+    { name: 'checkpoint-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'beyondtrust-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'gh-axi', version: '0.1.45', health: { status: 'disabled' } },
   ])

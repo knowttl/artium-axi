@@ -1494,7 +1494,7 @@ test.each([
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.9' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.4' },
   { tool: 'hybrid-axi', example: 'quota', version: '0.1.3' },
-  { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.2' },
+  { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.3' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])
