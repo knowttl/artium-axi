@@ -8,6 +8,8 @@ import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { browserCookie } from '../../src/server/auth/browser.js'
+import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
@@ -33,9 +35,9 @@ let adapter: ReturnType<typeof createFalconAdapter>
 let token: string
 const result = { stdout: 'synthetic', stderr: '', exitCode: 0, durationMs: 1,
   outputBytes: { stdout: 9, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 8).toString('base64') })
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-health-'))
-  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 8).toString('base64') })
   db = openStore(join(directory, 'data', 'artium.db'), provider)
   await seedToolUser(db)
   token = issueTestAccessToken(db, 'synthetic-development-user')
@@ -124,6 +126,48 @@ test('a background credential check emits exactly one run with its audit request
   expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
     expect.objectContaining({ event: 'run', requestId: audit.request_id, tool: 'falcon-axi', exitCode: 0 }),
   ])
+})
+
+test.each([
+  { actor: 'synthetic-development-user', event: 'credential-test' },
+  { actor: healthDefaults.actor, event: 'health-check' },
+])('a failed $event retains its private diagnostic across restart', async ({ actor, event }) => {
+  const lines: string[] = []
+  const audit = new Audit(db, Date.now, line => { lines.push(line) })
+  health = new ToolHealth(db, audit, runner, [adapter], store)
+  const stderr = 'code: AUTH_FAILED\nmessage: Synthetic retained health failure'
+  vi.spyOn(runner, 'run').mockResolvedValueOnce({ ...result, stdout: '', stderr, exitCode: 1 })
+  await expect(health.check('falcon-axi', actor, 'retained-check', null)).rejects.toMatchObject({ code: 'UPSTREAM_AUTH_FAILED' })
+  const diagnostic = { stage: 'authentication', message: stderr, toolCode: 'AUTH_FAILED',
+    checkedAt: expect.any(Number), credentialRevision: 1 }
+  expect(audit.runDiagnostic('retained-check')).toEqual(diagnostic)
+  expect(lines).toHaveLength(3)
+  expect(lines.join('')).not.toContain('Synthetic retained health failure')
+  await app.close()
+  await health.stop()
+  db.close()
+  db = openStore(join(directory, 'data', 'artium.db'), provider)
+  store = createCredentialStore(db, provider)
+  adapter = createFalconAdapter(new EmbeddedSecretSource(store))
+  runner = await Runner.create(join(directory, 'calls'))
+  const restartedAudit = new Audit(db)
+  health = new ToolHealth(db, restartedAudit, runner, [adapter], store)
+  app = createApp({ db, audit: restartedAudit, runner, adapters: [adapter], credentialStore: store,
+    resolver: new SharedIdentityResolver(store), environment: {} })
+  expect(health.diagnostic('falcon-axi', 1, Date.now())).toBeUndefined()
+  expect(restartedAudit.runDiagnostic('retained-check')).toEqual(diagnostic)
+  db.prepare('UPDATE users SET administrator = 1').run()
+  const session = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf')
+  const headers = { cookie: `${browserCookie}=${session.id}` }
+  const page = await app.inject({ url: '/admin/audit?requestId=retained-check', headers })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('Synthetic retained health failure')
+  const exported = await app.inject({ url: '/v1/admin/audit/export?format=jsonl&requestId=retained-check', headers })
+  expect(exported.statusCode).toBe(200)
+  expect(exported.body.trim().split('\n').map(line => JSON.parse(line).event)).toEqual([
+    event, 'run-terminal', 'run-start',
+  ])
+  expect(exported.body).not.toContain('Synthetic retained health failure')
 })
 
 test.each([
@@ -508,6 +552,7 @@ test.each([
   const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
   expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
+  expect(db.prepare('SELECT * FROM run_diagnostics').all()).toEqual([])
 })
 
 test('replacement during a check queues one fresh check and never caches the old revision', async () => {
