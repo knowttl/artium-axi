@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.0.26](https://github.com/knowttl/artium-axi/compare/v0.0.25...v0.0.26) (2026-10-29)
+
+
+### Features
+
+* add request correlation and failed-run audit filters ([#215](https://github.com/knowttl/artium-axi/issues/215)) ([0552efa](https://github.com/knowttl/artium-axi/commit/0552efaddf9a4abe4905089bf6078b1fd909f4c7))
+* bundle checkpoint-axi 0.1.3 with expansion and task waiting ([#224](https://github.com/knowttl/artium-axi/issues/224)) ([042ec7f](https://github.com/knowttl/artium-axi/commit/042ec7f3b19a6c2ec98d0f9ebf67ddf7dcbde98a))
+* **server:** add structured operational and tool run logging ([#219](https://github.com/knowttl/artium-axi/issues/219)) ([ffc2b5f](https://github.com/knowttl/artium-axi/commit/ffc2b5fffa3abc80a2991d23af57ca391733a9d7))
+* **server:** retain failure diagnostics in administrator audit details ([#221](https://github.com/knowttl/artium-axi/issues/221)) ([25a9a7e](https://github.com/knowttl/artium-axi/commit/25a9a7ed4be28f2d9fd04ad4544416dce8015f06))
+
+
+### Bug Fixes
+
+* adopt beyondtrust-axi 0.1.3 diagnostics and credential metadata ([#222](https://github.com/knowttl/artium-axi/issues/222)) ([92c435f](https://github.com/knowttl/artium-axi/commit/92c435f22645a312c840a34309a427764484635f))
+* bundle checkpoint-axi 0.1.2 and improve credential guidance ([#223](https://github.com/knowttl/artium-axi/issues/223)) ([68638ed](https://github.com/knowttl/artium-axi/commit/68638ed4916864398841c1c2ab7854bf52265803))
+* **cli:** handle hosted help rewriting and distinguish local failures ([#212](https://github.com/knowttl/artium-axi/issues/212)) ([6a8a08d](https://github.com/knowttl/artium-axi/commit/6a8a08d0a520da034d9a07d6b0e7551f0147ef71))
+* **cli:** keep rewritten suggestions valid when hosting removes or expands them ([#207](https://github.com/knowttl/artium-axi/issues/207)) ([0ceb38a](https://github.com/knowttl/artium-axi/commit/0ceb38a9c4d6fbbb61517af7a74cee3de2a6b987))
+* distinguish invalid upstream responses in credential diagnostics ([#213](https://github.com/knowttl/artium-axi/issues/213)) ([3f31b8c](https://github.com/knowttl/artium-axi/commit/3f31b8c9f48bc84cf2e1a448159902ebf9624456))
+* preserve tool health error categories in doctor ([#220](https://github.com/knowttl/artium-axi/issues/220)) ([e2422c6](https://github.com/knowttl/artium-axi/commit/e2422c6c4e71f79b00fa05d64c766fb3bdf09f19))
+* **server:** expire Falcon and BeyondTrust run journals ([#214](https://github.com/knowttl/artium-axi/issues/214)) ([9c9e336](https://github.com/knowttl/artium-axi/commit/9c9e336bd5d4dab6381a88b86adcf489d0b4c15f))
+* upgrade beyondtrust-axi to 0.1.2 for response diagnostics ([#216](https://github.com/knowttl/artium-axi/issues/216)) ([3e2dac5](https://github.com/knowttl/artium-axi/commit/3e2dac5048d835a4bb95578519476fd82a7555c8))
+
 ## [0.0.25](https://github.com/knowttl/artium-axi/compare/v0.0.24...v0.0.25) (2026-10-29)
 
 
