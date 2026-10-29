@@ -40,6 +40,7 @@ export interface RunnerResult {
 }
 
 export class RunnerError extends ArtiumError {
+  spawnError?: Error
   durationMs?: number
   outputBytes?: { stdout: number, stderr: number }
   processStarted = false
@@ -193,7 +194,7 @@ async function execute(
         stderr: { chunks: [] as Buffer[], retained: 0, observed: 0 },
       }
       let secretDetected = false
-      let spawnFailed = false
+      let spawnError: Error | undefined
       let processStarted = false
       let failure: RunnerError | undefined
       let killTimer: NodeJS.Timeout | undefined
@@ -275,7 +276,7 @@ async function execute(
           output.retained += count
         })
       }
-      child.on('error', () => { spawnFailed = true })
+      child.on('error', error => { spawnError = error })
       child.on('spawn', () => { processStarted = true })
       child.on('exit', () => {
         clearTimeout(timeout)
@@ -288,8 +289,9 @@ async function execute(
         limits.signal?.removeEventListener('abort', cancel)
         if (secretDetected) {
           failure = new RunnerError('SECRET_IN_OUTPUT')
-        } else if (spawnFailed) {
+        } else if (spawnError) {
           failure = new RunnerError('SPAWN_FAILED')
+          failure.spawnError = spawnError
         } else if (!failure && exitCode === null) {
           failure = new RunnerError('PROCESS_SIGNAL')
         }

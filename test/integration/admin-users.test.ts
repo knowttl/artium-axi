@@ -280,6 +280,30 @@ test('audit API and export filter on the stored tool failure code', async () => 
   expect(exported).toMatchObject({ request_id: 'failed-run', error_code: 'PERMISSION_DENIED' })
 })
 
+test('request ID and failed-run filters select the same records in API and export', async () => {
+  const audit = new Audit(db)
+  const context = { userId: administrator, tool: 'falcon-axi' as const, clientAddress: null }
+  audit.record({ ...context, requestId: 'target', event: 'run-start', outcome: 'started', args: [], sensitive: { flags: [], positions: [] } })
+  audit.record({ ...context, requestId: 'denial', event: 'denial', outcome: 'TOOL_NOT_GRANTED' })
+  for (const [requestId, outcome, exitCode] of [
+    ['target', 'completed', 1], ['success', 'completed', 0],
+    ['missing', 'interrupted', null], ['error', 'TIMEOUT', 0],
+  ] as const) audit.record({ ...context, event: 'run-terminal', outcome, exitCode, requestId,
+    durationMs: 5, outputBytes: { stdout: 0, stderr: 0 } })
+  for (const [query, expected] of [
+    ['requestId=target', ['target', 'target']],
+    ['failed=1', ['error', 'missing', 'target']],
+    ['failed=1&requestId=target', ['target']],
+    ['failed=0&requestId=target', ['target', 'target']],
+  ] as const) {
+    const page = adminAuditRoute.response.parse(await (await auditRequest(query)).json())
+    expect(page.records.map(record => record.request_id)).toEqual(expected)
+    const exported = await fetch(url + adminAuditExportRoute.path + '?format=jsonl&' + query, { headers })
+    expect(exported.status).toBe(200)
+    expect((await exported.text()).trim().split('\n').map(line => JSON.parse(line).request_id)).toEqual(expected)
+  }
+})
+
 test('audit query caps default and maximum pages', async () => {
   const audit = new Audit(db, () => 0)
   for (let id = 0; id < 101; id++) audit.record({ event: 'sign-in', userId: administrator, tool: null,

@@ -28,7 +28,7 @@ const windowsBundle = join(directory, 'artium-axi-windows.mjs')
 const localFailureBundle = join(directory, 'artium-axi-local-failure.mjs')
 const stalls = new EventEmitter()
 let url: string
-let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string, raw?: string }
+let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string, requestId?: string, raw?: string }
 let requests: { path: string, token?: string, body: unknown, version?: string }[] = []
 let doctorResponses: Record<string, typeof response> | undefined
 let responseSequence: typeof response[] | undefined
@@ -82,7 +82,8 @@ beforeAll(async () => {
     }
     if (request.url!.startsWith('/stall-headers/')) { stalled(); return }
     reply.writeHead(current.status, { 'content-type': 'application/json', ...(current.location ? { location: current.location } : {}),
-      ...(current.serverVersion ? { 'x-artium-cli-version': current.serverVersion } : {}) })
+      ...(current.serverVersion ? { 'x-artium-cli-version': current.serverVersion } : {}),
+      ...(current.requestId ? { 'x-artium-request-id': current.requestId } : {}) })
     if (current.stall || request.url!.startsWith('/stall-body/')) {
       reply.flushHeaders()
       if (request.url!.startsWith('/stall-body/')) stalled()
@@ -830,6 +831,14 @@ test('passthrough preserves argument tokens, streams and upstream nonzero status
   const args = ['detection', 'list', '', 'two words', '"quoted"', "'single'", '$(touch synthetic)', ';', '\\', '雪', '--flag=a b']
   expect(await cli(['falcon-axi', ...args])).toMatchObject({ code: 7, stdout: 'data\n', stderr: 'diagnostic\n' })
   expect(requests[0].body).toEqual({ args })
+})
+
+test.each([0, 7])('tool exit %i prints the server request ID only on failure', async exitCode => {
+  response = { status: 200, requestId: 'cc10556c-a785-4eac-93ef-c180a0a75fb3',
+    body: { source: 'falcon-axi', stdout: 'data\n', stderr: 'diagnostic', exitCode,
+      durationMs: 1, outputBytes: { stdout: 5, stderr: 10 }, truncated: { stdout: false, stderr: false } } }
+  expect(await cli(['falcon-axi'])).toMatchObject({ code: exitCode, stdout: 'data\n',
+    stderr: exitCode === 0 ? 'diagnostic' : 'diagnostic\nartium-axi: request_id cc10556c-a785-4eac-93ef-c180a0a75fb3\n' })
 })
 
 test.each(['stdout', 'stderr'] as const)('closed %s preserves upstream status and the other stream', async closeStream => {

@@ -142,6 +142,7 @@ See [output behavior](docs/client-reference.md#toon-output-behavior) and the gen
 
 | Symptom | Next step |
 | --- | --- |
+| A tool call failed | Follow the tool's help and keep the stderr `request_id` for an administrator; see [troubleshooting a failed tool call](docs/runbook.md#troubleshoot-a-failed-tool-call). |
 | `CLIENT_CONFIG_INVALID` | Set the HTTPS URL and a readable CA file if needed, then sign in. |
 | `PASSWORD_CHANGE_REQUIRED` | Run `artium-axi passwd`, then sign in again. |
 | `CLI_OUTDATED` | Follow [installation-specific update guidance](docs/client-reference.md#verified-client). |

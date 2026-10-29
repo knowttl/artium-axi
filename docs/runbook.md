@@ -471,12 +471,28 @@ Manual tests and background checks share the one-check-per-tool exclusion and ru
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
 Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
-For server-raised request failures returned as `INTERNAL_ERROR`, match the response's `requestId` to the server's stderr JSON line, available through `docker compose -f compose.example.yaml logs artium` for the example deployment.
-The line contains `requestId`, a sanitized `errorClass` and the matched route template in `route` (or `(unmatched)`), without actual path parameter values, query strings, request bodies, secrets, certificate contents or error messages.
-Schema validation failures also include `validationFields`, limited to recognized certificate field names; this array can be empty.
-These server diagnostics leave the response error code as `INTERNAL_ERROR` and are separate from audit records.
+### Troubleshoot a failed tool call
 
-For failures originating in the CLI, follow the [client error guidance](client-reference.md#toon-output-behavior).
+Read the tool's output and follow its `code:` and `help` lines.
+For a non-zero tool exit, the CLI writes `artium-axi: request_id <id>` to stderr after the tool output when the server supplies the ID.
+Artium errors include a server `requestId` in their TOON error envelope; follow `next`.
+Every server response also carries `x-artium-request-id`, and browser error pages display the ID.
+Client-local failures have no server request ID; follow the [client error guidance](client-reference.md#toon-output-behavior).
+Never retry a write with `OUTCOME_UNKNOWN` or `UNKNOWN_OUTCOME` until you have checked current state.
+When escalating, send the administrator the request ID, tool name and time, without credentials or potentially sensitive command output.
+
+Administrators can open `/admin/audit?requestId=<id>` or query `GET /v1/admin/audit?requestId=<id>` to inspect the paired run-start and run-terminal records.
+The records show redacted arguments, exit status, duration, byte counts, any tool error code, write action and native audit ID.
+Use `/admin/audit?failed=1&tool=<tool>` to find failed terminal runs, including non-zero or missing exit codes and error outcomes; the stored outcome semantics stay unchanged.
+The request ID and failed-run filters also apply to CSV and JSON-lines exports and persist across audit pages.
+For a credential, TLS, DNS or network problem, use **Test credential** on the tool page for a current secret-scanned diagnostic.
+
+For `INTERNAL_ERROR` and `SPAWN_FAILED`, search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID.
+The server's stderr JSON line contains `requestId`, a sanitized `errorClass` and the matched route template in `route` (or `(unmatched)`), without actual path parameter values, query strings, request bodies, secrets, certificate contents or error messages.
+When available, `errorCode` is a bounded Node errno token such as `ENOENT`; `frames` contains at most five application `dist/` or dependency `node_modules/` file:line locations without function names or messages.
+Startup failures also include these safe fields when available and retain the Artium error code for known configuration failures.
+Schema validation failures also include `validationFields`, limited to recognized certificate field names; this array can be empty.
+These diagnostics leave response error codes unchanged and are separate from audit records.
 
 ### Falcon RTR execution
 
@@ -521,6 +537,8 @@ There is no audit deletion endpoint or general export CLI.
 See [Audit screen and API usage](admin-guide.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
 
 For continuous export, set `ARTIUM_AXI_AUDIT_STDOUT=1` in the server environment and send its committed JSON-line records, containing exactly the persisted fields, to the owner's protected collector before retention expires.
+The example Compose service uses Docker's `json-file` log driver with `max-size: 10m` and `max-file: 5` to bound local container logs, including the optional audit stream.
+`docker compose -f compose.example.yaml logs --timestamps artium` remains available; rotated local logs are not a substitute for the protected audit collector.
 SQLite remains authoritative if the optional stream fails; monitor collector failures and reconcile retained records through the audit API.
 Key-rotation receipts are separate maintenance output, not audit export.
 The owner selects collector storage, access, retention and deletion policy; no external collector is configured by this runbook.

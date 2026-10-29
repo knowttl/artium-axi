@@ -25,6 +25,8 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database): 
     if (query.data.event && !events.some(row => row.event === query.data.event)) events.push({ event: query.data.event })
     const selected = (value: string | undefined, candidate: string) => value === candidate ? ' selected' : ''
     const filters = `<form method="get" action="/admin/audit">
+      <label>Request ID <input name="requestId" value="${escape(query.data.requestId ?? '')}" maxlength="100"></label>
+      <label><input type="checkbox" name="failed" value="1"${query.data.failed === '1' ? ' checked' : ''}> Failed runs only</label>
       <label>User <select name="user"><option value="">All users</option>${users.map(user => `<option value="${escape(user.id)}"${selected(query.data.user, user.id)}>${escape(user.username)}</option>`).join('')}</select></label>
       <label>Tool <select name="tool"><option value="">All tools</option>${toolSchema.options.map(tool => `<option${selected(query.data.tool, tool)}>${tool}</option>`).join('')}</select></label>
       <label>Event <select name="event"><option value="">All events</option>${events.map(({ event }) => `<option value="${escape(event)}"${selected(query.data.event, event)}>${escape(event)}</option>`).join('')}</select><small>Event types currently in retained history, such as sign-in or admin-change.</small></label>

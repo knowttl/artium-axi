@@ -76,6 +76,14 @@ async function run(body: unknown, requestHeaders = headers) {
   return fetch(`${url}/v1/tools/falcon-axi/run`, { method: 'POST', headers: requestHeaders, body: JSON.stringify(body) })
 }
 
+test.each(['/health/live', '/v1/missing', '/v1/tools'])('response %s carries a server-generated request ID', async path => {
+  const response = await fetch(url + path, { headers: { 'x-artium-request-id': 'CANARY-untrusted' } })
+  const id = response.headers.get('x-artium-request-id')
+  expect(id).toMatch(/^[a-f0-9-]{36}$/)
+  const body = await response.json() as { error?: { requestId: string } }
+  if (body.error) expect(body.error.requestId).toBe(id)
+})
+
 async function expectFailure(response: Response, code: keyof typeof errors) {
   expect(response.status).toBe(errors[code].status)
   const body = errorResponseSchema.parse(await response.json())
@@ -104,17 +112,22 @@ test('the server handler maps every catalogue error to its HTTP envelope', async
   }
 })
 
-test('unexpected errors log only a request ID, error class and route template', async () => {
+test('unexpected errors log safe code locations and errno without planted secrets', async () => {
   await app.close()
   app = createApp(options)
-  app.post('/v1/failure/:secret', async () => { throw new TypeError('CANARY-error-secret') })
+  app.post('/v1/failure/:secret', async () => {
+    const error = Object.assign(new TypeError('CANARY-error-secret'), { code: 'ENOENT' })
+    error.stack = `TypeError: CANARY-error-secret\n    at CANARY-function (${process.cwd()}/dist/src/server/app.js:81:9)\n    at /private/CANARY-secret.js:1:2`
+    throw error
+  })
   const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   const response = await app.inject({ method: 'POST', url: '/v1/failure/CANARY-path?token=CANARY-query',
     headers: { authorization: 'Bearer CANARY-header' }, payload: { secret: 'CANARY-body' } })
   expect(response.statusCode).toBe(500)
   expect(response.json().error.code).toBe('INTERNAL_ERROR')
   expect(stderr.mock.calls).toEqual([[JSON.stringify({ requestId: response.json().error.requestId,
-    errorClass: 'TypeError', route: '/v1/failure/:secret' }) + '\n']])
+    errorClass: 'TypeError', route: '/v1/failure/:secret', errorCode: 'ENOENT', frames: ['dist/src/server/app.js:81'] }) + '\n']])
+  expect(JSON.stringify(stderr.mock.calls) + response.body + JSON.stringify(response.headers)).not.toContain('CANARY')
 })
 
 test('response validation logs the missing certificate field without certificate contents', async () => {
@@ -126,8 +139,31 @@ test('response validation logs the missing certificate field without certificate
   const response = await app.inject('/v1/invalid-response')
   expect(response.statusCode).toBe(500)
   expect(response.json().error.code).toBe('INTERNAL_ERROR')
-  expect(stderr.mock.calls).toEqual([[JSON.stringify({ requestId: response.json().error.requestId,
-    errorClass: 'ZodError', route: '/v1/invalid-response', validationFields: ['subject'] }) + '\n']])
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({ requestId: response.json().error.requestId,
+    errorClass: 'ZodError', route: '/v1/invalid-response', validationFields: ['subject'] })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
+
+test('spawn failure logs errno and correlation without executable, arguments or credentials', async () => {
+  await app.close()
+  const runner = await Runner.create(join(directory, 'spawn-calls'))
+  app = createApp({ ...options, runner })
+  app.get('/v1/spawn-failure', async () => runner.run('synthetic-user', '/CANARY-missing-executable',
+    ['CANARY-argument'], { TOKEN: 'CANARY-credential' }, ['CANARY-credential']))
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const response = await app.inject('/v1/spawn-failure')
+  expect(response.json().error.code).toBe('SPAWN_FAILED')
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+    requestId: response.headers['x-artium-request-id'], errorCode: 'ENOENT', route: '/v1/spawn-failure',
+  })
+  expect(JSON.stringify(stderr.mock.calls) + response.body).not.toContain('CANARY')
+})
+
+test('browser error page displays its response request ID', async () => {
+  const response = await app.inject('/admin/missing')
+  expect(response.statusCode).toBe(404)
+  expect(response.body).toContain(`Request ID: ${response.headers['x-artium-request-id']}`)
 })
 
 test.each([

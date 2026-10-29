@@ -183,6 +183,7 @@ async function main(args: string[]) {
     failureContext = 'rewriteSuggestions'
     output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout))
     output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr))
+    if (exitCode !== 0 && client.requestId) output('stderr', `${stderr && !stderr.endsWith('\n') ? '\n' : ''}artium-axi: request_id ${client.requestId}\n`)
     process.exitCode = exitCode
   }
 }
