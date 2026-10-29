@@ -220,6 +220,7 @@ async function execute(
           } : {}),
           PATH: pathPrefix ? `${pathPrefix}:${runtimePath}` : runtimePath,
           ...directories,
+          ...(environment.BEYONDTRUST_AXI_WRITE_LOG ? { XDG_STATE_HOME: dirname(environment.BEYONDTRUST_AXI_WRITE_LOG) } : {}),
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
         stdio: ['pipe', 'pipe', 'pipe'],

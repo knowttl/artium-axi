@@ -101,14 +101,14 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
   app.addHook('onSend', async (request, _reply, payload) => {
     // Retrieval has already claimed the entry and checks authority while reading.
     // A revoking mutation's response still waits for cancellation below.
-    if ((['hybrid-axi', 'checkpoint-axi', 'mg-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
+    if ((['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
     for (const entry of entries.values()) {
       try { access(entry.reservation.scope) }
       catch { await discard(entry) }
     }
     return payload
   })
-  const routeGroups = (['hybrid-axi', 'checkpoint-axi', 'mg-axi'] as const).flatMap(tool => {
+  const routeGroups = (['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi'] as const).flatMap(tool => {
     const routes = transferRoutesFor(tool)
     return Object.values(routes).map(route => ({ tool, routes, route }))
   })

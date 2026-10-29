@@ -290,7 +290,7 @@ export class ArtifactReservation {
       this.alive()
       if (await artifactBytes(this.directory) !== 0) unavailable()
       const evidence = await native(this.outputPath, this.controller.signal)
-      const checkpoint = transferTool(this.scope.selection.operation) === 'checkpoint-axi'
+      const checkpoint = ['checkpoint-axi', 'beyondtrust-axi'].includes(transferTool(this.scope.selection.operation))
       const boundedMail = transferTool(this.scope.selection.operation) !== 'hybrid-axi'
       if (checkpoint ? evidence.nativeAuditId !== null || evidence.nativeJournalResult !== null || !/^[a-f0-9]{64}$/.test(evidence.verifiedSha256 ?? '')
         : evidence.nativeJournalResult !== 'SUCCESS') unavailable()

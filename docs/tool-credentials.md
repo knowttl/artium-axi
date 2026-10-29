@@ -1,5 +1,23 @@
 # Tool credentials
 
+## BeyondTrust PM Cloud
+
+The pinned @knowttl/beyondtrust-axi 0.1.0 profile schema owns the managed fields.
+Create an Endpoint Privilege Management API account and grant only the required API areas.
+Save host (for example `example.pm.beyondtrustcloud.com`), clientId and clientSecret through the administrator credential form.
+The host must be lowercase DNS ending in .beyondtrustcloud.com, without scheme, port, path or userinfo; requests use verified HTTPS.
+The secret is encrypted at rest and supplied through a private environment reference, never argv.
+The credential test runs doctor with a bounded About read.
+A token 404 reports AUTH_ENDPOINT_NOT_FOUND and hints at the documented -services host form; the tool never switches hosts automatically.
+
+Enable exact writes.operations through Write access.
+Writes default off and retain native preview, --execute, exact --confirm and durable redacted intent gates.
+Deletes additionally require the separate Allow deletes toggle (writes.allowDeletes) and exact --confirm-delete.
+The advanced settings editor accepts the same writes object; downloads.allow is host-owned and cannot enable ordinary downloads.
+Use artium-axi download for the four separately selected download operations.
+Live authentication, permissions and every API operation remain subject to owner commissioning after offline build.
+
+
 Contents:
 
 - [Check Point Email Security](#check-point-email-security)

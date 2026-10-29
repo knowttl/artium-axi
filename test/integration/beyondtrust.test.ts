@@ -1,0 +1,209 @@
+import { readFileSync } from 'node:fs'
+import { mkdir, readdir, stat } from 'node:fs/promises'
+import { spawn, execFileSync } from 'node:child_process'
+import { once } from 'node:events'
+import { join } from 'node:path'
+import { decode } from '@toon-format/toon'
+import { beforeAll, expect, test, vi } from 'vitest'
+import * as credentialTls from '../../src/server/credential-tls.js'
+import { createApp } from '../../src/server/app.js'
+import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
+import type { PreparedCall } from '../../src/server/adapters/types.js'
+import { SessionStore } from '../../src/cli/session.js'
+import { ArtifactStore, artifactDefaults } from '../../src/server/artifacts.js'
+import { Audit } from '../../src/server/audit/audit.js'
+import { issueRecentAuthTicket } from '../../src/server/auth/tokens.js'
+import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
+import { Runner } from '../../src/server/runner/runner.js'
+import { createCredentialStore, openStore } from '../../src/server/store/db.js'
+import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
+import { transferLimits } from '../../src/shared/api.js'
+import type { TransferScope } from '../../src/shared/api.js'
+import { loadTrustedCa } from '../../src/server/trusted-ca.js'
+import { withFakeService } from '../fake-service/fixture.js'
+import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+
+beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
+
+async function withBeyondtrust(check: (fixture: {
+  app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, directory: string,
+  post: (path: string, body?: unknown) => Promise<Response>,
+  cli: (args: string[]) => Promise<{ code: number | null, stdout: string, stderr: string }>,
+  enable: (operations: string[], allowDeletes?: boolean) => Promise<void>, run: (args: string[], input?: object) => Promise<{ stdout: string, exitCode: number }>,
+  evidence: () => Promise<{ requests: { path: string, canaryReceived: boolean }[], mutations: number }>,
+}) => Promise<void>) {
+  await withFakeService(async ({ directory, port, send }) => {
+    const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), key)
+    const credentials = createCredentialStore(db, key)
+    await seedToolUser(db)
+    db.exec('UPDATE users SET administrator = 1')
+    const adapter = createBeyondtrustAdapter(new EmbeddedSecretSource(credentials), join(directory, 'journal', 'writes.log'))
+    const wrap = (call: PreparedCall): PreparedCall => ({ ...call, executable: process.execPath,
+          args: ['--import', join(process.cwd(), 'test/fake-service/beyondtrust-transport.mjs'),
+            join(process.cwd(), 'tools/node_modules/@knowttl/beyondtrust-axi/bin/beyondtrust-axi.js'), ...call.args],
+          environment: { ...call.environment, ARTIUM_TEST_BEYONDTRUST_ORIGIN: `https://localhost:${port}` } })
+    const prepare = adapter.prepare.bind(adapter)
+    const prepareArtifact = adapter.prepareArtifact!.bind(adapter)
+    adapter.prepare = async (...input) => wrap(await prepare(...input))
+    adapter.prepareArtifact = async (...input) => wrap(await prepareArtifact(...input))
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    const audit = new Audit(db)
+    const root = join(directory, 'artifacts')
+    await mkdir(root, { mode: 0o700 })
+    const artifactStore = await ArtifactStore.create(audit, root, { inspect: async () => ({
+      mountinfo: `1 2 0:1 / ${root} rw,nosuid,nodev,noexec - tmpfs tmpfs rw`, filesystemType: 0x01021994,
+      capacityBytes: transferLimits.reservedBytes, freeBytes: transferLimits.reservedBytes,
+      memoryMax: artifactDefaults.containerBytes, memoryCurrent: 0, swapMax: 0, swapCurrent: 0 }) })
+    const rejectNetwork = vi.spyOn(credentialTls, 'credentialFetch').mockRejectedValue(new Error('Unexpected synthetic network request'))
+    const app = createApp({ db, audit, runner, adapters: [adapter], credentialStore: credentials,
+      resolver: new SharedIdentityResolver(credentials), artifactStore, environment: {} })
+    const url = await app.listen({ host: '127.0.0.1', port: 0 })
+    const token = issueTestAccessToken(db, 'synthetic-development-user')
+    new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: token,
+      refreshToken: 'CANARY-unused-refresh', accessExpiresAt: Date.now() + 3600000, familyExpiresAt: Date.now() + 43200000 })
+    const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'accept-encoding': 'identity',
+      'x-artium-reauth-ticket': issueRecentAuthTicket(db, token).ticket }
+    const post = (path: string, body: unknown = {}) => fetch(url + path, { method: 'POST', headers, body: JSON.stringify(body) })
+    const settings = async () => (await fetch(url + '/v1/admin/tools/beyondtrust-axi', { headers })).json()
+    const cli = async (args: string[]) => {
+      const child = spawn(process.execPath, [join(process.cwd(), 'dist/cli/artium-axi.mjs'), 'download', ...args, '--password-stdin'],
+        { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory }, stdio: ['pipe', 'pipe', 'pipe'] })
+      let stdout = ''
+      let stderr = ''
+      child.stdout.on('data', chunk => { stdout += chunk })
+      child.stderr.on('data', chunk => { stderr += chunk })
+      child.stdin.end('CANARY-local-password\n')
+      const [code] = await once(child, 'close')
+      expect(stdout + stderr).not.toContain('CANARY-')
+      return { code, stdout, stderr }
+    }
+    try {
+      const saved = await fetch(url + '/v1/admin/tools/beyondtrust-axi/credential', { method: 'PATCH', headers,
+        body: JSON.stringify({ value: { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' },
+          expectedRevision: 0, expectedToolRevision: 1 }) })
+      expect(saved.status, await saved.clone().text()).toBe(200)
+      expect(await saved.text()).not.toContain('CANARY-')
+      const activated = await fetch(url + '/v1/admin/tools/beyondtrust-axi', { method: 'PATCH', headers,
+        body: JSON.stringify({ enabled: true, expectedRevision: (await settings()).revision }) })
+      expect(activated.status).toBe(200)
+      const enable = async (operations: string[], allowDeletes = false) => {
+        const response = await fetch(url + '/v1/admin/tools/beyondtrust-axi/write-access', { method: 'PATCH', headers,
+          body: JSON.stringify({ enabled: true, operations, allowDeletes, expectedRevision: (await settings()).revision }) })
+        expect(response.status, await response.clone().text()).toBe(200)
+      }
+      const run = async (args: string[], input = {}) => {
+        const response = await post('/v1/tools/beyondtrust-axi/run', { args, ...input })
+        expect(response.status, await response.clone().text()).toBe(200)
+        const result = await response.json()
+        expect(JSON.stringify(result)).not.toMatch(/CANARY-beyondtrust-(secret|token)/)
+        return result
+      }
+      await check({ app, db, directory, post, cli, enable, run, evidence: async () => JSON.parse(await send('/__evidence')) })
+      expect(await readdir(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close(); rejectNetwork.mockRestore() }
+  })
+}
+
+const id = '11111111-1111-4111-8111-111111111111'
+test('managed published CLI reads, previews, confirms and journals a single mutation', async () => {
+  await withBeyondtrust(async ({ run, enable, evidence, db }) => {
+    expect((await run(['computer', 'list', '--limit=1'])).stdout).toContain('example')
+    const args = ['computer', 'authorise', id]
+    expect((await run(args)).stdout).toContain('WRITES_DISABLED')
+    await enable(['computer.authorise'])
+    const preview = await run(args)
+    expect(preview.exitCode, preview.stdout).toBe(0)
+    const { confirmation } = decode(preview.stdout) as { confirmation: string }
+    expect((await run([...args, '--execute', '--confirm', 'wrong'])).exitCode).toBe(1)
+    expect((await evidence()).mutations).toBe(0)
+    expect((await run([...args, '--execute', '--confirm', confirmation])).exitCode).toBe(0)
+    expect((await evidence()).mutations).toBe(1)
+    expect(db.prepare("SELECT action FROM audit WHERE tool = 'beyondtrust-axi' AND event = 'run-terminal' ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'write' })
+    expect((await evidence()).requests.every(record => record.canaryReceived)).toBe(true)
+  })
+})
+test('administrator delete toggle and both exact confirmations gate deletes', async () => {
+  await withBeyondtrust(async ({ run, enable, evidence }) => {
+    const args = ['computer', 'delete', id]
+    await enable(['computer.delete'])
+    expect((await run(args)).stdout).toContain('DELETES_DISABLED')
+    await enable(['computer.delete'], true)
+    const preview = await run(args)
+    expect(preview.exitCode, preview.stdout).toBe(0)
+    const { confirmation, deleteConfirmation } = decode(preview.stdout) as { confirmation: string, deleteConfirmation: string }
+    expect((await run([...args, '--execute', '--confirm', confirmation])).stdout).toContain('DELETE_CONFIRM_REQUIRED')
+    expect((await evidence()).mutations).toBe(0)
+    expect((await run([...args, '--execute', '--confirm', confirmation, '--confirm-delete', deleteConfirmation])).exitCode).toBe(0)
+    expect((await evidence()).mutations).toBe(1)
+  })
+})
+test('uploaded CSV uses a stable private leaf for native digest confirmation', async () => {
+  await withBeyondtrust(async ({ run, enable, evidence }) => {
+    await enable(['group.import-computers'])
+    const input = { files: [{ name: 'computers.csv', contentBase64: Buffer.from('HostName\nexample\n').toString('base64') }] }
+    const args = ['group', 'import-computers', id, '--file', 'computers.csv']
+    const preview = await run(args, input)
+    expect(preview.exitCode, preview.stdout).toBe(0)
+    const { confirmation } = decode(preview.stdout) as { confirmation: string }
+    expect((await run([...args, '--execute', '--confirm', confirmation], input)).exitCode).toBe(0)
+    expect((await evidence()).mutations).toBe(1)
+  })
+})
+test.each([
+  { operation: 'computer.log.download', selector: id, type: 'content' },
+  { operation: 'policy.download', selector: id, type: 'content' },
+  { operation: 'policy.revision.download', selector: id, type: 'content' },
+  { operation: 'api-definition.download', selector: 'api', type: 'yaml' },
+])('host-confirmed $operation saves verified bytes through the bundled CLI', async selection => {
+  await withBeyondtrust(async ({ cli, enable, directory }) => {
+    await enable([selection.operation])
+    await mkdir(join(directory, 'downloads'), { mode: 0o700 })
+    const destination = join(directory, 'downloads', 'content')
+    const args = ['--operation', selection.operation, '--selector', selection.selector, '--type', selection.type, '--destination', destination]
+    const preview = await cli(args)
+    expect(preview.code, preview.stdout).toBe(0)
+    const { transferId, confirm } = decode(preview.stdout) as { transferId: string, confirm: string }
+    const result = await cli([...args, '--transfer', transferId, '--execute', '--confirm', confirm])
+    expect(result.code, result.stdout).toBe(0)
+    expect(result.stdout).toContain('saveOutcome: verified-save')
+    expect(readFileSync(destination, 'utf8')).toBe('Synthetic inert BeyondTrust artifact\n')
+    expect((await stat(destination)).mode & 0o777).toBe(0o600)
+  })
+})
+
+test('bulk filter confirmation binds a count above the normal read cap', async () => {
+  await withBeyondtrust(async ({ run, enable, evidence }) => {
+    await enable(['computer.authorise'])
+    const args = ['computer', 'authorise', '--host', 'fleet']
+    const preview = await run(args)
+    expect(preview.exitCode, preview.stdout).toBe(0)
+    const value = decode(preview.stdout) as { confirmation: string, preview: { count: number, hosts: unknown[] } }
+    expect(value.preview.count).toBe(1001)
+    expect(value.preview.hosts).toHaveLength(20)
+    expect(value.confirmation).toContain('1001')
+    expect((await run([...args, '--execute', '--confirm', value.confirmation])).exitCode).toBe(0)
+    expect((await evidence()).mutations).toBe(1)
+  })
+})
+test.each([
+  { change: 'selector', expected: 400 }, { change: 'destination', expected: 400 },
+  { change: 'credential', expected: 409 }, { change: 'policy', expected: 400 },
+])('download execution rechecks $change without sending a native download', async ({ change, expected }) => {
+  await withBeyondtrust(async ({ post, enable, db, evidence, directory }) => {
+    await enable(['policy.download'])
+    const input = { selection: { operation: 'policy.download', selector: id, type: 'content' }, targetDigest: 'a'.repeat(64) }
+    const preview = await (await post('/v1/transfers/beyondtrust/prepare', input)).json()
+    if (change === 'credential') db.exec("UPDATE credentials SET revision = revision + 1 WHERE tool = 'beyondtrust-axi'")
+    if (change === 'policy') db.exec("UPDATE tools SET native_settings = '{}' WHERE name = 'beyondtrust-axi'")
+    const result = await post('/v1/transfers/beyondtrust/execute', { ...input,
+      ...(change === 'selector' ? { selection: { ...input.selection, selector: '22222222-2222-4222-8222-222222222222' } } : {}),
+      ...(change === 'destination' ? { targetDigest: 'b'.repeat(64) } : {}),
+      transferId: preview.transferId, execute: true, confirm: preview.confirm })
+    expect(result.status).toBe(expected)
+    expect((await evidence()).requests.filter(record => record.path.endsWith('/Content'))).toEqual([])
+    expect(await readdir(join(directory, 'artifacts'))).toEqual([])
+  })
+})
+

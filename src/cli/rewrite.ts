@@ -10,9 +10,11 @@ import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
 import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
+import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'beyondtrust-axi': beyondtrust.adapterBoundary.unsafeOverrides,
   'gh-axi': gh.adapterBoundary.unsafeOverrides,
   'checkpoint-axi': checkpoint.adapterBoundary.unsafeOverrides,
   'hybrid-axi': hybrid.adapterBoundary.unsafeOverrides,
@@ -47,6 +49,19 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
+  if (tool === 'beyondtrust-axi') {
+    try {
+      const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], commands?: unknown }
+      if (document.command && document.flags) return encode({ ...document,
+        command: document.command.startsWith('artium-axi ') ? document.command : 'artium-axi beyondtrust-axi ' + document.command,
+        flags: Object.fromEntries(Object.entries(document.flags).filter(([name]) => !beyondtrust.adapterBoundary.unsafeOverrides.includes(name.replace(/^--/, '')))),
+        examples: (document.examples ?? []).filter(example => !/--(?:config|profile|out)\b/.test(example))
+          .map(example => example.replace(/^beyondtrust-axi\b/, 'artium-axi beyondtrust-axi')),
+        help: [beyondtrust.discovery.help.replaceAll('beyondtrust-axi ', 'artium-axi beyondtrust-axi ')] }) + '\n'
+      if (document.commands) return encode({ bin: 'artium-axi beyondtrust-axi', commands: beyondtrust.commands.filter(route => route.effect !== 'blocked').map(route => route.command),
+        help: [beyondtrust.discovery.help.replaceAll('beyondtrust-axi ', 'artium-axi beyondtrust-axi ')] }) + '\n'
+    } catch { /* Other output uses the normal suggestion contract. */ }
+  }
   if (tool === 'checkpoint-axi') {
     try {
       const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], bin?: string, commands?: unknown }
@@ -216,6 +231,10 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if (tool === 'beyondtrust-axi') {
+    help = help.split('\n').filter(line => !/BEYONDTRUST_AXI_|SecretRef|beyondtrust-axi (?:config|profile)|Valid commands:/.test(line)).join('\n')
+    if (!help.trim()) help = beyondtrust.discovery.help
+  }
   if (tool === 'checkpoint-axi') {
     help = help.split('\n').filter(line => !/CHECKPOINT_AXI_|SecretRef|checkpoint-axi (?:config|profile)|Valid commands:/.test(line)).join('\n')
     if (!help.trim()) help = checkpoint.discovery.help

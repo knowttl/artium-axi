@@ -12,6 +12,7 @@ RUN --network=none /usr/local/bin/gh --version && /opt/tools/node_modules/.bin/g
 RUN --network=none /opt/tools/node_modules/.bin/awx-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/tenable-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/checkpoint-axi --version
+RUN --network=none /opt/tools/node_modules/.bin/beyondtrust-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/hybrid-axi --version
 RUN python3 -m venv /opt/falcon-build && python3 -m venv /opt/falcon-axi
 RUN /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/requirements.txt -d /runtime-wheels

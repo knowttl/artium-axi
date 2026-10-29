@@ -78,6 +78,10 @@ try {
       await command('docker', ['run', '--name', awxPackage, '--pull', 'never', '--network', 'none', '--read-only',
         '--entrypoint', '/opt/tools/node_modules/.bin/awx-axi', image, '--version'])
       const tenablePackage = `${builder}-tenable-package`
+      const beyondtrustPackage = `${builder}-beyondtrust-package`
+      recoveryContainers.push(beyondtrustPackage)
+      await command('docker', ['run', '--name', beyondtrustPackage, '--pull', 'never', '--network', 'none', '--read-only',
+        '--entrypoint', '/opt/tools/node_modules/.bin/beyondtrust-axi', image, '--version'])
       const checkpointPackage = `${builder}-checkpoint-package`
       recoveryContainers.push(checkpointPackage)
       await command('docker', ['run', '--name', checkpointPackage, '--pull', 'never', '--network', 'none', '--read-only',

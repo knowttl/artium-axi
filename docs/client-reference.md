@@ -1,5 +1,23 @@
 # Client reference
 
+## BeyondTrust PM Cloud
+
+Discover with `artium-axi beyondtrust-axi computer list --limit 1`.
+Use authenticated command --help for selectors and filters.
+Artium manages host and OAuth credentials.
+Write access requires exact selected operations; preview, then pass --execute and exact --confirm.
+Deletes additionally need the administrator Allow deletes toggle and exact --confirm-delete.
+Upload local JSON, CSV or policy files with --file; Artium uploads bytes to a fixed private leaf, at most 1 MiB per file.
+
+Use `artium-axi download --operation policy.download --selector <uuid> --type content --destination <absolute-new-path>` for preview.
+Repeat the selection and destination with the returned --transfer, --execute and exact --confirm plus fresh identity confirmation.
+computer.log.download and policy.revision.download also use a UUID selector and type content.
+api-definition.download uses selector api and type yaml.
+All four operations need separate administrator selection.
+Downloads save untrusted raw bytes, at most 50 MiB, in a new 0600 local file with verified SHA-256 and a save receipt.
+Never extract or execute downloaded content or retry an uncertain outcome.
+
+
 Contents:
 
 - [Verified client](#verified-client)

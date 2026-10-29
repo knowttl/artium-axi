@@ -61,6 +61,7 @@ export class CredentialProfile {
     if (tool === 'gh-axi') {
       this.inputSchema.properties.token.not = { pattern: '^(gho_|ghu_|ghs_|ghr_)' }
     }
+    if (tool === 'beyondtrust-axi') this.inputSchema.required = ['host', 'clientId', 'clientSecret']
     if (tool === 'checkpoint-axi') {
       this.inputSchema.required = ['region', 'clientId', 'clientSecret']
     }

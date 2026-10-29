@@ -51,6 +51,7 @@ const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.allo
 const values = {
   'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
   'hybrid-axi': { apiKey: 'CANARY-hybrid-key' },
+  'beyondtrust-axi': { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' },
   'checkpoint-axi': { region: 'us', clientId: 'synthetic-client', clientSecret: 'CANARY-checkpoint-secret' },
   'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
   'awx-axi': { origin: 'https://controller.example', token: 'CANARY-awx-token' },
@@ -1130,6 +1131,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'tenable-axi', capable: true, enabled: false, reason: null },
       { name: 'hybrid-axi', capable: true, enabled: false, reason: null },
       { name: 'checkpoint-axi', capable: true, enabled: false, reason: null },
+      { name: 'beyondtrust-axi', capable: true, enabled: false, reason: null },
       { name: 'gh-axi', capable: true, enabled: false, reason: null },
     ])
   for (const tool of tools) {
@@ -1480,6 +1482,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'tenable-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'hybrid-axi', version: '0.1.2', health: { status: 'disabled' } },
     { name: 'checkpoint-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'beyondtrust-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gh-axi', version: '0.1.44', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()

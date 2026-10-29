@@ -12,6 +12,26 @@ Contents:
 All tools start disabled; write access defaults to off.
 Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
 
+## BeyondTrust Endpoint Privilege Management
+
+BeyondTrust PM Cloud reads use bounded native paging, events and opaque cursors.
+Every write requires configured writes.allowWrites and an exact writes.operations entry; unselected operations stay disabled.
+Preview before --execute and exact --confirm.
+Delete operations, including computer deactivate and policy application removal, also require writes.allowDeletes and exact --confirm-delete.
+Bulk computer commands accept up to 20 explicit UUIDs or supported filters.
+Filter previews show the matching count and first 20 hosts without a count maximum; confirmation binds the count and execution re-applies the filter.
+All-computers selectors remain refused.
+The native coordinator persists a redacted private intent before a single send and never retries writes.
+Artium preserves native intent files outside disposable runner state; an audit ID is not assumed to be a task ID.
+Reconcile OUTCOME_UNKNOWN using reads and audit evidence before further changes.
+
+File inputs use --file uploads and a fixed private runner leaf; hosted limits remain 1 MiB per file and 4 MiB total.
+Server file paths and stdin are unavailable.
+Downloads require authenticated artium-axi download, exact selected operation and host-owned confirmation, with independently verified bytes and SHA-256.
+Native downloads are limited to 50 MiB and do not have a native mutation journal.
+Local configuration, host overrides and ordinary tool-run downloads stay blocked.
+Live service commissioning remains unverified.
+
 ## Microsoft Graph
 
 Microsoft Graph defaults to the `entra` pack.

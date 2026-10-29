@@ -53,6 +53,7 @@ it('opens an unconfigured store with every supported tool disabled', () => {
       { name: 'ado-axi', enabled: 0, pinned_version: '' },
       { name: 'awx-axi', enabled: 0, pinned_version: '' },
       { name: 'az-axi', enabled: 0, pinned_version: '' },
+      { name: 'beyondtrust-axi', enabled: 0, pinned_version: '' },
       { name: 'checkpoint-axi', enabled: 0, pinned_version: '' },
       { name: 'falcon-axi', enabled: 0, pinned_version: '' },
       { name: 'gh-axi', enabled: 0, pinned_version: '' },

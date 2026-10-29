@@ -117,7 +117,7 @@ test.each([
   expect(await cli(target, args)).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('artium-axi,installed') })
   const path = join(target, location, 'artium-axi/SKILL.md')
   const content = read(path)
-  expect(content).toContain('Use artium-axi tools first')
+  expect(content).toContain('## Investigation quick guide')
   expect(content).toContain(bundle.replaceAll("'", "'\\''"))
   expect(content).not.toContain('The setup command records')
   expect(readdirSync(dirname(path))).toEqual(['SKILL.md'])
@@ -184,14 +184,14 @@ test('setup refuses an edited skill unless replacement is explicit', async () =>
   const target = home()
   const path = join(target, '.claude/skills/artium-axi/SKILL.md')
   await cli(target, ['setup', '--host', 'claude'])
-  const edited = read(path).replace('Use artium-axi tools first', 'Local customization')
+  const edited = read(path).replace('## Investigation quick guide', 'Local customization')
   write(path, edited)
   expect(await cli(target, ['setup', '--host', 'claude', '--hook'])).toMatchObject({ code: 2,
     stdout: expect.stringContaining('--force') })
   expect(read(path)).toBe(edited)
   expect(readdirSync(join(target, '.claude'))).toEqual(['skills'])
   expect(await cli(target, ['setup', '--host', 'claude', '--force'])).toMatchObject({ code: 0 })
-  expect(read(path)).toContain('Use artium-axi tools first')
+  expect(read(path)).toContain('## Investigation quick guide')
 })
 
 test('setup refuses an unmanaged skill without explicit replacement', async () => {
@@ -278,7 +278,7 @@ test.each(['absolute', 'relative', 'tilde'])('Pi setup honors a %s PI_CODING_AGE
   try {
     expect(await cli(target, ['setup', '--host', 'pi'], bundle, undefined, config)).toMatchObject({ code: 0 })
     const path = join(resolved, 'skills/artium-axi/SKILL.md')
-    expect(read(path)).toContain('Use artium-axi tools first')
+    expect(read(path)).toContain('## Investigation quick guide')
     const modified = statSync(path).mtimeMs
     expect(await cli(target, ['setup', '--host', 'pi'], bundle, undefined, config)).toMatchObject({ code: 0 })
     expect(statSync(path).mtimeMs).toBe(modified)
@@ -290,13 +290,13 @@ test.each(['edited', 'unmanaged'])('Pi setup refuses an %s skill until --force i
   const target = home()
   const path = join(target, '.pi/agent/skills/artium-axi/SKILL.md')
   expect(await cli(target, ['setup', '--host', 'pi'])).toMatchObject({ code: 0 })
-  const content = kind === 'edited' ? read(path).replace('Use artium-axi tools first', 'Local customization') : 'local skill\n'
+  const content = kind === 'edited' ? read(path).replace('## Investigation quick guide', 'Local customization') : 'local skill\n'
   write(path, content)
   expect(await cli(target, ['setup', '--host', 'pi'])).toMatchObject({ code: 2,
     stdout: expect.stringContaining('The installed skill was edited or is unmanaged; no installation was written.') })
   expect(read(path)).toBe(content)
   expect(await cli(target, ['setup', '--host', 'pi', '--force'])).toMatchObject({ code: 0 })
-  expect(read(path)).toContain('Use artium-axi tools first')
+  expect(read(path)).toContain('## Investigation quick guide')
 })
 
 test('Pi setup help identifies Pi without installing', async () => {

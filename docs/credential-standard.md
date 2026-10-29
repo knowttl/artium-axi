@@ -33,7 +33,7 @@ Round 3 recorded all six board decisions:
 
 The text where each decision applies is marked `[D#]`.
 
-Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, hybrid-axi, checkpoint-axi, azure-axi.
+Applies to every credential-bearing knowttl `*-axi` tool: vectra-axi, az-axi, mg-axi, falcon-axi, awx-axi, tenable-axi, hybrid-axi, checkpoint-axi, beyondtrust-axi, azure-axi.
 artium-axi is the host that consumes the standard (section 9).
 The key words MUST, SHOULD and MAY are used as described in RFC 2119.
 

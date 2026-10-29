@@ -58,7 +58,7 @@ Live malware: this archive may contain executable malware.
 Save only; do not extract or execute.
 Password protection is unverified; bytes are saved exactly as provided.
 Upstream success, completed server delivery and a client verified-save receipt are separate outcomes; missing receipt is unconfirmed.
-For `/v1/transfers/hybrid/*`, `/v1/transfers/checkpoint/*` and `/v1/transfers/mg/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
+For `/v1/transfers/hybrid/*`, `/v1/transfers/checkpoint/*` and `/v1/transfers/mg/*` and `/v1/transfers/beyondtrust/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
 Unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.

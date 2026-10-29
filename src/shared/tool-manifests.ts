@@ -8,6 +8,7 @@ import gh from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
+import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 
-export const toolManifests = { 'gh-axi': gh, 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg, 'ldap-axi': ldap, 'ado-axi': ado, 'awx-axi': awx, 'tenable-axi': tenable, 'hybrid-axi': hybrid, 'checkpoint-axi': checkpoint }
+export const toolManifests = { 'gh-axi': gh, 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg, 'ldap-axi': ldap, 'ado-axi': ado, 'awx-axi': awx, 'tenable-axi': tenable, 'hybrid-axi': hybrid, 'checkpoint-axi': checkpoint, 'beyondtrust-axi': beyondtrust }

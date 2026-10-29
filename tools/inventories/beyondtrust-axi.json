@@ -1,0 +1,1796 @@
+{
+  "generatedBy": "scripts/beyondtrust-inventory.mjs",
+  "tool": "beyondtrust-axi",
+  "version": "0.1.0",
+  "integrity": "sha512-VXMAZSAEdWz9kKxwiS8oo/GxkYa84tBkbuDFQW0vT+GD4qXApftfJDHk9wBqtuctE4FT6nZxXGei3ZoEfgsmXQ==",
+  "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
+  "sources": [
+    {
+      "path": "dist/src/catalogue.js",
+      "sha256": "fafe39fed084a87d257d44ab8dd0542671f2c9f6d7735d7c40c976214b45a7f5"
+    },
+    {
+      "path": "dist/src/cli.js",
+      "sha256": "3fc44bbbba5bb266e40b13e77d0bb61f356b169f9a67e69cec4ca65fe4919d03"
+    },
+    {
+      "path": "dist/src/computer-writes.js",
+      "sha256": "fe5797953f006f23a0d8c30f73166eb8c5ff858385e2f2f1cc55bacbf512eaa1"
+    },
+    {
+      "path": "dist/src/deletes.js",
+      "sha256": "a51fc244a1d45a2310badc85bf3c2bfc6a8e34cf6c236872a25829d56af4574d"
+    },
+    {
+      "path": "dist/src/downloads.js",
+      "sha256": "18409a5abdc0e052f90db9f27df3bec0b591d45b9305ecf470a74aa5aabc95b2"
+    },
+    {
+      "path": "dist/src/group-writes.js",
+      "sha256": "8e257d59a678181d11fd4cad185b00a7650fae6b3c3b44eb0a61b3142518b35d"
+    },
+    {
+      "path": "dist/src/identity-writes.js",
+      "sha256": "36b04e2dcdbc83116e7db6441cb9a2d307438bbfffecd53a1984f5dfc3da57e1"
+    },
+    {
+      "path": "dist/src/jit-writes.js",
+      "sha256": "8f8d46b549ebb9474108a5b9e15088d61822ae421452a9f1d482840c85aec7f3"
+    },
+    {
+      "path": "dist/src/policy-writes.js",
+      "sha256": "bbdc99880a073e5967919d8ef51b6b561941acce9ae63791678607c69d82f0a7"
+    },
+    {
+      "path": "dist/src/private-file.js",
+      "sha256": "3dd38b929947657d51b57e489279feb30928a9a023b953376dedf4baffbc7d3e"
+    },
+    {
+      "path": "dist/src/profiles.js",
+      "sha256": "350c414f60bdfeb0d7bb8ce2486bb4432b8d1e31d9860146ba66de1a5315fe7d"
+    },
+    {
+      "path": "dist/src/redact.js",
+      "sha256": "2da75faebf36dc2a30deed5ebd673c26249468ca60b8d953cfbea3dc06574106"
+    },
+    {
+      "path": "dist/src/resource-reads.js",
+      "sha256": "28774772d3f2720324ffa8bf77580bcca0c922f2496d4d426de3922543680713"
+    },
+    {
+      "path": "dist/src/transport.js",
+      "sha256": "618f148ad21ab7263bf439d6b7b5cb4ff05b4d1b830417a82fe4470621e45f68"
+    },
+    {
+      "path": "dist/src/windows-download.js",
+      "sha256": "629d373db400c1275dff8c06d1069e15680740833eb1bf0c867bf6de8ec2a12c"
+    },
+    {
+      "path": "dist/src/writes.js",
+      "sha256": "bb35fb801d711d276f268548572e9f122d6a442f590a3ac79f4c93973635d46b"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/knowttl/beyondtrust-axi/axi-credential.schema.json",
+    "title": "BeyondTrust PM Cloud AXI credential profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "host",
+      "clientId"
+    ],
+    "properties": {
+      "clientId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      },
+      "clientSecret": {
+        "$ref": "#/$defs/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "BEYONDTRUST_AXI_CLIENT_SECRET"
+        }
+      },
+      "downloads": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allow"
+        ],
+        "default": {
+          "allow": false
+        },
+        "properties": {
+          "allow": {
+            "type": "boolean"
+          }
+        }
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "default": {
+          "allowWrites": false,
+          "operations": [],
+          "allowDeletes": false
+        },
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9_.-]*(?![\\s\\S])"
+            }
+          },
+          "allowDeletes": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "host": {
+        "type": "string",
+        "maxLength": 253,
+        "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+beyondtrustcloud\\.com(?![\\s\\S])"
+      }
+    },
+    "$defs": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "skillSha256": "71578942cce8b3c2ac59d3e0282d96cdfb47634df6067cf85e25c374d0cc790f",
+  "nativeWriteSettings": {
+    "supportedOperations": [
+      "admin-request.create",
+      "admin-request.decide",
+      "api-definition.download",
+      "app-switcher.connect",
+      "auth-request.notify",
+      "computer.archive",
+      "computer.authorise",
+      "computer.deactivate",
+      "computer.delete",
+      "computer.details.request",
+      "computer.log.download",
+      "computer.logs.request",
+      "computer.reject",
+      "computer.unarchive",
+      "domain.create",
+      "domain.delete",
+      "domain.update",
+      "group.add-computers",
+      "group.assign-policy",
+      "group.clear-policy",
+      "group.create",
+      "group.delete",
+      "group.import-computers",
+      "group.remove-computers",
+      "group.set-default",
+      "group.update",
+      "policy.app.add",
+      "policy.app.remove",
+      "policy.auto-assign",
+      "policy.create",
+      "policy.delete",
+      "policy.delete.force",
+      "policy.discard-draft",
+      "policy.download",
+      "policy.revision.download",
+      "policy.update",
+      "policy.upload",
+      "scim.user.create",
+      "scim.user.patch",
+      "scim.user.replace",
+      "user.assign-roles",
+      "user.create",
+      "user.disable",
+      "user.enable",
+      "user.preferences",
+      "user.resend-invite",
+      "user.update"
+    ]
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "out"
+    ],
+    "inputFileFlags": [
+      "file"
+    ],
+    "blockedCommands": [
+      "profile list",
+      "config path",
+      "computer log download",
+      "policy download",
+      "policy revision download",
+      "api-definition download"
+    ],
+    "downloadCommands": [
+      "computer log download",
+      "policy download",
+      "policy revision download",
+      "api-definition download"
+    ],
+    "inputs": {
+      "stdin": "unsupported",
+      "files": "uploaded private leaves only, fixed input filename",
+      "downloads": "authenticated hosted transfers only"
+    },
+    "nativeWrites": "native preview, exact operation allow-list, execute, exact confirm and durable journal; deletes additionally require allowDeletes and confirm-delete"
+  },
+  "discovery": {
+    "commands": [
+      "about",
+      "admin-request",
+      "api-account",
+      "app-switcher",
+      "audit",
+      "auth",
+      "auth-provider",
+      "auth-request",
+      "computer",
+      "doctor",
+      "domain",
+      "event",
+      "global-role",
+      "group",
+      "home",
+      "policy",
+      "role",
+      "scim",
+      "task",
+      "user"
+    ],
+    "example": [
+      "computer",
+      "list",
+      "--limit",
+      "1"
+    ],
+    "help": "beyondtrust-axi computer list [--limit <n>]\nArtium manages host, client ID and secret. Writes require administrator-selected exact operations, native preview, --execute and exact --confirm. Deletes additionally require Allow deletes and --confirm-delete. Upload private files with --file. Use artium-axi download for authenticated saving.\n"
+  },
+  "suggestionFields": [
+    "help"
+  ],
+  "format": "TOON",
+  "commands": [
+    {
+      "command": "about",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "admin-request create",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "decision": "Optional approve; grants admin rights",
+        "by": "Decision maker; required with --decision",
+        "computer": "Required computer UUID",
+        "user": "Required endpoint user ID"
+      }
+    },
+    {
+      "command": "admin-request decide",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "decision": "Required approve|deny; approve grants admin rights",
+        "by": "Decision maker; required with --decision",
+        "duration": "Session duration in seconds",
+        "message": "Decision message"
+      }
+    },
+    {
+      "command": "admin-request list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "decision": "Filter Decision (string)",
+        "created-on": "Filter CreatedOn (string)",
+        "active-only": "Filter ActiveOnly (boolean)",
+        "modified-on": "Filter ModifiedOn (string)",
+        "computer-id": "Filter ComputerId (string)",
+        "endpoint-user-id": "Filter EndpointUserId (string)",
+        "endpoint-user-name": "Filter EndpointUserName (string)"
+      }
+    },
+    {
+      "command": "admin-request show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "api-account list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "api-definition download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "out": "Required new destination file; never overwritten"
+      }
+    },
+    {
+      "command": "app-switcher connect",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching AppSwitcherRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "audit activity details",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "user": "Filter User (string)",
+        "details": "Filter Details (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "entity": "Filter Entity (string)",
+        "audit-type": "Filter AuditType (string)",
+        "changed-by": "Filter ChangedBy (API|Portal|ManagementRule|Pathfinder)"
+      }
+    },
+    {
+      "command": "audit activity list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "user": "Filter User (string)",
+        "details": "Filter Details (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "entity": "Filter Entity (string)",
+        "audit-type": "Filter AuditType (string)",
+        "changed-by": "Filter ChangedBy (API|Portal|ManagementRule|Pathfinder)"
+      }
+    },
+    {
+      "command": "audit activity show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource int64",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "audit auth-request list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "ticket-id": "Filter TicketId (string)",
+        "user": "Filter User (string)",
+        "computer-name": "Filter ComputerName (string)",
+        "product-name": "Filter ProductName (string)",
+        "reason": "Filter Reason (string)",
+        "decision-performed-by-user": "Filter DecisionPerformedByUser (string)",
+        "decision": "Filter Decision (string)",
+        "time-of-request-dates": "Filter TimeOfRequest Dates (array; comma-separated)",
+        "time-of-request-selection-mode": "Filter TimeOfRequest SelectionMode (Single|Multiple|Range)",
+        "decision-time-dates": "Filter DecisionTime Dates (array; comma-separated)",
+        "decision-time-selection-mode": "Filter DecisionTime SelectionMode (Single|Multiple|Range)",
+        "start-time-dates": "Filter StartTime Dates (array; comma-separated)",
+        "start-time-selection-mode": "Filter StartTime SelectionMode (Single|Multiple|Range)",
+        "duration": "Filter Duration (string)"
+      }
+    },
+    {
+      "command": "audit auth-request show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource int64",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "auth-provider show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "auth-request list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "decision": "Filter Decision (string)",
+        "created-on": "Filter CreatedOn (string)",
+        "active-only": "Filter ActiveOnly (boolean)",
+        "modified-on": "Filter ModifiedOn (string)"
+      }
+    },
+    {
+      "command": "auth-request notify",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching AuthorizationRequestNotificationModel in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation; all ten fields required"
+      }
+    },
+    {
+      "command": "auth-request show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource string",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "computer archive",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "computer authorise",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "group": "Optional target group UUID",
+        "computer-id": "Filter ComputerId (string)",
+        "host": "Filter Host (string)",
+        "host-type": "Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux)",
+        "agent-version": "Filter AgentVersion (string)",
+        "adapter-version": "Filter AdapterVersion (string)",
+        "package-manager-version": "Filter PackageManagerVersion (string)",
+        "authorisation-state": "Filter AuthorisationState (string)",
+        "last-connected-dates": "Filter LastConnected Dates (array; comma-separated)",
+        "last-connected-selection-mode": "Filter LastConnected SelectionMode (Single|Multiple|Range)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (string)",
+        "policy-id": "Filter PolicyId (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "host-policy-name": "Filter HostPolicyName (string)",
+        "group-id": "Filter GroupId (string)",
+        "group-name": "Filter GroupName (string)",
+        "os": "Filter OS (Windows|Mac)",
+        "domain": "Filter Domain (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "duplicate-count-min": "Filter DuplicateCount Min (integer)",
+        "duplicate-count-max": "Filter DuplicateCount Max (integer)",
+        "connection-status": "Filter ConnectionStatus (array; comma-separated)",
+        "days-disconnected": "Filter DaysDisconnected (integer)",
+        "days-since-archived": "Filter DaysSinceArchived (integer)"
+      }
+    },
+    {
+      "command": "computer command-log",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "computer deactivate",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>",
+        "computer-id": "Filter ComputerId (string)",
+        "host": "Filter Host (string)",
+        "host-type": "Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux)",
+        "agent-version": "Filter AgentVersion (string)",
+        "adapter-version": "Filter AdapterVersion (string)",
+        "package-manager-version": "Filter PackageManagerVersion (string)",
+        "authorisation-state": "Filter AuthorisationState (string)",
+        "last-connected-dates": "Filter LastConnected Dates (array; comma-separated)",
+        "last-connected-selection-mode": "Filter LastConnected SelectionMode (Single|Multiple|Range)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (string)",
+        "policy-id": "Filter PolicyId (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "host-policy-name": "Filter HostPolicyName (string)",
+        "group-id": "Filter GroupId (string)",
+        "group-name": "Filter GroupName (string)",
+        "os": "Filter OS (Windows|Mac)",
+        "domain": "Filter Domain (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "duplicate-count-min": "Filter DuplicateCount Min (integer)",
+        "duplicate-count-max": "Filter DuplicateCount Max (integer)",
+        "connection-status": "Filter ConnectionStatus (array; comma-separated)",
+        "days-disconnected": "Filter DaysDisconnected (integer)",
+        "days-since-archived": "Filter DaysSinceArchived (integer)"
+      }
+    },
+    {
+      "command": "computer delete",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>",
+        "computer-id": "Filter ComputerId (string)",
+        "host": "Filter Host (string)",
+        "host-type": "Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux)",
+        "agent-version": "Filter AgentVersion (string)",
+        "adapter-version": "Filter AdapterVersion (string)",
+        "package-manager-version": "Filter PackageManagerVersion (string)",
+        "authorisation-state": "Filter AuthorisationState (string)",
+        "last-connected-dates": "Filter LastConnected Dates (array; comma-separated)",
+        "last-connected-selection-mode": "Filter LastConnected SelectionMode (Single|Multiple|Range)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (string)",
+        "policy-id": "Filter PolicyId (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "host-policy-name": "Filter HostPolicyName (string)",
+        "group-id": "Filter GroupId (string)",
+        "group-name": "Filter GroupName (string)",
+        "os": "Filter OS (Windows|Mac)",
+        "domain": "Filter Domain (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "duplicate-count-min": "Filter DuplicateCount Min (integer)",
+        "duplicate-count-max": "Filter DuplicateCount Max (integer)",
+        "connection-status": "Filter ConnectionStatus (array; comma-separated)",
+        "days-disconnected": "Filter DaysDisconnected (integer)",
+        "days-since-archived": "Filter DaysSinceArchived (integer)"
+      }
+    },
+    {
+      "command": "computer details request",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "computer list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "computer-id": "Filter ComputerId (string)",
+        "host": "Filter Host (string)",
+        "host-type": "Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux)",
+        "agent-version": "Filter AgentVersion (string)",
+        "adapter-version": "Filter AdapterVersion (string)",
+        "package-manager-version": "Filter PackageManagerVersion (string)",
+        "authorisation-state": "Filter AuthorisationState (string)",
+        "last-connected-dates": "Filter LastConnected Dates (array; comma-separated)",
+        "last-connected-selection-mode": "Filter LastConnected SelectionMode (Single|Multiple|Range)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (string)",
+        "policy-id": "Filter PolicyId (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "host-policy-name": "Filter HostPolicyName (string)",
+        "group-id": "Filter GroupId (string)",
+        "group-name": "Filter GroupName (string)",
+        "os": "Filter OS (Windows|Mac)",
+        "domain": "Filter Domain (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "duplicate-count-min": "Filter DuplicateCount Min (integer)",
+        "duplicate-count-max": "Filter DuplicateCount Max (integer)",
+        "connection-status": "Filter ConnectionStatus (array; comma-separated)",
+        "days-disconnected": "Filter DaysDisconnected (integer)",
+        "days-since-archived": "Filter DaysSinceArchived (integer)"
+      }
+    },
+    {
+      "command": "computer log download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "out": "Required new destination file; never overwritten"
+      }
+    },
+    {
+      "command": "computer logs",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "computer logs request",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "computer reject",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "computer unarchive",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "computer view",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "config path",
+      "effect": "blocked",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "domain create",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match"
+      }
+    },
+    {
+      "command": "domain delete",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>"
+      }
+    },
+    {
+      "command": "domain list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "domain show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "domain update",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match"
+      }
+    },
+    {
+      "command": "event list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete redacted ECS event objects instead of compact columns",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "since": "UTC start time (default: 24 hours before end; maximum window: 31 days)"
+      }
+    },
+    {
+      "command": "event search",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete redacted ECS event objects instead of compact columns",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "since": "UTC start time (default: 24 hours before end; maximum window: 31 days)",
+        "until": "UTC end time (default: now)",
+        "group": "ComputerGroups; arrays use comma-separated values",
+        "os": "OperatingSystem (required); arrays use comma-separated values",
+        "action": "Events EventAction; arrays use comma-separated values",
+        "code": "Events EventCode; arrays use comma-separated values",
+        "type": "Events EventType; arrays use comma-separated values",
+        "app-type": "Application ApplicationType; arrays use comma-separated values",
+        "host": "Computers HostName; arrays use comma-separated values",
+        "domain": "Computers HostDomain; arrays use comma-separated values",
+        "user": "Users UserName; arrays use comma-separated values",
+        "workstyle": "Policies WorkstyleName; arrays use comma-separated values",
+        "app-group": "Policies ApplicationGroupName; arrays use comma-separated values",
+        "on-demand": "Policies OnDemandRule; arrays use comma-separated values"
+      }
+    },
+    {
+      "command": "global-role list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "id": "Filter Id (string)",
+        "name": "Filter Name (string)",
+        "description": "Filter Description (string)",
+        "is-built-in": "Filter IsBuiltIn (boolean)"
+      }
+    },
+    {
+      "command": "global-role show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "group add-computers",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "computer-id": "Filter ComputerId (string)",
+        "host": "Filter Host (string)",
+        "host-type": "Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux)",
+        "agent-version": "Filter AgentVersion (string)",
+        "adapter-version": "Filter AdapterVersion (string)",
+        "package-manager-version": "Filter PackageManagerVersion (string)",
+        "authorisation-state": "Filter AuthorisationState (string)",
+        "last-connected-dates": "Filter LastConnected Dates (array; comma-separated)",
+        "last-connected-selection-mode": "Filter LastConnected SelectionMode (Single|Multiple|Range)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (string)",
+        "policy-id": "Filter PolicyId (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "host-policy-name": "Filter HostPolicyName (string)",
+        "group-id": "Filter GroupId (string)",
+        "group-name": "Filter GroupName (string)",
+        "os": "Filter OS (Windows|Mac)",
+        "domain": "Filter Domain (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "duplicate-count-min": "Filter DuplicateCount Min (integer)",
+        "duplicate-count-max": "Filter DuplicateCount Max (integer)",
+        "connection-status": "Filter ConnectionStatus (array; comma-separated)",
+        "days-disconnected": "Filter DaysDisconnected (integer)",
+        "days-since-archived": "Filter DaysSinceArchived (integer)"
+      }
+    },
+    {
+      "command": "group assign-policy",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "revision": "Required policy revision UUID"
+      }
+    },
+    {
+      "command": "group clear-policy",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "group create",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "name": "Group name (required for create)",
+        "description": "Group description",
+        "default": "Create as the default group (default: false)"
+      }
+    },
+    {
+      "command": "group delete",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>"
+      }
+    },
+    {
+      "command": "group import-computers",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "file": "Required CSV input file, maximum 10 MiB"
+      }
+    },
+    {
+      "command": "group list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "id": "Filter Id (string)",
+        "name": "Filter Name (string)",
+        "description": "Filter Description (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (OnAssignedPolicy|AwaitingPolicyUpdate|NoPolicy)",
+        "computer-count": "Filter ComputerCount (integer)",
+        "active-computers-value": "Filter ActiveComputers Value (integer)",
+        "active-computers-operator": "Filter ActiveComputers Operator (EqualTo|LessThan|GreaterThan|LessThanOrEqualTo|GreaterThanOrEqualTo)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "default": "Filter Default (boolean)"
+      }
+    },
+    {
+      "command": "group remove-computers",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "computer-id": "Filter ComputerId (string)",
+        "host": "Filter Host (string)",
+        "host-type": "Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux)",
+        "agent-version": "Filter AgentVersion (string)",
+        "adapter-version": "Filter AdapterVersion (string)",
+        "package-manager-version": "Filter PackageManagerVersion (string)",
+        "authorisation-state": "Filter AuthorisationState (string)",
+        "last-connected-dates": "Filter LastConnected Dates (array; comma-separated)",
+        "last-connected-selection-mode": "Filter LastConnected SelectionMode (Single|Multiple|Range)",
+        "policy-revision-status": "Filter PolicyRevisionStatus (string)",
+        "policy-id": "Filter PolicyId (string)",
+        "policy-name": "Filter PolicyName (string)",
+        "host-policy-name": "Filter HostPolicyName (string)",
+        "group-id": "Filter GroupId (string)",
+        "group-name": "Filter GroupName (string)",
+        "os": "Filter OS (Windows|Mac)",
+        "domain": "Filter Domain (string)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "duplicate-count-min": "Filter DuplicateCount Min (integer)",
+        "duplicate-count-max": "Filter DuplicateCount Max (integer)",
+        "connection-status": "Filter ConnectionStatus (array; comma-separated)",
+        "days-disconnected": "Filter DaysDisconnected (integer)",
+        "days-since-archived": "Filter DaysSinceArchived (integer)"
+      }
+    },
+    {
+      "command": "group set-default",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match"
+      }
+    },
+    {
+      "command": "group update",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send after re-read, exact confirmation and durable private intent",
+        "confirm": "Exact confirmation from preview; re-read must still match",
+        "name": "Group name (required for create)",
+        "description": "Group description"
+      }
+    },
+    {
+      "command": "group view",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "policy app add",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; re-read and file digest must still match",
+        "file": "Required JSON array of additions using the committed OS application payload schema; no delete or request envelope; supported types: Windows bat|com|cpl|exe|msc|msi|ps1|reg|rpsc|rpss|unex|wsh, macOS bin|bund|pkg|scr|sudo|pref; maximum 10 MiB",
+        "os": "Required windows|macos",
+        "app-group": "Required application group UUID in the policy"
+      }
+    },
+    {
+      "command": "policy app remove",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>",
+        "os": "Required windows|macos",
+        "app-group": "Required application group UUID; 1-20 application UUIDs follow as positional arguments"
+      }
+    },
+    {
+      "command": "policy assigned-groups",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "policy auto-assign",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; re-read and file digest must still match",
+        "revision": "Required revision UUID belonging to this policy"
+      }
+    },
+    {
+      "command": "policy create",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; re-read and file digest must still match",
+        "name": "Policy name (required for create)",
+        "description": "Policy description",
+        "file": "Required policy XML file; maximum 10 MiB"
+      }
+    },
+    {
+      "command": "policy delete",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>",
+        "force": "Force deletion; additionally requires operation policy.delete.force (default: false)"
+      }
+    },
+    {
+      "command": "policy discard-draft",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and both exact confirmations",
+        "confirm": "Exact confirmation from preview",
+        "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>"
+      }
+    },
+    {
+      "command": "policy download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "out": "Required new destination file; never overwritten"
+      }
+    },
+    {
+      "command": "policy list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "name": "Filter Name (string)",
+        "size": "Filter Size (integer)",
+        "revision": "Filter Revision (integer)",
+        "total-assigned-revisions": "Filter TotalAssignedRevisions (integer)",
+        "created-dates": "Filter Created Dates (array; comma-separated)",
+        "created-selection-mode": "Filter Created SelectionMode (Single|Multiple|Range)",
+        "draft-user": "Filter DraftUser (string)"
+      }
+    },
+    {
+      "command": "policy macos-application-groups",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "application-group-name": "Filter ApplicationGroupName (string)",
+        "application-group-id": "Filter ApplicationGroupId (string)",
+        "application-description": "Filter ApplicationDescription (string)",
+        "application-id": "Filter ApplicationId (string)"
+      }
+    },
+    {
+      "command": "policy revision download",
+      "effect": "blocked",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "out": "Required new destination file; never overwritten"
+      }
+    },
+    {
+      "command": "policy revisions",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "policy update",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; re-read and file digest must still match",
+        "name": "Policy name (required for create)",
+        "description": "Policy description"
+      }
+    },
+    {
+      "command": "policy upload",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; re-read and file digest must still match",
+        "file": "Required policy XML file; maximum 10 MiB",
+        "auto-assign": "Assign the new revision to the policy's groups (default: false)"
+      }
+    },
+    {
+      "command": "policy view",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "policy windows-application-groups",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "application-group-name": "Filter ApplicationGroupName (string)",
+        "application-group-id": "Filter ApplicationGroupId (string)",
+        "application-description": "Filter ApplicationDescription (string)",
+        "application-id": "Filter ApplicationId (string)"
+      }
+    },
+    {
+      "command": "profile list",
+      "effect": "blocked",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "role list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "role show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "scim config",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help"
+      }
+    },
+    {
+      "command": "scim resource-types",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "scim role list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "filter": "SCIM filter expression (sent literally)"
+      }
+    },
+    {
+      "command": "scim schemas",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+      }
+    },
+    {
+      "command": "scim user create",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching ScimUserModelV3 in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "scim user list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "filter": "SCIM filter expression (sent literally)"
+      }
+    },
+    {
+      "command": "scim user patch",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching ScimUserPatchRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "scim user replace",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching ScimUserModelV3 in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "scim user show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "task status",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required task UUID"
+      }
+    },
+    {
+      "command": "user assign-roles",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching V3AssignUserToRolesRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "user create",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching V3CreateUserRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "user disable",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match"
+      }
+    },
+    {
+      "command": "user enable",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match"
+      }
+    },
+    {
+      "command": "user list",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "limit": "Maximum rows, 1-1000 (default: 50)",
+        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
+        "cursor": "Resume an opaque cursor with the same profile, command and filters",
+        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "email-address": "Filter EmailAddress (string)",
+        "role-id": "Filter RoleId (string)",
+        "permission-id": "Filter PermissionId (string)",
+        "last-signed-in-dates": "Filter LastSignedIn Dates (array; comma-separated)",
+        "last-signed-in-selection-mode": "Filter LastSignedIn SelectionMode (Single|Multiple|Range)",
+        "disabled": "Filter Disabled (boolean)",
+        "language": "Filter Language (string)"
+      }
+    },
+    {
+      "command": "user preferences set",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching ModifyUserPreferencesRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    },
+    {
+      "command": "user resend-invite",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match"
+      }
+    },
+    {
+      "command": "user show",
+      "effect": "read",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "user update",
+      "effect": "write",
+      "flags": {
+        "config": "Configuration file path (default: platform config directory)",
+        "profile": "Named file profile (default: selection precedence)",
+        "fields": "Comma-separated output fields (default: all)",
+        "full": "Show complete strings",
+        "help": "Show command help",
+        "execute": "Send once after re-read and exact confirmation",
+        "confirm": "Exact confirmation from preview; state and file digest must still match",
+        "file": "Required secure UTF-8 JSON matching ModifyUserRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation"
+      }
+    }
+  ]
+}

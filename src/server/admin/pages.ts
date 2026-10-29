@@ -18,6 +18,7 @@ const settingsGuide = {
   'gh-axi': 'Writes default off. Select exact collaboration or repository operations with writes: { allowWrites: true, operations: ["issue comment"] }. Preview each write, then repeat with the returned --confirm. Deletes, secret set, merge --admin and API non-GET stay blocked.',
   'hybrid-axi': 'Optional writes: {"allowWrites": true, "operations": ["submitUrl"]}. Submissions, YARA mutations, consuming matches and four reviewed archive downloads are off by default and selected independently; native preview, execute, exact confirmation and journal gates remain required. Use artium-axi download for CLI verified saving after artifact-mount and operator prerequisites pass. Use {} to turn writes off.',
   'tenable-axi': 'Optional writes: {"allowWrites": true, "operations": ["tags-create-tag-category"]}. Writes and export jobs require native preview, execute and exact confirmation. Use {} to turn writes off.',
+  'beyondtrust-axi': 'Writes require selected exact operations, native preview, execute and exact confirmation. Deletes additionally require Allow deletes and exact confirm-delete. Downloads use artium-axi download.',
   'checkpoint-axi': 'Optional writes: {"allowWrites": true, "operations": ["email.quarantine"]}. Exact event.action.<name> entries can be added here using an available event action name. Writes require native preview, execute and exact confirmation. Downloads require separately selected operations and artium-axi download with host-owned confirmation. Ambiguous deletes remain blocked. Use {} to turn writes off.',
   'awx-axi': 'Optional allowWrites (boolean), off by default, enables operational actions only (launch, cancel, sync, approval and notification tests). Configuration, deletion and security writes are always blocked. Use {} to turn writes off.',
   'ado-axi': 'Optional allowWrites (boolean), off by default. Artium classifies and journals every command; api is GET only. Use {} to turn writes off.',
@@ -31,6 +32,7 @@ const testGuide = {
   'gh-axi': 'GitHub api /rate_limit',
   'hybrid-axi': 'Hybrid Analysis quota',
   'tenable-axi': 'Tenable card list --limit 1',
+  'beyondtrust-axi': 'BeyondTrust doctor (authentication and bounded About read)',
   'checkpoint-axi': 'Check Point doctor (authentication and bounded email search)',
   'awx-axi': 'AWX job list --limit 1',
   'ado-axi': 'Azure DevOps project list --limit 1',
@@ -114,6 +116,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     content += `<p>Always blocked: ${escape(writes.blocked)}</p>`
     if (writes.capable) {
       let fields = revision(tool.revision) + `<label><input type="checkbox" role="switch" name="enabled" data-type="boolean"${writes.enabled ? ' checked' : ''}> Allow write access</label><p>Turning this on allows: ${escape(writes.unlocks)}</p>`
+      if (tool.name === 'beyondtrust-axi') fields += `<label><input type="checkbox" role="switch" name="allowDeletes" data-type="boolean"${(tool.nativeSettings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes ? ' checked' : ''}> Allow deletes</label><p>Deletes also require selected exact operations and both native confirmations.</p>`
       if (writes.supportedOperations) {
         fields += `<fieldset><legend>Allowed write operations</legend><p>Select the operations to allow from the pinned catalogue. At least one is required to turn writes on. Unselected operations stay blocked.</p>${writes.supportedOperations.map(operation => `<label><input type="checkbox" name="operations" data-type="array" value="${escape(operation)}"${writes.allowedOperations.includes(operation) ? ' checked' : ''}> <code>${escape(operation)}</code></label>`).join('')}</fieldset>`
         if (writes.allowedOperations.some(operation => !writes.supportedOperations!.includes(operation))) fields += '<p role="alert">The saved allow-list contains operations outside the pinned catalogue. Saving write access removes those unsupported entries.</p>'
