@@ -89,6 +89,50 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
   })
 })
 
+test('security: failure diagnostics appear only in administrator row details, never audit exports or streams', async () => {
+  const lines: string[] = []
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const audit = new Audit(db, () => now, line => { lines.push(line) })
+  const terminal = { userId, tool: 'falcon-axi' as const, clientAddress: null, event: 'run-terminal' as const,
+    outcome: 'completed' as const, exitCode: 1, durationMs: 1, outputBytes: { stdout: 0, stderr: 40 } }
+  audit.record({ ...terminal, requestId: 'safe-failure', failure: {
+    diagnostic: { stage: 'tool run', message: '<script>Synthetic private failure</script>' }, secrets: [password] } })
+  audit.record({ ...terminal, requestId: 'secret-failure', failure: {
+    diagnostic: { stage: 'tool run', message: password }, secrets: [password] } })
+  expect(JSON.stringify(db.prepare('SELECT * FROM run_diagnostics').all())).not.toContain(password)
+  const anonymous = await request('GET', '/admin/audit')
+  expect(anonymous.statusCode).toBe(303)
+  expect(anonymous.body).not.toContain('Synthetic private failure')
+  await signIn()
+  const page = await request('GET', '/admin/audit')
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('Failure diagnostic')
+  expect(page.body).toContain('&lt;script&gt;Synthetic private failure&lt;/script&gt;')
+  expect(page.body).not.toContain(password)
+  for (const path of ['/v1/admin/audit', '/v1/admin/audit/export?format=jsonl', '/v1/admin/audit/export?format=csv']) {
+    const response = await request('GET', path)
+    expect(response.statusCode).toBe(200)
+    expect(response.body).not.toContain('Synthetic private failure')
+    expect(response.body).not.toContain(password)
+  }
+  expect(lines.join('')).not.toContain('Synthetic private failure')
+  expect(lines.join('')).not.toContain(password)
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain(password)
+  now += 14 * 24 * 60 * 60 * 1000
+  expect((await request('GET', '/admin/audit')).body).not.toContain('Synthetic private failure')
+})
+
+test('security: an authenticated non-administrator cannot read retained failure diagnostics', async () => {
+  new Audit(db).record({ userId, tool: 'falcon-axi', requestId: 'private-failure', clientAddress: null,
+    event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1, outputBytes: { stdout: 0, stderr: 1 },
+    failure: { diagnostic: { stage: 'tool run', message: 'Synthetic private failure' }, secrets: [] } })
+  await signIn()
+  db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
+  const response = await request('GET', '/admin/audit')
+  expect(response.statusCode).toBe(403)
+  expect(response.body).not.toContain('Synthetic private failure')
+})
+
 test('browser sign-in creates an opaque secure server session and sign-out revokes it with audit', async () => {
   const response = await signIn()
   expect(response.headers.location).toBe('/admin')

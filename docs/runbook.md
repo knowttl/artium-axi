@@ -371,10 +371,14 @@ These details appear in managed command output and credential-test diagnostics; 
 Inspect the message and hint, then check the service endpoint and API compatibility.
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
-Cached diagnostic text is held only in server memory; after a restart, rerun Test credential for the detail accompanying a persisted category.
+Cached credential-test and health-check diagnostic text is held only in server memory; after a restart, rerun Test credential for the detail accompanying a persisted category.
 The browser temporarily holds the save-and-test result in session storage to display it after reloading the tool page.
 After upgrading, cached categories removed from the error catalogue are ignored; rerun Test credential for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
+Failed tool runs separately retain the existing exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
+The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal audit row's details at `/admin/audit`; it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
+Diagnostics containing a known secret are discarded in full; exact-value scanning cannot identify unknown upstream-minted tokens or all sensitive data.
+Expired diagnostics are hidden immediately and removed by startup and daily retention; protect database backups separately because retention does not rewrite existing backups.
 Ordinary users receive catalogue categories without this administrator detail.
 For local accounts, start with `POST /v1/auth/login`, with JSON `{ "username": "synthetic-admin", "password": "<password>" }` supplied from protected stdin or a protected file, never command arguments.
 Require an `authenticated` response; a `password-change-required` response must complete the password-change flow first.

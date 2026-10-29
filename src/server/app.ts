@@ -240,7 +240,7 @@ export function createApp(options: {
   registerUsersPage(app, db)
   registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
-  registerAuditPage(app, db)
+  registerAuditPage(app, db, audit)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)

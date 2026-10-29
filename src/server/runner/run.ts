@@ -4,13 +4,13 @@ import { runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
-import type { Audit } from '../audit/audit.js'
+import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessToken } from '../auth/tokens.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult } from './runner.js'
-import { toolFailureCode } from '../health/diagnostic.js'
+import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
@@ -57,6 +57,7 @@ export async function runTool<Credential>(
     audit.record({ ...identity, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args) })
     let write: PreparedCall['write']
     let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
+    let failure: Extract<AuditEvent, { event: 'run-terminal' }>['failure']
     try {
       const reference = await resolver.resolve(userId, adapter.name)
       const prepared = await adapter.prepare(args, reference, input)
@@ -76,6 +77,10 @@ export async function runTool<Credential>(
           prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
       })
+      if (result.exitCode !== 0) failure = {
+        diagnostic: toolFailure(result.stdout, result.stderr, result.exitCode, adapter.name).diagnostic,
+        secrets: prepared.secrets,
+      }
       result = hostedStatus(adapter.name, prepared.invocation, result)
       if (journal.auditId && result.exitCode !== 0 && !toolFailureCode(result.stdout, result.stderr)) {
         result = unknownWriteResult(await journal.auditId(), result.durationMs, result.outputBytes)
@@ -97,7 +102,7 @@ export async function runTool<Credential>(
         audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
           outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
           durationMs: runnerError?.durationMs ?? Date.now() - started,
-          outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 } })
+          outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }, failure })
         throw error
       }
     }
@@ -107,7 +112,7 @@ export async function runTool<Credential>(
       outcome, exitCode: result.exitCode,
       nativeAuditId: await journal?.auditId?.(),
       errorCode,
-      durationMs: result.durationMs, outputBytes: result.outputBytes })
+      durationMs: result.durationMs, outputBytes: result.outputBytes, failure })
     return result
   })
 }

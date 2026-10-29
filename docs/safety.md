@@ -145,5 +145,8 @@ Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; pass
 
 Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
 Audit excludes injected credentials, request bodies, stdin, uploads and output streams.
+For failed tool runs, a separate administrator-only table retains the existing bounded, exact-secret-scanned diagnostic for 14 days, with a 4 KiB serialized JSON ceiling.
+Only administrator audit row details show this text; the audit API, exports, stream and operational logs exclude it.
+Known-secret matches discard the entire diagnostic; retained text can still contain sensitive context or unknown tokens, so protect the data volume and backups.
 The runner scans known secret encodings and discards output on a match; unknown upstream-minted tokens cannot be identified by exact-value scanning.
 Its restricted environment, private directories and process limits are not a complete sandbox; descendants starting a new session can escape process-group termination.

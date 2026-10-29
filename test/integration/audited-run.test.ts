@@ -150,6 +150,28 @@ test('a successful run leaves error_code empty', async () => {
   await runTool(db, audit, runner, token, { args: ['exit', '0'] }, adapter, resolver, context)
   expect(db.prepare("SELECT * FROM audit WHERE event = 'run-terminal'").get())
     .toMatchObject({ exit_code: 0, error_code: null })
+  expect(db.prepare('SELECT * FROM run_diagnostics').all()).toEqual([])
+})
+
+test('a failed run retains its safe diagnostic separately from audit and logs', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const result = await runTool(db, audit, runner, token, { args: ['tool-failure', 'PERMISSION_DENIED'] }, adapter, resolver, context)
+  const row = db.prepare('SELECT * FROM run_diagnostics').get() as { request_id: string, diagnostic: string }
+  expect(row.request_id).toBe(context.requestId)
+  expect(JSON.parse(row.diagnostic)).toMatchObject({ stage: 'authentication', message: result.stderr.trim(), toolCode: 'PERMISSION_DENIED' })
+  expect(lines.join('')).not.toContain('CANARY-failure-message')
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY-failure-message')
+})
+
+test('security: a planted secret in a failed result never reaches diagnostics, audit or logs', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  vi.spyOn(runner, 'run').mockResolvedValueOnce({ stdout: '', stderr: 'CANARY-secret', exitCode: 1,
+    durationMs: 1, outputBytes: { stdout: 0, stderr: 13 }, timedOut: false, truncated: { stdout: false, stderr: false } })
+  await runTool(db, audit, runner, token, { args: ['exit', '1'] }, adapter, resolver, context)
+  expect(db.prepare('SELECT * FROM run_diagnostics').all()).toEqual([])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-secret')
+  expect(lines.join('')).not.toContain('CANARY-secret')
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY-secret')
 })
 
 test.each([
