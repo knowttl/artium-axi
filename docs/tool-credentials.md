@@ -68,16 +68,7 @@ Local fake-only evidence does not establish live permissions or response contrac
 The owner commissions all capabilities together through Artium after the build, including token shape/lifetime, permissions, scopes and email/ZIP hash availability.
 `AUTH_SHAPE_UNVERIFIED` requires owner commissioning; it is not an empty result or a successful credential test.
 
-`email search` and `event list` accept read-only `--expand`, off by default, to add show details to returned rows.
-`--expand-limit` caps detail attempts (default 5, range 1-8), and `--expand-requests` caps total HTTP requests including authentication, list pages and retries (default 10, range 2-10); both require `--expand`.
-Expansion shares the native 60-second and 8 MiB transport budgets with listing; inspect `expansion.complete` and `expansion.notExpanded` for partial results.
-Use `artium-axi checkpoint-axi task show <id> --wait --timeout 30` for read-only polling of an existing task.
-`--timeout` is required with `--wait` (integer seconds, 1-60); `--poll-interval` defaults to 2 seconds (1-10), and `--wait-requests` defaults to 10 total HTTP requests including authentication and retries (2-10).
-All wait limit flags require `--wait`.
-Inspect `wait.terminal` and `wait.reason` even on exit 0; a timeout or budget stop can return the last non-terminal snapshot.
-Use `--timeout 50` or less to leave startup and output time within Artium's unchanged 60-second runner limit.
-A native 60-second wait may be cut off with `TIMEOUT` before its final snapshot returns; read `task show` again rather than resubmitting an action.
-The client request deadline remains 90 seconds.
+See the [Check Point command reference](commands.md#check-point-email-security) for detail expansion and bounded task waiting.
 
 Every write and download defaults off behind the administrator write switch and exact operation allow-list.
 The [reviewed inventory](../tools/inventories/checkpoint-axi.json) owns static operation IDs.
