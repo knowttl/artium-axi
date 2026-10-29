@@ -18,7 +18,7 @@ export interface TrustedCaBundle {
 }
 
 export function loadTrustedCa(environment: NodeJS.ProcessEnv = process.env,
-  warn: (code: 'CA_EXPIRED' | 'CA_EXPIRING') => void = code => log('warn', 'trusted-ca', { code }), now = Date.now()): TrustedCaBundle | undefined {
+  warn: (code: 'CA_EXPIRED' | 'CA_EXPIRING', fingerprint: string) => void = (code, fingerprint) => log('warn', 'trusted-ca', { code, fingerprint }), now = Date.now()): TrustedCaBundle | undefined {
   const file = environment.ARTIUM_AXI_EXTRA_CA_FILE
   if (file === undefined) return
   const refuse = (reason: string): never => {
@@ -40,7 +40,7 @@ export function loadTrustedCa(environment: NodeJS.ProcessEnv = process.env,
     catch { return refuse('contains a malformed certificate') }
     const expiry = Date.parse(certificate.validTo)
     if (expiry <= now + 30 * 24 * 60 * 60 * 1000) {
-      warn(expiry <= now ? 'CA_EXPIRED' : 'CA_EXPIRING')
+      warn(expiry <= now ? 'CA_EXPIRED' : 'CA_EXPIRING', certificate.fingerprint256)
     }
     return { subject: certificateSubject(certificate), issuer: certificate.issuer ?? '(no issuer)',
       expiresAt: new Date(expiry).toISOString(), fingerprint: certificate.fingerprint256 }

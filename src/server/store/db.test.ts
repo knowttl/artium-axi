@@ -9,6 +9,7 @@ import { decryptCredential, encryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
 import { createCredentialStore, migrate, openStore } from './db.js'
 import { EnvironmentKeyProvider, saveMasterKey } from './key-provider.js'
+import { errorDiagnostic } from '../error-diagnostic.js'
 
 let directory: string
 let file: string
@@ -111,6 +112,21 @@ it('refuses startup with a different valid master key', () => {
   seed()
   const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
   expect(() => openStore(file, wrong)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID' }))
+})
+
+it.each(['metadata', 'rotation'])('startup diagnostics retain the required key ID from %s', source => {
+  const db = openStore(file, provider)
+  if (source === 'rotation') {
+    db.prepare('INSERT INTO key_rotations (old_key_id, new_key_id) VALUES (?, ?)').run('synthetic-old-key', key.id)
+    db.exec('DELETE FROM store_metadata')
+  }
+  db.close()
+  const wrong = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
+  let failure: unknown
+  try { openStore(file, wrong).close() } catch (error) { failure = error }
+  expect(failure).toMatchObject({ code: 'MASTER_KEY_INVALID' })
+  expect(errorDiagnostic(failure)).toEqual({ requiredKeyId: key.id })
+  expect(JSON.stringify(errorDiagnostic(failure))).not.toContain(bytes.toString('base64'))
 })
 
 it('binds an unconfigured store to its creation key', () => {

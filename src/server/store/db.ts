@@ -5,7 +5,7 @@ import Database from 'better-sqlite3'
 import { randomUUID, X509Certificate } from 'node:crypto'
 import { decryptCredential, encryptCredential } from './crypto.js'
 import type { EncryptedCredential } from './crypto.js'
-import { EnvironmentKeyProvider } from './key-provider.js'
+import { EnvironmentKeyProvider, MasterKeyMismatch } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialStore, MutableCredentialStore } from './credential-store.js'
@@ -162,10 +162,10 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
       const metadata = db.prepare('SELECT master_key_id FROM store_metadata WHERE id = 1').get() as { master_key_id: string } | undefined
       const rotation = db.prepare('SELECT new_key_id FROM key_rotations ORDER BY rowid DESC LIMIT 1').get() as { new_key_id: string } | undefined
       if (metadata && metadata.master_key_id !== key.id) {
-        throw new ArtiumError('MASTER_KEY_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${metadata.master_key_id}.`)
+        throw new MasterKeyMismatch(metadata.master_key_id)
       }
       if (rotation && rotation.new_key_id !== key.id) {
-        throw new ArtiumError('MASTER_KEY_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${rotation.new_key_id}.`)
+        throw new MasterKeyMismatch(rotation.new_key_id)
       }
       const rows = db.prepare('SELECT * FROM credentials UNION ALL SELECT * FROM provider_credentials').all() as EncryptedCredential[]
       if (!metadata && existingStore && !rotation && rows.length === 0) throw new ArtiumError('MASTER_KEY_INVALID')

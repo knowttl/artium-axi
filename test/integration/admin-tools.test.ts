@@ -1735,6 +1735,18 @@ test('manual test rejects caller-selected arguments before credential retrieval'
   expect(read).not.toHaveBeenCalled()
   expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
 })
+test.each([0, 7])('credential test logs exactly one correlated run for exit %s', async exitCode => {
+  await replace('falcon-axi')
+  vi.spyOn(runner, 'run').mockResolvedValueOnce({ stdout: 'CANARY-private-output', stderr: '', exitCode,
+    durationMs: 1, outputBytes: { stdout: 21, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } })
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const response = await request('POST', '/falcon-axi/test', {})
+  expect(response.status).toBe(exitCode === 0 ? 200 : errors.TOOL_FAILED.status)
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', tool: 'falcon-axi', requestId: response.headers.get('x-artium-request-id'), exitCode }),
+  ])
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
 test('manual tests share the administrator two-call quota and release it after completion', async () => {
   await replace('falcon-axi')
   expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
@@ -1812,7 +1824,13 @@ test.each(['SECRET_IN_OUTPUT', 'TIMEOUT', 'OUTPUT_LIMIT'] as const)('manual test
   error.durationMs = 17.25
   error.outputBytes = { stdout: 12, stderr: 34 }
   vi.spyOn(runner, 'run').mockRejectedValueOnce(error)
-  await failure(await request('POST', '/falcon-axi/test', {}), code)
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const response = await request('POST', '/falcon-axi/test', {})
+  await failure(response, code)
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', tool: 'falcon-axi', requestId: response.headers.get('x-artium-request-id'),
+      outcome: code, exitCode: null, durationMs: 17.25, stdoutBytes: 12, stderrBytes: 34 }),
+  ])
   expect(db.prepare("SELECT outcome, duration_ms, stdout_bytes, stderr_bytes FROM audit WHERE event = 'run-terminal' AND user_id IS NOT NULL").get())
     .toEqual({ outcome: code, duration_ms: 17, stdout_bytes: 12, stderr_bytes: 34 })
 })

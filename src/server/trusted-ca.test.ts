@@ -62,10 +62,16 @@ test('loads every certificate and exposes metadata without PEM contents', () => 
 test.each([
   ['2099-12-02T00:00:00Z', 'CA_EXPIRING'],
   ['2100-01-01T00:00:00Z', 'CA_EXPIRED'],
-])('warns about certificate expiry at %s using only a fixed code', (now, code) => {
-  const warnings: string[] = []
-  loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }, warning => warnings.push(warning), Date.parse(now))
-  expect(warnings).toEqual([code])
+])('warns about certificate expiry at %s with its fingerprint', (now, code) => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  try {
+    loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }, undefined, Date.parse(now))
+    expect(stderr.mock.calls).toHaveLength(1)
+    expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+      event: 'trusted-ca', code, fingerprint: new X509Certificate(pem).fingerprint256,
+    })
+    expect(JSON.stringify(stderr.mock.calls)).not.toContain('BEGIN CERTIFICATE')
+  } finally { stderr.mockRestore() }
 })
 
 test('server global fetch honors the installed additional default CAs', async () => {
