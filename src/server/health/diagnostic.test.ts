@@ -70,6 +70,8 @@ test.each(['message', 'issuer'] as const)('retains structured context when %s ex
 
 test.each([
   ['API_RESPONSE_INVALID', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['AUTH_RESPONSE_INVALID', 'Token response does not match the documented schema', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['AUTH_RESPONSE_INVALID', 'Unexpected response with dnsHostName sessionTimeout unauthorizedCount', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['RESPONSE_INVALID', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['MALFORMED_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['INVALID_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],

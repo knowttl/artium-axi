@@ -54,8 +54,8 @@ export async function doctor(createClient = (deadline: number) => new Client(pro
       for (const tool of parsed.data.tools) {
         // A re-check is already scheduled after a configuration change; it is pending, not a failure.
         if (tool.status === 'checking') { write(`pass: ${tool.name} (checking)\n`); continue }
-        line(tool.name, tool.status === 'ok', tool.status,
-          new ArtiumError(tool.status === 'unconfigured' ? 'CREDENTIAL_NOT_CONFIGURED' : tool.status === 'error' ? 'TOOL_FAILED' : tool.status === 'disabled' ? 'TOOL_DISABLED' : 'SERVER_UNAVAILABLE'))
+        line(tool.name, tool.status === 'ok', tool.status === 'error' && tool.errorCode ? `${tool.status}: ${tool.errorCode}` : tool.status,
+          new ArtiumError(tool.status === 'unconfigured' ? 'CREDENTIAL_NOT_CONFIGURED' : tool.status === 'error' ? tool.errorCode ?? 'TOOL_FAILED' : tool.status === 'disabled' ? 'TOOL_DISABLED' : 'SERVER_UNAVAILABLE'))
       }
     } catch (error) {
       const cause = error instanceof ArtiumError ? error : new ArtiumError('INVALID_RESPONSE')

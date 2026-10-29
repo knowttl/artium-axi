@@ -15,7 +15,7 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi whoami` | Show identity, roles, session expiry and server. |
 | `artium-axi tools` | List granted enabled tools with status and pinned versions. |
 | `artium-axi tools show <tool>` | Show one available tool, vetted upstream help and a first call. |
-| `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health. |
+| `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health, including the server's category for each failed tool. |
 | `artium-axi update` | Download and verify the server client, replace this file and retain a .bak backup; npm installs use npm instead. |
 | `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled Hybrid Analysis archives, Check Point emails/attachments, Graph mail exports or BeyondTrust endpoint content; see `artium-axi download --help` for guards. |
 | `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and an optional Claude Code hook. |

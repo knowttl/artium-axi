@@ -147,14 +147,16 @@ export function createApp(options: {
   }
   app.get('/v1/tools', async request => {
     const tools = grantedAdapters(request.headers.authorization).map(adapter => {
-      const row = db.prepare(`SELECT native_settings AS nativeSettings, EXISTS(SELECT 1 FROM credentials WHERE tool = tools.name) AS configured,
-        (SELECT status FROM tool_health JOIN credentials ON credentials.tool = tool_health.tool
-          AND credentials.revision = tool_health.credential_revision WHERE tool_health.tool = tools.name) AS health
-        FROM tools WHERE name = ?`).get(adapter.name) as { nativeSettings: string, configured: number, health: 'ok' | 'error' | null }
+      const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured,
+        tool_health.status AS health, tool_health.error_code AS errorCode
+        FROM tools LEFT JOIN credentials ON credentials.tool = tools.name
+        LEFT JOIN tool_health ON tool_health.tool = tools.name AND tool_health.credential_revision = credentials.revision
+        WHERE tools.name = ?`).get(adapter.name) as { nativeSettings: string, configured: number | null, health: 'ok' | 'error' | null, errorCode: string | null }
       const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
       const configured = Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
       return { name: adapter.name, version: toolManifests[adapter.name].version,
-        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured' }
+        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
+        ...(configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
     })
     return toolsResponseSchema.parse({ tools })
   })

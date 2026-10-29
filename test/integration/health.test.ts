@@ -378,14 +378,16 @@ test.each(['disabled', 'unconfigured'] as const)('scheduled checks skip %s tools
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
 })
 
-test('listing reads a failed stored check without preparing or running a platform call', async () => {
-  const run = vi.spyOn(runner, 'run').mockResolvedValue({ ...result, exitCode: 1 })
+test('listing preserves an invalid token response category without running a platform call', async () => {
+  const run = vi.spyOn(runner, 'run').mockResolvedValue({ ...result, exitCode: 1,
+    stdout: 'code: AUTH_RESPONSE_INVALID\nmessage: Token response does not match the documented schema' })
   await health.refresh('falcon-axi')
   expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
   run.mockClear()
   const prepare = vi.spyOn(adapter, 'prepare')
   const response = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${token}` } })
-  expect(response.json()).toMatchObject({ tools: [{ name: 'falcon-axi', status: 'error' }] })
+  expect(response.json()).toMatchObject({ tools: [{ name: 'falcon-axi', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' }] })
+  expect(response.body).not.toContain('Token response')
   expect(prepare).not.toHaveBeenCalled()
   expect(run).not.toHaveBeenCalled()
 })
