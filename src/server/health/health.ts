@@ -202,9 +202,10 @@ export class ToolHealth {
         if (!background) await preflight(tool, credential, credentialTrust)
         const prepared = await adapter.prepare(args, reference)
         secrets.push(...prepared.secrets)
-        journal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
+        const preparedJournal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
+        journal = preparedJournal
         // Per-tool accounting leaves background reads governed by the global slots.
-        let result = await logRun({ requestId, tool }, () => runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
+        let result = await logRun({ requestId, tool }, () => runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, preparedJournal.environment, prepared.secrets,
           { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
             authorize?.()
             if (background && this.required.get(tool) !== reference.revision

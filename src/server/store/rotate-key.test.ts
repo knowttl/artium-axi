@@ -162,7 +162,10 @@ test('a running real server blocks rotation and releases maintenance after a cra
   try {
     const refused = spawnSync(process.execPath, [entry], { env: environment, encoding: 'utf8', timeout: 10_000 })
     expect(refused.status).toBe(1)
-    expect(JSON.parse(refused.stderr).error.code).toBe('MAINTENANCE_BUSY')
+    expect(refused.stderr.trim().split('\n').map(line => JSON.parse(line))).toEqual([
+      expect.objectContaining({ level: 'info', event: 'startup' }),
+      expect.objectContaining({ level: 'error', event: 'startup', code: 'MAINTENANCE_BUSY' }),
+    ])
   } finally { release() }
   const child = spawn(process.execPath, [entry], { env: environment })
   const closed = once(child, 'close')

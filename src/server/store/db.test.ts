@@ -125,7 +125,7 @@ it.each(['metadata', 'rotation'])('startup diagnostics retain the required key I
   let failure: unknown
   try { openStore(file, wrong).close() } catch (error) { failure = error }
   expect(failure).toMatchObject({ code: 'MASTER_KEY_INVALID' })
-  expect(errorDiagnostic(failure)).toEqual({ requiredKeyId: key.id })
+  expect(errorDiagnostic(failure)).toMatchObject({ requiredKeyId: key.id })
   expect(JSON.stringify(errorDiagnostic(failure))).not.toContain(bytes.toString('base64'))
 })
 
