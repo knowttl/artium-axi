@@ -35,3 +35,5 @@ Tool reference links describe upstream commands; Artium controls availability, c
 
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
 The [full client reference](client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
+GitHub PR details support field selection, for example `artium-axi gh-axi pr view 42 -R OWNER/NAME --fields number,title,mergeStateStatus,body`.
+The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
