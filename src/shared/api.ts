@@ -576,6 +576,7 @@ export const toolsResponseSchema = z.strictObject({
     version: z.string(),
     readOnly: z.boolean().default(true),
     status: z.enum(['unconfigured', 'unknown', 'checking', 'ok', 'error', 'disabled']),
+    errorCode: healthSchema.shape.errorCode.optional(),
   })),
 })
 export const inputFileSchema = z.strictObject({

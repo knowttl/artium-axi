@@ -364,7 +364,7 @@ For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspecti
 Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
-Tool codes `API_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE` and `INVALID_RESPONSE` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
+Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE` and `INVALID_RESPONSE` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
 For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType` and a bounded `shape` report containing JSON paths and value types, never response values.
 `shapeTruncated` indicates that the shape report reached a native reporting limit; administrator diagnostic text remains subject to the host limits below.
 These details appear in managed command output and credential-test diagnostics; audit records retain the error code without the shape report.

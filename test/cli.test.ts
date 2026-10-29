@@ -1224,6 +1224,28 @@ test.each([
   } finally { doctorResponses = undefined }
 })
 
+test('doctor shows the server category for every unhealthy tool without diagnostic text', async () => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [
+      { name: 'falcon-axi', version: '0.8.2', status: 'ok' },
+      { name: 'beyondtrust-axi', version: '0.1.2', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
+      { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED' },
+    ] } },
+  }
+  try {
+    const result = await cli(['doctor'])
+    expect(result).toMatchObject({ code: 1, stderr: '' })
+    expect(result.stdout).toContain('pass: falcon-axi (ok)\n')
+    expect(result.stdout).toContain('fail: beyondtrust-axi (error: UPSTREAM_RESPONSE_INVALID)\n')
+    expect(result.stdout).toContain('fail: vectra-axi (error: UPSTREAM_TLS_FAILED)\n')
+    expect(result.stdout).toContain('error:\n  code: "UPSTREAM_RESPONSE_INVALID"\n')
+    expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.UPSTREAM_RESPONSE_INVALID.next)}\n`)
+  } finally { doctorResponses = undefined }
+})
+
 test('doctor reports checking health as pending, not a failure', async () => {
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
@@ -1237,13 +1259,17 @@ test('doctor reports checking health as pending, not a failure', async () => {
   } finally { doctorResponses = undefined }
 })
 
-test.each(['/v1/me', '/v1/tools'])('doctor rejects a malformed %s response through the catalogue', async path => {
+test.each([
+  { path: '/v1/me', body: {}, raw: undefined },
+  { path: '/v1/tools', body: {}, raw: undefined },
+  { path: '/v1/tools', body: undefined, raw: '<html>CANARY-login-page</html>' },
+])('doctor rejects a malformed $path response through the catalogue', async ({ path, body, raw }) => {
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [] } },
-    [path]: { status: 200, body: {} },
+    [path]: { status: 200, body, raw },
   }
   try {
     const result = await cli(['doctor'])
@@ -1251,6 +1277,7 @@ test.each(['/v1/me', '/v1/tools'])('doctor rejects a malformed %s response throu
     expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.INVALID_RESPONSE.message)}\n`)
     expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.INVALID_RESPONSE.next)}\n`)
     expect(result.stdout).not.toContain('requestId:')
+    expect(result.stdout).not.toContain('CANARY-login-page')
   } finally { doctorResponses = undefined }
 })
 
