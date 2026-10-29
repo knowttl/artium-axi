@@ -238,6 +238,7 @@ export class CredentialProfile {
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
     const environment: Record<string, string> = {}
+    if (tool === 'beyondtrust-axi') environment.BEYONDTRUST_AXI_CONFIG = '/proc/self/cwd/beyondtrust-axi/config.json'
     const secrets: string[] = []
     for (const path of parsed.paths) {
       const { parent, key } = this.location(parsed.value, path)

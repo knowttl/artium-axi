@@ -28,11 +28,13 @@ export function beyondtrustResponse(req, res, url, requests, mutate) {
     req.on('end', () => { record.body = body; mutate(); res.end(JSON.stringify(resourceId)) })
     return
   }
-  if (url.pathname === '/management-api/v3/About') { res.end(JSON.stringify({ version: '3' })); return }
+  if (url.pathname === '/management-api/v3/About') { res.end(JSON.stringify([{ consoleVersion: '3', reportingDatabaseVersion: '3', policyEditorVersion: '3' }])); return }
   if (url.pathname === '/management-api/v3/Computers') {
     const size = Number(url.searchParams.get('Pagination.PageSize') ?? 50)
+    const page = Number(url.searchParams.get('Pagination.PageNumber') ?? 1)
     const count = url.searchParams.get('Filter.Host') === 'fleet' ? 1001 : 1
-    res.end(JSON.stringify({ pageNumber: 1, pageSize: size, totalRecordCount: count, pageCount: Math.ceil(count / size), data: Array.from({ length: Math.min(size, count) }, () => computer) })); return
+    const length = Math.max(0, Math.min(size, count - (page - 1) * size))
+    res.end(JSON.stringify({ pageNumber: page, pageSize: size, totalRecordCount: count, pageCount: Math.ceil(count / size), data: Array.from({ length }, () => computer) })); return
   }
   if (url.pathname === '/management-api/v3/Computers/' + resourceId) { res.end(JSON.stringify(computer)); return }
   if (url.pathname === '/management-api/v3/Groups/' + resourceId) { res.end(JSON.stringify({ id: resourceId, name: 'example' })); return }

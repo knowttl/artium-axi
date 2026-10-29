@@ -107,6 +107,40 @@ async function withBeyondtrust(check: (fixture: {
 }
 
 const id = '11111111-1111-4111-8111-111111111111'
+test('managed cursor resumes across isolated calls', async () => {
+  await withBeyondtrust(async ({ run }) => {
+    const args = ['computer', 'list', '--host', 'fleet', '--limit', '1']
+    const first = await run(args)
+    expect(first.exitCode, first.stdout).toBe(0)
+    const { cursor } = decode(first.stdout) as { cursor: string }
+    expect(cursor).toEqual(expect.any(String))
+    const next = await run([...args, '--cursor', cursor])
+    expect(next.exitCode, next.stdout).toBe(0)
+    expect(decode(next.stdout)).toMatchObject({ count: 1, total: 1001 })
+  })
+})
+test('managed doctor and about accept the fake version records', async () => {
+  await withBeyondtrust(async ({ run }) => {
+    const doctor = await run(['doctor'])
+    expect(doctor.exitCode, doctor.stdout).toBe(0)
+    expect(decode(doctor.stdout)).toMatchObject({ authentication: 'verified for this run' })
+    const about = await run(['about'])
+    expect(about.exitCode, about.stdout).toBe(0)
+    expect(decode(about.stdout)).toMatchObject({ versions: [{ consoleVersion: '3', reportingDatabaseVersion: '3', policyEditorVersion: '3' }] })
+  })
+})
+test('managed all reads span pages and resume the final partial page', async () => {
+  await withBeyondtrust(async ({ run }) => {
+    const args = ['computer', 'list', '--host', 'fleet']
+    const first = await run([...args, '--all'])
+    expect(first.exitCode, first.stdout).toBe(0)
+    const value = decode(first.stdout) as { count: number, total: number, cursor: string }
+    expect(value).toMatchObject({ count: 1000, total: 1001 })
+    const last = await run([...args, '--all', '--cursor', value.cursor])
+    expect(last.exitCode, last.stdout).toBe(0)
+    expect(decode(last.stdout)).toMatchObject({ count: 1, total: 1001, cursor: null })
+  })
+})
 test('managed published CLI reads, previews, confirms and journals a single mutation', async () => {
   await withBeyondtrust(async ({ run, enable, evidence, db }) => {
     expect((await run(['computer', 'list', '--limit=1'])).stdout).toContain('example')
