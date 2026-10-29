@@ -370,6 +370,5 @@ Managed public output is buffered and scanned against supplied, newly issued and
 SSO approval instructions are displayed before session issuance; managed password input and the private SSO device code are also checked against buffered output.
 Archive-saving warnings, identity approval instructions and pre-execution notices are scanned and displayed immediately so the caller can review them before execution; final save output remains buffered.
 
-Exit codes are 0 for success, 2 for invalid input, client configuration or private channels and refused commands, and 1 for authentication, server-binding, transport or output-scanning failures.
-Tool exit codes pass through as usual.
+See the [README output contract](../README.md#toon-output-and-errors) for exit codes and upstream output handling.
 Missing or closed descriptors, invalid JSON and mismatched server bindings fail before network access; no failure falls back to a session file.
