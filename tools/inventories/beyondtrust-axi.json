@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/beyondtrust-inventory.mjs",
   "tool": "beyondtrust-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-B5Nc4eOIaAlceGRE8FfPbUMuwnedlKfzBYjGeozjqmAD1LVHYJBspQXiJuj7fCtOlUd9ea/axisM3RH82A6Wjg==",
+  "version": "0.1.2",
+  "integrity": "sha512-lGgExKOI6yDiJcAr1IYwIeP0dvjmHpChcjPmmR7G1dqNOEwldFt2BcflYyFpYvFJFUSULMcsE03MstU/KQA0sA==",
   "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
   "sources": [
     {
@@ -11,7 +11,7 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "3fc44bbbba5bb266e40b13e77d0bb61f356b169f9a67e69cec4ca65fe4919d03"
+      "sha256": "cefc061c673d2e352edd9a65ed712f87f43ae9036ee5134e0d5757e3f13bcf1c"
     },
     {
       "path": "dist/src/computer-writes.js",
@@ -58,8 +58,12 @@
       "sha256": "28774772d3f2720324ffa8bf77580bcca0c922f2496d4d426de3922543680713"
     },
     {
+      "path": "dist/src/response-diagnostics.js",
+      "sha256": "7eb7cf248439922ae9c4c20cde155bd6dd4b10d745a8bcd8546c49392e56929a"
+    },
+    {
       "path": "dist/src/transport.js",
-      "sha256": "9f2d93ffc01016d32782ad183580ecbaa9c5c799c1c5b559de2c829d83bdeb7a"
+      "sha256": "6cd1d8072d37863dc9e0613d9222a7a7b4bd27a2139dd2f8d6491e435eff37c2"
     },
     {
       "path": "dist/src/windows-download.js",
@@ -176,7 +180,7 @@
       }
     }
   },
-  "skillSha256": "7fed424c9547defcf4f9d2920358bd5f26a60b12aa46b817e7126053de36c881",
+  "skillSha256": "9a81f665262f4e3fb473f193948c0327f1bc114f3e64fe41337c027df433afbb",
   "nativeWriteSettings": {
     "supportedOperations": [
       "admin-request.create",

@@ -15,8 +15,8 @@ importers:
         specifier: 0.1.14
         version: 0.1.14
       '@knowttl/beyondtrust-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/checkpoint-axi':
         specifier: 0.1.1
         version: 0.1.1
@@ -69,8 +69,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/beyondtrust-axi@0.1.1':
-    resolution: {integrity: sha512-B5Nc4eOIaAlceGRE8FfPbUMuwnedlKfzBYjGeozjqmAD1LVHYJBspQXiJuj7fCtOlUd9ea/axisM3RH82A6Wjg==}
+  '@knowttl/beyondtrust-axi@0.1.2':
+    resolution: {integrity: sha512-lGgExKOI6yDiJcAr1IYwIeP0dvjmHpChcjPmmR7G1dqNOEwldFt2BcflYyFpYvFJFUSULMcsE03MstU/KQA0sA==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -389,7 +389,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/beyondtrust-axi@0.1.1':
+  '@knowttl/beyondtrust-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

@@ -24,6 +24,7 @@ Downloads require downloads.allow and a new private destination file.
 Never put secrets in argv or contact a live tenant during automated verification.
 Live compatibility, token lifetime, rate limits, download formats and write-result task semantics remain unverified until commissioning through artium-axi.
 See the README quickstart for running the published npm package and CONTRIBUTING.md for release mechanics.
+See the README Troubleshooting section for API_RESPONSE_INVALID diagnostics.
 
 ## computer delete
 

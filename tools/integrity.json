@@ -12,8 +12,8 @@
     "integrity": "sha512-xkVncU3PYUeGFD5vIMp/lT9JAsTsSaCTVF+dEFYye1iSDkjPjuHJDHnZ8BquT3ClHw9bcBWdLAnEtJRPSVimtg=="
   },
   "@knowttl/beyondtrust-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-B5Nc4eOIaAlceGRE8FfPbUMuwnedlKfzBYjGeozjqmAD1LVHYJBspQXiJuj7fCtOlUd9ea/axisM3RH82A6Wjg=="
+    "version": "0.1.2",
+    "integrity": "sha512-lGgExKOI6yDiJcAr1IYwIeP0dvjmHpChcjPmmR7G1dqNOEwldFt2BcflYyFpYvFJFUSULMcsE03MstU/KQA0sA=="
   },
   "@knowttl/hybrid-axi": {
     "version": "0.1.3",
