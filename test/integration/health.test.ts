@@ -116,6 +116,16 @@ test('scheduled checks never overlap a pending check and manual tests share that
   expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
 })
 
+test('a background credential check emits exactly one run with its audit request ID', async () => {
+  vi.spyOn(runner, 'run').mockResolvedValueOnce(result)
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  await health.refresh('falcon-axi')
+  const audit = db.prepare("SELECT request_id FROM audit WHERE event = 'run-terminal'").get() as { request_id: string }
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', requestId: audit.request_id, tool: 'falcon-axi', exitCode: 0 }),
+  ])
+})
+
 test.each([
   { name: 'startup check', retry: false },
   { name: 'transient-failure retry', retry: true },

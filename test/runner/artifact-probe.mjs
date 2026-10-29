@@ -43,9 +43,10 @@ try {
         environment: { ...profile.environment, ARTIUM_TEST_ARTIFACT_BYTES: String(transferLimits.artifactBytes),
           ARTIUM_TEST_RSS_FILE: `/tmp/${id}.rss` }, limits: { timeoutMs: 60_000 } }
     }
-    const preview = await previewNativeArtifact(reservation, runner, prepare, () => {})
+    const context = { requestId: id }
+    const preview = await previewNativeArtifact(reservation, runner, prepare, () => {}, context)
     assert.equal(JSON.parse(await readFile(`/tmp/${id}.rss`, 'utf8')).requests, 0)
-    const archive = await executeNativeArtifact(reservation, runner, prepare, preview.confirm, () => {})
+    const archive = await executeNativeArtifact(reservation, runner, prepare, preview.confirm, () => {}, context)
     assert.equal(archive.archiveBytes, transferLimits.artifactBytes)
     assert.equal(archive.archiveSha256, digest)
     const measurement = JSON.parse(await readFile(`/tmp/${id}.rss`, 'utf8'))

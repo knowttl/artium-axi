@@ -14,6 +14,12 @@ export interface KeyProvider {
   getKey(): MasterKey
 }
 
+export class MasterKeyMismatch extends ArtiumError {
+  constructor(readonly requiredKeyId: string) {
+    super('MASTER_KEY_INVALID', undefined, `Restart with the master key whose SHA-256 ID is ${requiredKeyId}.`)
+  }
+}
+
 export class EnvironmentKeyProvider implements KeyProvider {
   constructor(private readonly environment: NodeJS.ProcessEnv = process.env) {}
 

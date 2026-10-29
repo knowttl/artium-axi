@@ -77,6 +77,7 @@ afterEach(async () => {
 })
 
 test('a run persists a start before secret retrieval and a paired terminal before returning', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
   getCredential.mockImplementationOnce(async () => {
     expect(db.prepare('SELECT event FROM audit').all()).toEqual([{ event: 'run-start' }])
     return { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }
@@ -94,6 +95,35 @@ test('a run persists a start before secret retrieval and a paired terminal befor
   expect(lines.map(line => JSON.parse(line))).toEqual(records)
   expect(lines.join('')).not.toMatch(/CANARY-body|CANARY-file|CANARY-secret|CANARY-client/)
   expect(records[1].arguments).toBeNull()
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toEqual({
+    ts: expect.any(String), level: 'warn', event: 'run', requestId: context.requestId,
+    tool: 'falcon-axi', outcome: 'completed', exitCode: 7, errorCode: null,
+    durationMs: result.durationMs, stdoutBytes: 0, stderrBytes: 0, truncated: false,
+  })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
+
+test('successful calls emit one correlated operational line without tool output', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  await runTool(db, audit, runner, token, { args: ['print', 'CANARY-private-output'] }, adapter, resolver, context)
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+    level: 'info', event: 'run', requestId: context.requestId, outcome: 'completed', exitCode: 0,
+  })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
+
+test('unexpected preparation failure emits one safe operational line', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  getCredential.mockRejectedValueOnce(new Error('CANARY-private-error'))
+  await expect(runTool(db, audit, runner, token, { args: ['print', 'CANARY-argument'] }, adapter, resolver, context))
+    .rejects.toThrow('CANARY-private-error')
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+    event: 'run', requestId: context.requestId, outcome: 'INTERNAL_ERROR', exitCode: null,
+  })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
 })
 
 test('a failed run records only the bounded tool failure code', async () => {
@@ -199,14 +229,78 @@ test('SQLite disk-full failure prevents admission, secret retrieval and child cr
 })
 
 test('terminal persistence failure withholds completed output and leaves an interrupted start', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const run = vi.spyOn(runner, 'run')
   db.exec("CREATE TRIGGER fail_terminal BEFORE INSERT ON audit WHEN NEW.event = 'run-terminal' BEGIN SELECT RAISE(ABORT, 'synthetic full storage'); END")
   await expect(runTool(db, audit, runner, token, { args: ['print', 'synthetic-output'] }, adapter, resolver, context))
     .rejects.toMatchObject({ code: 'AUDIT_UNAVAILABLE' })
   expect(getCredential).toHaveBeenCalledOnce()
+  const execution = await run.mock.results[0].value
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', outcome: 'AUDIT_UNAVAILABLE', exitCode: execution.exitCode,
+      durationMs: execution.durationMs, stdoutBytes: execution.outputBytes.stdout, stderrBytes: execution.outputBytes.stderr,
+      truncated: false }),
+  ])
   expect(db.prepare('SELECT event FROM audit').all()).toEqual([{ event: 'run-start' }])
   db.exec('DROP TRIGGER fail_terminal')
   expect(audit.recoverInterrupted()).toBe(1)
   expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'interrupted' })
+})
+
+test.each([
+  { tool: 'gh-axi' as const, code: 'CREDENTIAL_EXPIRED', truncated: false,
+    invocation: { command: 'issue view', help: false, credentialAuth: 'device' as const, nativeGh: true } },
+  { tool: 'falcon-axi' as const, code: 'INVALID_RESPONSE', truncated: true,
+    invocation: { command: 'home', help: false } },
+])('$code preserves observed execution metadata in one run summary', async ({ tool, code, truncated, invocation }) => {
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  db.prepare('INSERT OR IGNORE INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
+  const executionAdapter = { ...adapter, name: tool, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    return { ...await adapter.prepare(input[0], { ...input[1], tool: 'falcon-axi' }), effect: 'read' as const, invocation }
+  } }
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-credential', tool, revision: 1 }, value: {} },
+  ]))
+  vi.spyOn(runner, 'run').mockResolvedValueOnce({ stdout: 'CANARY-private-output', stderr: 'Bad credentials (HTTP 401)',
+    exitCode: 7, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, timedOut: false,
+    truncated: { stdout: truncated, stderr: false } })
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  await expect(runTool(db, audit, runner, token, { args: ['exit', '7'] }, executionAdapter, identities, context))
+    .rejects.toMatchObject({ code })
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', requestId: context.requestId, outcome: code, exitCode: 7,
+      durationMs: 17.25, stdoutBytes: 12, stderrBytes: 34, truncated }),
+  ])
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
+
+test.each(['nonzero', 'output-limit'] as const)('unknown write response preserves %s execution metadata in one run summary', async interruption => {
+  const tool = 'beyondtrust-axi' as const
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
+  const executionAdapter = { ...adapter, name: tool, async prepare(...input: Parameters<typeof adapter.prepare>) {
+    const prepared = await adapter.prepare(input[0], { ...input[1], tool: 'falcon-axi' })
+    return { ...prepared, effect: 'write' as const,
+      write: { operation: 'synthetic-write', target: 'synthetic-target', checkArgs: ['print', 'synthetic-state'] },
+      environment: { ...prepared.environment, BEYONDTRUST_AXI_WRITE_LOG: join(directory, 'writes.log') } }
+  } }
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-credential', tool, revision: 1 }, value: {} },
+  ]))
+  const run = vi.spyOn(runner, 'run')
+  if (interruption === 'nonzero') run.mockResolvedValueOnce({ stdout: 'CANARY-private-output', stderr: '',
+    exitCode: 7, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, timedOut: false,
+    truncated: { stdout: false, stderr: true } })
+  else run.mockRejectedValueOnce(Object.assign(new RunnerError('OUTPUT_LIMIT', 'CANARY-private-error'),
+    { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, truncated: { stdout: true, stderr: false } }))
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const result = await runTool(db, audit, runner, token, { args: ['exit', '7'] }, executionAdapter, identities, context)
+  expect(result).toMatchObject({ exitCode: 1, truncated: { stdout: false, stderr: false } })
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', requestId: context.requestId, exitCode: interruption === 'nonzero' ? 7 : null,
+      durationMs: 17.25, stdoutBytes: 12, stderrBytes: 34, truncated: true }),
+  ])
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
 })
 
 test('sensitive flag and positional values are redacted in persisted run arguments', async () => {
@@ -287,23 +381,30 @@ test('a classified write ending on a signal records an unknown outcome', async (
   expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'write' })
 })
 
-test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
+test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
   const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
     getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
   ]))
-  const run = vi.spyOn(runner, 'run').mockRejectedValue(Object.assign(new RunnerError(code), { processStarted: true }))
+  const run = vi.spyOn(runner, 'run').mockRejectedValue(Object.assign(new RunnerError(code, 'CANARY-private-error'),
+    { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, truncated: { stdout: true, stderr: false } }))
   const args = ['issue', 'comment', '42', '-R', 'canary/repo', '--body=CANARY-private-comment']
   const preview = await runTool(db, audit, runner, token, { args }, github, identities, context)
   const document = decode(preview.stdout) as { preview: { confirm: string } }
   expect(run).not.toHaveBeenCalled()
   expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
   await expect(runTool(db, audit, runner, token, { args: [...args, '--confirm', document.preview.confirm] }, github, identities,
     { ...context, requestId: 'synthetic-execute' })).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
     next: expect.stringContaining('artium-axi gh-axi issue view 42 --comments -R canary/repo') })
   expect(run).toHaveBeenCalledOnce()
+  expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+    expect.objectContaining({ event: 'run', requestId: 'synthetic-execute', tool: 'gh-axi',
+      outcome: 'UNKNOWN_OUTCOME', exitCode: null, durationMs: 17.25, stdoutBytes: 12, stderrBytes: 34, truncated: true }),
+  ])
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
   expect(db.prepare("SELECT action, outcome FROM audit WHERE event = 'run-terminal' AND request_id = 'synthetic-execute'").get())
     .toEqual({ action: 'unknown', outcome: 'UNKNOWN_OUTCOME' })
   expect(lines.join('')).not.toMatch(/CANARY-github-token|CANARY-private-comment/)

@@ -6,14 +6,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fakeTool } from '../../test/fake-tool/tool.js'
-import { transferLimits } from '../shared/api.js'
+import { transferLimits, transferTool, type TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { ArtifactStore, artifactDefaults } from './artifacts.js'
 import type { ArtifactHostEvidence, ArtifactReservation, NativeArtifactEvidence } from './artifacts.js'
 import { Audit } from './audit/audit.js'
 import { hybridProfile } from './adapters/hybrid.js'
 import { executeNativeArtifact, previewNativeArtifact } from './runner/artifact.js'
-import { Runner } from './runner/runner.js'
+import { Runner, RunnerError } from './runner/runner.js'
 import { migrate } from './store/db.js'
 import { createTransferScope, transferTargetDigest } from './transfer.js'
 
@@ -95,7 +95,7 @@ function native(reservation: ArtifactReservation, variant = 'success', bytes = 2
       ARTIUM_TEST_ARTIFACT_BYTES: String(bytes), ARTIUM_TEST_RSS_FILE: join(fixture, 'rss.json'),
       ARTIUM_TEST_READY_FILE: join(fixture, 'ready.json') },
     limits: { timeoutMs: 60_000 },
-  } }, confirmation, authorize, { signal })
+  } }, confirmation, authorize, { ...context, signal })
 }
 
 async function pinnedNative(reservation: ArtifactReservation, bytes = 257) {
@@ -106,16 +106,25 @@ async function pinnedNative(reservation: ArtifactReservation, bytes = 257) {
       environment: { ...profile.environment, ARTIUM_TEST_ARTIFACT_BYTES: String(bytes), ARTIUM_TEST_RSS_FILE: join(fixture, 'rss.json') },
       limits: { timeoutMs: 60_000 } }
   }
-  const preview = await previewNativeArtifact(reservation, runner, prepare, () => {})
+  const preview = await previewNativeArtifact(reservation, runner, prepare, () => {}, context)
   expect(await readdir(reservation.directory)).toEqual([])
   expect(JSON.parse(await readFile(join(fixture, 'rss.json'), 'utf8')).requests).toBe(0)
   expect(preview.warnings).toContain('Live-malware warning: this artifact may contain executable malware. Save only; do not extract or execute.')
-  return executeNativeArtifact(reservation, runner, prepare, preview.confirm, () => {})
+  return executeNativeArtifact(reservation, runner, prepare, preview.confirm, () => {}, context)
 }
 
 test('native handoff retains opaque binary after call cleanup and audits only complete size/digest', async () => {
   const reservation = await reserve()
-  const archive = await pinnedNative(reservation)
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  let archive: Awaited<ReturnType<typeof pinnedNative>>
+  try {
+    archive = await pinnedNative(reservation)
+    expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+      expect.objectContaining({ event: 'run', requestId: context.requestId, tool: 'hybrid-axi', exitCode: 0 }),
+      expect.objectContaining({ event: 'run', requestId: context.requestId, tool: 'hybrid-axi', exitCode: 0 }),
+    ])
+    expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+  } finally { stderr.mockRestore() }
   const bytes = await readFile(reservation.outputPath)
   expect(bytes).toEqual(Buffer.alloc(257, 0xa5))
   expect(archive).toMatchObject({ archiveBytes: bytes.length, archiveSha256: createHash('sha256').update(bytes).digest('hex'),
@@ -132,6 +141,39 @@ test('native handoff retains opaque binary after call cleanup and audits only co
   expect(await readdir(root)).toEqual([])
   expect(events().map(event => event.outcome)).toEqual(['preview', 'ready', 'delivery-completed', 'deleted'])
   await expect(reservation.consume(async () => {})).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test.each<{ name: string, preview: boolean, selection: TransferScope['selection'] }>([
+  { name: 'Hybrid preview', preview: true, selection: request.selection },
+  { name: 'Hybrid execution', preview: false, selection: request.selection },
+  { name: 'Graph execution', preview: false, selection: { operation: 'mail.message.export', selector: 'mailbox@example.test/message', type: 'mime' } },
+  { name: 'Check Point execution', preview: false, selection: { operation: 'email.download', selector: 'synthetic-email', type: 'email' } },
+  { name: 'BeyondTrust execution', preview: false, selection: { operation: 'api-definition.download', selector: 'api', type: 'yaml' } },
+])('$name logs exactly one correlated run for nonzero and exceptional failures', async ({ preview, selection }) => {
+  const tool = transferTool(selection.operation)
+  db.prepare('INSERT OR IGNORE INTO tools (name, pinned_version) VALUES (?, ?)').run(tool, 'synthetic')
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const run = vi.spyOn(runner, 'run').mockResolvedValueOnce({ stdout: 'CANARY-private-output', stderr: '', exitCode: 7,
+    durationMs: 1, outputBytes: { stdout: 21, stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } })
+    .mockRejectedValueOnce(new RunnerError('SPAWN_FAILED', 'CANARY-private-error'))
+  const prepare = async () => ({ executable: fakeTool.executable, args: [...fakeTool.args],
+    environment: {}, secrets: ['CANARY-private-secret'], files: [], limits: { timeoutMs: 1000 } })
+  try {
+    const first = await store.reserve({ ...scope(), selection }, context)
+    const confirm = JSON.stringify([first.scope.transferId, first.scope.targetDigest, first.scope.credentialRevision, selection, first.scope.expiresAt])
+    await expect(preview ? previewNativeArtifact(first, runner, prepare, () => {}, context)
+      : executeNativeArtifact(first, runner, prepare, confirm, () => {}, context)).rejects.toBeDefined()
+    const second = await store.reserve({ ...scope(), selection }, context)
+    const nextConfirm = JSON.stringify([second.scope.transferId, second.scope.targetDigest, second.scope.credentialRevision, selection, second.scope.expiresAt])
+    await expect(preview ? previewNativeArtifact(second, runner, prepare, () => {}, context)
+      : executeNativeArtifact(second, runner, prepare, nextConfirm, () => {}, context)).rejects.toBeDefined()
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+      expect.objectContaining({ event: 'run', requestId: context.requestId, tool, exitCode: 7, outcome: 'completed' }),
+      expect.objectContaining({ event: 'run', requestId: context.requestId, tool, exitCode: null, outcome: 'SPAWN_FAILED' }),
+    ])
+    expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+  } finally { run.mockRestore(); stderr.mockRestore() }
 })
 
 test('native maximum-size buffered transport fits the declared child resident allowance', async () => {

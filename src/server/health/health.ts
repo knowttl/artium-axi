@@ -13,6 +13,7 @@ import { hostedGhOutput } from '../adapters/gh-output.js'
 import type { Audit } from '../audit/audit.js'
 import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner } from '../runner/runner.js'
+import { logRun } from '../runner/log.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
@@ -201,9 +202,10 @@ export class ToolHealth {
         if (!background) await preflight(tool, credential, credentialTrust)
         const prepared = await adapter.prepare(args, reference)
         secrets.push(...prepared.secrets)
-        journal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
+        const preparedJournal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
+        journal = preparedJournal
         // Per-tool accounting leaves background reads governed by the global slots.
-        let result = await runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, journal.environment, prepared.secrets,
+        let result = await logRun({ requestId, tool }, () => runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, preparedJournal.environment, prepared.secrets,
           { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
             authorize?.()
             if (background && this.required.get(tool) !== reference.revision
@@ -211,7 +213,7 @@ export class ToolHealth {
               throw new ArtiumError('TOOL_DISABLED')
             }
             if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
-          }, prepared.pathPrefix)
+          }, prepared.pathPrefix))
         if (tool === 'gh-axi') result = hostedGhOutput(prepared.invocation, result)
         exitCode = result.exitCode
         durationMs = result.durationMs

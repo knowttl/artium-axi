@@ -125,8 +125,10 @@ test('unexpected errors log safe code locations and errno without planted secret
     headers: { authorization: 'Bearer CANARY-header' }, payload: { secret: 'CANARY-body' } })
   expect(response.statusCode).toBe(500)
   expect(response.json().error.code).toBe('INTERNAL_ERROR')
-  expect(stderr.mock.calls).toEqual([[JSON.stringify({ requestId: response.json().error.requestId,
-    errorClass: 'TypeError', route: '/v1/failure/:secret', errorCode: 'ENOENT', frames: ['dist/src/server/app.js:81'] }) + '\n']])
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toEqual({ ts: expect.any(String), level: 'error', event: 'error',
+    requestId: response.json().error.requestId, code: 'INTERNAL_ERROR',
+    errorClass: 'TypeError', route: '/v1/failure/:secret', errorCode: 'ENOENT', frames: ['dist/src/server/app.js:81'] })
   expect(JSON.stringify(stderr.mock.calls) + response.body + JSON.stringify(response.headers)).not.toContain('CANARY')
 })
 
@@ -783,7 +785,10 @@ test('the real server process exits at startup with a development setting', asyn
     cwd: process.cwd(), env: { ...process.env, ...environment, ARTIUM_AXI_DEV: '0' }, encoding: 'utf8', timeout: 10_000,
   })
   expect(result.status).toBe(1)
-  expect(JSON.parse(result.stderr)).toMatchObject({ error: { code: 'DEV_AUTH_INVALID', requestId: 'startup' } })
+  expect(result.stderr.trim().split('\n').map(line => JSON.parse(line))).toEqual([
+    expect.objectContaining({ level: 'info', event: 'startup', requestId: null }),
+    expect.objectContaining({ level: 'error', event: 'startup', code: 'DEV_AUTH_INVALID', requestId: null }),
+  ])
 })
 
 test('the real server remains available after startup encounters a damaged native journal', async () => {
@@ -872,11 +877,19 @@ test('the real server remains available after startup encounters a damaged nativ
     child.kill('SIGTERM')
     await closed
   }
-  expect(stderr.trim().split('\n').map(line => JSON.parse(line))).toEqual(expect.arrayContaining([
-    { error: { code: 'AUDIT_UNAVAILABLE', source: 'artium-axi', message: errors.AUDIT_UNAVAILABLE.message,
-      next: errors.AUDIT_UNAVAILABLE.next, requestId: 'retention' } },
+  const records = stderr.trim().split('\n').map(line => JSON.parse(line))
+  expect(records.filter(record => record.event !== 'retention').map(record => record.event))
+    .toEqual(['startup', 'listening', 'shutdown'])
+  expect(records).toEqual(expect.arrayContaining([
+    expect.objectContaining({ level: 'error', event: 'retention', code: 'AUDIT_UNAVAILABLE', target: 'vectra-axi-initialize' }),
+    expect.objectContaining({ level: 'error', event: 'retention', code: 'AUDIT_UNAVAILABLE', target: 'vectra-axi-writes' }),
+    expect.objectContaining({ level: 'error', event: 'retention', code: 'AUDIT_UNAVAILABLE', target: 'falcon-axi' }),
   ]))
+  for (const record of records) {
+    expect(record.ts).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(record.requestId).toBeNull()
+  }
   expect(stderr).not.toContain('CANARY-partial')
-  expect(stderr.trim().split('\n').map(line => JSON.parse(line).error.code))
+  expect(records.filter(record => record.event === 'retention').map(record => record.code))
     .toEqual(Array(7).fill('AUDIT_UNAVAILABLE'))
 }, 10_000)

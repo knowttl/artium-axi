@@ -1,11 +1,12 @@
 import { fileURLToPath } from 'node:url'
 import { resolve, relative, isAbsolute, basename, dirname } from 'node:path'
+import { MasterKeyMismatch } from './store/key-provider.js'
 
 const moduleRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)))
 const applicationRoot = basename(moduleRoot) === 'dist' ? dirname(moduleRoot) : moduleRoot
 
-// Only application/dependency code locations and errno tokens may cross the log boundary.
-export function errorDiagnostic(error: unknown): { errorCode?: string, frames?: string[] } {
+// Only application/dependency code locations, errno tokens and validated key IDs may cross this diagnostic boundary.
+export function errorDiagnostic(error: unknown): { errorCode?: string, frames?: string[], requiredKeyId?: string } {
   if (!(error instanceof Error)) return {}
   const code = (error as NodeJS.ErrnoException).code
   const errorCode = typeof code === 'string' && /^(?:E[A-Z0-9_]+|ERR_[A-Z0-9_]+)$/.test(code) && code.length <= 100 ? code : undefined
@@ -19,5 +20,6 @@ export function errorDiagnostic(error: unknown): { errorCode?: string, frames?: 
     if (isAbsolute(location) || !/^(?:dist|node_modules)\/[a-zA-Z0-9_@./+-]+\.[cm]?js$/.test(location) || location.split('/').includes('..')) return []
     return [`${location}:${match[2]}`]
   }).slice(0, 5)
-  return { ...(errorCode ? { errorCode } : {}), ...(frames.length ? { frames } : {}) }
+  return { ...(errorCode ? { errorCode } : {}), ...(frames.length ? { frames } : {}),
+    ...(error instanceof MasterKeyMismatch && /^[a-f0-9]{64}$/.test(error.requiredKeyId) ? { requiredKeyId: error.requiredKeyId } : {}) }
 }

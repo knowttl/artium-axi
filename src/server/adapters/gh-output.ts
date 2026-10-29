@@ -40,7 +40,7 @@ export function hostedGhOutput(invocation: PreparedCall['invocation'], result: R
       }
     }
     if (!refusal) throw Object.assign(new RunnerError('UNKNOWN_OUTCOME'), {
-      processStarted: true, durationMs: result.durationMs, outputBytes: result.outputBytes,
+      processStarted: true, durationMs: result.durationMs, outputBytes: result.outputBytes, truncated: result.truncated,
     })
   }
   if (invocation.credentialAuth === 'device' && result.exitCode !== 0) {

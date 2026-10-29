@@ -10,6 +10,7 @@ import { ArtifactGenerationFailure } from '../artifacts.js'
 import type { RunContext } from './run.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult } from './runner.js'
+import { logRun } from './log.js'
 
 const completionSchema = z.object({ id: z.string(), type: z.string(), output: z.string(),
   bytes: z.number().int().nonnegative(), auditId: z.uuid() })
@@ -73,7 +74,7 @@ function hostedConfirmation(scope: TransferScope): string {
 
 export async function previewNativeArtifact(reservation: ArtifactReservation, runner: Runner,
   prepare: (args: string[]) => Promise<PreparedCall>, authorize: () => void,
-  context: Pick<RunContext, 'signal'> = {}) {
+  context: Pick<RunContext, 'signal' | 'requestId'>) {
   return reservation.preview(async (output, signal) => {
     const profile = await prepare(nativeArguments(reservation.scope, output))
     if (transferTool(reservation.scope.selection.operation) !== 'hybrid-axi') {
@@ -88,8 +89,9 @@ export async function previewNativeArtifact(reservation: ArtifactReservation, ru
           'Host-owned confirmation. Download once, save only; do not extract or execute. Native SHA-256 verification is mandatory; live scopes and email/ZIP hash availability remain unverified. ZIP responses may contain only some attachments.',
         ] })
     }
-    const result = await runner.run(reservation.scope.userId, profile.executable, profile.args, profile.environment,
-      profile.secrets, { ...profile.limits, signal }, {}, profile.files, authorize)
+    const result = await logRun({ requestId: context.requestId, tool: transferTool(reservation.scope.selection.operation) }, () =>
+      runner.run(reservation.scope.userId, profile.executable, profile.args, profile.environment,
+        profile.secrets, { ...profile.limits, signal }, {}, profile.files, authorize))
     if (result.exitCode !== 0 || result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('UNKNOWN_OUTCOME')
     try {
       const preview = z.object({ kind: z.literal('dry-run'), preview: z.object({ confirm: z.string(), warnings: z.array(z.string()) }) })
@@ -105,19 +107,21 @@ export async function previewNativeArtifact(reservation: ArtifactReservation, ru
 // Authorization/profile construction remains with the authenticated request owner.
 export async function executeNativeArtifact(reservation: ArtifactReservation, runner: Runner,
   prepare: (args: string[]) => Promise<PreparedCall>, confirm: string, authorize: () => void,
-  context: Pick<RunContext, 'signal'> = {}) {
+  context: Pick<RunContext, 'signal' | 'requestId'>) {
   const scope = reservation.scope
   return reservation.execute(async (output, signal): Promise<NativeArtifactEvidence> => {
     let launched = false
     let result: RunnerResult | undefined
     let profile: PreparedCall | undefined
+    const run = (prepared: PreparedCall) => logRun({ requestId: context.requestId, tool: transferTool(scope.selection.operation) }, () =>
+      runner.run(scope.userId, prepared.executable, prepared.args, prepared.environment, prepared.secrets,
+        { ...prepared.limits, signal }, {}, prepared.files, () => { authorize(); launched = true }))
     try {
       if (transferTool(scope.selection.operation) === 'mg-axi') {
         if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
         const target = scope.selection.selector.split('/').at(-1)!
         profile = await prepare([...nativeArguments(scope, output), '--execute', '--confirm', target])
-        result = await runner.run(scope.userId, profile.executable, profile.args, profile.environment, profile.secrets,
-          { ...profile.limits, signal }, {}, profile.files, () => { authorize(); launched = true })
+        result = await run(profile)
         if (result.exitCode !== 0 || result.timedOut || result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('UNKNOWN_OUTCOME')
         const completion = z.strictObject({ path: z.literal(output), size: z.number().int().nonnegative().max(50 * 1024 * 1024),
           sha256: z.string().regex(/^[a-f0-9]{64}$/), contentType: z.string(), kind: z.literal(scope.selection.type) }).parse(decode(result.stdout))
@@ -136,8 +140,7 @@ export async function executeNativeArtifact(reservation: ArtifactReservation, ru
       if (['checkpoint-axi', 'beyondtrust-axi'].includes(transferTool(scope.selection.operation))) {
         if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
         profile = await prepare(nativeArguments(scope, output))
-        result = await runner.run(scope.userId, profile.executable, profile.args, profile.environment, profile.secrets,
-          { ...profile.limits, signal }, {}, profile.files, () => { authorize(); launched = true })
+        result = await run(profile)
         if (result.exitCode !== 0 || result.timedOut || result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('UNKNOWN_OUTCOME')
         const completion = z.strictObject({ path: z.literal(output), size: z.number().int().nonnegative().max(50 * 1024 * 1024),
           sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -149,8 +152,7 @@ export async function executeNativeArtifact(reservation: ArtifactReservation, ru
       }
       const args = [...nativeArguments(scope, output), '--execute', '--confirm', confirm]
       profile = await prepare(args)
-      result = await runner.run(scope.userId, profile.executable, profile.args, profile.environment, profile.secrets,
-        { ...profile.limits, signal }, {}, profile.files, () => { authorize(); launched = true })
+      result = await run(profile)
       if (result.exitCode !== 0 || result.timedOut || result.truncated.stdout || result.truncated.stderr) {
         throw new ArtiumError('UNKNOWN_OUTCOME')
       }

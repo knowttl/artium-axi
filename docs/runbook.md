@@ -489,7 +489,14 @@ Use `/admin/audit?failed=1&tool=<tool>` to find recent failed runs.
 See [Audit screen and API](admin-guide.md#audit-screen-and-api) for filter semantics, recorded fields, API queries, pagination and exports.
 For a credential, TLS, DNS or network problem, use **Test credential** on the tool page for a current secret-scanned diagnostic.
 
-For `INTERNAL_ERROR` and `SPAWN_FAILED`, search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID.
+Search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID to find the `run` event and any related `error` event.
+Operational logs are JSON lines on stderr with `ts` (UTC), `level`, `event` and `requestId` (`null` for events without request context, including lifecycle events).
+Background credential checks use a generated request ID shared with their audit records.
+Each tool call emits one `run` record with the tool, outcome, exit code, error code, duration, output byte counts and truncation flag, without arguments, stdin or output text.
+`startup`, `listening` and `shutdown` identify the server lifecycle; `retention` errors identify the affected store in `target`.
+`artifact-cleanup` errors mean new artifact admission is blocked; `trusted-ca` warnings report `CA_EXPIRING` or `CA_EXPIRED`, so inspect the configured bundle's certificates.
+The optional audit stream remains on stdout, separate from operational logs.
+For `INTERNAL_ERROR` and `SPAWN_FAILED`, the `error` event carries additional safe diagnostics.
 The server's stderr JSON line contains `requestId`, a sanitized `errorClass` and the matched route template in `route` (or `(unmatched)`), without actual path parameter values, query strings, request bodies, secrets, certificate contents or error messages.
 When available, `errorCode` is a bounded Node errno token such as `ENOENT`; `frames` contains at most five application `dist/` or dependency `node_modules/` file:line locations without function names or messages.
 Startup failures also include these safe fields when available and retain the Artium error code for known configuration failures.
@@ -668,7 +675,7 @@ After commit, restart with the new key, even if no success receipt reached stdou
 The database's `key_rotations` table stores the old and new full SHA-256 key IDs atomically with the credentials.
 The `store_metadata` row records the required startup key, and the latest rotation receipt must agree with it.
 Inspect it with `SELECT old_key_id, new_key_id FROM key_rotations ORDER BY rowid DESC LIMIT 1` while the server is stopped.
-Startup rejects a different key and reports the required key ID, including when no credentials remain.
+Startup rejects a different key and reports the required full SHA-256 key ID in the `startup` error event's `requiredKeyId` field, including when no credentials remain.
 The durable audit event uses action `rotate-key`, no user identity for offline maintenance, and the new key ID as its target.
 Maintenance keeps its receipt output separate from the optional online audit stream.
 

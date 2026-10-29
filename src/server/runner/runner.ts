@@ -43,6 +43,7 @@ export class RunnerError extends ArtiumError {
   spawnError?: Error
   durationMs?: number
   outputBytes?: { stdout: number, stderr: number }
+  truncated = { stdout: false, stderr: false }
   processStarted = false
 }
 
@@ -295,16 +296,17 @@ async function execute(
         } else if (!failure && exitCode === null) {
           failure = new RunnerError('PROCESS_SIGNAL')
         }
+        const truncated = {
+          stdout: streams.stdout.observed > cap,
+          stderr: streams.stderr.observed > cap,
+        }
         if (failure) {
           failure.processStarted = processStarted
           failure.durationMs = performance.now() - started
           failure.outputBytes = { stdout: streams.stdout.observed, stderr: streams.stderr.observed }
+          failure.truncated = truncated
           reject(failure)
         } else {
-          const truncated = {
-            stdout: streams.stdout.observed > cap,
-            stderr: streams.stderr.observed > cap,
-          }
           resolve({
             stdout: decode(Buffer.concat(streams.stdout.chunks), truncated.stdout),
             stderr: decode(Buffer.concat(streams.stderr.chunks), truncated.stderr),
@@ -340,7 +342,7 @@ async function execute(
         const diagnostic = Buffer.from(`code: CERTIFICATE_PIN_MISMATCH\nmessage: ${failure.message}\n`)
         if (new SecretScanner(secrets).scan('stderr', diagnostic)) {
           throw Object.assign(new RunnerError('SECRET_IN_OUTPUT'), { processStarted: true,
-            durationMs: performance.now() - started, outputBytes: result.outputBytes })
+            durationMs: performance.now() - started, outputBytes: result.outputBytes, truncated: result.truncated })
         }
         result.stdout = ''
         result.stderr = decode(diagnostic.subarray(0, cap), diagnostic.length > cap)
