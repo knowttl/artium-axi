@@ -5,7 +5,7 @@ import { MasterKeyMismatch } from './store/key-provider.js'
 const moduleRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)))
 const applicationRoot = basename(moduleRoot) === 'dist' ? dirname(moduleRoot) : moduleRoot
 
-// Only application/dependency code locations and errno tokens may cross the log boundary.
+// Only application/dependency code locations, errno tokens and validated key IDs may cross this diagnostic boundary.
 export function errorDiagnostic(error: unknown): { errorCode?: string, frames?: string[], requiredKeyId?: string } {
   if (!(error instanceof Error)) return {}
   const code = (error as NodeJS.ErrnoException).code
