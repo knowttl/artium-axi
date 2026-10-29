@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, watch } from 'node:fs'
 import { mkdir, readdir, stat } from 'node:fs/promises'
 import { spawn, execFileSync } from 'node:child_process'
 import { once } from 'node:events'
@@ -15,6 +15,7 @@ import { Audit } from '../../src/server/audit/audit.js'
 import { issueRecentAuthTicket } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { runTool } from '../../src/server/runner/run.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -32,7 +33,7 @@ async function withBeyondtrust(check: (fixture: {
   cli: (args: string[]) => Promise<{ code: number | null, stdout: string, stderr: string }>,
   enable: (operations: string[], allowDeletes?: boolean) => Promise<void>, run: (args: string[], input?: object) => Promise<{ stdout: string, exitCode: number }>,
   evidence: () => Promise<{ requests: { path: string, canaryReceived: boolean }[], mutations: number }>,
-}) => Promise<void>) {
+}) => Promise<void>, options: { interruption?: string, signal?: AbortSignal } = {}) {
   await withFakeService(async ({ directory, port, send }) => {
     const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), key)
@@ -43,7 +44,10 @@ async function withBeyondtrust(check: (fixture: {
     const wrap = (call: PreparedCall): PreparedCall => ({ ...call, executable: process.execPath,
           args: ['--import', join(process.cwd(), 'test/fake-service/beyondtrust-transport.mjs'),
             join(process.cwd(), 'tools/node_modules/@knowttl/beyondtrust-axi/bin/beyondtrust-axi.js'), ...call.args],
-          environment: { ...call.environment, ARTIUM_TEST_BEYONDTRUST_ORIGIN: `https://localhost:${port}` } })
+          limits: options.interruption && call.write ? { ...call.limits, timeoutMs: options.interruption === 'native-deadline' ? 5000 : 2000 } : call.limits,
+          environment: { ...call.environment, ARTIUM_TEST_BEYONDTRUST_ORIGIN: `https://localhost:${port}`,
+            ...(options.interruption && call.write ? { ARTIUM_TEST_BEYONDTRUST_INTERRUPTION: options.interruption,
+              ARTIUM_TEST_BEYONDTRUST_COMMITTED: join(directory, 'committed') } : {}) } })
     const prepare = adapter.prepare.bind(adapter)
     const prepareArtifact = adapter.prepareArtifact!.bind(adapter)
     adapter.prepare = async (...input) => wrap(await prepare(...input))
@@ -94,6 +98,8 @@ async function withBeyondtrust(check: (fixture: {
         expect(response.status, await response.clone().text()).toBe(200)
       }
       const run = async (args: string[], input = {}) => {
+        if (options.interruption) return runTool(db, audit, runner, token, { args, ...input }, adapter,
+          new SharedIdentityResolver(credentials), { requestId: crypto.randomUUID(), clientAddress: '127.0.0.1', signal: options.signal })
         const response = await post('/v1/tools/beyondtrust-axi/run', { args, ...input })
         expect(response.status, await response.clone().text()).toBe(200)
         const result = await response.json()
@@ -107,6 +113,63 @@ async function withBeyondtrust(check: (fixture: {
 }
 
 const id = '11111111-1111-4111-8111-111111111111'
+test('a crash before native intent creation retains the durable host intent identity', async () => {
+  await withBeyondtrust(async ({ run, enable, evidence, directory, db }) => {
+    await enable(['computer.authorise'])
+    const args = ['computer', 'authorise', id]
+    const { confirmation } = decode((await run(args)).stdout) as { confirmation: string }
+    const result = await run([...args, '--execute', '--confirm', confirmation])
+    expect(result.exitCode, result.stdout).toBe(1)
+    const { error } = decode(result.stdout) as { error: { code: string, auditId: string } }
+    expect(error.code).toBe('OUTCOME_UNKNOWN')
+    const root = join(directory, 'journal', 'writes.log.runs')
+    const [call] = await readdir(root)
+    const path = join(root, call, 'intent.json')
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ auditId: error.auditId, state: 'intent', operation: 'computer authorise' })
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+    expect((await evidence()).mutations).toBe(0)
+    expect(db.prepare("SELECT action, native_audit_id FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
+      .toEqual({ action: 'unknown', native_audit_id: error.auditId })
+  }, { interruption: 'before-intent-crash' })
+})
+test('cancellation before child launch remains a cancellation without a mutation', async () => {
+  const controller = new AbortController()
+  await withBeyondtrust(async ({ run, enable, evidence }) => {
+    await enable(['computer.authorise'])
+    const args = ['computer', 'authorise', id]
+    const { confirmation } = decode((await run(args)).stdout) as { confirmation: string }
+    controller.abort()
+    await expect(run([...args, '--execute', '--confirm', confirmation])).rejects.toMatchObject({ code: 'CANCELLED' })
+    expect((await evidence()).mutations).toBe(0)
+  }, { interruption: 'cancel', signal: controller.signal })
+})
+test.each(['native-deadline', 'timeout', 'cancel', 'crash', 'exit'])('a committed mutation interrupted by %s retains its native audit identity', async interruption => {
+  const controller = new AbortController()
+  await withBeyondtrust(async ({ run, enable, evidence, directory, db }) => {
+    await enable(['computer.authorise'])
+    const args = ['computer', 'authorise', id]
+    const preview = await run(args)
+    expect(preview.exitCode, preview.stdout).toBe(0)
+    const { confirmation } = decode(preview.stdout) as { confirmation: string }
+    const watcher = watch(directory, (_event, name) => {
+      if (interruption === 'cancel' && name === 'committed') controller.abort()
+    })
+    try {
+      const result = await run([...args, '--execute', '--confirm', confirmation])
+      expect(result.exitCode, result.stdout).toBe(1)
+      const { error } = decode(result.stdout) as { error: { code: string, auditId: string } }
+      expect(error).toMatchObject({ code: 'OUTCOME_UNKNOWN', auditId: expect.any(String) })
+      expect((await evidence()).mutations).toBe(1)
+      const root = join(directory, 'journal', 'writes.log.runs')
+      const [call] = await readdir(root)
+      const intent = JSON.parse(readFileSync(join(root, call, 'beyondtrust-axi', 'writes', error.auditId + '.json'), 'utf8'))
+      expect(intent).toMatchObject({ auditId: error.auditId, state: 'intent', operation: 'computer.authorise' })
+      expect(db.prepare("SELECT action, outcome, native_audit_id, error_code FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ action: 'write', outcome: 'UNKNOWN_OUTCOME', native_audit_id: error.auditId, error_code: 'OUTCOME_UNKNOWN' })
+      expect(JSON.stringify(result)).not.toMatch(/CANARY-beyondtrust-(secret|token)/)
+    } finally { watcher.close() }
+  }, { interruption, signal: controller.signal })
+})
 test('managed cursor resumes across isolated calls', async () => {
   await withBeyondtrust(async ({ run }) => {
     const args = ['computer', 'list', '--host', 'fleet', '--limit', '1']

@@ -25,7 +25,7 @@ export type AuditEvent = Context & (
     transfer: z.infer<typeof transferAuditSchema> }
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
   // A normal managed run's errorCode is the tool's own bounded failure code; health-driven runs reuse Artium codes.
-  | ({ event: 'run-terminal', action?: RunAction, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null }, errorCode?: string | null } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
+  | ({ event: 'run-terminal', action?: RunAction, nativeAuditId?: string, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null }, errorCode?: string | null } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
   | { event: 'lockout' | 'token-reuse', outcome: Outcome }
@@ -231,7 +231,7 @@ export class Audit {
       transfer_operation: transfer?.transfer_operation ?? null, artifact_type: transfer?.artifact_type ?? null,
       artifact_selector: transfer?.artifact_selector ?? null, requested_target_digest: transfer?.requested_target_digest ?? null,
       archive_bytes: transfer?.archive_bytes ?? null, archive_sha256: transfer?.archive_sha256 ?? null,
-      native_audit_id: transfer?.native_audit_id ?? null, native_journal_result: transfer?.native_journal_result ?? null,
+      native_audit_id: transfer?.native_audit_id ?? terminal?.nativeAuditId ?? null, native_journal_result: transfer?.native_journal_result ?? null,
       client_save_outcome: transfer?.client_save_outcome ?? null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})

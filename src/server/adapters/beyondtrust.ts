@@ -12,6 +12,7 @@ import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 export const beyondtrustManifest = { ...inventory, ...inventory.adapterBoundary }
 export const beyondtrustProfile = new CredentialProfile(inventory.credentialSchema, 'beyondtrust-axi')
 export const beyondtrustCredentialSchema = beyondtrustProfile.credentialSchema
+const mutationTimeoutMs = 75_000
 
 export const beyondtrustWritePolicy = writePolicy({
   allowDeletes: true, supportedOperations: inventory.nativeWriteSettings.supportedOperations,
@@ -64,7 +65,7 @@ function beyondtrustArguments(args: readonly string[], input: RunnerInput = {}) 
 export function createBeyondtrustAdapter(source: SecretSource, writeLog: string): Adapter<unknown> {
   return {
     name: 'beyondtrust-axi', executable: toolPaths['beyondtrust-axi'], credentialProfile: beyondtrustProfile,
-    credentialSchema: beyondtrustCredentialSchema, timeoutMs: runnerLimits.timeoutMs,
+    credentialSchema: beyondtrustCredentialSchema, timeoutMs: mutationTimeoutMs,
     blockedFlags: beyondtrustManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
@@ -104,7 +105,9 @@ export function createBeyondtrustAdapter(source: SecretSource, writeLog: string)
         normalized.args[index] = `/proc/self/cwd/${name}`
       }
       return { executable: toolPaths['beyondtrust-axi'], ...normalized, ...profile, files, fileArguments: [],
-        limits: { timeoutMs: runnerLimits.timeoutMs } }
+        ...(normalized.effect === 'write' ? { write: { operation: normalized.invocation.command, target: 'managed resource',
+          checkArgs: [normalized.args[0], '--help'], afterCheck: 'Reconcile the durable intent and affected remote state before retrying' } } : {}),
+        limits: { timeoutMs: normalized.effect === 'write' ? mutationTimeoutMs : runnerLimits.timeoutMs } }
     },
   }
 }

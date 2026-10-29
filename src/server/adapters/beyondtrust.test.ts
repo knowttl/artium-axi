@@ -18,6 +18,13 @@ test('managed profile requires a secret and puts only its environment reference 
     host: credential.host, clientSecret: { env: 'ARTIUM_SECRET_0' }, downloads: { allow: false }, writes: { allowWrites: false, allowDeletes: false, operations: [] },
   } } })
 })
+test('mutation timeouts leave room for the native deadline while previews and reads retain their limits', async () => {
+  const args = ['computer', 'authorise', '11111111-1111-4111-8111-111111111111']
+  expect((await adapter.prepare([...args, '--execute', '--confirm', 'synthetic'], reference)).limits.timeoutMs).toBe(75_000)
+  expect((await adapter.prepare(args, reference)).limits.timeoutMs).toBe(60_000)
+  expect((await adapter.prepare([...args, '--execute', '--help'], reference)).write).toBeUndefined()
+  expect((await adapter.prepare(['computer', 'list'], reference)).write).toBeUndefined()
+})
 test.each(['https://example.pm.beyondtrustcloud.com', 'Example.pm.beyondtrustcloud.com', 'example.beyondtrustcloud.com.evil.test', 'example.pm.beyondtrustcloud.com:443', '127.0.0.1'])('invalid host %s is refused', host => {
   expect(beyondtrustCredentialSchema.safeParse({ ...credential, host }).success).toBe(false)
 })

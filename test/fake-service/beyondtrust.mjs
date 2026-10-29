@@ -25,7 +25,12 @@ export function beyondtrustResponse(req, res, url, requests, mutate) {
   if (req.method !== 'GET') {
     let body = ''
     req.on('data', chunk => { body += chunk })
-    req.on('end', () => { record.body = body; mutate(); res.end(JSON.stringify(resourceId)) })
+    req.on('end', () => {
+      record.body = body
+      mutate()
+      if (req.headers['x-artium-test-beyondtrust-stall'] === '1') { res.writeHead(200); res.flushHeaders(); return }
+      res.end(JSON.stringify(resourceId))
+    })
     return
   }
   if (url.pathname === '/management-api/v3/About') { res.end(JSON.stringify([{ consoleVersion: '3', reportingDatabaseVersion: '3', policyEditorVersion: '3' }])); return }
