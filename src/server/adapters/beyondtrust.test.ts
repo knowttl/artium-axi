@@ -3,11 +3,26 @@ import { expect, test, vi } from 'vitest'
 import { decode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { beyondtrustCredentialSchema, beyondtrustWritePolicy, createBeyondtrustAdapter } from './beyondtrust.js'
+import { credentialFields, editorProfile } from '../admin/credential-form.js'
 
 const credential = { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' }
 const reference = { id: 'synthetic-credential', tool: 'beyondtrust-axi' as const, revision: 1 }
 const source = { getCredential: vi.fn(async () => credential) }
 const adapter = createBeyondtrustAdapter(source, '/tmp/synthetic-beyondtrust/writes.log')
+
+test.each([
+  { name: 'host', title: 'PM Cloud API host', description: 'The PM Cloud API host as a lowercase DNS name' },
+  { name: 'clientId', title: 'Client ID', description: 'The PM Cloud API account client ID.' },
+  { name: 'clientSecret', title: 'Client secret', description: 'Enter the API account client secret itself. Leave blank to keep a stored secret for the same identity.' },
+  { name: 'downloads', title: 'Download permissions', description: 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.' },
+])('credential form renders host-adapted $name metadata', ({ name, title, description }) => {
+  const profile = editorProfile('beyondtrust-axi')
+  const form = credentialFields('beyondtrust-axi', profile, {}, false)
+  const field = form.split(`data-credential-field="${name}"`)[1].split('</div>')[0]
+  expect(field).toContain(`<label>${title}`)
+  expect(field).toContain(`<p>${description}`)
+  expect(profile.inputSchema.properties[name].description).toContain(description)
+})
 
 test('managed profile requires a secret and puts only its environment reference in private config', async () => {
   expect(beyondtrustCredentialSchema.safeParse({ host: credential.host, clientId: credential.clientId }).success).toBe(false)

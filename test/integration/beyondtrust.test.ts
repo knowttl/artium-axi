@@ -222,11 +222,14 @@ test('malformed fake responses retain redacted shape diagnostics in client and h
     expect(result.exitCode, result.stdout).toBe(1)
     expect(decode(result.stdout)).toMatchObject({ error: { code: 'API_RESPONSE_INVALID',
       status: 200, contentType: 'application/json', shapeTruncated: false,
+      issuePaths: ['$'], issuePathsTruncated: false,
       shape: [{ path: '$', type: 'object' }, { path: '$["data"]', type: 'array' },
         { path: '$["data"][0]', type: 'object' }, { path: '$["data"][0]["host"]', type: 'string' },
         { path: '$["data"][0]["clientSecret"]', type: 'string' }, { path: '$["data"][0]["token"]', type: 'string' },
+        { path: '$["data"][0]["<key>"]', type: 'string' }, { path: '$["data"][0]["<key>"]', type: 'string' },
         { path: '$["totalRecordCount"]', type: 'string' }] } })
     expect(result.stdout).not.toContain('CANARY-')
+    expect(result.stdout).not.toContain(id)
 
     const tested = await post('/v1/admin/tools/beyondtrust-axi/test')
     const failure = await tested.json()

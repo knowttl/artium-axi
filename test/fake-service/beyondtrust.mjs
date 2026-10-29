@@ -20,7 +20,8 @@ export function beyondtrustResponse(req, res, url, requests, mutate) {
   if (req.headers['x-artium-test-beyondtrust-invalid-response'] === '1') {
     res.setHeader('content-type', 'application/json; charset=utf-8')
     res.end(JSON.stringify({ data: [{ host: 'CANARY-response-host', clientSecret: 'CANARY-beyondtrust-secret',
-      token: 'CANARY-beyondtrust-token' }], totalRecordCount: 'CANARY-invalid-count' }))
+      token: 'CANARY-beyondtrust-token', 'CANARY-response-key@example.test': 'synthetic',
+      [resourceId]: 'synthetic' }], totalRecordCount: 'CANARY-invalid-count' }))
     return
   }
   if (url.pathname.endsWith('/Content') || url.pathname.endsWith('/GetYamlApiDefinitionFile')) {

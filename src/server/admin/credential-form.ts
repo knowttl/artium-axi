@@ -82,7 +82,8 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     const value = secret ? undefined : metadata[name]
     const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
     const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
-    const help = name === 'region' && tool === 'checkpoint-axi' ? 'Check Point API region for your tenant, for example us.'
+    const help = tool === 'beyondtrust-axi' ? schema.description
+      : name === 'region' && tool === 'checkpoint-axi' ? 'Check Point API region for your tenant, for example us.'
       : name === 'region' && tool === 'falcon-axi' ? 'Falcon API region, for example us-1.' : fieldHelp[name]
     let input: string
     if (schema.enum) {

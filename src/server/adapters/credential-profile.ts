@@ -61,7 +61,12 @@ export class CredentialProfile {
     if (tool === 'gh-axi') {
       this.inputSchema.properties.token.not = { pattern: '^(gho_|ghu_|ghs_|ghr_)' }
     }
-    if (tool === 'beyondtrust-axi') this.inputSchema.required = ['host', 'clientId', 'clientSecret']
+    if (tool === 'beyondtrust-axi') {
+      this.inputSchema.required = ['host', 'clientId', 'clientSecret']
+      this.inputSchema.properties.clientSecret.description = 'Enter the API account client secret itself. Leave blank to keep a stored secret for the same identity.'
+      this.inputSchema.properties.downloads.description = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.'
+      this.inputSchema.properties.writes.description = 'Use Allow write access and select exact operations to permit writes and managed downloads. Deletes also require Allow deletes. Writes and deletes are disabled by default.'
+    }
     if (tool === 'checkpoint-axi') {
       this.inputSchema.required = ['region', 'clientId', 'clientSecret']
     }

@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/beyondtrust-inventory.mjs",
   "tool": "beyondtrust-axi",
-  "version": "0.1.2",
-  "integrity": "sha512-lGgExKOI6yDiJcAr1IYwIeP0dvjmHpChcjPmmR7G1dqNOEwldFt2BcflYyFpYvFJFUSULMcsE03MstU/KQA0sA==",
+  "version": "0.1.3",
+  "integrity": "sha512-tDVP8+wEzdTg9mg/BwGSBmt+BXn7LJ4Ubbh9jAt3Z+g8K1bvZyKhD7gAPUMrYnFBjIGPJOhYfoIHt6RNO4qx3Q==",
   "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
   "sources": [
     {
@@ -11,7 +11,7 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "cefc061c673d2e352edd9a65ed712f87f43ae9036ee5134e0d5757e3f13bcf1c"
+      "sha256": "9847516327adc4e62d611ca27ee569c1f701229adf5e0de74b6ad15b8ce4d155"
     },
     {
       "path": "dist/src/computer-writes.js",
@@ -55,15 +55,15 @@
     },
     {
       "path": "dist/src/resource-reads.js",
-      "sha256": "28774772d3f2720324ffa8bf77580bcca0c922f2496d4d426de3922543680713"
+      "sha256": "ac21d7f6662d5f33ad80f2ddb3f218e4b1790ed1262a299a065e2a58d7fe8ff4"
     },
     {
       "path": "dist/src/response-diagnostics.js",
-      "sha256": "7eb7cf248439922ae9c4c20cde155bd6dd4b10d745a8bcd8546c49392e56929a"
+      "sha256": "dda9e4fbb5d9b6d7e5a763047ac6b0c3d1818c4f692719a04244b649fa040cb5"
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "6cd1d8072d37863dc9e0613d9222a7a7b4bd27a2139dd2f8d6491e435eff37c2"
+      "sha256": "1a463695d1d57a74e99894f4bffc0a4e72f1b68695995824db6e2884c0b5c780"
     },
     {
       "path": "dist/src/windows-download.js",
@@ -86,11 +86,15 @@
     ],
     "properties": {
       "clientId": {
+        "title": "Client ID",
+        "description": "The PM Cloud API account client ID.",
         "type": "string",
         "minLength": 1,
         "pattern": "\\S"
       },
       "clientSecret": {
+        "title": "Client secret",
+        "description": "An environment variable or absolute file SecretRef for the API account client secret; never an inline secret. Defaults to BEYONDTRUST_AXI_CLIENT_SECRET.",
         "$ref": "#/$defs/secretRef",
         "x-secret": true,
         "default": {
@@ -98,6 +102,8 @@
         }
       },
       "downloads": {
+        "title": "Download permissions",
+        "description": "Set allow to true to permit raw-byte downloads from a named file profile to a new private destination file. Downloads are disabled by default.",
         "type": "object",
         "additionalProperties": false,
         "required": [
@@ -113,6 +119,8 @@
         }
       },
       "writes": {
+        "title": "Write permissions",
+        "description": "Set allowWrites and list exact operations to permit writes from a named file profile. Deletes also require allowDeletes. Writes and deletes are disabled by default.",
         "type": "object",
         "additionalProperties": false,
         "required": [
@@ -142,6 +150,8 @@
         }
       },
       "host": {
+        "title": "PM Cloud API host",
+        "description": "The PM Cloud API host as a lowercase DNS name in the documented <organization>-services.pm.beyondtrustcloud.com form, ending in .beyondtrustcloud.com, with no scheme, port or path.",
         "type": "string",
         "maxLength": 253,
         "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+beyondtrustcloud\\.com(?![\\s\\S])"
