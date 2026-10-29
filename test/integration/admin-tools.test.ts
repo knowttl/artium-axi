@@ -133,6 +133,8 @@ const diagnosticCases = [
   { code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', text: 'code: TLS_FAILED\nmessage: TLS certificate verification failed' },
   { code: 'TOOL_REJECTED_INPUT', stage: 'configuration', text: 'code: INVALID_CONFIG\nmessage: Invalid configuration combination' },
   { code: 'TOOL_FAILED', stage: 'tool run', text: 'code: API_ERROR\nmessage: Synthetic upstream failure' },
+  { code: 'UPSTREAM_RESPONSE_INVALID', stage: 'response', text: 'code: API_RESPONSE_INVALID\nmessage: Unexpected response: [REDACTED]' },
+  { code: 'TOOL_REJECTED_INPUT', stage: 'configuration', text: 'code: AUTH_ENDPOINT_NOT_FOUND\nmessage: Token endpoint returned 404\nhint: Check the service host.' },
   { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: SERVER_UNREACHABLE\nmessage: could not connect to the directory' },
   { code: 'UPSTREAM_NETWORK_FAILED', stage: 'TCP', text: 'code: OPERATION_TIMEOUT\nmessage: the operation deadline elapsed' },
   { code: 'UPSTREAM_AUTH_FAILED', stage: 'authentication', text: 'code: ACCESS_DENIED\nmessage: API access was denied' },
@@ -154,11 +156,13 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)
         executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
       const tested = await request('POST', `/${tool}/test`, {})
       expect(tested.status).toBe(503)
-      expect(await tested.json()).toMatchObject({ error: { code, diagnostic: { stage, message: text,
+      expect(errorResponseSchema.parse(await tested.json())).toMatchObject({ error: { code, diagnostic: { stage, message: text,
         checkedAt: expect.any(Number), credentialRevision: 1 } } })
       const listed = await request('GET', '')
       const cached = (await listed.json()).tools.find((entry: { name: string }) => entry.name === tool)
       expect(cached.health).toMatchObject({ errorCode: code, diagnostic: { stage, message: text } })
+      expect(db.prepare("SELECT outcome, error_code FROM audit WHERE event = 'credential-test' AND tool = ? ORDER BY rowid DESC LIMIT 1").get(tool))
+        .toEqual({ outcome: code, error_code: code })
       const ordinary = await request('POST', `/${tool}/test`, {}, await adminHeaders('synthetic-ordinary'))
       expect(ordinary.status).toBe(403)
       expect(await ordinary.text()).not.toContain(text)

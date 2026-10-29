@@ -64,7 +64,11 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number, to
   const message = text.trim() || `Tool exited with status ${exitCode}.`
   let code: ErrorCode = 'TOOL_FAILED'
   let stage: Diagnostic['stage'] = 'tool run'
-  if (toolCode === 'AUTH_EXCHANGE_FAILED') {
+  if (/^(API_RESPONSE_INVALID|RESPONSE_INVALID|MALFORMED_RESPONSE|INVALID_RESPONSE)$/.test(toolCode ?? '')) {
+    code = 'UPSTREAM_RESPONSE_INVALID'; stage = 'response'
+  } else if (toolCode === 'AUTH_ENDPOINT_NOT_FOUND') {
+    code = 'TOOL_REJECTED_INPUT'; stage = 'configuration'
+  } else if (toolCode === 'AUTH_EXCHANGE_FAILED') {
     stage = 'token acquisition'
     if (/OAuth credential exchange could not complete/.test(text)) code = 'UPSTREAM_NETWORK_FAILED'
   } else if (toolCode === 'TLS_UNTRUSTED' || certificateErrorCodePattern.test(text) || /TLS.*(?:FAIL|ERROR)|ERR_TLS|certificate verification/i.test(text)) {

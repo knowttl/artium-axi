@@ -340,7 +340,7 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   return settings.allowWrites === true
 }
 export const diagnosticSchema = z.strictObject({
-  stage: z.enum(['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'tool run']),
+  stage: z.enum(['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run']),
   message: z.string().max(4096), toolCode: z.string().max(80).optional(), providerCode: z.string().max(80).optional(), hint: z.string().max(4096).optional(),
   host: z.string().max(4096).optional(), issuer: z.string().max(4096).optional(),
   trust: z.enum(['self-signed', 'untrusted']).optional(), checkedAt: z.number().int().optional(),

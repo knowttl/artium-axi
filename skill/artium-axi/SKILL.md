@@ -77,6 +77,7 @@ Artium errors are TOON on stdout with `error.code`, `source`, `message` and `nex
 Exit 0 means success, 2 means usage/configuration error and 1 means authentication/server/transport failure; upstream exit status passes through.
 
 Use the [generated error reference](https://github.com/knowttl/artium-axi/blob/main/docs/errors.md) for code-specific recovery and exit codes.
+See the [credential diagnostic guidance](https://github.com/knowttl/artium-axi/blob/main/docs/runbook.md#scripted-administrator-sessions) for tool-code mappings and administrator troubleshooting.
 
 ## Commands
 

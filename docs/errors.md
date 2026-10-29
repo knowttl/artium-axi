@@ -69,6 +69,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | UPSTREAM_AUTH_FAILED | artium-axi | 503 | 1 | The upstream service rejected the credential. | Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again. |
 | UPSTREAM_NETWORK_FAILED | artium-axi | 503 | 1 | The upstream service could not be reached. | Ask an administrator to check DNS, routing, firewall rules and the diagnostic host and stage. |
 | UPSTREAM_TLS_FAILED | artium-axi | 503 | 1 | The upstream certificate could not be verified. | Ask an administrator to check the host, certificate chain and trusted CA configuration. |
+| UPSTREAM_RESPONSE_INVALID | artium-axi | 503 | 1 | The upstream service returned a response the tool could not accept. | Ask an administrator to inspect the diagnostic message and hint, check the service endpoint and API compatibility, then test again. |
 | TOOL_REJECTED_INPUT | artium-axi | 503 | 1 | The tool rejected its configuration or arguments. | Ask an administrator to correct the field or combination named by the tool and test again. |
 | TOOL_FAILED | artium-axi | 503 | 1 | The tool exited unsuccessfully. | Ask an administrator to inspect the diagnostic message and hint from Test credential. |
 | INVALID_INPUT | artium-axi | 400 | 2 | The request input is invalid. | Check the request fields and content type. |

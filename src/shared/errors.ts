@@ -63,6 +63,7 @@ const definitions = {
   UPSTREAM_AUTH_FAILED: { status: 503, message: 'The upstream service rejected the credential.', next: 'Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again.' },
   UPSTREAM_NETWORK_FAILED: { status: 503, message: 'The upstream service could not be reached.', next: 'Ask an administrator to check DNS, routing, firewall rules and the diagnostic host and stage.' },
   UPSTREAM_TLS_FAILED: { status: 503, message: 'The upstream certificate could not be verified.', next: 'Ask an administrator to check the host, certificate chain and trusted CA configuration.' },
+  UPSTREAM_RESPONSE_INVALID: { status: 503, message: 'The upstream service returned a response the tool could not accept.', next: 'Ask an administrator to inspect the diagnostic message and hint, check the service endpoint and API compatibility, then test again.' },
   TOOL_REJECTED_INPUT: { status: 503, message: 'The tool rejected its configuration or arguments.', next: 'Ask an administrator to correct the field or combination named by the tool and test again.' },
   TOOL_FAILED: { status: 503, message: 'The tool exited unsuccessfully.', next: 'Ask an administrator to inspect the diagnostic message and hint from Test credential.' },
   INVALID_INPUT: { status: 400, message: 'The request input is invalid.', next: 'Check the request fields and content type.' },
@@ -102,7 +103,7 @@ export class ArtiumError extends Error {
 
 // Only administrator credential-test and cached-health responses may serialize this detail.
 export interface Diagnostic {
-  stage: 'configuration' | 'token acquisition' | 'DNS' | 'TCP' | 'TLS' | 'authentication' | 'tool run'
+  stage: 'configuration' | 'token acquisition' | 'DNS' | 'TCP' | 'TLS' | 'authentication' | 'response' | 'tool run'
   message: string
   toolCode?: string
   providerCode?: string
