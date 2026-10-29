@@ -55,7 +55,11 @@ At `/admin/tools/checkpoint-axi`, enter `region`, `clientId` and the secret valu
 Regions are `us`, `eu`, `ca`, `au`, `uk`, `uae` and `in`; the pinned package owns their fixed HTTPS origins.
 The credential schema captured in the [reviewed inventory](../tools/inventories/checkpoint-axi.json) supplies the managed form and validation; Artium injects the encrypted secret through a private environment SecretRef.
 No credentials belong in arguments or output.
-The optional `saas` defaults upstream to `office365_emails`; `scope` is required for email download and used for attachment download authorization.
+The optional `saas` is one tenant SaaS application name, defaults to `office365_emails` and rejects values containing `/`, including URLs.
+Obtain the exact application name and any download `scope` from your tenant administrator or Check Point support.
+Hosted email downloads require the stored `scope` as the `scopes` header; attachment downloads send it as the `scope` query when set and omit that query when unset.
+Hosted transfers have no per-download scope override.
+Tenant scope authorization and the relationship between these selectors remain unverified; do not guess a value.
 Each hosted invocation exchanges a token again because its private XDG directory is removed after execution.
 
 Save the credential, test it, enable the tool and grant it to a role.

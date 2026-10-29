@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/checkpoint-inventory.mjs",
   "tool": "checkpoint-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-xkVncU3PYUeGFD5vIMp/lT9JAsTsSaCTVF+dEFYye1iSDkjPjuHJDHnZ8BquT3ClHw9bcBWdLAnEtJRPSVimtg==",
+  "version": "0.1.2",
+  "integrity": "sha512-zWHiVvPQS2BMfBDpL+m5yt+H3bog+SnYNK5bPBboJJozNrIzhgDozl1Ry4UzZ1A+nhaUy2i+P5S/JxhWAU1VwQ==",
   "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "59b9568b614a101e2746a8275768c238ba8eb7166185119875a40f7eac191f7a"
+      "sha256": "ed294c88910e1f8536bb4a28b2afc81b5c15690c760bc57baca33c7fc102f6d8"
     },
     {
       "path": "dist/src/cli.js",
@@ -35,11 +35,11 @@
     },
     {
       "path": "dist/src/profiles.js",
-      "sha256": "db013b041bb6302993d7045fe3bd411bbd1a3593b5b2a84a3d8411645f55d3e6"
+      "sha256": "8032b342fa9bc8492f436015dff09c41cddbb394d62305662c46007d6f541c8f"
     },
     {
       "path": "dist/src/reads.js",
-      "sha256": "02a5478edb3d44ab51ea300095794abc69d9e4a353060af4faed0d6e4ce592a7"
+      "sha256": "6c168e7a1aabc45a804fc0a9ea7d918efbe14df6dba5814111f2c8ab8ca26a10"
     },
     {
       "path": "dist/src/redact.js",
@@ -50,8 +50,12 @@
       "sha256": "44288abe19a68fa672bc04ad167141717aed5c3a333b2420b14ee68e13abee78"
     },
     {
+      "path": "dist/src/response-invalid.js",
+      "sha256": "323428f95087fec84e36dab86c7a64ecad69f43e9188f6c6425b64498dac6b5c"
+    },
+    {
       "path": "dist/src/transport.js",
-      "sha256": "7beb28cc283e876db4f6aeaf5c308280e1fce482c20c19dd9924e29985e54e56"
+      "sha256": "5f87b53e77bffa7f3ce30fab4d0619a9347286e3253fbf5352d926e6ea4262e4"
     },
     {
       "path": "dist/src/write-exceptions.js",
@@ -78,6 +82,8 @@
     ],
     "properties": {
       "region": {
+        "title": "Region",
+        "description": "Required region code for your tenant's regional gateway: us, eu, ca, au, uk, uae or in. Obtain it from your tenant administrator. There is no default; URLs are not accepted.",
         "type": "string",
         "enum": [
           "us",
@@ -90,11 +96,15 @@
         ]
       },
       "clientId": {
+        "title": "Client ID",
+        "description": "Required non-blank API client ID from your tenant's API credentials. There is no default.",
         "type": "string",
         "minLength": 1,
         "pattern": "\\S"
       },
       "clientSecret": {
+        "title": "Client secret reference",
+        "description": "Reference the environment variable or absolute private file containing your API client secret, never the secret itself. If omitted, reads CHECKPOINT_AXI_CLIENT_SECRET; a missing or blank secret prevents authentication.",
         "$ref": "#/$defs/secretRef",
         "x-secret": true,
         "default": {
@@ -102,17 +112,26 @@
         }
       },
       "saas": {
+        "title": "SaaS application name",
+        "description": "One non-blank SaaS application name for the tenant, not a gateway, host or authentication URL; slash (/) is not allowed. Obtain the exact API application name from your tenant administrator or Check Point support. If omitted, defaults to office365_emails, selecting Microsoft 365 email; supply the appropriate name for another application. A profile takes one value, while --saas on event list accepts a comma-separated list.",
         "type": "string",
         "minLength": 1,
         "pattern": "\\S",
+        "not": {
+          "pattern": "/"
+        },
         "default": "office365_emails"
       },
       "scope": {
+        "title": "Download scope",
+        "description": "Download scope value supplied by your tenant administrator or Check Point support for the intended download. Use printable ASCII with no spaces (characters ! through ~); comma-separated values are sent verbatim. There is no default: omitted means unset, so email download fails because it requires the profile scope as its scopes header. Attachment download uses this only as the default scope query; --scope overrides it, and neither supplied means no scope query. Tenant scope authorization and the relationship between these selectors remain unverified; do not guess a value.",
         "type": "string",
         "minLength": 1,
-        "pattern": "\\S"
+        "pattern": "^[!-~]+$"
       },
       "downloads": {
+        "title": "Download permission",
+        "description": "Separate file-profile download opt-in. If omitted, downloads are disabled. Environment profiles cannot enable downloads.",
         "type": "object",
         "additionalProperties": false,
         "required": [
@@ -123,11 +142,15 @@
         },
         "properties": {
           "allow": {
+            "title": "Allow downloads",
+            "description": "Set true to permit download commands; each command still requires a new private output file.",
             "type": "boolean"
           }
         }
       },
       "writes": {
+        "title": "Write permissions",
+        "description": "File-profile write opt-in and exact operation allow-list. If omitted, writes are disabled with no allowed operations. Forced read-only always wins.",
         "type": "object",
         "additionalProperties": false,
         "required": [
@@ -140,9 +163,13 @@
         },
         "properties": {
           "allowWrites": {
+            "title": "Allow writes",
+            "description": "Set true to permit listed operations, subject to preview, exact confirmation and durable redacted intent.",
             "type": "boolean"
           },
           "operations": {
+            "title": "Allowed write operations",
+            "description": "Exact operation names to allow, such as email.quarantine. An empty list permits no writes.",
             "type": "array",
             "items": {
               "type": "string",
@@ -163,6 +190,8 @@
             ],
             "properties": {
               "env": {
+                "title": "Secret environment variable",
+                "description": "Name of the environment variable holding the secret, such as CHECKPOINT_AXI_CLIENT_SECRET. Use letters, digits and underscores, starting with a letter or underscore.",
                 "type": "string",
                 "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
               }
@@ -176,6 +205,8 @@
             ],
             "properties": {
               "file": {
+                "title": "Secret file path",
+                "description": "Absolute path to a private UTF-8 file holding the secret. Symlinks and insecure permissions are rejected; a leading BOM and trailing whitespace are removed from its content.",
                 "type": "string",
                 "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
               }
@@ -194,7 +225,7 @@
     "uae": "https://cloudinfra-gw.me.portal.checkpoint.com",
     "in": "https://cloudinfra-gw.in.portal.checkpoint.com"
   },
-  "skillSha256": "b64e7d373d92331cf653ef4478b2438e57c801032ed8cad7e161ed5fa6cc73a0",
+  "skillSha256": "14926c6952a4655c805ade22b1755f4f41238f96ca8fcf74f6bca512996434bc",
   "nativeWriteSettings": {
     "supportedOperations": [
       "attachment.download",
@@ -392,7 +423,7 @@
         "limit": "Maximum rows; default 50, range 1-1000; cannot combine with --all",
         "all": "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
         "cursor": "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
-        "filter": "JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20)"
+        "filter": "JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters. saasAttrName is a field path, not a closed enum (guide pages 19-20). Documented examples: entityPayload.subject, entityPayload.fromEmail, entityPayload.attachmentCount. Other documented email payload paths (pages 15-16, 24-25): entityPayload.internetMessageId, entityPayload.received, entityPayload.size, entityPayload.emailLinks, entityPayload.attachments, entityPayload.mode, entityPayload.recipients, entityPayload.fromDomain, entityPayload.fromUser, entityPayload.fromName, entityPayload.to, entityPayload.toUser, entityPayload.cc, entityPayload.ccUser, entityPayload.bcc, entityPayload.bccUser, entityPayload.replyToEmail, entityPayload.replyToNickname, entityPayload.isRead, entityPayload.isDeleted, entityPayload.isIncoming, entityPayload.isInternal, entityPayload.isOutgoing, entityPayload.isQuarantined, entityPayload.isQuarantineNotification, entityPayload.isRestored, entityPayload.isRestoreRequested, entityPayload.isRestoreDeclined, entityPayload.saasSpamVerdict, entityPayload.SpfResult. saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan. The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan. saasAttrValue is a string."
       }
     },
     {

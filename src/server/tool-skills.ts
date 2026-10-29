@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { ArtiumError } from '../shared/errors.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import beyondtrustInventory from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
+import checkpointInventory from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import { toolSkillPaths } from './config.js'
@@ -13,7 +14,7 @@ import type { ToolName } from './store/credential-store.js'
 const overlays = {
   'beyondtrust-axi': { sha256: beyondtrustInventory.skillSha256, sections: [] },
   'gh-axi': { sha256: ghInventory.skillSha256, sections: [] },
-  'checkpoint-axi': { sha256: 'b64e7d373d92331cf653ef4478b2438e57c801032ed8cad7e161ed5fa6cc73a0', sections: [] },
+  'checkpoint-axi': { sha256: checkpointInventory.skillSha256, sections: [] },
   'hybrid-axi': { sha256: 'a7af7087e17eb4c93fc6185c102baf6ec9d31b70fc27999ffe872a5ae7006a9f', sections: [] },
   'tenable-axi': { sha256: 'eaf6c39a3e7cbf82b628d4077eab743b16b98ecc8f17dcda6734d746b1a177f7', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },

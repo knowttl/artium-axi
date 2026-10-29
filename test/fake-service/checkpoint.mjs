@@ -30,6 +30,9 @@ export function checkpointResponse(req, res, url, requests, mutate) {
     entityAvailableActions: [{ entityActionName: 'quarantine' }, { entityActionName: 'restore' }] }
   const event = { eventId: 'synthetic-event', entityId: 'synthetic-email', type: 'phishing', state: 'open', severity: 'high',
     availableEventActions: [{ actionName: 'dismiss', actionParameter: {} }] }
+  if (url.pathname.endsWith('/search/entity/synthetic-invalid')) {
+    res.end(envelope([{ ...email, entityPayload: { ...email.entityPayload, subject: { value: 'CANARY-invalid-subject' } } }])); return
+  }
   if (url.pathname.endsWith('/search/query') || url.pathname.endsWith('/search/entity/synthetic-email')) { res.end(envelope([email])); return }
   if (url.pathname.endsWith('/event/query') || url.pathname.endsWith('/event/synthetic-event')) { res.end(envelope([event])); return }
   if (url.pathname.endsWith('/task/synthetic-task')) {
