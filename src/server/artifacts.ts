@@ -10,6 +10,7 @@ import { ArtiumError } from '../shared/errors.js'
 import { checkTransferCapacity, transferAuditSelector } from './transfer.js'
 import type { Audit } from './audit/audit.js'
 import type { RunContext } from './runner/run.js'
+import { log } from './log.js'
 
 export const artifactDefaults = {
   directory: '/tmp/artium-artifacts',
@@ -188,7 +189,7 @@ export class ArtifactStore {
         this.cleanupFailed = true
         // Fixed diagnostic only: never payloads, paths or arbitrary filesystem errors.
         if (this.dependencies.cleanupError) this.dependencies.cleanupError()
-        else console.error('Artifact cleanup failed; new artifact admission is blocked.')
+        else log('error', 'artifact-cleanup', { code: 'ARTIFACT_UNAVAILABLE' })
         throw new ArtiumError('TEMP_UNAVAILABLE')
       }
     })

@@ -27,10 +27,15 @@ import { ProviderCredentials } from './store/provider-credentials.js'
 import { EmbeddedSecretSource } from './store/secret-source.js'
 import { EnvironmentKeyProvider, saveMasterKey } from './store/key-provider.js'
 import { acquireMaintenanceLock } from './store/maintenance-lock.js'
-import { ArtiumError, errorResponse } from '../shared/errors.js'
+import { ArtiumError } from '../shared/errors.js'
+import { cliVersion } from '../shared/version.js'
+import { log } from './log.js'
+import { toolManifests } from '../shared/tool-manifests.js'
 import { installTrustedCa, loadTrustedCa } from './trusted-ca.js'
 
 async function main() {
+  log('info', 'startup', { version: cliVersion, port: serverDefaults.port,
+    adapterCount: Object.keys(toolManifests).length, auditStream: process.env.ARTIUM_AXI_AUDIT_STDOUT === '1' })
   checkAuthSettings(process.env)
   const trustedCa = loadTrustedCa()
   installTrustedCa(trustedCa)
@@ -52,7 +57,7 @@ async function main() {
     const azureTokens = new AzureTokenCache()
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
     try { initializeNativeWriteLog(writeLog) }
-    catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+    catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'vectra-axi-initialize' }) }
     const app = createApp({ db, audit, runner, credentialStore: store, providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
       adapters: [createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),
@@ -65,20 +70,27 @@ async function main() {
         createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log'))] })
     const maintain = async () => {
       try { audit.maintain() }
-      catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+      catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'audit' }) }
       try { retainNativeWriteLog(writeLog) }
-      catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+      catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'vectra-axi-writes' }) }
       for (const tool of ['az-axi', 'mg-axi', 'vectra-axi', 'falcon-axi', 'beyondtrust-axi'] as const) {
         try { await retainRunJournals(join(dirname(database), 'tool-logs', tool, 'writes.log'), tool) }
-        catch { process.stderr.write(`${JSON.stringify(errorResponse(new ArtiumError('AUDIT_UNAVAILABLE'), 'retention'))}\n`) }
+        catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: tool }) }
       }
     }
     await maintain()
     const retention = setInterval(() => { void maintain() }, 24 * 60 * 60 * 1000)
     retention.unref()
-    app.addHook('onClose', async () => { clearInterval(retention); connection.close(); release() })
+    app.addHook('onClose', async () => {
+      clearInterval(retention); connection.close(); release()
+      log('info', 'shutdown')
+    })
     await app.listen({ host: serverDefaults.host, port: serverDefaults.port })
-    const shutdown = () => { void app.close().catch(() => { process.exitCode = 1 }) }
+    log('info', 'listening', { port: serverDefaults.port })
+    const shutdown = () => { void app.close().catch(error => {
+      log('error', 'shutdown', { code: 'INTERNAL_ERROR', ...errorDiagnostic(error) })
+      process.exitCode = 1
+    }) }
     process.once('SIGTERM', shutdown)
     process.once('SIGINT', shutdown)
   } catch (error) {
@@ -90,6 +102,6 @@ async function main() {
 }
 
 main().catch(error => {
-  process.stderr.write(`${JSON.stringify({ ...errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), 'startup'), ...errorDiagnostic(error) })}\n`)
+  log('error', 'startup', { code: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', ...errorDiagnostic(error) })
   process.exitCode = 1
 })

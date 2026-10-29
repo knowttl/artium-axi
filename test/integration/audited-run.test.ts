@@ -77,6 +77,7 @@ afterEach(async () => {
 })
 
 test('a run persists a start before secret retrieval and a paired terminal before returning', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
   getCredential.mockImplementationOnce(async () => {
     expect(db.prepare('SELECT event FROM audit').all()).toEqual([{ event: 'run-start' }])
     return { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }
@@ -94,6 +95,35 @@ test('a run persists a start before secret retrieval and a paired terminal befor
   expect(lines.map(line => JSON.parse(line))).toEqual(records)
   expect(lines.join('')).not.toMatch(/CANARY-body|CANARY-file|CANARY-secret|CANARY-client/)
   expect(records[1].arguments).toBeNull()
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toEqual({
+    ts: expect.any(String), level: 'warn', event: 'run', requestId: context.requestId,
+    tool: 'falcon-axi', outcome: 'completed', exitCode: 7, errorCode: null,
+    durationMs: result.durationMs, stdoutBytes: 0, stderrBytes: 0, truncated: false,
+  })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
+
+test('successful calls emit one correlated operational line without tool output', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  await runTool(db, audit, runner, token, { args: ['print', 'CANARY-private-output'] }, adapter, resolver, context)
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+    level: 'info', event: 'run', requestId: context.requestId, outcome: 'completed', exitCode: 0,
+  })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+})
+
+test('unexpected preparation failure emits one safe operational line', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  getCredential.mockRejectedValueOnce(new Error('CANARY-private-error'))
+  await expect(runTool(db, audit, runner, token, { args: ['print', 'CANARY-argument'] }, adapter, resolver, context))
+    .rejects.toThrow('CANARY-private-error')
+  expect(stderr.mock.calls).toHaveLength(1)
+  expect(JSON.parse(String(stderr.mock.calls[0][0]))).toMatchObject({
+    event: 'run', requestId: context.requestId, outcome: 'INTERNAL_ERROR', exitCode: null,
+  })
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
 })
 
 test('a failed run records only the bounded tool failure code', async () => {

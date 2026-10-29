@@ -60,12 +60,12 @@ test('loads every certificate and exposes metadata without PEM contents', () => 
 })
 
 test.each([
-  ['2099-12-02T00:00:00Z', 'expires within 30 days'],
-  ['2100-01-01T00:00:00Z', 'has expired'],
-])('warns about certificate expiry at %s using only its fingerprint', (now, message) => {
+  ['2099-12-02T00:00:00Z', 'CA_EXPIRING'],
+  ['2100-01-01T00:00:00Z', 'CA_EXPIRED'],
+])('warns about certificate expiry at %s using only a fixed code', (now, code) => {
   const warnings: string[] = []
   loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }, warning => warnings.push(warning), Date.parse(now))
-  expect(warnings).toEqual([`ARTIUM_AXI_EXTRA_CA_FILE: certificate ${new X509Certificate(pem).fingerprint256} ${message}.`])
+  expect(warnings).toEqual([code])
 })
 
 test('server global fetch honors the installed additional default CAs', async () => {

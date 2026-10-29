@@ -489,7 +489,13 @@ Use `/admin/audit?failed=1&tool=<tool>` to find recent failed runs.
 See [Audit screen and API](admin-guide.md#audit-screen-and-api) for filter semantics, recorded fields, API queries, pagination and exports.
 For a credential, TLS, DNS or network problem, use **Test credential** on the tool page for a current secret-scanned diagnostic.
 
-For `INTERNAL_ERROR` and `SPAWN_FAILED`, search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID.
+Search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID to find the `run` event and any related `error` event.
+Operational logs are JSON lines on stderr with `ts` (UTC), `level`, `event` and `requestId` (`null` for background and lifecycle events).
+Each tool call emits one `run` record with the tool, outcome, exit code, error code, duration, output byte counts and truncation flag, without arguments, stdin or output text.
+`startup`, `listening` and `shutdown` identify the server lifecycle; `retention` errors identify the affected store in `target`.
+`artifact-cleanup` errors mean new artifact admission is blocked; `trusted-ca` warnings report `CA_EXPIRING` or `CA_EXPIRED`, so inspect the configured bundle's certificates.
+The optional audit stream remains on stdout, separate from operational logs.
+For `INTERNAL_ERROR` and `SPAWN_FAILED`, the `error` event carries additional safe diagnostics.
 The server's stderr JSON line contains `requestId`, a sanitized `errorClass` and the matched route template in `route` (or `(unmatched)`), without actual path parameter values, query strings, request bodies, secrets, certificate contents or error messages.
 When available, `errorCode` is a bounded Node errno token such as `ENOENT`; `frames` contains at most five application `dist/` or dependency `node_modules/` file:line locations without function names or messages.
 Startup failures also include these safe fields when available and retain the Artium error code for known configuration failures.

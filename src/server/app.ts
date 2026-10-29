@@ -32,6 +32,7 @@ import type { MutableCredentialStore } from './store/credential-store.js'
 import { isAwxOriginOnly } from './store/credential-store.js'
 import { ToolHealth } from './health/health.js'
 import { acceptsCliVersion, cliVersion, hasCliUpdateCommand } from '../shared/version.js'
+import { log } from './log.js'
 import { toolManifests } from '../shared/tool-manifests.js'
 import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
@@ -89,9 +90,9 @@ export function createApp(options: {
           const field = issue.path.at(-1)
           return typeof field === 'string' && fields.has(field) ? [field] : []
         }))] : undefined
-      process.stderr.write(JSON.stringify({ requestId: request.id, errorClass,
+      log('error', 'error', { requestId: request.id, code: failure.code, errorClass,
         route: request.routeOptions.url ?? '(unmatched)', ...(validationFields ? { validationFields } : {}),
-        ...errorDiagnostic(error instanceof RunnerError && error.spawnError ? error.spawnError : error) }) + '\n')
+        ...errorDiagnostic(error instanceof RunnerError && error.spawnError ? error.spawnError : error) })
     }
     if (browser.isBrowser(request)) {
       if (failure.code === 'REAUTH_REQUIRED' && !(request.url.startsWith('/v1/') && request.headers.accept === 'application/json')) return reply.redirect('/reauth', 303)
