@@ -7,6 +7,7 @@ import { request } from 'node:https'
 import { decode } from '@toon-format/toon'
 import { beforeAll, expect, test, vi } from 'vitest'
 import * as credentialTls from '../../src/server/credential-tls.js'
+import * as healthPreflight from '../../src/server/health/preflight.js'
 import { createApp } from '../../src/server/app.js'
 import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
 import type { PreparedCall } from '../../src/server/adapters/types.js'
@@ -31,10 +32,11 @@ beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 async function withBeyondtrust(check: (fixture: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, directory: string,
   post: (path: string, body?: unknown) => Promise<Response>,
+  get: (path: string) => Promise<Response>,
   cli: (args: string[]) => Promise<{ code: number | null, stdout: string, stderr: string }>,
   enable: (operations: string[], allowDeletes?: boolean) => Promise<void>, run: (args: string[], input?: object) => Promise<{ stdout: string, exitCode: number }>,
   evidence: () => Promise<{ requests: { path: string, canaryReceived: boolean, scope?: string }[], mutations: number }>,
-}) => Promise<void>, options: { interruption?: string, signal?: AbortSignal } = {}) {
+}) => Promise<void>, options: { interruption?: string, signal?: AbortSignal, invalidResponse?: boolean } = {}) {
   await withFakeService(async ({ directory, port, send }) => {
     const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), key)
@@ -47,6 +49,7 @@ async function withBeyondtrust(check: (fixture: {
             join(process.cwd(), 'tools/node_modules/@knowttl/beyondtrust-axi/bin/beyondtrust-axi.js'), ...call.args],
           limits: options.interruption && call.write ? { ...call.limits, timeoutMs: options.interruption === 'native-deadline' ? 5000 : 2000 } : call.limits,
           environment: { ...call.environment, ARTIUM_TEST_BEYONDTRUST_ORIGIN: `https://localhost:${port}`,
+            ...(options.invalidResponse ? { ARTIUM_TEST_BEYONDTRUST_INVALID_RESPONSE: '1' } : {}),
             ...(options.interruption && call.write ? { ARTIUM_TEST_BEYONDTRUST_INTERRUPTION: options.interruption,
               ARTIUM_TEST_BEYONDTRUST_COMMITTED: join(directory, 'committed') } : {}) } })
     const prepare = adapter.prepare.bind(adapter)
@@ -62,6 +65,7 @@ async function withBeyondtrust(check: (fixture: {
       capacityBytes: transferLimits.reservedBytes, freeBytes: transferLimits.reservedBytes,
       memoryMax: artifactDefaults.containerBytes, memoryCurrent: 0, swapMax: 0, swapCurrent: 0 }) })
     const rejectNetwork = vi.spyOn(credentialTls, 'credentialFetch').mockRejectedValue(new Error('Unexpected synthetic network request'))
+    const preflight = options.invalidResponse ? vi.spyOn(healthPreflight, 'preflight').mockResolvedValue() : undefined
     const app = createApp({ db, audit, runner, adapters: [adapter], credentialStore: credentials,
       resolver: new SharedIdentityResolver(credentials), artifactStore, environment: {} })
     const url = await app.listen({ host: '127.0.0.1', port: 0 })
@@ -107,9 +111,10 @@ async function withBeyondtrust(check: (fixture: {
         expect(JSON.stringify(result)).not.toMatch(/CANARY-beyondtrust-(secret|token)/)
         return result
       }
-      await check({ app, db, directory, post, cli, enable, run, evidence: async () => JSON.parse(await send('/__evidence')) })
+      await check({ app, db, directory, post, get: path => fetch(url + path, { headers }), cli, enable, run,
+        evidence: async () => JSON.parse(await send('/__evidence')) })
       expect(await readdir(join(directory, 'calls'))).toEqual([])
-    } finally { await app.close(); db.close(); rejectNetwork.mockRestore() }
+    } finally { await app.close(); db.close(); rejectNetwork.mockRestore(); preflight?.mockRestore() }
   })
 }
 
@@ -210,6 +215,33 @@ test('managed doctor and about accept the fake version records', async () => {
     expect(new Set((await evidence()).requests.filter(record => record.path === '/oauth/connect/token').map(record => record.scope)))
       .toEqual(new Set(['urn:management:api']))
   })
+})
+test('malformed fake responses retain redacted shape diagnostics in client and health output with code-only audit evidence', async () => {
+  await withBeyondtrust(async ({ run, post, get }) => {
+    const result = await run(['about'])
+    expect(result.exitCode, result.stdout).toBe(1)
+    expect(decode(result.stdout)).toMatchObject({ error: { code: 'API_RESPONSE_INVALID',
+      status: 200, contentType: 'application/json', shapeTruncated: false,
+      shape: [{ path: '$', type: 'object' }, { path: '$["data"]', type: 'array' },
+        { path: '$["data"][0]', type: 'object' }, { path: '$["data"][0]["host"]', type: 'string' },
+        { path: '$["data"][0]["clientSecret"]', type: 'string' }, { path: '$["data"][0]["token"]', type: 'string' },
+        { path: '$["totalRecordCount"]', type: 'string' }] } })
+    expect(result.stdout).not.toContain('CANARY-')
+
+    const tested = await post('/v1/admin/tools/beyondtrust-axi/test')
+    const failure = await tested.json()
+    expect(failure).toMatchObject({ error: { diagnostic: { toolCode: 'API_RESPONSE_INVALID', message: result.stdout.trim() } } })
+    const settings = await (await get('/v1/admin/tools/beyondtrust-axi')).json()
+    expect(settings.health.diagnostic.message).toBe(result.stdout.trim())
+    expect(JSON.stringify(failure) + JSON.stringify(settings)).not.toContain('CANARY-')
+
+    const audit = await (await get('/v1/admin/audit?tool=beyondtrust-axi')).json()
+    expect(audit.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event: 'run-terminal', error_code: 'API_RESPONSE_INVALID' }),
+    ]))
+    expect(JSON.stringify(audit)).not.toContain('CANARY-')
+    expect(JSON.stringify(audit)).not.toContain('shape')
+  }, { invalidResponse: true })
 })
 test('managed all reads span pages and resume the final partial page', async () => {
   await withBeyondtrust(async ({ run }) => {

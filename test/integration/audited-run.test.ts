@@ -469,7 +469,8 @@ describe.each([
   let spawn: MockInstance<typeof childProcess.spawn>
 
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-01-01T00:00:00Z') })
+    token = issueTestAccessToken(db, 'synthetic-user')
     db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
     db.prepare('INSERT OR IGNORE INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
     executionAdapter = create()

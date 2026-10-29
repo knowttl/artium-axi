@@ -17,6 +17,12 @@ export function beyondtrustResponse(req, res, url, requests, mutate) {
     return
   }
   if (!record.canaryReceived) { res.writeHead(401); res.end('{}'); return }
+  if (req.headers['x-artium-test-beyondtrust-invalid-response'] === '1') {
+    res.setHeader('content-type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({ data: [{ host: 'CANARY-response-host', clientSecret: 'CANARY-beyondtrust-secret',
+      token: 'CANARY-beyondtrust-token' }], totalRecordCount: 'CANARY-invalid-count' }))
+    return
+  }
   if (url.pathname.endsWith('/Content') || url.pathname.endsWith('/GetYamlApiDefinitionFile')) {
     res.setHeader('content-type', 'application/octet-stream')
     res.end('Synthetic inert BeyondTrust artifact\n')
