@@ -206,7 +206,8 @@ The 50 MiB native cap, shared global capacity, ten-minute expiry, recent identit
 Transfer audit records identify `checkpoint-axi`; native audit ID and native journal result are empty because this is host-owned evidence.
 The CLI checks delivered bytes again and sends a verified-save receipt; missing receipt remains unconfirmed.
 Save only, never extract or execute, and never retry an uncertain transfer automatically.
-Managed scope controls email and attachment authorization; no arbitrary URL, output path or scope override enters the transfer selection.
+See [Check Point credential setup](tool-credentials.md#check-point-email-security) for managed download scope behavior and its commissioning limits.
+No arbitrary URL, output path or scope override enters the transfer selection.
 Email/ZIP hash availability and live scopes remain uncommissioned; missing headers fail closed, and ZIP responses may be partial.
 Ordinary `artium-axi checkpoint-axi ... download` commands and browser artifact saving are unavailable.
 
