@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.25](https://github.com/knowttl/artium-axi/compare/v0.0.24...v0.0.25) (2026-10-29)
+
+
+### Features
+
+* integrate BeyondTrust PM Cloud tools into Artium ([#204](https://github.com/knowttl/artium-axi/issues/204)) ([4e2f2a0](https://github.com/knowttl/artium-axi/commit/4e2f2a0042797f06edfffd08db0045e9b70c5e04))
+* **tools:** refresh upstream tools and support PR field selection ([#205](https://github.com/knowttl/artium-axi/issues/205)) ([53c70d5](https://github.com/knowttl/artium-axi/commit/53c70d5ab1cb4fe7ced42ddcb1358886091f88d2))
+
+
+### Bug Fixes
+
+* add compact agent investigation guidance ([#202](https://github.com/knowttl/artium-axi/issues/202)) ([6840cf2](https://github.com/knowttl/artium-axi/commit/6840cf294bcdbf265644bb23a1db9d29a7b4836a))
+
 ## [0.0.24](https://github.com/knowttl/artium-axi/compare/v0.0.23...v0.0.24) (2026-10-28)
 
 
