@@ -47,6 +47,9 @@ async function nativeJournal(path: string | undefined, scope: TransferScope, out
 }
 
 function nativeArguments(scope: TransferScope, output: string): string[] {
+  if (transferTool(scope.selection.operation) === 'beyondtrust-axi') return [
+    ...scope.selection.operation.split('.'), ...(scope.selection.operation === 'api-definition.download' ? [] : [scope.selection.selector]), '--out', output]
+
   if (transferTool(scope.selection.operation) === 'mg-axi') {
     const [mailbox, message, attachment] = scope.selection.selector.split('/')
     return ['mail', attachment ? 'attachment' : 'message', attachment ? 'save' : 'export',
@@ -80,7 +83,7 @@ export async function previewNativeArtifact(reservation: ArtifactReservation, ru
       authorize()
       return transferPreviewSchema.parse({ transferId: reservation.scope.transferId,
         expiresAt: reservation.scope.expiresAt, targetDigest: reservation.scope.targetDigest,
-        confirm: hostedConfirmation(reservation.scope), warnings: transferTool(reservation.scope.selection.operation) === 'mg-axi'
+        confirm: hostedConfirmation(reservation.scope), warnings: ['mg-axi', 'beyondtrust-axi'].includes(transferTool(reservation.scope.selection.operation))
           ? [transferWarningFor(reservation.scope.selection.operation)] : [
           'Host-owned confirmation. Download once, save only; do not extract or execute. Native SHA-256 verification is mandatory; live scopes and email/ZIP hash availability remain unverified. ZIP responses may contain only some attachments.',
         ] })
@@ -130,14 +133,15 @@ export async function executeNativeArtifact(reservation: ArtifactReservation, ru
         return { archiveBytes: completion.size, verifiedSha256: completion.sha256,
           nativeAuditId: intent.id, nativeJournalResult: 'SUCCESS' }
       }
-      if (transferTool(scope.selection.operation) === 'checkpoint-axi') {
+      if (['checkpoint-axi', 'beyondtrust-axi'].includes(transferTool(scope.selection.operation))) {
         if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
         profile = await prepare(nativeArguments(scope, output))
         result = await runner.run(scope.userId, profile.executable, profile.args, profile.environment, profile.secrets,
           { ...profile.limits, signal }, {}, profile.files, () => { authorize(); launched = true })
         if (result.exitCode !== 0 || result.timedOut || result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('UNKNOWN_OUTCOME')
         const completion = z.strictObject({ path: z.literal(output), size: z.number().int().nonnegative().max(50 * 1024 * 1024),
-          sha256: z.string().regex(/^[a-f0-9]{64}$/) }).parse(decode(result.stdout))
+          sha256: z.string().regex(/^[a-f0-9]{64}$/),
+          ...(transferTool(scope.selection.operation) === 'beyondtrust-axi' ? { contentType: z.string() } : {}) }).parse(decode(result.stdout))
         // The shared store independently hashes and checks the private file.
         // Null native fields explicitly distinguish host evidence from a journal.
         return { archiveBytes: completion.size, verifiedSha256: completion.sha256,

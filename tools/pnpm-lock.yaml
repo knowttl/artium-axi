@@ -14,6 +14,9 @@ importers:
       '@knowttl/az-axi':
         specifier: 0.1.13
         version: 0.1.13
+      '@knowttl/beyondtrust-axi':
+        specifier: 0.1.1
+        version: 0.1.1
       '@knowttl/checkpoint-axi':
         specifier: 0.1.0
         version: 0.1.0
@@ -63,6 +66,11 @@ packages:
 
   '@knowttl/az-axi@0.1.13':
     resolution: {integrity: sha512-qltNokGPKFvUxFxNVf25gV2jtgw9MpxT5k6Zlbhz0b/Y5pvbc04SpORpUurDZNXE7runLZZhoBmm38qXcA3M7Q==}
+    engines: {node: '>=22.12.0'}
+    hasBin: true
+
+  '@knowttl/beyondtrust-axi@0.1.1':
+    resolution: {integrity: sha512-B5Nc4eOIaAlceGRE8FfPbUMuwnedlKfzBYjGeozjqmAD1LVHYJBspQXiJuj7fCtOlUd9ea/axisM3RH82A6Wjg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -380,6 +388,12 @@ snapshots:
       '@toon-format/toon': 4.4.0
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
+
+  '@knowttl/beyondtrust-axi@0.1.1':
+    dependencies:
+      '@toon-format/toon': 2.3.1
+      axi-sdk-js: 0.1.13
+      zod: 4.3.6
 
   '@knowttl/checkpoint-axi@0.1.0':
     dependencies:

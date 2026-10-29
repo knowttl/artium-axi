@@ -3,6 +3,7 @@ import { verify, X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { hybridResponse } from './hybrid.mjs'
+import { beyondtrustResponse } from './beyondtrust.mjs'
 import { checkpointResponse } from './checkpoint.mjs'
 
 const requests = []
@@ -103,6 +104,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (req.headers.host === 'hybrid-analysis.com') {
     hybridResponse(req, res, url, requests, resources, () => { mutations++ })
+    return
+  }
+  if (req.headers.host === 'example.pm.beyondtrustcloud.com') {
+    beyondtrustResponse(req, res, url, requests, () => { mutations++ })
     return
   }
   if (/^cloudinfra-gw(?:[.-][a-z]+)?\.portal\.checkpoint\.com$/.test(req.headers.host ?? '')) {

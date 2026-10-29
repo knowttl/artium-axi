@@ -5,6 +5,7 @@ import { transferLimits, transferPrepareSchema, transferScopeSchema, transferToo
 import type { TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { hybridWritePolicy } from './adapters/hybrid.js'
+import { beyondtrustWritePolicy } from './adapters/beyondtrust.js'
 import { checkpointWritePolicy } from './adapters/checkpoint.js'
 import { mgWritePolicy } from './adapters/mg.js'
 import { authDefaults } from './config.js'
@@ -73,7 +74,7 @@ export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
   const tool = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(name) as { native_settings: string }
   const settings = JSON.parse(tool.native_settings)
   if (name === 'mg-axi' && !settings.enabledPacks?.includes('mail')) throw new ArtiumError('FLAG_BLOCKED')
-  const state = (name === 'mg-axi' ? mgWritePolicy : name === 'checkpoint-axi' ? checkpointWritePolicy : hybridWritePolicy).read(settings)
+  const state = (name === 'beyondtrust-axi' ? beyondtrustWritePolicy : name === 'mg-axi' ? mgWritePolicy : name === 'checkpoint-axi' ? checkpointWritePolicy : hybridWritePolicy).read(settings)
   // A global write switch never enables an unselected download operation.
   if (!state.enabled || !state.supportedOperations?.includes(operation) || !state.allowedOperations.includes(operation)) {
     throw new ArtiumError('FLAG_BLOCKED')

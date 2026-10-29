@@ -8,7 +8,7 @@ type WriteUpdate = z.infer<typeof writeAccessInputSchema>
 
 // Adapters own the native shape and capability boundary; callers only see normalized state.
 export function writePolicy(options: {
-  reason?: string, supportedOperations?: readonly string[], unlocks: string, blocked: string,
+  allowDeletes?: boolean, reason?: string, supportedOperations?: readonly string[], unlocks: string, blocked: string,
 }) {
   const supportedOperations = options.supportedOperations
   function read(settings: Settings): WriteState {
@@ -18,6 +18,7 @@ export function writePolicy(options: {
       allowedOperations: supportedOperations ? [...writes?.operations ?? []] : [], unlocks: options.unlocks, blocked: options.blocked }
   }
   return { read, update(settings: Settings, input: WriteUpdate): Settings {
+    if (input.allowDeletes !== undefined && !options.allowDeletes) throw new ArtiumError('INVALID_INPUT', 'This tool does not use a delete grant.')
     if (options.reason) throw new ArtiumError('INVALID_INPUT', options.reason)
     if (!supportedOperations) {
       if (input.operations !== undefined) throw new ArtiumError('INVALID_INPUT', 'This tool does not use an operations allow-list.')
@@ -29,9 +30,12 @@ export function writePolicy(options: {
     }
     if (!operations.length) {
       if (input.enabled) throw new ArtiumError('INVALID_INPUT', 'Select at least one supported write operation.')
+      if (options.allowDeletes) return { ...settings, writes: { allowWrites: false, operations: [],
+        allowDeletes: input.allowDeletes ?? (settings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes ?? false } }
       const { writes: _, ...rest } = settings
       return rest
     }
-    return { ...settings, writes: { ...settings.writes as Settings, allowWrites: input.enabled, operations } }
+    return { ...settings, writes: { ...settings.writes as Settings, allowWrites: input.enabled, operations,
+      ...(options.allowDeletes && input.allowDeletes !== undefined ? { allowDeletes: input.allowDeletes } : {}) } }
   } }
 }

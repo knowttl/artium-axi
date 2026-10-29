@@ -20,6 +20,13 @@ export interface RunContext {
   signal?: AbortSignal
 }
 
+function unknownWriteResult(auditId: string, durationMs: number, outputBytes: RunnerResult['outputBytes']): RunnerResult {
+  const stdout = encode({ error: { code: 'OUTCOME_UNKNOWN', auditId,
+    message: 'Write outcome is unknown; do not replay the request' },
+  help: ['Reconcile the durable intent and remote state before taking further action. The operation was not retried.'] }) + '\n'
+  return { stdout, stderr: '', exitCode: 1, durationMs, outputBytes, timedOut: false, truncated: { stdout: false, stderr: false } }
+}
+
 // The HTTP owner supplies a unique request ID and verified client address.
 export async function runTool<Credential>(
   db: Database.Database, audit: Audit, runner: Runner, token: string, request: unknown,
@@ -52,7 +59,7 @@ export async function runTool<Credential>(
     const reference = await resolver.resolve(userId, adapter.name)
     const prepared = await adapter.prepare(args, reference, input)
     write = prepared.write
-    journal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect)
+    journal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect, write)
     if (prepared.preview) {
       const stdout = encode({ preview: prepared.preview, help: [
         'No operation was sent. Review the exact request, then repeat it with --confirm <confirm> using the value above.',
@@ -64,22 +71,33 @@ export async function runTool<Credential>(
       prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
       { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
     result = hostedStatus(adapter.name, prepared.invocation, result)
+    if (journal.auditId && result.exitCode !== 0 && !toolFailureCode(result.stdout, result.stderr)) {
+      result = unknownWriteResult(await journal.auditId(), result.durationMs, result.outputBytes)
+    }
   } catch (error) {
     const runnerError = error instanceof RunnerError ? error : undefined
-    if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'].includes(runnerError.code)) {
-      const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
-        /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
-      error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
-        `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`)
+    if (write && journal?.auditId && runnerError?.processStarted) {
+      result = unknownWriteResult(await journal.auditId(), runnerError.durationMs ?? Date.now() - started,
+        runnerError.outputBytes ?? { stdout: 0, stderr: 0 })
+    } else {
+      if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'].includes(runnerError.code)) {
+        const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
+          /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
+        error = new ArtiumError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
+          `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`)
+      }
+      audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
+        outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
+        durationMs: runnerError?.durationMs ?? Date.now() - started,
+        outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 } })
+      throw error
     }
-    audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
-      outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
-      durationMs: runnerError?.durationMs ?? Date.now() - started,
-      outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 } })
-    throw error
   }
-  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown', outcome: 'completed', exitCode: result.exitCode,
-    errorCode: result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null,
+  const errorCode = result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null
+  audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown',
+    outcome: errorCode === 'OUTCOME_UNKNOWN' ? 'UNKNOWN_OUTCOME' : 'completed', exitCode: result.exitCode,
+    nativeAuditId: await journal?.auditId?.(),
+    errorCode,
     durationMs: result.durationMs, outputBytes: result.outputBytes })
   return result
 }

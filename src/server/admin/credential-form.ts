@@ -4,6 +4,7 @@ import { ghProfile } from '../adapters/gh.js'
 import { awxProfile } from '../adapters/awx.js'
 import { tenableProfile } from '../adapters/tenable.js'
 import { hybridProfile } from '../adapters/hybrid.js'
+import { beyondtrustProfile } from '../adapters/beyondtrust.js'
 import { checkpointProfile } from '../adapters/checkpoint.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import type { ToolName } from '../store/credential-store.js'
@@ -11,6 +12,7 @@ import { escape } from './escape.js'
 
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
+  if (tool === 'beyondtrust-axi') return beyondtrustProfile
   if (tool === 'checkpoint-axi') return checkpointProfile
   if (tool === 'ado-axi') return adoProfile
   if (tool === 'gh-axi') return ghProfile

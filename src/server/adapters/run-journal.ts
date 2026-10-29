@@ -1,15 +1,55 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { mkdir, mkdtemp, open, readFile, readdir, rm, stat } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import ldapInventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import type { ToolName } from '../store/credential-store.js'
+import type { PreparedCall } from './types.js'
 
 export type RunAction = 'read' | 'write' | 'unknown'
+interface RunJournal {
+  environment: Record<string, string>
+  action(succeeded: boolean, stdout?: string): Promise<RunAction>
+  auditId?(): Promise<string>
+}
 
 // These pinned tools journal mutations after their native write gates.
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG', 'FALCON_AXI_WRITE_LOG']
 
-export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write') {
+export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write', write?: PreparedCall['write']): Promise<RunJournal> {
+  if (tool === 'beyondtrust-axi') {
+    const path = environment.BEYONDTRUST_AXI_WRITE_LOG
+    if (!path || !effect) throw new TypeError('Missing native write journal contract')
+    if (effect === 'read') return { environment, action: async succeeded => succeeded ? 'read' : 'unknown' }
+    if (!write) throw new TypeError('Missing host write contract')
+    const root = `${path}.runs`
+    const firstCreated = await mkdir(root, { recursive: true, mode: 0o700 })
+    const directory = await mkdtemp(join(root, 'run-'))
+    const auditId = randomUUID()
+    const file = await open(join(directory, 'intent.json'), 'wx', 0o600)
+    try {
+      await file.writeFile(JSON.stringify({ auditId, operation: write.operation, state: 'intent', time: new Date().toISOString() }))
+      await file.sync()
+    } finally { await file.close() }
+    const lastDirectory = firstCreated ? dirname(firstCreated) : root
+    for (let current = directory;; current = dirname(current)) {
+      const handle = await open(current, 'r')
+      try { await handle.sync() } finally { await handle.close() }
+      if (current === lastDirectory) break
+    }
+    const nativeDirectory = join(directory, 'beyondtrust-axi', 'writes')
+    const nativeIntent = async (): Promise<string | undefined> => {
+      try {
+        const names = (await readdir(nativeDirectory)).filter(name => /^[a-f0-9-]{36}\.json$/.test(name))
+        if (names.length !== 1) return
+        const intent = JSON.parse(await readFile(join(nativeDirectory, names[0]), 'utf8'))
+        if (intent.state === 'intent' && names[0] === `${intent.auditId}.json`) return intent.auditId
+      } catch { return }
+    }
+    return { environment: { ...environment, BEYONDTRUST_AXI_WRITE_LOG: join(directory, 'writes.log') },
+      auditId: async () => await nativeIntent() ?? auditId,
+      action: async () => await nativeIntent() ? 'write' : 'unknown' }
+  }
   if (tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi') {
     const path = environment[`${tool.toUpperCase().replaceAll('-', '_')}_WRITE_LOG`]
     if (!path || !effect) throw new TypeError('Missing native write journal contract')

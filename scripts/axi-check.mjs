@@ -143,7 +143,7 @@ try {
   for (const [host, location] of [['claude', '.claude'], ['codex', '.agents'], ['opencode', '.config/opencode'], ['pi', '.pi/agent']]) {
     const output = decode(await success(['setup', '--host', host, ...(host === 'claude' ? ['--hook'] : [])]))
     assert.deepEqual(output.skills, [{ name: 'artium-axi', status: 'installed' }, { name: 'falcon-axi', status: 'installed' }])
-    assert.match(readFileSync(join(home, location, 'skills/artium-axi/SKILL.md'), 'utf8'), /Use artium-axi tools first/)
+    assert.match(readFileSync(join(home, location, 'skills/artium-axi/SKILL.md'), 'utf8'), /## Investigation quick guide/)
     assert.match(readFileSync(join(home, location, 'skills/falcon-axi/SKILL.md'), 'utf8'), /artium-axi falcon-axi detection list/)
   }
   const first = await success(['falcon-axi', 'detection', 'list'])

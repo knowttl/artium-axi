@@ -62,11 +62,12 @@ See [installation paths and manual skill removal](docs/client-reference.md#agent
 
 ## What it covers
 
-All eleven managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+All twelve managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
 Write capabilities below require administrator opt-in.
 
 | Group | Purpose | Access | Reference |
 | --- | --- | --- | --- |
+| BeyondTrust PM Cloud | Endpoint Privilege Management reads, selected writes, deletes and four downloads | Managed credentials; exact operation grants; separate delete toggle | [Credentials](docs/tool-credentials.md#beyondtrust-pm-cloud) |
 | Discovery and sessions | Identity, login, tools, doctor, update and setup | Client/session operations | [Commands](docs/commands.md) |
 | Falcon | Endpoint investigations, guarded RTR and MalQuery | Reads; selected execution/search | [Capabilities](docs/safety.md#write-gates-by-tool) |
 | Vectra | Hosts, detections and response workflows | Reads; selected writes | [Credentials](docs/tool-credentials.md#vectra) |

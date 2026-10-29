@@ -4,6 +4,7 @@ import type { Readable } from 'node:stream'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
+import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
@@ -45,8 +46,8 @@ export async function toolInput(tool: string, original: string[]) {
   const hunting = tool === 'mg-axi' && args.slice(0, 3).join(' ') === 'security hunting query'
   const rule = tool === 'mg-axi' && ['mail rule create', 'mail rule update'].includes(args.slice(0, 3).join(' '))
   const mgUpload = hunting || rule
-  if ((tool === 'checkpoint-axi' || tool === 'az-axi' || tool === 'hybrid-axi' || tool === 'tenable-axi' || mgUpload) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
-    const fileFlags = mgUpload ? ['file'] : tool === 'checkpoint-axi' ? checkpoint.adapterBoundary.inputFileFlags : tool === 'tenable-axi' ? tenable.adapterBoundary.inputFileFlags
+  if ((tool === 'beyondtrust-axi' || tool === 'checkpoint-axi' || tool === 'az-axi' || tool === 'hybrid-axi' || tool === 'tenable-axi' || mgUpload) && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
+    const fileFlags = mgUpload ? ['file'] : tool === 'beyondtrust-axi' ? beyondtrust.adapterBoundary.inputFileFlags : tool === 'checkpoint-axi' ? checkpoint.adapterBoundary.inputFileFlags : tool === 'tenable-axi' ? tenable.adapterBoundary.inputFileFlags
       : tool === 'hybrid-axi' ? hybrid.adapterBoundary.inputFileFlags : az.adapterBoundary.inputFileFlags
     for (let index = 0; index < args.length; index++) {
       if (args[index] === '--') break

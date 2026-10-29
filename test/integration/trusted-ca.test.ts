@@ -13,6 +13,7 @@ import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
+import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
 import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
@@ -31,6 +32,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
       'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
+      'beyondtrust-axi': { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' },
       'checkpoint-axi': { region: 'us', clientId: 'synthetic-client', clientSecret: 'CANARY-checkpoint-secret' },
       'hybrid-axi': { apiKey: 'CANARY-hybrid-key' },
       'tenable-axi': { accessKey: 'CANARY-tenable-access', secretKey: 'CANARY-tenable-secret' },
@@ -46,6 +48,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const log = join(directory, 'writes.log')
     const adapters = {
       'gh-axi': createGhAdapter(source),
+      'beyondtrust-axi': createBeyondtrustAdapter(source, log),
       'checkpoint-axi': createCheckpointAdapter(source, log),
       'hybrid-axi': createHybridAdapter(source, log),
       'tenable-axi': createTenableAdapter(source, log),
@@ -57,7 +60,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       'mg-axi': createMgAdapter(source, log, profile('mg-axi')),
       'ldap-axi': createLdapAdapter(source),
     }
-    const args = { 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
+    const args = { 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
       'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { resolve, relative, sep, isAbsolute } from 'node:path'
-import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarning } from '../shared/api.js'
+import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
@@ -188,7 +188,7 @@ async function main(args: string[]) {
 
 function printError(response: ReturnType<typeof errorResponse>) {
   if (process.argv[2] === 'download' || process.argv[2] === '--managed-session' && process.argv[3] === 'download') {
-    output('stdout', `warning: ${JSON.stringify(transferWarning)}\n`)
+    output('stdout', `warning: ${JSON.stringify(transferWarningFor(process.argv[process.argv.indexOf('--operation') + 1] ?? ''))}\n`)
   }
   output('stdout', `error:\n${Object.entries(response.error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
   process.exitCode = errors[response.error.code].exitCode

@@ -17,6 +17,7 @@ import { GithubDeviceFlow } from '../adapters/github-device.js'
 import { awxCredentialSchema, awxWritePolicy } from '../adapters/awx.js'
 import { tenableCredentialSchema, tenableWritePolicy } from '../adapters/tenable.js'
 import { hybridCredentialSchema, hybridWritePolicy } from '../adapters/hybrid.js'
+import { beyondtrustCredentialSchema, beyondtrustWritePolicy } from '../adapters/beyondtrust.js'
 import { checkpointCredentialSchema, checkpointWritePolicy } from '../adapters/checkpoint.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
@@ -38,11 +39,12 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const writePolicies = { 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+const credentialSchemas = { 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const writePolicies = { 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy }
 const publicFields = {
   'gh-axi': ['origin', 'auth', 'appId', 'installationId', 'repositories', 'permissions', 'login', 'accessTokenExpiresAt'],
+  'beyondtrust-axi': ['host', 'clientId'],
   'checkpoint-axi': ['region', 'clientId', 'saas', 'scope'],
   'hybrid-axi': ['origin'],
   'tenable-axi': ['origin'],
@@ -57,6 +59,7 @@ const publicFields = {
 const legacySecretFields = {
   'gh-axi': ['token', 'privateKey', 'accessToken'],
   'checkpoint-axi': ['clientSecret'],
+  'beyondtrust-axi': ['clientSecret'],
   'hybrid-axi': ['apiKey'],
   'tenable-axi': ['accessKey', 'secretKey'],
   'awx-axi': ['token'],
@@ -136,12 +139,13 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     before: Record<string, unknown>, after: Record<string, unknown>): AuditEvent[] {
     const previous = writePolicies[tool].read(before)
     const next = writePolicies[tool].read(after)
-    if (previous.enabled === next.enabled &&
+    const deletes = (settings: Record<string, unknown>) => (settings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes === true
+    if (deletes(before) === deletes(after) && previous.enabled === next.enabled &&
       JSON.stringify([...previous.allowedOperations].sort()) === JSON.stringify([...next.allowedOperations].sort())) return []
     // The advanced JSON editor accepts arbitrary names. Only catalogue identities belong in audit.
     const operations = next.allowedOperations.filter(operation => next.supportedOperations?.includes(operation))
     return [{ event: 'tool-write-access', userId: actor, tool, outcome: 'success', enabled: next.enabled,
-      operations, unsupportedOperationCount: next.allowedOperations.length - operations.length,
+      operations, ...(tool === 'beyondtrust-axi' ? { allowDeletes: deletes(after) } : {}), unsupportedOperationCount: next.allowedOperations.length - operations.length,
       requestId: request.id, clientAddress: request.ip }]
   }
   const githubDevice = new GithubDeviceFlow()
