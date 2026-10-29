@@ -122,6 +122,49 @@ test('marks unmatched starts interrupted after reopening, once, without replay',
   expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare('SELECT * FROM audit ORDER BY id').all())
 })
 
+test('failure diagnostics become unreadable at 14 days and daily retention removes them', () => {
+  audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
+    outputBytes: { stdout: 0, stderr: 1 }, failure: { diagnostic: { stage: 'tool run', message: 'Synthetic failure' }, secrets: [] } })
+  now += 14 * day - 1
+  expect(audit.runDiagnostic(context.requestId)).toEqual({ stage: 'tool run', message: 'Synthetic failure' })
+  now++
+  expect(audit.runDiagnostic(context.requestId)).toBeUndefined()
+  audit.maintain()
+  expect(db.prepare('SELECT * FROM run_diagnostics').all()).toEqual([])
+  expect(db.prepare("SELECT exit_code FROM audit WHERE event = 'run-terminal'").get()).toEqual({ exit_code: 1 })
+})
+
+test.each(['x', '界', '😀'])('persisted diagnostics bound serialized %s text to 4 KiB', character => {
+  audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
+    outputBytes: { stdout: 0, stderr: 10000 }, failure: { diagnostic: { stage: 'tool run', message: character.repeat(10000), hint: 'Synthetic hint' }, secrets: [] } })
+  const row = db.prepare('SELECT diagnostic FROM run_diagnostics').get() as { diagnostic: string }
+  expect(Buffer.byteLength(row.diagnostic)).toBeLessThanOrEqual(4096)
+  expect(JSON.parse(row.diagnostic)).toMatchObject({ stage: 'tool run', hint: 'Synthetic hint' })
+})
+
+test.each([
+  ['message', 4060],
+  ['hint', 4050],
+  ['issuer', 4048],
+] as const)('persisted diagnostics truncate %s without splitting a surrogate pair', (field, prefixLength) => {
+  const record = audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
+    outputBytes: { stdout: 0, stderr: 4096 }, failure: { diagnostic: { stage: 'tool run', message: '',
+      [field]: 'a'.repeat(prefixLength) + '😀' + 'b'.repeat(26) }, secrets: [] } })
+  const row = db.prepare('SELECT diagnostic FROM run_diagnostics').get() as { diagnostic: string }
+  expect(Buffer.byteLength(row.diagnostic)).toBeLessThanOrEqual(4096)
+  expect(audit.runDiagnostic(context.requestId)).toMatchObject({ stage: 'tool run', [field]: 'a'.repeat(prefixLength) })
+  expect(db.prepare('SELECT * FROM audit WHERE id = ?').get(record.id)).toEqual(record)
+})
+
+test('diagnostic persistence failure rolls back the terminal event and emits nothing', () => {
+  db.exec("CREATE TRIGGER fail_diagnostic BEFORE INSERT ON run_diagnostics BEGIN SELECT RAISE(ABORT, 'synthetic full storage'); END")
+  expect(() => audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
+    outputBytes: { stdout: 0, stderr: 1 }, failure: { diagnostic: { stage: 'tool run', message: 'Synthetic failure' }, secrets: [] } }))
+    .toThrow(expect.objectContaining({ code: 'AUDIT_UNAVAILABLE' }))
+  expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
+  expect(lines).toEqual([])
+})
+
 test.each([
   [501, [500, 1]],
   [1000, [500, 500, 0]],

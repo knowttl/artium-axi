@@ -6,8 +6,9 @@ import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
 import { timestamp } from './forms.js'
+import type { Audit } from '../audit/audit.js'
 
-export function registerAuditPage(app: FastifyInstance, db: Database.Database): void {
+export function registerAuditPage(app: FastifyInstance, db: Database.Database, audit: Audit): void {
   app.get('/admin/audit', async (request, reply) => {
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
@@ -37,11 +38,14 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database): 
       <label>Records per page <input name="limit" type="number" min="1" max="100" value="${escape(query.data.limit)}" required></label>
       <button>Apply filters</button> <a href="/admin/audit">Clear filters</a></form>`
     const names = new Map(users.map(user => [user.id, user.username]))
-    const records = page.records.map(record => `<tr><td>${timestamp(record.occurred_at)}</td>
+    const records = page.records.map(record => {
+      const diagnostic = record.event === 'run-terminal' ? audit.runDiagnostic(record.request_id) : undefined
+      return `<tr><td>${timestamp(record.occurred_at)}</td>
       <td><details><summary>${record.authentication_method === 'break-glass' ? '<strong>Break-glass</strong> ' : ''}${escape(record.event)} <small>#${escape(record.id)}</small></summary><dl>${Object.entries(record).map(([key, value]) =>
-        `<dt>${escape(key)}</dt><dd>${value === null ? 'Not recorded' : ['occurred_at', 'checked_at', 'cutoff'].includes(key) ? timestamp(Number(value)) : escape(value)}</dd>`).join('')}</dl></details></td>
+        `<dt>${escape(key)}</dt><dd>${value === null ? 'Not recorded' : ['occurred_at', 'checked_at', 'cutoff'].includes(key) ? timestamp(Number(value)) : escape(value)}</dd>`).join('')}</dl>${diagnostic ? `<h3>Failure diagnostic</h3><pre>${escape(JSON.stringify(diagnostic, null, 2))}</pre>` : ''}</details></td>
       <td>${escape(record.user_id === null ? 'System' : names.get(record.user_id) ?? record.user_id)}</td>
-      <td>${escape(record.tool ?? 'None')}</td><td>${escape(record.outcome)}</td></tr>`).join('')
+      <td>${escape(record.tool ?? 'None')}</td><td>${escape(record.outcome)}</td></tr>`
+    }).join('')
     params.delete('cursor')
     const first = '/admin/audit?' + params
     const exports = new URLSearchParams(params)

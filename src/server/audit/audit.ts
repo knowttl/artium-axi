@@ -3,7 +3,8 @@ import type { z } from 'zod'
 import { transferAuditSchema, transferEvidenceSchema } from '../../shared/api.js'
 import type { adminAuditQuerySchema, adminAuditRecordSchema, transferOutcomeSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import type { ErrorCode } from '../../shared/errors.js'
+import type { Diagnostic, ErrorCode } from '../../shared/errors.js'
+import { safeDiagnostic } from '../health/diagnostic.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { RunAction } from '../adapters/run-journal.js'
 import { redactArguments } from './redact.js'
@@ -25,7 +26,8 @@ export type AuditEvent = Context & (
     transfer: z.infer<typeof transferAuditSchema> }
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
   // A normal managed run's errorCode is the tool's own bounded failure code; health-driven runs reuse Artium codes.
-  | ({ event: 'run-terminal', action?: RunAction, nativeAuditId?: string, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null }, errorCode?: string | null } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
+  | ({ event: 'run-terminal', action?: RunAction, nativeAuditId?: string, outcome: 'completed' | 'interrupted' | ErrorCode, exitCode: number | null, durationMs: number, outputBytes: { stdout: number | null, stderr: number | null }, errorCode?: string | null,
+    failure?: { diagnostic: Diagnostic | undefined, secrets: readonly string[] } } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
   | { event: 'lockout' | 'token-reuse', outcome: Outcome }
@@ -70,6 +72,7 @@ export interface AuditRecord extends Pick<z.infer<typeof adminAuditRecordSchema>
 
 const dayMs = 24 * 60 * 60 * 1000
 const retentionMs = 90 * dayMs
+const diagnosticRetentionMs = 14 * dayMs
 const retentionBatch = 500
 
 const ignoreStdoutError = () => {}
@@ -93,6 +96,12 @@ export class Audit {
 
   record(event: AuditEvent): AuditRecord {
     return this.change(event, () => undefined).record
+  }
+
+  runDiagnostic(requestId: string): Diagnostic | undefined {
+    const row = this.db.prepare('SELECT diagnostic FROM run_diagnostics WHERE request_id = ? AND occurred_at > ?')
+      .get(requestId, this.clock() - diagnosticRetentionMs) as { diagnostic: string } | undefined
+    return row ? JSON.parse(row.diagnostic) as Diagnostic : undefined
   }
 
   query(input: z.infer<typeof adminAuditQuerySchema>): { records: AuditRecord[], nextCursor: string | null } {
@@ -185,6 +194,7 @@ export class Audit {
     do {
       try {
         record = this.db.transaction(() => {
+          this.db.prepare('DELETE FROM run_diagnostics WHERE occurred_at <= ?').run(now - diagnosticRetentionMs)
           const deletedCount = this.db.prepare(`DELETE FROM audit WHERE id IN (
             SELECT id FROM audit WHERE occurred_at < ? ORDER BY occurred_at, id LIMIT ?
           )`).run(cutoff, retentionBatch).changes
@@ -237,6 +247,24 @@ export class Audit {
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)
+    if (terminal?.failure && (terminal.exitCode !== 0 || terminal.outcome !== 'completed')) {
+      const detail = safeDiagnostic(terminal.failure.diagnostic, terminal.failure.secrets)
+      if (detail) {
+        // The shared diagnostic limit counts characters; persisted JSON also has a strict byte ceiling.
+        let serialized = JSON.stringify(detail)
+        for (const key of ['message', 'hint', 'issuer', 'host', 'toolCode', 'providerCode'] as const) {
+          const excess = Buffer.byteLength(serialized) - 4096
+          if (excess <= 0) break
+          if (detail[key] !== undefined) {
+            const points = Array.from(detail[key]!)
+            detail[key] = points.slice(0, Math.max(0, points.length - excess)).join('')
+            serialized = JSON.stringify(detail)
+          }
+        }
+        this.db.prepare('INSERT INTO run_diagnostics (request_id, occurred_at, diagnostic) VALUES (?, ?, ?)')
+          .run(event.requestId, row.occurred_at, serialized)
+      }
+    }
     return { id: Number(inserted.lastInsertRowid), ...row }
   }
 

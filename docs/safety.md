@@ -145,5 +145,6 @@ Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; pass
 
 Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
 Audit excludes injected credentials, request bodies, stdin, uploads and output streams.
+Failed-run diagnostics use separate administrator-only storage; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions) for limits, exclusions and backup handling.
 The runner scans known secret encodings and discards output on a match; unknown upstream-minted tokens cannot be identified by exact-value scanning.
 Its restricted environment, private directories and process limits are not a complete sandbox; descendants starting a new session can escape process-group termination.

@@ -293,9 +293,10 @@ Use `requestId=<id>` to correlate a call's records.
 Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.
 This filter does not change stored outcomes: a non-zero tool exit can still have outcome `completed`.
 When a normal managed run exits non-zero, its terminal record stores the tool's own bounded failure code in `error_code` from a recognized `code:` or `error_code:` line, falling back to an Azure `AADSTS` provider code found in the output.
-The failure message, help text and tool output are never stored, and a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
+Audit records exclude failure messages, help text and tool output; a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
 Open an event in the table to inspect every persisted field.
+Terminal row details can also show a separately retained failure diagnostic; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions).
 Pagination retains filters; starting a new search includes records inserted after the previous search began.
 
 `GET /v1/admin/audit` exposes the same records; [the API contract](../src/shared/api.ts) owns the accepted filters (`auditFiltersSchema`) and pagination parameters (`adminAuditQuerySchema`).
