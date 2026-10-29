@@ -2,7 +2,7 @@
 
 ## BeyondTrust PM Cloud
 
-The pinned @knowttl/beyondtrust-axi 0.1.1 profile schema owns the managed fields.
+The package profile schema captured in the [reviewed inventory](../tools/inventories/beyondtrust-axi.json) owns the managed fields; [tools/package.json](../tools/package.json) owns the exact package pin.
 Create an Endpoint Privilege Management API account and grant only the required API areas.
 Save host (for example `example.pm.beyondtrustcloud.com`), clientId and clientSecret through the administrator credential form.
 The host must be lowercase DNS ending in .beyondtrustcloud.com, without scheme, port, path or userinfo; requests use verified HTTPS.
@@ -10,11 +10,9 @@ The secret is encrypted at rest and supplied through a private environment refer
 The credential test runs doctor with a bounded About read.
 A token 404 reports AUTH_ENDPOINT_NOT_FOUND and hints at the documented -services host form; the tool never switches hosts automatically.
 
-Enable exact writes.operations through Write access.
-Writes default off and retain native preview, --execute, exact --confirm and durable redacted intent gates.
-Deletes additionally require the separate Allow deletes toggle (writes.allowDeletes) and exact --confirm-delete.
+Enable exact writes.operations through Write access and review the [supported capability boundary](safety.md#beyondtrust-endpoint-privilege-management) before enabling writes or deletes.
 The advanced settings editor accepts the same writes object; downloads.allow is host-owned and cannot enable ordinary downloads.
-Use artium-axi download for the four separately selected download operations.
+See [BeyondTrust client usage](client-reference.md#beyondtrust-pm-cloud) for authenticated downloads.
 Live authentication, permissions and every API operation remain subject to owner commissioning after offline build.
 
 

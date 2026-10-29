@@ -23,11 +23,14 @@ Filter previews show the matching count and first 20 hosts without a count maxim
 All-computers selectors remain refused.
 The native coordinator persists a redacted private intent before a single send and never retries writes.
 Artium preserves native intent files outside disposable runner state; an audit ID is not assumed to be a task ID.
+Executed mutations receive a 75-second runner deadline so the native 60-second deadline can report first.
+Runner timeout, cancellation or process failure after the child starts returns OUTCOME_UNKNOWN with an auditId correlated to the durable intent, even if native output is unavailable.
+See the [runbook](runbook.md#retention-and-export) for intent storage and retention.
 Reconcile OUTCOME_UNKNOWN using reads and audit evidence before further changes.
 
 File inputs use --file uploads and a fixed private runner leaf; hosted limits remain 1 MiB per file and 4 MiB total.
 Server file paths and stdin are unavailable.
-Downloads require authenticated artium-axi download, exact selected operation and host-owned confirmation, with independently verified bytes and SHA-256.
+Downloads require authenticated artium-axi download, exact selected operation and host-owned confirmation, with independently verified bytes and SHA-256; see [selectors and client usage](client-reference.md#beyondtrust-pm-cloud).
 Native downloads are limited to 50 MiB and do not have a native mutation journal.
 Local configuration, host overrides and ordinary tool-run downloads stay blocked.
 Live service commissioning remains unverified.

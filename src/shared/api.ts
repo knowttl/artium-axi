@@ -352,7 +352,7 @@ export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'un
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
 export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabled: z.boolean(), reason: z.string().nullable(),
   supportedOperations: z.array(z.string()).nullable(), allowedOperations: z.array(z.string()), unlocks: z.string(), blocked: z.string() })
-// tool-write-access audit arguments contain enabled, catalogue operation identities and
+// tool-write-access audit arguments contain enabled, optional allowDeletes, catalogue operation identities and
 // unsupportedOperationCount. Arbitrary legacy allow-list strings are counted, never logged.
 export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean().optional(), enabled: z.boolean(),
   operations: z.array(z.string().min(1).max(256)).max(126).refine(operations => new Set(operations).size === operations.length).optional(),

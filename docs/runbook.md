@@ -31,7 +31,7 @@ The Linux deployment host needs Docker with Compose, space for persistent SQLite
 Use the pinned image inputs and record the resulting immutable image identity for recovery; do not treat the mutable `artium-axi:local` tag as a rollback identity.
 The image runs as UID 10001 with a read-only root filesystem, writable `/data`, and a 256 MiB `/tmp` tmpfs.
 The Compose example sets a 6 GiB memory limit, 192-process limit and an init process.
-See the [supported capability boundaries](safety.md) for hosted Hybrid Analysis, Check Point and Microsoft Graph download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
+See the [supported capability boundaries](safety.md) for hosted Hybrid Analysis, Check Point, Microsoft Graph and BeyondTrust download availability and [the approved Hybrid Analysis design](hybrid-download-design.md) for its native transfer contract.
 These tools share an internal artifact owner that requires a separate, dedicated `/tmp/artium-artifacts` tmpfs of exactly 1 GiB, owned by UID 10001 with mode 0700 and explicit `noexec,nosuid,nodev` mount flags.
 It refuses ordinary directories, symlink components, disk fallback, missing cgroup v2 memory evidence, swap allowance and insufficient memory headroom.
 The container needs at least 6 GiB of bounded memory with no swap; admission reserves 250 MiB per artifact and budgets 768 MiB resident memory per native child, in addition to the full 1 GiB artifact capacity.
@@ -58,7 +58,7 @@ Live malware: this archive may contain executable malware.
 Save only; do not extract or execute.
 Password protection is unverified; bytes are saved exactly as provided.
 Upstream success, completed server delivery and a client verified-save receipt are separate outcomes; missing receipt is unconfirmed.
-For `/v1/transfers/hybrid/*`, `/v1/transfers/checkpoint/*` and `/v1/transfers/mg/*` and `/v1/transfers/beyondtrust/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
+For `/v1/transfers/hybrid/*`, `/v1/transfers/checkpoint/*`, `/v1/transfers/mg/*` and `/v1/transfers/beyondtrust/*`, reverse proxies must disable caching, request/response body logging, response transformation, automatic retries and range/resume handling, and preserve backpressure and disconnect cancellation.
 Unlinking frees temporary storage and does not promise forensic erasure.
 Provision data directories for that UID with mode 0700 and key files readable only by the intended runtime and owner.
 The Compose example mounts the initial master-key file read-only.
@@ -505,6 +505,10 @@ Check Point downloads use host-owned transfer audit evidence with empty native j
 These journals are not pruned by run-journal retention.
 Successful reads for these tools report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
+BeyondTrust executed mutations persist a redacted host `intent.json` before starting the child at `<database directory>/tool-logs/beyondtrust-axi/writes.log.runs/run-*/`.
+Native intents live under that run directory's `beyondtrust-axi/writes/`; these directories survive runner cleanup and are not pruned by run-journal retention.
+Reconcile an ambiguous write using its native intent ID when available, otherwise its host intent ID, together with the affected remote state.
+BeyondTrust downloads use host-owned transfer evidence with empty native journal fields; see [client usage](client-reference.md#beyondtrust-pm-cloud).
 Retention leaves malformed Azure, Graph and Vectra native journals untouched and reports `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
 AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.

@@ -191,7 +191,8 @@ See [credential rotation](runbook.md#roles-credentials-and-health).
 Use **Write access** on a tool page to change writes without replacing other native settings.
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
-For Falcon, Graph, Vectra, Tenable, Hybrid Analysis and Check Point, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+For Falcon, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
 Check Point email/attachment downloads are separately selected and use [host-owned CLI confirmation](client-reference.md#check-point-email-and-attachment-saving), while mutations retain their native gates.
 See the [Vectra supported boundary and native write gates](safety.md) before selecting operations.
@@ -306,7 +307,7 @@ For hosted download availability, see the [supported capability boundaries](safe
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Filter by event `tool-write-access` to review changes to effective write enablement or an operations allow-list, including changes made through Native settings or complete credential replacement.
+Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through Native settings or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
 Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
@@ -324,6 +325,8 @@ ADO and AWX use host classification: reads report `read`, successful write calls
 GitHub also uses host classification; see its [supported boundary](safety.md).
 See [GitHub setup](tool-credentials.md#github) for device connection, token lifecycle and reconnect guidance, and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 Tenable, Hybrid Analysis and Check Point writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
+BeyondTrust executed writes report `write` when their isolated native intent is present, otherwise `unknown`; `native_audit_id` carries the native intent ID or the durable host fallback ID.
+See [BeyondTrust intent storage and reconciliation](runbook.md#retention-and-export) before interpreting an interrupted write.
 Check Point download evidence is host-owned and leaves native journal fields empty.
 For Azure, Graph, Vectra and Falcon calls requiring journal evidence, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.
 See the [API contract](../src/shared/api.ts) and [retention and export runbook](runbook.md#retention-and-export).
