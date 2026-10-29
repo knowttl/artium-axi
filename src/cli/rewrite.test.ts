@@ -9,6 +9,68 @@ import graph from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 
 test.each([
+  { tool: 'beyondtrust-axi', help: ['Run beyondtrust-axi config path to locate configuration', 'Run beyondtrust-axi profile list to inspect configured profiles', 'Run beyondtrust-axi auth status to validate local credentials'], count: 3 },
+  { tool: 'hybrid-axi', help: ['Run hybrid-axi setup', 'Run hybrid-axi quota'], count: 1 },
+  { tool: 'tenable-axi', help: ['Run tenable-axi config path; configure API keys', 'Run tenable-axi card list'], count: 1 },
+  { tool: 'ldap-axi', help: ['Set LDAP_AXI_URL and LDAP_AXI_BIND_PASSWORD', 'Run ldap-axi user list'], count: 2 },
+  { tool: 'ado-axi', help: ['Run ado-axi config show', 'Run ado-axi project list'], count: 2 },
+  { tool: 'awx-axi', help: ['Run awx-axi auth login', 'Run awx-axi job list'], count: 2 },
+  { tool: 'checkpoint-axi', help: ['Run checkpoint-axi config path', 'Run checkpoint-axi email search'], count: 2 },
+  { tool: 'falcon-axi', help: ['Run falcon-axi detection list'], count: 1 },
+  { tool: 'vectra-axi', help: ['Run vectra-axi detection list'], count: 1 },
+  { tool: 'az-axi', help: ['Run az-axi sub list'], count: 1 },
+  { tool: 'mg-axi', help: ['Run mg-axi entra user list'], count: 1 },
+])('$tool synthetic home suggestions remain valid after hosted rewriting', ({ tool, help, count }) => {
+  // Synthetic home shapes retain local-configuration hints without tenant data.
+  const input = encode({ status: 'unconfigured', help, data: { help: ['Keep native data'] } }) + '\n'
+  const output = rewriteSuggestions(input, tool)
+  const document = decode(output) as { help: string[], data: unknown }
+  expect(document.help).toHaveLength(count)
+  expect(document.help.every(value => value.trim().length > 0)).toBe(true)
+  expect(document.help).toContain(`Run artium-axi ${tool} ${help.at(-1)!.split(`${tool} `)[1]}`)
+  expect(document.data).toEqual({ help: ['Keep native data'] })
+})
+
+test('GitHub home uses its native block suggestions', () => {
+  const input = 'bin: gh-axi\nhelp[1]:\n  Run `gh-axi repo list`\n'
+  expect(rewriteSuggestions(input, 'gh-axi', false, { command: 'home', help: false }))
+    .toBe('bin: gh-axi\nhelp[1]:\n  Run `artium-axi gh-axi repo list`\n')
+  const home = 'issues: 0 open\nprs: 0 open\nhelp[1]:\n  Run `gh-axi <command> <subcommand>` - commands: issue, pr, run, release, repo, label, secret, variable\n'
+  expect(rewriteSuggestions(home, 'gh-axi')).toBe(home)
+})
+
+// Offline home captures reduced to the fields relevant to rewriting, with synthetic paths.
+test.each([
+  { tool: 'beyondtrust-axi', input: 'bin: /synthetic/beyondtrust-axi\nstatus: not configured\nprofiles: []\ncount: 0\nhelp[3]: Run beyondtrust-axi config path to locate configuration,Run beyondtrust-axi auth status to validate local credentials,Run beyondtrust-axi profile list to inspect configured profiles\n', count: 3 },
+  { tool: 'hybrid-axi', input: 'bin: hybrid-axi.js\nprofile: none\nreadOnly: true\nsetup: required\nhelp[2]: Run hybrid-axi setup,Run hybrid-axi --help\n', count: 1 },
+  { tool: 'tenable-axi', input: 'status: not configured\nhelp[1]: Run tenable-axi config path; configure a profile with accessKey and secretKey SecretRefs\n', count: 0 },
+  { tool: 'checkpoint-axi', input: 'bin: /synthetic/checkpoint-axi\nstatus: not configured\nhelp[3]: "Run checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef",Run checkpoint-axi auth status to validate local credentials,Run checkpoint-axi profile list to inspect configured profiles\n', count: 1 },
+  { tool: 'ldap-axi', input: 'credentials: not configured\nhelp[2]: "Set LDAP_AXI_URL or pass --url ldaps://server:636 to name a directory",Use the compact investigation guide in the ldap-axi skill; reserve --help for a failed or unfamiliar command\n', count: 2 },
+  { tool: 'ado-axi', input: 'profiles: (none configured)\nstatus: no Azure DevOps organization configured\nhelp[3]: Run `ado-axi config init --org <org> --project <project>` to configure a profile,Run `ado-axi config list` to see configured profiles,Run `ado-axi doctor` to check authentication\n', count: 3 },
+  { tool: 'awx-axi', input: 'awx: controller configuration required; Run `awx-axi auth status` to check configuration and access\n', count: undefined },
+  { tool: 'falcon-axi', input: 'error: Synthetic offline authentication failure\n', count: undefined },
+  { tool: 'az-axi', input: 'profile: az\nidentity: "-"\nwrites: disabled (default)\nhelp[3]: Run `az-axi doctor` to diagnose this profile,Run `az-axi sub list` to see visible subscriptions,"Run `az-axi rg query \\"Resources | take 5\\"` for a first inventory"\n', count: 3 },
+  { tool: 'mg-axi', input: 'profile: "unavailable: no profile configured"\ntenant: "unavailable: no tenant selected"\nhelp[2]: mg-axi profile list,mg-axi entra user list --help\n', count: 2 },
+  { tool: 'vectra-axi', input: 'state: unconfigured\nprofiles: 0\nhelp[2]: Run vectra-axi setup --help,Run vectra-axi --help\n', count: 2 },
+])('$tool offline home shape can always be displayed', ({ tool, input, count }) => {
+  const output = rewriteSuggestions(input, tool)
+  expect(output).not.toBe('')
+  const document = decode(output) as { help?: string[] }
+  expect(document.help?.length).toBe(count)
+})
+
+test.each([
+  { input: 'help[1]: Run hybrid-axi setup\n', expected: 'help[0]:\n' },
+  { input: 'help[2]:\n  Run hybrid-axi setup\n  Run hybrid-axi quota\n', expected: 'help[1]: Run artium-axi hybrid-axi quota\n' },
+  { input: '{"data":"untouched", "help":["Run hybrid-axi setup","Run hybrid-axi quota"]}', expected: '{"data":"untouched", "help":["Run artium-axi hybrid-axi quota"]}' },
+  { input: 'help: Run hybrid-axi setup\n', expected: 'help: ""\n' },
+  { input: 'help[3]: Run hybrid-axi quota,Run hybrid-axi setup,Run hybrid-axi config path\n', expected: 'help[1]: Run artium-axi hybrid-axi quota\n' },
+  { input: '{"help":["Run hybrid-axi setup","Run hybrid-axi config path"],"data":42}', expected: '{"help":[],"data":42}' },
+])('drops removed suggestions and updates their container: $input', ({ input, expected }) => {
+  expect(rewriteSuggestions(input, 'hybrid-axi')).toBe(expected)
+})
+
+test.each([
   { tool: 'vectra-axi', command: 'host list --name synthetic' },
   { tool: 'vectra-axi', command: 'detection show 42 --full' },
   { tool: 'vectra-axi', command: 'host close --id 7 --execute --confirm "host 7"' },

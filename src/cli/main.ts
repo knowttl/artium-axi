@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { resolve, relative, sep, isAbsolute } from 'node:path'
 import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
@@ -18,6 +17,7 @@ import { update } from './update.js'
 import { download } from './download.js'
 
 let managed: ManagedSession | undefined
+let failureContext = 'main'
 for (const stream of [process.stdout, process.stderr]) {
   stream.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code !== 'EPIPE') throw error
@@ -180,26 +180,36 @@ async function main(args: string[]) {
     if (!parsed.success || parsed.data.source !== command) throw new ArtiumError('INVALID_RESPONSE')
     const { stdout, stderr, exitCode, truncated } = parsed.data
     if (truncated.stdout || truncated.stderr) output('stderr', `artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
+    failureContext = 'rewriteSuggestions'
     output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout))
     output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr))
     process.exitCode = exitCode
   }
 }
 
-function printError(response: ReturnType<typeof errorResponse>) {
+function printError(error: unknown) {
+  // Never serialize exception messages, names or stacks: they may contain input or credentials.
+  const errorClass = error instanceof TypeError ? 'TypeError' : error instanceof SyntaxError ? 'SyntaxError'
+    : error instanceof RangeError ? 'RangeError' : error instanceof ReferenceError ? 'ReferenceError'
+    : error instanceof URIError ? 'URIError' : error instanceof EvalError ? 'EvalError'
+    : error instanceof Error ? 'Error' : 'NonError'
+  const response = errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR',
+    `The CLI failed locally (${errorClass} in ${failureContext}).`,
+    'Report the error class and function to the CLI maintainer. Check the previous call outcome before retrying.'), '')
   if (process.argv[2] === 'download' || process.argv[2] === '--managed-session' && process.argv[3] === 'download') {
     output('stdout', `warning: ${JSON.stringify(transferWarningFor(process.argv[process.argv.indexOf('--operation') + 1] ?? ''))}\n`)
   }
-  output('stdout', `error:\n${Object.entries(response.error).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
+  output('stdout', `error:\n${Object.entries(response.error).filter(([key, value]) => key !== 'requestId' || value)
+    .map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
   process.exitCode = errors[response.error.code].exitCode
 }
 
 main(process.argv.slice(2))
-  .catch(error => printError(errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), randomUUID())))
+  .catch(printError)
   .then(() => {
     try { managed?.flush() }
     catch {
       managed = undefined
-      printError(errorResponse(new ArtiumError('SECRET_IN_OUTPUT'), randomUUID()))
+      printError(new ArtiumError('SECRET_IN_OUTPUT'))
     }
   })
