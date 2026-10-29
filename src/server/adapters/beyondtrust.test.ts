@@ -3,11 +3,24 @@ import { expect, test, vi } from 'vitest'
 import { decode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { beyondtrustCredentialSchema, beyondtrustWritePolicy, createBeyondtrustAdapter } from './beyondtrust.js'
+import { credentialFields, editorProfile } from '../admin/credential-form.js'
 
 const credential = { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' }
 const reference = { id: 'synthetic-credential', tool: 'beyondtrust-axi' as const, revision: 1 }
 const source = { getCredential: vi.fn(async () => credential) }
 const adapter = createBeyondtrustAdapter(source, '/tmp/synthetic-beyondtrust/writes.log')
+
+test.each([
+  { name: 'host', title: 'PM Cloud API host', description: 'The PM Cloud API host as a lowercase DNS name' },
+  { name: 'clientId', title: 'Client ID', description: 'The PM Cloud API account client ID.' },
+  { name: 'clientSecret', title: 'Client secret', description: 'An environment variable or absolute file SecretRef' },
+  { name: 'downloads', title: 'Download permissions', description: 'Set allow to true to permit raw-byte downloads' },
+])('credential form renders published $name metadata', ({ name, title, description }) => {
+  const form = credentialFields('beyondtrust-axi', editorProfile('beyondtrust-axi'), {}, false)
+  const field = form.split(`data-credential-field="${name}"`)[1].split('</div>')[0]
+  expect(field).toContain(`<label>${title}`)
+  expect(field).toContain(`<p>${description}`)
+})
 
 test('managed profile requires a secret and puts only its environment reference in private config', async () => {
   expect(beyondtrustCredentialSchema.safeParse({ host: credential.host, clientId: credential.clientId }).success).toBe(false)

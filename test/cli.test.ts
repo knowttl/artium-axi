@@ -1231,7 +1231,7 @@ test('doctor shows the server category for every unhealthy tool without diagnost
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [
       { name: 'falcon-axi', version: '0.8.2', status: 'ok' },
-      { name: 'beyondtrust-axi', version: '0.1.2', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
+      { name: 'beyondtrust-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
       { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED' },
     ] } },
   }
