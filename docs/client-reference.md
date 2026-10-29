@@ -6,6 +6,7 @@ Discover with `artium-axi beyondtrust-axi computer list --limit 1`.
 Use authenticated command --help for selectors and filters.
 See [credential setup](tool-credentials.md#beyondtrust-pm-cloud) and the [supported capability boundary](safety.md#beyondtrust-endpoint-privilege-management) before using writes or uploads.
 Upload local JSON, CSV or policy files with `--file <local-path>`; the CLI sends the bytes rather than a server path.
+For `API_RESPONSE_INVALID`, use the [response diagnostic guidance](runbook.md#scripted-administrator-sessions) to check API compatibility.
 
 Use `artium-axi download --operation policy.download --selector <uuid> --type content --destination <absolute-new-path>` for preview.
 Repeat the selection and destination with the returned --transfer, --execute and exact --confirm plus fresh identity confirmation.
