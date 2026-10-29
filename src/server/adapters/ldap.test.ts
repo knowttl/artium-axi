@@ -130,7 +130,7 @@ test.each(['TOON', 'JSON'].flatMap(format => [true, false].map(configured => ({ 
       commands: ['entry search', 'entry show', 'user list', 'user show', 'user groups', 'group list', 'group show', 'group members', 'computer list', 'computer show', 'auth status', 'server'],
       help: [
         ...(configured ? ['Run `artium-axi ldap-axi auth status` to report the selected authentication and its transport'] : []),
-        'Run `artium-axi ldap-axi entry search --help` to explore a directory safely',
+        'Use the compact investigation guide in the ldap-axi skill; reserve --help for a failed or unfamiliar command',
         'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.',
       ] })
     expect(rewriteSuggestions(output, 'ldap-axi')).toBe(output)
