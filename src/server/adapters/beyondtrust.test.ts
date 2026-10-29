@@ -13,13 +13,15 @@ const adapter = createBeyondtrustAdapter(source, '/tmp/synthetic-beyondtrust/wri
 test.each([
   { name: 'host', title: 'PM Cloud API host', description: 'The PM Cloud API host as a lowercase DNS name' },
   { name: 'clientId', title: 'Client ID', description: 'The PM Cloud API account client ID.' },
-  { name: 'clientSecret', title: 'Client secret', description: 'An environment variable or absolute file SecretRef' },
-  { name: 'downloads', title: 'Download permissions', description: 'Set allow to true to permit raw-byte downloads' },
-])('credential form renders published $name metadata', ({ name, title, description }) => {
-  const form = credentialFields('beyondtrust-axi', editorProfile('beyondtrust-axi'), {}, false)
+  { name: 'clientSecret', title: 'Client secret', description: 'Enter the API account client secret itself. Leave blank to keep a stored secret for the same identity.' },
+  { name: 'downloads', title: 'Download permissions', description: 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.' },
+])('credential form renders host-adapted $name metadata', ({ name, title, description }) => {
+  const profile = editorProfile('beyondtrust-axi')
+  const form = credentialFields('beyondtrust-axi', profile, {}, false)
   const field = form.split(`data-credential-field="${name}"`)[1].split('</div>')[0]
   expect(field).toContain(`<label>${title}`)
   expect(field).toContain(`<p>${description}`)
+  expect(profile.inputSchema.properties[name].description).toContain(description)
 })
 
 test('managed profile requires a secret and puts only its environment reference in private config', async () => {
