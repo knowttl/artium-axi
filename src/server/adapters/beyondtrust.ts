@@ -40,7 +40,8 @@ function beyondtrustArguments(args: readonly string[], input: RunnerInput = {}) 
       Object.keys(route.flags).filter(name => !beyondtrustManifest.unsafeOverrides.includes(name)))
     if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     flags.add(name)
-    if (['help', 'full', 'all', 'execute', 'force', 'default', 'auto-assign'].includes(name)) {
+    if (['help', 'full', 'all', 'execute', 'force', 'auto-assign'].includes(name)
+      || (name === 'default' && route.command === 'group create')) {
       if (match[2] !== undefined) throw new ArtiumError('INVALID_INPUT')
       normalized.push(token)
       continue

@@ -39,6 +39,23 @@ test('uploaded files use a fixed private leaf and stdin and server paths are ref
   await expect(adapter.prepare(['policy', 'create', '--file', '/tmp/input'], reference)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
   await expect(adapter.prepare(['computer', 'list'], reference, { stdin: '{}' })).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
+test.each([
+  { flags: ['--default=false'], value: 'false' },
+  { flags: ['--default=true'], value: 'true' },
+  { flags: ['--default', 'false'], value: 'false' },
+  { flags: ['--default', 'true'], value: 'true' },
+])('group list preserves the boolean filter $flags', async ({ flags, value }) => {
+  const call = await adapter.prepare(['group', 'list', ...flags], reference)
+  expect(call.args).toEqual(['group', 'list', '--default', value])
+})
+test('group create preserves the valueless default switch', async () => {
+  const args = ['group', 'create', '--name', 'example', '--default']
+  expect((await adapter.prepare(args, reference)).args).toEqual(args)
+})
+test.each(['true', 'false'])('group create refuses an attached default value %s', async value => {
+  await expect(adapter.prepare(['group', 'create', '--name', 'example', `--default=${value}`], reference))
+    .rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
 test('delete toggle can be saved independently while writes and operations remain off', () => {
   expect(beyondtrustWritePolicy.update({}, { enabled: false, allowDeletes: true, operations: [], expectedRevision: 1 }))
     .toEqual({ writes: { allowWrites: false, allowDeletes: true, operations: [] } })
