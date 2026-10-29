@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/checkpoint-inventory.mjs",
   "tool": "checkpoint-axi",
-  "version": "0.1.2",
-  "integrity": "sha512-zWHiVvPQS2BMfBDpL+m5yt+H3bog+SnYNK5bPBboJJozNrIzhgDozl1Ry4UzZ1A+nhaUy2i+P5S/JxhWAU1VwQ==",
+  "version": "0.1.3",
+  "integrity": "sha512-bQKjlciR/QO0reXfNK2HXUxpb1WlyZ3snIllEqQagE8C/d4PvaZ17nxwxm5Bws+PNNkYlzbUMUbqRBINpE2jEQ==",
   "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "ed294c88910e1f8536bb4a28b2afc81b5c15690c760bc57baca33c7fc102f6d8"
+      "sha256": "3a56a877ea51b473f1b7f2c021920a6a391663eea395d01dd1fe18d5e9c1f0bf"
     },
     {
       "path": "dist/src/cli.js",
@@ -27,7 +27,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "ed9c39e204d42f45ae3c5b8008bf1c719d88f8e7214168f68de4d15921e35299"
+      "sha256": "f02799ed52ab05c2b6b61aa39c1406921f5ba20bdae20d33856f9c55c023254e"
     },
     {
       "path": "dist/src/private-file.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/reads.js",
-      "sha256": "6c168e7a1aabc45a804fc0a9ea7d918efbe14df6dba5814111f2c8ab8ca26a10"
+      "sha256": "a9484c1410d2ef1e41f6754c001df977405f02a95bc5d9ae164b1e49bf06b633"
     },
     {
       "path": "dist/src/redact.js",
@@ -55,7 +55,7 @@
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "5f87b53e77bffa7f3ce30fab4d0619a9347286e3253fbf5352d926e6ea4262e4"
+      "sha256": "fbc3a5c5c7ed35e3cf58cfdbaa6999c2eec4f639468c905629f45c2276b5f583"
     },
     {
       "path": "dist/src/write-exceptions.js",
@@ -225,7 +225,7 @@
     "uae": "https://cloudinfra-gw.me.portal.checkpoint.com",
     "in": "https://cloudinfra-gw.in.portal.checkpoint.com"
   },
-  "skillSha256": "14926c6952a4655c805ade22b1755f4f41238f96ca8fcf74f6bca512996434bc",
+  "skillSha256": "33011d4e7abc8fd76b0b3b38450cfdff545117a1950e22ee5176ab3c2cf589c9",
   "nativeWriteSettings": {
     "supportedOperations": [
       "attachment.download",
@@ -423,6 +423,9 @@
         "limit": "Maximum rows; default 50, range 1-1000; cannot combine with --all",
         "all": "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
         "cursor": "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
+        "expand": "Opt in to read-only show details on returned rows; default false; partial expansion is reported separately",
+        "expand-limit": "Maximum detail attempts; default 5, range 1-8; requires --expand",
+        "expand-requests": "Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand",
         "filter": "JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters. saasAttrName is a field path, not a closed enum (guide pages 19-20). Documented examples: entityPayload.subject, entityPayload.fromEmail, entityPayload.attachmentCount. Other documented email payload paths (pages 15-16, 24-25): entityPayload.internetMessageId, entityPayload.received, entityPayload.size, entityPayload.emailLinks, entityPayload.attachments, entityPayload.mode, entityPayload.recipients, entityPayload.fromDomain, entityPayload.fromUser, entityPayload.fromName, entityPayload.to, entityPayload.toUser, entityPayload.cc, entityPayload.ccUser, entityPayload.bcc, entityPayload.bccUser, entityPayload.replyToEmail, entityPayload.replyToNickname, entityPayload.isRead, entityPayload.isDeleted, entityPayload.isIncoming, entityPayload.isInternal, entityPayload.isOutgoing, entityPayload.isQuarantined, entityPayload.isQuarantineNotification, entityPayload.isRestored, entityPayload.isRestoreRequested, entityPayload.isRestoreDeclined, entityPayload.saasSpamVerdict, entityPayload.SpfResult. saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan. The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan. saasAttrValue is a string."
       }
     },
@@ -467,6 +470,9 @@
         "limit": "Maximum rows; default 50, range 1-1000; cannot combine with --all",
         "all": "Read up to 1000 rows / 10 HTTP requests / 60 seconds / 8 MiB; default false",
         "cursor": "Opaque continuation bound to profile, region, operation and selectors; repeat original selectors",
+        "expand": "Opt in to read-only show details on returned rows; default false; partial expansion is reported separately",
+        "expand-limit": "Maximum detail attempts; default 5, range 1-8; requires --expand",
+        "expand-requests": "Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand",
         "saas": "Comma-separated SaaS overrides; default selected profile saas or office365_emails",
         "event-types": "Comma-separated event types; default unfiltered",
         "event-states": "Comma-separated event states; default unfiltered",
@@ -619,7 +625,11 @@
         "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
         "fields": "Comma-separated output fields; default all",
         "full": "Show full strings instead of 500-character previews; default false",
-        "help": "Show concise command help; default false"
+        "help": "Show concise command help; default false",
+        "wait": "Poll existing task status only; default false; requires --timeout; terminal: completed, failed, stopped",
+        "timeout": "Total wait timeout in integer seconds, range 1-60; required with --wait; includes auth and retries",
+        "poll-interval": "Seconds between status reads; default 2, range 1-10; requires --wait",
+        "wait-requests": "Total HTTP request cap including auth and retries; default 10, range 2-10; requires --wait"
       }
     }
   ]

@@ -54,7 +54,7 @@ function checkpointArguments(args: readonly string[], input: RunnerInput = {}) {
       Object.keys(route.flags).filter(name => !checkpointManifest.unsafeOverrides.includes(name)))
     if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     flags.add(name)
-    if (['help', 'full', 'all', 'items', 'specific', 'execute', 'dry-run'].includes(name)) {
+    if (['help', 'full', 'all', 'items', 'specific', 'execute', 'dry-run', 'expand', 'wait'].includes(name)) {
       if (match[2] !== undefined) throw new ArtiumError('INVALID_INPUT')
       normalized.push(token)
       continue
