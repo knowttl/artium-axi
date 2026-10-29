@@ -101,7 +101,7 @@ export async function prepareRunJournal(environment: Record<string, string>, too
   } }
 }
 
-export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName, 'falcon-axi' | 'tenable-axi' | 'hybrid-axi' | 'checkpoint-axi'>, now = Date.now()): Promise<void> {
+export async function retainRunJournals(writeLog: string, tool: 'az-axi' | 'mg-axi' | 'vectra-axi' | 'falcon-axi' | 'beyondtrust-axi', now = Date.now()): Promise<void> {
   const root = `${writeLog}.runs`
   let entries
   try { entries = await readdir(root, { withFileTypes: true }) }
@@ -115,6 +115,25 @@ export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName
     const path = join(root, entry.name)
     try {
       if ((await stat(path)).mtimeMs >= now - 90 * 24 * 60 * 60 * 1000) continue
+      if (tool === 'beyondtrust-axi') {
+        const host = JSON.parse(await readFile(join(path, 'intent.json'), 'utf8'))
+        if (host?.state !== 'intent' || typeof host.auditId !== 'string' || typeof host.operation !== 'string'
+          || typeof host.time !== 'string' || !Number.isFinite(Date.parse(host.time))) throw new Error('Invalid native write journal')
+        const nativeDirectory = join(path, 'beyondtrust-axi', 'writes')
+        let names: string[] = []
+        try { names = await readdir(nativeDirectory) }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        for (const name of names) {
+          const intent = JSON.parse(await readFile(join(nativeDirectory, name), 'utf8'))
+          if (!/^[a-f0-9-]{36}\.json$/.test(name) || name !== `${intent?.auditId}.json` || intent.state !== 'intent'
+            || typeof intent.operation !== 'string' || typeof intent.time !== 'string'
+            || !Number.isFinite(Date.parse(intent.time))) throw new Error('Invalid native write journal')
+        }
+        await rm(path, { recursive: true })
+        continue
+      }
       let content = ''
       try { content = await readFile(join(path, 'writes.log'), 'utf8') }
       catch (error) {
@@ -124,12 +143,17 @@ export async function retainRunJournals(writeLog: string, tool: Exclude<ToolName
       for (const line of content.split('\n').filter(Boolean)) {
         const record = JSON.parse(line)
         if (!record || typeof record !== 'object' || Array.isArray(record)
-          || typeof record.time !== 'string' || !Number.isFinite(Date.parse(record.time))) {
+          || typeof record[tool === 'falcon-axi' ? 'timestamp' : 'time'] !== 'string'
+          || !Number.isFinite(Date.parse(record[tool === 'falcon-axi' ? 'timestamp' : 'time']))) {
           throw new Error('Invalid native write journal')
         }
         if (tool === 'az-axi') {
           if (!['profile', 'identity', 'class', 'method', 'url', 'outcome'].every(field => typeof record[field] === 'string')
             || !Number.isInteger(record.httpStatus)) throw new Error('Invalid native write journal')
+        } else if (tool === 'falcon-axi') {
+          if (typeof record.run !== 'string' || !['intent', 'init', 'execute', 'outcome'].includes(record.phase)) {
+            throw new Error('Invalid native write journal')
+          }
         } else if (!['intent', 'outcome'].includes(record.kind) || typeof record.intentKey !== 'string'
           || !/^[a-f0-9]{64}$/.test(record.intentKey)) throw new Error('Invalid native write journal')
       }

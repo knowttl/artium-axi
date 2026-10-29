@@ -500,22 +500,29 @@ Keep the example deployment's shutdown grace period when adapting it so native s
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
-Azure, ordinary Graph runs and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
+Azure, ordinary Graph runs, Vectra and Falcon use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Graph mail downloads instead retain native intent/outcome journals at `<configured write-log path>.<transferId>`; run-journal retention does not prune these files.
-Falcon execution uses isolated redacted native journals at `<database directory>/tool-logs/falcon-axi/writes.log.runs/run-*/writes.log`; these persist after calls and are not pruned by run-journal retention.
+Falcon execution journals persist after calls and expire with their run directory after 90 days.
 Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
 Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.
 These journals are not pruned by run-journal retention.
+Tenable and Hybrid Analysis reserve intent IDs indefinitely; deleting old entries would allow a previously reserved intent to execute again.
+Keep their shared journals and adjacent lock files intact, including across restarts.
+Check Point's shared journal uses audit IDs rather than the legacy Vectra intent-key format and remains outside automatic retention.
 Successful reads for these tools report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
 BeyondTrust executed mutations persist a redacted host `intent.json` before starting the child at `<database directory>/tool-logs/beyondtrust-axi/writes.log.runs/run-*/`.
-Native intents live under that run directory's `beyondtrust-axi/writes/`; these directories survive runner cleanup and are not pruned by run-journal retention.
+Native intents live under that run directory's `beyondtrust-axi/writes/`; these directories survive runner cleanup and expire at startup and daily when the run directory's modification time is strictly older than 90 days.
+Retention validates the host intent and any native intents before removing the whole directory.
 Reconcile an ambiguous write using its native intent ID when available, otherwise its host intent ID, together with the affected remote state.
 BeyondTrust downloads use host-owned transfer evidence with empty native journal fields; see [client usage](client-reference.md#beyondtrust-pm-cloud).
-Retention leaves malformed Azure, Graph and Vectra native journals untouched and reports `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
+Retention leaves malformed Azure, Graph, Vectra, Falcon and BeyondTrust native journals untouched and reports `AUDIT_UNAVAILABLE`; investigate before assuming export is complete.
 Cleanup continues for independent run journals and tools even when another journal or SQLite audit retention fails.
+Monitor free space on the persistent `/data` volume and track growth under `<database directory>/tool-logs/`, especially the unpruned shared journals and Graph mail-download journals.
+Set a capacity alert with enough headroom for writes and backups, and expand storage before it fills.
+Do not delete replay-protection journals to reclaim space; reconcile malformed evidence before arranging cleanup.
 AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.
 There is no audit deletion endpoint or general export CLI.
 See [Audit screen and API usage](admin-guide.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
