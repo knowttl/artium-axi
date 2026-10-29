@@ -244,6 +244,7 @@ Doctor includes the session deadline and remaining time in its token diagnostic.
 See the [README output contract](../README.md#toon-output-and-errors) for upstream stream handling and hosted status filtering.
 If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
 For managed tools, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
+Adapted root `help` values containing commas or newlines are quoted; removed suggestions are omitted from arrays and their counts are updated, including an empty array when none remain.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
 Per-flag help removes each managed flag's entire description and preserves retained flag descriptions, including comma-separated defaults.
 LDAP home output lists hosted commands, and recognized connection and TLS recovery hints direct callers to an administrator to update the [stored LDAP credentials](tool-credentials.md#ldap).
@@ -252,6 +253,9 @@ GitHub suggestion filtering uses the invocation to preserve API resource content
 Outside hosted status filtering, suggestion adaptation leaves unrelated content, literal argument values, unknown formats and truncated streams unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
+CLI errors preserve a server-provided `requestId`; failures without one omit the field rather than inventing an ID.
+Unexpected local CLI failures use `INTERNAL_ERROR` with `The CLI failed locally`, a bounded error class and function context, without exception messages, custom exception names or stacks.
+Report that class and function to the CLI maintainer, and check the previous call outcome before retrying.
 See the [generated error reference](errors.md) for codes, HTTP status, CLI exit status and recovery steps.
 
 Doctor reads cached tool health rather than running a fresh platform test.

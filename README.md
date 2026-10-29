@@ -133,7 +133,7 @@ Tool output limits vary; `--full` restores supported text within byte/time budge
 | Artium exit | Meaning |
 | --- | --- |
 | 0 | Success |
-| 1 | Authentication, server or transport failure |
+| 1 | Authentication, server, transport or local CLI failure |
 | 2 | Usage or configuration error |
 
 See [output behavior](docs/client-reference.md#toon-output-behavior) and the generated [error catalogue](docs/errors.md).

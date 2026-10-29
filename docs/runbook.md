@@ -473,8 +473,7 @@ The line contains `requestId`, a sanitized `errorClass` and the matched route te
 Schema validation failures also include `validationFields`, limited to recognized certificate field names; this array can be empty.
 These server diagnostics leave the response error code as `INTERNAL_ERROR` and are separate from audit records.
 
-Unexpected local CLI failures also use `INTERNAL_ERROR`, but say `The CLI failed locally`, report only a bounded error class and function context, and carry no server `requestId`.
-Report that class and function to the CLI maintainer; check the previous call outcome before retrying.
+For failures originating in the CLI, follow the [client error guidance](client-reference.md#toon-output-behavior).
 
 ### Falcon RTR execution
 
