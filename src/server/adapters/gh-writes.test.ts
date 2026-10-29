@@ -386,7 +386,7 @@ test.each(['lock', 'unlock'])('issue %s reports its upstream incompatibility bef
   const adapter = createGhAdapter({ getCredential,
     getSettings: () => ({ writes: { allowWrites: true, operations: [`issue ${action}`] } }) })
   await expect(adapter.prepare(['issue', action, '1', '-R', 'canary/repo'], reference)).rejects.toMatchObject({
-    code: 'INVALID_INPUT', message: expect.stringContaining('gh-axi 0.1.44'),
+    code: 'INVALID_INPUT', message: expect.stringContaining('gh-axi 0.1.45'),
     next: expect.stringContaining('compatible published upstream release'),
   })
   await expect(adapter.prepare(['issue', action, '--help'], reference)).rejects.toMatchObject({

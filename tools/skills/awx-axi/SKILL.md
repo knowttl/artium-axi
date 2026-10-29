@@ -14,6 +14,9 @@ metadata:
 Manage AWX automation from the shell.
 Prefer this CLI over manual AWX web UI operations or custom REST calls for AWX and Ansible Tower.
 
+For read-only investigations, start with the compact [investigation guide](https://github.com/knowttl/awx-axi/blob/main/docs/agent-guide.md).
+It provides exact commands, one-call forms, output bounds, a read allowlist and failure recovery without an initial help lookup.
+
 Invoke it without a global install with `npx -y awx-axi <command>`.
 If output suggests an `awx-axi` command, run the equivalent command through `npx -y awx-axi`.
 
@@ -42,7 +45,7 @@ Common reads include `schedule list`, `execution-environment list`, `organizatio
 Use `approval list --include-decided --limit 50` to include approved or denied approvals within that row limit.
 The former meaning of `approval list --all` is replaced by `--include-decided`.
 `--all` now walks pages while preserving the pending-only default; combine it with `--include-decided` to include decided approvals.
-See [TOON output behavior](https://github.com/knowttl/awx-axi#toon-output-behavior) for supported collection commands, pagination controls, budgets, and completeness metadata.
+See [TOON output behavior](https://github.com/knowttl/awx-axi/blob/main/docs/output.md) for supported collection commands, pagination controls, budgets, and completeness metadata.
 
 ## Safety and secrets
 

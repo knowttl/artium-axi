@@ -76,7 +76,7 @@ test('LDAP credentials can be saved, tested, enabled and used for a granted read
     payload: { enabled: true, expectedRevision: 2 } })
   expect(enabled.statusCode, enabled.body).toBe(200)
   const available = await app.inject({ method: 'GET', url: '/v1/tools', headers })
-  expect(available.json().tools).toContainEqual({ name: 'ldap-axi', version: '0.3.0', status: 'ok', readOnly: true })
+  expect(available.json().tools).toContainEqual({ name: 'ldap-axi', version: '0.3.1', status: 'ok', readOnly: true })
   const result = await app.inject({ method: 'POST', url: '/v1/tools/ldap-axi/run', headers,
     payload: { args: ['user', 'list', '--limit', '1'] } })
   expect(result.statusCode, result.body).toBe(200)
@@ -93,7 +93,7 @@ test.each([
     auditArgs: ['computer', 'show', '[redacted]'] },
   { args: ['server'], expected: { flavor: 'ldapv3', tls_verified: true, root_dse: { namingContexts: ['ou=people'] } },
     auditArgs: ['server'] },
-])('LDAP 0.3.0 serves an audited read for $args', async ({ args, expected, auditArgs }) => {
+])('LDAP 0.3.1 serves an audited read for $args', async ({ args, expected, auditArgs }) => {
   await configure()
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ldap-axi'")
   const result = await app.inject({ method: 'POST', url: '/v1/tools/ldap-axi/run', headers, payload: { args } })

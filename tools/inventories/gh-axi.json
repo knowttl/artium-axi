@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/gh-inventory.mjs",
   "tool": "gh-axi",
-  "version": "0.1.44",
-  "integrity": "sha512-iBH2a59aR/zQHWwMz/7ft6P6ldOBodfolFCgwoKviX8/hMkyAJ8R9hIf3BjRCWz7v11hXvuQXte7P1GQUci9tg==",
+  "version": "0.1.45",
+  "integrity": "sha512-frarCzBzqv3eYR+A15frkrS73OZe2nf7tGwoHq+WPlRaij+RHna6geH3fgq4UQoytjWvefHQYkal9EDyUgtcTw==",
   "parserEvidence": "Hand-reviewed published dispatch switches and per-command parsers; exact writes use host preview and confirmation",
   "skillSha256": "3d01b3112442275d52cc5847cb17543c710128f4591346e77eeecc30c45e76f3",
   "sdk": {
@@ -63,11 +63,11 @@
     },
     {
       "path": "dist/src/commands/pr.js",
-      "sha256": "ba7d6333f08e1ebc32484f86e9017b57e37671c6e83cbd5300ee7aab4837a395"
+      "sha256": "df5783091f32d4a96dae5463b8d26a4b1181f55c1e3291bb0586c9a068985dab"
     },
     {
       "path": "dist/src/commands/project.js",
-      "sha256": "eb02ead1ab4828b6a5db7bd0a3f2c829e497e23a4c191ce5bd9f4003184fda9c"
+      "sha256": "7d42a4ec421e63f194b4800a2fe03b44504bae9eab42084e2aaec033a762dc33"
     },
     {
       "path": "dist/src/commands/release.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "dist/src/suggestions.js",
-      "sha256": "411eed328a7edce95bb231cdcd7dda1de3e2293351fe27419a04054541a893f1"
+      "sha256": "3e580614dca4b1790d05574304142327bcfd21045b6dd2174adeb7ead5622686"
     },
     {
       "path": "dist/src/toon.js",
@@ -224,6 +224,7 @@
       "stack",
       "issue lock",
       "issue unlock",
+      "project delete",
       "pr checkout",
       "repo clone",
       "gist clone",
@@ -332,6 +333,7 @@
       "flags": {
         "help": "boolean",
         "repo": "value",
+        "fields": "value",
         "comments": "boolean",
         "reviews": "boolean",
         "checks": "boolean",

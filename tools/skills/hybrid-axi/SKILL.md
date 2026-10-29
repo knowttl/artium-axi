@@ -17,85 +17,92 @@ Credentials use environment/file SecretRefs, never inline secrets or chat.
 The default key reference is HYBRID_AXI_API_KEY.
 Only `https://hybrid-analysis.com/api/v2` and `https://hybrid-analysis.com/api/labs` are supported.
 
-Start with local discovery:
+## Investigation quick guide
 
-```sh
-npx -y @knowttl/hybrid-axi
-npx -y @knowttl/hybrid-axi home --help
-npx -y @knowttl/hybrid-axi auth status
-```
+Start here rather than running help before each investigation.
+Examples below use synthetic values; replace the hash, job, query and filename with known investigation values.
+Each row is a complete invocation after the prefix `npx -y @knowttl/hybrid-axi` (or `hybrid-axi` when installed).
+All commands accept `--config <path>` and `--profile <name>`; preserve those selectors on pivots and resumptions.
 
-Home and the optional session hook read local profile context only, without HTTP or reading credential files.
-Install integrations only on explicit request through `npx -y @knowttl/hybrid-axi setup hooks`.
-
-Read/write classifies API effects, including guarded downloads and consuming GETs.
-`report file` is read for normal report types and write for bin, dropped-files and memory.
-Quick scans are read exceptions that transmit the supplied sample or URL.
-`setup hooks` writes local agent configuration only and requires an explicit request.
-API writes require a file profile's allowWrites and exact operation allowlist, preview, --execute and the exact preview --confirm string.
-HYBRID_AXI_READ_ONLY=true overrides all API write policies.
-Never replay an ambiguous outcome; reconcile the audit ID, private journal and known result IDs.
-Downloads require an explicit new output path; save upstream bytes unchanged, never extract or execute.
-Gzip/ZIP delivery does not guarantee password protection.
-
-Sandbox submission previews disclose that the sample and report can become visible to the community.
-Hunting matches marks returned matches delivered and cannot be replayed safely.
-Labs contracts are experimental; unknown fields remain available with --fields or --full after redaction.
-Credential issuance, abuse-report creation, overview refresh and arbitrary HTTP are unavailable.
-Never interpret denial or malformed data as an empty result, or automatically submit a missing hash.
-Preserve profile, filters and known query IDs when resuming bounded results.
-Use a command's --help for required selectors, defaults and examples.
-See the [command reference](https://github.com/knowttl/hybrid-axi/blob/main/docs/commands.md) for all flags.
-
-## Orientation
-
-| Command | Effect | Purpose |
+| Task | Command after prefix (example) | Important controls |
 |---|---|---|
-| `npx -y @knowttl/hybrid-axi api get` | read | Reviewed JSON GET only: same decoders, redaction, fields and bounds as named reads; rejects binary, mixed-effect, consuming, refresh and unbound routes |
-| `npx -y @knowttl/hybrid-axi auth status` | read | Verify local SecretRef availability and file protections without HTTP |
-| `npx -y @knowttl/hybrid-axi config path` | read | Show selected config and platform state paths without reading files |
-| `npx -y @knowttl/hybrid-axi doctor` | read | Verify credentials, key level, quota and one read per system/report/search/feed/hash group; each probe uses API quota; denied operations are permission-denied |
-| `npx -y @knowttl/hybrid-axi feed abuse` | read | Read one page of qualified-removal hashes |
-| `npx -y @knowttl/hybrid-axi feed detonation` | read | Read the most recent report feed, capped upstream at 250 |
-| `npx -y @knowttl/hybrid-axi feed latest` | read | Deprecated latest feed, at most 250 reports from 24h; use feed detonation for the current feed |
-| `npx -y @knowttl/hybrid-axi feed quick-scan` | read | Read the most recent successful quick scans, capped upstream at 2500 |
-| `npx -y @knowttl/hybrid-axi hash file` | write | Save one guarded sample unchanged to a new private file, bounded at 250 MiB. Live-malware warning: this artifact may contain executable malware. Save only; do not extract or execute. The spec documents gzip/ZIP delivery without promising password protection. Protection is unverified; bytes are saved exactly as provided. |
-| `npx -y @knowttl/hybrid-axi hash search` | read | Find associated reports by hash, or deprecated bulk lookup from a newline-separated file |
-| `npx -y @knowttl/hybrid-axi hash show` | read | Show stable SHA256 overview; --labs selects the experimental Labs overview |
-| `npx -y @knowttl/hybrid-axi home` | read | Show local profile and policy without contacting Hybrid Analysis |
-| `npx -y @knowttl/hybrid-axi hunting matches` | write | Experimental Labs: account-wide, irreversible consumption across all rules; every returned undelivered match for the account is marked delivered, subject to count and timestamp. No rule selector; preview sends no request; never automatically replayed |
-| `npx -y @knowttl/hybrid-axi hunting yara create` | write | Experimental Labs: create own YARA rule; preview first, then --execute and exact --confirm. |
-| `npx -y @knowttl/hybrid-axi hunting yara delete` | write | Experimental Labs: delete own YARA rule; preview first, then --execute and exact --confirm. |
-| `npx -y @knowttl/hybrid-axi hunting yara list` | read | Experimental Labs: list own YARA rules; unknown response fields remain available |
-| `npx -y @knowttl/hybrid-axi hunting yara show` | read | Experimental Labs: show own YARA rule by required positional ID |
-| `npx -y @knowttl/hybrid-axi hunting yara update` | write | Experimental Labs: update own YARA rule; preview first, then --execute and exact --confirm. Partial POST; explicit reset_counter:true resets the all-time matches counter and changes the rule ID. Use the returned ID; idChange reports previousId and newId when an update changes identity. |
-| `npx -y @knowttl/hybrid-axi profile list` | read | List configured profiles without resolving keys or contacting Hybrid Analysis |
-| `npx -y @knowttl/hybrid-axi quick-scan file` | read | Read exception: sends the sample to Hybrid Analysis without a write gate; never automatically replays |
-| `npx -y @knowttl/hybrid-axi quick-scan scanners` | read | Read available quick-scan services and supported scan types |
-| `npx -y @knowttl/hybrid-axi quick-scan show` | read | Read a known quick-scan result and finished status without sending the sample again |
-| `npx -y @knowttl/hybrid-axi quick-scan submit` | write | Preview conversion of a quick scan into a sandbox analysis; requires write policy, --execute and exact --confirm |
-| `npx -y @knowttl/hybrid-axi quick-scan url` | read | Read exception: sends the URL to Hybrid Analysis without a write gate; never automatically replays |
-| `npx -y @knowttl/hybrid-axi quota` | read | Read key level, submission quota and observed limit headers with two bounded requests and no retries |
-| `npx -y @knowttl/hybrid-axi report children` | read | List child report identifiers |
-| `npx -y @knowttl/hybrid-axi report file` | read/write | Save one artifact unchanged to a new private file, bounded at 250 MiB; bin, dropped-files and memory require write scope, --execute and exact --confirm. Memory and legacy report formats use the deprecated generic route. Live-malware warning: this artifact may contain executable malware. Save only; do not extract or execute. The spec documents gzip/ZIP delivery without promising password protection. Protection is unverified; bytes are saved exactly as provided. |
-| `npx -y @knowttl/hybrid-axi report memory hex` | read | Read structured hex rows for exactly one memory filename |
-| `npx -y @knowttl/hybrid-axi report memory list` | read | List memory dump metadata without downloading process memory |
-| `npx -y @knowttl/hybrid-axi report memory strings` | read | Read extracted strings for exactly one memory filename |
-| `npx -y @knowttl/hybrid-axi report screenshots` | read | Read bounded Base64 screenshots; image text is previewed unless --full |
-| `npx -y @knowttl/hybrid-axi report show` | read | Show a report summary for a job ID or sha256:environmentId |
-| `npx -y @knowttl/hybrid-axi report state` | read | Show submission state |
-| `npx -y @knowttl/hybrid-axi search results` | read | Experimental Labs results for a known query ID; never starts a query |
-| `npx -y @knowttl/hybrid-axi search run` | read | Experimental Labs query: start once, then fetch asynchronous results once; resume pending queries by ID |
-| `npx -y @knowttl/hybrid-axi search terms` | read | Search using at least one documented named filter; count is upstream total, returned is result rows, complete is false when fewer rows return. Hybrid Analysis does not page search terms; narrow with --date-from/--date-to |
-| `npx -y @knowttl/hybrid-axi setup` | read | Show a read-only config template and SecretRef setup guidance without writing files |
-| `npx -y @knowttl/hybrid-axi setup hooks` | write | Explicitly install or repair local-only Claude Code, Codex and OpenCode session integrations; no API calls |
-| `npx -y @knowttl/hybrid-axi submit dropped-file` | write | Preview analysis of an exact dropped SHA256 from a report; the API accepts no environment override |
-| `npx -y @knowttl/hybrid-axi submit file` | write | Preview a sandbox file submission; sending requires write policy, --execute and exact --confirm |
-| `npx -y @knowttl/hybrid-axi submit url` | write | Preview a sandbox URL submission; sending requires write policy, --execute and exact --confirm |
-| `npx -y @knowttl/hybrid-axi system action-scripts` | read | List available action scripts |
-| `npx -y @knowttl/hybrid-axi system configuration` | read | Read documented partial public configuration with sensitive fields redacted |
-| `npx -y @knowttl/hybrid-axi system environments` | read | List execution environments |
-| `npx -y @knowttl/hybrid-axi system queue-size` | read | Read the queue size |
-| `npx -y @knowttl/hybrid-axi system stats` | read | Read system statistics |
-| `npx -y @knowttl/hybrid-axi system total-submissions` | read | Read the submission aggregate |
-| `npx -y @knowttl/hybrid-axi system version` | read | Read system versions |
+| Local context | `home` | No HTTP or credential-file reads |
+| Credential availability | `auth status` | Local SecretRef and file-protection checks; no HTTP |
+| Quota | `quota` | At most two API reads; no retries |
+| Hash overview | `hash show aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --limit 5` | SHA256 required; optional experimental `--labs` |
+| Hash to reports | `hash search --hash aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --limit 5` | MD5/SHA1/SHA256/SHA512; returns associated report IDs |
+| Named search | `search terms --filename synthetic.exe --fields sha256,job_id,verdict,threat_score` | At least one filter; combine `--domain`, `--vx-family`, `--env-id`, or `--date-from/--date-to 'YYYY-MM-DD HH:mm'`; no limit/cursor |
+| Labs search and first result fetch | `search run --query 'verdict:malicious' --size 5 --page 1` | Experimental; size 1-200, default 50; inclusive date filters use YYYY-MM-DD |
+| Resume Labs query | `search results synthetic-query --fields sha256,verdict,threat_score` | Known query ID; never starts another query |
+| Report summary | `report show synthetic-job --fields job_id,state,verdict,threat_score` | Job ID or sha256:environmentId |
+| Report progress | `report state synthetic-job` | Same ID forms; one read, no wait loop |
+| Container children | `report children synthetic-job --limit 5` | Returns child IDs |
+| Memory metadata | `report memory list synthetic-job --limit 5` | Filename, address, flags, process PID; no raw memory download |
+| Extracted strings | `report memory strings synthetic-job --filename synthetic.dmp --limit 5` | Exactly one filename from memory metadata |
+| Recent reports | `feed detonation --limit 5 --fields report_id,sha256,verdict_human` | Recent window capped upstream at 250 |
+| Known quick scan | `quick-scan show synthetic-scan --fields id,finished,sha256` | Reads result without sending sample again |
+| Own YARA rules | `hunting yara list --status active --fields id,identifier,active` | Experimental; optional `--search` and comma-separated `--threat-category` |
+
+## One-call forms and output bounds
+
+`hash show` already combines verdict, score and associated reports; do not fetch each report just to establish the hash verdict.
+`hash search --hashes-file <path>` is the existing deprecated bulk lookup for newline-separated MD5/SHA1/SHA256 hashes, bounded to 1 MiB.
+`search run` starts once and fetches asynchronous results once within the same invocation.
+If pending, retain the returned ID and resume with `search results`; do not restart the query.
+Synchronous queries use page (default 1); asynchronous queries ignore page and treat size as the total match bound.
+No batch report-summary or wait-until-finished command exists; children-to-summary and unfinished report/scan checks require separate calls.
+
+Output is TOON on stdout, including errors.
+Default fields are compact; request identifiers, verdict and score first, adding detail fields only when needed.
+`--fields` selects comma-separated fields at each response level after redaction, including unknown Labs fields.
+`--full` instead returns all decoded fields and untruncated text; it cannot be combined with `--fields` and does not raise collection limits.
+Hash/report/feed collections use local `--limit` (default 100); text previews stop at 1,000 characters and nested detail arrays at 100 entries.
+Read returned/total/completeness and truncation hints before treating a list as exhaustive.
+Term searches have no pagination or limit; narrow dates when count exceeds returned.
+Labs search uses `--size`, while YARA lists and known quick scans have no `--limit`.
+Transport bounds each invocation to 20 seconds, 20 requests and 20 MiB decoded JSON.
+
+## Read allowlist and effects
+
+The table above is a read-only investigation allowlist: it never uploads a sample or URL, consumes matches or downloads artifacts.
+Reads still use quota and disclose search filters/hashes to the service.
+Home and optional session hooks read local profile context only; install hooks only on explicit request.
+`doctor` is an optional diagnostic, making up to seven quota-consuming reads rather than a required startup call.
+`api get` allows reviewed JSON reads only, rejecting arbitrary URLs, consuming matches, refreshes and binary routes.
+
+Keep `submit *`, YARA create/update/delete, `hunting matches`, `hash file` and guarded `report file` types bin/dropped-files/memory outside a read allowlist.
+Hunting matches irreversibly marks account-wide matches delivered across all rules.
+`quick-scan file` and `quick-scan url` transmit supplied data even under read-only policy; exclude them too.
+`report file` with normal types is an API read but writes a local file.
+`setup hooks` changes local agent configuration.
+API writes require a file profile's allowWrites and exact operation allowlist, preview, --execute and exact preview --confirm.
+HYBRID_AXI_READ_ONLY=true overrides API write permission; environment profiles cannot enable writes.
+Submissions can make the sample and report visible to the community.
+Downloads are bounded to 250 MiB and require a new output path; save unchanged, never extract or execute possible live malware.
+Gzip/ZIP password protection is unverified.
+
+## Help and failure recovery
+
+Use help when a command fails or an unfamiliar selector is needed, not to start an investigation.
+Top-level `--help` returns tool description, the complete leaf-command catalogue, global flags, version flags and home examples.
+Leaf `--help` returns that command's effect, required arguments/selectors, flags/defaults and examples without API calls.
+Bare groups such as `report --help` are not group manuals: they return validation guidance; select the leaf such as `report show --help`.
+The [command reference](https://github.com/knowttl/hybrid-axi/blob/main/docs/commands.md) covers every leaf.
+
+| Failure | Adjustment |
+|---|---|
+| Exit 2 / VALIDATION_ERROR | Correct the named argument/flag using the valid flags or leaf help; no request was sent |
+| AUTH_REQUIRED / HTTP 401 | Check selected SecretRef with auth status; do not put keys in arguments |
+| PROFILE_REQUIRED / PROFILE_AMBIGUOUS / PROFILE_NOT_FOUND | Select a configured profile or obtain read-only setup from the operator |
+| CONFIG_INVALID / CONFIG_INSECURE | Correct config, ownership and private-file protections; do not weaken checks |
+| PERMISSION_DENIED / HTTP 403 | Key lacks access; request appropriate permissions rather than retrying |
+| RATE_LIMITED / HTTP 429 | Respect the returned retry interval and rate-limit observations |
+| HTTP 404 | Missing or unavailable resource; never infer a clean verdict or automatically submit it |
+| HTTP 425 on Labs overview | Analysis pending; follow the exact overview resumption hint |
+| HTTP 410 on container summary | Read report children, then use known child IDs |
+| MALFORMED_RESPONSE / UPSTREAM_ERROR | Inspect structured diagnostics; never interpret failure as empty data |
+| TIMEOUT / network failure | Outcome may be ambiguous; inspect known result IDs before any new send |
+
+Exit 0 is success (including pending state); exit 1 is runtime failure.
+Only explicitly retryable non-consuming reads retry explicit 429/502/503/504 responses, at most twice within transport budgets.
+Never replay an ambiguous search start, quick scan, consuming read or write; reconcile audit ID, private journal and known result IDs.

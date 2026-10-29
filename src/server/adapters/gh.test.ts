@@ -24,6 +24,7 @@ test.each(inventory.commands)('permits the reviewed $command help route', async 
 
 test.each([
   ['issue', 'create'], ['issue', 'delete', '1'], ['issue', 'subissue', 'add', '1', '2'],
+  ['project', 'delete', '1', '--owner', 'canary'],
   ['pr', 'merge', '1', '--admin'], ['secret', 'set', 'NAME'], ['variable', 'set', 'NAME'],
   ['update'], ['setup'], ['stack', 'view'], ['pr', 'checkout', '1'], ['repo', 'clone', 'canary/repo'],
   ['gist', 'clone', '1'], ['run', 'download', '1'], ['release', 'download'], ['run', 'watch', '1'],
@@ -65,6 +66,13 @@ test.each([[], ['home'], ['-R', 'canary/repo'], ['home', '-R', 'canary/repo'], [
 test('requires explicit repository selection for repo view', async () => {
   const call = await adapter.prepare(['repo', 'view', '-R', 'canary/repo'], reference)
   expect(call.args).toEqual(['repo', 'view', '--repo=canary/repo'])
+})
+
+test('forwards PR field selections through the pinned upstream', async () => {
+  const output = await executeHostedGh(['pr', 'view', '1', '-R', 'canary/repo', '--fields', 'number,title,mergeStateStatus,body'])
+  expect(decode(output.stdout)).toMatchObject({ pull_request: {
+    number: 1, title: 'canary PR', mergeStateStatus: 'BEHIND', body: 'Keep gh-axi pr update-branch in resource content.',
+  } })
 })
 
 test.each([
@@ -153,7 +161,7 @@ test('preserves resource help fields', () => {
   const output = decode(rewriteSuggestions(encode(original), 'gh-axi')) as typeof original
   expect(output.body).toBe(original.body)
   expect(output.help).toEqual(original.help)
-  expect(toolView({ name: 'gh-axi', version: '0.1.44', status: 'unconfigured' })).toContain('artium-axi gh-axi repo list')
+  expect(toolView({ name: 'gh-axi', version: '0.1.45', status: 'unconfigured' })).toContain('artium-axi gh-axi repo list')
 })
 
 test.each([

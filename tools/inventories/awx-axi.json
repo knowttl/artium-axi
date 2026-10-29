@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/awx-inventory.mjs",
   "tool": "awx-axi",
-  "version": "0.1.8",
-  "integrity": "sha512-tkheZgSTjs6nZT3KWo0e/+SH43ZacfvZpo7COktmpIs8lNr8VLhUtrGARz+mvwj8pov4zscdfmxAHL/8V025Bw==",
+  "version": "0.1.9",
+  "integrity": "sha512-7m/IWbfU7bd5JbKqu9FaLK1Pf5QaxQBl+tOAaHHOBzgUOHQDpHKRAVL4xy5Ww0vLiR7PcsRK/kDp71GqS/Kb6g==",
   "parserEvidence": "Published domain registry, reviewed plan effects and transport safety gates",
   "sources": [
     {
@@ -175,7 +175,7 @@
     },
     {
       "path": "dist/skill.js",
-      "sha256": "c7280e3093b0f547c577d54dc1f861cac4ce13ec70afabf7a3d1d55e3dbd6247"
+      "sha256": "c90e9659a17a6bb21e75588ec86c1fcf47490251fb42aae5447efd2c5a93723e"
     }
   ],
   "credentialSchema": {
@@ -267,7 +267,7 @@
       }
     }
   },
-  "skillSha256": "71f03eed887e2a5189b1b08b692fc5fd7a4acfd274102bd925c27d1dd16177ce",
+  "skillSha256": "91c6cc7e30b0786a349c970c5bf1f689ebcb74f7d008016f0ee1a6a2f8e3cb93",
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",

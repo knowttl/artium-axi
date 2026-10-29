@@ -108,13 +108,13 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   const { flags, fields, positionals, allFlags, route } = parseGhArguments(args)
   if (positionals[0] === 'issue' && ['lock', 'unlock'].includes(positionals[1])) throw new ArtiumError('INVALID_INPUT',
-    'Issue lock/unlock is unsupported: gh-axi 0.1.44 requests the locked issue field, which gh 2.103.3 does not export.',
+    'Issue lock/unlock is unsupported: gh-axi 0.1.45 requests the locked issue field, which gh 2.103.3 does not export.',
     'A compatible published upstream release is required. Issue pin and transfer remain available.')
   if (flags.size === 1 && flags.has('help') && positionals.length === 0) {
     return { args: ['--help'], invocation: { command: 'help', help: true } }
   }
   if (positionals.length === 0 || positionals[0] === 'home') throw new ArtiumError('INVALID_INPUT',
-    'The GitHub dashboard is unsupported and unverified: gh-axi 0.1.44 converts failed reads into successful empty results.',
+    'The GitHub dashboard is unsupported and unverified: gh-axi 0.1.45 converts failed reads into successful empty results.',
     'Use artium-axi gh-axi issue list -R OWNER/NAME or artium-axi gh-axi pr list -R OWNER/NAME.')
   if (flags.size === 1 && flags.has('help') && positionals.length === 1
     && inventory.discovery.commands.includes(positionals[0])) {

@@ -34,6 +34,7 @@ const commands = [
 ]
 const data = { generatedBy: 'scripts/ldap-inventory.mjs', tool: 'ldap-axi', ...pin,
   parserEvidence: 'Installed pinned command schemas and reviewed CLI globals and entry routes',
+  skillSha256: createHash('sha256').update(readFileSync(new URL('skills/ldap-axi/SKILL.md', packageRoot))).digest('hex'),
   sources: ['package.json', 'README.md', 'axi-credential.schema.json', 'dist/src/cli.js', 'dist/src/schema.js',
     'dist/src/config.js', 'dist/src/secrets.js', 'dist/src/directory/auth.js', 'dist/src/directory/policy.js']
     .map(path => ({ path, sha256: createHash('sha256').update(readFileSync(new URL(path, packageRoot))).digest('hex') })),

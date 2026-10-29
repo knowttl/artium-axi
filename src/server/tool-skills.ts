@@ -13,16 +13,16 @@ import type { ToolName } from './store/credential-store.js'
 const overlays = {
   'beyondtrust-axi': { sha256: beyondtrustInventory.skillSha256, sections: [] },
   'gh-axi': { sha256: ghInventory.skillSha256, sections: [] },
-  'checkpoint-axi': { sha256: '69f0754d565fc1e65163435ef698ea6dca6009470f158171cb3b4258d27c647b', sections: [] },
-  'hybrid-axi': { sha256: '0dc43810bcc0774457a33dba2454849e2c8588f0607bd770b30fefe09cd0d26c', sections: [] },
-  'tenable-axi': { sha256: '788b612b4b89f6e390e42ca1619da3a7c146599284ff8ebd69c9e5e42aae5ae0', sections: [] },
+  'checkpoint-axi': { sha256: 'b64e7d373d92331cf653ef4478b2438e57c801032ed8cad7e161ed5fa6cc73a0', sections: [] },
+  'hybrid-axi': { sha256: 'a7af7087e17eb4c93fc6185c102baf6ec9d31b70fc27999ffe872a5ae7006a9f', sections: [] },
+  'tenable-axi': { sha256: 'eaf6c39a3e7cbf82b628d4077eab743b16b98ecc8f17dcda6734d746b1a177f7', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
-  'az-axi': { sha256: '8a5bc0e8866ca55add8399376784a19e81671e6d036d10815e55b3c473540080', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
-  'vectra-axi': { sha256: 'a60ef2e69a9e569e3884800e57edcfecc262c3f5211a3ee9c84748f60c35cece', sections: ['Safety'] },
-  'mg-axi': { sha256: '325769d3237f5481626d934fb89be2a48f9b74f84a34ec96a3d5f264d48fcf86', sections: ['Safety'] },
-  'ldap-axi': { sha256: 'e20365f41164061268067d0caa6055fe8417dc6c610d70a5c3108d1e6ae0dcfc', sections: ['Workflow', 'Safety'] },
-  'falcon-axi': { sha256: '5d5fd1cd57ff1da68e37448c93fce57236f76448ec9a10984c01ea7300c6a8e0', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
+  'az-axi': { sha256: '367dc5bd085003b1fb354ed4450e94522472bb884e04a27b577cc1efd5d4e999', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
+  'vectra-axi': { sha256: 'd56d7dd6f5da32d21baaf3ded909908767a2519e025373f3447bfc4755bd1e09', sections: ['Safety'] },
+  'mg-axi': { sha256: '682d1d608593aa438488a41b894c3068243ab9897cbcadcac0184aaa2dd09d49', sections: ['Safety'] },
+  'ldap-axi': { sha256: '0fd60163e192fce5bf6222d885e012638047b039af2b1a1df87a4d51057c148b', sections: ['Investigation reads', 'One invocation instead of hand-written loops', 'Keep output bounded'] },
+  'falcon-axi': { sha256: '893c2ad3a474d76734117e4e46a91b19278f1fdeafaf1b69189be4a09da333b1', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
 } as const
 
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {
@@ -80,11 +80,12 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       body = body.replace('Secrets stay in credential references, never in argv, config files or output; credential fields carry expiry metadata only.', 'Artium supplies credentials on the server; never put secrets in argv or output.')
       body += '\n\n## Defender XDR advanced hunting\n\nUse `artium-axi mg-axi security hunting query --file query.kql` for read-only hunting.\nAn administrator must opt in with enabledPacks: ["entra", "security"] in the managed tool settings; Entra remains the default.\nUpload exactly one UTF-8 plain-text file named query.kql, at most 64 KiB; server paths, stdin and multiple files are unavailable for hunting.\nUse --timespan (default P1D, maximum 30 days) and --limit (default 100, maximum 10000) to bound results.\nHunting parses KQL before the read-only policy and returns positioned diagnostics without query excerpts or quoted literals. Parsing does not check tables, types or permissions.\nOnly the upstream restricted read-only KQL subset is supported. Never place credentials in a query or repeat query contents in output.\nThe app registration used by Artium needs ThreatHunting.Read.All with administrator consent; tenant acceptance is unverified.\n'
     } else if (tool === 'ldap-axi') {
-      body = body.replace('`group list`', '`artium-axi ldap-axi group list`').replace('`auth status --offline`', '`artium-axi ldap-axi auth status --offline`')
+      body = body.replaceAll(' --profile work', '')
       body += '\n\nUse `artium-axi ldap-axi user groups <identifier-or-dn>` for group membership.\nFor AD user details, request `artium-axi ldap-axi user show <identifier-or-dn> --fields name,description,display_name`; --attributes accepts LDAP attribute names such as displayName.\n'
     } else if (tool === 'falcon-axi') {
       body = body.split('\n').filter(line => !/^(Secrets belong|Use `--profile|Use `--member-cid)/.test(line)).join('\n')
         .replaceAll('uvx falcon-axi', 'falcon-axi')
+        .replace('](references/agent-guide.md)', `](https://github.com/knowttl/falcon-axi/blob/v${toolManifests[tool].version}/skills/falcon-axi/references/agent-guide.md)`)
       body += '\n\nArtium must enable RTR read-only command execution separately from the managed profile rtr.enabled opt-in. History reads remain available while execution is off.\nMalQuery search is a separate administrator capability, off by default, requiring MalQuery:write. Only bounded exact/fuzzy searches are available; hunt and sample downloads remain excluded.\n'
     }
     const registry = source.match(/<!-- command-registry:start -->\n([\s\S]*?)\n<!-- command-registry:end -->/)

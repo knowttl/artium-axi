@@ -101,8 +101,8 @@ test.each(['json', 'toon'].flatMap(format => [false, true].map(multiline => ({ f
   })
 
 test.each(['plain', 'json', 'toon'])('Falcon %s root help hides managed flags in grouped rows', format => {
-  const input = 'falcon-axi 0.8.1\n  profile list   configured profiles\n  config path   configuration paths\n  setup hooks   local integrations\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n  --config <path>, --profile <name>\n'
-  const expected = 'artium-axi falcon-axi 0.8.1\nGlobal flags:\n  --help\n'
+  const input = 'falcon-axi 0.8.2\n  profile list   configured profiles\n  config path   configuration paths\n  setup hooks   local integrations\nGlobal flags:\n  --help, --region <name|url>, --allow-unknown-origin, --member-cid <cid>, --no-member-cid\n  --config <path>, --profile <name>\n'
+  const expected = 'artium-axi falcon-axi 0.8.2\nGlobal flags:\n  --help\n'
   const serialize = (help: string) => format === 'plain' ? help : format === 'json' ? JSON.stringify({ help }) : encode({ help })
   expect(rewriteSuggestions(serialize(input), 'falcon-axi')).toBe(serialize(expected))
   expect(rewriteSuggestions(serialize(expected), 'falcon-axi')).toBe(serialize(expected))

@@ -8,8 +8,9 @@ description: "Inspect Check Point Email Security emails, events, tasks and excep
 # checkpoint-axi
 
 Inspect Check Point Email Security through compact, guarded AXI commands.
-See [README's introduction](../../README.md#checkpoint-axi) for shipped capabilities and [write guidance](../../README.md#email-writes-c6) before requesting mutations.
-Use `npx -y @knowttl/checkpoint-axi` after publication without a global install.
+Start investigations with the compact [agent guide](../../docs/agent-guide.md), which includes the read allowlist, bounded one-call forms and failure recovery.
+See [README's introduction](../../README.md#checkpoint-axi) for shipped capabilities and [write guidance](../../docs/writes.md#email-writes) before requesting mutations.
+Use `npx -y @knowttl/checkpoint-axi` without a global install.
 Bare `--version`, `-v` and `-V` print the package version.
 
 Run npx -y @knowttl/checkpoint-axi config path; configure a region, clientId and clientSecret env/file SecretRef.
@@ -33,7 +34,6 @@ Do not infer API access from a local pass.
 Doctor explicitly authenticates and checks one email search page over the past 24 hours.
 It reports region, SaaS and pass/fail per check without tenant data; a failed check exits 1.
 Use --saas to override the profile SaaS for doctor, email search or event list; the default is office365_emails.
-The owner commissions all slices together through Artium after the full build; only a pass/fail note enters the repository.
 AUTH_SHAPE_UNVERIFIED requires commissioning of the undocumented token response shape (guide page 8).
 Tokens stay in memory; verified TLS and the fixed region map are mandatory.
 Read sessions allow at most 10 HTTP requests; write sessions allow at most 44.
@@ -41,7 +41,7 @@ Both are bounded by 8 MiB of JSON and 60 seconds including auth and read retries
 Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
 Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
 Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
-See [README's email-read guidance](../../README.md#email-reads-c3) for continuation, completion status, cursor safety and page replay limitations.
+See [email-read guidance](../../docs/reads.md#email-reads) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.
 Cursor strings are never truncated; secret-derived strings are redacted before previews.
@@ -51,9 +51,9 @@ Downloads buffer at most 50 MiB per response, require a valid matching x-av-sha2
 Only path, size and sha256 are printed; binary content never enters stdout and server filenames are ignored.
 Email requires profile scope as the scopes header; attachments take optional --scope query overriding profile scope.
 Scope authorization remains unverified, as does email/ZIP hash availability because the guide only documents x-av-sha256 for individual attachments (pages 131-137).
-The mandatory hash policy fails closed on missing headers; commission through Artium before assuming live download support.
+The mandatory hash policy fails closed on missing headers; verify manually before assuming live download support.
 ZIP HTTP 200 may contain only some attachments; archives are never automatically extracted.
-See [download guidance](../../README.md#downloads-c11) for retry limits, output safety and commissioning limitations.
+See [download guidance](../../docs/downloads.md) for retry limits, output safety and commissioning limitations.
 Event action --ids <ids> --name <action> previews by default and requires the exact profile operation event.action.<name>, --execute and the preview's exact --confirm to send once.
 Every target must offer the action on both reads; nonempty actionParameter objects or repeated action names refuse ENDPOINT_UNVERIFIED until live commissioning resolves the object/string contradiction (guide pages 36-37, 43).
 Use event show <id> to inspect all available actions, including deferred parameterized actions.
@@ -68,10 +68,10 @@ Exception lists default to 50 rows; --limit or --all bounds results at 1000 rows
 No exception continuation request parameter is documented; incomplete results report complete: false without inventing scroll requests.
 Anti-Phishing requests are spaced at 1 request/second; other exception requests at 10 requests/second, including read retries.
 Undocumented exception response shapes are preserved as JSON values and marked responseSchema: unverified; live behavior remains uncommissioned.
-For exception create/update/remove on phishing-allow, phishing-block and spam-allow, follow [README's Anti-Phishing and Spam write guidance](../../README.md#anti-phishing-and-spam-writes-c8) for private input, replacement semantics, scope, confirmation and preflight/no-op behavior.
-For anomaly create/remove and click-time create/update/remove/remove-items, follow [README's C9 write guidance](../../README.md#anomaly-and-click-time-writes-c9) for documented inputs, exact scope and confirmation, unverified target/response contracts and read-only reconciliation.
-That C9 guidance also owns the approved clear and collection-PUT commissioning deferrals; do not infer existence, identities or no-op state from undocumented JSON or replay a mutation to retrieve truncated output.
-For malware/URL/DLP create, create-specific and update, follow [C10 write guidance](../../README.md#malware-url-and-dlp-writes-c10) for private inputs, payload confirmation and unverified responses.
+For exception create/update/remove on phishing-allow, phishing-block and spam-allow, follow [Anti-Phishing and Spam write guidance](../../docs/writes.md#anti-phishing-and-spam-writes) for private input, replacement semantics, scope, confirmation and preflight/no-op behavior.
+For anomaly create/remove and click-time create/update/remove/remove-items, follow [anomaly and click-time write guidance](../../docs/writes.md#anomaly-and-click-time-writes) for documented inputs, exact scope and confirmation, unverified target/response contracts and read-only reconciliation.
+That guidance also owns the approved clear and collection-PUT commissioning deferrals; do not infer existence, identities or no-op state from undocumented JSON or replay a mutation to retrieve truncated output.
+For malware/URL/DLP create, create-specific and update, follow [malware, URL and DLP write guidance](../../docs/writes.md#malware-url-and-dlp-writes) for private inputs, payload confirmation and unverified responses.
 The six malware/URL/DLP remove/clear commands refuse ENDPOINT_UNVERIFIED before configuration or authentication; the guide duplicates create/delete requests, so live commissioning must establish their actual contracts.
 All live-only facts remain unverified, including token response shape and lifetime, delete requests and download scopes.
 
