@@ -474,17 +474,16 @@ Use “Test credential” on the tool page for a current check and inspect cache
 ### Troubleshoot a failed tool call
 
 Read the tool's output and follow its `code:` and `help` lines.
-For a non-zero tool exit, the CLI writes `artium-axi: request_id <id>` to stderr after the tool output when the server supplies the ID.
+For a non-zero tool exit, keep the stderr request ID described in [client output behavior](client-reference.md#toon-output-behavior).
 Artium errors include a server `requestId` in their TOON error envelope; follow `next`.
 Every server response also carries `x-artium-request-id`, and browser error pages display the ID.
 Client-local failures have no server request ID; follow the [client error guidance](client-reference.md#toon-output-behavior).
 Never retry a write with `OUTCOME_UNKNOWN` or `UNKNOWN_OUTCOME` until you have checked current state.
 When escalating, send the administrator the request ID, tool name and time, without credentials or potentially sensitive command output.
 
-Administrators can open `/admin/audit?requestId=<id>` or query `GET /v1/admin/audit?requestId=<id>` to inspect the paired run-start and run-terminal records.
-The records show redacted arguments, exit status, duration, byte counts, any tool error code, write action and native audit ID.
-Use `/admin/audit?failed=1&tool=<tool>` to find failed terminal runs, including non-zero or missing exit codes and error outcomes; the stored outcome semantics stay unchanged.
-The request ID and failed-run filters also apply to CSV and JSON-lines exports and persist across audit pages.
+Administrators can open `/admin/audit?requestId=<id>` to inspect run-start and run-terminal evidence for admitted runs, or denial evidence for refused calls.
+Use `/admin/audit?failed=1&tool=<tool>` to find recent failed runs.
+See [Audit screen and API](admin-guide.md#audit-screen-and-api) for filter semantics, recorded fields, API queries, pagination and exports.
 For a credential, TLS, DNS or network problem, use **Test credential** on the tool page for a current secret-scanned diagnostic.
 
 For `INTERNAL_ERROR` and `SPAWN_FAILED`, search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID.

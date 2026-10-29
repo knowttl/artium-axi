@@ -75,7 +75,7 @@ Native preview, execute and exact confirmation gates still apply; there is no un
 
 Artium errors are TOON on stdout with `error.code`, `source`, `message` and `next`; follow `next` rather than retrying blindly.
 For a non-zero tool exit, keep the stderr `artium-axi: request_id <id>` line and quote that ID, the tool and time when asking an administrator for help; never include credentials or sensitive output.
-An administrator can filter `/admin/audit?requestId=<id>` or use `failed=1` for failed runs; follow the [failed-call troubleshooting path](https://github.com/knowttl/artium-axi/blob/main/docs/runbook.md#troubleshoot-a-failed-tool-call), and check current state before retrying an unknown write outcome.
+Follow the [failed-call troubleshooting path](https://github.com/knowttl/artium-axi/blob/main/docs/runbook.md#troubleshoot-a-failed-tool-call) for administrator investigation, and check current state before retrying an unknown write outcome.
 See the [output contract](https://github.com/knowttl/artium-axi/blob/main/README.md#toon-output-and-errors) for exit codes and upstream output handling.
 
 Use the [generated error reference](https://github.com/knowttl/artium-axi/blob/main/docs/errors.md) for code-specific recovery and exit codes.
