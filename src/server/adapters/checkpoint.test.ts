@@ -40,14 +40,16 @@ test.each([
 
 test.each([false, true])('managed credential guidance describes hosted inputs when configured=%s', configured => {
   const html = credentialFields('checkpoint-axi', checkpointProfile, {}, configured)
-  expect(html).toContain('<label>Client secret (secret)<textarea')
-  expect(html).toContain('<p>Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.</p>')
-  expect(html).toContain('Email downloads require this value as the scopes header.')
-  expect(html).toContain('Attachment downloads use it as the scope query when set, and omit that query when unset.')
-  expect(html).toContain('Artium uses this stored value for hosted transfers; there is no per-download scope override.')
-  expect(html).not.toContain('Client secret reference')
-  expect(html).not.toContain('CHECKPOINT_AXI_CLIENT_SECRET')
-  expect(html).not.toContain('--scope')
+  const clientSecret = html.match(/<div data-credential-field="clientSecret" data-secret>(.+?)<\/div>/)![1]!
+  const scope = html.match(/<div data-credential-field="scope">(.+?)<\/div>/)![1]!
+  expect(clientSecret).toContain('<label>Client secret (secret)<textarea')
+  expect(clientSecret).toContain('<p>Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.</p>')
+  expect(scope).toContain('Email downloads require this value as the scopes header.')
+  expect(scope).toContain('Attachment downloads use it as the scope query when set, and omit that query when unset.')
+  expect(scope).toContain('Artium uses this stored value for hosted transfers; there is no per-download scope override.')
+  expect(clientSecret).not.toContain('Client secret reference')
+  expect(clientSecret).not.toContain('CHECKPOINT_AXI_CLIENT_SECRET')
+  expect(scope).not.toContain('--scope')
 })
 
 test.each([
