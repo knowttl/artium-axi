@@ -7,7 +7,7 @@ const packageRoot = new URL('node_modules/gh-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot)))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root)))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for gh-axi')
-// Reviewed published 0.1.44 dispatch and flag parsing. Internal GraphQL query
+// Reviewed published 0.1.45 dispatch and flag parsing. Internal GraphQL query
 // transport is separate from the caller-facing GET-only api route.
 const commands = []
 function route(command, values = '', booleans = '', positionals = 0, repository = false) {
@@ -19,7 +19,7 @@ route('issue list', 'fields state label assignee author milestone sort limit', '
 route('issue view', '', 'comments full', 1, true)
 route('issue subissue list', '', '', 1, true)
 route('pr list', 'fields state label assignee author base head limit', 'draft', 0, true)
-route('pr view', '', 'comments reviews checks full', 1, true)
+route('pr view', 'fields', 'comments reviews checks full', 1, true)
 route('pr diff', '', 'full', 1, true)
 route('pr checks', '', 'failed', 1, true)
 route('discussion list', 'state category author label limit', '', 0, true)
@@ -110,7 +110,7 @@ const data = { generatedBy: 'scripts/gh-inventory.mjs', tool: 'gh-axi', ...pin,
   gh: JSON.parse(readFileSync(new URL('gh-source.json', root))),
   sources: [...sources(new URL('dist/', packageRoot), 'dist/'), ...sources(new URL('dist/', sdk), 'axi-sdk-js/dist/')],
   adapterBoundary: { unsafeOverrides: ['hostname', 'watch', 'attach', 'body-file', 'notes-file', 'input', 'file', 'add', 'raw-field', 'header', 'admin', 'delete-branch', 'source', 'push', 'clone', 'remote'],
-    blockedCommands: ['home', 'update', 'setup', 'stack', 'issue lock', 'issue unlock', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
+    blockedCommands: ['home', 'update', 'setup', 'stack', 'issue lock', 'issue unlock', 'project delete', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
     nativeWrites: 'host-classified; exact operations, preview and confirmation', inputs: { stdin: 'gist create/edit with filename only', files: 'unsupported' } },
   discovery: { commands: [...new Set(commands.map(route => route.command.split(' ')[0]))],
     example: ['repo', 'list', '--limit', '1'],

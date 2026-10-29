@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/checkpoint-inventory.mjs",
   "tool": "checkpoint-axi",
-  "version": "0.1.0",
-  "integrity": "sha512-fbwTL0lbbJwCDjR8bt431kWHSCEuBmAEzk/QNJzsVcAbve2x8Ehtz/mr/aPzJ6I/WMRQiRPFpCE2zsW/2CRHlQ==",
+  "version": "0.1.1",
+  "integrity": "sha512-xkVncU3PYUeGFD5vIMp/lT9JAsTsSaCTVF+dEFYye1iSDkjPjuHJDHnZ8BquT3ClHw9bcBWdLAnEtJRPSVimtg==",
   "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
   "sources": [
     {
@@ -194,7 +194,7 @@
     "uae": "https://cloudinfra-gw.me.portal.checkpoint.com",
     "in": "https://cloudinfra-gw.in.portal.checkpoint.com"
   },
-  "skillSha256": "69f0754d565fc1e65163435ef698ea6dca6009470f158171cb3b4258d27c647b",
+  "skillSha256": "b64e7d373d92331cf653ef4478b2438e57c801032ed8cad7e161ed5fa6cc73a0",
   "nativeWriteSettings": {
     "supportedOperations": [
       "attachment.download",

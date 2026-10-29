@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/hybrid-inventory.mjs",
   "tool": "hybrid-axi",
-  "version": "0.1.2",
-  "integrity": "sha512-rveeeytckjW+8lFwKQppSEAncC3yk8KpGqI7Qh3ziJvQtf4ycUrOw+6Tzp9a69gcTamGiYf805OC0+rhIhh6ag==",
+  "version": "0.1.3",
+  "integrity": "sha512-+8WKzpEbj+/RZdKCUcNG4Awql4ALe0sRMFlc9e8E7Km874G0Zfmrn1bErBpvf6wwPNYfVSB8jKt5IuB85qxGLQ==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -182,7 +182,7 @@
       }
     }
   },
-  "skillSha256": "0dc43810bcc0774457a33dba2454849e2c8588f0607bd770b30fefe09cd0d26c",
+  "skillSha256": "a7af7087e17eb4c93fc6185c102baf6ec9d31b70fc27999ffe872a5ae7006a9f",
   "nativeWriteSettings": {
     "supportedOperations": [
       "convertQuickScan",

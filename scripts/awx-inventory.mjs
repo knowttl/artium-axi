@@ -8,7 +8,7 @@ const packageRoot = new URL('node_modules/awx-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for awx-axi')
-// Reviewed against the 0.1.8 domain plans and transport gates. Survey is a GET;
+// Reviewed against the 0.1.9 domain plans and transport gates. Survey is a GET;
 // notification-template test sends a notification and is a write.
 const reads = {
   job: 'list show stdout events hosts watch', template: 'list show object-roles survey',

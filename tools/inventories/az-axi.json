@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.13",
-  "integrity": "sha512-qltNokGPKFvUxFxNVf25gV2jtgw9MpxT5k6Zlbhz0b/Y5pvbc04SpORpUurDZNXE7runLZZhoBmm38qXcA3M7Q==",
+  "version": "0.1.14",
+  "integrity": "sha512-4gY1OZ7ab9An4bRO74Qc9cSFQwBwb1H7o8I4toltj0AnxDHHOZYQL6dDSOwZH8QjPlV6l82iX3E+M6yqdxwe+w==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "dc09976ff76cdda672ba89f0a7689c39873a86a19213d46687c2a9af861d3ed2",
-  "skillSha256": "8a5bc0e8866ca55add8399376784a19e81671e6d036d10815e55b3c473540080",
+  "packageManifestSha256": "cd1b5eda7c3a0b75d598279477267e573470e4c9bcc8dad605f2917c9ebf40db",
+  "skillSha256": "367dc5bd085003b1fb354ed4450e94522472bb884e04a27b577cc1efd5d4e999",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",

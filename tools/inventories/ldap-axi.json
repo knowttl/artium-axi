@@ -1,17 +1,18 @@
 {
   "generatedBy": "scripts/ldap-inventory.mjs",
   "tool": "ldap-axi",
-  "version": "0.3.0",
-  "integrity": "sha512-QVectHNsRxYWNBf0im5DjeN78mcgK0Te0Sxh7uXGNb+AhQjsS5ywiCrnKAk0/INA/oxiZ1TiXaDX7jHAg5OvDg==",
+  "version": "0.3.1",
+  "integrity": "sha512-gO6n3ewNtHB/+stDi6hEwnF0QLlk/u86FnHmeZeE40Mgqagfs3xhjhosmZMj1To5JMJUAjzitfWgZWy1FhZCNw==",
   "parserEvidence": "Installed pinned command schemas and reviewed CLI globals and entry routes",
+  "skillSha256": "0fd60163e192fce5bf6222d885e012638047b039af2b1a1df87a4d51057c148b",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "9fa26acd15443dad0857c7468f570164e436f7b25aef3df733da3c4d859917a9"
+      "sha256": "b008a0998101444367dbfc1d34daa80706c63520abcaf36eb667230c50e1161d"
     },
     {
       "path": "README.md",
-      "sha256": "cd05d13da53b80aa651a5207b680e7fa6a0fb0c975244e4cc135d26b13391204"
+      "sha256": "033b7684a0620350942015dffc0d8e7fffa582ccc2c14667e245cab8bace696f"
     },
     {
       "path": "axi-credential.schema.json",
@@ -23,7 +24,7 @@
     },
     {
       "path": "dist/src/schema.js",
-      "sha256": "ba2285cbda6e5994c536b2f9de65736df1b43b0b10c5d5b7a1c2d7124ab198a0"
+      "sha256": "f612fc77e1036c35cd2feab779adff216df267915b7778b0a3b286cfea113825"
     },
     {
       "path": "dist/src/config.js",

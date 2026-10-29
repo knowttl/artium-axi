@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.11",
-  "integrity": "sha512-BlbZkUhkqqGaJBX+7skqE22ZAurhqqOIO/LF0zwi1t9Y8vwAz8Ju0BBahfmPYWPnQijrxZ69e/a8B3yDV69XnA==",
+  "version": "0.1.12",
+  "integrity": "sha512-X1QYP/beokxC7TX+SBuvMZCHwCyKUz/hRigikpQjgOTp4imzhP2HLEF7Ga1rmHZNGH5sDrISjnQpbJzzMoEpCg==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "6b4f5e6de7d416c9bfa568f8391c0d8b47952f4ef856d19fd091ef950c57490c",
-  "skillSha256": "a60ef2e69a9e569e3884800e57edcfecc262c3f5211a3ee9c84748f60c35cece",
+  "packageManifestSha256": "a7369aa6a0959310d35bf1e743734a98c303341972735cd5a8d99347316f5ae0",
+  "skillSha256": "d56d7dd6f5da32d21baaf3ded909908767a2519e025373f3447bfc4755bd1e09",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -305,7 +305,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "f918b36346a7cae2b164c89263275e4571b9d6bd07688019a789c7e0463434b2"
+      "sha256": "65ed84622aafe464efdcfa22b56b04c52ddaa47fa6cd6d60cf72ec412a570a9c"
     }
   },
   "flags": [

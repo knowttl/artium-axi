@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.17",
-  "integrity": "sha512-pbMFGVz3VYwYlAsoIc0h8XcsjFZBV+NyDJFu5CO0Wl/Z02GabXoD9Z/UJtBFvXIcvnX5zPdonITBjmdc352SCg==",
+  "version": "0.1.18",
+  "integrity": "sha512-eAdAfMWD7gx+1bX7keI4inSzP+7e7JlFk1X7Y6E3DNx4bo5eTfBxdSv/MT62B6uWFsLKVHu0WEhuBB553u5pDw==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "e76e43e35fe944b949eaccffa53e2e381e64ee0b0222d9a80f87926111c7e5f3",
-  "skillSha256": "325769d3237f5481626d934fb89be2a48f9b74f84a34ec96a3d5f264d48fcf86",
+  "packageManifestSha256": "10e74ec55cddc3125609be50e633db0ff8bcd1b350a0cde4f02f205f80ec0ba7",
+  "skillSha256": "682d1d608593aa438488a41b894c3068243ab9897cbcadcac0184aaa2dd09d49",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"

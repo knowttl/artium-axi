@@ -20,6 +20,9 @@ There is no arbitrary REST or GraphQL escape hatch.
 
 ## Orientation
 
+Start with the [compact investigation guide](references/agent-guide.md) for exact commands, one-call forms, output bounds, safety and failure recovery.
+Use help to repair a failed command or inspect an unfamiliar option, not to start an investigation.
+
 Run `uvx falcon-axi` for recent detections, or invoke a known command directly.
 
 - Run `uvx falcon-axi detection list` to see more detections

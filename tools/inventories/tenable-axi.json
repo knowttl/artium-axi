@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-1Ji117XJv7tssAgqq0vQyQP6m3llQdqOoM6TG7tmMrma9iH9tqq+eESkXGnmHqUuJFjlS8TyyctViWk+zpTTjA==",
+  "version": "0.1.4",
+  "integrity": "sha512-w6duZJXvoRvPjKpznqd3GmfsR6/nViR/mEdbN16h25XBpbtR9NhmptG1IQLnIPC4A1s/hu/keHPnacV/sPmrVA==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -201,7 +201,7 @@
       }
     }
   },
-  "skillSha256": "788b612b4b89f6e390e42ca1619da3a7c146599284ff8ebd69c9e5e42aae5ae0",
+  "skillSha256": "eaf6c39a3e7cbf82b628d4077eab743b16b98ecc8f17dcda6734d746b1a177f7",
   "nativeWriteSettings": {
     "supportedOperations": [
       "apa-export-attack-path",

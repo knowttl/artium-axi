@@ -4,18 +4,18 @@
   "type": "module",
   "packageManager": "pnpm@10.22.0",
   "dependencies": {
-    "gh-axi": "0.1.44",
+    "gh-axi": "0.1.45",
     "axi-sdk-js": "0.1.13",
-    "@knowttl/checkpoint-axi": "0.1.0",
+    "@knowttl/checkpoint-axi": "0.1.1",
     "@knowttl/beyondtrust-axi": "0.1.1",
-    "@knowttl/hybrid-axi": "0.1.2",
-    "@knowttl/tenable-axi": "0.1.3",
-    "awx-axi": "0.1.8",
+    "@knowttl/hybrid-axi": "0.1.3",
+    "@knowttl/tenable-axi": "0.1.4",
+    "awx-axi": "0.1.9",
     "@jeffreyhaen/ado-axi": "0.4.7",
-    "@knowttl/az-axi": "0.1.13",
-    "@knowttl/vectra-axi": "0.1.11",
-    "@knowttl/mg-axi": "0.1.17",
-    "@knowttl/ldap-axi": "0.3.0"
+    "@knowttl/az-axi": "0.1.14",
+    "@knowttl/vectra-axi": "0.1.12",
+    "@knowttl/mg-axi": "0.1.18",
+    "@knowttl/ldap-axi": "0.3.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": []
