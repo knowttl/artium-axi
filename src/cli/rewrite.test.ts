@@ -490,7 +490,7 @@ test.each([
   { name: 'Tenable leaves an empty inline list when its only suggestion is removed', tool: 'tenable-axi',
     help: 'help[1]: Run tenable-axi config path; configure a profile with accessKey and secretKey SecretRefs', expected: [] },
   { name: 'Hybrid Analysis keeps valid TOON when a row suggestion is removed', tool: 'hybrid-axi',
-    help: 'help[2]:\n  - Run hybrid-axi setup\n  - Run hybrid-axi --help', expected: ['', 'Run artium-axi hybrid-axi --help'] },
+    help: 'help[2]:\n  - Run hybrid-axi setup\n  - Run hybrid-axi --help', expected: ['Run artium-axi hybrid-axi --help'] },
 ])('$name', ({ tool, help, expected }) => {
   const input = `bin: ${tool}\nstatus: not configured\n${help}\n`
   const output = rewriteSuggestions(input, tool)
