@@ -763,17 +763,27 @@ test('the real server remains available after startup encounters a damaged nativ
   writeFileSync(journal, damaged, { mode: 0o600 })
   writeFileSync(`${journal}.lock`, '')
   writeFileSync(`${journal}.retention`, 'interrupted compaction')
-  const expiredJournals = ['az-axi', 'mg-axi', 'vectra-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log.runs', 'run-z-expired'))
+  const expiredJournals = ['az-axi', 'mg-axi', 'vectra-axi', 'falcon-axi', 'beyondtrust-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log.runs', 'run-z-expired'))
   const validRecord = { kind: 'intent', intentKey: 'a'.repeat(64), time: '2026-01-01T00:00:00.000Z',
     profile: 'synthetic', identity: 'synthetic', class: 'safe-write', method: 'PATCH',
-    url: 'https://synthetic.invalid/resource', outcome: 'success', httpStatus: 200 }
+    url: 'https://synthetic.invalid/resource', outcome: 'success', httpStatus: 200,
+    timestamp: '2026-01-01T00:00:00.000Z', run: 'synthetic-run', phase: 'outcome' }
+  const sharedJournals = ['tenable-axi', 'hybrid-axi', 'checkpoint-axi'].map(tool => join(directory, 'data', 'tool-logs', tool, 'writes.log'))
+  const sharedContent = `${JSON.stringify(validRecord)}\n`
+  for (const path of sharedJournals) {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, sharedContent)
+    writeFileSync(`${path}.lock`, '')
+    utimesSync(path, new Date(0), new Date(0))
+  }
   for (const path of expiredJournals) {
     mkdirSync(path, { recursive: true })
     writeFileSync(join(path, 'writes.log'), `${JSON.stringify(validRecord)}\n`)
+    writeFileSync(join(path, 'intent.json'), JSON.stringify({ state: 'intent', auditId: 'synthetic-id', operation: 'synthetic.write', time: validRecord.time }))
     utimesSync(path, new Date(0), new Date(0))
   }
   const malformedJournals = expiredJournals.flatMap(path => [damaged, '{invalid}\n', '{}\n', '[]\n'].map((content, index) => ({
-    path: join(path, '..', `run-a-malformed-${index}`, 'writes.log'), content,
+    path: join(path, '..', `run-a-malformed-${index}`, path.includes('beyondtrust-axi') ? 'intent.json' : 'writes.log'), content,
   })))
   for (const { path, content } of malformedJournals) {
     mkdirSync(join(path, '..'), { recursive: true })
@@ -806,7 +816,9 @@ test('the real server remains available after startup encounters a damaged nativ
     const health = await fetch(`${origin}/health/ready`)
     expect(health.status).toBe(200)
     expect(await health.json()).toEqual({ status: 'ok' })
-    expect(expiredJournals.map(existsSync)).toEqual([false, false, false])
+    expect(expiredJournals.map(existsSync)).toEqual([false, false, false, false, false])
+    expect(sharedJournals.map(path => readFileSync(path, 'utf8'))).toEqual(Array(3).fill(sharedContent))
+    expect(sharedJournals.map(path => existsSync(`${path}.lock`))).toEqual([true, true, true])
     expect(malformedJournals.map(({ path }) => readFileSync(path, 'utf8')))
       .toEqual(malformedJournals.map(({ content }) => content))
     const listing = await fetch(`${origin}/v1/tools`, { headers })
@@ -830,5 +842,5 @@ test('the real server remains available after startup encounters a damaged nativ
   ]))
   expect(stderr).not.toContain('CANARY-partial')
   expect(stderr.trim().split('\n').map(line => JSON.parse(line).error.code))
-    .toEqual(Array(5).fill('AUDIT_UNAVAILABLE'))
+    .toEqual(Array(7).fill('AUDIT_UNAVAILABLE'))
 }, 10_000)
