@@ -365,8 +365,9 @@ Follow the diagnostic hint to repair token-acquisition failures; see the [error 
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
 Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE` and `INVALID_RESPONSE` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
-For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType` and a bounded `shape` report containing JSON paths and value types, never response values.
-`shapeTruncated` indicates that the shape report reached a native reporting limit; administrator diagnostic text remains subject to the host limits below.
+For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded `shape` report containing JSON paths and value types, and bounded validator `issuePaths`, never response values or validation-library error text.
+Both reports echo only identifier-like, non-GUID object keys through the tool's redactor; every other object key appears as `<key>`.
+`shapeTruncated` and `issuePathsTruncated` indicate that the respective report reached a native reporting limit; administrator diagnostic text remains subject to the host limits below.
 These details appear in managed command output and credential-test diagnostics; audit records retain the error code without the shape report.
 Inspect the message and hint, then check the service endpoint and API compatibility.
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
