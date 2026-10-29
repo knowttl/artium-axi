@@ -6,6 +6,7 @@ import { toolView } from './views.js'
 import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import graph from '../../tools/inventories/mg-axi.json' with { type: 'json' }
+import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 
 test.each([
   { tool: 'vectra-axi', command: 'host list --name synthetic' },
@@ -413,4 +414,30 @@ test.each([JSON.stringify, encode])('LDAP recovery preserves literal arguments i
   const input = serialize({ code: 'VALIDATION_ERROR', help: ['Use `ldap-axi user list --name "--ca-file NODE_EXTRA_CA_CERTS"`'] })
   const expected = serialize({ code: 'VALIDATION_ERROR', help: ['Use `artium-axi ldap-axi user list --name "--ca-file NODE_EXTRA_CA_CERTS"`'] })
   expect(rewriteSuggestions(input, 'ldap-axi')).toBe(expected)
+})
+
+// Each input is the shape of a tool's real home output, with synthetic values.
+// hostedHelp replaces or removes local-configuration suggestions, and the result must stay valid TOON.
+const beyondtrustGuidance = beyondtrust.discovery.help.replaceAll('beyondtrust-axi ', 'artium-axi beyondtrust-axi ')
+test.each([
+  { name: 'BeyondTrust replaces local-config suggestions with guidance containing commas and a newline', tool: 'beyondtrust-axi',
+    help: 'help[3]: Run beyondtrust-axi config path to locate configuration,Run beyondtrust-axi auth status to validate local credentials,Run beyondtrust-axi profile list to inspect configured profiles',
+    expected: [beyondtrustGuidance, 'Run artium-axi beyondtrust-axi auth status to validate local credentials', beyondtrustGuidance] },
+  { name: 'Hybrid Analysis drops a removed inline suggestion and fixes the count', tool: 'hybrid-axi',
+    help: 'help[2]: Run hybrid-axi setup,Run hybrid-axi --help', expected: ['Run artium-axi hybrid-axi --help'] },
+  { name: 'Tenable leaves an empty inline list when its only suggestion is removed', tool: 'tenable-axi',
+    help: 'help[1]: Run tenable-axi config path; configure a profile with accessKey and secretKey SecretRefs', expected: [] },
+  { name: 'Hybrid Analysis keeps valid TOON when a row suggestion is removed', tool: 'hybrid-axi',
+    help: 'help[2]:\n  - Run hybrid-axi setup\n  - Run hybrid-axi --help', expected: ['', 'Run artium-axi hybrid-axi --help'] },
+])('$name', ({ tool, help, expected }) => {
+  const input = `bin: ${tool}\nstatus: not configured\n${help}\n`
+  const output = rewriteSuggestions(input, tool)
+  expect((decode(output) as { help: string[] }).help).toEqual(expected)
+  expect(rewriteSuggestions(output, tool)).toBe(output)
+})
+
+test('Hybrid Analysis keeps valid TOON when a scalar suggestion is removed', () => {
+  const output = rewriteSuggestions('bin: hybrid-axi\nhelp: Run hybrid-axi setup\n', 'hybrid-axi')
+  expect((decode(output) as { help: string }).help).toBe('')
+  expect(rewriteSuggestions(output, 'hybrid-axi')).toBe(output)
 })

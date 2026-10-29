@@ -28,7 +28,8 @@ const managedFlags: Record<string, string[]> = {
   'ado-axi': ado.adapterBoundary.unsafeOverrides,
 }
 
-type Span = { start: number, raw: string, value: string, quoted: boolean }
+// An inline item shares its list so the whole `help[N]: a,b,c` line can be rebuilt when items change or disappear.
+type Span = { start: number, raw: string, value: string, quoted: boolean, list?: { countStart: number, end: number } }
 type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown }, description?: unknown, commands?: unknown } }
 const ldapHelp = /^(?:Read Active Directory and LDAPv3 directories\.|(?:entry (?:search|show)|auth status) |Usage: (?:artium-axi )?ldap-axi )/m
 const ldapCommands = ldap.commands.filter(route => route.command !== 'home').map(route => route.command)
@@ -43,6 +44,15 @@ export function rewriteDiscoveryHelp(help: string | typeof vectra.discovery.help
     flags: Object.fromEntries(Object.entries(help.flags).filter(([flag]) => !flags.includes(/^--([\w-]+)/.exec(flag)?.[1] ?? ''))),
     examples: help.examples.map(example => hostedHelp(example, tool, flags, true)),
   })
+}
+
+// A rewritten suggestion must decode to itself where it sits, whatever hosting substituted for it.
+// Inline lists also split on commas, which a scalar or row item does not.
+function encodeSuggestion(value: string, inline: boolean): string {
+  try {
+    if (value && !(inline && value.includes(',')) && (decode(`value: ${value}`) as { value?: unknown }).value === value) return value
+  } catch { /* A value the decoder rejects is quoted below. */ }
+  return JSON.stringify(value)
 }
 
 // The pinned inventories record only the root help field as suggestions.
@@ -149,11 +159,27 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
   }
   catch { return output }
-  for (const span of [...spans].reverse()) {
+  const edits: { start: number, end: number, text: string }[] = []
+  const lists = new Map<NonNullable<Span['list']>, { items: string[], changed: boolean }>()
+  for (const span of spans) {
     const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value))
-    if (value === span.value) continue
-    output = output.slice(0, span.start) + (span.quoted || ['ldap-axi', 'ado-axi', 'awx-axi', 'gh-axi'].includes(tool) && /[,\r\n]/.test(value) ? JSON.stringify(value) : value) + output.slice(span.start + span.raw.length)
+    const changed = value !== span.value
+    const text = span.quoted ? JSON.stringify(value) : encodeSuggestion(value, Boolean(span.list))
+    if (!span.list) {
+      if (changed) edits.push({ start: span.start, end: span.start + span.raw.length, text })
+      continue
+    }
+    const list = lists.get(span.list) ?? { items: [], changed: false }
+    // A suggestion that hosting removes outright leaves the list, so the count stays correct.
+    if (!changed) list.items.push(span.raw)
+    else if (value) list.items.push(text)
+    list.changed ||= changed
+    lists.set(span.list, list)
   }
+  for (const [{ countStart, end }, { items, changed }] of lists) {
+    if (changed) edits.push({ start: countStart, end, text: `${items.length}]:${items.length ? ` ${items.join(',')}` : ''}` })
+  }
+  for (const edit of edits.sort((a, b) => b.start - a.start)) output = output.slice(0, edit.start) + edit.text + output.slice(edit.end)
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Map<number, string>()
@@ -355,12 +381,12 @@ function toonHelp(output: string): Help {
   const spans: Span[] = []
   const validation = lines.map(line => line[0].replace(/\r?\n$/, ''))
   let helpFields = 0
-  function scalar(raw: string, start: number): void {
+  function scalar(raw: string, start: number, list?: Span['list']): void {
     const parsed = decode(`value: ${raw}`) as { value: unknown }
     if (typeof parsed.value !== 'string') throw new Error('Unknown suggestion format')
     const quoted = raw.startsWith('"')
     if (quoted && JSON.parse(raw) !== parsed.value) throw new Error('Unknown escaping')
-    spans.push({ start, raw, value: parsed.value, quoted })
+    spans.push({ start, raw, value: parsed.value, quoted, ...(list ? { list } : {}) })
   }
   for (let index = 0; index < lines.length; index++) {
     const text = lines[index][0].replace(/\r?\n$/, '')
@@ -382,6 +408,7 @@ function toonHelp(output: string): Help {
     }
     if (field[2]) {
       const raw = field[2]
+      const list = { countStart: lines[index].index! + /^(?:help|"help")\[/.exec(text)![0].length, end: lines[index].index! + text.length }
       let cursor = 0
       let items = 0
       while (cursor < raw.length) {
@@ -395,7 +422,7 @@ function toonHelp(output: string): Help {
           const comma = raw.indexOf(',', cursor)
           cursor = comma === -1 ? raw.length : comma
         }
-        scalar(raw.slice(start, cursor).trimEnd(), lines[index].index! + text.length - raw.length + start)
+        scalar(raw.slice(start, cursor).trimEnd(), lines[index].index! + text.length - raw.length + start, list)
         items++
         while (/[ \t]/.test(raw[cursor] ?? '')) cursor++
         if (cursor < raw.length && raw[cursor++] !== ',') throw new Error('Unknown inline suggestion')
