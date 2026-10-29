@@ -2,7 +2,7 @@
 
 ## BeyondTrust PM Cloud
 
-The pinned @knowttl/beyondtrust-axi 0.1.0 profile schema owns the managed fields.
+The pinned @knowttl/beyondtrust-axi 0.1.1 profile schema owns the managed fields.
 Create an Endpoint Privilege Management API account and grant only the required API areas.
 Save host (for example `example.pm.beyondtrustcloud.com`), clientId and clientSecret through the administrator credential form.
 The host must be lowercase DNS ending in .beyondtrustcloud.com, without scheme, port, path or userinfo; requests use verified HTTPS.

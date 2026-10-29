@@ -3,6 +3,7 @@ import { mkdir, readdir, stat } from 'node:fs/promises'
 import { spawn, execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { join } from 'node:path'
+import { request } from 'node:https'
 import { decode } from '@toon-format/toon'
 import { beforeAll, expect, test, vi } from 'vitest'
 import * as credentialTls from '../../src/server/credential-tls.js'
@@ -32,7 +33,7 @@ async function withBeyondtrust(check: (fixture: {
   post: (path: string, body?: unknown) => Promise<Response>,
   cli: (args: string[]) => Promise<{ code: number | null, stdout: string, stderr: string }>,
   enable: (operations: string[], allowDeletes?: boolean) => Promise<void>, run: (args: string[], input?: object) => Promise<{ stdout: string, exitCode: number }>,
-  evidence: () => Promise<{ requests: { path: string, canaryReceived: boolean }[], mutations: number }>,
+  evidence: () => Promise<{ requests: { path: string, canaryReceived: boolean, scope?: string }[], mutations: number }>,
 }) => Promise<void>, options: { interruption?: string, signal?: AbortSignal } = {}) {
   await withFakeService(async ({ directory, port, send }) => {
     const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
@@ -113,6 +114,22 @@ async function withBeyondtrust(check: (fixture: {
 }
 
 const id = '11111111-1111-4111-8111-111111111111'
+test.each([undefined, 'wrong-scope'])('the fake token endpoint refuses scope %s', async scope => {
+  await withFakeService(async ({ directory, port }) => {
+    const form = new URLSearchParams({ grant_type: 'client_credentials', client_id: 'synthetic-client',
+      client_secret: 'CANARY-beyondtrust-secret', ...(scope === undefined ? {} : { scope }) })
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request({ hostname: 'localhost', servername: 'localhost', port, path: '/oauth/connect/token', method: 'POST',
+        ca: readFileSync(join(directory, 'ca.crt')), headers: { host: 'example.pm.beyondtrustcloud.com', 'content-type': 'application/x-www-form-urlencoded' } }, res => {
+        res.resume()
+        res.on('end', () => resolve(res.statusCode))
+      })
+      req.on('error', reject)
+      req.end(form.toString())
+    })
+    expect(status).toBe(401)
+  })
+})
 test('a crash before native intent creation retains the durable host intent identity', async () => {
   await withBeyondtrust(async ({ run, enable, evidence, directory, db }) => {
     await enable(['computer.authorise'])
@@ -183,13 +200,15 @@ test('managed cursor resumes across isolated calls', async () => {
   })
 })
 test('managed doctor and about accept the fake version records', async () => {
-  await withBeyondtrust(async ({ run }) => {
+  await withBeyondtrust(async ({ run, evidence }) => {
     const doctor = await run(['doctor'])
     expect(doctor.exitCode, doctor.stdout).toBe(0)
     expect(decode(doctor.stdout)).toMatchObject({ authentication: 'verified for this run' })
     const about = await run(['about'])
     expect(about.exitCode, about.stdout).toBe(0)
     expect(decode(about.stdout)).toMatchObject({ versions: [{ consoleVersion: '3', reportingDatabaseVersion: '3', policyEditorVersion: '3' }] })
+    expect(new Set((await evidence()).requests.filter(record => record.path === '/oauth/connect/token').map(record => record.scope)))
+      .toEqual(new Set(['urn:management:api']))
   })
 })
 test('managed all reads span pages and resume the final partial page', async () => {
@@ -219,6 +238,8 @@ test('managed published CLI reads, previews, confirms and journals a single muta
     expect((await evidence()).mutations).toBe(1)
     expect(db.prepare("SELECT action FROM audit WHERE tool = 'beyondtrust-axi' AND event = 'run-terminal' ORDER BY id DESC LIMIT 1").get()).toEqual({ action: 'write' })
     expect((await evidence()).requests.every(record => record.canaryReceived)).toBe(true)
+    expect(new Set((await evidence()).requests.filter(record => record.path === '/oauth/connect/token').map(record => record.scope)))
+      .toEqual(new Set(['urn:management:api']))
   })
 })
 test('administrator delete toggle and both exact confirmations gate deletes', async () => {
@@ -254,7 +275,7 @@ test.each([
   { operation: 'policy.revision.download', selector: id, type: 'content' },
   { operation: 'api-definition.download', selector: 'api', type: 'yaml' },
 ])('host-confirmed $operation saves verified bytes through the bundled CLI', async selection => {
-  await withBeyondtrust(async ({ cli, enable, directory }) => {
+  await withBeyondtrust(async ({ cli, enable, directory, evidence }) => {
     await enable([selection.operation])
     await mkdir(join(directory, 'downloads'), { mode: 0o700 })
     const destination = join(directory, 'downloads', 'content')
@@ -267,6 +288,8 @@ test.each([
     expect(result.stdout).toContain('saveOutcome: verified-save')
     expect(readFileSync(destination, 'utf8')).toBe('Synthetic inert BeyondTrust artifact\n')
     expect((await stat(destination)).mode & 0o777).toBe(0o600)
+    expect(new Set((await evidence()).requests.filter(record => record.path === '/oauth/connect/token').map(record => record.scope)))
+      .toEqual(new Set(['urn:management:api']))
   })
 })
 

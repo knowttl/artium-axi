@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/beyondtrust-inventory.mjs",
   "tool": "beyondtrust-axi",
-  "version": "0.1.0",
-  "integrity": "sha512-VXMAZSAEdWz9kKxwiS8oo/GxkYa84tBkbuDFQW0vT+GD4qXApftfJDHk9wBqtuctE4FT6nZxXGei3ZoEfgsmXQ==",
+  "version": "0.1.1",
+  "integrity": "sha512-B5Nc4eOIaAlceGRE8FfPbUMuwnedlKfzBYjGeozjqmAD1LVHYJBspQXiJuj7fCtOlUd9ea/axisM3RH82A6Wjg==",
   "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
   "sources": [
     {
@@ -59,7 +59,7 @@
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "618f148ad21ab7263bf439d6b7b5cb4ff05b4d1b830417a82fe4470621e45f68"
+      "sha256": "9f2d93ffc01016d32782ad183580ecbaa9c5c799c1c5b559de2c829d83bdeb7a"
     },
     {
       "path": "dist/src/windows-download.js",
@@ -176,7 +176,7 @@
       }
     }
   },
-  "skillSha256": "71578942cce8b3c2ac59d3e0282d96cdfb47634df6067cf85e25c374d0cc790f",
+  "skillSha256": "7fed424c9547defcf4f9d2920358bd5f26a60b12aa46b817e7126053de36c881",
   "nativeWriteSettings": {
     "supportedOperations": [
       "admin-request.create",

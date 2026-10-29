@@ -23,7 +23,7 @@ Never replay OUTCOME_UNKNOWN; reconcile remote state using auditId.
 Downloads require downloads.allow and a new private destination file.
 Never put secrets in argv or contact a live tenant during automated verification.
 Live compatibility, token lifetime, rate limits, download formats and write-result task semantics remain unverified until commissioning through artium-axi.
-Publication is handled by release-please and trusted publishing; use a built checkout until the initial 0.1.0 release.
+See the README quickstart for running the published npm package and CONTRIBUTING.md for release mechanics.
 
 ## computer delete
 

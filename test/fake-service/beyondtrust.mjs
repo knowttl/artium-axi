@@ -8,8 +8,9 @@ export function beyondtrustResponse(req, res, url, requests, mutate) {
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
       const form = new URLSearchParams(body)
+      record.scope = form.get('scope')
       record.canaryReceived = form.get('client_id') === 'synthetic-client' && form.get('client_secret') === 'CANARY-beyondtrust-secret'
-        && form.get('grant_type') === 'client_credentials'
+        && form.get('grant_type') === 'client_credentials' && record.scope === 'urn:management:api'
       res.writeHead(record.canaryReceived ? 200 : 401)
       res.end(JSON.stringify({ access_token: 'CANARY-beyondtrust-token', token_type: 'Bearer', expires_in: 3600 }))
     })
