@@ -25,6 +25,7 @@ const bundle = join(directory, 'artium-axi.mjs')
 const clockBundle = join(directory, 'artium-axi-clock.mjs')
 const expiryBundle = join(directory, 'artium-axi-expiry.mjs')
 const windowsBundle = join(directory, 'artium-axi-windows.mjs')
+const localFailureBundle = join(directory, 'artium-axi-local-failure.mjs')
 const stalls = new EventEmitter()
 let url: string
 let response: { status: number, body: unknown, location?: string, stall?: boolean, serverVersion?: string, raw?: string }
@@ -43,6 +44,20 @@ beforeAll(async () => {
   await build({ entryPoints: ['src/cli/main.ts'], outfile: windowsBundle, bundle: true,
     platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' },
     banner: { js: "Object.defineProperty(process, 'platform', { value: 'win32' })" } })
+  await build({ entryPoints: ['src/cli/main.ts'], outfile: localFailureBundle, bundle: true,
+    platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' },
+    // Fail at the OS boundary after a successful home request, with sensitive exception fields.
+    banner: { js: `import path from 'node:path'; import { syncBuiltinESMExports } from 'node:module';
+      const originalResolve = path.resolve;
+      process.argv[1] = { syntheticFailure: true };
+      path.resolve = (...values) => {
+        if (!values[0]?.syntheticFailure) return originalResolve(...values);
+        const error = new TypeError('CANARY-local-secret {"body":"CANARY-request-body"}');
+        error.name = 'CANARY-unsafe-class';
+        error.stack = 'CANARY-private-stack';
+        throw error;
+      };
+      syncBuiltinESMExports();` } })
   await build({ entryPoints: ['src/cli/main.ts'], outfile: clockBundle, bundle: true,
     platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' }, inject: ['test/cli-clock.ts'] })
   createTestCertificates(directory, ['localhost'])
@@ -169,6 +184,37 @@ test('home output is stable', async () => {
     expect(result).toMatchObject({ code: 0, stderr: '' })
     expect(result.stdout.replace(JSON.stringify(expiryBundle), '"<bin>"').replace(url, '<server>')).toMatchSnapshot()
   } finally { doctorResponses = undefined }
+})
+
+test('unexpected local failures identify the client and bounded cause without a server request ID', async () => {
+  doctorResponses = {
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [] } },
+  }
+  try {
+    const result = await cli([], {}, false, undefined, localFailureBundle)
+    expect(result).toMatchObject({ code: 1, stderr: '' })
+    expect(decode(result.stdout)).toEqual({ error: {
+      code: 'INTERNAL_ERROR', source: 'artium-axi', message: 'The CLI failed locally (TypeError in main).',
+      next: 'Report the error class and function to the CLI maintainer. Check the previous call outcome before retrying.',
+    } })
+    expect(result.stdout + result.stderr).not.toMatch(/CANARY|requestId|administrator|node:|\.mjs/)
+  } finally { doctorResponses = undefined }
+})
+
+test.each([
+  { tool: 'beyondtrust-axi', stdout: 'status: not configured\nhelp[3]: Run beyondtrust-axi config path to locate configuration,Run beyondtrust-axi auth status to validate local credentials,Run beyondtrust-axi profile list to inspect configured profiles\n', count: 3 },
+  { tool: 'hybrid-axi', stdout: 'setup: required\nhelp[2]: Run hybrid-axi setup,Run hybrid-axi --help\n', count: 1 },
+  { tool: 'tenable-axi', stdout: 'status: not configured\nhelp[1]: Run tenable-axi config path; configure a profile with accessKey and secretKey SecretRefs\n', count: 0 },
+])('$tool home displays its server output after suggestion rewriting', async ({ tool, stdout, count }) => {
+  response = { status: 200, body: { source: tool, stdout, stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+  const result = await cli([tool])
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  const document = decode(result.stdout) as { help: string[] }
+  expect(document.help).toHaveLength(count)
+  expect(result.stdout).not.toContain('INTERNAL_ERROR')
 })
 
 test.each(['unchanged', 'removed', 'replaced'])('home requests are concurrent with session %s', async change => {
@@ -1119,7 +1165,7 @@ test.each([
     expect(result.stdout).toContain(`error:\n  code: "${code}"\n  source: "artium-axi"\n`)
     expect(result.stdout).toContain(`  message: ${JSON.stringify(errors[code].message)}\n`)
     expect(result.stdout).toContain(`  next: ${JSON.stringify(errors[code].next)}\n`)
-    expect(result.stdout).toMatch(/  requestId: "[^"\n]+"\n$/)
+    expect(result.stdout).not.toContain('requestId:')
   } finally { doctorResponses = undefined }
 })
 
@@ -1149,7 +1195,7 @@ test.each(['/v1/me', '/v1/tools'])('doctor rejects a malformed %s response throu
     expect(result).toMatchObject({ code: 1, stderr: '', stdout: expect.stringContaining('error:\n  code: "INVALID_RESPONSE"\n  source: "artium-axi"\n') })
     expect(result.stdout).toContain(`  message: ${JSON.stringify(errors.INVALID_RESPONSE.message)}\n`)
     expect(result.stdout).toContain(`  next: ${JSON.stringify(errors.INVALID_RESPONSE.next)}\n`)
-    expect(result.stdout).toMatch(/  requestId: "[^"\n]+"\n$/)
+    expect(result.stdout).not.toContain('requestId:')
   } finally { doctorResponses = undefined }
 })
 
@@ -1187,7 +1233,7 @@ test.each([{ args: ['tools', '--unknown'] }, { args: ['missing'] }, { args: ['fa
   expect(requests).toEqual([])
 })
 
-test.each(['INVALID_INPUT', 'TIMEOUT', 'SECRET_IN_OUTPUT'] as const)('catalogue error %s preserves source, next step, request ID and exit code', async code => {
+test.each(['INVALID_INPUT', 'TIMEOUT', 'SECRET_IN_OUTPUT', 'INTERNAL_ERROR'] as const)('catalogue error %s preserves source, next step, request ID and exit code', async code => {
   const definition = errors[code]
   response = { status: definition.status, body: errorResponse(new ArtiumError(code), 'synthetic-catalogue') }
   const result = await cli(['falcon-axi', 'detection', 'list'])

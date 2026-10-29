@@ -30,7 +30,7 @@ const managedFlags: Record<string, string[]> = {
 
 // An inline item shares its list so the whole `help[N]: a,b,c` line can be rebuilt when items change or disappear.
 type Span = { start: number, raw: string, value: string, quoted: boolean, list?: { countStart: number, end: number } }
-type Help = { spans: Span[], document: { code?: unknown, error?: { code?: unknown }, description?: unknown, commands?: unknown } }
+type Help = { spans: Span[], field?: { start: number, end: number, array: boolean }, document: { code?: unknown, error?: { code?: unknown }, description?: unknown, commands?: unknown } }
 const ldapHelp = /^(?:Read Active Directory and LDAPv3 directories\.|(?:entry (?:search|show)|auth status) |Usage: (?:artium-axi )?ldap-axi )/m
 const ldapCommands = ldap.commands.filter(route => route.command !== 'home').map(route => route.command)
 const ldapCredentialGuidance = 'Artium uses stored simple-bind credentials over verified LDAPS or StartTLS; an administrator manages the connection. Ambient Kerberos tickets and keytabs are not used.'
@@ -130,6 +130,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples|Usage): )?/, ''))
     || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
+  let field: Help['field']
   let unknownOutcome = false
   try {
     const json = output.trimStart().startsWith('{')
@@ -154,32 +155,43 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     }
     const { spans: suggestions, document } = parsed
     spans = suggestions
+    field = parsed.field
     if (tool === 'az-axi') {
       unknownOutcome = document?.code === 'UNKNOWN_OUTCOME' || document?.error?.code === 'UNKNOWN_OUTCOME'
     }
   }
   catch { return output }
-  const edits: { start: number, end: number, text: string }[] = []
-  const lists = new Map<NonNullable<Span['list']>, { items: string[], changed: boolean }>()
-  for (const span of spans) {
-    const value = hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value))
-    const changed = value !== span.value
-    const text = span.quoted ? JSON.stringify(value) : encodeSuggestion(value, Boolean(span.list))
-    if (!span.list) {
-      if (changed) edits.push({ start: span.start, end: span.start + span.raw.length, text })
-      continue
+  const replacements = spans.map(span => hostedHelp(span.value, tool, flags, /^[ \t]*(?:Command|Native operation|Examples|Usage):/m.test(span.value)))
+  if (field && replacements.some(value => !value.trim())) {
+    const values = replacements.filter(value => value.trim())
+    const help = field.array ? values : values[0] ?? ''
+    const replacement = output.trimStart().startsWith('{') ? JSON.stringify(help)
+      : field.array && !values.length ? 'help[0]:' : encode({ help })
+    output = output.slice(0, field.start) + replacement + output.slice(field.end)
+  } else {
+    const edits: { start: number, end: number, text: string }[] = []
+    const lists = new Map<NonNullable<Span['list']>, { items: string[], changed: boolean }>()
+    for (let index = 0; index < spans.length; index++) {
+      const span = spans[index]
+      const value = replacements[index]
+      const changed = value !== span.value
+      const text = span.quoted ? JSON.stringify(value) : encodeSuggestion(value, Boolean(span.list))
+      if (!span.list) {
+        if (changed) edits.push({ start: span.start, end: span.start + span.raw.length, text })
+        continue
+      }
+      const list = lists.get(span.list) ?? { items: [], changed: false }
+      // A suggestion that hosting removes outright leaves the list, so the count stays correct.
+      if (!changed) list.items.push(span.raw)
+      else if (value) list.items.push(text)
+      list.changed ||= changed
+      lists.set(span.list, list)
     }
-    const list = lists.get(span.list) ?? { items: [], changed: false }
-    // A suggestion that hosting removes outright leaves the list, so the count stays correct.
-    if (!changed) list.items.push(span.raw)
-    else if (value) list.items.push(text)
-    list.changed ||= changed
-    lists.set(span.list, list)
+    for (const [{ countStart, end }, { items, changed }] of lists) {
+      if (changed) edits.push({ start: countStart, end, text: `${items.length}]:${items.length ? ` ${items.join(',')}` : ''}` })
+    }
+    for (const edit of edits.sort((a, b) => b.start - a.start)) output = output.slice(0, edit.start) + edit.text + output.slice(edit.end)
   }
-  for (const [{ countStart, end }, { items, changed }] of lists) {
-    if (changed) edits.push({ start: countStart, end, text: `${items.length}]:${items.length ? ` ${items.join(',')}` : ''}` })
-  }
-  for (const edit of edits.sort((a, b) => b.start - a.start)) output = output.slice(0, edit.start) + edit.text + output.slice(edit.end)
   spans = (output.trimStart().startsWith('{') ? jsonHelp(output) : toonHelp(output)).spans
   if (spans.some(span => /\\[`'"]/.test(span.value))) return output
   const insertions = new Map<number, string>()
@@ -351,8 +363,10 @@ function jsonHelp(output: string): Help {
   const spans: Span[] = []
   let index = 0
   let helpFields = 0
+  let field: Help['field']
   function value(help = false, root = false): void {
     const token = tokens[index++]
+    const start = token.index!
     if (token[0] === '{') {
       while (tokens[index][0] !== '}') {
         const key = JSON.parse(tokens[index++][0])
@@ -371,9 +385,10 @@ function jsonHelp(output: string): Help {
     } else if (help && token[0].startsWith('"')) {
       spans.push({ start: token.index!, raw: token[0], value: JSON.parse(token[0]), quoted: true })
     }
+    if (help) field = { start, end: tokens[index - 1].index! + tokens[index - 1][0].length, array: token[0] === '[' }
   }
   value(false, true)
-  return { spans: helpFields === 1 ? spans : [], document: parsed }
+  return { spans: helpFields === 1 ? spans : [], field: helpFields === 1 ? field : undefined, document: parsed }
 }
 
 function toonHelp(output: string): Help {
@@ -381,6 +396,7 @@ function toonHelp(output: string): Help {
   const spans: Span[] = []
   const validation = lines.map(line => line[0].replace(/\r?\n$/, ''))
   let helpFields = 0
+  let range: Help['field']
   function scalar(raw: string, start: number, list?: Span['list']): void {
     const parsed = decode(`value: ${raw}`) as { value: unknown }
     if (typeof parsed.value !== 'string') throw new Error('Unknown suggestion format')
@@ -401,6 +417,7 @@ function toonHelp(output: string): Help {
       }
     }
     helpFields++
+    range = { start: lines[index].index!, end: lines[index].index! + text.length, array: !!field[1] }
     validation[index] = 'help: ""'
     if (!field[1]) {
       scalar(field[2], lines[index].index! + text.length - field[2].length)
@@ -438,6 +455,7 @@ function toonHelp(output: string): Help {
       const row = /^  (?:- )?(\S[^\r\n]*)(?:\r?\n)?$/.exec(line[0])
       if (!row) throw new Error('Unknown suggestion item')
       scalar(row[1], line.index! + line[0].indexOf(row[1]))
+      range.end = line.index! + line[0].replace(/\r?\n$/, '').length
       validation[index] = ''
     }
     if (lines[index + 1]?.[0].startsWith(' ')) throw new Error('Extra suggestion rows')
@@ -445,5 +463,5 @@ function toonHelp(output: string): Help {
   const document = validation.filter(line => line !== '').join('\n')
   const parsed = decode(document) as Help['document']
   if (encode(parsed) !== document) throw new Error('Unknown document structure')
-  return { spans: helpFields === 1 ? spans : [], document: parsed }
+  return { spans: helpFields === 1 ? spans : [], field: helpFields === 1 ? range : undefined, document: parsed }
 }

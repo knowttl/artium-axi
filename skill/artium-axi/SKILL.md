@@ -74,7 +74,7 @@ Native preview, execute and exact confirmation gates still apply; there is no un
 ### Failures and next action
 
 Artium errors are TOON on stdout with `error.code`, `source`, `message` and `next`; follow `next` rather than retrying blindly.
-Exit 0 means success, 2 means usage/configuration error and 1 means authentication/server/transport failure; upstream exit status passes through.
+See the [output contract](https://github.com/knowttl/artium-axi/blob/main/README.md#toon-output-and-errors) for exit codes and upstream output handling.
 
 Use the [generated error reference](https://github.com/knowttl/artium-axi/blob/main/docs/errors.md) for code-specific recovery and exit codes.
 See the [credential diagnostic guidance](https://github.com/knowttl/artium-axi/blob/main/docs/runbook.md#scripted-administrator-sessions) for tool-code mappings and administrator troubleshooting.

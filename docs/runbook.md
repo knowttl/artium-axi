@@ -471,10 +471,12 @@ Manual tests and background checks share the one-check-per-tool exclusion and ru
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
 Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
-For request failures returned as `INTERNAL_ERROR`, match the response's `requestId` to the server's stderr JSON line, available through `docker compose -f compose.example.yaml logs artium` for the example deployment.
+For server-raised request failures returned as `INTERNAL_ERROR`, match the response's `requestId` to the server's stderr JSON line, available through `docker compose -f compose.example.yaml logs artium` for the example deployment.
 The line contains `requestId`, a sanitized `errorClass` and the matched route template in `route` (or `(unmatched)`), without actual path parameter values, query strings, request bodies, secrets, certificate contents or error messages.
 Schema validation failures also include `validationFields`, limited to recognized certificate field names; this array can be empty.
-These diagnostics leave the client error code as `INTERNAL_ERROR` and are separate from audit records.
+These server diagnostics leave the response error code as `INTERNAL_ERROR` and are separate from audit records.
+
+For failures originating in the CLI, follow the [client error guidance](client-reference.md#toon-output-behavior).
 
 ### Falcon RTR execution
 
