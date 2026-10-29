@@ -23,6 +23,12 @@ const execute = async (bin, args, env = {}, input) => {
 }
 const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
   XDG_CONFIG_HOME: join(directory, 'config') }
+const toolOutput = result => {
+  if (result.code === 0) return result
+  const correlation = /artium-axi: request_id [a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\n$/
+  assert.match(result.stderr, correlation)
+  return { ...result, stderr: result.stderr.replace(correlation, '') }
+}
 // Parity permits the wrapper prefix and removal of managed flags from upstream help.
 const upstreamSuggestions = (text, removeManaged = false) => {
   if (/^(?:artium-axi )?(?:falcon|vectra)-axi(?:\s|$)/.test(text)) {
@@ -138,7 +144,7 @@ try {
         const local = await execute('/opt/falcon-axi/bin/falcon-axi', [...args, '--region', 'us-1'], {
           FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', REQUESTS_CA_BUNDLE: '/certs/ca.crt',
         })
-        const remote = await cli(['falcon-axi', ...args])
+        const remote = toolOutput(await cli(['falcon-axi', ...args]))
         if (args.length === 0) {
           const expected = decode(clean(upstreamSuggestions(local.stdout, true)))
           assert.equal(expected.bin, '/opt/falcon-axi/bin/falcon-axi')
@@ -185,7 +191,7 @@ try {
       assert.match(vectraDetail.stdout, /example: artium-axi vectra-axi detection list/)
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
         const local = await execute(prepared.executable, args, { ...prepared.environment, XDG_CONFIG_HOME: directory })
-        const remote = await cli(['vectra-axi', ...args])
+        const remote = toolOutput(await cli(['vectra-axi', ...args]))
         if (args.length === 0) {
           const expected = decode(local.stdout)
           assert.equal(expected.setup.config, join(directory, 'vectra-axi/config.json'))

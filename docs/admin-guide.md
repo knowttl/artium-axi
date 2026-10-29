@@ -288,14 +288,17 @@ Denial, expiry or revocation prevents ticket issuance; approval codes are single
 
 ### Audit screen and API
 
-Audit supports user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters.
+Audit supports exact request ID, user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
+Use `requestId=<id>` to correlate a call's records.
+Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.
+This filter does not change stored outcomes: a non-zero tool exit can still have outcome `completed`.
 When a normal managed run exits non-zero, its terminal record stores the tool's own bounded failure code in `error_code` from a recognized `code:` or `error_code:` line, falling back to an Azure `AADSTS` provider code found in the output.
 The failure message, help text and tool output are never stored, and a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
 Open an event in the table to inspect every persisted field.
 Pagination retains filters; starting a new search includes records inserted after the previous search began.
 
-`GET /v1/admin/audit` exposes the same records with `user`, `tool`, `event`, `outcome`, `from`, `to`, `errorCode`, `limit` and `cursor` parameters.
+`GET /v1/admin/audit` exposes the same records; [the API contract](../src/shared/api.ts) owns the accepted filters (`auditFiltersSchema`) and pagination parameters (`adminAuditQuerySchema`).
 Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
 Apply filters, then use **Download CSV** or **Download JSON lines** to export every matching retained record, across all pages.
 `GET /v1/admin/audit/export?format=csv` (or `format=jsonl`) accepts the same filters, excluding `limit` and `cursor`.

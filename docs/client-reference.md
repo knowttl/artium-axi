@@ -252,6 +252,8 @@ GitHub help lists only reviewed commands and flags; recognized authentication fa
 GitHub suggestion filtering uses the invocation to preserve API resource content while adapting upstream hints, and long run logs expose only their captured tail with no server-local file recovery path.
 Outside hosted status filtering, suggestion adaptation leaves unrelated content, literal argument values, unknown formats and truncated streams unchanged.
 Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
+For a non-zero upstream tool exit, the CLI appends `artium-axi: request_id <id>` on stderr when the server supplies a valid request ID in `x-artium-request-id`; successful tool exits add no ID line.
+Keep that ID for the [failed-call troubleshooting path](runbook.md#troubleshoot-a-failed-tool-call).
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
 CLI errors preserve a server-provided `requestId`; failures without one omit the field rather than inventing an ID.
 Unexpected local CLI failures use `INTERNAL_ERROR` with `The CLI failed locally`, a bounded error class and function context, without exception messages, custom exception names or stacks.

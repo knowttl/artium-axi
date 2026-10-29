@@ -40,6 +40,8 @@ import { registerDevice } from './auth/device.js'
 import { loadToolSkill } from './tool-skills.js'
 import { registerTransfers } from './transfer-routes.js'
 import type { ArtifactStore } from './artifacts.js'
+import { errorDiagnostic } from './error-diagnostic.js'
+import { RunnerError } from './runner/runner.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -76,7 +78,7 @@ export function createApp(options: {
     const failure = error instanceof ArtiumError ? error
       : error.code?.startsWith('FST_CSRF_') ? new ArtiumError('CSRF_INVALID')
       : new ArtiumError(error.statusCode && error.statusCode >= 400 && error.statusCode < 500 ? 'INVALID_INPUT' : 'INTERNAL_ERROR')
-    if (failure.code === 'INTERNAL_ERROR') {
+    if (failure.code === 'INTERNAL_ERROR' || failure.code === 'SPAWN_FAILED') {
       // Only fixed class and schema names enter diagnostics, never error messages or dynamic keys.
       const errorClass = error instanceof ZodError ? 'ZodError' : error instanceof ArtiumError ? 'ArtiumError'
         : [TypeError, RangeError, SyntaxError, ReferenceError, URIError, EvalError, AggregateError]
@@ -88,7 +90,8 @@ export function createApp(options: {
           return typeof field === 'string' && fields.has(field) ? [field] : []
         }))] : undefined
       process.stderr.write(JSON.stringify({ requestId: request.id, errorClass,
-        route: request.routeOptions.url ?? '(unmatched)', ...(validationFields ? { validationFields } : {}) }) + '\n')
+        route: request.routeOptions.url ?? '(unmatched)', ...(validationFields ? { validationFields } : {}),
+        ...errorDiagnostic(error instanceof RunnerError && error.spawnError ? error.spawnError : error) }) + '\n')
     }
     if (browser.isBrowser(request)) {
       if (failure.code === 'REAUTH_REQUIRED' && !(request.url.startsWith('/v1/') && request.headers.accept === 'application/json')) return reply.redirect('/reauth', 303)
@@ -103,12 +106,13 @@ export function createApp(options: {
         try { current = readBrowserSession(db, request.cookies[browserCookie]!) }
         catch (error) { if (!(error instanceof ArtiumError)) throw error }
       }
-      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)}</p><p>${escape(errors[failure.code].next)}</p><p><small>${escape(failure.code)}</small></p><p><a href="/login">Sign in</a> | <a href="/account">Account</a></p>`, current)
+      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)}</p><p>${escape(errors[failure.code].next)}</p><p><small>${escape(failure.code)}</small></p><p>Request ID: ${escape(request.id)}</p><p><a href="/login">Sign in</a> | <a href="/account">Account</a></p>`, current)
     }
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })
   app.setNotFoundHandler(() => { throw new ArtiumError('NOT_FOUND') })
   app.addHook('onRequest', async (request, reply) => {
+    reply.header('x-artium-request-id', request.id)
     const path = request.url.split('?')[0]
     const login = path === '/v1/auth/login' || path === '/v1/auth/device' || path === '/v1/auth/device/poll'
     if (login) reply.header('X-Artium-Cli-Version', cliVersion)

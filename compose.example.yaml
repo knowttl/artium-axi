@@ -4,6 +4,11 @@ services:
     build: .
     read_only: true
     init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     stop_grace_period: 20s
     mem_limit: 6g
     pids_limit: 192

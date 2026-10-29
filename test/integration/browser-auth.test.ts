@@ -313,6 +313,26 @@ test('Audit filters handle empty form fields and show a useful empty state', asy
   expect((await request('GET', '/admin/audit?limit=101')).statusCode).toBe(400)
 })
 
+test('Audit screen applies request ID and failed-run filters to rows and export links', async () => {
+  await signIn()
+  const audit = new Audit(db)
+  const context = { userId, tool: 'falcon-axi' as const, clientAddress: null, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 } }
+  audit.record({ ...context, requestId: 'synthetic-failed', event: 'run-terminal', outcome: 'completed', exitCode: 1 })
+  audit.record({ ...context, requestId: 'synthetic-success', event: 'run-terminal', outcome: 'completed', exitCode: 0 })
+  const page = await request('GET', '/admin/audit?requestId=synthetic-failed&failed=1')
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('<dt>request_id</dt><dd>synthetic-failed</dd>')
+  expect(page.body).not.toContain('synthetic-success')
+  expect(page.body).toContain('name="requestId" value="synthetic-failed"')
+  expect(page.body).toContain('name="failed" value="1" checked')
+  const links = [...page.body.matchAll(/download href="([^"]+)"/g)].map(match => new URL('http://localhost' + match[1].replaceAll('&amp;', '&')))
+  expect(links).toHaveLength(2)
+  expect(links.map(link => Object.fromEntries(link.searchParams))).toEqual([
+    { requestId: 'synthetic-failed', failed: '1', format: 'csv' },
+    { requestId: 'synthetic-failed', failed: '1', format: 'jsonl' },
+  ])
+})
+
 test.each([
   { method: 'PATCH', path: '/v1/admin/users/synthetic-development-user' },
   { method: 'PUT', path: '/v1/admin/users/synthetic-development-user/roles' },

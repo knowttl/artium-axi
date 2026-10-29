@@ -105,7 +105,8 @@ export class Audit {
       values.time = cursor[1]!
       values.id = cursor[2]!
     }
-    for (const [filter, column] of [['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code']] as const) {
+    if (input.failed === '1') clauses.push("event = 'run-terminal' AND (exit_code IS NULL OR exit_code <> 0 OR outcome <> 'completed')")
+    for (const [filter, column] of [['requestId', 'request_id'], ['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code']] as const) {
       if (input[filter] !== undefined) {
         clauses.push(`${column} = @${filter}`)
         values[filter] = input[filter]!

@@ -265,6 +265,8 @@ const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$
     return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
   })
 const auditFiltersSchema = z.strictObject({
+  requestId: z.string().min(1).max(100).optional(),
+  failed: z.enum(['0', '1']).optional(),
   user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(),
   event: z.string().min(1).max(100).optional(),
   outcome: z.string().min(1).max(100).optional(), from: z.iso.datetime().optional(), to: z.iso.datetime().optional(),

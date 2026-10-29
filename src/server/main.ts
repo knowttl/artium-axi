@@ -1,5 +1,6 @@
 import { dirname, join, resolve } from 'node:path'
 import { createApp } from './app.js'
+import { errorDiagnostic } from './error-diagnostic.js'
 import { createFalconAdapter } from './adapters/falcon.js'
 import { createVectraAdapter } from './adapters/vectra.js'
 import { createAzAdapter } from './adapters/az.js'
@@ -89,6 +90,6 @@ async function main() {
 }
 
 main().catch(error => {
-  process.stderr.write(`${JSON.stringify(errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), 'startup'))}\n`)
+  process.stderr.write(`${JSON.stringify({ ...errorResponse(error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR'), 'startup'), ...errorDiagnostic(error) })}\n`)
   process.exitCode = 1
 })

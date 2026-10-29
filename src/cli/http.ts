@@ -28,6 +28,7 @@ export class Client {
     return this.storedSessions
   }
   certificateVerified = false
+  requestId?: string
   constructor(environment = process.env, private readonly managed?: ManagedSession,
     private readonly requestDeadlineMs = DEFAULT_REQUEST_DEADLINE_MS) {
     try {
@@ -52,6 +53,7 @@ export class Client {
   async request(path: string, method: 'GET' | 'POST', input: undefined, token: undefined, bytes: true): Promise<Buffer>
   async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string, bytes?: false, headers?: Record<string, string>): Promise<unknown>
   async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string, bytes = false, headers: Record<string, string> = {}): Promise<unknown> {
+    this.requestId = undefined
     this.certificateVerified = false
     let ca: string[] | undefined
     try { if (this.caFile) ca = [...rootCertificates, readFileSync(this.caFile, 'utf8')] }
@@ -65,6 +67,8 @@ export class Client {
         method, ca, rejectUnauthorized: true, signal: AbortSignal.any([controller.signal, this.cancellation.signal]),
         headers: { ...headers, 'x-artium-cli-version': cliVersion, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
       }, response => {
+        const requestId = response.headers['x-artium-request-id']
+        if (typeof requestId === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(requestId)) this.requestId = requestId
         if (response.statusCode! >= 300 && response.statusCode! < 400) {
           response.destroy()
           reject(new ArtiumError('INVALID_RESPONSE', 'Authenticated redirects are refused.'))
