@@ -251,13 +251,18 @@ export class Audit {
       const detail = safeDiagnostic(terminal.failure.diagnostic, terminal.failure.secrets)
       if (detail) {
         // The shared diagnostic limit counts characters; persisted JSON also has a strict byte ceiling.
+        let serialized = JSON.stringify(detail)
         for (const key of ['message', 'hint', 'issuer', 'host', 'toolCode', 'providerCode'] as const) {
-          const excess = Buffer.byteLength(JSON.stringify(detail)) - 4096
+          const excess = Buffer.byteLength(serialized) - 4096
           if (excess <= 0) break
-          if (detail[key] !== undefined) detail[key] = detail[key]!.slice(0, Math.max(0, detail[key]!.length - excess))
+          if (detail[key] !== undefined) {
+            const points = Array.from(detail[key]!)
+            detail[key] = points.slice(0, Math.max(0, points.length - excess)).join('')
+            serialized = JSON.stringify(detail)
+          }
         }
         this.db.prepare('INSERT INTO run_diagnostics (request_id, occurred_at, diagnostic) VALUES (?, ?, ?)')
-          .run(event.requestId, row.occurred_at, JSON.stringify(detail))
+          .run(event.requestId, row.occurred_at, serialized)
       }
     }
     return { id: Number(inserted.lastInsertRowid), ...row }

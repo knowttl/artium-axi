@@ -142,6 +142,20 @@ test.each(['x', '界', '😀'])('persisted diagnostics bound serialized %s text 
   expect(JSON.parse(row.diagnostic)).toMatchObject({ stage: 'tool run', hint: 'Synthetic hint' })
 })
 
+test.each([
+  ['message', 4060],
+  ['hint', 4050],
+  ['issuer', 4048],
+] as const)('persisted diagnostics truncate %s without splitting a surrogate pair', (field, prefixLength) => {
+  const record = audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
+    outputBytes: { stdout: 0, stderr: 4096 }, failure: { diagnostic: { stage: 'tool run', message: '',
+      [field]: 'a'.repeat(prefixLength) + '😀' + 'b'.repeat(26) }, secrets: [] } })
+  const row = db.prepare('SELECT diagnostic FROM run_diagnostics').get() as { diagnostic: string }
+  expect(Buffer.byteLength(row.diagnostic)).toBeLessThanOrEqual(4096)
+  expect(audit.runDiagnostic(context.requestId)).toMatchObject({ stage: 'tool run', [field]: 'a'.repeat(prefixLength) })
+  expect(db.prepare('SELECT * FROM audit WHERE id = ?').get(record.id)).toEqual(record)
+})
+
 test('diagnostic persistence failure rolls back the terminal event and emits nothing', () => {
   db.exec("CREATE TRIGGER fail_diagnostic BEFORE INSERT ON run_diagnostics BEGIN SELECT RAISE(ABORT, 'synthetic full storage'); END")
   expect(() => audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
