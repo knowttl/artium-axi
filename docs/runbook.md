@@ -371,11 +371,11 @@ These details appear in managed command output and credential-test diagnostics; 
 Inspect the message and hint, then check the service endpoint and API compatibility.
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
-Cached credential-test and health-check diagnostic text is held only in server memory; after a restart, rerun Test credential for the detail accompanying a persisted category.
+The current credential-test and health-check diagnostic cache is held only in server memory; after a restart, rerun Test credential for current detail or inspect retained failure diagnostics in Audit as described below.
 The browser temporarily holds the save-and-test result in session storage to display it after reloading the tool page.
 After upgrading, cached categories removed from the error catalogue are ignored; rerun Test credential for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
-Failed tool runs separately retain the existing exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
+Failed tool runs, including credential-test and background health-check runs, separately retain the available exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
 The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal audit row's details at `/admin/audit`; it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
 Diagnostics containing a known secret are discarded in full; exact-value scanning cannot identify unknown upstream-minted tokens or all sensitive data.
 Expired diagnostics are hidden immediately and removed by startup and daily retention; protect database backups separately because retention does not rewrite existing backups.
@@ -489,6 +489,7 @@ Never retry a write with `OUTCOME_UNKNOWN` or `UNKNOWN_OUTCOME` until you have c
 When escalating, send the administrator the request ID, tool name and time, without credentials or potentially sensitive command output.
 
 Administrators can open `/admin/audit?requestId=<id>` to inspect run-start and run-terminal evidence for admitted runs, or denial evidence for refused calls.
+Expand the terminal row for any retained failure diagnostic; see [diagnostic storage and retention](#scripted-administrator-sessions).
 Use `/admin/audit?failed=1&tool=<tool>` to find recent failed runs.
 See [Audit screen and API](admin-guide.md#audit-screen-and-api) for filter semantics, recorded fields, API queries, pagination and exports.
 For a credential, TLS, DNS or network problem, use **Test credential** on the tool page for a current secret-scanned diagnostic.
@@ -694,7 +695,7 @@ The backup directory must already exist and be protected from other users.
 The command uses SQLite online backup with a pinned read snapshot, so it can run while the server writes, including when the server holds its maintenance lock.
 It validates schema, integrity, foreign keys, the active key ID and every encrypted credential before publishing a new mode-0600 file.
 It refuses to replace an existing destination.
-The backup includes encrypted platform credentials, password hashes, accounts, roles and retained audit data, and must be treated as sensitive data.
+The backup includes encrypted platform credentials, password hashes, accounts, roles, retained audit data and retained failure diagnostics, and must be treated as sensitive data.
 Never copy only a live `artium.db` file: committed changes can still be in its WAL.
 The master key is never bundled with the backup.
 Save the printed full SHA-256 key ID, backup timestamp and the source image digest in a protected recovery inventory.
