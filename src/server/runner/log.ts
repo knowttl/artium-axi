@@ -19,7 +19,7 @@ export async function logRun(context: { requestId: string, tool: string },
       const failure = error instanceof RunnerError ? error : undefined
       observed ??= { exitCode: null, durationMs: failure?.durationMs ?? Date.now() - started,
         stdoutBytes: failure?.outputBytes?.stdout ?? 0, stderrBytes: failure?.outputBytes?.stderr ?? 0,
-        truncated: failure?.code === 'OUTPUT_LIMIT' }
+        truncated: !!(failure?.truncated.stdout || failure?.truncated.stderr) }
       throw error
     }
   }

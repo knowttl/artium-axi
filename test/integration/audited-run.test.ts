@@ -256,7 +256,7 @@ test.each([
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   db.prepare('INSERT OR IGNORE INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
   const executionAdapter = { ...adapter, name: tool, async prepare(...input: Parameters<typeof adapter.prepare>) {
-    return { ...await adapter.prepare(...input), effect: 'read' as const, invocation }
+    return { ...await adapter.prepare(input[0], { ...input[1], tool: 'falcon-axi' }), effect: 'read' as const, invocation }
   } }
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-credential', tool, revision: 1 }, value: {} },
@@ -279,7 +279,7 @@ test.each(['nonzero', 'output-limit'] as const)('unknown write response preserve
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
   const executionAdapter = { ...adapter, name: tool, async prepare(...input: Parameters<typeof adapter.prepare>) {
-    const prepared = await adapter.prepare(...input)
+    const prepared = await adapter.prepare(input[0], { ...input[1], tool: 'falcon-axi' })
     return { ...prepared, effect: 'write' as const,
       write: { operation: 'synthetic-write', target: 'synthetic-target', checkArgs: ['print', 'synthetic-state'] },
       environment: { ...prepared.environment, BEYONDTRUST_AXI_WRITE_LOG: join(directory, 'writes.log') } }
@@ -292,7 +292,7 @@ test.each(['nonzero', 'output-limit'] as const)('unknown write response preserve
     exitCode: 7, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, timedOut: false,
     truncated: { stdout: false, stderr: true } })
   else run.mockRejectedValueOnce(Object.assign(new RunnerError('OUTPUT_LIMIT', 'CANARY-private-error'),
-    { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 } }))
+    { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, truncated: { stdout: true, stderr: false } }))
   const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
   const result = await runTool(db, audit, runner, token, { args: ['exit', '7'] }, executionAdapter, identities, context)
   expect(result).toMatchObject({ exitCode: 1, truncated: { stdout: false, stderr: false } })
@@ -389,7 +389,7 @@ test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT
     { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
   ]))
   const run = vi.spyOn(runner, 'run').mockRejectedValue(Object.assign(new RunnerError(code, 'CANARY-private-error'),
-    { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 } }))
+    { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, truncated: { stdout: true, stderr: false } }))
   const args = ['issue', 'comment', '42', '-R', 'canary/repo', '--body=CANARY-private-comment']
   const preview = await runTool(db, audit, runner, token, { args }, github, identities, context)
   const document = decode(preview.stdout) as { preview: { confirm: string } }
@@ -402,7 +402,7 @@ test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT
   expect(run).toHaveBeenCalledOnce()
   expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
     expect.objectContaining({ event: 'run', requestId: 'synthetic-execute', tool: 'gh-axi',
-      outcome: 'UNKNOWN_OUTCOME', exitCode: null, durationMs: 17.25, stdoutBytes: 12, stderrBytes: 34, truncated: code === 'OUTPUT_LIMIT' }),
+      outcome: 'UNKNOWN_OUTCOME', exitCode: null, durationMs: 17.25, stdoutBytes: 12, stderrBytes: 34, truncated: true }),
   ])
   expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
   expect(db.prepare("SELECT action, outcome FROM audit WHERE event = 'run-terminal' AND request_id = 'synthetic-execute'").get())

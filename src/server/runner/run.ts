@@ -91,7 +91,8 @@ export async function runTool<Credential>(
             /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
           error = Object.assign(new RunnerError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
             `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`),
-          { durationMs: runnerError.durationMs, outputBytes: runnerError.outputBytes, processStarted: runnerError.processStarted })
+          { durationMs: runnerError.durationMs, outputBytes: runnerError.outputBytes, processStarted: runnerError.processStarted,
+            truncated: runnerError.truncated })
         }
         audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
           outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,

@@ -1,10 +1,12 @@
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
+import { watch } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
 import { adoPathPrefix, runtimePath } from '../config.js'
 import { Runner } from './runner.js'
+import { logRun } from './log.js'
 
 let root: string
 let runner: Runner
@@ -167,6 +169,39 @@ test.each(['stdout', 'stderr'] as const)('security captures at most 4 MiB while 
   expect(result.truncated[stream === 'stdout' ? 'stderr' : 'stdout']).toBe(false)
 })
 
+describe.each(['stdout', 'stderr'] as const)('%s interruption truncation', stream => {
+  test.each([
+    { code: 'TIMEOUT', terminal: 'setInterval(() => {}, 1000)' },
+    { code: 'CANCELLED', terminal: "require('node:fs').writeFileSync(process.env.ARTIUM_TEST_READY_FILE, 'ready'); setInterval(() => {}, 1000)" },
+    { code: 'PROCESS_SIGNAL', terminal: "process.kill(process.pid, 'SIGTERM')" },
+    { code: 'SECRET_IN_OUTPUT', terminal: `process.${stream}.write('CANARY-private-output')` },
+  ])('$code preserves stream truncation in exactly one correlated summary', async ({ code, terminal }) => {
+    const controller = new AbortController()
+    const ready = join(root, 'ready')
+    const watcher = watch(root, (_event, name) => { if (name === 'ready') controller.abort() })
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const bytes = 5 * 1024 * 1024
+    const script = `process.${stream}.write(Buffer.alloc(${bytes}, 120), () => { ${terminal} })`
+    try {
+      const failure = await logRun({ requestId: 'synthetic-truncation', tool: 'synthetic-tool' }, () =>
+        run(process.execPath, ['-e', script], { ARTIUM_TEST_READY_FILE: ready }, ['CANARY-private-output'],
+          { timeoutMs: 3000, signal: controller.signal })).catch(error => error)
+      expect(failure).toMatchObject({ code, truncated: { [stream]: true,
+        [stream === 'stdout' ? 'stderr' : 'stdout']: false } })
+      expect(failure.outputBytes[stream]).toBeGreaterThanOrEqual(bytes)
+      expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
+        expect.objectContaining({ event: 'run', requestId: 'synthetic-truncation', outcome: code, truncated: true,
+          stdoutBytes: failure.outputBytes.stdout, stderrBytes: failure.outputBytes.stderr }),
+      ])
+      expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
+    } finally {
+      watcher.close()
+      stderr.mockRestore()
+      await rm(ready, { force: true })
+    }
+  })
+})
+
 test.each(['stdout', 'stderr'] as const)('UTF-8 decoding preserves split bytes in %s', async (stream) => {
   expect((await fake(['split', 'safe-☃', '6', stream]))[stream]).toBe('safe-☃')
 })
@@ -198,6 +233,8 @@ test.each(['stdout', 'stderr'] as const)('security discards both streams for a s
   const failure = await run(process.execPath, ['-e', script], { ARTIUM_TEST_CANARY: 'CANARY-hidden' }, ['CANARY-hidden'])
     .catch(error => error)
   expect(failure.code).toBe('SECRET_IN_OUTPUT')
+  expect(failure.truncated[stream]).toBe(true)
+  expect(failure.truncated[stream === 'stdout' ? 'stderr' : 'stdout']).toBe(false)
   expect(failure).not.toHaveProperty('stdout')
   expect(failure).not.toHaveProperty('stderr')
   expect(String(failure)).not.toContain('CANARY-hidden')
@@ -219,6 +256,7 @@ test('signal termination removes the directory without inventing an exit code', 
 test.each(['stdout', 'stderr'] as const)('security stops a 64 MiB %s flood without returning captured output', async stream => {
   const failure = await fake([stream, String(65 * 1024 * 1024)]).catch(error => error)
   expect(failure).toMatchObject({ code: 'OUTPUT_LIMIT', source: 'artium-axi' })
+  expect(failure.truncated[stream]).toBe(true)
   expect(failure).not.toHaveProperty('stdout')
   expect(failure).not.toHaveProperty('stderr')
 }, 20_000)
