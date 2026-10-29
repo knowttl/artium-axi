@@ -906,7 +906,48 @@ test.each([
 })
 
 test.each([
+  ['rg', 'query'], ['logs', 'query'], ['graph', 'query'], ['monitor', 'log-analytics', 'query'],
+  ['api', 'GET', '/synthetic'],
+].map(args => [args]))('Azure stdin deadline starts before any request: %j', async args => {
+  requests = []
+  const child = fork(clockBundle, ['az-axi', ...args], { cwd: directory, silent: true, execArgv: [],
+    env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: join(directory, 'unsigned-config') } })
+  const closed = once(child, 'close')
+  const messages = new EventEmitter()
+  child.on('message', (message: { event: string }) => messages.emit(message.event, message))
+  let stdout = ''
+  let stderr = ''
+  child.stdout!.on('data', chunk => { stdout += chunk })
+  child.stderr!.on('data', chunk => { stderr += chunk })
+  try {
+    const [timer] = await once(messages, 'scheduled')
+    expect(timer.delay).toBe(5000)
+    let advanced = once(messages, 'advanced')
+    child.send({ advance: 4999 })
+    expect((await advanced)[0]).toEqual({ event: 'advanced', elapsed: 4999, pending: 1 })
+    expect(stdout).toBe('')
+    expect(child.exitCode).toBeNull()
+    advanced = once(messages, 'advanced')
+    child.send({ advance: 1 })
+    expect((await advanced)[0]).toEqual({ event: 'advanced', elapsed: 5000, pending: 0 })
+    child.send({ release: true })
+    expect(await closed).toEqual([2, null])
+    expect(stdout).toContain('INVALID_INPUT')
+    expect(stdout).toContain('no stdin EOF after 5 s')
+    expect(stderr).toBe('')
+    expect(requests).toEqual([])
+  } finally {
+    if (child.exitCode === null) child.kill()
+    await closed
+  }
+})
+
+test.each([
   { tool: 'az-axi', args: ['graph', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['rg', 'query'], alternative: '--file' },
+  { tool: 'az-axi', args: ['logs', 'query', '--workspace', 'synthetic'], alternative: '--file' },
+  { tool: 'az-axi', args: ['monitor', 'log-analytics', 'query', '--workspace', 'synthetic'], alternative: '--file' },
+  { tool: 'az-axi', args: ['api', 'GET', '/synthetic'], alternative: '--data' },
   { tool: 'az-axi', args: ['api', 'POST', '/synthetic'], alternative: '--data' },
   { tool: 'tenable-axi', args: ['asset', 'list', '--filter-file', '-'], alternative: '--filter-file' },
   { tool: 'hybrid-axi', args: ['api', '--body-file', '-'], alternative: '--body-file' },
@@ -919,19 +960,24 @@ test.each([
   expect(requests).toEqual([])
 })
 
-test.each(['stdin', 'file', 'file-equals'] as const)('Azure query forwards bounded %s input through the API', async kind => {
+test.each([
+  ['rg', 'query'], ['logs', 'query'], ['graph', 'query'], ['monitor', 'log-analytics', 'query'],
+  ['api', 'POST', '/synthetic'],
+].flatMap(route => ['stdin', 'file', 'file-equals'].map(kind => ({ route, kind }))))(
+  'Azure $route forwards bounded $kind input without waiting for unused stdin', async ({ route, kind }) => {
   requests = []
   response = { status: 200, body: { source: 'az-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
     durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
   const query = 'Resources\n| count'
   const path = join(directory, 'query.kql')
   writeFileSync(path, query)
-  const args = kind === 'stdin' ? [] : kind === 'file' ? ['--file', path] : [`--file=${path}`]
-  expect(await cli(['az-axi', 'rg', 'query', ...args], {}, false, kind === 'stdin' ? query : undefined))
+  const flag = route[0] === 'api' ? '--body-file' : '--file'
+  const args = kind === 'stdin' ? [] : kind === 'file' ? [flag, path] : [`${flag}=${path}`]
+  expect(await cli(['az-axi', ...route, ...args], {}, false, kind === 'stdin' ? query : undefined))
     .toMatchObject({ code: 0, stdout: 'synthetic result' })
-  expect(requests[0].body).toEqual(kind === 'stdin' ? { args: ['rg', 'query'], stdin: query }
-    : { args: ['rg', 'query', ...(kind === 'file' ? ['--file', 'query.kql'] : ['--file=query.kql'])],
-      files: [{ name: 'query.kql', contentBase64: Buffer.from(query).toString('base64') }] })
+  expect(requests[0].body).toEqual(kind === 'stdin' ? { args: route, stdin: query }
+    : { args: [...route, ...(kind === 'file' ? [flag, 'query.kql'] : [`${flag}=query.kql`])],
+    files: [{ name: 'query.kql', contentBase64: Buffer.from(query).toString('base64') }] })
 })
 
 test.each(['stdin', 'file', 'missing-file'] as const)('Azure refuses %s input that cannot be uploaded before sending a request', async kind => {
