@@ -14,6 +14,7 @@ const adapter = createCheckpointAdapter(source, '/tmp/synthetic-checkpoint/write
 test('managed credentials require a secret and emit only env references in the private profile', async () => {
   expect(checkpointCredentialSchema.safeParse({ region: 'ca', clientId: 'synthetic-client' }).success).toBe(false)
   expect(checkpointCredentialSchema.safeParse({ ...credential, region: 'https://arbitrary.example' }).success).toBe(false)
+  expect(checkpointCredentialSchema.safeParse({ ...credential, saas: 'https://arbitrary.example' }).success).toBe(false)
   const call = await adapter.prepare(['email', 'search'], reference)
   expect(call.environment).toMatchObject({ CHECKPOINT_AXI_READ_ONLY: 'true', ARTIUM_SECRET_0: credential.clientSecret })
   expect(call.args).not.toContain(credential.clientSecret)
@@ -23,6 +24,18 @@ test('managed credentials require a secret and emit only env references in the p
   expect(checkpointProfile.metadata(credential)).toEqual({ region: 'ca', clientId: 'synthetic-client' })
   expect(credentialFields('checkpoint-axi', checkpointProfile, {}, false)).toContain('data-credential-field="clientSecret" data-secret')
   expect(toolEndpoints('checkpoint-axi', credential).map(url => url.origin)).toEqual(['https://cloudinfra-gw.ca.portal.checkpoint.com'])
+})
+
+test.each([
+  ['saas', 'SaaS application name'],
+  ['scope', 'Download scope'],
+])('managed %s field renders its published title and description', (name, title) => {
+  const field = checkpointProfile.fields().find(field => field.name === name)!
+  const html = credentialFields('checkpoint-axi', checkpointProfile, {}, false)
+  const rendered = html.match(new RegExp(`<div data-credential-field="${name}">(.+?)</div>`))![1]!
+  expect(rendered).toContain(`<label>${title}<input`)
+  expect(rendered).toContain(`<p>${field.schema.description}</p>`)
+  expect(rendered).not.toContain('Optional profile value.')
 })
 
 test.each([

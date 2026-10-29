@@ -148,6 +148,16 @@ test('private exception uploads preserve native preview, confirmation and journa
   })
 })
 
+test('published response diagnostics preserve failing paths and types without response values', async () => {
+  await withCheckpoint(async ({ run }) => {
+    const result = await run(['email', 'show', 'synthetic-invalid'])
+    expect(result.exitCode).toBe(1)
+    expect(result.stdout).toContain('RESPONSE_INVALID')
+    expect(result.stdout).toContain('$.responseData[0].entityPayload.subject: object')
+    expect(result.stdout).not.toContain('CANARY-invalid-subject')
+  })
+})
+
 test.each<TransferScope['selection']>([
   { operation: 'email.download', selector: 'synthetic-email', type: 'email' },
   { operation: 'email.download', selector: 'synthetic-email', type: 'original' },

@@ -41,6 +41,12 @@ Both are bounded by 8 MiB of JSON and 60 seconds including auth and read retries
 Email search defaults to 50 compact rows and a 24-hour window; --start-date and --end-date require ISO timestamps with timezones and a positive window of at most 31 days (guide pages 18-27).
 Use --limit <1-1000> or --all, which caps output at 1000 rows within the shared transport budget.
 Use --saas-entity for an entity type or --filter for a JSON array of {saasAttrName, saasAttrOp, saasAttrValue} filters (guide pages 19-20).
+saasAttrName is a field path, not a closed enum (guide pages 19-20).
+Documented examples: entityPayload.subject, entityPayload.fromEmail, entityPayload.attachmentCount.
+Other documented email payload paths (pages 15-16, 24-25): entityPayload.internetMessageId, entityPayload.received, entityPayload.size, entityPayload.emailLinks, entityPayload.attachments, entityPayload.mode, entityPayload.recipients, entityPayload.fromDomain, entityPayload.fromUser, entityPayload.fromName, entityPayload.to, entityPayload.toUser, entityPayload.cc, entityPayload.ccUser, entityPayload.bcc, entityPayload.bccUser, entityPayload.replyToEmail, entityPayload.replyToNickname, entityPayload.isRead, entityPayload.isDeleted, entityPayload.isIncoming, entityPayload.isInternal, entityPayload.isOutgoing, entityPayload.isQuarantined, entityPayload.isQuarantineNotification, entityPayload.isRestored, entityPayload.isRestoreRequested, entityPayload.isRestoreDeclined, entityPayload.saasSpamVerdict, entityPayload.SpfResult.
+saasAttrOp: is, contains, startsWith, isEmpty, isNot, notContains, isNotEmpty, greaterThan, lessThan.
+The guide defines operators globally, without a per-field compatibility matrix; examples pair fromEmail with is and attachmentCount with greaterThan.
+saasAttrValue is a string.
 See [email-read guidance](../../docs/reads.md#email-reads) for continuation, completion status, cursor safety and page replay limitations.
 Email show <id> includes payload, verdicts, actions taken and available actions (guide pages 10-18).
 Use --full for strings truncated at 500 characters and --fields for top-level output projection.

@@ -18,8 +18,8 @@ importers:
         specifier: 0.1.3
         version: 0.1.3
       '@knowttl/checkpoint-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/hybrid-axi':
         specifier: 0.1.3
         version: 0.1.3
@@ -74,8 +74,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/checkpoint-axi@0.1.1':
-    resolution: {integrity: sha512-xkVncU3PYUeGFD5vIMp/lT9JAsTsSaCTVF+dEFYye1iSDkjPjuHJDHnZ8BquT3ClHw9bcBWdLAnEtJRPSVimtg==}
+  '@knowttl/checkpoint-axi@0.1.2':
+    resolution: {integrity: sha512-zWHiVvPQS2BMfBDpL+m5yt+H3bog+SnYNK5bPBboJJozNrIzhgDozl1Ry4UzZ1A+nhaUy2i+P5S/JxhWAU1VwQ==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -395,7 +395,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
-  '@knowttl/checkpoint-axi@0.1.1':
+  '@knowttl/checkpoint-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

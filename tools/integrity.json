@@ -8,8 +8,8 @@
     "integrity": "sha512-frarCzBzqv3eYR+A15frkrS73OZe2nf7tGwoHq+WPlRaij+RHna6geH3fgq4UQoytjWvefHQYkal9EDyUgtcTw=="
   },
   "@knowttl/checkpoint-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-xkVncU3PYUeGFD5vIMp/lT9JAsTsSaCTVF+dEFYye1iSDkjPjuHJDHnZ8BquT3ClHw9bcBWdLAnEtJRPSVimtg=="
+    "version": "0.1.2",
+    "integrity": "sha512-zWHiVvPQS2BMfBDpL+m5yt+H3bog+SnYNK5bPBboJJozNrIzhgDozl1Ry4UzZ1A+nhaUy2i+P5S/JxhWAU1VwQ=="
   },
   "@knowttl/beyondtrust-axi": {
     "version": "0.1.3",

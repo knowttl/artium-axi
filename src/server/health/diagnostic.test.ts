@@ -72,7 +72,7 @@ test.each([
   ['API_RESPONSE_INVALID', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['AUTH_RESPONSE_INVALID', 'Token response does not match the documented schema', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['AUTH_RESPONSE_INVALID', 'Unexpected response with dnsHostName sessionTimeout unauthorizedCount', 'UPSTREAM_RESPONSE_INVALID', 'response'],
-  ['RESPONSE_INVALID', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['RESPONSE_INVALID', 'Invalid email detail response ($.responseData[0].entityPayload.subject: object)', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['MALFORMED_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['INVALID_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['AUTH_ENDPOINT_NOT_FOUND', 'Token endpoint returned 404', 'TOOL_REJECTED_INPUT', 'configuration'],
