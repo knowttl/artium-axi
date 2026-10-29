@@ -69,6 +69,11 @@ test.each(['message', 'issuer'] as const)('retains structured context when %s ex
 })
 
 test.each([
+  ['API_RESPONSE_INVALID', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['RESPONSE_INVALID', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['MALFORMED_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['INVALID_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['AUTH_ENDPOINT_NOT_FOUND', 'Token endpoint returned 404', 'TOOL_REJECTED_INPUT', 'configuration'],
   ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
   ['OPERATION_TIMEOUT', 'the operation deadline elapsed', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
   ['TRANSPORT_FAILED', 'ENETUNREACH', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
@@ -94,6 +99,14 @@ test.each([
   const text = `code: ${toolCode}\nmessage: ${message}`
   expect(toolFailure(text, '', 1)).toMatchObject({ code, diagnostic: { stage, toolCode, message: text } })
   expect(toolFailure('', text, 1)).toMatchObject({ code, diagnostic: { stage, toolCode, message: text } })
+})
+
+test('preserves redacted response diagnostics without changing secret suppression', () => {
+  const text = 'code: API_RESPONSE_INVALID\nmessage: Unexpected response: [REDACTED]\nhint: Check the service endpoint.'
+  const failure = toolFailure(text, '', 1)
+  expect(safeDiagnostic(failure.diagnostic, [secret])).toEqual({ stage: 'response',
+    toolCode: 'API_RESPONSE_INVALID', message: text, hint: 'Check the service endpoint.' })
+  expect(safeDiagnostic(toolFailure(`${text}\n${secret}`, '', 1).diagnostic, [secret])).toBeUndefined()
 })
 
 test.each([

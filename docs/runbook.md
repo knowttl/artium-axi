@@ -364,6 +364,9 @@ For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspecti
 Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
+Tool codes `API_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE` and `INVALID_RESPONSE` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
+Inspect the message and hint, then check the service endpoint and API compatibility.
+`AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
 Cached diagnostic text is held only in server memory; after a restart, rerun Test credential for the detail accompanying a persisted category.
 The browser temporarily holds the save-and-test result in session storage to display it after reloading the tool page.
