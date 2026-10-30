@@ -167,6 +167,7 @@ Archiving disables sign-in, revokes all sessions and hides the user from the use
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
 Credential editors pre-fill non-secret values and never return stored secrets.
+Field labels use schema titles when available; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
