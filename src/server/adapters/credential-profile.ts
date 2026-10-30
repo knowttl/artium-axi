@@ -71,6 +71,7 @@ export class CredentialProfile {
       this.inputSchema.required = ['region', 'clientId', 'clientSecret']
       this.inputSchema.properties.clientSecret.title = 'Client secret'
       this.inputSchema.properties.clientSecret.description = 'Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.'
+      this.inputSchema.properties.downloads.description = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.'
       this.inputSchema.properties.scope.description = 'Download scope supplied by your tenant administrator or Check Point support. Use printable ASCII with no spaces (characters ! through ~); comma-separated values are sent verbatim. Email downloads require this value as the scopes header. Attachment downloads use it as the scope query when set, and omit that query when unset. Artium uses this stored value for hosted transfers; there is no per-download scope override. Tenant scope authorization and the relationship between these selectors remain unverified; do not guess a value.'
     }
     if (tool === 'mg-axi') {

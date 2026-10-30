@@ -46,29 +46,67 @@ export function editorProfile(tool: ToolName, profile?: CredentialProfile): Cred
   return new CredentialProfile(schemas[tool])
 }
 
-const fieldHelp: Record<string, string> = {
-  org: 'Azure DevOps organization name or organization-root HTTPS URL. Changing it requires new secrets.',
-  project: 'Optional default Azure DevOps project.',
+const applicationHelp = {
   tenantId: 'Directory tenant ID (UUID). Changing it requires new secrets.',
   clientId: 'Application client ID. Changing it requires new secrets.',
-  origin: 'HTTPS origin only, for example https://appliance.example. Changing it requires new secrets.',
-  memberCid: 'Optional member account ID.',
-  url: 'Directory URL, for example ldaps://directory.example. LDAP requires Start TLS.',
-  bindDn: 'Directory bind identity, for example cn=reader,dc=example.', base: 'Optional search base, for example dc=example.',
-  caFile: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
-  caBundle: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
   privateKey: 'Paste the PEM private key. Line breaks are preserved.',
-  thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
-  thumbprint: 'SHA-1 certificate fingerprint (40 hexadecimal characters). A combined PEM upload calculates it.',
   auth: 'Choose authentication first. Changing it requires new secrets.',
-  signIn: 'Choose password to sign in with a username and password. Artium mints one personal access token and stores only that token. Choose token, or leave this blank, to paste or keep a token.',
-  username: 'Controller username. Used once to mint a token and not stored.',
-  password: 'Controller password. Used once to mint a token, then discarded. It is not stored or logged.',
-  mode: 'Application uses a service identity; delegated uses a supplied user token.',
-  kind: 'Qux supports token or OAuth; Rux requires OAuth. Qux uses API 2.5 and Rux uses 3.4.',
-  apiVersion: 'Use 2.5 for Qux or 3.4 for Rux.', pageSize: 'Optional number of directory entries per page.',
-  startTls: 'Required for ldap:// URLs; leave at the default for ldaps:// URLs, which are already encrypted.', tlsMaxVersion: 'Optional TLS maximum version.',
-  applianceRelease: 'Optional release label for Qux appliances.',
+}
+const downloadHelp = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.'
+const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
+  'ado-axi': {
+    ...applicationHelp,
+    org: 'Azure DevOps organization name or organization-root HTTPS URL. Changing it requires new secrets.',
+    project: 'Optional default Azure DevOps project.',
+  },
+  'az-axi': {
+    ...applicationHelp,
+    thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
+  },
+  'mg-axi': {
+    ...applicationHelp,
+    thumbprint: 'SHA-1 certificate fingerprint (40 hexadecimal characters). A combined PEM upload calculates it.',
+    mode: 'Application uses a service identity; delegated uses a supplied user token.',
+  },
+  'falcon-axi': {
+    clientId: applicationHelp.clientId,
+    region: 'Falcon API region, for example us-1.',
+    memberCid: 'Optional member account ID.',
+  },
+  'checkpoint-axi': {
+    clientId: 'API client ID from your tenant administrator.',
+    region: 'Check Point API region for your tenant, for example us.',
+    saas: 'SaaS application name, not a URL. Obtain the exact application name from your tenant administrator or Check Point support.',
+    scope: 'Download scope from your tenant administrator or Check Point support. Use printable ASCII with no spaces (characters ! through ~). Email downloads require this as the scopes header; attachment downloads use it as the default scope query. Omitted means unset.',
+    downloads: downloadHelp,
+  },
+  'beyondtrust-axi': {
+    host: 'Lowercase API DNS host in the <organization>-services.pm.beyondtrustcloud.com form, with no scheme, port or path.',
+    clientId: 'The PM Cloud API account client ID.',
+    downloads: downloadHelp,
+  },
+  'awx-axi': {
+    origin: 'Controller HTTPS origin, for example https://controller.example. Changing it requires new secrets.',
+  },
+  'hybrid-axi': { origin: 'Fixed Hybrid Analysis API origin: https://hybrid-analysis.com.' },
+  'tenable-axi': { origin: 'Fixed Tenable API origin: https://cloud.tenable.com.' },
+  'ldap-axi': {
+    url: 'Directory URL, for example ldaps://directory.example. LDAP requires Start TLS.',
+    bindDn: 'Directory bind identity, for example cn=reader,dc=example.', base: 'Optional search base, for example dc=example.',
+    caFile: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
+    auth: 'Artium uses simple bind authentication with the supplied bind identity and password.',
+    pageSize: 'Optional number of directory entries per page.',
+    startTls: 'Required for ldap:// URLs; leave at the default for ldaps:// URLs, which are already encrypted.', tlsMaxVersion: 'Optional TLS maximum version.',
+  },
+  'vectra-axi': {
+    clientId: applicationHelp.clientId,
+    auth: applicationHelp.auth,
+    origin: 'HTTPS origin only, for example https://appliance.example. Changing it requires new secrets.',
+    caBundle: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
+    kind: 'Qux supports token or OAuth; Rux requires OAuth. Qux uses API 2.5 and Rux uses 3.4.',
+    apiVersion: 'Use 2.5 for Qux or 3.4 for Rux.',
+    applianceRelease: 'Optional release label for Qux appliances.',
+  },
 }
 
 export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
@@ -82,9 +120,10 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     const value = secret ? undefined : metadata[name]
     const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
     const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
-    const help = tool === 'beyondtrust-axi' ? schema.description
-      : name === 'region' && tool === 'checkpoint-axi' ? 'Check Point API region for your tenant, for example us.'
-      : name === 'region' && tool === 'falcon-axi' ? 'Falcon API region, for example us-1.' : fieldHelp[name]
+    const help = schema.description ?? (tool ? fieldHelp[tool]?.[name] : undefined)
+      ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.')
+    const defaultHelp = Object.hasOwn(schema, 'default')
+      ? ` Default: ${typeof schema.default === 'string' ? schema.default : JSON.stringify(schema.default)}.` : ''
     let input: string
     if (schema.enum) {
       const choices = tool === 'gh-axi' && name === 'auth' ? schema.enum.filter((choice: unknown) => choice !== 'device') : schema.enum
@@ -100,7 +139,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     } else {
       input = `<input ${attributes} data-profile-type="${schema.type === 'string' ? 'string' : 'json'}" type="${schema.type === 'string' ? 'text' : 'number'}" value="${escape(value ?? '')}"${schema.type === 'number' ? ' step="any"' : ''}>`
     }
-    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p>${escape(help ?? schema.description ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.'))}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
+    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p>${escape(help + defaultHelp)}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
   return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID or installation ID requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
     <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
