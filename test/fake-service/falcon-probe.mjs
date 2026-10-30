@@ -245,6 +245,7 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     assert.match(result.stdout, /synthetic remaining processes/)
     assert.match(result.stdout, /complete: true/)
     assert.match(result.stdout, /truncated: false/)
+    assert.match(result.stdout, /size_unverified: false/)
     assert.match(result.stdout, /cleanup: deleted/)
     assert.deepEqual((await evidence()).requests.slice(beforeRun).map(({ method, path }) => ({ method, path })), [
       { method: 'POST', path: '/oauth2/token' },
