@@ -21,6 +21,9 @@ review:
         Use only fakes, synthetic users and canary credentials during the build; escalate live services, real credentials, deployment and irreversible actions.
         For every repair, identify the reported invariant and inspect its sibling callers, cases and failure paths before editing. Repair the whole invariant in one round, verify through its public interface, then review the whole base-to-head diff again, including earlier repairs. Do not cap valid findings or narrow design/style review.
         Before a repair's focused verification, run pnpm install --frozen-lockfile if dependencies are missing, using the package.json Node and pnpm toolchain. Complete pnpm build before any probe that uses dist. Do not return a repair as verified when dependencies or compiled output prevented verification.
+    - path: "**"
+      instructions: |
+        Test quality: apply the "Test quality" rules in AGENTS.md to every added or changed test. Flag each violation as a finding naming the rule number, the test file:line and the evidence. Respect the listed exemptions. Never ask for a test to be written first or only to raise coverage.
 
 document:
   instructions: |
