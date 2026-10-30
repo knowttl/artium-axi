@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.27](https://github.com/knowttl/artium-axi/compare/v0.0.26...v0.0.27) (2026-10-30)
+
+
+### Bug Fixes
+
+* update bundled Falcon and Checkpoint tools ([#227](https://github.com/knowttl/artium-axi/issues/227)) ([519facb](https://github.com/knowttl/artium-axi/commit/519facbcdaf876fe2eba5f221cd418036bf2a946))
+* upgrade bundled beyondtrust-axi to 0.1.4 ([#225](https://github.com/knowttl/artium-axi/issues/225)) ([d77edfd](https://github.com/knowttl/artium-axi/commit/d77edfda510e152a8dcc7b7e18d13c767116a989))
+
 ## [0.0.26](https://github.com/knowttl/artium-axi/compare/v0.0.25...v0.0.26) (2026-10-29)
 
 
