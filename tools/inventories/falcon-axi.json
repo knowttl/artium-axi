@@ -2,13 +2,13 @@
   "generatedBy": "scripts/falcon-inventory.mjs",
   "tool": "falcon-axi",
   "repository": "https://github.com/knowttl/falcon-axi.git",
-  "tag": "v0.8.2",
-  "commit": "2b1fe5d7550a341277e2f3c7a17b4629914b084c",
-  "version": "0.8.2",
+  "tag": "v0.8.3",
+  "commit": "6d5b5a70137b84407fa4b844f4d90009a90c6629",
+  "version": "0.8.3",
   "distribution": {
-    "filename": "falcon_axi-0.8.2-py3-none-any.whl",
-    "sha256": "8546b601ec69da9ca0bfe2ac323765d12b11d1842abb1b7421a7ccccbe200c16",
-    "provenance": "https://pypi.org/integrity/falcon-axi/0.8.2/falcon_axi-0.8.2-py3-none-any.whl/provenance"
+    "filename": "falcon_axi-0.8.3-py3-none-any.whl",
+    "sha256": "37d04718728493cff0ec6547d8d6345bb32a576a33348526feddb602c9bdb5b1",
+    "provenance": "https://pypi.org/integrity/falcon-axi/0.8.3/falcon_axi-0.8.3-py3-none-any.whl/provenance"
   },
   "skillSha256": "893c2ad3a474d76734117e4e46a91b19278f1fdeafaf1b69189be4a09da333b1",
   "parser": {

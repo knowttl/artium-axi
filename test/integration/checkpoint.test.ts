@@ -169,6 +169,32 @@ test('published task wait returns the existing terminal task without enabling wr
 })
 
 test.each([
+  { command: ['email', 'search'], fields: 'id,subject,state,verdict', collection: 'emails',
+    row: { id: 'synthetic-email', subject: 'Synthetic email', state: 'unactioned', verdict: null } },
+  { command: ['event', 'list'], fields: 'id,severity', collection: 'events',
+    row: { id: 'synthetic-event', severity: 'high' } },
+])('published $command row selection passes through the managed API', async ({ command, fields, collection, row }) => {
+  await withCheckpoint(async ({ run, evidence }) => {
+    const result = await run([...command, '--limit', '1', '--fields', fields])
+    expect(result.exitCode, result.stdout).toBe(0)
+    expect((decode(result.stdout) as Record<string, unknown>)[collection]).toEqual([row])
+    expect((await evidence()).mutations).toBe(0)
+  })
+})
+
+test.each([
+  { command: ['email', 'search'], fields: 'emails,count', expected: { emails: [{ id: 'synthetic-email' }], count: 1 } },
+  { command: ['event', 'list'], fields: 'events,count', expected: { events: [{ id: 'synthetic-event' }], count: 1 } },
+])('published $command top-level selection passes through the managed API', async ({ command, fields, expected }) => {
+  await withCheckpoint(async ({ run }) => {
+    const result = await run([...command, '--limit', '1', '--fields', fields])
+    expect(result.exitCode, result.stdout).toBe(0)
+    expect(Object.keys(decode(result.stdout) as object)).toEqual(Object.keys(expected))
+    expect(decode(result.stdout)).toMatchObject(expected)
+  })
+})
+
+test.each([
   ['email', 'search', '--expand', '--expand-limit', '9'],
   ['event', 'list', '--expand', '--expand-requests', '11'],
   ['email', 'search', '--expand-limit', '1'],
@@ -177,6 +203,8 @@ test.each([
   ['task', 'show', 'synthetic-task', '--wait', '--timeout', '30', '--poll-interval', '11'],
   ['task', 'show', 'synthetic-task', '--wait', '--timeout', '30', '--wait-requests', '11'],
   ['task', 'show', 'synthetic-task', '--timeout', '30'],
+  ['email', 'search', '--filter', '[{"saasAttrName":"subject","saasAttrOp":"invalid","saasAttrValue":"synthetic"}]'],
+  ['event', 'list', '--states', 'invalid'],
 ].map(args => ({ args })))('published bounds refuse $args before network access', async ({ args }) => {
   await withCheckpoint(async ({ run, evidence }) => {
     const result = await run(args)

@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/checkpoint-inventory.mjs",
   "tool": "checkpoint-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-bQKjlciR/QO0reXfNK2HXUxpb1WlyZ3snIllEqQagE8C/d4PvaZ17nxwxm5Bws+PNNkYlzbUMUbqRBINpE2jEQ==",
+  "version": "0.1.4",
+  "integrity": "sha512-f+ipm5OeIgeOXY1MnTaU3sWE/v0Ay44XNOKHY2gifdEz08nkDe8I5vUbYewcUlxMawYWFoGfmF23tV22anxVng==",
   "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "3a56a877ea51b473f1b7f2c021920a6a391663eea395d01dd1fe18d5e9c1f0bf"
+      "sha256": "fbac0730e6c3744a63c072b8e5243c1d668fbc7952398be80387b073f307dad6"
     },
     {
       "path": "dist/src/cli.js",
@@ -27,7 +27,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "f02799ed52ab05c2b6b61aa39c1406921f5ba20bdae20d33856f9c55c023254e"
+      "sha256": "0d2e310373850e04f96135f910e179e5014dd8050269ff5df0eb97c07d8478ce"
     },
     {
       "path": "dist/src/private-file.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/reads.js",
-      "sha256": "a9484c1410d2ef1e41f6754c001df977405f02a95bc5d9ae164b1e49bf06b633"
+      "sha256": "639ad32c60f06830905b7be34ed853abef64bb79a56dd0211846a1cc21855c1f"
     },
     {
       "path": "dist/src/redact.js",
@@ -55,7 +55,7 @@
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "fbc3a5c5c7ed35e3cf58cfdbaa6999c2eec4f639468c905629f45c2276b5f583"
+      "sha256": "241eff8feb3addcd5ea1d099e31b101f956ab5f34fe49117f0922ddcdcd63f78"
     },
     {
       "path": "dist/src/write-exceptions.js",
@@ -413,7 +413,7 @@
       "flags": {
         "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
         "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
-        "fields": "Comma-separated output fields; default all",
+        "fields": "Comma-separated row fields: id,subject,state,verdict; or top-level emails,count,total,complete,reason,cursor,expansion,help; default all",
         "full": "Show full strings instead of 500-character previews; default false",
         "help": "Show concise command help; default false",
         "saas": "SaaS override; default selected profile saas or office365_emails",
@@ -462,7 +462,7 @@
       "flags": {
         "config": "Config path; default CHECKPOINT_AXI_CONFIG or platform path",
         "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
-        "fields": "Comma-separated output fields; default all",
+        "fields": "Comma-separated row fields: id,type,state,severity; or top-level events,count,total,complete,reason,cursor,expansion,help; default all",
         "full": "Show full strings instead of 500-character previews; default false",
         "help": "Show concise command help; default false",
         "start-date": "ISO timestamp with timezone; default 24 hours before end-date; maximum window 31 days",
@@ -475,8 +475,9 @@
         "expand-requests": "Total HTTP request cap including auth, list pages, detail and retries; default 10, range 2-10; requires --expand",
         "saas": "Comma-separated SaaS overrides; default selected profile saas or office365_emails",
         "event-types": "Comma-separated event types; default unfiltered",
-        "event-states": "Comma-separated event states; default unfiltered",
-        "severities": "Comma-separated severities; default unfiltered",
+        "event-states": "Comma-separated event states: new, detected, pending, remediated, dismissed, exception; default unfiltered",
+        "states": "Alias for --event-states; cannot combine with --event-states",
+        "severities": "Nonempty comma-separated severity strings; vendor documents no fixed severity list; unrecognised severities can return an empty result; default unfiltered",
         "event-ids": "Comma-separated event IDs; default unfiltered",
         "confidence-indicator": "Confidence indicator selector; default unfiltered",
         "description": "Description selector; default unfiltered"
