@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/beyondtrust-inventory.mjs",
   "tool": "beyondtrust-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-tDVP8+wEzdTg9mg/BwGSBmt+BXn7LJ4Ubbh9jAt3Z+g8K1bvZyKhD7gAPUMrYnFBjIGPJOhYfoIHt6RNO4qx3Q==",
+  "version": "0.1.4",
+  "integrity": "sha512-A6vBEpopJdcgsBozBIrnCMD891Saa9gwKTD8mH7XdGoi8zasKspY3uhmaw4fNUoL3898oT0EcE3X6Eq8tOrJHw==",
   "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
   "sources": [
     {
@@ -11,7 +11,7 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "9847516327adc4e62d611ca27ee569c1f701229adf5e0de74b6ad15b8ce4d155"
+      "sha256": "78171b922ce7be6da474c9b82a998dc93505ce6e3841f4a1450d8e3677b4c910"
     },
     {
       "path": "dist/src/computer-writes.js",
@@ -35,7 +35,7 @@
     },
     {
       "path": "dist/src/jit-writes.js",
-      "sha256": "8f8d46b549ebb9474108a5b9e15088d61822ae421452a9f1d482840c85aec7f3"
+      "sha256": "b9c6df9b9062ff9d8b3e6ae00dcc6a5147a75c30d6d5775b9e7b9e3092511a7a"
     },
     {
       "path": "dist/src/policy-writes.js",
@@ -55,15 +55,15 @@
     },
     {
       "path": "dist/src/resource-reads.js",
-      "sha256": "ac21d7f6662d5f33ad80f2ddb3f218e4b1790ed1262a299a065e2a58d7fe8ff4"
+      "sha256": "52e0d50b351fa8464182aed4bc96a0c1501e19c14634ee80a4e2e15ac1608c1a"
     },
     {
       "path": "dist/src/response-diagnostics.js",
-      "sha256": "dda9e4fbb5d9b6d7e5a763047ac6b0c3d1818c4f692719a04244b649fa040cb5"
+      "sha256": "7acea5c3133ebf8ca5b54aa5122ef7996ff183482c384c086eb4efdf709d140d"
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "1a463695d1d57a74e99894f4bffc0a4e72f1b68695995824db6e2884c0b5c780"
+      "sha256": "89b35e4fcb2b9c25fb496fc7037d9e3123d3006737c64691eb17e597b8216806"
     },
     {
       "path": "dist/src/windows-download.js",
@@ -190,7 +190,7 @@
       }
     }
   },
-  "skillSha256": "9a81f665262f4e3fb473f193948c0327f1bc114f3e64fe41337c027df433afbb",
+  "skillSha256": "242e35d3479e70d8e2f624d53480db82c110fdc441577239e8d23a8756f3eb6b",
   "nativeWriteSettings": {
     "supportedOperations": [
       "admin-request.create",
@@ -365,7 +365,7 @@
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. name:asc (default: API order)",
         "decision": "Filter Decision (string)",
         "created-on": "Filter CreatedOn (string)",
         "active-only": "Filter ActiveOnly (boolean)",
@@ -501,7 +501,7 @@
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. name:asc (default: API order)",
         "ticket-id": "Filter TicketId (string)",
         "user": "Filter User (string)",
         "computer-name": "Filter ComputerName (string)",
@@ -567,7 +567,7 @@
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. name:asc (default: API order)",
         "decision": "Filter Decision (string)",
         "created-on": "Filter CreatedOn (string)",
         "active-only": "Filter ActiveOnly (boolean)",
@@ -1017,7 +1017,7 @@
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. name:asc (default: API order)",
         "id": "Filter Id (string)",
         "name": "Filter Name (string)",
         "description": "Filter Description (string)",
@@ -1743,7 +1743,7 @@
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. name:asc (default: API order)",
         "email-address": "Filter EmailAddress (string)",
         "role-id": "Filter RoleId (string)",
         "permission-id": "Filter PermissionId (string)",

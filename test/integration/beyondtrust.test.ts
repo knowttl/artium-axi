@@ -10,6 +10,7 @@ import * as credentialTls from '../../src/server/credential-tls.js'
 import * as healthPreflight from '../../src/server/health/preflight.js'
 import { createApp } from '../../src/server/app.js'
 import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
+import { toolFailure } from '../../src/server/health/diagnostic.js'
 import type { PreparedCall } from '../../src/server/adapters/types.js'
 import { SessionStore } from '../../src/cli/session.js'
 import { ArtifactStore, artifactDefaults } from '../../src/server/artifacts.js'
@@ -223,10 +224,11 @@ test('malformed fake responses retain redacted shape diagnostics in client and h
     expect(decode(result.stdout)).toMatchObject({ error: { code: 'API_RESPONSE_INVALID',
       status: 200, contentType: 'application/json', shapeTruncated: false,
       issuePaths: ['$'], issuePathsTruncated: false,
+      issues: [{ path: '$', received: 'object', expected: 'unknown', code: 'custom' }],
       shape: [{ path: '$', type: 'object' }, { path: '$["data"]', type: 'array' },
-        { path: '$["data"][0]', type: 'object' }, { path: '$["data"][0]["host"]', type: 'string' },
-        { path: '$["data"][0]["clientSecret"]', type: 'string' }, { path: '$["data"][0]["token"]', type: 'string' },
-        { path: '$["data"][0]["<key>"]', type: 'string' }, { path: '$["data"][0]["<key>"]', type: 'string' },
+        { path: '$["data"][*]', type: 'object' }, { path: '$["data"][*]["host"]', type: 'string' },
+        { path: '$["data"][*]["clientSecret"]', type: 'string' }, { path: '$["data"][*]["token"]', type: 'string' },
+        { path: '$["data"][*]["<key>"]', type: 'string' }, { path: '$["data"][*]["<key>"]', type: 'string' },
         { path: '$["totalRecordCount"]', type: 'string' }] } })
     expect(result.stdout).not.toContain('CANARY-')
     expect(result.stdout).not.toContain(id)
@@ -244,6 +246,18 @@ test('malformed fake responses retain redacted shape diagnostics in client and h
     ]))
     expect(JSON.stringify(audit)).not.toContain('CANARY-')
     expect(JSON.stringify(audit)).not.toContain('shape')
+  }, { invalidResponse: true })
+})
+test('malformed event lists return a normal tool failure with a classified response diagnostic', async () => {
+  await withBeyondtrust(async ({ run, db }) => {
+    const result = await run(['event', 'list'])
+    expect(result.exitCode, result.stdout).toBe(1)
+    expect(decode(result.stdout)).toMatchObject({ error: { code: 'API_RESPONSE_INVALID',
+      issues: [{ path: '$', received: 'object', expected: 'unknown', code: 'unrecognized_keys' }] } })
+    expect(toolFailure(result.stdout, '', result.exitCode, 'beyondtrust-axi')).toMatchObject({
+      code: 'UPSTREAM_RESPONSE_INVALID', diagnostic: { stage: 'response', toolCode: 'API_RESPONSE_INVALID' } })
+    expect(db.prepare("SELECT outcome, error_code FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
+      .toEqual({ outcome: 'completed', error_code: 'API_RESPONSE_INVALID' })
   }, { invalidResponse: true })
 })
 test('managed all reads span pages and resume the final partial page', async () => {

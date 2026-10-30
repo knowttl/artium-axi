@@ -366,8 +366,9 @@ Azure identity-provider HTTP service failures, including throttling and server e
 These Azure diagnostics never include raw response bodies.
 Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE` and `INVALID_RESPONSE` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
 For Check Point schema-validation failures, `RESPONSE_INVALID` names the failing JSON path and received type without response values, for example `$.responseData[0].entityPayload.subject: object`.
-For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded `shape` report containing JSON paths and value types, and bounded validator `issuePaths`, never response values or validation-library error text.
-Both reports echo only identifier-like, non-GUID object keys through the tool's redactor; every other object key appears as `<key>`.
+For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded `shape` report containing JSON paths and value types, bounded validator `issuePaths`, and matching `issues` annotations, never response values or validation-library error text.
+Each issue annotation includes `path`, `received` and `expected` types (`unknown` when the expected type is unavailable or outside the safe type vocabulary), plus the Zod `code` when recognized.
+The reports echo only identifier-like, non-GUID object keys through the tool's redactor; every other object key appears as `<key>`, and array positions appear as `[*]`.
 `shapeTruncated` and `issuePathsTruncated` indicate that the respective report reached a native reporting limit; administrator diagnostic text remains subject to the host limits below.
 These details appear in managed command output and credential-test diagnostics; audit records retain the error code without the shape report.
 Inspect the message and hint, then check the service endpoint and API compatibility.

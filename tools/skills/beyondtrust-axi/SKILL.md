@@ -1489,7 +1489,7 @@ Read user list (GET /v3/Users).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. name:asc (default: API order) |
 | --email-address | Filter EmailAddress (string) |
 | --role-id | Filter RoleId (string) |
 | --permission-id | Filter PermissionId (string) |
@@ -1573,7 +1573,7 @@ Read global role list (GET /v3/GlobalRoles).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. name:asc (default: API order) |
 | --id | Filter Id (string) |
 | --name | Filter Name (string) |
 | --description | Filter Description (string) |
@@ -1942,7 +1942,7 @@ Read audit auth request list (GET /v3/AuthorizationRequestAudits).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. name:asc (default: API order) |
 | --ticket-id | Filter TicketId (string) |
 | --user | Filter User (string) |
 | --computer-name | Filter ComputerName (string) |
@@ -1998,7 +1998,7 @@ Read admin request list (GET /v3/AdminAccessRequest).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. name:asc (default: API order) |
 | --decision | Filter Decision (string) |
 | --created-on | Filter CreatedOn (string) |
 | --active-only | Filter ActiveOnly (boolean) |
@@ -2047,7 +2047,7 @@ Read auth request list (GET /v3/AuthorizationRequest).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. name:asc (default: API order) |
 | --decision | Filter Decision (string) |
 | --created-on | Filter CreatedOn (string) |
 | --active-only | Filter ActiveOnly (boolean) |
