@@ -4,7 +4,7 @@
 
 The package profile schema captured in the [reviewed inventory](../tools/inventories/beyondtrust-axi.json) owns the managed fields; [tools/package.json](../tools/package.json) owns the exact package pin.
 Create an Endpoint Privilege Management API account and grant only the required API areas.
-Save host (for example `example.pm.beyondtrustcloud.com`), clientId and clientSecret through the administrator credential form.
+Save host (in the documented `<organization>-services.pm.beyondtrustcloud.com` form), clientId and clientSecret through the administrator credential form.
 The host must be lowercase DNS ending in .beyondtrustcloud.com, without scheme, port, path or userinfo; requests use verified HTTPS.
 The secret is encrypted at rest and supplied through a private environment reference, never argv.
 The credential test runs doctor with a bounded About read.
@@ -57,8 +57,10 @@ The credential schema captured in the [reviewed inventory](../tools/inventories/
 No credentials belong in arguments or output.
 The optional `saas` is one tenant SaaS application name, defaults to `office365_emails` and rejects values containing `/`, including URLs.
 Obtain the exact application name and any download `scope` from your tenant administrator or Check Point support.
+Scope accepts printable ASCII with no spaces (characters `!` through `~`); comma-separated values are sent verbatim, and omitting it leaves it unset.
 Hosted email downloads require the stored `scope` as the `scopes` header; attachment downloads send it as the `scope` query when set and omit that query when unset.
 Hosted transfers have no per-download scope override.
+The `downloads` profile field defaults to `{"allow":false}`; Artium manages download permissions through Allow write access and exact operation selection, so this field does not enable hosted downloads.
 Tenant scope authorization and the relationship between these selectors remain unverified; do not guess a value.
 Each hosted invocation exchanges a token again because its private XDG directory is removed after execution.
 

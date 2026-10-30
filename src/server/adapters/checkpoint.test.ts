@@ -27,14 +27,14 @@ test('managed credentials require a secret and emit only env references in the p
 })
 
 test.each([
-  ['saas', 'SaaS application name'],
-  ['scope', 'Download scope'],
-])('managed %s field renders its title and description', (name, title) => {
+  ['saas', 'SaaS application name', ' Default: office365_emails.'],
+  ['scope', 'Download scope', ''],
+])('managed %s field renders its title, description and default', (name, title, defaultHelp) => {
   const field = checkpointProfile.fields().find(field => field.name === name)!
   const html = credentialFields('checkpoint-axi', checkpointProfile, {}, false)
   const rendered = html.match(new RegExp(`<div data-credential-field="${name}">(.+?)</div>`))![1]!
   expect(rendered).toContain(`<label>${title}<input`)
-  expect(rendered).toContain(`<p>${field.schema.description}</p>`)
+  expect(rendered).toContain(`<p>${field.schema.description}${defaultHelp}</p>`)
   expect(rendered).not.toContain('Optional profile value.')
 })
 
