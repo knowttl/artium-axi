@@ -586,8 +586,8 @@ test.each([
 })
 
 test.each([
-  { tool: 'checkpoint-axi', help: 'Check Point API region for your tenant, for example us.', otherHelp: 'Falcon API region, for example us-1.' },
-  { tool: 'falcon-axi', help: 'Falcon API region, for example us-1.', otherHelp: 'Check Point API region for your tenant, for example us.' },
+  { tool: 'checkpoint-axi', help: 'Required region code for your tenant&#39;s regional gateway: us, eu, ca, au, uk, uae or in. Obtain it from your tenant administrator. There is no default; URLs are not accepted.', otherHelp: 'Falcon API region, for example us-1.' },
+  { tool: 'falcon-axi', help: 'Falcon API region, for example us-1.', otherHelp: 'Required region code for your tenant' },
 ])('$tool credential page displays provider-specific region guidance', async ({ tool, help, otherHelp }) => {
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
@@ -600,6 +600,13 @@ test.each([
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain(`<p>${help}</p>`)
   expect(page.body).not.toContain(otherHelp)
+  if (tool === 'checkpoint-axi') {
+    const saas = /<div data-credential-field="saas">(.*?)<\/div>/s.exec(page.body)![1]!
+    expect(saas).toContain('<p>One non-blank SaaS application name for the tenant, not a gateway, host or authentication URL;')
+    expect(saas).toContain(' Default: office365_emails.</p>')
+    const downloads = /<div data-credential-field="downloads">(.*?)<\/div>/s.exec(page.body)![1]!
+    expect(downloads).toContain('<p>Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected. Default: {&quot;allow&quot;:false}.</p>')
+  }
 })
 
 test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s without exposing secrets', async enabled => {
