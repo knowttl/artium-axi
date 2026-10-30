@@ -45,6 +45,12 @@ test.each([
   ['checkpoint-axi', 'downloads', 'Artium manages download permissions'],
   ['beyondtrust-axi', 'host', '&lt;organization&gt;-services.pm.beyondtrustcloud.com'],
   ['beyondtrust-axi', 'downloads', 'Artium manages download permissions'],
+  [undefined, 'tenantId', 'Directory tenant ID (UUID). Changing it requires new secrets.'],
+  [undefined, 'clientId', 'Application client ID. Changing it requires new secrets.'],
+  [undefined, 'auth', 'Choose authentication first. Changing it requires new secrets.'],
+  [undefined, 'privateKey', 'Paste the PEM private key. Line breaks are preserved.'],
+  [undefined, 'thumbprintSha256', 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.'],
+  ['gh-axi', 'auth', 'Choose authentication first. Changing it requires new secrets.'],
 ] as const)('%s explains %s when upstream descriptions are absent', (tool, name, help) => {
   const profile = new CredentialProfile({ type: 'object', properties: { [name]: { type: 'string' } } })
   expect(credentialFields(tool, profile, {}, false)).toContain(help)

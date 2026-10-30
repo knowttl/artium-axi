@@ -52,6 +52,10 @@ const applicationHelp = {
   privateKey: 'Paste the PEM private key. Line breaks are preserved.',
   auth: 'Choose authentication first. Changing it requires new secrets.',
 }
+const providerHelp: Record<string, string> = {
+  ...applicationHelp,
+  thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
+}
 const downloadHelp = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.'
 const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
   'ado-axi': {
@@ -59,10 +63,8 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     org: 'Azure DevOps organization name or organization-root HTTPS URL. Changing it requires new secrets.',
     project: 'Optional default Azure DevOps project.',
   },
-  'az-axi': {
-    ...applicationHelp,
-    thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
-  },
+  'az-axi': providerHelp,
+  'gh-axi': { auth: applicationHelp.auth },
   'mg-axi': {
     ...applicationHelp,
     thumbprint: 'SHA-1 certificate fingerprint (40 hexadecimal characters). A combined PEM upload calculates it.',
@@ -120,7 +122,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     const value = secret ? undefined : metadata[name]
     const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
     const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
-    const help = schema.description ?? (tool ? fieldHelp[tool]?.[name] : undefined)
+    const help = schema.description ?? (tool ? fieldHelp[tool]?.[name] : providerHelp[name])
       ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.')
     const defaultHelp = Object.hasOwn(schema, 'default')
       ? ` Default: ${typeof schema.default === 'string' ? schema.default : JSON.stringify(schema.default)}.` : ''
