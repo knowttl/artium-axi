@@ -357,6 +357,9 @@ export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'un
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
 export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabled: z.boolean(), reason: z.string().nullable(),
   supportedOperations: z.array(z.string()).nullable(), allowedOperations: z.array(z.string()), unlocks: z.string(), blocked: z.string() })
+// For AWX, writeAccess.enabled describes operational access only; nativeSettings.allowConfigurationWrites
+// is independent, and readOnly is false when either grant is enabled.
+// Write-access updates preserve an omitted allowConfigurationWrites grant; enabled: false alone does not revoke it.
 // tool-write-access audit arguments contain enabled, optional allowDeletes/allowConfigurationWrites, catalogue operation identities and
 // unsupportedOperationCount. Arbitrary legacy allow-list strings are counted, never logged.
 export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean().optional(), allowConfigurationWrites: z.boolean().optional(), enabled: z.boolean(),

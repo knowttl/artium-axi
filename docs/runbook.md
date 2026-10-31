@@ -417,7 +417,7 @@ For scripted administration, read `GET /v1/admin/tools` or `GET /v1/admin/tools/
 Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while preserving other native settings and credential values.
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
-See the [AWX supported boundary](tool-credentials.md#awx) before enabling its write switch.
+See the [AWX supported boundary](safety.md#write-gates-by-tool) before enabling either write control.
 See [GitHub setup and limitations](tool-credentials.md#github) before activation.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
 See the [Hybrid Analysis supported boundary](safety.md) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.
@@ -436,7 +436,7 @@ Write-policy changes, including changes through Native settings or complete cred
 Stale revisions never mutate settings, and an audit failure rolls back the change.
 Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.
 GitHub writes require exact administrator-selected operations and Artium-owned preview/confirmation; see [GitHub setup](tool-credentials.md#github) for the tiers and interrupted-write recovery.
-Existing configurations without an explicit `allowWrites: true` remain off, while existing explicit opt-ins are preserved.
+Existing explicit write opt-ins are preserved; omitted grants remain off.
 The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
 See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and confirmation gates.
 
@@ -563,6 +563,8 @@ Monitor free space on the persistent `/data` volume and track growth under `<dat
 Set a capacity alert with enough headroom for writes and backups, and expand storage before it fills.
 Do not delete replay-protection journals to reclaim space; reconcile malformed evidence before arranging cleanup.
 AWX's upstream journal stays in its isolated per-call state directory and is removed with that directory after the call; Artium retains its host audit without a second persistent AWX journal.
+AWX writes returning native `CONTROLLER_UNREACHABLE` or `SERVER_BUSY` are reported as `UNKNOWN_OUTCOME` because the controller may have applied the change before the response failed.
+Follow the returned read-back command and inspect the affected resources and any additional pages before retrying; absence from a bounded read does not prove the write failed.
 There is no audit deletion endpoint or general export CLI.
 See [Audit screen and API usage](admin-guide.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.
 
