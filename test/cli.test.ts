@@ -1231,7 +1231,7 @@ test('doctor shows the server category for every unhealthy tool without diagnost
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [
       { name: 'falcon-axi', version: '0.8.4', status: 'ok' },
-      { name: 'beyondtrust-axi', version: '0.1.4', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
+      { name: 'beyondtrust-axi', version: '0.1.6', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
       { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED' },
     ] } },
   }
@@ -1484,12 +1484,12 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 })
 
 test.each([
-  { tool: 'az-axi', example: 'sub list', version: '0.1.14' },
+  { tool: 'az-axi', example: 'sub list', version: '0.1.16' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.18' },
   { tool: 'vectra-axi', example: 'detection list', version: '0.1.13' },
   { tool: 'falcon-axi', example: 'detection list', version: '0.8.4' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.2' },
-  { tool: 'ado-axi', example: 'project list --limit 1', version: '0.5.0' },
+  { tool: 'ado-axi', example: 'project list --limit 1', version: '0.5.1' },
   { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.45' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.9' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.5' },

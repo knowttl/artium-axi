@@ -20,7 +20,7 @@ const overlays = {
   'tenable-axi': { sha256: '40f40ad818e54c71aa11654a039922bb48cd0d9c303b8a812598c9c0661ad5e7', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: adoInventory.skillSha256, sections: [] },
-  'az-axi': { sha256: '367dc5bd085003b1fb354ed4450e94522472bb884e04a27b577cc1efd5d4e999', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
+  'az-axi': { sha256: '3054197371c475a805e51b184ab1a528dfd19f39a13ede5d919f265e586edc01', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: 'd56d7dd6f5da32d21baaf3ded909908767a2519e025373f3447bfc4755bd1e09', sections: ['Safety'] },
   'mg-axi': { sha256: '682d1d608593aa438488a41b894c3068243ab9897cbcadcac0184aaa2dd09d49', sections: ['Safety'] },
   'ldap-axi': { sha256: '0fd60163e192fce5bf6222d885e012638047b039af2b1a1df87a4d51057c148b', sections: ['Investigation reads', 'One invocation instead of hand-written loops', 'Keep output bounded'] },

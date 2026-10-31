@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.14",
-  "integrity": "sha512-4gY1OZ7ab9An4bRO74Qc9cSFQwBwb1H7o8I4toltj0AnxDHHOZYQL6dDSOwZH8QjPlV6l82iX3E+M6yqdxwe+w==",
+  "version": "0.1.16",
+  "integrity": "sha512-rYAA0J3Af8UiNj5si+T5dfAm1zVmxUcbvppF6uIdSCVrN6eVZH6N7GqKv5PY32Bcu8b/fAHh+VPFiuRliCRD1Q==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "cd1b5eda7c3a0b75d598279477267e573470e4c9bcc8dad605f2917c9ebf40db",
-  "skillSha256": "367dc5bd085003b1fb354ed4450e94522472bb884e04a27b577cc1efd5d4e999",
+  "packageManifestSha256": "fa9645a992d8884d6035f40e0ef5d31f46051faae824199fde793c61aeac6ccc",
+  "skillSha256": "3054197371c475a805e51b184ab1a528dfd19f39a13ede5d919f265e586edc01",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -249,7 +249,7 @@
     "parserSources": [
       {
         "path": "dist/lib/args.js",
-        "sha256": "57a71a400717c895bab6d0c1c54b1664288aeb5f0c84cba740185772df15d977"
+        "sha256": "adf0392a9a6aca805a2e1b448456926a0b29da74ce6596a42c76028466346a0d"
       },
       {
         "path": "dist/lib/argv.js",
@@ -268,7 +268,7 @@
     },
     {
       "path": "dist/lib/client.js",
-      "sha256": "156af240155e71c051a6a2f0c4235d51acaf3633d7a249736ff3b24ed541d2b6"
+      "sha256": "12d9fea540a1853e226bf66f1052fa2b20370c464b102a8e44d7f0f84cd43190"
     },
     {
       "path": "dist/lib/principals.js",
@@ -276,15 +276,15 @@
     },
     {
       "path": "dist/lib/storageMetadata.js",
-      "sha256": "81aa60a9bf81e0b909bac2353960d611d2b158756f3e27aead0a545b51c92065"
+      "sha256": "81c0d56f93081db812cb693682f1e88653647f877d073ad84c8c46ee3b90469e"
     },
     {
       "path": "dist/lib/keyvaultMetadata.js",
-      "sha256": "750de78eeb81f217b70d509e015cac2a40d789eefa3241ffddc131028493b446"
+      "sha256": "397d309cfc45445ca7bcae776c440ab8172f6f3f2f6462a7cb638abc1d4949ae"
     },
     {
       "path": "dist/lib/acrMetadata.js",
-      "sha256": "b63a9506e13ccb09773ab91ae37ed2e1b53a77d4cb4243519fe07399f404327b"
+      "sha256": "fbfca1c29fe03b6e49c631b1f0951505d5302d254cc55da6e1e120c4ded698ed"
     },
     {
       "path": "dist/commands/rbac.js",
