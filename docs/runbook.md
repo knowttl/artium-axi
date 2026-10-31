@@ -786,11 +786,12 @@ Exercise recovery periodically on isolated copies and record the image digest, r
 
 The runner admits at most four active calls per authenticated user and eight across the server.
 The executable defaults are `runnerLimits.userCalls`, `runnerLimits.globalCalls` and `runnerLimits.admissionWaitMs` in [config.ts](../src/server/config.ts).
-Calls waiting for either limit enter one FIFO queue and wait up to 3,000 ms before returning `TOO_MANY_CALLS`.
-Later arrivals cannot bypass a queued call, including when its user's slots are occupied.
+Calls waiting for either limit enter one queue and wait up to 3,000 ms before returning `TOO_MANY_CALLS`.
+When server capacity is available, the oldest queued call whose user has fewer than four active calls is admitted.
+Calls blocked by their user's limit do not delay eligible calls from other users.
 The wait covers admission only; the execution deadline starts after admission.
 Queued cancellation or client disconnect removes the call without taking a slot.
-Admission holds a slot through setup, execution and cleanup; release after success, error or cancellation admits waiting calls in arrival order.
+Admission holds a slot through setup, execution and cleanup; release after success, error or cancellation admits the oldest eligible waiting calls.
 Shutdown rejects waiting calls with `RUNNER_CLOSED` and cancels active calls.
 
 ## Upgrading stores without a key binding

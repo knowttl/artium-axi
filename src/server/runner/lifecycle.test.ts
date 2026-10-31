@@ -201,17 +201,20 @@ test('cancelled queued call releases no active slot and the next waiter can run'
   await expect(admitted).resolves.toMatchObject({ stdout: 'admitted' })
 })
 
-test('queued calls retain arrival order across users', async () => {
-  const calls = occupy(['a', 'a', 'a', 'a', 'b', 'b', 'b', 'b'])
-  const order: string[] = []
-  const first = runner.run('a', fakeTool.executable, [...fakeTool.args, 'print', 'first'], {}, [], {}, {}, [],
-    () => { order.push('first') })
-  const second = runner.run('c', fakeTool.executable, [...fakeTool.args, 'print', 'second'], {}, [], {}, {}, [],
-    () => { order.push('second') })
+test.each([
+  { name: 'with spare global capacity', users: ['a', 'a', 'a', 'a'] },
+  { name: 'when a global slot frees', users: ['a', 'a', 'a', 'a', 'b', 'b', 'b', 'b'] },
+])('a user-limited waiter does not block another user $name', async ({ users }) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const calls = occupy(users)
+  let firstOutcome = 'waiting'
+  const first = print('a').then(result => { firstOutcome = 'admitted'; return result })
+  const second = print('c')
+  calls[4]?.controller.abort()
+  await expect(second).resolves.toMatchObject({ stdout: 'admitted' })
+  expect(firstOutcome).toBe('waiting')
   calls[0].controller.abort()
-  await expect(first).resolves.toMatchObject({ stdout: 'first' })
-  await expect(second).resolves.toMatchObject({ stdout: 'second' })
-  expect(order[0]).toBe('first')
+  await expect(first).resolves.toMatchObject({ stdout: 'admitted' })
 })
 
 test('shutdown rejects queued calls without spawning them', async () => {

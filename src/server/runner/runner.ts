@@ -61,9 +61,10 @@ export class Runner {
 
   private drain(): void {
     while (!this.closed && this.queue.length && this.active.size < runnerLimits.globalCalls) {
-      const next = this.queue[0]
-      if ([...this.active.values()].filter(call => call.userId === next.userId).length >= runnerLimits.userCalls) return
-      this.queue.shift()
+      const index = this.queue.findIndex(pending =>
+        [...this.active.values()].filter(call => call.userId === pending.userId).length < runnerLimits.userCalls)
+      if (index === -1) return
+      const [next] = this.queue.splice(index, 1)
       next.admit()
     }
   }
