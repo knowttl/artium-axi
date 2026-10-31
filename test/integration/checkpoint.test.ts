@@ -236,8 +236,8 @@ test('published response diagnostics preserve failing paths and types without re
   await withCheckpoint(async ({ run }) => {
     const result = await run(['email', 'show', 'synthetic-invalid'])
     expect(result.exitCode).toBe(1)
-    expect(result.stdout).toContain('RESPONSE_INVALID')
-    expect(result.stdout).toContain('$.responseData[0].entityPayload.subject: object')
+    expect(decode(result.stdout)).toMatchObject({ error: { code: 'RESPONSE_INVALID', status: 200,
+      contentType: 'application/json', issues: [{ path: '$["responseData"][*]["entityPayload"]["subject"]', received: 'object' }] } })
     expect(result.stdout).not.toContain('CANARY-invalid-subject')
   })
 })

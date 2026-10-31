@@ -100,7 +100,7 @@ Exit 0 means success (still inspect completeness), 1 means operation/configurati
 | `PERMISSION_DENIED` (403) | Check licensing and the operation's privilege; inventory access does not imply attack or connector access. |
 | `NOT_FOUND` | Verify the exact ID and selected profile; a zero-row list is instead a successful search. |
 | `RATE_LIMITED`, `REQUEST_FAILED`, `TRANSPORT_FAILED` | Reads already retry 429/502/503/504 up to twice within budgets; honor `retryAfter` milliseconds and investigate persistent failure. |
-| `RESPONSE_INVALID` | Treat the result as invalid or partial, preserve evidence and report the mismatch. |
+| `RESPONSE_INVALID` | Treat the result as invalid or partial. For transport JSON/schema failures, report the HTTP status, contentType, bounded shape and issues (received/expected types); values and validator messages are omitted. Later command checks may carry only a fixed message. |
 | `DEADLINE_EXCEEDED`, `REQUEST_BUDGET_EXCEEDED`, `BYTE_BUDGET_EXCEEDED`, `ROW_BUDGET_EXCEEDED` | Narrow filters/fields or resume a supplied cursor; never infer completeness. |
 | `EXPORT_NOT_READY` | Inspect job state before downloading; status waiting does not guarantee completion. |
 | `OPERATION_BLOCKED`, `OUTCOME_UNKNOWN` | Respect write guards; for unknown mutation outcomes follow the audit ID and read-back advice, never replay blindly. |

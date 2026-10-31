@@ -64,7 +64,7 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number, to
   const message = text.trim() || `Tool exited with status ${exitCode}.`
   let code: ErrorCode = 'TOOL_FAILED'
   let stage: Diagnostic['stage'] = 'tool run'
-  if (/^(API_RESPONSE_INVALID|AUTH_RESPONSE_INVALID|RESPONSE_INVALID|MALFORMED_RESPONSE|INVALID_RESPONSE)$/.test(toolCode ?? '')) {
+  if (/^(API_RESPONSE_INVALID|AUTH_RESPONSE_INVALID|RESPONSE_INVALID|MALFORMED_RESPONSE|INVALID_RESPONSE|UPSTREAM_ERROR|PROTOCOL_ERROR)$/.test(toolCode ?? '')) {
     code = 'UPSTREAM_RESPONSE_INVALID'; stage = 'response'
   } else if (toolCode === 'AUTH_ENDPOINT_NOT_FOUND') {
     code = 'TOOL_REJECTED_INPUT'; stage = 'configuration'

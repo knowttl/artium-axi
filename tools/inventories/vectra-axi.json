@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.12",
-  "integrity": "sha512-X1QYP/beokxC7TX+SBuvMZCHwCyKUz/hRigikpQjgOTp4imzhP2HLEF7Ga1rmHZNGH5sDrISjnQpbJzzMoEpCg==",
+  "version": "0.1.13",
+  "integrity": "sha512-oUaTXzT/O9YzVfxHwSarEvLxvUBGwyPoYnAMWa0+tv/7KvG62fkDrOSBb6gXHl9uxfTvpHTOLxzpNATR1VgMwA==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "a7369aa6a0959310d35bf1e743734a98c303341972735cd5a8d99347316f5ae0",
+  "packageManifestSha256": "b763137981f5f8ff2c188de28d436e28f4ab09edfabd5a0d29df318351604475",
   "skillSha256": "d56d7dd6f5da32d21baaf3ded909908767a2519e025373f3447bfc4755bd1e09",
   "environment": [
     {
@@ -61,7 +61,7 @@
     },
     {
       "path": "dist/src/writes.js",
-      "sha256": "97b6758c5f1a9c38ff319e55984f5eb5aa998e54ae54640d9149826d190a7d9d"
+      "sha256": "dc466b110e88688f0d0b1b0365043fdfcb022c64e26fe07e517a1d5c29eaf06d"
     },
     {
       "path": "dist/src/private-file.js",
@@ -215,7 +215,7 @@
       },
       {
         "path": "dist/src/writes.js",
-        "sha256": "97b6758c5f1a9c38ff319e55984f5eb5aa998e54ae54640d9149826d190a7d9d"
+        "sha256": "dc466b110e88688f0d0b1b0365043fdfcb022c64e26fe07e517a1d5c29eaf06d"
       }
     ]
   },
@@ -256,6 +256,7 @@
       "command": "vectra-axi detection list",
       "description": "List detections on QUX v2.5 or RUX v3.4 with server-side filters and a bounded window",
       "pagination": "QUX: collection pages; bounded --all supported; RUX: collection pages; bounded --all supported",
+      "completeness": "complete is true only when the matching result is exhausted without error and no cursor remains; for checkpoint feeds it covers the current batch, not future events. Bounded windows with a cursor set complete: false and exit 0; failed reads exit 1.",
       "flags": {
         "--help": "Show concise help; default false",
         "--state <state>": "Filter by server-side detection state",
@@ -305,7 +306,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "65ed84622aafe464efdcfa22b56b04c52ddaa47fa6cd6d60cf72ec412a570a9c"
+      "sha256": "a9cb858df84d6d48f6e745b906235514743c08716a99d9a7f05b15e16b8d1b01"
     }
   },
   "flags": [

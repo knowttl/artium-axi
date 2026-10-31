@@ -75,6 +75,8 @@ test.each([
   ['RESPONSE_INVALID', 'Invalid email detail response ($.responseData[0].entityPayload.subject: object)', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['MALFORMED_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['INVALID_RESPONSE', 'Unexpected response', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['UPSTREAM_ERROR', 'the Falcon token response carried no access token', 'UPSTREAM_RESPONSE_INVALID', 'response'],
+  ['PROTOCOL_ERROR', 'the directory returned a malformed userAccountControl attribute', 'UPSTREAM_RESPONSE_INVALID', 'response'],
   ['AUTH_ENDPOINT_NOT_FOUND', 'Token endpoint returned 404', 'TOOL_REJECTED_INPUT', 'configuration'],
   ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED', 'TCP'],
   ['OPERATION_TIMEOUT', 'the operation deadline elapsed', 'UPSTREAM_NETWORK_FAILED', 'TCP'],

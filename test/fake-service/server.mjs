@@ -406,7 +406,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ resources: [req.method === 'POST' ? { cloud_request_id: 'synthetic-rtr-command' }
       : { stdout: output, stderr: '', complete: true, sequence_id: sequence }] }))
   } else if (url.pathname === '/alerts/queries/alerts/v2') {
-    if (req.headers.host === 'api-redirect.crowdstrike.com') {
+    if (url.searchParams.get('filter') === "hostname:'synthetic-malformed'") {
+      res.end(JSON.stringify({ resources: { unexpected: 'CANARY-response-value' } }))
+    } else if (req.headers.host === 'api-redirect.crowdstrike.com') {
       res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })
       res.end()
     } else {
