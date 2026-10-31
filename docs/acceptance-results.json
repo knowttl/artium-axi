@@ -1,0 +1,28 @@
+{
+  "scope": "AWX ordinary configuration writes, slice b of issue 237",
+  "environment": "Local fake HTTPS controller, synthetic identities and canary tokens only",
+  "checks": [
+    {
+      "command": "pnpm exec vitest run test/integration/awx.test.ts src/server/adapters/awx.test.ts test/awx-parity.test.ts",
+      "result": "passed",
+      "tests": 252,
+      "durationSeconds": 59.59,
+      "evidence": "Public run API executes the pinned CLI against a fake controller: all 35 approved commands, disabled control with no controller request, confirmation refusal, preview, AWX 403 denial, successful mutation payloads, secret-free audit and runner cleanup. Existing blocked families remain refused."
+    },
+    {
+      "command": "pnpm build",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec vitest run test/integration/awx.test.ts -t 'AWX credentials save'",
+      "result": "passed",
+      "tests": 1,
+      "evidence": "Administrator switch saves configuration-only changes, retains configuration access when operational access is disabled, records the configuration grant in audit, reports write state accurately, and refuses both operational writes and disabled configuration writes before controller contact. Blocked families and secret-bearing inputs remain refused when both controls are enabled."
+    }
+  ],
+  "limits": [
+    "This records focused local implementation evidence before the no-mistakes Test step; final full-suite and required container evidence belong to that pipeline run.",
+    "Live controller acceptance is unverified.",
+    "Private hygiene verification requires the supervising operator's external deny list before publication."
+  ]
+}

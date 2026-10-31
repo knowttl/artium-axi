@@ -414,8 +414,14 @@ HTTP and TLS-verification bypasses are refused.
 
 Writes are off by default.
 The native setting `{"allowWrites": true}` permits only operational writes, which still require upstream `--confirm`: launching, canceling or relaunching runs, approving or denying workflow approvals, project and inventory-source syncs, and notification-template tests.
-Configuration writes, deletes and security writes are always blocked, including resource creation and editing, associations, role grants and token operations.
-Artium never enables AWX's separate configuration, deletion or security write gates.
+The independent native setting `{"allowConfigurationWrites": true}` permits ordinary create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes.
+Administrators can also set **Allow ordinary configuration writes** under **Write access**; the operational switch stays independent, and both changes are audited.
+It defaults off; disabled configuration writes are refused before controller contact.
+Use `--dry-run` to preview when enabled, then `--confirm` to execute.
+Configuration writes without either flag are refused.
+Artium enables AWX's configuration gate only for these reviewed commands.
+Credentials, secret-bearing inputs (including variables, extra vars and SCM URLs), files/stdin, deletes, removals, bulk, organization administration, users, teams, roles and tokens remain blocked.
+The operational control does not enable configuration writes, and the configuration control does not enable operational actions.
 Token permissions remain an additional AWX-side limit; the write switch does not grant AWX permissions.
 The generated [AWX inventory](../tools/inventories/awx-axi.json) classifies every command and records the reviewed upstream source digests.
 Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.

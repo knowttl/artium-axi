@@ -17,14 +17,14 @@ const { AwxAxiError, formatError } = await import(errorsModule)
 
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
-const adapter = (allowWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites }) })
+const adapter = (allowWrites = false, allowConfigurationWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites }) })
 const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']
 
 test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command is refused regardless of write access', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  await expect(adapter(true, true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
 })
 
 test.each(inventory.commands.filter(route => route.effect === 'write'))('$command requires the operational write switch', async route => {
@@ -44,6 +44,21 @@ test('a dry-run remains a read even when confirm is present', async () => {
   const call = await adapter().prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
   expect(call.effect).toBe('read')
   expect(call.write).toBeUndefined()
+})
+
+test.each(['template create', 'project create', 'inventory source-create', 'workflow node-create', 'schedule create'])('%s managed help describes configuration authority and excludes blocked input', async command => {
+  const call = await adapter(false, true).prepare([...command.split(' '), '--help'], reference)
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  const document = decode(help) as { command: string, flags: Record<string, string>, help: string[] }
+  expect(document.command).toBe(`artium-axi awx-axi ${command}`)
+  expect(document.flags).toMatchObject({ '--confirm': 'boolean', '--dry-run': 'boolean' })
+  expect(document.flags).not.toHaveProperty('--credential')
+  expect(document.flags).not.toHaveProperty('--extra-vars')
+  expect(document.flags).not.toHaveProperty('--scm-url')
+  expect(document.help.join(' ')).toContain('allowConfigurationWrites and --confirm')
+  expect(document.help.join(' ')).toContain(`AWX must authorize ${command}`)
 })
 
 test.each(fixedSchemaLists)('%s list refuses unsupported field projection', command => {
@@ -205,7 +220,7 @@ test.each(inventory.discovery.commands.filter(command => !['auth status', 'docto
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain(`artium-axi awx-axi ${command} list`)
-  expect(help).not.toMatch(/artium-axi awx-axi \S+ (?:create|edit|delete|credential-add)\b/)
+  expect(help).not.toMatch(/artium-axi awx-axi \S+ (?:delete|credential-add)\b/)
 })
 
 test.each(['auth status', 'doctor'])('%s published help uses managed credential guidance', async command => {

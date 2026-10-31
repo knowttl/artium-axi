@@ -13,6 +13,114 @@ import { loginResponseSchema } from '../../src/shared/api.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 
+const configurationCases = [
+  { args: ['inventory', 'create', 'Synthetic inventory', '--organization', '7'], path: 'inventories/', body: { name: 'Synthetic inventory', organization: 7 } },
+  { args: ['inventory', 'edit', '42', '--name', 'Updated inventory'], path: 'inventories/42/', body: { name: 'Updated inventory' } },
+  { args: ['inventory', 'host-create', 'synthetic-host', '--inventory', '7'], path: 'hosts/', body: { name: 'synthetic-host', inventory: 7 } },
+  { args: ['inventory', 'host-edit', '42', '--name', 'updated-host'], path: 'hosts/42/', body: { name: 'updated-host' } },
+  { args: ['inventory', 'group-create', 'Synthetic group', '--inventory', '7'], path: 'inventories/7/groups/', body: { name: 'Synthetic group' } },
+  { args: ['inventory', 'group-edit', '42', '--name', 'Updated group'], path: 'groups/42/', body: { name: 'Updated group' } },
+  { args: ['inventory', 'source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm'], path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm' } },
+  { args: ['inventory', 'source-edit', '42', '--name', 'Updated source'], path: 'inventory_sources/42/', body: { name: 'Updated source' } },
+  { args: ['template', 'create', 'Synthetic template', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'], path: 'job_templates/', body: { name: 'Synthetic template', inventory: 7, project: 8, playbook: 'synthetic.yml' } },
+  { args: ['template', 'edit', '42', '--name', 'Updated template'], path: 'job_templates/42/', body: { name: 'Updated template' } },
+  { args: ['project', 'create', 'Synthetic project', '--organization', '7'], path: 'projects/', body: { name: 'Synthetic project', organization: 7 } },
+  { args: ['project', 'edit', '42', '--name', 'Updated project'], path: 'projects/42/', body: { name: 'Updated project' } },
+  { args: ['schedule', 'create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY'], path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' } },
+  { args: ['schedule', 'edit', '42', '--name', 'Updated schedule'], path: 'schedules/42/', body: { name: 'Updated schedule' } },
+  { args: ['workflow', 'create', 'Synthetic workflow', '--organization', '7'], path: 'workflow_job_templates/', body: { name: 'Synthetic workflow', organization: 7 } },
+  { args: ['workflow', 'edit', '42', '--name', 'Updated workflow'], path: 'workflow_job_templates/42/', body: { name: 'Updated workflow' } },
+  { args: ['workflow', 'node-create', '7', '--template', '8'], path: 'workflow_job_templates/7/workflow_nodes/', body: { unified_job_template: 8 } },
+  { args: ['workflow', 'node-edit', '42', '--template', '8'], path: 'workflow_job_template_nodes/42/', body: { unified_job_template: 8 } },
+  { args: ['workflow', 'node-link', '42', '--to', '7', '--on', 'success'], path: 'workflow_job_template_nodes/42/success_nodes/', body: { id: 7 } },
+  { args: ['workflow', 'node-add-approval', '42', '--name', 'Synthetic approval'], path: 'workflow_job_template_nodes/42/create_approval_template/', body: { name: 'Synthetic approval' } },
+  { args: ['workflow', 'node-label-add', '42', '--label', '7'], path: 'workflow_job_template_nodes/42/labels/', body: { id: 7 } },
+  { args: ['workflow', 'node-instance-group-add', '42', '--instance-group', '7'], path: 'workflow_job_template_nodes/42/instance_groups/', body: { id: 7 } },
+  { args: ['workflow', 'label-add', '42', '--label', '7'], path: 'workflow_job_templates/42/labels/', body: { id: 7 } },
+  { args: ['template', 'label-add', '42', '--label', '7'], path: 'job_templates/42/labels/', body: { id: 7 } },
+  { args: ['template', 'instance-group-add', '42', '--instance-group', '7'], path: 'job_templates/42/instance_groups/', body: { id: 7 } },
+  { args: ['schedule', 'label-add', '42', '--label', '7'], path: 'schedules/42/labels/', body: { id: 7 } },
+  { args: ['schedule', 'instance-group-add', '42', '--instance-group', '7'], path: 'schedules/42/instance_groups/', body: { id: 7 } },
+  { args: ['inventory', 'group-add-host', '42', '--host', '7'], path: 'groups/42/hosts/', body: { id: 7 } },
+  { args: ['inventory', 'group-add-child', '42', '--child', '7'], path: 'groups/42/children/', body: { id: 7 } },
+  { args: ['template', 'copy', '42', '--name', 'Synthetic copy'], path: 'job_templates/42/copy/', body: { name: 'Synthetic copy' } },
+  { args: ['workflow', 'copy', '42', '--name', 'Synthetic copy'], path: 'workflow_job_templates/42/copy/', body: { name: 'Synthetic copy' } },
+  { args: ['template', 'notification-add', '42', '--event', 'success', '--notification-template', '7'], path: 'job_templates/42/notification_templates_success/', body: { id: 7 } },
+  { args: ['workflow', 'notification-add', '42', '--event', 'success', '--notification-template', '7'], path: 'workflow_job_templates/42/notification_templates_success/', body: { id: 7 } },
+  { args: ['project', 'notification-add', '42', '--event', 'success', '--notification-template', '7'], path: 'projects/42/notification_templates_success/', body: { id: 7 } },
+  { args: ['inventory', 'source-notification-add', '42', '--event', 'success', '--notification-template', '7'], path: 'inventory_sources/42/notification_templates_success/', body: { id: 7 } },
+]
+
+test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body }) => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    const store = createCredentialStore(db, provider)
+    const adapter = createAwxAdapter(new EmbeddedSecretSource(store))
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      return { ...call, executable: process.execPath,
+        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+    }
+    const runner = await Runner.create(join(directory, 'calls'))
+    const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
+      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+    try {
+      await seedToolUser(db)
+      db.exec('UPDATE users SET administrator = 1')
+      const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
+        username: 'synthetic-user', password: 'CANARY-local-password' } })
+      const session = loginResponseSchema.parse(login.json())
+      if (session.status !== 'authenticated') throw new Error('Expected local login')
+      const headers: Record<string, string> = { authorization: `Bearer ${session.accessToken}` }
+      const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+      headers['x-artium-reauth-ticket'] = reauth.json().ticket
+      const saved = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/credential', headers,
+        payload: { value: { origin: `https://localhost:${port}`, token: 'CANARY-awx-token' }, expectedRevision: 0, expectedToolRevision: 1 } })
+      expect(saved.statusCode, saved.body).toBe(200)
+      const inspected = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
+      const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
+        payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
+      expect(trusted.statusCode, trusted.body).toBe(200)
+      const settings = async (nativeSettings: Record<string, boolean>) => {
+        const revision = (db.prepare("SELECT revision FROM tools WHERE name = 'awx-axi'").get() as { revision: number }).revision
+        const response = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi', headers,
+          payload: { enabled: true, nativeSettings, expectedRevision: revision } })
+        expect(response.statusCode, response.body).toBe(200)
+      }
+      const run = (input: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args: input } })
+      await settings({ allowWrites: true })
+      await send('/__ado/reset', 'POST')
+      expect((await run([...args, '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+      await settings({ allowConfigurationWrites: true })
+      await send('/__ado/reset', 'POST')
+      expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+      const preview = await run([...args, '--dry-run'])
+      expect(preview.json(), preview.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('dry_run') })
+      expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+      await send('/__awx/configuration-permission?enabled=false', 'POST')
+      const denied = await run([...args, '--confirm'])
+      expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
+      expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+      await send('/__ado/reset', 'POST')
+      const written = await run([...args, '--confirm'])
+      expect(written.json(), written.body).toMatchObject({ exitCode: 0 })
+      const evidence = JSON.parse(await send('/__evidence'))
+      expect(evidence.mutations).toBe(1)
+      expect(evidence.requests).toContainEqual({ method: args[1].endsWith('edit') ? 'PATCH' : 'POST',
+        path: `/api/v2/${path}`, auth: 'Bearer', canaryReceived: true, body })
+      const audit = db.prepare("SELECT event, action, arguments FROM audit WHERE tool = 'awx-axi'").all()
+      expect(audit).toContainEqual(expect.objectContaining({ event: 'run-terminal', action: 'write' }))
+      expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
+      expect(written.body).not.toContain('CANARY-awx-token')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
 test('AWX credentials save, test with scoped trust, read and gate operational writes through the published CLI', async () => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
@@ -64,7 +172,8 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(page.body).toContain('data-credential-field="password" data-secret data-ephemeral')
       expect(page.body).toContain('stores only that token')
       expect(page.body).toContain('data-profile-field="token"')
-      expect(page.body).toContain('Configuration, deletion and security writes are always blocked')
+      expect(page.body).toContain('Separate allowConfigurationWrites')
+      expect(page.body).toContain('name="allowConfigurationWrites" data-type="boolean"')
       expect(page.body).not.toContain('data-profile-field="verifySsl"')
       expect(page.body).not.toContain('CANARY-awx-token')
       const checked = () => app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/test', headers, payload: {} })
@@ -99,6 +208,39 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(existsSync(join(directory, 'ambient-writes.log'))).toBe(false)
       expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
+      expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
+        payload: { enabled: true, allowConfigurationWrites: true, expectedRevision: 4 } })).statusCode).toBe(200)
+      const beforeBlocked = JSON.parse(await send('/__evidence'))
+      for (const blocked of [
+        ['template', 'delete', '42'], ['workflow', 'node-unlink', '42', '--to', '7', '--on', 'success'],
+        ['inventory', 'group-remove-host', '42', '--host', '7'], ['inventory', 'host-bulk-create', '--hosts-file', 'synthetic.json'],
+        ['credential', 'create', 'Synthetic credential'], ['template', 'credential-add', '42', '--credential', '7'],
+        ['organization', 'create', 'Synthetic organization'], ['user', 'create', 'synthetic-user'],
+        ['team', 'create', 'Synthetic team'], ['role', 'grant', '42', '--user', '7'], ['user', 'token-create', '42'],
+        ['project', 'create', 'Synthetic', '--credential', '7'], ['project', 'create', 'Synthetic', '--scm-url', 'https://scm.example/synthetic'],
+        ['inventory', 'create', 'Synthetic', '--variables', '{"canary":"CANARY-input"}'],
+        ['template', 'create', 'Synthetic', '--extra-vars', '{"canary":"CANARY-input"}'],
+      ]) {
+        const refused = await run([...blocked, '--confirm'])
+        expect(refused.json(), refused.body).toMatchObject({ error: { code: expect.stringMatching(/FLAG_BLOCKED|INVALID_INPUT|UNSUPPORTED_INPUT/) } })
+      }
+      expect(JSON.parse(await send('/__evidence'))).toEqual(beforeBlocked)
+      expect(JSON.stringify(db.prepare("SELECT arguments FROM audit WHERE tool = 'awx-axi'").all())).not.toContain('CANARY-input')
+      expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
+        payload: { enabled: false, expectedRevision: 5 } })).statusCode).toBe(200)
+      const tools = await app.inject({ url: '/v1/tools', headers })
+      expect(tools.json()).toMatchObject({ tools: [expect.objectContaining({ name: 'awx-axi', readOnly: false })] })
+      const beforeOperational = JSON.parse(await send('/__evidence'))
+      expect((await run(['job', 'cancel', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect(JSON.parse(await send('/__evidence'))).toEqual(beforeOperational)
+      const grants = db.prepare("SELECT arguments FROM audit WHERE tool = 'awx-axi' AND event = 'tool-write-access' ORDER BY id").all() as { arguments: string }[]
+      expect(grants.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({ enabled: false, allowConfigurationWrites: true }))
+      const disabledConfiguration = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
+        payload: { enabled: false, allowConfigurationWrites: false, expectedRevision: 6 } })
+      expect(disabledConfiguration.json(), disabledConfiguration.body).toMatchObject({ readOnly: true, nativeSettings: { allowWrites: false, allowConfigurationWrites: false } })
+      const beforeDisabled = JSON.parse(await send('/__evidence'))
+      expect((await run(['template', 'create', 'Synthetic', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect(JSON.parse(await send('/__evidence'))).toEqual(beforeDisabled)
       store.replaceCredential('awx-axi', { origin, token: 'CANARY-invalid-token' }, store.findCredential('awx-axi')!.revision!, 'synthetic-development-user', Date.now())
       const rejected = await checked()
       expect(rejected.json()).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED', diagnostic: { stage: 'authentication', toolCode: 'AUTH_REQUIRED' } } })

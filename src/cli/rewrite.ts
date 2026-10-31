@@ -121,11 +121,22 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (awxGroup && awx.discovery.commands.includes(awxGroup)) {
     return encode({ command: `artium-axi awx-axi ${awxGroup}`,
       commands: awx.commands.filter(route => route.effect !== 'blocked' && route.command.startsWith(awxGroup + ' ')).map(route =>
-        `artium-axi awx-axi ${route.command}${route.positionals.names.map(name => ` <${name}>`).join('')}`),
+        `artium-axi awx-axi ${route.command}${route.positionals.names.map(name => ` ${name}`).join('')}`),
       help: ['Run a command with --help for its flags.', awx.discovery.help] }) + '\n'
   }
   const flags = managedFlags[tool]
   if (!flags) return output
+  if (tool === 'awx-axi') {
+    const command = /^awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(output)?.[1]
+    const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
+    if (route) return encode({ command: `artium-axi awx-axi ${route.command}`,
+      usage: `artium-axi awx-axi ${route.command} ${route.positionals.names.join(' ')}`.trimEnd(),
+      flags: Object.fromEntries(Object.entries(route.flags).map(([name, kind]) => [`--${name}`, kind])),
+      examples: [`artium-axi awx-axi ${route.command} --help`,
+        `artium-axi awx-axi ${route.command} ${route.positionals.names.join(' ')} [flags] --dry-run`.replace('  ', ' '),
+        `artium-axi awx-axi ${route.command} ${route.positionals.names.join(' ')} [flags] --confirm`.replace('  ', ' ')],
+      help: [awx.discovery.help.split('\n')[1], `AWX must authorize ${route.command} and access to each referenced resource.`] }) + '\n'
+  }
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
   if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples|Usage): )?/, ''))
     || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
@@ -288,7 +299,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'awx-axi') {
-    const guidance = 'Artium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Ask an administrator to update the managed credential.'
+    const guidance = awx.discovery.help.split('\n')[1] + ' Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))
       .filter(line => !/^(?:Run|Use) .*\bawx-axi job stdout\b.*--download\b/.test(line))
       .map(line => (/^(?:artium-axi )?awx-axi job stdout\b/.test(line)

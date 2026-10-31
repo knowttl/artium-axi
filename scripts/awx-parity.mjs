@@ -27,6 +27,7 @@ const controls = {
   'security administration': 'Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run',
   'client-local': 'Managed installation or account administration; never caller-controlled runner configuration',
 }
+const configurationControl = 'Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission'
 const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
 const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, upstream))).digest('hex') }))
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)
@@ -52,8 +53,8 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   const allowed = routes.get(command)?.flags[flag.name] !== undefined
   const blockedInput = flag.name.endsWith('-file')
   return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : status === 'managed equivalent' ? status : 'blocked',
-    targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' ? 'f' : slice,
-    requiredAdminControl: controls[flagEffect], ...input,
+    targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
+    requiredAdminControl: flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? configurationControl : controls[flagEffect], ...input,
     ...(flag.name === 'allow-http' ? { reason: 'Managed AWX accounts require HTTPS; no HTTP opt-in equivalent' } : {}),
     ...(status === 'supported' && !allowed ? { reason: 'Omitted from the reviewed Artium flag schema' } : {}),
     ...(blockedInput ? { reason: 'AWX adapter rejects file inputs before execution' } : {}) }
@@ -69,7 +70,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
     : effect === 'destructive' || route.name.includes('bulk') ? 'd'
     : effect === 'security administration' ? domain.name === 'credential' || route.name === 'credential-create' ? 'c' : 'e' : 'b'
   const status = current.effect === 'blocked' ? 'blocked' : 'supported'
-  const requiredAdminControl = controls[effect]
+  const requiredAdminControl = effect === 'configuration write' && status === 'supported' ? configurationControl : controls[effect]
   return { command, effect, status, targetSlice, requiredAdminControl, positionals: route.positionals, help: route.help,
     ...(conditionalSecurity.has(command) ? { conditionalEffect: 'security administration when credential or notification configuration/messages input is supplied',
       conditionalAdminControl: controls['security administration'], dependentSlices: ['c', 'e'] } : {}),
