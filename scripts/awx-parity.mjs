@@ -84,7 +84,7 @@ const localReasons = {
   'auth logout': ['blocked', 'Removing a managed account is not upstream PAT revocation. Slice e must provide explicit token revocation with security and destructive authorization.'],
   'config path': ['not applicable', 'Artium materializes private runner configuration. There is no client-owned upstream config path to expose.'],
   'profile list': ['managed equivalent', 'Use Artium account discovery and selection; upstream filesystem profiles are not caller-owned.'],
-  'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <host> on the client for granted tool skills; --hook installs a Claude Code hook only. Upstream Codex/OpenCode session hooks have no current managed equivalent. Never install hooks in the server runner.'],
+  'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
   update: ['not applicable', 'The deployment pins awx-axi through tools/package.json and integrity.json. Upgrade through a reviewed Artium dependency change; per-run self-update is blocked.'],
 }
 const localCommands = [

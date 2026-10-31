@@ -90,7 +90,7 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
 | `artium-axi --help [<command>]` | Show local client or tool-entry help without authentication. |
-| `artium-axi --version` | Print the client package version. |
+| `artium-axi --version`, `-v`, `-V` | Print only the client package version without configuration or sign-in. |
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
 | `artium-axi passwd [--password-stdin]` | Change the account password, then sign in again. |
@@ -101,7 +101,8 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health. |
 | `artium-axi update` | Download and verify the server client, replace this file and retain a .bak backup; npm installs use npm instead. |
 | `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled Hybrid Analysis archives, Check Point emails/attachments, Graph mail exports or BeyondTrust endpoint content; see `artium-axi download --help` for guards. |
-| `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and an optional Claude Code hook. |
+| `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and optional ambient context for Claude Code, Codex or OpenCode on Linux. |
+| `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |

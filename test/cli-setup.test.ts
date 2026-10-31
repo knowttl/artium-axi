@@ -46,6 +46,7 @@ afterAll(async () => {
 
 function home() { return mkdtempSync(join(directory, 'home-')) }
 function read(path: string) { return readFileSync(path, 'utf8') }
+const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
 function write(path: string, content: string) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content)
@@ -104,7 +105,8 @@ async function cli(home: string, args: string[], executable = bundle, claudeConf
   try {
     return { ...await execute(process.execPath, [executable, ...args], { cwd: directory, timeout: 10_000,
       env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: sessions.get(home), ARTIUM_AXI_URL: url,
-        ARTIUM_AXI_TEST_HTTP: '1', CLAUDE_CONFIG_DIR: claudeConfigDir, PI_CODING_AGENT_DIR: piAgentDir } }), code: 0 }
+        ARTIUM_AXI_TEST_HTTP: '1', CLAUDE_CONFIG_DIR: claudeConfigDir, PI_CODING_AGENT_DIR: piAgentDir,
+        OPENCODE_CONFIG_DIR: join(home, '.config/opencode') } }), code: 0 }
   } catch (error) { return error as { stdout: string, stderr: string, code: number } }
 }
 
@@ -161,8 +163,8 @@ test.each([false, true])('Claude setup uses the active configuration directory w
   expect(readdirSync(target)).toEqual([])
   const settings = JSON.parse(read(path))
   expect(settings.custom).toEqual({ keep: true })
-  expect(settings.hooks).toEqual(hook ? { SessionStart: [{ hooks: [{ type: 'command', command: process.execPath,
-    args: [bundle, 'tools'], statusMessage: 'artium-axi managed tools' }] }] } : undefined)
+  expect(settings.hooks).toEqual(hook ? { SessionStart: [{ hooks: [{ type: 'command',
+    command: `${shellQuote(process.execPath)} ${shellQuote(bundle)} session-context`, statusMessage: 'artium-axi managed tools' }] }] } : undefined)
   const modified = [statSync(skillPath).mtimeMs, statSync(path).mtimeMs]
   expect(await cli(target, args, bundle, config)).toMatchObject({ code: 0 })
   expect([statSync(skillPath).mtimeMs, statSync(path).mtimeMs]).toEqual(modified)
@@ -217,8 +219,8 @@ test('Claude hook installation preserves unrelated settings and hooks and is ide
   expect(installed.hooks.Stop).toEqual(existing.hooks.Stop)
   expect(installed.hooks.SessionStart[0]).toEqual(existing.hooks.SessionStart[0])
   expect(installed.hooks.SessionStart).toHaveLength(2)
-  expect(installed.hooks.SessionStart[1]).toEqual({ hooks: [{ type: 'command', command: process.execPath,
-    args: [bundle, 'tools'], statusMessage: 'artium-axi managed tools' }] })
+  expect(installed.hooks.SessionStart[1]).toEqual({ hooks: [{ type: 'command',
+    command: `${shellQuote(process.execPath)} ${shellQuote(bundle)} session-context`, statusMessage: 'artium-axi managed tools' }] })
   const modified = statSync(path).mtimeMs
   const content = read(path)
   expect(await cli(target, ['setup', '--host', 'claude', '--hook'])).toMatchObject({ code: 0 })
@@ -235,7 +237,7 @@ test('setup repairs managed skill and hook paths after the bundle moves', async 
   expect(await cli(target, ['setup', '--host', 'claude', '--hook'], relocated)).toMatchObject({ code: 0 })
   const settings = JSON.parse(read(join(target, '.claude/settings.json')))
   expect(settings.hooks.SessionStart).toHaveLength(1)
-  expect(settings.hooks.SessionStart[0].hooks[0].args).toEqual([relocated, 'tools'])
+  expect(settings.hooks.SessionStart[0].hooks[0].command).toBe(`${shellQuote(process.execPath)} ${shellQuote(relocated)} session-context`)
   expect(read(join(target, '.claude/skills/artium-axi/SKILL.md'))).toContain(relocated.replaceAll("'", "'\\''"))
   expect(read(join(target, '.claude/skills/az-axi/SKILL.md'))).toContain(relocated.replaceAll("'", "'\\''"))
 })
@@ -250,7 +252,7 @@ test.each(['invalid json', '[]', '{"hooks":[]}', '{"hooks":{"SessionStart":{}}}'
   expect(readdirSync(join(target, '.claude'))).toEqual(['settings.json'])
 })
 
-test.each(['codex', 'opencode', 'pi'])('unsupported %s hook explains the limit without writing a universal format', async host => {
+test.each(['pi'])('unsupported %s hook explains the limit without writing a universal format', async host => {
   const target = home()
   expect(await cli(target, ['setup', '--host', host, '--hook'])).toMatchObject({ code: 2, stderr: '',
     stdout: expect.stringContaining(`no verified ${host} hook implementation`) })

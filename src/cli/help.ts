@@ -9,9 +9,10 @@ import { inputLimits } from '../shared/api.js'
 const commands = {
   'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
     flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git, files and downloads are unavailable. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
-  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version (default false; print the client package version and exit)'], example: 'artium-axi' },
-  setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and an optional Claude Code session hook.',
-    flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code only)', '--force (default false; explicitly replace an edited skill)'], example: 'artium-axi setup --host claude --hook' },
+  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version, -v, -V (default false; print the client package version and exit)'], example: 'artium-axi' },
+  setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and optional ambient context for Claude Code, Codex or OpenCode.',
+    flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code, Codex and OpenCode on Linux)', '--force (default false; explicitly replace an edited skill or plugin)'], example: 'artium-axi setup --host claude --hook' },
+  'session-context': { usage: 'artium-axi session-context', purpose: 'Emit compact current tool grants or an explicit unavailable diagnostic, without session identity.', flags: [], example: 'artium-axi session-context' },
   tools: { usage: 'artium-axi tools', purpose: 'List available tools with their status and pinned version.', flags: [], example: 'artium-axi tools' },
   'tools show': { usage: 'artium-axi tools show <tool>', purpose: 'Show one available tool and its vetted upstream help.', flags: [], example: 'artium-axi tools show falcon-axi' },
   whoami: { usage: 'artium-axi whoami', purpose: 'Show your identity, roles, session expiry and server.', flags: [], example: 'artium-axi whoami' },
@@ -72,7 +73,7 @@ export function commandHelp(command: HelpCommand): string {
     'Session JSON on inherited pipe fd 3, new sessions and rotations as JSON lines on private pipe fd 4; no session file.',
     'Managed input: {serverUrl, accessToken, refreshToken?}; close fd 3 after JSON (64 KiB maximum). Output: {serverUrl, status, accessToken, refreshToken, accessExpiresAt, familyExpiresAt} per rotation, before retry, including on later failure.',
     'Managed login: fd 3 is unused; fd 4 must be a writable private pipe/socket. Local sign-in requires --username <username> --password-stdin with protected inherited stdin; password argv and ARTIUM_AXI_PASSWORD are refused. SSO uses login --sso and displays browser approval instructions immediately. New sessions use the rotation envelope; password-change-required returns {serverUrl, status, passwordChangeToken, passwordChangeExpiresAt} on fd 4 and exits 1.',
-    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup/update; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
+    'Managed exits: 0 success; 2 invalid JSON/descriptors or refused passwd/logout/setup/update/session-context; 1 authentication/transport failure; tool exit codes pass through. Only TOKEN_EXPIRED permits one refresh/retry; without refreshToken or on refusal, return control to the caller.']
   const purposes = command === 'home' ? `commands[${Object.keys(commands).length - 2}]{command,purpose}:\n${Object.entries(commands)
     .filter(([name]) => name !== 'home' && name !== 'managed-session')
     .map(([name, value]) => `  ${name},${JSON.stringify(value.purpose)}`).join('\n')}\n` : ''
@@ -85,7 +86,7 @@ export function commandHelp(command: HelpCommand): string {
 export function validateArguments(args: string[], prefixHelp: boolean) {
   const command = args[0]
   if (command === 'tools') args = [...args.filter(arg => arg !== '--help'), ...args.filter(arg => arg === '--help')]
-  const rootFlags = '--help, --version, --managed-session (before the command)'
+  const rootFlags = '--help, --version, -v, -V, --managed-session (before the command)'
   const rootCommands = Object.keys(commands).filter(name => name !== 'home' && name !== 'managed-session' && name !== 'tools show').join(', ')
   function fail(token: string | undefined, level: string, choices: string): never {
     const kind = token?.startsWith('-') ? 'flag' : 'argument'
@@ -96,7 +97,7 @@ export function validateArguments(args: string[], prefixHelp: boolean) {
     throw new ArtiumError('INVALID_INPUT', message, choices)
   }
   if (!command) return
-  if (command === '--version' && args.length === 1) return
+  if (['--version', '-v', '-V'].includes(command) && args.length === 1) return
   if (!Object.hasOwn(commands, command) || command === 'home' || command === 'managed-session' || command === 'tools show') {
     fail(command, 'artium-axi', `Valid commands: ${rootCommands}. Valid flags: ${rootFlags}.`)
   }

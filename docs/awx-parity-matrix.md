@@ -2785,7 +2785,7 @@ Removing a managed account is not upstream PAT revocation. Slice e must provide 
 
 ### setup hooks
 
-Use artium-axi setup --host <host> on the client for granted tool skills; --hook installs a Claude Code hook only. Upstream Codex/OpenCode session hooks have no current managed equivalent. Never install hooks in the server runner.
+Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |

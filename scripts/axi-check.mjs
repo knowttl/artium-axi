@@ -127,7 +127,7 @@ try {
     assert.equal(result.stderr, '')
     return result.stdout
   }
-  for (const host of ['codex', 'opencode', 'pi']) {
+  for (const host of ['pi']) {
     const unsupported = await cli(['setup', '--host', host, '--hook'])
     assert.equal(unsupported.code, 2)
     assert.match(decode(unsupported.stdout).error.message, /unsupported.*no verified.*No files were written/)
@@ -200,8 +200,9 @@ try {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   pass(6, 'Structured errors and exit codes: usage, failure and upstream streams')
   const hook = JSON.parse(readFileSync(join(home, '.claude/settings.json'), 'utf8')).hooks.SessionStart[0].hooks[0]
-  const context = await execute(hook.command, hook.args, options)
-  assert.equal(context.stdout, toolsText)
+  const context = await execute('sh', ['-c', hook.command], options)
+  assert.deepEqual(decode(context.stdout), { artium: 'available', tools: [{ name: 'falcon-axi', status: 'ok', readOnly: true }],
+    next: 'artium-axi tools', note: 'Server roles and write gates still apply.' })
   assert.equal(context.stderr, '')
   pass(7, 'Ambient context: embedded skills and executable opt-in hook')
   assert.equal(homeView.user, 'synthetic-user')
