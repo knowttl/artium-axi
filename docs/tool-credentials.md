@@ -201,6 +201,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Conditional Access and policy reads | `Policy.Read.All` |
 | Sign-ins, directory audits and authentication registration reports | `AuditLog.Read.All`; provisioning logs also need `Directory.Read.All`. |
 | Risky users and service principals | `IdentityRiskyUser.Read.All`, `IdentityRiskyServicePrincipal.Read.All`, according to the command. |
+| Risk detections and sign-in correlation | `IdentityRiskEvent.Read.All`; correlation also needs `AuditLog.Read.All` and Entra ID P1/P2. |
 | Entitlement management | `EntitlementManagement.Read.All` |
 | User authentication methods | `UserAuthenticationMethod.Read.All` |
 | Access reviews | `AccessReview.Read.All` |

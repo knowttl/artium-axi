@@ -54,6 +54,10 @@ Live service commissioning remains unverified.
 ## Microsoft Graph
 
 Microsoft Graph defaults to the `entra` pack.
+`artium-axi mg-axi entra risk-detection correlate --id <id>` reads a risk detection and correlates sign-in evidence, disclosing candidates, ambiguity and partial results rather than assuming a unique match.
+It requires both risk-detection and sign-in read permissions from the [Graph permission reference](tool-credentials.md#microsoft-graph).
+Graph `home` samples enabled Entra user reads; it does not automatically query hunting or application mailboxes.
+Use `home --offline` to suppress Graph reads; Artium still loads managed credentials.
 Device relationship reads use `artium-axi mg-axi entra device owners <device-object-id>` or `artium-axi mg-axi entra device users <device-object-id>` for registered owners or users, with collection pagination flags from authenticated command help.
 Administrators can opt in to nine mailbox read commands with `enabledPacks: ["entra", "mail"]`; `security` can be enabled alongside `mail`.
 Mail supports folder list/show, message list/show with search, filters and conversations, attachment metadata, mailbox settings, inbox rule list/show and master category list.
@@ -95,8 +99,11 @@ See [Graph credential setup](tool-credentials.md#microsoft-graph) for hunting pe
 
 Azure Resource Graph and Log Analytics queries parse KQL before upstream authentication or requests, returning positioned syntax diagnostics and query excerpts on failure.
 Successful parsing does not validate tables, columns, functions, permissions or service-specific restrictions.
+Azure `sentinel incident bundle` reads incident details, alerts and entities after one incident-number resolution, refusing ambiguous or incomplete lookups.
+Related collections are bounded without paging; section failures retain successful evidence, and `--full` does not remove collection limits.
 
 Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
+Falcon `host logins` and `host network` accept `--hostname <name>` to resolve a host before reading its history.
 NG-SIEM `search start` checks CQL structure before upstream authentication, reporting code, line, column and token class without echoing query text; function names, fields and semantics remain unchecked, and ambiguous syntax passes.
 Rejected searches preserve redacted server diagnostics, completed searches include server warnings when present, and `search start --wait` advises when the normalized filter differs.
 
@@ -106,6 +113,7 @@ QUX collection reads support bounded `--all` traversal and opaque `--cursor` con
 Vectra bounded windows with a remaining cursor report `complete: false` even on exit 0; failed reads exit 1.
 For checkpoint feeds, completeness covers the current batch, not future events; see the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) for the completeness contract.
 Detection and host IDs must be positive integers, including detection-list host and ID-range filters.
+Vectra `detection list --host-name <text>` resolves a unique host before reading detections; incomplete or ambiguous lookups never pivot, and `--host-id` cannot be combined with `--host-name`.
 Detection `--fields` can include triage, assignment and filtering metadata; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the field names and pagination budgets.
 
 Vectra supports selected QUX/RUX writes for detection close/open and mark-fixed, host/account close, key assets, tags, notes (including bulk notes), assignments and outcomes, triage labels and rules, groups and membership, proxies, threat feeds, internal-network settings, syslog/Kafka, notification destinations and Match, subject to deployment support in the [reviewed inventory](../tools/inventories/vectra-axi.json).
@@ -133,6 +141,20 @@ Hybrid Analysis quick scans transmit the supplied sample or URL as read exceptio
 Consuming hunting matches is account-wide across all rules, with no rule selector, and irreversibly marks every returned match delivered; reconcile ambiguous outcomes using the audit ID, durable native journal and returned read-back guidance before retrying.
 Updating a YARA rule with `reset_counter:true` resets its all-time match counter and changes its rule ID; use the returned ID for subsequent commands.
 Labs hunting and search contracts are experimental.
+
+AWX `host inspect` reads a bounded batch of selected hosts, with optional inventory scoping and explicit per-host completeness, errors and previews.
+This read does not enable bulk host mutations; the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns its command and flag boundary.
+
+Tenable `asset investigate --query <text>` pivots to findings only after a complete, unique asset lookup.
+Export status `--wait` reads an existing job; export start `--wait` retains every creation gate and never creates a replacement while polling.
+An incomplete wait or failed status read preserves known job evidence; resume with its exact ID rather than creating another export.
+See the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json) for supported export commands and shared wait budgets.
+
+Hybrid Analysis `home` reads key level, quota and recent public reports; `home --offline` suppresses upstream calls, but Artium still loads managed credentials.
+`report batch` reads known report IDs with per-item errors and explicit incompleteness; bare hashes are refused.
+`report wait` and `quick-scan wait` require a bounded `--timeout` and only read existing results, never resubmitting a sample or URL.
+Partial batches and incomplete waits exit 1; waits retain the last validated result when available.
+The [reviewed Hybrid Analysis inventory](../tools/inventories/hybrid-axi.json) owns batch and wait limits.
 
 There is no universal Artium confirmation flag.
 Use authenticated tool help and the [write-access runbook](runbook.md#roles-credentials-and-health) for operation-specific gates.

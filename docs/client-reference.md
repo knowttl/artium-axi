@@ -135,7 +135,8 @@ artium-axi falcon-axi --help
 The first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
-A bare Vectra invocation shows upstream help; `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
+A bare `artium-axi vectra-axi` reads bounded live detection context; use `artium-axi vectra-axi --help` for its command list.
+`artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
 For GitHub's dashboard limitation and repository selection, see the [supported boundary](safety.md); `artium-axi gh-axi --help` lists the reviewed commands and write gates.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
