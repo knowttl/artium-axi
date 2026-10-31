@@ -279,6 +279,8 @@ export const adminAuditQuerySchema = auditFiltersSchema.extend({
 export const adminAuditExportRoute = { method: 'GET', path: '/v1/admin/audit/export',
   input: auditFiltersSchema.extend({ format: z.enum(['csv', 'jsonl']) }).refine(orderedAuditRange),
   response: z.string(), authorization: 'administrator-and-recent-auth', auditEvent: null } as const
+// TD-067 ado-api events store method, normalized path (null if unsafe), decision,
+// bodySha256 and bodyBytes in arguments. Body content is never part of that journal.
 export const adminAuditRecordSchema = z.strictObject({
   id: z.number().int().positive(), occurred_at: z.number().int(), event: z.string(), user_id: z.string().nullable(),
   tool: toolSchema.nullable(), arguments: z.string().nullable(), request_id: z.string(),

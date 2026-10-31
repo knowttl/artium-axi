@@ -11,7 +11,8 @@ globalThis.fetch = (input, options) => {
   return new Promise((resolve, reject) => {
     const req = request(target, {
       servername: target.hostname,
-      method: options?.method, signal: options?.signal, headers: { ...options?.headers, host: url.host },
+      method: options?.method, signal: options?.signal, headers: { ...options?.headers, host: url.host,
+        ...(options?.body !== undefined ? { 'content-length': Buffer.byteLength(options.body) } : {}) },
     }, res => {
       const chunks = []
       res.on('data', chunk => chunks.push(chunk))

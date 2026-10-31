@@ -330,6 +330,10 @@ Falcon calls report `read` unless they contain `--execute` or submit `malquery s
 Those calls report `write` only with valid native journal records; absent or empty evidence reports `unknown`, even after success.
 MalQuery submissions do not emit the native RTR journal.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.
+The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal.
+The record identifies the authenticated user when available; execution outcome remains in the normal run-terminal record.
+Body text is never included in this decision journal, and audit persistence failure prevents forwarding.
 GitHub also uses host classification; see its [supported boundary](safety.md).
 See [GitHub setup](tool-credentials.md#github) for device connection, token lifecycle and reconnect guidance, and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 Tenable, Hybrid Analysis and Check Point writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
@@ -351,6 +355,15 @@ See the [API contract](../src/shared/api.ts) and [retention and export runbook](
 | `ARTIUM_AXI_ADMIN_PASSWORD_FILE` | UTF-8 file containing the exact first-start password, without an added newline. |
 | `ARTIUM_AXI_TRUSTED_PROXIES` | Comma-separated verified proxy source IP addresses; default trusts none. |
 | `ARTIUM_AXI_AUDIT_STDOUT` | `1` streams committed audit records as JSON lines; SQLite remains authoritative. |
+| `ARTIUM_AXI_ADO_API_WRITE_PATHS` | Server-only JSON allow list by uppercase method. Example: `{"PATCH":["_apis/wit/workitems/*"]}`. See the path contract below and [implementation defaults](../src/server/adapters/ado-api.ts). |
+
+Configure the ADO API write allow list in the server process environment; it is never accepted from a client or forwarded to the tool.
+Keys are `POST`, `PATCH`, `PUT` or `DELETE`; values are arrays of relative REST path patterns.
+Each pattern matches the complete normalized relative path, case sensitively; a whole segment `*` matches exactly one nonempty segment.
+Other segments match literally after canonical percent encoding.
+No default pattern permits writes; invalid JSON or a non-object configuration refuses writes, and invalid or nonmatching patterns do not authorize a path.
+Empty segments, dot segments, encoded traversal, nested percent encodings, URLs, backslashes, controls, query strings and fragments are refused for writes.
+See the [command reference](commands.md) for path scope and body syntax, and [supported write gates](safety.md#write-gates-by-tool) for administrator enablement.
 
 The server listens on HTTP port 8080 behind a trusted HTTPS reverse proxy.
 The [Compose example](../compose.example.yaml) publishes only on host loopback and supplies a master-key secret, not bootstrap credentials.

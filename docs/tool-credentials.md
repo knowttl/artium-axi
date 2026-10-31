@@ -292,7 +292,7 @@ Writes are off by default; follow [write-access administration](runbook.md#roles
 Artium classifies every command using the reviewed [ADO inventory](../tools/inventories/ado-axi.json), which binds the routing review to upstream source digests.
 Artium manages `--org`, `--profile` and `--config`; those overrides and the top-level `config` and `update` commands are refused.
 Use `--project` to select another project within the managed organization.
-The `api` command accepts relative paths and GET only, even when writes are enabled; body flags and absolute URLs are refused.
+See the [raw API command reference](commands.md) for read and mutation syntax, body restrictions and server allow-list setup.
 All commands refuse repeated flags, stdin and files.
 Use `pipeline watch --timeout 50` or less to stay within the runner's call timeout.
 Writes are journaled by Artium only; see [audit action classification](admin-guide.md#audit-screen-and-api).

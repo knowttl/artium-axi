@@ -308,9 +308,9 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     else if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'ado-axi') {
-    const guidance = 'Artium manages the organization, profile, config and PAT. api accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. Use pipeline watch --timeout 50 or less.'
+    const guidance = 'Artium manages the organization, profile, config and PAT. api defaults to GET. POST/PATCH/PUT/DELETE require allowWrites, a server-listed relative path and a JSON --body up to 65536 bytes; decisions are journaled (TD-067). No write host/query overrides, stdin or files. Use pipeline watch --timeout 50 or less.'
     if (/^(?:Usage: |(?:Run|Use) [`'"]?)?(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {
-      help = 'ado-axi api [GET] <relative-path> [--method GET] [--query <query>] [--api-version <version>] [--host dev|vsrm|vssps|almsearch] [--no-project] [--raw] [--limit <n>] [--full] [--fields <fields>]\n'
+      help = 'ado-axi api [GET|POST|PATCH|PUT|DELETE] <relative-path> [-X|--method <method>] [--body <json>] [--content-type json|json-patch|merge-patch] [--api-version <version>] [--no-project] [--raw] [--limit <n>] [--full] [--fields <fields>]\nGET also accepts --query <query> and --host dev|vsrm|vssps|almsearch.\n'
     }
     help = help.replace(/\n"built-in":\n[\s\S]*$/, '')
       .split('\n').filter(line => /^\s*(?:(?:Run|Use) [`'"]?|Usage: )?(?:artium-axi )?ado-axi (?!config\b|update\b)/.test(line)

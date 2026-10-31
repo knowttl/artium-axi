@@ -16,6 +16,7 @@ import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
+import { adoApiAudit } from '../adapters/ado-api.js'
 
 export interface RunContext {
   requestId: string
@@ -42,6 +43,17 @@ export async function runTool<Credential>(
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
     let result: RunnerResult
+    // Audit identifiable mutations even when request limits reject their arguments.
+    const apiArgs = request && typeof request === 'object' && 'args' in request && Array.isArray(request.args)
+      && request.args.every((value: unknown) => typeof value === 'string') ? request.args as string[] : undefined
+    const apiAudit = adapter.name === 'ado-axi' && apiArgs ? adoApiAudit(apiArgs) : undefined
+    let apiDecisionRecorded = false
+    const recordApiDecision = (outcome: 'allowed' | 'refused') => {
+      if (!apiAudit || apiDecisionRecorded) return
+      audit.record({ event: 'ado-api', userId, tool: adapter.name, requestId: context.requestId,
+        clientAddress: context.clientAddress, outcome, ...apiAudit })
+      apiDecisionRecorded = true
+    }
     try {
       userId = authenticate(db, token)
       checkToolPolicy(db, userId, adapter.name)
@@ -52,6 +64,7 @@ export async function runTool<Credential>(
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
     } catch (error) {
+      recordApiDecision('refused')
       audit.record({ event: 'denial', userId, tool: adapter.name, requestId: context.requestId,
         clientAddress: context.clientAddress, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
       throw error
@@ -72,6 +85,7 @@ export async function runTool<Credential>(
       write = prepared.write
       const preparedJournal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect, write)
       journal = preparedJournal
+      recordApiDecision('allowed')
       result = await observe(async () => {
         if (prepared.preview) {
           const stdout = encode({ preview: prepared.preview, help: [
@@ -94,6 +108,7 @@ export async function runTool<Credential>(
         result = unknownWriteResult(await journal.auditId(), result.durationMs, result.outputBytes)
       }
     } catch (error) {
+      recordApiDecision('refused')
       const runnerError = error instanceof RunnerError ? error : undefined
       if (write && journal?.auditId && runnerError?.processStarted) {
         result = unknownWriteResult(await journal.auditId(), runnerError.durationMs ?? Date.now() - started,

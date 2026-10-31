@@ -9,10 +9,11 @@ import { CredentialProfile } from './credential-profile.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import type { Adapter, PreparedCall } from './types.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
+import { checkAdoApiWrite, normalizeAdoApiPath } from './ado-api.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
 export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item, pull-request, pipeline and ref writes with host classification and journaling.',
-  blocked: 'Raw API mutations, configuration overrides and unsupported commands remain blocked; api is GET only.' })
+  blocked: 'Raw API writes additionally require a server-listed method/path and bounded JSON body (TD-067). Configuration overrides and unsupported commands remain blocked.' })
 export const adoProfile = new CredentialProfile({ type: 'object', additionalProperties: false,
   required: ['org', 'auth'], properties: {
     org: { type: 'string', format: 'ado-org', title: 'Organization', description: 'Azure DevOps organization name or organization-root URL.' },
@@ -43,7 +44,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
     if (['-v', '--version'].includes(token) && args.length === 1) {
       return { args: ['--version'], invocation: { command: 'version', help: false }, command: 'home', effect: 'read' as const, positionals: [], flags }
     }
-    const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token)
+    const match = /^--([a-z-]+)(?:=(.*))?$/s.exec(token === '-X' ? '--method' : token)
     if (!match) throw unknownFlag('ado-axi', positionals.join(' ') || 'home', token,
       Object.keys(knownFlags).filter(name => !adoManifest.unsafeOverrides.includes(name)))
     const [, name, inline] = match
@@ -76,12 +77,22 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
       `Valid flags: ${Object.keys(routeFlags).filter(flag => !adoManifest.unsafeOverrides.includes(flag)).map(flag => `--${flag}`).join(', ')}.`)
   }
   if (rest.length > route.positionals) throw new ArtiumError('INVALID_INPUT')
+  let effect = route.effect
   if (command === 'api') {
     const verb = /^(GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS)$/i.test(rest[0] ?? '') ? rest[0].toUpperCase() : undefined
     const path = rest[verb ? 1 : 0]
-    if (verb && verb !== 'GET' || flags.has('method') && flags.get('method')!.toUpperCase() !== 'GET'
-      || flags.has('body') || flags.has('content-type') || path && (/^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('//'))) {
-      throw new ArtiumError('FLAG_BLOCKED')
+    const method = flags.get('method')?.toUpperCase() ?? verb ?? 'GET'
+    if (verb && method !== verb) throw new ArtiumError('FLAG_BLOCKED')
+    if (method === 'GET') {
+      if (flags.has('body') || flags.has('content-type') || path && (/^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('//'))) {
+        throw new ArtiumError('FLAG_BLOCKED')
+      }
+    } else {
+      const normalizedPath = normalizeAdoApiPath(path ?? '')
+      checkAdoApiWrite(method, normalizedPath, flags)
+      positionals.splice(1, positionals.length - 1, normalizedPath)
+      flags.set('method', method)
+      effect = 'write'
     }
     if (!flags.has('help') && (!path || rest.length !== (verb ? 2 : 1))) throw new ArtiumError('INVALID_INPUT')
   }
@@ -90,11 +101,15 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   const normalized = route.command === 'home' && flags.get('help') === 'true' ? ['--help'] : [...positionals, ...[...flags].flatMap(([name, value]) =>
     routeFlags[name] === 'boolean' || value.startsWith('--') ? [name === 'help' && value === 'true' ? '--help' : `--${name}=${value}`] : [`--${name}`, value])]
   return { args: normalized, invocation: { command: route.command, help: flags.get('help') === 'true' },
-    command: route.command, effect: flags.get('help') === 'true' ? 'read' : route.effect,
+    command: route.command, effect: flags.get('help') === 'true' ? 'read' : effect,
     positionals: rest, flags }
 }
 
 function readBack(call: ReturnType<typeof adoArguments>): PreparedCall['write'] {
+  if (call.command === 'api') return { operation: 'api', target: 'listed REST resource',
+    checkArgs: ['api', call.args[1], '--full', ...['project', 'api-version'].flatMap(name =>
+      call.flags.has(name) ? [`--${name}`, call.flags.get(name)!] : []), ...(call.flags.has('no-project') ? ['--no-project'] : [])],
+    afterCheck: 'Inspect remote state and any related resources before retrying; this read may not prove whether the mutation succeeded' }
   const [group, operation] = call.command.split(' ')
   const id = call.positionals[0] ?? call.flags.get('id')
   const repo = call.flags.get('repo')
