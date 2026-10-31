@@ -1,7 +1,6 @@
 # AWX capability parity
 
-Part of #237, slice a: an inventory and delivery plan only.
-This change grants no permissions and changes no adapter behavior.
+Tracks #237's capability inventory and delivery slices, including the ordinary configuration writes implemented in slice b.
 The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON inventory](../tools/inventories/awx-axi-parity.json) describe the installed `awx-axi` version pinned in [tools/package.json](../tools/package.json) and [tools/integrity.json](../tools/integrity.json).
 
 ## Reproduction and freshness
@@ -41,9 +40,7 @@ It does not claim live acceptance or complete upstream behavior for every value.
 Target slices assign future work; slice f on already supported rows means retain and verify behavior, not postpone existing support.
 
 See the [AWX write boundary](safety.md#write-gates-by-tool) for current write permissions and blocked operation classes.
-Operational calls without `--confirm` remain read-classified previews.
-Ordinary configuration writes require the independent administrator `allowConfigurationWrites` control (default off), with `--dry-run` for a read-classified preview or `--confirm` for execution.
-An unconfirmed configuration call without `--dry-run` is refused.
+See the [client command reference](commands.md) for preview and confirmation behavior.
 The proposed destructive and security authorizations remain requirements for later slices.
 All write classes must retain managed account access, upstream permissions, confirmation, write coordination, audit and unknown-outcome handling.
 
@@ -73,7 +70,7 @@ Global `--config` refers to managed runner configuration and has no caller file-
 
 | Slice | Work and acceptance boundary | Required controls |
 | --- | --- | --- |
-| b | Ordinary create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, workflows/nodes, schedules and projects are supported. Verify preview and confirmed requests against fake AWX endpoints. Organization administration, execution environments, notification-template configuration, removals and credential/secret-bearing variants remain blocked. | Separate administrator allowConfigurationWrites, confirmation, upstream config gate and AWX resource permission. Credential/secret-bearing variants wait for c/e. |
+| b | Implements the reviewed ordinary configuration writes in the [current boundary](safety.md#write-gates-by-tool). Verify preview and confirmed requests against fake AWX endpoints. | Current boundary controls apply. Credential/secret-bearing variants wait for c/e. |
 | c | Add credential create/edit/copy and team credential creation, structured and secret inputs, extra-vars files, notification input and stdin through TD-066. Verify preserved bytes, permissions, redaction and cleanup using canaries. | Administrator write and security authorization for credentials/secret configuration; retain each operation's base controls. |
 | d | Enable deletions and host bulk operations, with explicit target/budget checks and unknown-outcome handling. Verify fake bulk success and partial/failure outcomes. | Separate destructive authorization for deletes, configuration authorization for bulk create, security authorization when deleting security resources; confirmation and native gates. |
 | e | Enable users, teams, roles, membership/admin changes, token lifecycle and credential associations, including conditional security variants from b/c. Verify denial before send and each granted operation against fakes. | Separate security authorization; destructive authorization for revocation/deletion; managed account scope and native security gate. |
