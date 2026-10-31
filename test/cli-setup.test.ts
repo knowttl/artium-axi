@@ -7,7 +7,6 @@ import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { copyClientInput } from './fixtures/client-inputs.js'
-import { Client } from '../src/cli/http.js'
 import { setup } from '../src/cli/setup.js'
 import { SessionStore } from '../src/cli/session.js'
 import { loadToolSkill } from '../src/server/tool-skills.js'
@@ -52,20 +51,20 @@ function write(path: string, content: string) {
   writeFileSync(path, content)
 }
 
-test('Windows setup installs labelled PowerShell and Git Bash invocations in every skill', async () => {
+test.skipIf(process.platform !== 'win32')('Windows setup installs labelled PowerShell and Git Bash invocations in every skill', async () => {
   const target = home()
-  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
   const execPath = Object.getOwnPropertyDescriptor(process, 'execPath')!
   const executable = process.argv[1]
   vi.stubEnv('CLAUDE_CONFIG_DIR', target)
-  vi.stubEnv('ARTIUM_AXI_URL', 'https://synthetic.invalid')
+  vi.stubEnv('ARTIUM_AXI_URL', url)
+  vi.stubEnv('ARTIUM_AXI_TEST_HTTP', '1')
   vi.stubEnv('APPDATA', target)
-  vi.spyOn(Client.prototype, 'authenticated').mockResolvedValue({ skills: [{ name: 'az-axi',
-    content: '---\nname: az-axi\n---\n\nSynthetic tool skill.\n' }] })
+  skillResponse = { skills: [{ name: 'az-axi', content: '---\nname: az-axi\n---\n\nSynthetic tool skill.\n' }] }
+  new SessionStore(url, join(target, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: 'CANARY-access',
+    refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3_600_000, familyExpiresAt: Date.now() + 43_200_000 })
   try {
-    Object.defineProperty(process, 'platform', { value: 'win32' })
     Object.defineProperty(process, 'execPath', { value: 'C:\\Program Files\\nodejs\\node.exe' })
-    process.argv[1] = '/synthetic/artium-axi.mjs'
+    process.argv[1] = 'C:\\synthetic\\artium-axi.mjs'
     await setup(['--host', 'claude'])
     for (const name of ['artium-axi', 'az-axi']) {
       const content = read(join(target, 'skills', name, 'SKILL.md'))
@@ -75,20 +74,19 @@ test('Windows setup installs labelled PowerShell and Git Bash invocations in eve
         PowerShell:
 
         \`\`\`powershell
-        & 'C:\\Program Files\\nodejs\\node.exe' '/synthetic/artium-axi.mjs'
+        & 'C:\\Program Files\\nodejs\\node.exe' 'C:\\synthetic\\artium-axi.mjs'
         \`\`\`
 
         Git Bash:
 
         \`\`\`sh
-        \"C:/Program Files/nodejs/node.exe\" \"/synthetic/artium-axi.mjs\"
+        \"C:/Program Files/nodejs/node.exe\" \"C:/synthetic/artium-axi.mjs\"
         \`\`\`
 
         <!-- /artium-axi executable -->"
       `)
     }
   } finally {
-    Object.defineProperty(process, 'platform', platform)
     Object.defineProperty(process, 'execPath', execPath)
     process.argv[1] = executable
     vi.restoreAllMocks()

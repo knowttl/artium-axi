@@ -14,8 +14,8 @@ import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { GithubAppTokenCache } from '../../src/server/adapters/github-app-tokens.js'
 import * as credentialTls from '../../src/server/credential-tls.js'
 import { generateKeyPairSync } from 'node:crypto'
-import { preflight } from '../../src/server/health/preflight.js'
-import { diagnosticError } from '../../src/server/health/diagnostic.js'
+import { connect as connectTls } from 'node:tls'
+import { failedTlsSocket } from '../fixtures/failed-tls-socket.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -174,8 +174,7 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)
 
 test('preflight failure is redacted in the response and cached administrator health', async () => {
   await replace('falcon-axi')
-  vi.mocked(preflight).mockRejectedValueOnce(diagnosticError('UPSTREAM_TLS_FAILED', {
-    stage: 'TLS', host: 'synthetic.invalid', message: 'CANARY-secret', hint: 'Untrusted chain.' }))
+  vi.mocked(connectTls).mockImplementationOnce(() => failedTlsSocket('CERT_HAS_EXPIRED', 'CANARY-secret'))
   const response = await request('POST', '/falcon-axi/test', {})
   const body = await response.json()
   expect(body).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED' } })

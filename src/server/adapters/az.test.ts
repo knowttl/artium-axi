@@ -280,22 +280,42 @@ test.each([[['sub', 'list', '--help']], [['home', '--help']], [['--help']], [['-
 })
 
 test.each([
-  ['api', 'PUT', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute'],
-  ['api', '--execute', 'patch', '/subscriptions/synthetic-subscription/resourceGroups/synthetic'],
-  ['--full', 'api', 'DELETE', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute=true'],
-  ['api', 'POST', '/subscriptions/synthetic-subscription/resourceGroups/synthetic/action', '--execute'],
-  ['tag', 'update', '--subscription=synthetic-subscription', '--resource-id=/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--operation=merge', '--tags=synthetic=yes', '--execute'],
-  ['security', 'alert', 'update', '-s', 'synthetic-subscription', '-l', 'synthetic', '-n', 'synthetic', '--status=resolve', '--execute'],
-  ['defender', 'alerts', 'update', '-s', 'synthetic-subscription', '-l', 'synthetic', '-n', 'synthetic', '--status=resolve', '--execute'],
-  ['sentinel', 'incident', 'update', '-s', 'synthetic-subscription', '-g', 'synthetic', '--workspace-name=synthetic', '-n', 'synthetic', '--status=Closed', '--execute'],
-  ['sentinel', 'incident', 'comment', 'create', '-s', 'synthetic-subscription', '-g', 'synthetic', '--workspace-name=synthetic', '--incident-id=synthetic', '--message=synthetic', '--execute'],
-  ['network', 'nsg', 'rule', 'create', '-s', 'synthetic-subscription', '-g', 'synthetic', '--nsg-name=synthetic', '-n', 'synthetic', '--execute'],
-].map(args => [args]))('executed mutation %j carries accepted read recovery guidance', async args => {
+  { args: ['api', 'PUT', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute'], operation: 'PUT',
+    target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--full'] },
+  { args: ['api', '--execute', 'patch', '/subscriptions/synthetic-subscription/resourceGroups/synthetic'], operation: 'PATCH',
+    target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--full'] },
+  { args: ['--full', 'api', 'DELETE', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute=true'], operation: 'DELETE',
+    target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--full'] },
+  { args: ['api', 'POST', '/subscriptions/synthetic-subscription/resourceGroups/synthetic/action', '--execute'], operation: 'POST',
+    target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic/action',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--full'] },
+  { args: ['tag', 'update', '--subscription=synthetic-subscription', '--resource-id=/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--operation=merge', '--tags=synthetic=yes', '--execute'],
+    operation: 'tag update', target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic/providers/Microsoft.Resources/tags/default', '--api-version', '2021-04-01', '--full'] },
+  { args: ['security', 'alert', 'update', '-s', 'synthetic-subscription', '-l', 'synthetic', '-n', 'synthetic', '--status=resolve', '--execute'],
+    operation: 'security alert update', target: '/subscriptions/synthetic-subscription/providers/Microsoft.Security/locations/synthetic/alerts/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/providers/Microsoft.Security/locations/synthetic/alerts/synthetic', '--api-version', '2022-01-01', '--full'] },
+  { args: ['defender', 'alerts', 'update', '-s', 'synthetic-subscription', '-l', 'synthetic', '-n', 'synthetic', '--status=resolve', '--execute'],
+    operation: 'security alert update', target: '/subscriptions/synthetic-subscription/providers/Microsoft.Security/locations/synthetic/alerts/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/providers/Microsoft.Security/locations/synthetic/alerts/synthetic', '--api-version', '2022-01-01', '--full'] },
+  { args: ['sentinel', 'incident', 'update', '-s', 'synthetic-subscription', '-g', 'synthetic', '--workspace-name=synthetic', '-n', 'synthetic', '--status=Closed', '--execute'],
+    operation: 'sentinel incident update', target: { subscription: 'synthetic-subscription', 'resource-group': 'synthetic', 'workspace-name': 'synthetic', name: 'synthetic' },
+    afterCheck: "Use the returned incident id as <incident-ARM-id>, then inspect all incident fields before retrying: artium-axi az-axi api GET '<incident-ARM-id>' --api-version 2025-09-01 --full",
+    checkArgs: ['sentinel', 'incident', 'show', '--subscription', 'synthetic-subscription', '--resource-group', 'synthetic', '--workspace-name', 'synthetic', '--name', 'synthetic', '--full'] },
+  { args: ['sentinel', 'incident', 'comment', 'create', '-s', 'synthetic-subscription', '-g', 'synthetic', '--workspace-name=synthetic', '--incident-id=synthetic', '--message=synthetic', '--execute'],
+    operation: 'sentinel incident comment create', target: { subscription: 'synthetic-subscription', 'resource-group': 'synthetic', 'workspace-name': 'synthetic', 'incident-id': 'synthetic' },
+    afterCheck: "Use the returned incident id as <incident-ARM-id>, then inspect the comments before retrying: artium-axi az-axi api GET '<incident-ARM-id>/comments' --api-version 2025-09-01 --all --full",
+    checkArgs: ['sentinel', 'incident', 'show', '--subscription', 'synthetic-subscription', '--resource-group', 'synthetic', '--workspace-name', 'synthetic', '--incident-id', 'synthetic', '--full'] },
+  { args: ['network', 'nsg', 'rule', 'create', '-s', 'synthetic-subscription', '-g', 'synthetic', '--nsg-name=synthetic', '-n', 'synthetic', '--execute'],
+    operation: 'network nsg rule create', target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic/providers/Microsoft.Network/networkSecurityGroups/synthetic/securityRules/synthetic',
+    checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic/providers/Microsoft.Network/networkSecurityGroups/synthetic/securityRules/synthetic', '--api-version', '2024-05-01', '--full'] },
+])('executed mutation $args carries exact read recovery guidance', async ({ args, operation, target, checkArgs, afterCheck }) => {
   const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog, new AzureTokenCache(new FakeTokenTransport()))
   const call = await adapter.prepare(args, reference)
-  expect(call.write).toBeDefined()
-  expect(call.write!.operation).toBeTruthy()
-  expect(call.write!.target).toContain('synthetic')
+  expect(call.write).toEqual({ operation, target: JSON.stringify(target), checkArgs, afterCheck })
   adapter.validateArgs(call.write!.checkArgs)
   const check = await adapter.prepare(call.write!.checkArgs, reference)
   expect(check.write).toBeUndefined()

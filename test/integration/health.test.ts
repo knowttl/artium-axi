@@ -1,6 +1,9 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { connect as connectTls } from 'node:tls'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -13,7 +16,6 @@ import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { diagnosticError } from '../../src/server/health/diagnostic.js'
-import { preflight } from '../../src/server/health/preflight.js'
 import { cliOutdatedDownloadNext, cliOutdatedUpdateNext, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
@@ -24,6 +26,26 @@ import { toolsResponseSchema } from '../../src/shared/api.js'
 import { cliVersion, firstVersionWithUpdate, hasCliUpdateCommand } from '../../src/shared/version.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
+import { failedTlsSocket } from '../fixtures/failed-tls-socket.js'
+
+vi.mock('node:child_process', async importOriginal => {
+  const original = await importOriginal<typeof import('node:child_process')>()
+  return { ...original, spawn: vi.fn(original.spawn) }
+})
+
+async function controlledHealthProcess() {
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  let started!: (finish: () => void) => void
+  const ready = new Promise<() => void>(resolve => { started = resolve })
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) => {
+    const child = original.spawn(fakeTool.executable, [...fakeTool.args, 'controlled-health'], {
+      ...options, stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+    })
+    void once(child, 'message').then(() => started(() => { child.send({ stdout: 'synthetic', stderr: '', exitCode: 0 }) }))
+    return child
+  })
+  return ready
+}
 
 let directory: string
 let db: Database.Database
@@ -75,14 +97,10 @@ test.each([
     return async () => {}
   } },
   { name: 'pending check', code: 'TOO_MANY_CALLS', revision: 1, arrange: async () => {
-    let started!: () => void
-    let release!: (value: typeof result) => void
-    const admitted = new Promise<void>(resolve => { started = resolve })
-    const held = new Promise<typeof result>(resolve => { release = resolve })
-    vi.spyOn(runner, 'run').mockImplementationOnce(() => { started(); return held })
+    const ready = controlledHealthProcess()
     const pending = health.check('falcon-axi', 'synthetic-development-user', 'held-check', null)
-    await admitted
-    return async () => { release(result); await pending }
+    const finish = await ready
+    return async () => { finish(); await pending }
   } },
 ] as const)('$name admission returns safe configuration diagnostics', async ({ code, revision, arrange }) => {
   const cleanup = await arrange()
@@ -99,29 +117,30 @@ test.each([
 
 test('scheduled checks never overlap a pending check and manual tests share that exclusion', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
-  let release!: (value: typeof result) => void
-  const pending = new Promise<typeof result>(resolve => { release = resolve })
-  const run = vi.spyOn(runner, 'run').mockReturnValue(pending)
+  const ready = controlledHealthProcess()
   health.start()
   await vi.advanceTimersByTimeAsync(healthDefaults.intervalMs)
-  expect(run).toHaveBeenCalledTimes(1)
+  const finish = await ready
   await expect(health.check('falcon-axi', 'synthetic-development-user', 'manual-test', null))
     .rejects.toMatchObject({ code: 'TOO_MANY_CALLS' })
   await vi.advanceTimersByTimeAsync(healthDefaults.intervalMs * 3)
-  expect(run).toHaveBeenCalledTimes(1)
-  release(result)
+  expect(db.prepare("SELECT user_id, tool FROM audit WHERE event = 'run-start'").all())
+    .toEqual([{ user_id: null, tool: 'falcon-axi' }])
+  finish()
   await health.stop()
   expect(db.prepare('SELECT status, credential_revision FROM tool_health').get()).toEqual({ status: 'ok', credential_revision: 1 })
   expect(db.prepare("SELECT action, checked_at, credential_revision FROM audit WHERE event = 'health-check'").get())
     .toEqual({ action: healthDefaults.actor, checked_at: expect.any(Number), credential_revision: 1 })
-  expect(run.mock.calls[0][0]).toBe(`${healthDefaults.actor}:falcon-axi`)
   expect(db.prepare("SELECT action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ action: 'read' })
 })
 
 test('a background credential check emits exactly one run with its audit request ID', async () => {
-  vi.spyOn(runner, 'run').mockResolvedValueOnce(result)
+  const ready = controlledHealthProcess()
   const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
-  await health.refresh('falcon-axi')
+  const pending = health.refresh('falcon-axi')
+  const finish = await ready
+  finish()
+  await pending
   const audit = db.prepare("SELECT request_id FROM audit WHERE event = 'run-terminal'").get() as { request_id: string }
   expect(stderr.mock.calls.map(call => JSON.parse(String(call[0])))).toEqual([
     expect.objectContaining({ event: 'run', requestId: audit.request_id, tool: 'falcon-axi', exitCode: 0 }),
@@ -522,10 +541,12 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
 })
 
 test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('preserves the specific preflight host for %s', async code => {
-  vi.mocked(preflight).mockRejectedValueOnce(diagnosticError(code, {
-    stage: 'TLS', host: 'specific-endpoint.test', message: 'Synthetic connection failure.',
-  }))
-  await expect(health.check('falcon-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
+  store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://specific-endpoint.test',
+    auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
+  health = new ToolHealth(db, new Audit(db), runner,
+    [createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
+  vi.mocked(connectTls).mockImplementationOnce(() => failedTlsSocket(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET'))
+  await expect(health.check('vectra-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
     code, diagnostic: { host: 'specific-endpoint.test', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
 })

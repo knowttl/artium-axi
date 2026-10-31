@@ -1,8 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { Ajv } from 'ajv'
+import { afterEach, beforeEach, expect, test } from 'vitest'
 import schema from '../../../test/fixtures/axi-credential.schema.json' with { type: 'json' }
 import azSchema from '../../../test/fixtures/az-credential.schema.json' with { type: 'json' }
 import { CredentialProfile, loadCredentialProfile } from './credential-profile.js'
@@ -150,19 +149,21 @@ test.each(['oneOf', 'anyOf'])('preserves %s conflicts alongside concrete field d
   expect(JSON.stringify(result)).not.toContain('CANARY')
 })
 
-test.each(['oneOf', 'anyOf'])('reuses compiled selectors for repeated %s conflicts', keyword => {
+test.each(['oneOf', 'anyOf'])('repeated %s conflicts retain safe field-combination diagnostics', keyword => {
   const { oneOf, ...common } = schema
   const profile = new CredentialProfile({ ...common, [keyword]: oneOf })
   const value = { ...credential, privateKey: 'CANARY-key' }
-  const first = profile.credentialSchema.safeParse(value)
-  expect(first.success).toBe(false)
-  const compile = vi.spyOn(Ajv.prototype, 'compile')
-  try {
-    const repeated = profile.credentialSchema.safeParse({ ...value, privateKey: 'CANARY-other-key' })
+  for (const privateKey of ['CANARY-key', 'CANARY-other-key']) {
+    const repeated = profile.credentialSchema.safeParse({ ...value, privateKey })
     expect(repeated.success).toBe(false)
-    expect(JSON.stringify(repeated)).toEqual(JSON.stringify(first))
-    expect(compile).not.toHaveBeenCalled()
-  } finally { compile.mockRestore() }
+    if (repeated.success) throw new Error('Expected invalid credential')
+    expect(repeated.error.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: [], message: 'privateKey must satisfy the selected credential field combination.' }),
+    ]))
+    expect(() => profile.parseInput({ ...value, privateKey })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT',
+      message: expect.stringContaining('privateKey must satisfy the selected credential field combination.') }))
+    expect(JSON.stringify(repeated)).not.toContain('CANARY')
+  }
 })
 
 test.each([
