@@ -1,5 +1,4 @@
-import { homedir } from 'node:os'
-import { resolve, relative, sep, isAbsolute } from 'node:path'
+import { resolve } from 'node:path'
 import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
@@ -50,9 +49,7 @@ async function main(args: string[]) {
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
   if (help) { output('stdout', commandHelp(help)); return }
   if (args.length === 0) {
-    const executable = resolve(process.argv[1])
-    const local = relative(homedir(), executable)
-    const bin = local && !isAbsolute(local) && !local.startsWith(`..${sep}`) && local !== '..' ? `~${sep}${local}` : executable
+    const bin = resolve(process.argv[1])
     output('stdout', `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n`)
   }
   if (managedMode) {

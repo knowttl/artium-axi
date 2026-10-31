@@ -100,8 +100,9 @@ test.each(['--version', '-v', '-V'])('installed public package prints only its v
   expect(requests).toEqual([])
 })
 
-test.each(['configuration', 'authentication', 'connectivity'])('installed home identifies itself before a %s failure without session data', async failure => {
+test.each(['configuration', 'authentication', 'connectivity'])('installed home beneath HOME identifies itself before a %s failure without session data', async failure => {
   const env = failure === 'configuration' ? environment() : signedIn()
+  Object.assign(env, { HOME: directory, USERPROFILE: directory })
   if (failure === 'authentication') refused = true
   if (failure === 'connectivity') {
     const closed = createServer()
