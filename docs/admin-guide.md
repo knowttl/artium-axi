@@ -391,6 +391,7 @@ Native write journals complement Artium audit and isolate concurrent calls so re
 See the [retention and export runbook](runbook.md#retention-and-export) for journal locations, formats and cleanup.
 
 The runner uses argument arrays without a shell, a restricted child environment, private per-call directories and bounded concurrency, runtime and output.
+See [runner admission](runbook.md#runner-admission) for capacity, queue waits and cancellation behavior.
 Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.
 Exact-value scanning cannot identify unknown tokens minted upstream.
 Heap and address-space limits are not complete process isolation: descendants starting a new session escape the runner's process group.

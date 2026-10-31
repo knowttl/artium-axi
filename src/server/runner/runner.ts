@@ -57,6 +57,16 @@ function decode(bytes: Buffer, truncated: boolean): string {
 export class Runner {
   private readonly active = new Map<symbol, { userId: string, controller: AbortController, result: Promise<RunnerResult> }>()
   private closed = false
+  private readonly queue: { userId: string, admit: () => void, reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => void }[] = []
+
+  private drain(): void {
+    while (!this.closed && this.queue.length && this.active.size < runnerLimits.globalCalls) {
+      const next = this.queue[0]
+      if ([...this.active.values()].filter(call => call.userId === next.userId).length >= runnerLimits.userCalls) return
+      this.queue.shift()
+      next.admit()
+    }
+  }
 
   private constructor(private readonly root: string, private readonly trustedCa?: TrustedCaBundle) {}
 
@@ -81,21 +91,49 @@ export class Runner {
       return Promise.reject(error)
     }
     if (this.closed) return Promise.reject(new RunnerError('RUNNER_CLOSED'))
-    const userCalls = [...this.active.values()].filter(call => call.userId === userId).length
-    if (this.active.size >= runnerLimits.globalCalls || userCalls >= runnerLimits.userCalls) {
-      return Promise.reject(new RunnerError('TOO_MANY_CALLS'))
-    }
+    if (limits.signal?.aborted) return Promise.reject(new RunnerError('CANCELLED'))
+    return new Promise<RunnerResult>((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timer)
+        limits.signal?.removeEventListener('abort', cancel)
+      }
+      const pending = {
+        userId,
+        admit: () => {
+          cleanup()
+          resolve(this.start(userId, executable, args, environment, secrets, limits, input, files, beforeSpawn, pathPrefix))
+        },
+        reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => {
+          cleanup()
+          this.queue.splice(this.queue.indexOf(pending), 1)
+          reject(new RunnerError(code))
+          this.drain()
+        },
+      }
+      const cancel = () => pending.reject('CANCELLED')
+      const timer = setTimeout(() => pending.reject('TOO_MANY_CALLS'), runnerLimits.admissionWaitMs)
+      limits.signal?.addEventListener('abort', cancel, { once: true })
+      this.queue.push(pending)
+      this.drain()
+    })
+  }
+
+  private start(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits, input: RunnerInput, files: readonly TemporaryFile[], beforeSpawn?: () => void, pathPrefix?: string): Promise<RunnerResult> {
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
     const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix)
-      .finally(() => this.active.delete(key))
+      .finally(() => {
+        this.active.delete(key)
+        this.drain()
+      })
     this.active.set(key, { userId, controller, result })
     return result
   }
 
   async shutdown(): Promise<void> {
     this.closed = true
+    for (const pending of [...this.queue]) pending.reject('RUNNER_CLOSED')
     const calls = [...this.active.values()]
     for (const call of calls) call.controller.abort()
     await Promise.allSettled(calls.map(call => call.result))

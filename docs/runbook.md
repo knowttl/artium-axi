@@ -472,6 +472,7 @@ Background checks for enabled configured tools become due on the first 10-second
 Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
 Success resets the retry backoff; authentication, TLS and configuration failures use the normal interval.
 Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.
+See [runner admission](#runner-admission) for the shared capacity and queue contract.
 Credential, native-settings, write-access and certificate-trust changes reset the backoff and request a fresh check for enabled configured tools without a manual test.
 While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
 GitHub device connection explicitly checks the new credential revision even when the tool is disabled.
@@ -780,6 +781,17 @@ The owner must also set the backup schedule, retention window and deletion proce
 Remove expired backups under that policy, and retire a key only after all backups requiring it expire.
 Without its matching key, a backup cannot recover encrypted platform credentials.
 Exercise recovery periodically on isolated copies and record the image digest, required key ID, backup identity and verification results without key bytes or credentials.
+
+## Runner admission
+
+The runner admits at most four active calls per authenticated user and eight across the server.
+The executable defaults are `runnerLimits.userCalls`, `runnerLimits.globalCalls` and `runnerLimits.admissionWaitMs` in [config.ts](../src/server/config.ts).
+Calls waiting for either limit enter one FIFO queue and wait up to 3,000 ms before returning `TOO_MANY_CALLS`.
+Later arrivals cannot bypass a queued call, including when its user's slots are occupied.
+The wait covers admission only; the execution deadline starts after admission.
+Queued cancellation or client disconnect removes the call without taking a slot.
+Admission holds a slot through setup, execution and cleanup; release after success, error or cancellation admits waiting calls in arrival order.
+Shutdown rejects waiting calls with `RUNNER_CLOSED` and cancels active calls.
 
 ## Upgrading stores without a key binding
 

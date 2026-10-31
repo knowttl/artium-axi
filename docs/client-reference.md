@@ -1,5 +1,8 @@
 # Client reference
 
+Tool calls share the server's [runner admission limits and bounded queue](runbook.md#runner-admission).
+If a queued call returns `TOO_MANY_CALLS`, retry after active calls finish.
+
 ## BeyondTrust PM Cloud
 
 Discover with `artium-axi beyondtrust-axi computer list --limit 1`.
