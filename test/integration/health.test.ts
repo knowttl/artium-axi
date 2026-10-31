@@ -7,6 +7,7 @@ import { connect as connectTls } from 'node:tls'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
+import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
@@ -541,13 +542,14 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
 })
 
 test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('preserves the specific preflight host for %s', async code => {
-  store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://specific-endpoint.test',
-    auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
+  store.replaceCredential('az-axi', { auth: 'secret', tenantId: '11111111-1111-4111-8111-111111111111',
+    clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-AZURE-SECRET' },
+  0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner,
-    [createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
+    [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
   vi.mocked(connectTls).mockImplementationOnce(() => failedTlsSocket(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET'))
-  await expect(health.check('vectra-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
-    code, diagnostic: { host: 'specific-endpoint.test', checkedAt: expect.any(Number), credentialRevision: 1 },
+  await expect(health.check('az-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
+    code, diagnostic: { host: 'login.microsoftonline.com', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
 })
 
