@@ -52,6 +52,20 @@ Product and scope decisions require owner approval.
 The repository declares `no_ci: true`: there is no hosted test CI, and local no-mistakes validation is the change gate.
 Release automation is separate from local acceptance.
 
+The local Test step uses `pnpm test:gate` (G1 affected-test selection).
+It compares the working tree, staged changes and untracked inputs with the unique merge base of `HEAD` and `origin/main`.
+Use `pnpm test:gate --base <commit>` only with a known ancestor when the default base is unavailable.
+`pnpm test:gate --plan` prints the selected tests, commands, reasons, base, head and SHA-256 of repository input bytes and the Node version without executing checks.
+Keep that output with the validation evidence.
+Import dependents select module tests; explicit owners retain CLI bundles, installed package journeys and public API journeys for runtime changes.
+Embedded skills run CLI and package checks rather than taking the documentation shortcut.
+Generated inventories, schemas, dynamic fixtures, migrations, shared contracts, toolchain changes, unknown paths, deleted runtime inputs, missing or ambiguous bases and empty selections require the full suite.
+Documentation runs generated-reference checks; README and license changes also run the package journeys that copy those files.
+Freshness checks and types run for runtime changes.
+Run `pnpm test:gate --full` before every release and at least weekly during active local development to catch missing ownership relationships.
+`pnpm test` and `pnpm check` always retain the full suite, including release automation.
+Selection does not waive the separate container acceptance or private hygiene requirements.
+
 ## Container acceptance
 
 Run `pnpm test:containers` when required by the [gate configuration](.no-mistakes.yaml), which owns the triggering paths, exemptions and release requirements.
