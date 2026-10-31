@@ -35,6 +35,15 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi checkpoint-axi [<args>]` | Investigate Check Point Email Security with managed regional credentials; [tool reference](https://www.npmjs.com/package/@knowttl/checkpoint-axi). |
 | `artium-axi gh-axi [<args>]` | Read and update GitHub data with managed credentials; [tool reference](https://www.npmjs.com/package/gh-axi). |
 
+For Azure DevOps, the [reviewed ADO inventory](../tools/inventories/ado-axi.json) owns accepted commands, aliases and flags; see the [capability boundary](safety.md#write-gates-by-tool) for permissions and unsupported transfers.
+Use `artium-axi ado-axi query run <saved-query-id-or-path>` for saved queries, and `area list` or `iteration list` for classification paths.
+`artium-axi ado-axi work-item list --fields id,title,Custom.EventSeverity` selects aliases and field reference names; its count reports items shown, not an exhaustive match total.
+`artium-axi ado-axi work-item get 42 --full` includes non-System fields keyed by reference name under `fields`; extra text fields remain truncated at 1200 characters.
+Read the current revision with `work-item get 42` before `work-item delete 42 --if-rev <rev>` or `work-item link remove 42 --index <index> --if-rev <rev>`; obtain relation indexes from `work-item link list 42`.
+Deletion moves the item to the recycle bin unless `--destroy --confirm-destroy` is also supplied.
+The deletion revision check is a preflight read, not an atomic compare-and-swap; another writer can change the item before DELETE.
+Run commands with `--help` for pipeline, repository, policy and audit-read selectors and native confirmation flags.
+
 `artium-axi ado-axi api <relative-path>` defaults to GET without a body.
 For a listed write, use `artium-axi ado-axi api _apis/wit/workitems/42 -X PATCH --content-type json-patch --body '[{"op":"add","path":"/fields/System.Title","value":"Synthetic title"}]' --no-project`.
 Select POST, PATCH, PUT or DELETE with `-X <method>`, `--method <method>` or a positional method before the path; if both forms are supplied, they must agree.
