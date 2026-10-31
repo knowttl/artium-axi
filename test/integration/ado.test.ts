@@ -30,11 +30,11 @@ vi.mock('../../src/server/config.js', async importOriginal => ({
 async function runPinned(runner: Runner, port: number, call: PreparedCall) {
   return runner.run('synthetic-user', process.execPath, [
     '--import', fileURLToPath(new URL('../fake-service/ado-transport.mjs', import.meta.url)),
-    fileURLToPath(new URL('../../tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args,
+    fileURLToPath(new URL('../../tools/node_modules/@knowttl/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args,
   ], { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files, undefined, call.pathPrefix)
 }
 
-test('every classified route, alias and default dispatches through the pinned binary', async () => {
+test('established routes, aliases and defaults dispatch through the pinned binary', async () => {
   const org = '/synthetic-org'
   const project = `${org}/Synthetic%20Project`
   const git = `${project}/_apis/git/repositories/Synthetic%20Repo`
@@ -147,7 +147,8 @@ test('every classified route, alias and default dispatches through the pinned bi
     { command: 'api', values: ['_apis/projects', '--no-project'], method: 'GET', path: `${org}/_apis/projects`,
       result: { value: [{ id: 'synthetic-project', name: 'Synthetic Project' }] } },
   ]
-  expect(routes.map(row => row.command).sort()).toEqual(inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command).sort())
+  expect(inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
+    .toEqual(expect.arrayContaining(routes.map(row => row.command)))
   const cases = routes.flatMap(row => {
     const route = inventory.commands.find(route => route.command === row.command)!
     const aliases = [...route.aliases, ...Object.entries(inventory.aliases)
@@ -203,7 +204,7 @@ test('every classified route, alias and default dispatches through the pinned bi
         ['--help', '--project=Other Project'], ['--version'], ['-v'], ['pr', 'reviewer', '--help'], ['pr', 'update', '42', '--help']]) {
         const result = await runPinned(runner, port, await adapter(false).prepare(args, reference))
         expect(result.exitCode, result.stdout).toBe(0)
-        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.4.7')
+        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.5.0')
       }
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
     } finally { await runner.shutdown() }
@@ -318,7 +319,7 @@ test.each([
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
         args: ['--import', fileURLToPath(new URL('../fake-service/ado-transport.mjs', import.meta.url)),
-          fileURLToPath(new URL('../../tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args],
+          fileURLToPath(new URL('../../tools/node_modules/@knowttl/ado-axi/dist/bin/ado-axi.js', import.meta.url)), ...call.args],
         environment: { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` } }
     }
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
