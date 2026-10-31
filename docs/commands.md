@@ -62,7 +62,7 @@ The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accep
 
 For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned upstream commands and flags with the reviewed Artium boundary.
 With the applicable administrator control enabled, use `--dry-run` to preview a configuration command, then `--confirm` to execute it.
-Configuration commands without either flag are refused; operational commands without `--confirm` remain previews.
+Configuration commands without `--help`, `--dry-run` or `--confirm` are refused; operational commands without `--confirm` remain previews.
 Previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
 Run a command with `--help` for its reviewed flags and required AWX resource permissions.
 See its [scope and managed equivalents](awx-parity.md) for client-local exceptions and planned delivery slices, and the [write boundary](safety.md#write-gates-by-tool) for current permissions.
