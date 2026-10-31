@@ -1,14 +1,16 @@
-import { spawn, execFile, execFileSync } from 'node:child_process'
+import { spawn, execFile } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
-import { copyFileSync, mkdtempSync, rmSync, watch } from 'node:fs'
+import { copyFileSync, mkdtempSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test } from 'vitest'
+import { copyClientInput } from './fixtures/client-inputs.js'
 import { SessionStore } from '../src/cli/session.js'
 import { Client } from '../src/cli/http.js'
 import { ArtiumError, errorResponse } from '../src/shared/errors.js'
+import { cliVersion } from '../src/shared/version.js'
 
 let directory: string
 let url: string
@@ -20,10 +22,9 @@ let original: ReturnType<SessionStore['write']>
 let server: ReturnType<typeof createServer>
 const pair = { status: 'authenticated' as const, accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
   accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 }
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-cli-retry-'))
-  copyFileSync('dist/cli/artium-axi.mjs', join(directory, 'artium-axi.mjs'))
+  copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
   requests = []
   scenario = 'refresh'
   homeScenario = undefined
@@ -89,20 +90,31 @@ async function run(args = ['falcon-axi', 'detection', 'list']) {
 }
 
 test('a bundle copied during publication remains executable', async () => {
-  const watcher = watch('dist/cli')
+  const publication = join(directory, 'publication.mjs')
+  const watcher = watch(directory)
   try {
     const copied = new Promise<void>((resolve, reject) => {
       watcher.on('error', reject)
       watcher.on('change', (_event, filename) => {
-        if (filename !== 'artium-axi.mjs') return
-        try { copyFileSync('dist/cli/artium-axi.mjs', join(directory, 'artium-axi.mjs')); resolve() }
+        if (filename !== 'publication.mjs') return
+        try { copyFileSync(publication, join(directory, 'artium-axi.mjs')); resolve() }
         catch (error) { reject(error) }
         watcher.close()
       })
     })
-    await Promise.all([copied, promisify(execFile)(process.execPath, ['scripts/build-cli.mjs'])])
+    await Promise.all([copied, promisify(execFile)(process.execPath, ['scripts/build-cli.mjs', publication])])
     expect(await run(['--help'])).toMatchObject({ code: 0, stderr: '', stdout: expect.stringContaining('usage: artium-axi') })
   } finally { watcher.close() }
+})
+
+test('editing a private bundle leaves other copies and the prepared input executable', async () => {
+  const other = copyClientInput('bundle', join(directory, 'other.mjs'))
+  writeFileSync(join(directory, 'artium-axi.mjs'), "process.stdout.write('private replacement\\n')")
+  expect(await run(['--version'])).toEqual({ code: 0, stdout: 'private replacement\n', stderr: '' })
+  expect(await promisify(execFile)(process.execPath, [other, '--version']))
+    .toEqual({ stdout: `${cliVersion}\n`, stderr: '' })
+  copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
+  expect(await run(['--version'])).toEqual({ code: 0, stdout: `${cliVersion}\n`, stderr: '' })
 })
 
 test('only a pre-execution expiry permits one refresh and one retry of the same arguments', async () => {

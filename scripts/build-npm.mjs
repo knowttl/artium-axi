@@ -2,11 +2,10 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 const metadata = JSON.parse(readFileSync('package.json', 'utf8'))
-execFileSync(process.execPath, ['scripts/build-cli.mjs'], { stdio: 'inherit' })
-const directory = 'dist/npm'
+const directory = process.argv[2] ?? 'dist/npm'
 rmSync(directory, { recursive: true, force: true })
 mkdirSync(`${directory}/bin`, { recursive: true })
-copyFileSync('dist/cli/artium-axi.mjs', `${directory}/bin/artium-axi.mjs`)
+execFileSync(process.execPath, ['scripts/build-cli.mjs', `${directory}/bin/artium-axi.mjs`], { stdio: 'inherit' })
 chmodSync(`${directory}/bin/artium-axi.mjs`, 0o755)
 cpSync('skill/artium-axi', `${directory}/skill/artium-axi`, { recursive: true })
 for (const file of ['README.md', 'LICENSE']) copyFileSync(file, `${directory}/${file}`)

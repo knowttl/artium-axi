@@ -1,4 +1,4 @@
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
 import { watch } from 'node:fs'
@@ -8,7 +8,8 @@ import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { decode } from '@toon-format/toon'
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 import type Database from 'better-sqlite3'
 import { createApp } from '../../src/server/app.js'
 import { ArtifactStore, artifactDefaults } from '../../src/server/artifacts.js'
@@ -48,9 +49,9 @@ const reportSelections: TransferScope['selection'][] = [
 const password = 'CANARY-local-password'
 const user = 'synthetic-development-user'
 const body = () => ({ selection, targetDigest: transferTargetDigest(destination) })
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'artium-transfer-http-'))
+  copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
   root = join(directory, 'artifacts')
   await mkdir(root, { mode: 0o700 })
   await mkdir(join(directory, 'downloads'), { mode: 0o700 })
@@ -111,7 +112,7 @@ async function ready(input: Pick<TransferScope, 'selection' | 'targetDigest'> = 
 function events() { return db.prepare("SELECT outcome, client_save_outcome, archive_bytes FROM audit WHERE event = 'transfer' ORDER BY id").all() as
   { outcome: string, client_save_outcome: string, archive_bytes: number | null }[] }
 async function cli(args: string[], started?: (child: ChildProcess) => void, managed = false) {
-  const child = spawn(process.execPath, [join(process.cwd(), 'dist/cli/artium-axi.mjs'), ...(managed ? ['--managed-session'] : []), 'download', ...args, '--password-stdin'],
+  const child = spawn(process.execPath, [join(directory, 'artium-axi.mjs'), ...(managed ? ['--managed-session'] : []), 'download', ...args, '--password-stdin'],
     { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory },
       stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] })
   let stdout = ''
