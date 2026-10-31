@@ -35,40 +35,40 @@ Do not edit this generated file.
 | template object-roles | read | supported | f | Managed account access; no write authorization |
 | template credential-add | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | template credential-remove | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
-| template instance-group-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| template instance-group-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | template instance-group-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| template label-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| template label-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | template label-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| template notification-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| template notification-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | template notification-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| template create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| template edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| template create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| template edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | template delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
-| template copy | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| template copy | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | template list | read | supported | f | Managed account access; no write authorization |
 | template show | read | supported | f | Managed account access; no write authorization |
 | template survey | read | supported | f | Managed account access; no write authorization |
 | template launch | operational write | supported | f | Administrator allowWrites; upstream read-only off; --confirm without --dry-run |
 | workflow object-roles | read | supported | f | Managed account access; no write authorization |
-| workflow node-create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow node-edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow node-create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| workflow node-edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow node-delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
-| workflow node-link | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow node-link | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow node-unlink | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
 | workflow node-credential-add | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | workflow node-credential-remove | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
-| workflow node-label-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow node-label-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow node-label-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow node-instance-group-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow node-instance-group-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow node-instance-group-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow node-add-approval | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow notification-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow node-add-approval | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| workflow notification-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow notification-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow label-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow label-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow label-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow copy | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| workflow edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| workflow copy | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| workflow create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| workflow edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | workflow delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | workflow list | read | supported | f | Managed account access; no write authorization |
 | workflow show | read | supported | f | Managed account access; no write authorization |
@@ -123,10 +123,10 @@ Do not edit this generated file.
 | ad-hoc events | read | supported | f | Managed account access; no write authorization |
 | ad-hoc stdout | read | supported | f | Managed account access; no write authorization |
 | project copy | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
-| project notification-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| project notification-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | project notification-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| project create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| project edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| project create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| project edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | project delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | project list | read | supported | f | Managed account access; no write authorization |
 | project show | read | supported | f | Managed account access; no write authorization |
@@ -136,26 +136,26 @@ Do not edit this generated file.
 | project sync | operational write | supported | f | Administrator allowWrites; upstream read-only off; --confirm without --dry-run |
 | inventory host-bulk-create | configuration write | blocked | d | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
 | inventory host-bulk-delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
-| inventory group-create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory group-edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory group-create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory group-edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory group-delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
-| inventory group-add-host | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory group-add-host | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory group-remove-host | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory group-add-child | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory group-add-child | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory group-remove-child | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory source-create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory source-edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory source-create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory source-edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory source-delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | inventory source-credential-add | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | inventory source-credential-remove | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
-| inventory source-notification-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory source-notification-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory source-notification-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | inventory sync | operational write | supported | f | Administrator allowWrites; upstream read-only off; --confirm without --dry-run |
-| inventory host-create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory host-edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory host-create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory host-edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory host-delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | inventory list | read | supported | f | Managed account access; no write authorization |
 | inventory show | read | supported | f | Managed account access; no write authorization |
@@ -173,12 +173,12 @@ Do not edit this generated file.
 | inventory-source show | read | supported | f | Managed account access; no write authorization |
 | schedule credential-add | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | schedule credential-remove | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
-| schedule label-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| schedule label-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | schedule label-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| schedule instance-group-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| schedule instance-group-add | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | schedule instance-group-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| schedule create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| schedule edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| schedule create | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| schedule edit | configuration write | supported | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | schedule delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | schedule list | read | supported | f | Managed account access; no write authorization |
 | schedule show | read | supported | f | Managed account access; no write authorization |
@@ -244,30 +244,30 @@ Do not edit this generated file.
 | --- | --- | --- | --- | --- |
 | inventory host bulk-create | configuration write | blocked | d | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
 | inventory host bulk-delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
-| inventory group create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory group edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory group create | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory group edit | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory group delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
-| inventory group add-host | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory group add host | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory group add-host | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory group add host | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory group remove-host | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
 | inventory group remove host | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory group add-child | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory group add child | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory group add-child | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory group add child | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory group remove-child | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
 | inventory group remove child | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory source create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory source edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory source create | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory source edit | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory source delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 | inventory source credential-add | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | inventory source credential add | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | inventory source credential-remove | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
 | inventory source credential remove | security administration | blocked | e | Administrator allowWrites plus separate security authorization; AWX_AXI_ALLOW_SECURITY_WRITES; --confirm without --dry-run |
-| inventory source notification-add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory source notification add | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory source notification-add | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory source notification add | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory source notification-remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
 | inventory source notification remove | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory host create | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
-| inventory host edit | configuration write | blocked | b | Administrator allowWrites plus separate configuration authorization; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run |
+| inventory host create | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
+| inventory host edit | configuration write | blocked | b | Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission |
 | inventory host delete | destructive | blocked | d | Administrator allowWrites plus separate destructive authorization; AWX_AXI_ALLOW_DELETES; --confirm without --dry-run |
 
 ## Flags by command
@@ -437,10 +437,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --instance-group | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --instance-group | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### template instance-group-remove
 
@@ -459,10 +459,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --label | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --label | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### template label-remove
 
@@ -481,11 +481,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --event | value | blocked | b | none |
-| --notification-template | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --event | value | supported | b | none |
+| --notification-template | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### template notification-remove
 
@@ -505,19 +505,19 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --project | value | blocked | b | none |
-| --playbook | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --execution-environment | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --project | value | supported | b | none |
+| --playbook | value | supported | b | none |
+| --description | value | supported | b | none |
+| --execution-environment | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --limit | value | blocked | b | none |
-| --verbosity | value | blocked | b | none |
-| --job-type | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --limit | value | supported | b | none |
+| --verbosity | value | supported | b | none |
+| --job-type | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### template edit
 
@@ -525,19 +525,19 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --project | value | blocked | b | none |
-| --playbook | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --execution-environment | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --project | value | supported | b | none |
+| --playbook | value | supported | b | none |
+| --description | value | supported | b | none |
+| --execution-environment | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --limit | value | blocked | b | none |
-| --verbosity | value | blocked | b | none |
-| --job-type | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --limit | value | supported | b | none |
+| --verbosity | value | supported | b | none |
+| --job-type | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### template delete
 
@@ -555,10 +555,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### template list
 
@@ -629,18 +629,18 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --template | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --template | value | supported | b | none |
+| --inventory | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --limit | value | blocked | b | none |
-| --scm-branch | value | blocked | b | none |
-| --job-type | value | blocked | b | none |
-| --job-tags | value | blocked | b | none |
-| --skip-tags | value | blocked | b | none |
-| --verbosity | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --limit | value | supported | b | none |
+| --scm-branch | value | supported | b | none |
+| --job-type | value | supported | b | none |
+| --job-tags | value | supported | b | none |
+| --skip-tags | value | supported | b | none |
+| --verbosity | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow node-edit
 
@@ -648,18 +648,18 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --template | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --template | value | supported | b | none |
+| --inventory | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --limit | value | blocked | b | none |
-| --scm-branch | value | blocked | b | none |
-| --job-type | value | blocked | b | none |
-| --job-tags | value | blocked | b | none |
-| --skip-tags | value | blocked | b | none |
-| --verbosity | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --limit | value | supported | b | none |
+| --scm-branch | value | supported | b | none |
+| --job-type | value | supported | b | none |
+| --job-tags | value | supported | b | none |
+| --skip-tags | value | supported | b | none |
+| --verbosity | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow node-delete
 
@@ -677,11 +677,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --on | value | blocked | b | none |
-| --to | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --on | value | supported | b | none |
+| --to | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow node-unlink
 
@@ -723,10 +723,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --label | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --label | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow node-label-remove
 
@@ -745,10 +745,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --instance-group | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --instance-group | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow node-instance-group-remove
 
@@ -767,12 +767,12 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --timeout | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --description | value | supported | b | none |
+| --timeout | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow notification-add
 
@@ -780,11 +780,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --event | value | blocked | b | none |
-| --notification-template | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --event | value | supported | b | none |
+| --notification-template | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow notification-remove
 
@@ -804,10 +804,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --label | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --label | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow label-remove
 
@@ -826,10 +826,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow create
 
@@ -837,13 +837,13 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --organization | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --organization | value | supported | b | none |
+| --description | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow edit
 
@@ -851,13 +851,13 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --organization | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --organization | value | supported | b | none |
+| --description | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### workflow delete
 
@@ -1476,11 +1476,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --event | value | blocked | b | none |
-| --notification-template | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --event | value | supported | b | none |
+| --notification-template | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### project notification-remove
 
@@ -1500,16 +1500,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --organization | value | blocked | b | none |
-| --scm-type | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --organization | value | supported | b | none |
+| --scm-type | value | supported | b | none |
 | --scm-url | value | blocked | c | potential secret |
-| --scm-branch | value | blocked | b | none |
+| --scm-branch | value | supported | b | none |
 | --credential | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --description | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### project edit
 
@@ -1517,16 +1517,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --organization | value | blocked | b | none |
-| --scm-type | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --organization | value | supported | b | none |
+| --scm-type | value | supported | b | none |
 | --scm-url | value | blocked | c | potential secret |
-| --scm-branch | value | blocked | b | none |
+| --scm-branch | value | supported | b | none |
 | --credential | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --description | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### project delete
 
@@ -1630,13 +1630,13 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --description | value | supported | b | none |
 | --variables | value | blocked | c | potential secret |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory group-edit
 
@@ -1644,12 +1644,12 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --description | value | supported | b | none |
 | --variables | value | blocked | c | potential secret |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory group-delete
 
@@ -1667,10 +1667,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --host | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --host | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory group-remove-host
 
@@ -1689,10 +1689,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --child | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --child | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory group-remove-child
 
@@ -1711,16 +1711,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --source | value | blocked | b | none |
-| --source-project | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --source | value | supported | b | none |
+| --source-project | value | supported | b | none |
 | --credential | value | blocked | e | none |
 | --source-vars | value | blocked | c | potential secret |
-| --update-on-launch | boolean | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --update-on-launch | boolean | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory source-edit
 
@@ -1728,16 +1728,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --source | value | blocked | b | none |
-| --source-project | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --source | value | supported | b | none |
+| --source-project | value | supported | b | none |
 | --credential | value | blocked | e | none |
 | --source-vars | value | blocked | c | potential secret |
-| --update-on-launch | boolean | blocked | b | none |
-| --no-update-on-launch | boolean | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --update-on-launch | boolean | supported | b | none |
+| --no-update-on-launch | boolean | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory source-delete
 
@@ -1777,11 +1777,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --event | value | blocked | b | none |
-| --notification-template | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --event | value | supported | b | none |
+| --notification-template | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory source-notification-remove
 
@@ -1801,15 +1801,15 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --organization | value | blocked | b | none |
-| --kind | value | blocked | b | none |
-| --host-filter | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --organization | value | supported | b | none |
+| --kind | value | supported | b | none |
+| --host-filter | value | supported | b | none |
+| --description | value | supported | b | none |
 | --variables | value | blocked | c | potential secret |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory edit
 
@@ -1817,14 +1817,14 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --organization | value | blocked | b | none |
-| --host-filter | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --organization | value | supported | b | none |
+| --host-filter | value | supported | b | none |
+| --description | value | supported | b | none |
 | --variables | value | blocked | c | potential secret |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory delete
 
@@ -1854,15 +1854,15 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --description | value | supported | b | none |
 | --variables | value | blocked | c | potential secret |
-| --enabled | boolean | blocked | b | none |
-| --disabled | boolean | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --enabled | boolean | supported | b | none |
+| --disabled | boolean | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory host-edit
 
@@ -1870,15 +1870,15 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --description | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --description | value | supported | b | none |
 | --variables | value | blocked | c | potential secret |
-| --enabled | boolean | blocked | b | none |
-| --disabled | boolean | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --enabled | boolean | supported | b | none |
+| --disabled | boolean | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### inventory host-delete
 
@@ -2074,10 +2074,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --label | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --label | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### schedule label-remove
 
@@ -2096,10 +2096,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --instance-group | value | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --instance-group | value | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### schedule instance-group-remove
 
@@ -2118,20 +2118,20 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --template | value | blocked | b | none |
-| --rrule | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --limit | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --template | value | supported | b | none |
+| --rrule | value | supported | b | none |
+| --description | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --limit | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --job-tags | value | blocked | b | none |
-| --skip-tags | value | blocked | b | none |
-| --enabled | boolean | blocked | b | none |
-| --disabled | boolean | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --job-tags | value | supported | b | none |
+| --skip-tags | value | supported | b | none |
+| --enabled | boolean | supported | b | none |
+| --disabled | boolean | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### schedule edit
 
@@ -2139,20 +2139,20 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Secret / file / stdin |
 | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | none |
-| --name | value | blocked | b | none |
-| --template | value | blocked | b | none |
-| --rrule | value | blocked | b | none |
-| --description | value | blocked | b | none |
-| --inventory | value | blocked | b | none |
-| --limit | value | blocked | b | none |
+| --help | boolean | supported | b | none |
+| --name | value | supported | b | none |
+| --template | value | supported | b | none |
+| --rrule | value | supported | b | none |
+| --description | value | supported | b | none |
+| --inventory | value | supported | b | none |
+| --limit | value | supported | b | none |
 | --extra-vars | value | blocked | c | potential secret, file |
-| --job-tags | value | blocked | b | none |
-| --skip-tags | value | blocked | b | none |
-| --enabled | boolean | blocked | b | none |
-| --disabled | boolean | blocked | b | none |
-| --confirm | boolean | blocked | b | none |
-| --dry-run | boolean | blocked | b | none |
+| --job-tags | value | supported | b | none |
+| --skip-tags | value | supported | b | none |
+| --enabled | boolean | supported | b | none |
+| --disabled | boolean | supported | b | none |
+| --confirm | boolean | supported | b | none |
+| --dry-run | boolean | supported | b | none |
 
 ### schedule delete
 

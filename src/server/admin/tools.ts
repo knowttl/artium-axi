@@ -110,7 +110,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
     const nativeSettings = JSON.parse(row.nativeSettings)
     const writeAccess = writePolicies[tool].read(nativeSettings)
-    const readOnly = !writeAccess.enabled
+    const readOnly = !writeAccess.enabled && !(tool === 'awx-axi' && nativeSettings.allowConfigurationWrites === true)
     const diagnostic = options.health.diagnostic(tool, health.credentialRevision, health.checkedAt)
     return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
       nativeSettings, readOnly, writeAccess,
@@ -140,12 +140,14 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const previous = writePolicies[tool].read(before)
     const next = writePolicies[tool].read(after)
     const deletes = (settings: Record<string, unknown>) => (settings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes === true
-    if (deletes(before) === deletes(after) && previous.enabled === next.enabled &&
+    const configuration = (settings: Record<string, unknown>) => tool === 'awx-axi' && settings.allowConfigurationWrites === true
+    if (configuration(before) === configuration(after) && deletes(before) === deletes(after) && previous.enabled === next.enabled &&
       JSON.stringify([...previous.allowedOperations].sort()) === JSON.stringify([...next.allowedOperations].sort())) return []
     // The advanced JSON editor accepts arbitrary names. Only catalogue identities belong in audit.
     const operations = next.allowedOperations.filter(operation => next.supportedOperations?.includes(operation))
     return [{ event: 'tool-write-access', userId: actor, tool, outcome: 'success', enabled: next.enabled,
-      operations, ...(tool === 'beyondtrust-axi' ? { allowDeletes: deletes(after) } : {}), unsupportedOperationCount: next.allowedOperations.length - operations.length,
+      operations, ...(tool === 'beyondtrust-axi' ? { allowDeletes: deletes(after) } : {}),
+      ...(tool === 'awx-axi' ? { allowConfigurationWrites: configuration(after) } : {}), unsupportedOperationCount: next.allowedOperations.length - operations.length,
       requestId: request.id, clientAddress: request.ip }]
   }
   const githubDevice = new GithubDeviceFlow()

@@ -37,7 +37,7 @@ export type AuditEvent = Context & (
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
   | { event: 'admin-change', outcome: Outcome, action: string, targetId: string, subject?: string }
-  | { event: 'tool-write-access', outcome: Outcome, enabled: boolean, allowDeletes?: boolean, operations: string[], unsupportedOperationCount: number }
+  | { event: 'tool-write-access', outcome: Outcome, enabled: boolean, allowDeletes?: boolean, allowConfigurationWrites?: boolean, operations: string[], unsupportedOperationCount: number }
   | { event: 'invite-create' | 'invite-resend' | 'invite-revoke', outcome: Outcome, targetId: string }
   | { event: 'invite-claim' | 'identity-link', outcome: Outcome, targetId: string, providerId: string, subject: string }
   | { event: 'role-sync', outcome: Outcome, providerId: string, subject: string, added: string[], removed: string[] }
@@ -228,6 +228,7 @@ export class Audit {
         event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
         event.event === 'tool-write-access' ? JSON.stringify({ enabled: event.enabled, operations: event.operations,
           ...(event.allowDeletes !== undefined ? { allowDeletes: event.allowDeletes } : {}),
+          ...(event.allowConfigurationWrites !== undefined ? { allowConfigurationWrites: event.allowConfigurationWrites } : {}),
           unsupportedOperationCount: event.unsupportedOperationCount }) :
         event.event === 'role-sync' ? JSON.stringify({ added: event.added, removed: event.removed }) :
         event.event === 'device-approve' || event.event === 'device-deny' ? JSON.stringify({ requestingAddress: event.requestingAddress }) : null,

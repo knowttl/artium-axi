@@ -192,6 +192,7 @@ See [credential rotation](runbook.md#roles-credentials-and-health).
 Use **Write access** on a tool page to change writes without replacing other native settings.
 Writes default to off; fixed read-only tools show the reason and have no switch.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
+For AWX, **Allow operational writes** and **Allow ordinary configuration writes** are independent switches; review the [AWX write boundary](safety.md#write-gates-by-tool) before enabling either.
 For Falcon, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
@@ -315,7 +316,7 @@ For hosted download availability, see the [supported capability boundaries](safe
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through Native settings or complete credential replacement.
+Filter by event `tool-write-access` to review changes to effective write enablement, AWX configuration permission, BeyondTrust delete permission or an operations allow-list, including changes made through Native settings or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
 Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.

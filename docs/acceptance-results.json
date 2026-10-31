@@ -21,9 +21,18 @@
       "testsPassed": 22,
       "note": "Builds dist/npm, packs and installs the tarball offline into an empty prefix, then executes its installed client and generated host integrations with isolated configuration."
     },
-    { "command": "pnpm lint", "exitStatus": 0 },
-    { "command": "pnpm build", "exitStatus": 0 },
-    { "command": "pnpm test:axi", "exitStatus": 0 }
+    {
+      "command": "pnpm lint",
+      "exitStatus": 0
+    },
+    {
+      "command": "pnpm build",
+      "exitStatus": 0
+    },
+    {
+      "command": "pnpm test:axi",
+      "exitStatus": 0
+    }
   ],
   "verifiedBehaviors": [
     "--version, -v and -V each emit the bare client version and exit 0 without configuration or host writes",
@@ -44,6 +53,34 @@
     "The private hygiene deny list is intentionally unavailable to this worker; private hygiene acceptance is unverified",
     "The no-mistakes pipeline must validate the committed candidate; this file records implementation evidence, not final delivery approval"
   ],
+  "awxConfigurationWrites": {
+    "scope": "AWX ordinary configuration writes, slice b of issue 237",
+    "environment": "Local fake HTTPS controller, synthetic identities and canary tokens only",
+    "checks": [
+      {
+        "command": "pnpm exec vitest run test/integration/awx.test.ts src/server/adapters/awx.test.ts test/awx-parity.test.ts",
+        "result": "passed",
+        "tests": 252,
+        "durationSeconds": 59.59,
+        "evidence": "Public run API executes the pinned CLI against a fake controller: all 35 approved commands, disabled control with no controller request, confirmation refusal, preview, AWX 403 denial, successful mutation payloads, secret-free audit and runner cleanup. Existing blocked families remain refused."
+      },
+      {
+        "command": "pnpm build",
+        "result": "passed"
+      },
+      {
+        "command": "pnpm exec vitest run test/integration/awx.test.ts -t 'AWX credentials save'",
+        "result": "passed",
+        "tests": 1,
+        "evidence": "Administrator switch saves configuration-only changes, retains configuration access when operational access is disabled, records the configuration grant in audit, reports write state accurately, and refuses both operational writes and disabled configuration writes before controller contact. Blocked families and secret-bearing inputs remain refused when both controls are enabled."
+      }
+    ],
+    "limits": [
+      "This records focused local implementation evidence before the no-mistakes Test step; final full-suite and required container evidence belong to that pipeline run.",
+      "Live controller acceptance is unverified.",
+      "Private hygiene verification requires the supervising operator's external deny list before publication."
+    ]
+  },
   "adoMigration": {
     "scope": "knowttl ado-axi 0.5.0 migration",
     "environment": "Linux, Node 24, synthetic identities and canary credentials only",

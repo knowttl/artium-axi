@@ -45,7 +45,7 @@ const commands = {
   'ado-axi': { usage: 'artium-axi ado-axi [<args>]', purpose: 'Run Azure DevOps commands with managed credentials.',
     flags: ['Arguments after ado-axi include --help. Organization and credentials are managed by Artium. api defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires writes enabled, a server-listed path and a bounded JSON --body (TD-067).'], example: 'artium-axi ado-axi project list --limit 1' },
   'awx-axi': { usage: 'artium-axi awx-axi [<args>]', purpose: 'Inspect AWX automation with managed credentials.',
-    flags: ['Arguments after awx-axi include --help. Operational writes are off by default; configuration, deletion and security writes are blocked.'], example: 'artium-axi awx-axi job list --limit 1' },
+    flags: ['Arguments after awx-axi include --help. Operational writes require allowWrites; ordinary configuration writes require separate allowConfigurationWrites. Both default off and require --confirm plus AWX permission. Credentials, secret input, deletes, removals, bulk and security administration remain blocked.'], example: 'artium-axi awx-axi job list --limit 1' },
   'tenable-axi': { usage: 'artium-axi tenable-axi [<args>]', purpose: 'Investigate Tenable One with managed API keys.',
     flags: ['Writes and export jobs are off by default and require administrator-enabled operations, preview, --execute and exact --confirm. Downloads are blocked.', 'Declared file flags accept - to read stdin to EOF within 5 s; otherwise INVALID_INPUT. Close stdin or pass a local file path.'], example: 'artium-axi tenable-axi card list --limit 1' },
   'hybrid-axi': { usage: 'artium-axi hybrid-axi [<args>]', purpose: 'Investigate Hybrid Analysis with a managed API key.',

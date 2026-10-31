@@ -316,8 +316,8 @@ An HTTP 401 during token acquisition returns `UPSTREAM_AUTH_FAILED` and stores n
 The error advises checking the credentials and controller authentication configuration, with an existing personal access token as an alternative.
 A Bearer-only challenge does not establish that Basic authentication is disabled; the credentials may be incorrect or the authentication configuration may not support password sign-in.
 The shared profile writer injects the token and registers it for output scanning.
-Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
-See [AWX setup](tool-credentials.md#awx) for credential setup and the supported command boundary.
+Artium removes host-owned write controls from the upstream profile and enables the native configuration gate only for reviewed configuration calls.
+See the [AWX write boundary](safety.md#write-gates-by-tool) for those controls and [AWX setup](tool-credentials.md#awx) for credential setup.
 
 tenable-axi uses its shipped accessKey and secretKey SecretRef schema with a fixed `https://cloud.tenable.com` origin.
 Artium requires both keys, treats both as secrets and supplies a private profile for each call.

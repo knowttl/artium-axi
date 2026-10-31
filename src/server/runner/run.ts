@@ -104,6 +104,11 @@ export async function runTool<Credential>(
         secrets: prepared.secrets,
       }
       result = hostedStatus(adapter.name, prepared.invocation, result)
+      if (adapter.name === 'awx-axi' && write && result.exitCode !== 0
+        && ['CONTROLLER_UNREACHABLE', 'SERVER_BUSY'].includes(toolFailureCode(result.stdout, result.stderr) ?? '')) {
+        throw Object.assign(new RunnerError('UNKNOWN_OUTCOME'), { processStarted: true,
+          durationMs: result.durationMs, outputBytes: result.outputBytes, truncated: result.truncated })
+      }
       if (journal.auditId && result.exitCode !== 0 && !toolFailureCode(result.stdout, result.stderr)) {
         result = unknownWriteResult(await journal.auditId(), result.durationMs, result.outputBytes)
       }

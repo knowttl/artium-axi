@@ -7,6 +7,7 @@ import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import gh from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
+import awxParity from '../../tools/inventories/awx-axi-parity.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
 import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
@@ -121,7 +122,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (awxGroup && awx.discovery.commands.includes(awxGroup)) {
     return encode({ command: `artium-axi awx-axi ${awxGroup}`,
       commands: awx.commands.filter(route => route.effect !== 'blocked' && route.command.startsWith(awxGroup + ' ')).map(route =>
-        `artium-axi awx-axi ${route.command}${route.positionals.names.map(name => ` <${name}>`).join('')}`),
+        `artium-axi awx-axi ${route.command}${route.positionals.names.map(name => ` ${name}`).join('')}`),
       help: ['Run a command with --help for its flags.', awx.discovery.help] }) + '\n'
   }
   const flags = managedFlags[tool]
@@ -289,7 +290,19 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'awx-axi') {
-    const guidance = 'Artium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm; configuration, deletion and security writes are blocked. No stdin or files. Ask an administrator to update the managed credential.'
+    const command = /^(?:artium-axi )?awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(help)?.[1]
+    const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
+    if (route) {
+      help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => Object.hasOwn(route.flags, name) ? option : '')
+        .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !Object.hasOwn(route.flags, name))).join('\n')
+      const descriptions = awxParity.commands.find(entry => entry.command === route.command)!.flags
+        .filter(flag => Object.hasOwn(route.flags, flag.name))
+        .map(flag => `--${flag.name}: ${flag.description}`).join('\n')
+      if (!help.includes(descriptions)) help = help.trimEnd() + '\n' + descriptions + '\n'
+      const permission = `AWX must authorize ${route.command} and access to each referenced resource.`
+      if (!help.includes(permission)) help = help.trimEnd() + '\n' + permission + '\n'
+    }
+    const guidance = awx.discovery.help.split('\n')[1] + ' Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))
       .filter(line => !/^(?:Run|Use) .*\bawx-axi job stdout\b.*--download\b/.test(line))
       .map(line => (/^(?:artium-axi )?awx-axi job stdout\b/.test(line)

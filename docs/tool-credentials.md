@@ -413,12 +413,8 @@ Save, run **Test credential**, enable the tool and grant it to a role, then run 
 For private certificates and rotation, follow the [credential trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui).
 HTTP and TLS-verification bypasses are refused.
 
-Writes are off by default.
-The native setting `{"allowWrites": true}` permits only operational writes, which still require upstream `--confirm`: launching, canceling or relaunching runs, approving or denying workflow approvals, project and inventory-source syncs, and notification-template tests.
-Configuration writes, deletes and security writes are always blocked, including resource creation and editing, associations, role grants and token operations.
-Artium never enables AWX's separate configuration, deletion or security write gates.
-Token permissions remain an additional AWX-side limit; the write switch does not grant AWX permissions.
-The generated [AWX inventory](../tools/inventories/awx-axi.json) classifies every command and records the reviewed upstream source digests.
+See the [AWX write boundary](safety.md#write-gates-by-tool) for independent operational and configuration controls, required permissions and blocked operations.
+Use [browser administration](admin-guide.md#browser-administration) to change the controls and the [command reference](commands.md) for preview and confirmation behavior.
 Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.
 Stdin, file uploads, server file paths and `@file` values are unsupported; use inline non-secret launch parameters.
 Use `job watch --timeout 50` or less to stay within the runner timeout.
