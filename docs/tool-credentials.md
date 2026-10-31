@@ -275,10 +275,8 @@ Local fake-directory and offline profile checks do not establish live directory 
 
 #### Azure DevOps
 
-Artium uses the [pinned](../tools/package.json) `@knowttl/ado-axi` 0.5.0 fork without local package modifications.
-Artium supplies `ADO_AXI_WRITES=1` only to a write call already allowed by its server gate; clients cannot supply environment variables.
-The [capability boundary](safety.md#write-gates-by-tool) lists the mutations enabled by `allowWrites`, including destructive administration and release creation.
-Attachments and pipeline artifact downloads remain refused because this adapter accepts no files.
+Artium uses the [pinned](../tools/package.json) `@knowttl/ado-axi` fork without local package modifications.
+See the [capability boundary](safety.md#write-gates-by-tool) for supported mutations, the host-managed native write switch and unsupported transfers.
 At `/admin/tools/ado-axi`, enter `org`, optional `project`, choose `auth=pat`, and paste the PAT itself into `token`.
 Organization-root URLs such as `https://dev.azure.com/<org>` and `https://<org>.visualstudio.com` normalize to the organization name.
 Artium encrypts the PAT in its credential store and injects it through a private per-call profile and environment variable.
