@@ -13,7 +13,8 @@ export async function sessionContext(): Promise<string> {
     deadline = setTimeout(cancel, 5_000)
     process.once('SIGTERM', cancel)
     process.once('SIGINT', cancel)
-    const parsed = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET'))
+    const previous = client.sessions.read()
+    const parsed = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET', undefined, previous))
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
     const tools = [...new Map(parsed.data.tools.map(tool => [tool.name, tool])).values()]
     return `artium: available\ntools[${tools.length}]{name,status,readOnly}:\n${tools.map(tool =>

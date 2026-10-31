@@ -193,8 +193,24 @@ test.each([
   { changeAt: '/v1/tools', transition: 'remove' as const },
 ])('home withholds composite output when the session changes during $changeAt: $transition', async change => {
   homeScenario = change
-  expect(await run([])).toMatchObject({ code: 1, stdout: expect.stringMatching(/^error:\n  code: "SESSION_CHANGED"/), stderr: '' })
+  const result = await run([])
+  expect(result).toMatchObject({ code: 1, stderr: '' })
+  expect(result.stdout.startsWith(`bin: ${JSON.stringify(join(directory, 'artium-axi.mjs'))}\ndescription: Run managed upstream tools through one local sign-in.\nerror:\n  code: "SESSION_CHANGED"`)).toBe(true)
+  expect(result.stdout).not.toMatch(/^(user|server|roles|sessionExpiresAt|accessExpiresAt|tools)[:\[]/m)
   expect(requests.map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
+})
+
+test.each(['replace', 'remove'] as const)('ambient context withholds grants after session %s (R2)', async transition => {
+  homeScenario = { changeAt: '/v1/tools', transition }
+  expect(await run(['session-context'])).toEqual({ code: 0, stderr: '',
+    stdout: 'artium: unavailable\nreason: SESSION_CHANGED\nnote: Current tool access could not be verified; no cached grants are shown.\nnext: artium-axi doctor\n' })
+})
+
+test('ambient context permits refresh within the original login (R2)', async () => {
+  homeScenario = { expiresAt: '/v1/tools' }
+  expect(await run(['session-context'])).toEqual({ code: 0, stderr: '',
+    stdout: 'artium: available\ntools[0]{name,status,readOnly}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n' })
+  expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
 })
 
 test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the original login', async expiresAt => {
