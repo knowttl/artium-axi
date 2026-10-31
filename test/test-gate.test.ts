@@ -34,6 +34,8 @@ beforeEach(() => {
   copyFileSync(selector, join(directory, 'scripts/test-gate.mjs'))
   symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir')
   write('docs/guide.md', '# Guide\n')
+  write('docs/errors.md', '# Synthetic error reference\n')
+  write('docs/awx-parity-matrix.md', '# Synthetic parity matrix\n')
   write('README.md', '# Package\n')
   write('src/server/feature.ts', 'export const value = 1\n')
   write('src/server/bridge.ts', "export { value } from './feature.js'\n")
@@ -65,6 +67,22 @@ afterEach(() => rmSync(directory, { recursive: true, force: true }))
 test('documentation selects only generated-reference validation', () => {
   write('docs/guide.md', '# Updated guide\n')
   expect(plan()).toMatchObject({ mode: 'docs', base, tests: [], checks: [['node', 'scripts/errors-reference.mjs']] })
+})
+
+test.each([
+  { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.mjs'], ['node', 'scripts/awx-parity.mjs']] },
+  { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.mjs']] },
+])('changing $path selects its freshness checker without runtime tests', ({ path, checks }) => {
+  write(path, '# Stale generated reference\n')
+  expect(plan()).toMatchObject({ mode: 'docs', tests: [], checks })
+})
+
+test.each([
+  { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.mjs'], ['node', 'scripts/awx-parity.mjs']] },
+  { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.mjs']] },
+])('deleting $path selects its freshness checker without runtime tests', ({ path, checks }) => {
+  unlinkSync(join(directory, path))
+  expect(plan()).toMatchObject({ mode: 'docs', tests: [], checks })
 })
 
 test.each([

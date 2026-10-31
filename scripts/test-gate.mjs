@@ -61,6 +61,11 @@ function selectGate(root, { base, full = false } = {}) {
   }
   const tests = files.filter(file => /^(src|test)\/.*\.test\.ts$/.test(file))
   const selected = new Set(affectedTests(root, files, changed))
+  const generatedReferences = new Map([
+    ['docs/errors.md', 'scripts/errors-reference.mjs'],
+    ['docs/awx-parity-matrix.md', 'scripts/awx-parity.mjs'],
+  ])
+  const referenceChecks = new Set(['scripts/errors-reference.mjs'])
   const reasons = []
   let runtime = false
   const add = predicate => tests.filter(predicate).forEach(file => selected.add(file))
@@ -73,6 +78,7 @@ function selectGate(root, { base, full = false } = {}) {
   if (full) reasons.push('explicit full suite')
   if (selectedBase === null || diff === null) reasons.push('missing or ambiguous ancestor base')
   for (const file of changed) {
+    if (generatedReferences.has(file)) { referenceChecks.add(generatedReferences.get(file)); continue }
     if (file.startsWith('docs/') && file.endsWith('.md') || file === 'CONTRIBUTING.md' || file === 'AGENTS.md') continue
     if (file === 'README.md' || file === 'LICENSE') { packages(); continue }
     runtime = true
@@ -92,7 +98,7 @@ function selectGate(root, { base, full = false } = {}) {
   }
   if (!reasons.length && (changed.length === 0 || runtime && selected.size === 0)) reasons.push('empty affected selection')
   const mode = reasons.length ? 'full' : selected.size ? 'affected' : 'docs'
-  const checks = [['node', 'scripts/errors-reference.mjs']]
+  const checks = [...referenceChecks].map(script => ['node', script])
   if (mode === 'full' || runtime) checks.push(['node', 'scripts/upstream-inventory.mjs'],
     ['node', 'scripts/mg-headless-schema.mjs'], ['pnpm', 'lint'])
   const selectedTests = mode === 'full' ? tests : [...selected].sort()
