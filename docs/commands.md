@@ -34,10 +34,16 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi checkpoint-axi [<args>]` | Investigate Check Point Email Security with managed regional credentials; [tool reference](https://www.npmjs.com/package/@knowttl/checkpoint-axi). |
 | `artium-axi gh-axi [<args>]` | Read and update GitHub data with managed credentials; [tool reference](https://www.npmjs.com/package/gh-axi). |
 
-TD-067: `artium-axi ado-axi api <relative-path>` defaults to GET without a body.
+`artium-axi ado-axi api <relative-path>` defaults to GET without a body.
 For a listed write, use `artium-axi ado-axi api _apis/wit/workitems/42 -X PATCH --content-type json-patch --body '[{"op":"add","path":"/fields/System.Title","value":"Synthetic title"}]' --no-project`.
-POST, PATCH, PUT and DELETE require administrator-enabled writes and the [server method/path allow list](admin-guide.md#server-settings-and-custody); every decision is journaled with the body hash and byte count.
-The body must be valid JSON of at most 65,536 UTF-8 bytes.
+Select POST, PATCH, PUT or DELETE with `-X <method>`, `--method <method>` or a positional method before the path; if both forms are supplied, they must agree.
+Writes require the [supported write permissions](safety.md#write-gates-by-tool) and [server method/path allow list](admin-guide.md#server-settings-and-custody).
+The path is relative to the managed organization and selected project, or organization only with `--no-project`.
+Writes refuse `--host` and `--query`; use `--api-version` for the REST version.
+The required `--body` must be valid JSON within [the adapter's `ADO_API_BODY_MAX_BYTES` limit](../src/server/adapters/ado-api.ts), measured in UTF-8 bytes including whitespace.
+`--content-type` accepts `json`, `json-patch` or `merge-patch`, or their media types `application/json`, `application/json-patch+json` or `application/merge-patch+json`.
+GET refuses `--body` and `--content-type`, and continues to accept `--host` and `--query`.
+See [audit decision records](admin-guide.md#audit-screen-and-api) for mutation journaling.
 
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
 The [full client reference](client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
