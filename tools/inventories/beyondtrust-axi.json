@@ -1,17 +1,17 @@
 {
   "generatedBy": "scripts/beyondtrust-inventory.mjs",
   "tool": "beyondtrust-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-A6vBEpopJdcgsBozBIrnCMD891Saa9gwKTD8mH7XdGoi8zasKspY3uhmaw4fNUoL3898oT0EcE3X6Eq8tOrJHw==",
+  "version": "0.1.6",
+  "integrity": "sha512-WGfsTvrzA+QNejvqlcDaQ9ClHXABfc7oi9k8VK++YHYQVEvtod5GzL0n02brEqJUJMbQZNSZr4kAXYTfYp7mKA==",
   "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "fafe39fed084a87d257d44ab8dd0542671f2c9f6d7735d7c40c976214b45a7f5"
+      "sha256": "ca012e2e388009c4b55453583ef02b38b74912813d546b0321c3ff41b70c2f7e"
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "78171b922ce7be6da474c9b82a998dc93505ce6e3841f4a1450d8e3677b4c910"
+      "sha256": "fe93095d54dc805bfda874e12bdc09599b50100e74e9112f2732f3232fd0f15d"
     },
     {
       "path": "dist/src/computer-writes.js",
@@ -28,6 +28,10 @@
     {
       "path": "dist/src/group-writes.js",
       "sha256": "8e257d59a678181d11fd4cad185b00a7650fae6b3c3b44eb0a61b3142518b35d"
+    },
+    {
+      "path": "dist/src/hooks.js",
+      "sha256": "3fef458f9a3c91eb3f1518c50a302ee81dedc30a3d7bec0e31dc4d34ac57078d"
     },
     {
       "path": "dist/src/identity-writes.js",
@@ -55,15 +59,15 @@
     },
     {
       "path": "dist/src/resource-reads.js",
-      "sha256": "52e0d50b351fa8464182aed4bc96a0c1501e19c14634ee80a4e2e15ac1608c1a"
+      "sha256": "e3bbaf02248dea93393f260f5b550601ce4e0e4823be05c28441bb6fd0bb8c4c"
     },
     {
       "path": "dist/src/response-diagnostics.js",
-      "sha256": "7acea5c3133ebf8ca5b54aa5122ef7996ff183482c384c086eb4efdf709d140d"
+      "sha256": "f453ba098ff0ab7615d70ed77d5024735a052c57cb511e8c9cf74ecdbc732063"
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "89b35e4fcb2b9c25fb496fc7037d9e3123d3006737c64691eb17e597b8216806"
+      "sha256": "11916fe8494556a67513c5ce2716d3149da8a9f02b1aee1a71ecc5878de9abc8"
     },
     {
       "path": "dist/src/windows-download.js",
@@ -190,7 +194,7 @@
       }
     }
   },
-  "skillSha256": "242e35d3479e70d8e2f624d53480db82c110fdc441577239e8d23a8756f3eb6b",
+  "skillSha256": "1ef466cb246ee9264d2c05c166529add6f30d11ba470126e92d0b89b6a349059",
   "nativeWriteSettings": {
     "supportedOperations": [
       "admin-request.create",
@@ -254,6 +258,7 @@
     "blockedCommands": [
       "profile list",
       "config path",
+      "setup hooks",
       "computer log download",
       "policy download",
       "policy revision download",
@@ -1255,7 +1260,8 @@
         "profile": "Named file profile (default: selection precedence)",
         "fields": "Comma-separated output fields (default: all)",
         "full": "Show complete strings",
-        "help": "Show command help"
+        "help": "Show command help",
+        "offline": "Local profile context only; no secrets or API calls (default: false)"
       }
     },
     {
@@ -1663,6 +1669,15 @@
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
+      }
+    },
+    {
+      "command": "setup hooks",
+      "effect": "blocked",
+      "flags": {
+        "agent": "claude|codex|opencode|all (default: all)",
+        "directory": "Agent configuration home (default: user home; respects agent config environment overrides)",
+        "help": "Show command help"
       }
     },
     {

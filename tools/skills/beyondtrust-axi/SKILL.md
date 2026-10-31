@@ -7,7 +7,9 @@ description: Inspect and manage BeyondTrust PM Cloud Endpoint Privilege Manageme
 
 Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands.
 
-Use a configured session hook for ambient local context or this skill for on-demand guidance.
+Use beyondtrust-axi setup hooks from a stable installation to opt in to offline ambient context in Claude Code, Codex and OpenCode, or use this skill for on-demand guidance.
+Home reads a bounded live summary when configured; home --offline and session hooks never resolve secrets or contact the API.
+Live commissioning and issue #28 verification remain pending; local fixtures are not live proof.
 The full command set covers 47 reads (including four downloads), 40 write operations and six delete operations.
 Windows and macOS application removal share two Policy Editor POSTs with additions, with distinct permissions and no mixed requests.
 Certificate renewal is not built because the export documents only 410 Gone.
@@ -646,7 +648,7 @@ npx -y @knowttl/beyondtrust-axi policy app add <policy-uuid> --os windows --app-
 
 ## home
 
-Show local context without resolving secrets or making API calls.
+Show a read-only live computer, group and policy summary (3 rows each, 8 seconds, 5 requests, 256 KiB); denied and incomplete reads are explicit.
 
 | Flag | Meaning |
 |---|---|
@@ -655,10 +657,28 @@ Show local context without resolving secrets or making API calls.
 | --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
+| --offline | Local profile context only; no secrets or API calls (default: false) |
 
 ```sh
 npx -y @knowttl/beyondtrust-axi
+npx -y @knowttl/beyondtrust-axi home --offline
 npx -y @knowttl/beyondtrust-axi home --profile <name>
+```
+
+## setup hooks
+
+Explicitly install or repair offline session context for Claude Code, Codex and OpenCode; preserves unrelated settings.
+
+| Flag | Meaning |
+|---|---|
+| --agent | claude|codex|opencode|all (default: all) |
+| --directory | Agent configuration home (default: user home; respects agent config environment overrides) |
+| --help | Show command help |
+
+```sh
+npx -y @knowttl/beyondtrust-axi setup hooks
+npx -y @knowttl/beyondtrust-axi setup hooks --agent codex
+npx -y @knowttl/beyondtrust-axi setup hooks --directory <home>
 ```
 
 ## auth status

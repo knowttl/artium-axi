@@ -1,14 +1,14 @@
 {
   "generatedBy": "scripts/ado-inventory.mjs",
   "tool": "ado-axi",
-  "version": "0.5.0",
-  "integrity": "sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w==",
-  "skillSha256": "34fb146135fd5c1cbd70912030e7379ca9a94cccf9b118fff4a5fd1bf28c36c5",
+  "version": "0.5.1",
+  "integrity": "sha512-yA7m//5jr9Fi6Ec1tY1vaE3wINlJ8oeFGsNP7otUMXfBbBjrzZ4a14GKQ9XAr8Q3DBxYP2UF79VzBp9WbrXJKg==",
+  "skillSha256": "4edd829957303142e9784f8e98f8815a591c178ae1ec05a8e6cdf92eeb2abe09",
   "parserEvidence": "Reviewed published dispatch switches, aliases and command flag constants",
   "sources": [
     {
       "path": "dist/bin/ado-axi.js",
-      "sha256": "ef0a5ba96c3da555d7055233aa60064add11cfef2a9457b9fd3a7b46eaa7a603"
+      "sha256": "c500b5879a8f7adb94c1b43d5eb7ab226ae27efd7410c95c7eddd9d78e6ed251"
     },
     {
       "path": "dist/lib/auth.js",
@@ -16,7 +16,7 @@
     },
     {
       "path": "dist/lib/client.js",
-      "sha256": "4c2f3550085ded380596d5f9459791f0a8788364707284b8633ea1687c84886b"
+      "sha256": "23f98434e17feb4ca5dc14b74da2d2e1215efa7761c0657c2acf8ac1557ce61f"
     },
     {
       "path": "dist/lib/args.js",
@@ -40,15 +40,15 @@
     },
     {
       "path": "dist/lib/context.js",
-      "sha256": "0ddc87da536069a2399545bd0f98860e3fad64d32fd78242ca7fcb500a301276"
+      "sha256": "d85b5f96ef815015ed9afa13b5a0da5013516222a6d17e2b7e45af7753350a41"
     },
     {
       "path": "dist/lib/writes.js",
-      "sha256": "31b1977fa93135f93b53a533f12d65ef0e19425b953f39bdff90416bdb2e2e5f"
+      "sha256": "ab71db4cfaf11cc9922243c29430fc53bb4a7019a76f8742f91b9ce2f0bd6742"
     },
     {
       "path": "dist/lib/audit.js",
-      "sha256": "5615b60d1098ac2a9620ed2967c0e5e056f01f5473b1bfe25a8d4b32319a27ab"
+      "sha256": "7635c5be46734de6351340c722da4a83ccacefcbbbc8d5ea615e940e23bfc0ad"
     },
     {
       "path": "dist/commands/agent.js",
@@ -120,7 +120,7 @@
     },
     {
       "path": "dist/commands/repoAdmin.js",
-      "sha256": "fe7c9e86636ac8d27f3c22fb8851b53c3c2e65036b802f65134cbf86818cfca7"
+      "sha256": "70484a80994d4bb8b26e4ff020f7075eee4af05ee168efef22652a6ab15e3dee"
     },
     {
       "path": "dist/commands/security.js",
@@ -145,6 +145,10 @@
     {
       "path": "dist/commands/variableGroup.js",
       "sha256": "90ea8275f52b6cb2b43890f3ec230834a9c5dd91078fdee2e48fc666f6425e45"
+    },
+    {
+      "path": "dist/commands/wiki.js",
+      "sha256": "049c5cd0c53126248d36901a13b87c22714d867a20aaedb569d91934fd3398bc"
     },
     {
       "path": "dist/commands/workItem.js",

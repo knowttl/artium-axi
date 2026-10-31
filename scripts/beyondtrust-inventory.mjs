@@ -12,7 +12,7 @@ if (pkg.version !== pin.version) throw new Error('Pin mismatch for beyondtrust-a
 const unsafeOverrides = ['config', 'profile', 'out']
 const inputFileFlags = ['file']
 const downloadCommands = Object.keys(downloads)
-const blockedCommands = ['profile list', 'config path', ...downloadCommands]
+const blockedCommands = ['profile list', 'config path', 'setup hooks', ...downloadCommands]
 const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b)).map(([command, entry]) => ({
   command, effect: blockedCommands.includes(command) ? 'blocked' : Object.hasOwn(entry.flags, 'execute') ? 'write' : 'read',
   flags: entry.flags,

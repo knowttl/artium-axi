@@ -46,7 +46,7 @@ test.each(['https://example.pm.beyondtrustcloud.com', 'Example.pm.beyondtrustclo
 test.each([
   ['policy', 'download', 'synthetic'], ['computer', 'log', 'download', 'synthetic'],
   ['policy', 'revision', 'download', 'synthetic'], ['api-definition', 'download'],
-  ['config', 'path'], ['profile', 'list'], ['computer', 'list', '--config=/tmp/config'],
+  ['config', 'path'], ['profile', 'list'], ['setup', 'hooks'], ['computer', 'list', '--config=/tmp/config'],
   ['computer', 'list', '--profile', 'other'], ['computer', 'list', '--out', '/tmp/output'],
 ].map(args => ({ args })))('blocked $args is refused before credential access', async ({ args }) => {
   source.getCredential.mockClear()
@@ -72,6 +72,10 @@ test.each([
 })
 test('group create preserves the valueless default switch', async () => {
   const args = ['group', 'create', '--name', 'example', '--default']
+  expect((await adapter.prepare(args, reference)).args).toEqual(args)
+})
+test('home preserves the valueless offline switch', async () => {
+  const args = ['home', '--offline']
   expect((await adapter.prepare(args, reference)).args).toEqual(args)
 })
 test.each(['true', 'false'])('group create refuses an attached default value %s', async value => {

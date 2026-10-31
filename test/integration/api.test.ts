@@ -867,7 +867,7 @@ test('the real server remains available after startup encounters a damaged nativ
     expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.8.4', status: 'unconfigured', readOnly: true })
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
     const azureListing = await fetch(`${origin}/v1/tools`, { headers })
-    expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.14', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.16', status: 'unconfigured', readOnly: true })
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'mg-axi'")
     const graphListing = await fetch(`${origin}/v1/tools`, { headers })
     expect(graphListing.status, await graphListing.clone().text()).toBe(200)

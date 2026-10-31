@@ -7,7 +7,7 @@ import { expect, test } from 'vitest'
 const root = fileURLToPath(new URL('../', import.meta.url))
 
 test.each([
-  ['az-axi', 'dist/bin/az-axi.js', '0.1.14', ['sub', 'list']],
+  ['az-axi', 'dist/bin/az-axi.js', '0.1.16', ['sub', 'list']],
   ['vectra-axi', 'bin/vectra-axi.js', '0.1.13', ['detection', 'list']],
   ['mg-axi', 'dist/bin/mg-axi.js', '0.1.18', ['entra', 'user', 'list']],
 ])('pinned %s exposes its version, help and usage errors without credentials', (tool, bin, version, command) => {

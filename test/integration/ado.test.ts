@@ -204,7 +204,7 @@ test('established routes, aliases and defaults dispatch through the pinned binar
         ['--help', '--project=Other Project'], ['--version'], ['-v'], ['pr', 'reviewer', '--help'], ['pr', 'update', '42', '--help']]) {
         const result = await runPinned(runner, port, await adapter(false).prepare(args, reference))
         expect(result.exitCode, result.stdout).toBe(0)
-        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.5.0')
+        expect(result.stdout).toContain(args.includes('--help') ? 'ado-axi' : '0.5.1')
       }
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
     } finally { await runner.shutdown() }

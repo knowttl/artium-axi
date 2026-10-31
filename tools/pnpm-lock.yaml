@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@knowttl/ado-axi':
-        specifier: 0.5.0
-        version: 0.5.0
+        specifier: 0.5.1
+        version: 0.5.1
       '@knowttl/az-axi':
-        specifier: 0.1.14
-        version: 0.1.14
+        specifier: 0.1.16
+        version: 0.1.16
       '@knowttl/beyondtrust-axi':
-        specifier: 0.1.4
-        version: 0.1.4
+        specifier: 0.1.6
+        version: 0.1.6
       '@knowttl/checkpoint-axi':
         specifier: 0.1.5
         version: 0.1.5
@@ -59,18 +59,18 @@ packages:
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
 
-  '@knowttl/ado-axi@0.5.0':
-    resolution: {integrity: sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w==}
+  '@knowttl/ado-axi@0.5.1':
+    resolution: {integrity: sha512-yA7m//5jr9Fi6Ec1tY1vaE3wINlJ8oeFGsNP7otUMXfBbBjrzZ4a14GKQ9XAr8Q3DBxYP2UF79VzBp9WbrXJKg==}
     engines: {node: '>=20'}
     hasBin: true
 
-  '@knowttl/az-axi@0.1.14':
-    resolution: {integrity: sha512-4gY1OZ7ab9An4bRO74Qc9cSFQwBwb1H7o8I4toltj0AnxDHHOZYQL6dDSOwZH8QjPlV6l82iX3E+M6yqdxwe+w==}
+  '@knowttl/az-axi@0.1.16':
+    resolution: {integrity: sha512-rYAA0J3Af8UiNj5si+T5dfAm1zVmxUcbvppF6uIdSCVrN6eVZH6N7GqKv5PY32Bcu8b/fAHh+VPFiuRliCRD1Q==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/beyondtrust-axi@0.1.4':
-    resolution: {integrity: sha512-A6vBEpopJdcgsBozBIrnCMD891Saa9gwKTD8mH7XdGoi8zasKspY3uhmaw4fNUoL3898oT0EcE3X6Eq8tOrJHw==}
+  '@knowttl/beyondtrust-axi@0.1.6':
+    resolution: {integrity: sha512-WGfsTvrzA+QNejvqlcDaQ9ClHXABfc7oi9k8VK++YHYQVEvtod5GzL0n02brEqJUJMbQZNSZr4kAXYTfYp7mKA==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -313,6 +313,10 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
+  smol-toml@1.6.0:
+    resolution: {integrity: sha512-4zemZi0HvTnYwLfrpk/CF9LOd9Lt87kAt50GnqhMpyF9U3poDAP2+iukq2bZsO/ufegbYehBkqINbsWxj4l4cw==}
+    engines: {node: '>= 18'}
+
   smol-toml@1.9.1:
     resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
     engines: {node: '>= 18'}
@@ -376,23 +380,24 @@ snapshots:
       minipass: 7.1.3
     optional: true
 
-  '@knowttl/ado-axi@0.5.0':
+  '@knowttl/ado-axi@0.5.1':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/az-axi@0.1.14':
+  '@knowttl/az-axi@0.1.16':
     dependencies:
       '@kusto/language-service-next': 12.4.1
       '@toon-format/toon': 4.4.0
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/beyondtrust-axi@0.1.4':
+  '@knowttl/beyondtrust-axi@0.1.6':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
+      smol-toml: 1.6.0
       zod: 4.3.6
 
   '@knowttl/checkpoint-axi@0.1.5':
@@ -631,6 +636,8 @@ snapshots:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
+
+  smol-toml@1.6.0: {}
 
   smol-toml@1.9.1: {}
 

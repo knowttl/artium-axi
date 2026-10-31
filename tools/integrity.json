@@ -12,8 +12,8 @@
     "integrity": "sha512-zmBdIDk8Q0OjSysuRrZPvEgbqfNJQV4Op6cHrua9n69arnJ/yuOxFscCAXP5SUFyppXR3dOeMiA0c/fyXFwvWA=="
   },
   "@knowttl/beyondtrust-axi": {
-    "version": "0.1.4",
-    "integrity": "sha512-A6vBEpopJdcgsBozBIrnCMD891Saa9gwKTD8mH7XdGoi8zasKspY3uhmaw4fNUoL3898oT0EcE3X6Eq8tOrJHw=="
+    "version": "0.1.6",
+    "integrity": "sha512-WGfsTvrzA+QNejvqlcDaQ9ClHXABfc7oi9k8VK++YHYQVEvtod5GzL0n02brEqJUJMbQZNSZr4kAXYTfYp7mKA=="
   },
   "@knowttl/hybrid-axi": {
     "version": "0.1.4",
@@ -28,12 +28,12 @@
     "integrity": "sha512-7m/IWbfU7bd5JbKqu9FaLK1Pf5QaxQBl+tOAaHHOBzgUOHQDpHKRAVL4xy5Ww0vLiR7PcsRK/kDp71GqS/Kb6g=="
   },
   "@knowttl/ado-axi": {
-    "version": "0.5.0",
-    "integrity": "sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w=="
+    "version": "0.5.1",
+    "integrity": "sha512-yA7m//5jr9Fi6Ec1tY1vaE3wINlJ8oeFGsNP7otUMXfBbBjrzZ4a14GKQ9XAr8Q3DBxYP2UF79VzBp9WbrXJKg=="
   },
   "@knowttl/az-axi": {
-    "version": "0.1.14",
-    "integrity": "sha512-4gY1OZ7ab9An4bRO74Qc9cSFQwBwb1H7o8I4toltj0AnxDHHOZYQL6dDSOwZH8QjPlV6l82iX3E+M6yqdxwe+w=="
+    "version": "0.1.16",
+    "integrity": "sha512-rYAA0J3Af8UiNj5si+T5dfAm1zVmxUcbvppF6uIdSCVrN6eVZH6N7GqKv5PY32Bcu8b/fAHh+VPFiuRliCRD1Q=="
   },
   "@knowttl/vectra-axi": {
     "version": "0.1.13",
