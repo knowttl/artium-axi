@@ -472,10 +472,11 @@ Background checks for enabled configured tools become due on the first 10-second
 Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
 Success resets the retry backoff; authentication, TLS and configuration failures use the normal interval.
 Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.
+See [runner admission](#runner-admission) for the shared capacity and queue contract.
 Credential, native-settings, write-access and certificate-trust changes reset the backoff and request a fresh check for enabled configured tools without a manual test.
 While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
 GitHub device connection explicitly checks the new credential revision even when the tool is disabled.
-If runner capacity is occupied or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`
+If the runner admission wait expires or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`
 The existing health refresh mechanism retries that revision once capacity is available, including for disabled tools; completion of an older revision cannot overwrite its result.
 Disabled tools retain their `disabled` health status while exposing the recorded check's revision, timestamp and error details.
 Results superseded by a later configuration change cannot change the schedule or cached health, even when the credential revision is unchanged.
@@ -780,6 +781,18 @@ The owner must also set the backup schedule, retention window and deletion proce
 Remove expired backups under that policy, and retire a key only after all backups requiring it expire.
 Without its matching key, a backup cannot recover encrypted platform credentials.
 Exercise recovery periodically on isolated copies and record the image digest, required key ID, backup identity and verification results without key bytes or credentials.
+
+## Runner admission
+
+The runner admits at most four active calls per authenticated user and eight across the server.
+The executable defaults are `runnerLimits.userCalls`, `runnerLimits.globalCalls` and `runnerLimits.admissionWaitMs` in [config.ts](../src/server/config.ts).
+Calls waiting for either limit enter one queue and wait up to 3,000 ms before returning `TOO_MANY_CALLS`.
+When server capacity is available, the oldest queued call whose user has fewer than four active calls is admitted.
+Calls blocked by their user's limit do not delay eligible calls from other users.
+The wait covers admission only; the execution deadline starts after admission.
+Queued cancellation or client disconnect removes the call without taking a slot.
+Admission holds a slot through setup, execution and cleanup; release after success, error or cancellation admits the oldest eligible waiting calls.
+Shutdown rejects waiting calls with `RUNNER_CLOSED` and cancels active calls.
 
 ## Upgrading stores without a key binding
 

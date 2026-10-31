@@ -52,7 +52,8 @@ export const deviceDefaults = { lifetimeMs: 600_000, intervalMs: 5000, pendingLi
 export const healthDefaults = { intervalMs: 900_000, retryMs: 60_000, tickMs: 10_000, backgroundCalls: 2, actor: 'system:tool-health' } as const
 export const runnerLimits = {
   globalCalls: 8,
-  userCalls: 2,
+  userCalls: 4,
+  admissionWaitMs: 3000,
   timeoutMs: 60_000,
   terminationGraceMs: 2_000,
   outputBytesPerStream: 4 * 1024 * 1024,

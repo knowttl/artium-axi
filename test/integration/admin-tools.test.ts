@@ -1754,21 +1754,22 @@ test.each([0, 7])('credential test logs exactly one correlated run for exit %s',
   ])
   expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY')
 })
-test('manual tests share the administrator two-call quota and release it after completion', async () => {
+test('manual tests share the administrator four-call quota and release it after completion', async () => {
   await replace('falcon-axi')
   expect((await request('POST', '/falcon-axi/test', {})).status).toBe(200)
   const health = db.prepare('SELECT * FROM tool_health').all()
   db.exec('DELETE FROM audit')
   const controller = new AbortController()
-  let readyFirst!: () => void
-  let readySecond!: () => void
-  const firstReady = new Promise<void>(resolve => { readyFirst = resolve })
-  const secondReady = new Promise<void>(resolve => { readySecond = resolve })
-  const calls = [runner.run(actor, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [], { signal: controller.signal }, {}, [], readyFirst),
-    runner.run(actor, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [], { signal: controller.signal }, {}, [], readySecond)]
-  const completed = Promise.allSettled(calls)
+  const calls = Array.from({ length: 4 }, () => {
+    let ready!: () => void
+    const admitted = new Promise<void>(resolve => { ready = resolve })
+    const result = runner.run(actor, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [],
+      { signal: controller.signal }, {}, [], ready)
+    return { admitted, result }
+  })
+  const completed = Promise.allSettled(calls.map(call => call.result))
   try {
-    await Promise.all([firstReady, secondReady])
+    await Promise.all(calls.map(call => call.admitted))
     await failure(await request('POST', '/falcon-axi/test', {}), 'TOO_MANY_CALLS')
     expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-test'").get()).toEqual({ outcome: 'TOO_MANY_CALLS' })
     expect(db.prepare('SELECT * FROM tool_health').all()).toEqual(health)

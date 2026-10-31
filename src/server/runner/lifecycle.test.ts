@@ -2,7 +2,8 @@ import { watch } from 'node:fs'
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { runnerLimits } from '../config.js'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
 import { Runner } from './runner.js'
 
@@ -15,6 +16,7 @@ beforeEach(async () => {
   runner = await Runner.create(root)
 })
 afterEach(async () => {
+  vi.useRealTimers()
   await runner.shutdown()
   try {
     expect(await readdir(root)).toEqual([])
@@ -139,20 +141,86 @@ test('security resident buffers can exceed the Node heap bound and require a con
   expect((await call.result).code).toBe('CANCELLED')
 })
 
-test('third user call is refused while another user can still run', async () => {
-  const calls = ['a', 'a'].map(user =>
-    runner.run(user, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, []).catch(error => error))
-  await expect(runner.run('a', fakeTool.executable, fakeTool.args, {}, [])).rejects.toMatchObject({ code: 'TOO_MANY_CALLS' })
-  await expect(runner.run('b', fakeTool.executable, [...fakeTool.args, 'print', 'admitted'], {}, []))
+// TD-058: exercise admission through real child calls; only the wait clock is fake.
+function occupy(users: string[]) {
+  return users.map(user => {
+    const controller = new AbortController()
+    const result = runner.run(user, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, [],
+      { signal: controller.signal }).catch(error => error)
+    return { controller, result }
+  })
+}
+
+function print(user = 'a', signal?: AbortSignal) {
+  return runner.run(user, fakeTool.executable, [...fakeTool.args, 'print', 'admitted'], {}, [], { signal })
+}
+
+test('fourth concurrent user call succeeds', async () => {
+  occupy(['a', 'a', 'a'])
+  await expect(print())
     .resolves.toMatchObject({ exitCode: 0, stdout: 'admitted' })
-  await runner.shutdown()
-  expect((await Promise.all(calls)).map(result => result.code)).toEqual(Array(2).fill('CANCELLED'))
 })
 
-test('ninth global call is refused immediately without a queue', async () => {
-  const calls = ['a', 'a', 'b', 'b', 'c', 'c', 'd', 'd'].map(user =>
-    runner.run(user, fakeTool.executable, [...fakeTool.args, 'sleep', '60000'], {}, []).catch(error => error))
-  await expect(runner.run('e', fakeTool.executable, fakeTool.args, {}, [])).rejects.toMatchObject({ code: 'TOO_MANY_CALLS' })
+test('fifth call waits and runs when a slot frees within the bound', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const calls = occupy(['a', 'a', 'a', 'a'])
+  const pending = print()
+  await vi.advanceTimersByTimeAsync(runnerLimits.admissionWaitMs - 1)
+  calls[0].controller.abort()
+  await expect(calls[0].result).resolves.toMatchObject({ code: 'CANCELLED' })
+  await expect(pending).resolves.toMatchObject({ stdout: 'admitted' })
+})
+
+test.each([
+  { name: 'fifth user call', users: ['a', 'a', 'a', 'a'], user: 'a' },
+  { name: 'ninth global call across users', users: ['a', 'a', 'a', 'a', 'b', 'b', 'b', 'b'], user: 'c' },
+])('$name is refused only when its queue wait expires', async ({ users, user }) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  occupy(users)
+  let outcome = 'waiting'
+  const pending = print(user).then(() => { outcome = 'admitted' }, error => { outcome = error.code })
+  await vi.advanceTimersByTimeAsync(runnerLimits.admissionWaitMs - 1)
+  expect(outcome).toBe('waiting')
+  await vi.advanceTimersByTimeAsync(1)
+  await pending
+  expect(outcome).toBe('TOO_MANY_CALLS')
+})
+
+test('cancelled queued call releases no active slot and the next waiter can run', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const calls = occupy(['a', 'a', 'a', 'a'])
+  const controller = new AbortController()
+  const cancelled = print('a', controller.signal).catch(error => error)
+  controller.abort()
+  await expect(cancelled).resolves.toMatchObject({ code: 'CANCELLED' })
+  const next = print().catch(error => error)
+  await vi.advanceTimersByTimeAsync(runnerLimits.admissionWaitMs)
+  await expect(next).resolves.toMatchObject({ code: 'TOO_MANY_CALLS' })
+  const admitted = print()
+  calls[0].controller.abort()
+  await expect(admitted).resolves.toMatchObject({ stdout: 'admitted' })
+})
+
+test.each([
+  { name: 'with spare global capacity', users: ['a', 'a', 'a', 'a'] },
+  { name: 'when a global slot frees', users: ['a', 'a', 'a', 'a', 'b', 'b', 'b', 'b'] },
+])('a user-limited waiter does not block another user $name', async ({ users }) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const calls = occupy(users)
+  let firstOutcome = 'waiting'
+  const first = print('a').then(result => { firstOutcome = 'admitted'; return result })
+  const second = print('c')
+  calls[4]?.controller.abort()
+  await expect(second).resolves.toMatchObject({ stdout: 'admitted' })
+  expect(firstOutcome).toBe('waiting')
+  calls[0].controller.abort()
+  await expect(first).resolves.toMatchObject({ stdout: 'admitted' })
+})
+
+test('shutdown rejects queued calls without spawning them', async () => {
+  occupy(['a', 'a', 'a', 'a'])
+  const queued = print().catch(error => error)
   await runner.shutdown()
-  expect((await Promise.all(calls)).map(result => result.code)).toEqual(Array(8).fill('CANCELLED'))
+  await expect(queued).resolves.toMatchObject({ code: 'RUNNER_CLOSED' })
+  await expect(print()).rejects.toMatchObject({ code: 'RUNNER_CLOSED' })
 })
