@@ -2,7 +2,7 @@
 
 Part of #237, slice a: an inventory and delivery plan only.
 This change grants no permissions and changes no adapter behavior.
-The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON inventory](../tools/inventories/awx-axi-parity.json) describe the installed `awx-axi` **0.1.9**, pinned in `tools/package.json` and `tools/integrity.json`.
+The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON inventory](../tools/inventories/awx-axi-parity.json) describe the installed `awx-axi` version pinned in [tools/package.json](../tools/package.json) and [tools/integrity.json](../tools/integrity.json).
 
 ## Reproduction and freshness
 
@@ -40,8 +40,8 @@ It does not claim live acceptance or complete upstream behavior for every value.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
 Target slices assign future work; slice f on already supported rows means retain and verify behavior, not postpone existing support.
 
-The 13 operational write routes require administrator `allowWrites` and upstream `--confirm` without `--dry-run`; absent confirmation, upstream previews remain reads.
-Configuration, destructive and security operations are currently rejected before the administrator write setting is checked.
+See the [AWX write boundary](safety.md#write-gates-by-tool) for current write permissions and blocked operation classes.
+On supported write routes, calls without `--confirm` or with `--dry-run` remain read-classified previews.
 The proposed separate configuration, destructive and security authorizations in the matrix are requirements for later slices, not existing settings or an implemented permission schema.
 All write classes must retain managed account access, upstream permissions, confirmation, write coordination, audit and unknown-outcome handling.
 

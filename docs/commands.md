@@ -50,6 +50,9 @@ The [full client reference](client-reference.md#command-surface-and-subcommands)
 GitHub PR details support field selection, for example `artium-axi gh-axi pr view 42 -R OWNER/NAME --fields number,title,mergeStateStatus,body`.
 The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
 
+For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned upstream commands and flags with the reviewed Artium boundary.
+See its [scope and managed equivalents](awx-parity.md) for client-local exceptions and planned delivery slices, and the [write boundary](safety.md#write-gates-by-tool) for current permissions.
+
 ## Check Point Email Security
 
 The [reviewed Check Point inventory](../tools/inventories/checkpoint-axi.json) owns accepted flags, their defaults and bounds.
