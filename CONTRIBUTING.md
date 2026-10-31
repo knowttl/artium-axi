@@ -59,8 +59,10 @@ Use `pnpm test:gate --base <commit>` only with a known ancestor when the default
 Keep that output with the validation evidence.
 Import dependents select module tests; explicit owners retain CLI bundles, installed package journeys and public API journeys for runtime changes.
 Embedded skills run CLI and package checks rather than taking the documentation shortcut.
-Generated inventories, schemas, dynamic fixtures, migrations, shared contracts, toolchain changes, unknown paths, deleted runtime inputs, missing or ambiguous bases and empty selections require the full suite.
-Documentation runs generated-reference checks; README and license changes also run the package journeys that copy those files.
+Generated inventories, schemas, dynamic fixtures, migrations, shared contracts, toolchain changes, unknown paths, deleted runtime inputs, missing or ambiguous bases, unchanged inputs and empty runtime test selections require the full suite.
+Every selection checks `docs/errors.md` freshness with `scripts/errors-reference.mjs`.
+Changes or deletions of `docs/awx-parity-matrix.md` also select `scripts/awx-parity.mjs`; these generated-reference edits and other documentation-only edits select no runtime tests.
+README and license changes also run the package journeys that copy those files.
 Freshness checks and types run for runtime changes.
 Run `pnpm test:gate --full` before every release and at least weekly during active local development to catch missing ownership relationships.
 `pnpm test` and `pnpm check` always retain the full suite, including release automation.
