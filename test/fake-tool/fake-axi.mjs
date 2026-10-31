@@ -27,6 +27,19 @@ const write = async (stream, value) => {
 
 try {
   switch (mode) {
+    case 'input-file': {
+      const path = args[args.indexOf('--note-file') + 1]
+      const content = await readFile(path)
+      const metadata = { path, contentBase64: content.toString('base64'),
+        mode: (await stat(path)).mode & 0o777, directoryMode: (await stat(join(path, '..'))).mode & 0o777 }
+      await ready(metadata)
+      if (process.env.ARTIUM_TEST_INPUT_OUTCOME === 'cancel') hold()
+      else {
+        console.log(JSON.stringify(metadata))
+        process.exitCode = process.env.ARTIUM_TEST_INPUT_OUTCOME === 'error' ? 7 : 0
+      }
+      break
+    }
     case 'native-artifact': {
       const { main } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/cli.js')
       const { constructWriteCoordinator } = await import('../../tools/node_modules/@knowttl/hybrid-axi/dist/src/writes-core.js')

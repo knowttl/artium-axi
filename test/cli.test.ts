@@ -950,7 +950,7 @@ test.each([
   { tool: 'az-axi', args: ['api', 'GET', '/synthetic'], alternative: '--data' },
   { tool: 'az-axi', args: ['api', 'POST', '/synthetic'], alternative: '--data' },
   { tool: 'tenable-axi', args: ['asset', 'list', '--filter-file', '-'], alternative: '--filter-file' },
-  { tool: 'hybrid-axi', args: ['api', '--body-file', '-'], alternative: '--body-file' },
+  { tool: 'hybrid-axi', args: ['hunting', 'yara', 'create', '--body-file', '-'], alternative: '--body-file' },
 ])('open tool stdin fails visibly before any request: $tool $args', async ({ tool, args, alternative }) => {
   requests = []
   const result = await cli([tool, ...args])
@@ -977,7 +977,7 @@ test.each([
     .toMatchObject({ code: 0, stdout: 'synthetic result' })
   expect(requests[0].body).toEqual(kind === 'stdin' ? { args: route, stdin: query }
     : { args: [...route, ...(kind === 'file' ? [flag, 'query.kql'] : [`${flag}=query.kql`])],
-    files: [{ name: 'query.kql', contentBase64: Buffer.from(query).toString('base64') }] })
+    files: [{ name: 'query.kql', size: Buffer.byteLength(query), contentBase64: Buffer.from(query).toString('base64') }] })
 })
 
 test.each(['stdin', 'file', 'missing-file'] as const)('Azure refuses %s input that cannot be uploaded before sending a request', async kind => {

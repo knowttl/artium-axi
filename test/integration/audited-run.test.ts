@@ -83,7 +83,7 @@ test('a run persists a start before secret retrieval and a paired terminal befor
     return { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }
   })
   const result = await runTool(db, audit, runner, token, { args: ['exit', '7'],
-    stdin: 'CANARY-body', files: [{ name: 'synthetic-input', contentBase64: Buffer.from('CANARY-file').toString('base64') }] }, adapter, resolver, context)
+    stdin: 'CANARY-body' }, adapter, resolver, context)
   expect(result).toMatchObject({ stdout: '', stderr: '', exitCode: 7 })
   db.close()
   db = openStore(join(directory, 'artium.db'), provider)
@@ -606,20 +606,20 @@ describe.each([
     let ready!: () => void
     setup = new Promise<void>(resolve => { ready = resolve })
     const resume = new Promise<void>(resolve => { release = resolve })
-    const writeFile = actualFilesystem.writeFile
-    vi.spyOn(filesystem, 'writeFile').mockImplementation(async (...args) => {
-      await writeFile(...args)
-      if (String(args[0]).endsWith('/inputs/synthetic-input')) {
+    const mkdir = actualFilesystem.mkdir
+    vi.spyOn(filesystem, 'mkdir').mockImplementation(async (...args) => {
+      const result = await mkdir(...args)
+      if (String(args[0]).endsWith('/runtime')) {
         ready()
         await resume
       }
+      return result
     })
     spawn = vi.spyOn(childProcess, 'spawn').mockClear()
   })
   afterEach(() => { release() })
 
-  const start = () => runTool(db, audit, runner, token, { args: ['exit', '0'],
-    files: [{ name: 'synthetic-input', contentBase64: Buffer.from('CANARY-file').toString('base64') }] },
+  const start = () => runTool(db, audit, runner, token, { args: ['exit', '0'] },
   executionAdapter, new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-credential', tool }, value: {} },
   ])), context)
@@ -638,7 +638,7 @@ describe.each([
     const rejected = expect(result).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
     await setup
     const [call] = readdirSync(join(directory, 'calls'))
-    expect(readFileSync(join(directory, 'calls', call, 'tmp', 'inputs', 'synthetic-input'), 'utf8')).toBe('CANARY-file')
+    expect(readdirSync(join(directory, 'calls', call))).toContain('runtime')
     vi.setSystemTime(Date.now() + tokenDefaults.accessMs)
     release()
     await rejected

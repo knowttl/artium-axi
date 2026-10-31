@@ -581,6 +581,7 @@ export const toolsResponseSchema = z.strictObject({
 })
 export const inputFileSchema = z.strictObject({
   name: text.min(1).refine(value => value !== '.' && value !== '..' && !/[\\/:\x00-\x1f\x7f]/.test(value) && byteLength(value) <= 255, 'Expected a safe leaf name'),
+  size: z.number().int().nonnegative().max(inputLimits.fileBytes).optional(),
   contentBase64: z.string().max(4 * Math.ceil(inputLimits.fileBytes / 3))
     .refine(value => /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value), 'Expected canonical base64')
     .refine(value => {
@@ -590,7 +591,7 @@ export const inputFileSchema = z.strictObject({
       return true
     }, 'Expected canonical base64')
     .refine(value => decodedFileBytes(value) <= inputLimits.fileBytes, 'File exceeds byte limit'),
-})
+}).refine(file => file.size === undefined || file.size === decodedFileBytes(file.contentBase64), 'File size does not match bytes')
 
 export function decodedFileBytes(value: string): number {
   return value.length / 4 * 3 - (value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0)

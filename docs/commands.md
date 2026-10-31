@@ -2,6 +2,7 @@
 
 This table follows the [CLI help registry](../src/cli/help.ts) and is kept identical to the table in [SKILL.md](../skill/artium-axi/SKILL.md).
 Tool reference links describe upstream commands; Artium controls availability, credentials and permissions.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for local file uploads and stdin selection.
 
 | Command | Purpose |
 | --- | --- |

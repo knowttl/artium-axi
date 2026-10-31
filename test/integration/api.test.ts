@@ -574,8 +574,7 @@ test('audit is durable before credential preparation and child admission and ide
     ])
     return { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }
   })
-  const response = await run({ args: ['print', 'synthetic-output'], stdin: 'synthetic-input',
-    files: [{ name: 'input.txt', contentBase64: Buffer.from('synthetic-file').toString('base64') }] })
+  const response = await run({ args: ['print', 'synthetic-output'], stdin: 'synthetic-input' })
   expect(response.status).toBe(200)
   expect(runSuccessSchema.parse(await response.json()).stdout).toBe('synthetic-output')
   expect(db.prepare('SELECT event, request_id FROM audit ORDER BY id').all()).toEqual([
@@ -593,6 +592,7 @@ test.each([
   [{ args: ['print'], files: [{ name: 'input', contentBase64: 'YQ=' }] }, 'INVALID_INPUT'],
   [{ args: ['print'], files: [{ name: 'input', contentBase64: 'YQ==' }, { name: 'input', contentBase64: 'YQ==' }] }, 'INVALID_INPUT'],
   [{ args: ['print'], stdin: 'x'.repeat(inputLimits.stdinBytes + 1) }, 'INVALID_INPUT'],
+  [{ args: ['print'], files: [{ name: 'input.txt', contentBase64: 'YQ==' }] }, 'UNSUPPORTED_INPUT'],
 ] as const)('invalid body is rejected before credentials: %j', async (body, code) => {
   const requestId = await expectFailure(await run(body), code)
   expect(getCredential).not.toHaveBeenCalled()
