@@ -12,7 +12,7 @@ import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { checkAdoApiWrite, normalizeAdoApiPath } from './ado-api.js'
 
 export const adoManifest = { ...inventory, ...inventory.adapterBoundary }
-export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item, pull-request, pipeline and ref writes with host classification and journaling.',
+export const adoWritePolicy = writePolicy({ unlocks: 'Reviewed work-item (including delete/destroy and link removal), pull-request, pipeline, repository, policy and ref writes with host classification and journaling.',
   blocked: 'Raw API writes additionally require a server-listed method/path and bounded JSON body (TD-067). Configuration overrides and unsupported commands remain blocked.' })
 export const adoProfile = new CredentialProfile({ type: 'object', additionalProperties: false,
   required: ['org', 'auth'], properties: {
@@ -70,6 +70,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
   const match = candidates.find(({ command }) => positionals.slice(0, command.split(' ').length).join(' ') === command)
   if (!match) throw invalidCommand('ado-axi', positionals, candidates.map(({ command }) => command))
   const { route, command } = match
+  if (route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED')
   const rest = positionals.slice(command.split(' ').length)
   const routeFlags: Record<string, string | undefined> = route.flags
   for (const name of flags.keys()) {
@@ -141,19 +142,44 @@ function readBack(call: ReturnType<typeof adoArguments>): PreparedCall['write'] 
       if (!repo) checkArgs.push('--no-project')
     }
   } else if (group === 'pipeline') {
-    checkArgs = ['pipeline', 'runs', '--limit', '1000']
-    const pipeline = call.flags.get('pipeline') ?? id
-    if (pipeline) checkArgs.push('--pipeline', pipeline)
-    selectors = ['branch']
+    if (['create', 'update', 'delete'].includes(operation)) {
+      checkArgs = id ? ['pipeline', 'show', id, '--full'] : ['pipeline', 'list', '--limit', '1000']
+    } else if (operation === 'folder') {
+      checkArgs = ['pipeline', 'folder', 'list', '--full']
+      selectors = ['path']
+    } else if (operation === 'release') {
+      checkArgs = ['pipeline', 'release', 'list', '--full', '--limit', '1000']
+      selectors = ['definition']
+    } else if (operation === 'build' || call.command.includes(' tag ')) {
+      checkArgs = ['api', `_apis/build/builds/${encodeURIComponent(id!)}`, '--full']
+    } else {
+      checkArgs = ['pipeline', 'runs', '--limit', '1000']
+      const pipeline = call.flags.get('pipeline') ?? id
+      if (pipeline) checkArgs.push('--pipeline', pipeline)
+      selectors = ['branch']
+    }
+  } else if (group === 'repo') {
+    if (operation === 'policy') {
+      checkArgs = id ? ['repo', 'policy', 'show', id, '--full'] : ['repo', 'policy', 'list', '--full', '--limit', '1000']
+    } else if (operation === 'create') {
+      checkArgs = ['repo', 'list', '--full', '--limit', '1000']
+      selectors = ['name']
+    } else if (operation === 'update' && call.flags.has('name')) {
+      checkArgs = ['repo', 'list', '--full', '--limit', '1000']
+      afterCheck = 'Inspect both the original and requested repository names before retrying; absence from a bounded list does not prove the rename failed'
+    } else {
+      checkArgs = ['repo', 'show', '--repo', repo!, '--full']
+      if (operation === 'import') afterCheck = 'Inspect repository import requests before retrying; repository details alone do not establish import completion'
+    }
   } else {
     checkArgs = ['ref', 'list', '--full']
     selectors = ['repo', 'name']
   }
   for (const name of [...selectors, 'project']) if (call.flags.has(name)) checkArgs.push(`--${name}`, call.flags.get(name)!)
-  if (operation === 'create' || group === 'pipeline' || group === 'ref') {
+  if (operation === 'create' || group === 'pipeline' || group === 'ref' || group === 'repo' && operation === 'policy' && !id) {
     afterCheck = 'Results may be limited; absence from this read does not prove the write failed. Inspect matching resources and any further pages before retrying'
   }
-  return { operation: call.command, target: id ?? call.flags.get('name') ?? 'new resource', checkArgs,
+  return { operation: call.command, target: id ?? repo ?? call.flags.get('path') ?? call.flags.get('name') ?? 'new resource', checkArgs,
     ...(afterCheck ? { afterCheck } : {}) }
 }
 
@@ -162,7 +188,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
     name: 'ado-axi', executable: toolPaths['ado-axi'], credentialSchema: adoCredentialSchema, credentialProfile: adoProfile,
     invalidateCredential: reference => { cache.replace(reference.id, reference.revision!) },
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: adoManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
-    sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment'],
+    sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment', '--definition', '--policy-json', '--artifacts', '--source-url'],
       positions: args.map((_, index) => index).filter(index => index > 0 && !args[index].startsWith('-')) }),
     validateArgs: (args, input) => { adoArguments(args, input) },
     async prepare(args, reference, input) {
@@ -183,6 +209,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
       const token = minted?.accessToken ?? value.token as string
       return { executable: toolPaths['ado-axi'], args: call.args, invocation: call.invocation,
         environment: { ADO_AXI_CONFIG: 'ado-profile.json', ARTIUM_SECRET_0: token,
+          ...(call.effect === 'write' ? { ADO_AXI_WRITES: '1' } : {}),
           ...(minted ? { ARTIUM_ADO_EXPIRES_ON: new Date(minted.expiresAt).toISOString().replace('T', ' ').replace('Z', '') } : {}) },
         ...(minted ? { pathPrefix: adoPathPrefix } : {}),
         files: [{ name: 'ado-profile.json', content: JSON.stringify({ defaultProfile: 'artium', profiles: {

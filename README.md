@@ -82,7 +82,7 @@ Write capabilities below require administrator opt-in.
 | Azure | Subscriptions, resources and queries | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure) |
 | Microsoft Graph | Entra, optional mail and hunting packs | Reads; selected writes | [Capabilities](docs/safety.md#microsoft-graph) |
 | LDAP | Directory investigation over verified TLS | Read-only | [Credentials](docs/tool-credentials.md#ldap) |
-| Azure DevOps | Organization and project workflows | Reads; reviewed writes; API writes on server-listed paths (TD-067) | [Credentials](docs/tool-credentials.md#azure-devops) |
+| Azure DevOps | Organization and project workflows | Reads; gated work-item, PR, pipeline, repository, policy and ref writes; API writes on server-listed paths (TD-067) | [Credentials](docs/tool-credentials.md#azure-devops) |
 | GitHub | Repository investigation and collaboration | Reads; selected writes | [Credentials](docs/tool-credentials.md#github) |
 | AWX | Jobs, workflows, operational actions and ordinary resource configuration | Reads; separate operational and configuration write controls | [Credentials](docs/tool-credentials.md#awx) |
 | Tenable One | Exposure investigation and export jobs | Reads; selected writes | [Credentials](docs/tool-credentials.md#tenable-one) |

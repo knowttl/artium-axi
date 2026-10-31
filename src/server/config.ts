@@ -24,7 +24,7 @@ export const toolSkillPaths = {
   'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/skills/az-axi/SKILL.md',
   'mg-axi': '/opt/tools/node_modules/@knowttl/mg-axi/skills/mg-axi/SKILL.md',
   'ldap-axi': '/opt/tools/node_modules/@knowttl/ldap-axi/skills/ldap-axi/SKILL.md',
-  'ado-axi': '/opt/tools/node_modules/@jeffreyhaen/ado-axi/SKILL.md',
+  'ado-axi': '/opt/tools/node_modules/@knowttl/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
   'gh-axi': undefined,

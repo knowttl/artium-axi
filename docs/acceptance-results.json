@@ -80,5 +80,45 @@
       "Live controller acceptance is unverified.",
       "Private hygiene verification requires the supervising operator's external deny list before publication."
     ]
+  },
+  "adoMigration": {
+    "scope": "knowttl ado-axi 0.5.0 migration",
+    "environment": "Linux, Node 24, synthetic identities and canary credentials only",
+    "stage": "implementation working tree before no-mistakes Test",
+    "package": {
+      "name": "@knowttl/ado-axi",
+      "version": "0.5.0",
+      "registryIntegrityVerified": true,
+      "integrity": "sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w=="
+    },
+    "checks": [
+      {
+        "command": "pnpm exec vitest run test/integration/ado.test.ts -t 'managed .* credentials can be saved'",
+        "phase": "before adapter fix",
+        "result": "reproduced: both PAT and client-secret authorized writes returned WRITES_DISABLED"
+      },
+      {
+        "command": "pnpm exec vitest run test/integration/ado.test.ts",
+        "phase": "after adapter fix",
+        "result": "11 tests passed against fake Azure DevOps"
+      },
+      {
+        "command": "pnpm exec vitest run test/integration/ado-write-gate.test.ts src/server/adapters/ado.test.ts test/tool-skills.test.ts --reporter=dot",
+        "result": "245 tests passed"
+      },
+      {
+        "command": "pnpm lint",
+        "result": "passed"
+      }
+    ],
+    "boundaries": {
+      "attachments": "refused; adapter has no accepted file channel",
+      "artifactDownloads": "refused; no local output transport",
+      "wiki": "no dedicated dispatch in the published package; raw API gate applies",
+      "liveTenantAcceptance": "unverified",
+      "fullLocalSuite": "pending no-mistakes Test",
+      "containers": "required, pending offline-compatible execution",
+      "privateHygiene": "unverified; private deny-list unavailable to worker"
+    }
   }
 }

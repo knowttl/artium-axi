@@ -275,7 +275,8 @@ Local fake-directory and offline profile checks do not establish live directory 
 
 #### Azure DevOps
 
-Artium uses the [pinned](../tools/package.json) `@jeffreyhaen/ado-axi` release without upstream modifications.
+Artium uses the [pinned](../tools/package.json) `@knowttl/ado-axi` fork without local package modifications.
+See the [capability boundary](safety.md#write-gates-by-tool) for supported mutations, the host-managed native write switch and unsupported transfers.
 At `/admin/tools/ado-axi`, enter `org`, optional `project`, choose `auth=pat`, and paste the PAT itself into `token`.
 Organization-root URLs such as `https://dev.azure.com/<org>` and `https://<org>.visualstudio.com` normalize to the organization name.
 Artium encrypts the PAT in its credential store and injects it through a private per-call profile and environment variable.

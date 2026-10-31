@@ -6,6 +6,7 @@ import beyondtrustInventory from '../../tools/inventories/beyondtrust-axi.json' 
 import checkpointInventory from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
+import adoInventory from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { toolSkillPaths } from './config.js'
 import type { ToolName } from './store/credential-store.js'
 
@@ -18,7 +19,7 @@ const overlays = {
   'hybrid-axi': { sha256: '59ce5bf65f22710bc33fbbf6279668f32752b5a8ef7e3cab8ab185fff626bbd2', sections: [] },
   'tenable-axi': { sha256: '40f40ad818e54c71aa11654a039922bb48cd0d9c303b8a812598c9c0661ad5e7', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
-  'ado-axi': { sha256: 'a187cf298038b30b5ea747c8d53304fc5c1c5522d7a5a957989a770190e1cb05', sections: ['Work items', 'Pull requests', 'Pipelines', 'Tests', 'Repositories'] },
+  'ado-axi': { sha256: adoInventory.skillSha256, sections: [] },
   'az-axi': { sha256: '367dc5bd085003b1fb354ed4450e94522472bb884e04a27b577cc1efd5d4e999', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: 'd56d7dd6f5da32d21baaf3ded909908767a2519e025373f3447bfc4755bd1e09', sections: ['Safety'] },
   'mg-axi': { sha256: '682d1d608593aa438488a41b894c3068243ab9897cbcadcac0184aaa2dd09d49', sections: ['Safety'] },
@@ -62,10 +63,7 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       body = body.replaceAll('npx -y awx-axi', 'artium-axi awx-axi')
       body += '\n\n## Managed commands\n\n' + awxInventory.discovery.help + '\nRead commands: ' + awxInventory.commands.filter(route => route.effect === 'read').map(route => '`' + route.command + '`').join(', ') + '.\nOperational commands: ' + awxInventory.commands.filter(route => route.effect === 'write').map(route => '`' + route.command + '`').join(', ') + '.\nConfiguration commands: ' + awxInventory.commands.filter(route => route.effect === 'configuration-write').map(route => '`' + route.command + '`').join(', ') + '.\n'
     } else if (tool === 'ado-axi') {
-      body = body.replace(/\n### Safe shell input\n[\s\S]*?(?=\n### |\n## |$)/, '')
-        .replace(/\n### Git Bash repository paths\n[\s\S]*?(?=\n### |\n## |$)/, '')
-        .replaceAll('--timeout 1800', '--timeout 50')
-      body += '\n\n## Managed access\n\nArtium manages the organization, profile, config and PAT.\nWrites are off by default and journaled by Artium only.\nThe api command accepts relative paths and GET only, without body flags.\nStdin and files are unsupported; pass comment and description text as flag values.\nFor pipeline watch, use --timeout 50 or less.\n'
+      body = '## Managed access\n\nArtium manages the organization, profile, config and credentials.\nWrites are off by default and journaled by Artium; only an authorized write child receives the native write switch.\nThe api command defaults to GET; POST/PATCH/PUT/DELETE require allowWrites, a server-listed method/path and bounded JSON --body.\nStdin, attachment uploads, attachment downloads and pipeline artifact downloads are unsupported.\nPass comment and description text as flag values. For pipeline watch, use --timeout 50 or less.\nUse query run <saved-query-id> for saved queries, area list and iteration list for classification paths, and work-item get <id> --full for custom fields.\nWork-item delete --destroy --confirm-destroy permanently destroys an item. Repository, policy and pipeline deletes require their native confirmation flags; release create may trigger deployment.\nInspect the returned recovery read before retrying an interrupted write.\nRead commands: ' + adoInventory.commands.filter(route => route.effect === 'read').map(route => '`' + route.command + '`').join(', ') + '.\nWrite commands: ' + adoInventory.commands.filter(route => route.effect === 'write').map(route => '`' + route.command + '`').join(', ') + '.\n'
     } else if (tool === 'az-axi') {
       body = body.replace(' Launch agents that must never write with `AZ_AXI_READ_ONLY=1`.', '')
     } else if (tool === 'vectra-axi') {
