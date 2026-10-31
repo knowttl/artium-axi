@@ -37,7 +37,7 @@ It does not claim live acceptance or complete upstream behavior for every value.
 `blocked` includes routes rejected even for `--help` or `--dry-run`, flags omitted from the adapter schema and all file/stdin input.
 `managed equivalent` identifies an Artium-owned workflow rather than permission to execute the upstream command or override.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
-Target slices assign future work; slice f on already supported rows means retain and verify behavior, not postpone existing support.
+Target slices group delivery work; already supported rows, including those assigned to slice f, mean retain and verify behavior, not postpone existing support.
 
 See the [AWX write boundary](safety.md#write-gates-by-tool) for current write permissions and blocked operation classes.
 See the [client command reference](commands.md) for preview and confirmation behavior.
