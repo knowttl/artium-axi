@@ -11,6 +11,15 @@ const credential = { apiKey: 'CANARY-hybrid-key' }
 const reference = { id: 'synthetic-hybrid', tool: 'hybrid-axi' as const, revision: 1 }
 const adapter = createHybridAdapter({ getCredential: async () => credential }, '/tmp/synthetic-hybrid/writes.log')
 
+test('offline home passes validation and preparation without a flag value', async () => {
+  const args = ['home', '--offline']
+  adapter.validateArgs(args)
+  const call = await adapter.prepare(args, reference)
+  expect(call.args).toEqual(args)
+  expect(call.invocation).toEqual({ command: 'home', help: false })
+  expect(call.effect).toBe('read')
+})
+
 test('one required secret and the fixed origin form the managed credential', async () => {
   const form = credentialFields('hybrid-axi', hybridProfile, {}, false)
   expect(form).toContain('data-credential-field="apiKey" data-secret')
@@ -38,6 +47,7 @@ test.each([
   { args: ['quota', '--'], code: 'INVALID_INPUT' },
   { args: ['quota', '--unknown'], code: 'INVALID_INPUT' },
   { args: ['quota', '--help=true'], code: 'INVALID_INPUT' },
+  { args: ['home', '--offline=true'], code: 'INVALID_INPUT' },
   { args: ['submit', 'file', '--file=/tmp/sample'], code: 'UNSUPPORTED_INPUT' },
   { args: ['hunting', 'yara', 'create', '--body-file=/tmp/body'], code: 'UNSUPPORTED_INPUT' },
 ])('managed boundary refuses $args with $code', async ({ args, code }) => {

@@ -74,9 +74,13 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
       for (const [reference, kind] of [...references].sort((a, b) => b[0].length - a[0].length)) text = text.replaceAll(reference, kind)
       return text
     }
-    for (const field of ['error', 'help']) {
-      if (Object.hasOwn(document, field)) document[field] = JSON.parse(JSON.stringify(document[field], (_, value: unknown) =>
-        typeof value === 'string' ? sanitize(value) : value))
+    const suggestions = [document]
+    if (tool === 'vectra-axi' && document.live && typeof document.live === 'object') suggestions.push(document.live as Record<string, unknown>)
+    for (const owner of suggestions) {
+      for (const field of ['error', 'help']) {
+        if (Object.hasOwn(owner, field)) owner[field] = JSON.parse(JSON.stringify(owner[field], (_, value: unknown) =>
+          typeof value === 'string' ? sanitize(value) : value))
+      }
     }
     return { ...result, stdout: encode(document) + '\n', stderr: sanitize(result.stderr) }
   } catch { throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output is invalid.') }

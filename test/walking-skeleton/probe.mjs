@@ -204,9 +204,11 @@ try {
           const expected = decode(local.stdout)
           const actual = decode(upstreamSuggestions(remote.stdout))
           assert.equal(expected.state, 'configured')
-          // Home hints retain each process's private managed profile selectors.
-          for (const document of [expected, actual]) document.live.help = document.live.help.map(help => help
+          expected.live.help = expected.live.help.map(help => help
             .replace(/ --config (?:'[^']*'|\S+)/g, '').replace(/ --profile (?:'[^']*'|\S+)/g, ''))
+          const hosted = decode(remote.stdout)
+          assert.deepEqual(hosted.live.help, expected.live.help.map(help => help.replaceAll('vectra-axi', 'artium-axi vectra-axi')))
+          actual.live.help = hosted.live.help.map(help => help.replaceAll('artium-axi vectra-axi', 'vectra-axi'))
           if (Object.hasOwn(expected, 'bin')) expected.bin = 'artium-axi vectra-axi'
           assert.deepEqual({ ...remote, stdout: actual, stderr: upstreamSuggestions(remote.stderr) },
             { ...local, stdout: expected })
