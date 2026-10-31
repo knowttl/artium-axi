@@ -202,12 +202,13 @@ try {
         const remote = toolOutput(await cli(['vectra-axi', ...args]))
         if (args.length === 0) {
           const expected = decode(local.stdout)
-          assert.equal(expected.setup.config, join(directory, 'vectra-axi/config.json'))
-          delete expected.config
-          delete expected.configPath
+          const actual = decode(upstreamSuggestions(remote.stdout))
+          assert.equal(expected.state, 'configured')
+          // Home hints retain each process's private managed profile selectors.
+          for (const document of [expected, actual]) document.live.help = document.live.help.map(help => help
+            .replace(/ --config (?:'[^']*'|\S+)/g, '').replace(/ --profile (?:'[^']*'|\S+)/g, ''))
           if (Object.hasOwn(expected, 'bin')) expected.bin = 'artium-axi vectra-axi'
-          expected.setup = 'Managed by artium.'
-          assert.deepEqual({ ...remote, stdout: decode(upstreamSuggestions(remote.stdout)), stderr: upstreamSuggestions(remote.stderr) },
+          assert.deepEqual({ ...remote, stdout: actual, stderr: upstreamSuggestions(remote.stderr) },
             { ...local, stdout: expected })
         } else assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
       }
