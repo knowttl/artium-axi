@@ -163,7 +163,7 @@ Other GitHub commands leave stdin unread and reject input through the API; local
 See [GitHub write setup](tool-credentials.md#github) for operation tiers and recovery after `UNKNOWN_OUTCOME`.
 Vectra file inputs use named uploads through the run API, or bounded stdin where the upstream flag accepts `-`; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the accepted file flags.
 The bundled CLI uploads Vectra files through those declared flags, including `--note-file <local-path>` for long notes; it does not capture Vectra stdin, and server file paths are unavailable.
-ADO uploads remain unavailable until the ado-axi integration declares a supported command.
+See the [Azure DevOps capability boundary](safety.md#write-gates-by-tool) for its unsupported attachment and artifact transfers.
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
 Its run API accepts uploaded leaf names or `-` for explicit JSON stdin with `--body-file`; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.

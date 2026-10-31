@@ -296,7 +296,7 @@ There is no upstream profile file; the [supported GitHub boundary](safety.md) ow
 See the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui) for Go TLS handling.
 See [GitHub setup](tool-credentials.md#github) for authentication, device-flow scopes and token lifecycle, token caching and key rotation.
 
-ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
+ado-axi uses the [pinned fork](tool-credentials.md#azure-devops) and retains a non-standard credential profile.
 The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.
 It uses the shared credential editor and input normalization, but prepares its upstream profile itself instead of using the shared profile writer.
 Each isolated call receives `ADO_AXI_CONFIG` pointing to a private profile file.
@@ -341,7 +341,7 @@ The per-tool migration and suggested order are in [credential-migration.md](cred
 
 Scope rule, from the owner in round 3: az-axi changes are made only in knowttl/az-axi.
 This standard proposes no change to either of the following:
-- ado-axi (knowttl/ado-axi), Artium's pinned fork of the project that az-axi vendors files from.
+- ado-axi (jeffreyhaen/ado-axi), the upstream project that az-axi vendors files from; Artium's package selection is documented in [Azure DevOps setup](tool-credentials.md#azure-devops).
 - The Microsoft `az` CLI, whose `az login` session in `~/.azure` stays the ambient source for `auth: "az"`.
 az-axi edits that touch vendored files, such as `src/lib/config.ts` and `src/lib/auth.ts`, update those files' "Local changes" rows in `UPSTREAM.md` in the same commit.
 This is az-axi's own rule (`UPSTREAM.md:5`).
