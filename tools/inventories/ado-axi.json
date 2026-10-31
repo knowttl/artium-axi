@@ -1,13 +1,14 @@
 {
   "generatedBy": "scripts/ado-inventory.mjs",
   "tool": "ado-axi",
-  "version": "0.4.7",
-  "integrity": "sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw==",
+  "version": "0.5.0",
+  "integrity": "sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w==",
+  "skillSha256": "34fb146135fd5c1cbd70912030e7379ca9a94cccf9b118fff4a5fd1bf28c36c5",
   "parserEvidence": "Reviewed published dispatch switches, aliases and command flag constants",
   "sources": [
     {
       "path": "dist/bin/ado-axi.js",
-      "sha256": "d3786fe4009b1543c1118eb94dc1c84130806cc7d5e09d674eccdad3eb2351cf"
+      "sha256": "ef0a5ba96c3da555d7055233aa60064add11cfef2a9457b9fd3a7b46eaa7a603"
     },
     {
       "path": "dist/lib/auth.js",
@@ -15,11 +16,11 @@
     },
     {
       "path": "dist/lib/client.js",
-      "sha256": "de6ffea225b2ffc3ff31de67431dfd20625f1d42e9575ffa05d79bcdeb534feb"
+      "sha256": "4c2f3550085ded380596d5f9459791f0a8788364707284b8633ea1687c84886b"
     },
     {
       "path": "dist/lib/args.js",
-      "sha256": "f61e2fd78a259f8bcf1e1a3d89933e1c123778bcc63f3c667efba11a2915c758"
+      "sha256": "3a9b67cd2b83a7529fdb6fdc1f837236a22a3861498651b2ecb23184e872afd7"
     },
     {
       "path": "dist/lib/argv.js",
@@ -31,7 +32,7 @@
     },
     {
       "path": "dist/lib/adoUrl.js",
-      "sha256": "d75adff40b6c501e3f3c8bef747a53d128b597ec24da692e7ddec00f4658c4cc"
+      "sha256": "b853d7e7f045bd5d7eed3a0ef5e4264509d6ba4016e7145ca0ac590f84ca3f9c"
     },
     {
       "path": "dist/lib/stdin.js",
@@ -42,8 +43,24 @@
       "sha256": "0ddc87da536069a2399545bd0f98860e3fad64d32fd78242ca7fcb500a301276"
     },
     {
+      "path": "dist/lib/writes.js",
+      "sha256": "31b1977fa93135f93b53a533f12d65ef0e19425b953f39bdff90416bdb2e2e5f"
+    },
+    {
+      "path": "dist/lib/audit.js",
+      "sha256": "5615b60d1098ac2a9620ed2967c0e5e056f01f5473b1bfe25a8d4b32319a27ab"
+    },
+    {
+      "path": "dist/commands/agent.js",
+      "sha256": "0e80fed321eb5d1bb49a673aa01a5554e10c61a0ca0a4938bb21a8a09a6d2832"
+    },
+    {
       "path": "dist/commands/api.js",
-      "sha256": "538d9d4139d88f52eb07a7bb753695a0e81013b7834fd948a1c84b2e9f9914ff"
+      "sha256": "254898b9dc4b96d1ba04ecb4d37efe847bed91a5e20fc90791f5a3d9471d9c71"
+    },
+    {
+      "path": "dist/commands/classification.js",
+      "sha256": "482ed8937c8fd40e0c3d6a3e93cb1f0add46540a1c0043717e131ec2ffc6dfa7"
     },
     {
       "path": "dist/commands/config.js",
@@ -59,27 +76,83 @@
     },
     {
       "path": "dist/commands/pipeline.js",
-      "sha256": "152885bd4f9dc67855b64fbbca8e5b9e0d46d07ec6b5abc3a393ed29b620bc3b"
+      "sha256": "5686654132e098227716ec067c7a817eef19d31a3de58309396c92f6007c8c44"
+    },
+    {
+      "path": "dist/commands/pipelineAdmin.js",
+      "sha256": "18382e0a480dada072957b2e6677e91ddfc16121f19d9cd6700b8b2867a7b01d"
+    },
+    {
+      "path": "dist/commands/pipelineArtifact.js",
+      "sha256": "cd2e03806da843af22003c3f2b6857d003cd22f353b51469f467a63366919b2b"
+    },
+    {
+      "path": "dist/commands/policy.js",
+      "sha256": "d9c58e9e7f2b30ea98e774f6bc51f763cbde4309c70c12f73f566cb3755a37de"
+    },
+    {
+      "path": "dist/commands/pool.js",
+      "sha256": "dd18b779a8475dee78859026e3b03ef1bfee5eb8618d482e51e3d285c858a80a"
     },
     {
       "path": "dist/commands/pr.js",
       "sha256": "b85a81782aa806201facd9fc414a62959bc96db9858fa4ba804015395d001c32"
     },
     {
+      "path": "dist/commands/query.js",
+      "sha256": "84a62fbce9269148784cd16c64e4e6c647f3ebf4dff1a847fc6a14eaf98d1d37"
+    },
+    {
+      "path": "dist/commands/queue.js",
+      "sha256": "d302ed50ae01ca1ce3ea3f10e43ccc349bd3026de7ef6c36aa97a6ddf211842b"
+    },
+    {
       "path": "dist/commands/ref.js",
       "sha256": "b87a5c738721b8d6f453044258a6e95eaea067e4c2dd5321f605c79aa6411d09"
     },
     {
+      "path": "dist/commands/release.js",
+      "sha256": "68b1c7d54f8f11880355281a8022466995eb193dd1a82219690b71cc4571d1f0"
+    },
+    {
       "path": "dist/commands/repo.js",
-      "sha256": "8d446c3bc69a6a5bf36dca02a5e05748098a78269d9078f90da9169b15a5049d"
+      "sha256": "0e444cd23ffb097356786751c724a5f937cf5cf2955afc9679b4413d22d9fb50"
+    },
+    {
+      "path": "dist/commands/repoAdmin.js",
+      "sha256": "fe7c9e86636ac8d27f3c22fb8851b53c3c2e65036b802f65134cbf86818cfca7"
+    },
+    {
+      "path": "dist/commands/security.js",
+      "sha256": "57d0501f755b891fc26b07f67a3bbb28c5794c758e6296245761ba313df2a3f7"
+    },
+    {
+      "path": "dist/commands/serviceEndpoint.js",
+      "sha256": "91a888332be72e4a9b09c4b3e6f8ec34f3d122b3a0b291626bc90a07cfd07954"
+    },
+    {
+      "path": "dist/commands/team.js",
+      "sha256": "c6759e15814f3426aa1833b2f3ad52807246514ec7750ec9708a9678cfdecafa"
     },
     {
       "path": "dist/commands/test.js",
       "sha256": "b151392b7a6ae7b9cba8031da66b86dfc3811b01413ee25b4a4f0ef7cd5fa384"
     },
     {
+      "path": "dist/commands/user.js",
+      "sha256": "70d80a04d3856a8c56450fbdb3430a07d2812468f4124e4f1d50edd658ab0173"
+    },
+    {
+      "path": "dist/commands/variableGroup.js",
+      "sha256": "90ea8275f52b6cb2b43890f3ec230834a9c5dd91078fdee2e48fc666f6425e45"
+    },
+    {
       "path": "dist/commands/workItem.js",
-      "sha256": "38adf6d7b86ff4809cd3a8402ad894286f6f23e750fdbf303d4a4abb31215058"
+      "sha256": "3889f815298fc9cf33223d3e0bb43a8f15278958f36d0c5c33ee9138a03de8cf"
+    },
+    {
+      "path": "dist/commands/workItemAttachment.js",
+      "sha256": "b08b8f4d620ef838e1fa08f3c87315c763b2b46c620aa1deee4b620d2f92a28c"
     },
     {
       "path": "axi-sdk-js/dist/cli.js",
@@ -93,7 +166,15 @@
       "config"
     ],
     "blockedCommands": [
+      "work-item attach",
+      "work-item attachment get",
+      "pipeline runs artifact download",
       "config",
+      "config list",
+      "config show",
+      "config path",
+      "config init",
+      "config add",
       "update"
     ],
     "nativeWrites": "host-classified",
@@ -116,12 +197,23 @@
   "discovery": {
     "commands": [
       "work-item",
+      "query",
+      "area",
+      "iteration",
       "pr",
       "pipeline",
       "test",
       "repo",
       "ref",
       "project",
+      "security",
+      "service-endpoint",
+      "variable-group",
+      "agent",
+      "pool",
+      "queue",
+      "user",
+      "team",
       "api",
       "doctor"
     ],
@@ -265,6 +357,60 @@
       "aliases": []
     },
     {
+      "command": "work-item delete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "if-rev": "value",
+        "destroy": "boolean",
+        "confirm-destroy": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "work-item attach",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "file": "value",
+        "comment": "value",
+        "if-rev": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "work-item attachment get",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "name": "value",
+        "out": "value",
+        "force": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
       "command": "work-item comment",
       "effect": "write",
       "flags": {
@@ -324,6 +470,93 @@
       "aliases": [
         "work-item links add"
       ]
+    },
+    {
+      "command": "work-item link remove",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "index": "value",
+        "if-rev": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "work-item links remove"
+      ]
+    },
+    {
+      "command": "work-item link types",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": [
+        "work-item links types"
+      ]
+    },
+    {
+      "command": "query run",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "area list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "depth": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "iteration list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "depth": "value"
+      },
+      "positionals": 0,
+      "aliases": []
     },
     {
       "command": "pr list",
@@ -730,6 +963,279 @@
       "aliases": []
     },
     {
+      "command": "pipeline show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "pipeline": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline variable list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "pipeline": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "definition": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline update",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "definition": "value",
+        "if-rev": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline delete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "if-rev": "value",
+        "confirm-delete": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline build cancel",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline build tag add",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "tag": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline runs tag add"
+      ]
+    },
+    {
+      "command": "pipeline build tag remove",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "tag": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline runs tag remove"
+      ]
+    },
+    {
+      "command": "pipeline folder list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "path": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline folder create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "path": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline folder delete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "path": "value",
+        "confirm-delete": "boolean"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline release list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "definition": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline release show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline release create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "definition": "value",
+        "description": "value",
+        "artifacts": "value",
+        "draft": "boolean"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "pipeline runs artifact list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "pipeline runs artifact download",
+      "effect": "blocked",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "name": "value",
+        "out": "value",
+        "force": "boolean"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
       "command": "pipeline logs",
       "effect": "read",
       "flags": {
@@ -817,6 +1323,179 @@
         "limit": "value"
       },
       "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "repo": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "repo create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "name": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo update",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "name": "value",
+        "default-branch": "value",
+        "disabled": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo delete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "confirm-delete": "boolean"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo import",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "source-url": "value",
+        "service-endpoint": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo policy list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "repo": "value",
+        "branch": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo policy show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "repo policy create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "policy-json": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "repo policy update",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "policy-json": "value",
+        "if-rev": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "repo policy delete",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "if-rev": "value",
+        "confirm-delete": "boolean"
+      },
+      "positionals": 1,
       "aliases": []
     },
     {
@@ -927,6 +1606,366 @@
         "fields": "value",
         "limit": "value",
         "name": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "project show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "service-endpoint list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "service-endpoint show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "variable-group list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": [
+        "pipeline variable-group list"
+      ]
+    },
+    {
+      "command": "variable-group show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline variable-group show"
+      ]
+    },
+    {
+      "command": "agent list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "pool": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": [
+        "pipeline agent list"
+      ]
+    },
+    {
+      "command": "agent show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "pool": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline agent show"
+      ]
+    },
+    {
+      "command": "pool list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": [
+        "pipeline pool list"
+      ]
+    },
+    {
+      "command": "pool show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline pool show"
+      ]
+    },
+    {
+      "command": "queue list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": [
+        "pipeline queue list"
+      ]
+    },
+    {
+      "command": "queue show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "pipeline queue show"
+      ]
+    },
+    {
+      "command": "user list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "user show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value",
+        "id": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "team list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "team member list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "team": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": [
+        "team list-member"
+      ]
+    },
+    {
+      "command": "security group list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "scope": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "security group show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": []
+    },
+    {
+      "command": "security membership list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "id": "value",
+        "direction": "value",
+        "limit": "value"
+      },
+      "positionals": 1,
+      "aliases": [
+        "security group membership list"
+      ]
+    },
+    {
+      "command": "security permission list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "namespace": "value",
+        "token": "value",
+        "subject": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "security permission show",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "namespace": "value",
+        "token": "value",
+        "subject": "value",
+        "limit": "value"
       },
       "positionals": 0,
       "aliases": []

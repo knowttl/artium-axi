@@ -128,6 +128,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (!flags) return output
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
   if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples|Usage): )?/, ''))
+    || tool === 'ado-axi' && output.startsWith('Writes default off: set ADO_AXI_WRITES=1 ')
     || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
   let spans: Span[]
   let field: Help['field']
@@ -308,16 +309,21 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     else if (!help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'ado-axi') {
-    const guidance = 'Artium manages the organization, profile, config and PAT. api defaults to GET. POST/PATCH/PUT/DELETE require allowWrites, a server-listed relative path and a JSON --body up to 65536 bytes; decisions are journaled (TD-067). No write host/query overrides, stdin or files. Use pipeline watch --timeout 50 or less.'
+    const guidance = 'Artium manages the organization, profile, config and PAT. Only authorized writes receive the native write switch. api defaults to GET. POST/PATCH/PUT/DELETE require allowWrites, a server-listed relative path and a JSON --body up to 65536 bytes; decisions are journaled (TD-067). No write host/query overrides, stdin, attachment uploads or downloads. Use pipeline watch --timeout 50 or less.'
     if (/^(?:Usage: |(?:Run|Use) [`'"]?)?(?:artium-axi )?ado-axi api(?:\s|$)/.test(help)) {
       help = 'ado-axi api [GET|POST|PATCH|PUT|DELETE] <relative-path> [-X|--method <method>] [--body <json>] [--content-type json|json-patch|merge-patch] [--api-version <version>] [--no-project] [--raw] [--limit <n>] [--full] [--fields <fields>]\nGET also accepts --query <query> and --host dev|vsrm|vssps|almsearch.\n'
     }
     help = help.replace(/\n"built-in":\n[\s\S]*$/, '')
+      .replace(/ # [^\n]*\bADO_AXI_WRITES\b[^\n]*/g, '')
+      .replace(/^.*\bADO_AXI_WRITES\b.*(?:\n|$)/gm, '')
+      .replace(/^\s*(?:ado-axi work-item )?attach(?:ment)?\b.*(?:\n|$)/gm, '')
+      .replace(/artifact list\|download/g, 'artifact list')
+      .replace(/^.*artifact download.*(?:\n|$)/gm, '')
       .split('\n').filter(line => /^\s*(?:(?:Run|Use) [`'"]?|Usage: )?(?:artium-axi )?ado-axi (?!config\b|update\b)/.test(line)
         || !/(?:\bado-axi (?:config|update)\b|\baz (?:CLI )?login\b|\baz login\b|\bADO_[A-Z_]+\b|\bPAT\b.*\benv\b|stdin|piped|--profile|--org\b|--config\b)/i.test(line))
       .map(line => line.replace(/<path\|url>/g, '<relative-path>').replace(/--timeout 1800/g, '--timeout 50')
         .replace(/^([ \t]*MSYS_NO_PATHCONV=1 )ado-axi(?=\s|$)/, '$1artium-axi ado-axi')
-        .replace('raw REST escape hatch for everything else', 'GET-only REST calls')
+        .replace('raw REST escape hatch for everything else', 'REST calls on managed paths')
         .replace(/ \| config\b/g, '')).join('\n')
     if (!help.trim()) help = guidance
     else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'

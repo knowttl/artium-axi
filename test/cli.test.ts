@@ -1489,7 +1489,7 @@ test.each([
   { tool: 'vectra-axi', example: 'detection list', version: '0.1.13' },
   { tool: 'falcon-axi', example: 'detection list', version: '0.8.4' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.2' },
-  { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.7' },
+  { tool: 'ado-axi', example: 'project list --limit 1', version: '0.5.0' },
   { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.45' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.9' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.5' },

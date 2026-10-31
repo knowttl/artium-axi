@@ -18,7 +18,7 @@ test.each(['dev', 'vsrm', 'vssps', 'almsearch'])('published ADO uses PAT Basic a
     try {
       await expect(runner.run('synthetic-user', process.execPath,
         ['--import', join(process.cwd(), 'test/fake-service/ado-transport.mjs'),
-          join(process.cwd(), 'tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js'), ...call.args],
+          join(process.cwd(), 'tools/node_modules/@knowttl/ado-axi/dist/bin/ado-axi.js'), ...call.args],
         { ...call.environment, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}` }, call.secrets, call.limits, {}, call.files))
         .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([
