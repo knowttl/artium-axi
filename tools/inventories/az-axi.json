@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "az-axi",
-  "version": "0.1.16",
-  "integrity": "sha512-rYAA0J3Af8UiNj5si+T5dfAm1zVmxUcbvppF6uIdSCVrN6eVZH6N7GqKv5PY32Bcu8b/fAHh+VPFiuRliCRD1Q==",
+  "version": "0.1.17",
+  "integrity": "sha512-+c5nDJGeX4p51VbRhca2W93LcIRiSda0jLGpfGZH8KhXnh+zneq/PjzpGdNd2ZbvWtJ3l70uq7fxYxFp13XZQw==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "fa9645a992d8884d6035f40e0ef5d31f46051faae824199fde793c61aeac6ccc",
-  "skillSha256": "3054197371c475a805e51b184ab1a528dfd19f39a13ede5d919f265e586edc01",
+  "packageManifestSha256": "a10755b0cbce704e1e8549c153c625881bee78b74b63096be7ebe56d43c3491c",
+  "skillSha256": "8fee4f47425068234548e808506d21a3d6966382e155e914007cbc66c04d5c75",
   "environment": [
     {
       "name": "AZ_AXI_CONFIG",
@@ -264,7 +264,7 @@
   "tokenResourceSources": [
     {
       "path": "dist/lib/registry.js",
-      "sha256": "dc1eb46c43aa5232b58acfb1d174fe2728491a3a6da28fa3cca27fed79494efd"
+      "sha256": "4ad87874cf0d9c675ac5d792696c2f2ba97c3088d8ede8696afb6ffef1fe225a"
     },
     {
       "path": "dist/lib/client.js",
@@ -314,6 +314,10 @@
     },
     {
       "name": "aggregation",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "alert-limit",
       "disposition": "passthrough candidate"
     },
     {
@@ -422,6 +426,10 @@
     },
     {
       "name": "end-time",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "entity-limit",
       "disposition": "passthrough candidate"
     },
     {
@@ -2082,6 +2090,46 @@
         "name": "value",
         "incident-id": "value",
         "ids": "value"
+      },
+      "flagAliases": {},
+      "shortFlags": {
+        "h": "help",
+        "s": "subscription",
+        "g": "resource-group",
+        "n": "name",
+        "w": "workspace"
+      },
+      "positionalInput": false
+    },
+    {
+      "command": "sentinel incident bundle",
+      "canonicalCommand": "sentinel incident bundle",
+      "handlerCommand": "sentinel incident bundle",
+      "tokenResources": [
+        "arm"
+      ],
+      "effect": "read",
+      "capability": "native",
+      "flags": {
+        "profile": "value",
+        "tenant": "value",
+        "subscription": "list",
+        "management-group": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "list",
+        "limit": "value",
+        "all": "boolean",
+        "max-rows": "value",
+        "workspace-name": "value",
+        "resource-group": "value",
+        "workspace": "value",
+        "name": "value",
+        "incident-id": "value",
+        "ids": "value",
+        "alert-limit": "value",
+        "entity-limit": "value"
       },
       "flagAliases": {},
       "shortFlags": {

@@ -33,6 +33,17 @@ test('hosted home replaces the server executable', () => {
   expect(decode(output.stdout)).toEqual({ bin: 'artium-axi hybrid-axi', profile: 'artium' })
 })
 
+test('Vectra live diagnostics sanitize managed references while retaining resource data', () => {
+  const output = hostedStatus('vectra-axi', { command: 'home', help: false }, { ...result, stdout: encode({
+    config: '/synthetic/vectra.json', secrets: { token: { env: 'SYNTHETIC_TOKEN' } },
+    live: { error: 'Unavailable SYNTHETIC_TOKEN', help: ['Run vectra-axi detection list --config /synthetic/vectra.json'] },
+    data: { help: ['Resource SYNTHETIC_TOKEN'] },
+  }) })
+  expect(decode(output.stdout)).toEqual({ secrets: { token: 'env' },
+    live: { error: 'Unavailable env', help: ['Run vectra-axi detection list --config file'] },
+    data: { help: ['Resource SYNTHETIC_TOKEN'] } })
+})
+
 test('resource data remains unchanged', () => {
   const original = { ...result, stdout: encode({ bin: '/synthetic/data', config: '/synthetic/data' }) }
   expect(hostedStatus('hybrid-axi', { command: 'hash show', help: false }, original)).toBe(original)

@@ -47,7 +47,7 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     if (!Object.hasOwn(route.flags, name)) throw unknownFlag('hybrid-axi', route.command, token, Object.keys(route.flags).filter(name => !hybridManifest.unsafeOverrides.includes(name)))
     if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     flags.add(name)
-    if (['help', 'full', 'labs', 'execute', 'dry-run'].includes(name)) {
+    if (['help', 'full', 'labs', 'offline', 'execute', 'dry-run'].includes(name)) {
       if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
       normalized.push(token)
       continue

@@ -25,6 +25,7 @@ The fields shown are useful compact projections; omit `--fields` for the command
 |---|---|
 | Check credentials locally, without HTTP | `npx -y @knowttl/tenable-axi auth status` |
 | Look up an asset by text | `npx -y @knowttl/tenable-axi asset list --query example-device --class DEVICE --limit 10 --fields id,name,class,exposureScore` |
+| Resolve a unique asset and read its findings | `npx -y @knowttl/tenable-axi asset investigate --query example-device --limit 20 --fields id,name,severity,state,sensor_type,cves` |
 | Read one exact asset, including observation evidence | `npx -y @knowttl/tenable-axi asset show --id asset-1 --fields id,name,fqdns,last_observed_at` |
 | Pivot from an asset ID to findings | `npx -y @knowttl/tenable-axi finding list --filter 'asset_id = ["asset-1"]' --limit 20 --fields id,name,severity,state,sensor_type,cves` |
 | Search high severity findings | `npx -y @knowttl/tenable-axi finding list --filter 'severity = ["HIGH"]' --filter 'sensor_type = ["NESSUS"]' --limit 20` |
@@ -40,6 +41,7 @@ The fields shown are useful compact projections; omit `--fields` for the command
 | Find Exposure Management tags | `npx -y @knowttl/tenable-axi tag list --query example --limit 10` |
 | Diagnose failed connector syncs | `npx -y @knowttl/tenable-axi connector logs --status FAILED --start-date 2026-01-01 --end-date 2026-02-01 --limit 10` |
 | Wait for an existing attack export | `npx -y @knowttl/tenable-axi export attack status --id 00000000-0000-4000-8000-000000000001 --wait` |
+| Wait for an existing inventory export | `npx -y @knowttl/tenable-axi export inventory status --id 00000000-0000-4000-8000-000000000001 --wait` |
 
 Inventory filters are repeatable AND conditions with a JSON array of strings, even for numeric values.
 Inventory `--filter-file` accepts a flat JSON array and excludes `--filter`.
@@ -52,6 +54,11 @@ Connector defaults include sync identity, trigger, first failed stage and first 
 Use list `--fields` to retrieve the needed evidence together instead of showing every result.
 Inventory selected extra fields are requested automatically; `--extra-properties` also adds them to output.
 Exact-ID `asset show` and `finding show` search directly without a preceding list.
+`asset investigate --query <text>` returns compact asset candidates in `lookup` and pivots only after a complete, unique match.
+Multiple candidates return `ASSET_AMBIGUOUS`; choose an exact ID explicitly before using `finding list`.
+`--fields`, `--extra-properties`, `--limit` and `--all` control findings; asset evidence uses compact defaults.
+Lookup and findings share one invocation budget; failures retain validated evidence and disclose incompleteness.
+Resume a returned findings cursor with the suggested `finding list` command, preserving its asset filter and fields.
 `finding summary` is one CLI call making 19 sequential limit-1 reads without retries, using upstream totals.
 It has no filters or per-asset grouping; counts are independent, sensor values may overlap, and `complete: false` means partial counts.
 
@@ -62,14 +69,18 @@ Resume a returned `--cursor` with the same profile, filters, fields and sort; do
 `--full` removes the 1,000-character text preview, without adding fields, rows or budget.
 Connector logs have no server paging; `UPSTREAM_UNPAGED` means unavailable history, not an exhaustive empty result.
 
-Attack export status `--wait` polls once per second within 20 seconds/20 requests; inspect the returned state before downloading.
-There is no combined export start-and-wait, inventory-status wait, bulk show or asset-to-findings pivot command.
-Use a filtered list for multiple details; use the returned asset ID in a separate finding query.
+Attack and inventory export status `--wait` poll once per second within 20 seconds/20 requests; inspect the returned state before downloading.
+Pending jobs returned after a wait budget ends carry `complete: false` and `reason: POLL_BUDGET_EXCEEDED`; resume status with the same exact ID rather than starting a replacement.
+There is no bulk show command.
+Use a filtered list for multiple details.
 Software has no stable ID or show command.
 
 ## Read allowlist and state changes
 
 The table above is read-only, including POST searches and waiting on an existing export.
+Export start commands accept `--wait` after `--execute --confirm '<exact-preview-confirmation>'`, sharing the creation deadline and request budget.
+Preview, configured operation scope and the durable journal remain required; previews never poll, creation sends at most once and unknown outcomes never start a replacement.
+A failed status read after creation retains the created job and audit ID with `complete: false` and an error; reconcile that ID instead of creating again.
 Other remote reads: `home`, `card show`, `tag properties`, platform `tag category/value list/show`, `tag assignment/exclusion/asset-filter list`, `initiative list/show`, `combination list/show/filters`, `export asset/finding jobs`, `export inventory status` and `doctor`.
 `doctor` makes eight module probes without retries; use it for access diagnosis, not before each case.
 Local reads: `auth status`, `profile list`, `config path`, `hook`, help and version.

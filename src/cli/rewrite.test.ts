@@ -8,6 +8,23 @@ import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json'
 import graph from '../../tools/inventories/mg-axi.json' with { type: 'json' }
 import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 
+test.each([encode, JSON.stringify])('Vectra live list, show and error suggestions use hosted commands (%j)', serialize => {
+  const input = { help: ['Run vectra-axi --help'], live: { error: 'Synthetic failure', help: [
+    'Run `vectra-axi detection list --config /synthetic/vectra.json --profile artium --limit 1`',
+    'Run `vectra-axi detection show 42 --config=/synthetic/vectra.json --profile=artium`',
+    'Use `vectra-axi auth status --config \'/synthetic/config file.json\' --profile artium`',
+  ] }, data: { help: ['Run vectra-axi detection show 99 --profile resource'] } }
+  const expected = { ...input, help: ['Run artium-axi vectra-axi --help'], live: { ...input.live, help: [
+    'Run `artium-axi vectra-axi detection list --limit 1`',
+    'Run `artium-axi vectra-axi detection show 42`',
+    'Use `artium-axi vectra-axi auth status`',
+  ] } }
+  const output = rewriteSuggestions(serialize(input), 'vectra-axi')
+  expect(output.trimStart().startsWith('{') ? JSON.parse(output) : decode(output)).toEqual(expected)
+  expect(rewriteSuggestions(output, 'vectra-axi')).toBe(output)
+  expect(rewriteSuggestions(serialize(input), 'vectra-axi', true)).toBe(serialize(input))
+})
+
 test.each([
   { tool: 'beyondtrust-axi', help: ['Run beyondtrust-axi config path to locate configuration', 'Run beyondtrust-axi profile list to inspect configured profiles', 'Run beyondtrust-axi auth status to validate local credentials'], count: 3 },
   { tool: 'hybrid-axi', help: ['Run hybrid-axi setup', 'Run hybrid-axi quota'], count: 1 },

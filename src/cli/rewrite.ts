@@ -56,10 +56,24 @@ function encodeSuggestion(value: string, inline: boolean): string {
   return JSON.stringify(value)
 }
 
-// The pinned inventories record only the root help field as suggestions.
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
+  if (tool === 'vectra-axi') {
+    try {
+      const json = output.trimStart().startsWith('{')
+      const document = (json ? JSON.parse(output) : decode(output)) as { live?: { help?: unknown } }
+      const help = document.live?.help
+      if (typeof help === 'string' || Array.isArray(help) && help.every(item => typeof item === 'string')) {
+        const original = encode({ help })
+        const rewritten = rewriteSuggestions(original, tool)
+        if (rewritten !== original) {
+          document.live!.help = (decode(rewritten) as { help: unknown }).help
+          output = (json ? JSON.stringify(document) : encode(document)) + (output.endsWith('\n') ? '\n' : '')
+        }
+      }
+    } catch {}
+  }
   if (tool === 'beyondtrust-axi') {
     try {
       const document = decode(output) as { command?: string, flags?: Record<string, unknown>, examples?: string[], commands?: unknown }

@@ -12,8 +12,8 @@ importers:
         specifier: 0.5.1
         version: 0.5.1
       '@knowttl/az-axi':
-        specifier: 0.1.16
-        version: 0.1.16
+        specifier: 0.1.17
+        version: 0.1.17
       '@knowttl/beyondtrust-axi':
         specifier: 0.1.6
         version: 0.1.6
@@ -21,23 +21,23 @@ importers:
         specifier: 0.1.5
         version: 0.1.5
       '@knowttl/hybrid-axi':
-        specifier: 0.1.4
-        version: 0.1.4
+        specifier: 0.1.5
+        version: 0.1.5
       '@knowttl/ldap-axi':
         specifier: 0.3.2
         version: 0.3.2
       '@knowttl/mg-axi':
-        specifier: 0.1.18
-        version: 0.1.18
+        specifier: 0.1.19
+        version: 0.1.19
       '@knowttl/tenable-axi':
-        specifier: 0.1.5
-        version: 0.1.5
+        specifier: 0.1.6
+        version: 0.1.6
       '@knowttl/vectra-axi':
-        specifier: 0.1.13
-        version: 0.1.13
+        specifier: 0.1.14
+        version: 0.1.14
       awx-axi:
-        specifier: 0.1.9
-        version: 0.1.9
+        specifier: 0.1.11
+        version: 0.1.11
       axi-sdk-js:
         specifier: 0.1.13
         version: 0.1.13
@@ -64,8 +64,8 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@knowttl/az-axi@0.1.16':
-    resolution: {integrity: sha512-rYAA0J3Af8UiNj5si+T5dfAm1zVmxUcbvppF6uIdSCVrN6eVZH6N7GqKv5PY32Bcu8b/fAHh+VPFiuRliCRD1Q==}
+  '@knowttl/az-axi@0.1.17':
+    resolution: {integrity: sha512-+c5nDJGeX4p51VbRhca2W93LcIRiSda0jLGpfGZH8KhXnh+zneq/PjzpGdNd2ZbvWtJ3l70uq7fxYxFp13XZQw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -79,8 +79,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/hybrid-axi@0.1.4':
-    resolution: {integrity: sha512-PD1uoPTvVVLTXPPdTowJ4Mg13wY87fI9Om+omVqSfuHOtedm1HR+llYQmrlwm2EeHhiTqVXXP8Q4A2f3HXabnw==}
+  '@knowttl/hybrid-axi@0.1.5':
+    resolution: {integrity: sha512-iwCPxkAlwni9NRsirBv5F7lBZPHZLzvxY4nhA+VRPDAiPkEr0g2W8/bE2/3ab+5GtiXpY9PI7wJgUPkh/fYf2Q==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -89,18 +89,18 @@ packages:
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/mg-axi@0.1.18':
-    resolution: {integrity: sha512-eAdAfMWD7gx+1bX7keI4inSzP+7e7JlFk1X7Y6E3DNx4bo5eTfBxdSv/MT62B6uWFsLKVHu0WEhuBB553u5pDw==}
+  '@knowttl/mg-axi@0.1.19':
+    resolution: {integrity: sha512-8y7vQ32jGnzhMQ2zKBQWtLljZI1rgxkJVpY1Qxww2FtSnTwmaOzdo5+djdDXDJxYXE/azqI6Wrs6/5nceuL7jA==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/tenable-axi@0.1.5':
-    resolution: {integrity: sha512-jvsQ/xPesbNjmXX3dJgTmTrt+e2dnsyo5V7bW4+q2UgWpYi6KY/eURrrEQNGI6Vt9nWhU3ESWEs0O+8iW+Lexw==}
+  '@knowttl/tenable-axi@0.1.6':
+    resolution: {integrity: sha512-nE+1hpNUQ5uKydfD4Fe8wUq+f1BoaO25Sp2LfDf4sNl1OE54l15KiYC+86IREaI4kywnxqZcnnlSOyB7FIssvg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/vectra-axi@0.1.13':
-    resolution: {integrity: sha512-oUaTXzT/O9YzVfxHwSarEvLxvUBGwyPoYnAMWa0+tv/7KvG62fkDrOSBb6gXHl9uxfTvpHTOLxzpNATR1VgMwA==}
+  '@knowttl/vectra-axi@0.1.14':
+    resolution: {integrity: sha512-3fQ2IwQxJnd88lIKlGW0N3bce2/sS+iLWe2oUEEJ82Ntid2kVQtXnUdawJtmXQRqiwssBe/HAsH0QGi2pqhejg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -117,8 +117,8 @@ packages:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  awx-axi@0.1.9:
-    resolution: {integrity: sha512-7m/IWbfU7bd5JbKqu9FaLK1Pf5QaxQBl+tOAaHHOBzgUOHQDpHKRAVL4xy5Ww0vLiR7PcsRK/kDp71GqS/Kb6g==}
+  awx-axi@0.1.11:
+    resolution: {integrity: sha512-lU2dJwxaspKkIyV58PGosCVa/0i9Jw2miuvI+45Vgkz4fZx0F1mbXGD6M2kryid/K6pnJs/RKKtCk5dXW8yLpA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -386,7 +386,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
 
-  '@knowttl/az-axi@0.1.16':
+  '@knowttl/az-axi@0.1.17':
     dependencies:
       '@kusto/language-service-next': 12.4.1
       '@toon-format/toon': 4.4.0
@@ -406,7 +406,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
-  '@knowttl/hybrid-axi@0.1.4':
+  '@knowttl/hybrid-axi@0.1.5':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
@@ -422,7 +422,7 @@ snapshots:
       node-addon-api: 8.9.2
       node-gyp: 12.4.0
 
-  '@knowttl/mg-axi@0.1.18':
+  '@knowttl/mg-axi@0.1.19':
     dependencies:
       '@azure/msal-node': 7.0.1
       '@kusto/language-service-next': 12.4.1
@@ -430,14 +430,14 @@ snapshots:
       axi-sdk-js: 0.1.13
       open: 11.0.4
 
-  '@knowttl/tenable-axi@0.1.5':
+  '@knowttl/tenable-axi@0.1.6':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       smol-toml: 1.9.1
       zod: 4.3.6
 
-  '@knowttl/vectra-axi@0.1.13':
+  '@knowttl/vectra-axi@0.1.14':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
@@ -452,10 +452,11 @@ snapshots:
   abbrev@4.0.0:
     optional: true
 
-  awx-axi@0.1.9:
+  awx-axi@0.1.11:
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.8
+      smol-toml: 1.9.1
       yaml: 2.8.2
 
   axi-sdk-js@0.1.13:

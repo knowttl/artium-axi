@@ -112,7 +112,7 @@ try {
     assert.match(identity.stdout, /synthetic-admin/)
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)
-    assert.match(listing.stdout, /falcon-axi,unknown,"0.8.4"/)
+    assert.match(listing.stdout, /falcon-axi,unknown,"0.9.0"/)
     const home = await cli([])
     assert.equal(home.code, 0, home.stdout + home.stderr)
     assert.match(home.stdout, /user: "synthetic-admin"/)
@@ -202,12 +202,15 @@ try {
         const remote = toolOutput(await cli(['vectra-axi', ...args]))
         if (args.length === 0) {
           const expected = decode(local.stdout)
-          assert.equal(expected.setup.config, join(directory, 'vectra-axi/config.json'))
-          delete expected.config
-          delete expected.configPath
+          const actual = decode(upstreamSuggestions(remote.stdout))
+          assert.equal(expected.state, 'configured')
+          expected.live.help = expected.live.help.map(help => help
+            .replace(/ --config (?:'[^']*'|\S+)/g, '').replace(/ --profile (?:'[^']*'|\S+)/g, ''))
+          const hosted = decode(remote.stdout)
+          assert.deepEqual(hosted.live.help, expected.live.help.map(help => help.replaceAll('vectra-axi', 'artium-axi vectra-axi')))
+          actual.live.help = hosted.live.help.map(help => help.replaceAll('artium-axi vectra-axi', 'vectra-axi'))
           if (Object.hasOwn(expected, 'bin')) expected.bin = 'artium-axi vectra-axi'
-          expected.setup = 'Managed by artium.'
-          assert.deepEqual({ ...remote, stdout: decode(upstreamSuggestions(remote.stdout)), stderr: upstreamSuggestions(remote.stderr) },
+          assert.deepEqual({ ...remote, stdout: actual, stderr: upstreamSuggestions(remote.stderr) },
             { ...local, stdout: expected })
         } else assert.deepEqual({ ...remote, stdout: upstreamSuggestions(remote.stdout), stderr: upstreamSuggestions(remote.stderr) }, local)
       }
@@ -223,9 +226,9 @@ try {
         assert.equal(statSync(dirname(log)).mode & 0o777, 0o700)
       }
       assert.equal(statSync(logs).mode & 0o777, 0o700)
-      console.log(JSON.stringify({ pinnedVectra: '0.1.13', profile: 'local and Artium parity', dryRun: 'zero mutations',
+      console.log(JSON.stringify({ pinnedVectra: '0.1.14', profile: 'local and Artium parity', dryRun: 'zero mutations',
         execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
-      console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.8.4', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
+      console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '0.9.0', parity: 'read, pagination, empty and usage-error stdout/stderr/exit match', live: 'unverified' }))
     }
   } finally { await new Promise((resolve, reject) => proxy.close(error => error ? reject(error) : resolve())) }
 } finally { rmSync(directory, { recursive: true, force: true }) }

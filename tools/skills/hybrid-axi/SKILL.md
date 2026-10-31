@@ -8,7 +8,7 @@ user-invocable: false
 
 # hybrid-axi
 
-Investigate Hybrid Analysis with bounded reads and explicitly guarded writes.
+Investigate Hybrid Analysis with bounded reads and guarded sandbox submissions; quick scans transmit supplied data without write gates.
 Use `npx -y @knowttl/hybrid-axi` without a global install.
 Bare `--version`, `-v` and `-V` print the package version.
 
@@ -26,7 +26,7 @@ All commands accept `--config <path>` and `--profile <name>`; preserve those sel
 
 | Task | Command after prefix (example) | Important controls |
 |---|---|---|
-| Local context | `home` | No HTTP or credential-file reads |
+| Startup context | `home` | Three bounded reads: key level, quota, five recent public reports; `home --offline` stays local |
 | Credential availability | `auth status` | Local SecretRef and file-protection checks; no HTTP |
 | Quota | `quota` | At most two API reads; no retries |
 | Hash overview | `hash show aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --limit 5` | SHA256 required; optional experimental `--labs` |
@@ -35,12 +35,15 @@ All commands accept `--config <path>` and `--profile <name>`; preserve those sel
 | Labs search and first result fetch | `search run --query 'verdict:malicious' --size 5 --page 1` | Experimental; size 1-200, default 50; inclusive date filters use YYYY-MM-DD |
 | Resume Labs query | `search results synthetic-query --fields sha256,verdict,threat_score` | Known query ID; never starts another query |
 | Report summary | `report show synthetic-job --fields job_id,state,verdict,threat_score` | Job ID or sha256:environmentId |
+| Known report summaries | `report batch synthetic-child-one synthetic-child-two --limit 2 --fields job_id,state,verdict` | 1-20 known IDs; required limit 1-20; bare hashes rejected; per-item errors |
 | Report progress | `report state synthetic-job` | Same ID forms; one read, no wait loop |
+| Wait for a report | `report wait synthetic-job --timeout 10` | Required timeout 1-20 seconds; checks every second until SUCCESS/ERROR; retains last state on exhaustion |
 | Container children | `report children synthetic-job --limit 5` | Returns child IDs |
 | Memory metadata | `report memory list synthetic-job --limit 5` | Filename, address, flags, process PID; no raw memory download |
 | Extracted strings | `report memory strings synthetic-job --filename synthetic.dmp --limit 5` | Exactly one filename from memory metadata |
 | Recent reports | `feed detonation --limit 5 --fields report_id,sha256,verdict_human` | Recent window capped upstream at 250 |
 | Known quick scan | `quick-scan show synthetic-scan --fields id,finished,sha256` | Reads result without sending sample again |
+| Wait for a quick scan | `quick-scan wait synthetic-scan --timeout 10` | Required timeout 1-20 seconds; checks every second until finished; never resends sample or URL |
 | Own YARA rules | `hunting yara list --status active --fields id,identifier,active` | Experimental; optional `--search` and comma-separated `--threat-category` |
 
 ## One-call forms and output bounds
@@ -50,7 +53,13 @@ All commands accept `--config <path>` and `--profile <name>`; preserve those sel
 `search run` starts once and fetches asynchronous results once within the same invocation.
 If pending, retain the returned ID and resume with `search results`; do not restart the query.
 Synchronous queries use page (default 1); asynchronous queries ignore page and treat size as the total match bound.
-No batch report-summary or wait-until-finished command exists; children-to-summary and unfinished report/scan checks require separate calls.
+Use `report batch <id>... --limit <1-20>` for known child IDs or explicit report IDs returned by hash lookups.
+Batch accepts at most 20 IDs, never resolves a bare hash implicitly, and reports every ID with a summary or an error.
+IDs beyond the explicit limit are incomplete without a request; a shared transport budget stop skips remaining IDs.
+Use `report wait <id> --timeout <1-20>` or `quick-scan wait <id> --timeout <1-20>` to read a known unfinished result until the relative deadline.
+Waits check immediately and then at one-second intervals without retries, and abort in-flight reads at the deadline.
+Batch and waits retain profile/config selectors and field controls, share existing transport budgets, and never submit a sample or URL.
+On partial failure or exhaustion they exit 1 with `complete: false`; waits retain the ID, last validated result when available, and an explicit reason.
 
 Output is TOON on stdout, including errors.
 Default fields are compact; request identifiers, verdict and score first, adding detail fields only when needed.
@@ -66,7 +75,9 @@ Transport bounds each invocation to 20 seconds, 20 requests and 20 MiB decoded J
 
 The table above is a read-only investigation allowlist: it never uploads a sample or URL, consumes matches or downloads artifacts.
 Reads still use quota and disclose search filters/hashes to the service.
-Home and optional session hooks read local profile context only; install hooks only on explicit request.
+Configured home reads key level, quota and five recent public reports without retries; denied or unavailable reads are explicit, never zero results.
+Use `home --offline` for local context without HTTP or credential-file reads.
+Optional session hooks read local profile context only; install hooks only on explicit request.
 `doctor` is an optional diagnostic, making up to seven quota-consuming reads rather than a required startup call.
 `api get` allows reviewed JSON reads only, rejecting arbitrary URLs, consuming matches, refreshes and binary routes.
 
@@ -105,6 +116,6 @@ The [command reference](https://github.com/knowttl/hybrid-axi/blob/main/docs/com
 | UPSTREAM_ERROR | Inspect the redacted upstream message and bounded validation_errors when supplied; never interpret failure as empty data |
 | TIMEOUT / network failure | Outcome may be ambiguous; inspect known result IDs before any new send |
 
-Exit 0 is success (including pending state); exit 1 is runtime failure.
+Exit 0 is success (including a single pending-state read); exit 1 is runtime failure, a partial batch or an incomplete wait.
 Only explicitly retryable non-consuming reads retry explicit 429/502/503/504 responses, at most twice within transport budgets.
 Never replay an ambiguous search start, quick scan, consuming read or write; reconcile audit ID, private journal and known result IDs.
