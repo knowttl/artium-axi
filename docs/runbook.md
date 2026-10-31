@@ -476,7 +476,7 @@ See [runner admission](#runner-admission) for the shared capacity and queue cont
 Credential, native-settings, write-access and certificate-trust changes reset the backoff and request a fresh check for enabled configured tools without a manual test.
 While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
 GitHub device connection explicitly checks the new credential revision even when the tool is disabled.
-If runner capacity is occupied or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`
+If the runner admission wait expires or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`
 The existing health refresh mechanism retries that revision once capacity is available, including for disabled tools; completion of an older revision cannot overwrite its result.
 Disabled tools retain their `disabled` health status while exposing the recorded check's revision, timestamp and error details.
 Results superseded by a later configuration change cannot change the schedule or cached health, even when the credential revision is unchanged.
