@@ -7,6 +7,7 @@ import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import ado from '../../tools/inventories/ado-axi.json' with { type: 'json' }
 import gh from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
+import awxParity from '../../tools/inventories/awx-axi-parity.json' with { type: 'json' }
 import tenable from '../../tools/inventories/tenable-axi.json' with { type: 'json' }
 import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json' }
 import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
@@ -293,6 +294,10 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     if (route) {
       help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => Object.hasOwn(route.flags, name) ? option : '')
         .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !Object.hasOwn(route.flags, name))).join('\n')
+      const descriptions = awxParity.commands.find(entry => entry.command === route.command)!.flags
+        .filter(flag => Object.hasOwn(route.flags, flag.name))
+        .map(flag => `--${flag.name}: ${flag.description}`).join('\n')
+      if (!help.includes(descriptions)) help = help.trimEnd() + '\n' + descriptions + '\n'
       const permission = `AWX must authorize ${route.command} and access to each referenced resource.`
       if (!help.includes(permission)) help = help.trimEnd() + '\n' + permission + '\n'
     }
