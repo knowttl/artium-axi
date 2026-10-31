@@ -16196,7 +16196,7 @@
       "command": "setup hooks",
       "effect": "client-local",
       "status": "managed equivalent",
-      "reason": "Use artium-axi setup --host <host> on the client for granted tool skills; --hook installs a Claude Code hook only. Upstream Codex/OpenCode session hooks have no current managed equivalent. Never install hooks in the server runner.",
+      "reason": "Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.",
       "targetSlice": "f",
       "requiredAdminControl": "Managed installation or account administration; never caller-controlled runner configuration",
       "flags": [

@@ -73,7 +73,7 @@ Native preview, execute and exact confirmation gates still apply; there is no un
 
 ### Failures and next action
 
-Artium errors are TOON on stdout with `error.code`, `source`, `message` and `next`; follow `next` rather than retrying blindly.
+For ordinary commands, Artium errors are TOON on stdout with `error.code`, `source`, `message` and `next`; follow `next` rather than retrying blindly.
 For a non-zero tool exit, keep the stderr `artium-axi: request_id <id>` line and quote that ID, the tool and time when asking an administrator for help; never include credentials or sensitive output.
 Follow the [failed-call troubleshooting path](https://github.com/knowttl/artium-axi/blob/main/docs/runbook.md#troubleshoot-a-failed-tool-call) for administrator investigation, and check current state before retrying an unknown write outcome.
 See the [output contract](https://github.com/knowttl/artium-axi/blob/main/README.md#toon-output-and-errors) for exit codes and upstream output handling.
@@ -90,7 +90,7 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | --- | --- |
 | `artium-axi` | Show identity, roles and available tools. |
 | `artium-axi --help [<command>]` | Show local client or tool-entry help without authentication. |
-| `artium-axi --version` | Print the client package version. |
+| `artium-axi --version`, `-v`, `-V` | Print only the client package version without configuration or sign-in. |
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
 | `artium-axi passwd [--password-stdin]` | Change the account password, then sign in again. |
@@ -101,7 +101,8 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health. |
 | `artium-axi update` | Download and verify the server client, replace this file and retain a .bak backup; npm installs use npm instead. |
 | `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled Hybrid Analysis archives, Check Point emails/attachments, Graph mail exports or BeyondTrust endpoint content; see `artium-axi download --help` for guards. |
-| `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and an optional Claude Code hook. |
+| `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and optional ambient context for Claude Code, Codex or OpenCode on Linux. |
+| `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |

@@ -2,6 +2,7 @@
 
 Contents:
 
+- [Agent session context](#agent-session-context)
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
 - [Write gates by tool](#write-gates-by-tool)
@@ -11,6 +12,19 @@ Contents:
 
 All tools start disabled; write access defaults to off.
 Administrator capability alone grants no tool access; upstream permissions remain an additional boundary.
+
+## Agent session context
+
+Explicit client setup supports ambient tool context for Claude Code, Codex and OpenCode on Linux; ordinary discovery and tool calls never install or repair host settings.
+Context reflects the signed-in account's current tool grants, preserves server roles and write gates, and discloses authentication or connectivity failures without cached grants.
+It excludes identity and session metadata.
+See [agent installation](client-reference.md#agent-installation) for setup paths, host trust requirements, output and manual removal.
+
+Catalog exceptions: hook installation is supported on Linux only; other platforms retain skill installation without `--hook`.
+Pi retains skill-only setup because this installer has no verified Pi session-context contract.
+OpenCode support is bounded to the released 1.19.x plugin API referenced in the installation guide; an incompatible future plugin API is not claimed.
+No session-end capture is installed, because this integration reads authorization context and does not collect transcripts or activity.
+Local integration tests execute installed commands and plugin exports; actual agent-host loading and live model sessions remain unverified.
 
 ## BeyondTrust Endpoint Privilege Management
 

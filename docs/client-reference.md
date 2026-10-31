@@ -117,7 +117,8 @@ Transfer audit selectors are hashed; mailbox and resource IDs are not retained i
 ### Command surface and subcommands
 
 See the [command reference](commands.md) for client commands and managed tool entry points.
-`artium-axi --version` prints only the client package version and a newline, then exits without configuration, sign-in or network access.
+`artium-axi --version`, `artium-axi -v` and `artium-axi -V` each print only the client package version and a newline, then exit 0 without loading the command graph, configuration, sign-in or network access.
+The home view emits `bin` with the absolute executable path and `description` before configuration, authentication or connectivity diagnostics, even when no session can be verified.
 Browser SSO works on headless and SSH hosts.
 
 Add `--help` to a local command to inspect its accepted flags.
@@ -253,7 +254,7 @@ The home view and `whoami` display `sessionExpiresAt` and `accessExpiresAt` as U
 Doctor includes the session deadline and remaining time in its token diagnostic.
 
 See the [README output contract](../README.md#toon-output-and-errors) for upstream stream handling and hosted status filtering.
-If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
+For commands other than bare version flags, if a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
 For managed tools, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Adapted root `help` values containing commas or newlines are quoted; removed suggestions are omitted from arrays and their counts are updated, including an empty array when none remain.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
@@ -266,6 +267,7 @@ Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 For a non-zero upstream tool exit, the CLI appends `artium-axi: request_id <id>` on stderr when the server supplies a valid request ID in `x-artium-request-id`; successful tool exits add no ID line.
 Keep that ID for the [failed-call troubleshooting path](runbook.md#troubleshoot-a-failed-tool-call).
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
+See the [`session-context` failure format](#agent-installation) for its host-delivery exception.
 CLI errors preserve a server-provided `requestId`; failures without one omit the field rather than inventing an ID.
 Unexpected local CLI failures use `INTERNAL_ERROR` with `The CLI failed locally`, a bounded error class and function context, without exception messages, custom exception names or stacks.
 Report that class and function to the CLI maintainer, and check the previous call outcome before retrying.
@@ -288,11 +290,40 @@ Setup installs `skills/<name>/SKILL.md` under the following host directories:
 | --- | --- | --- |
 | Claude Code | `~/.claude` | `CLAUDE_CONFIG_DIR` |
 | Codex | `~/.agents` | None |
-| OpenCode | `~/.config/opencode` | None |
+| OpenCode | `$XDG_CONFIG_HOME/opencode`, otherwise `~/.config/opencode` | `OPENCODE_CONFIG_DIR` |
 | Pi | `~/.pi/agent` | `PI_CODING_AGENT_DIR` |
 
-The optional Claude hook lives in that directory's `settings.json`.
-To remove it, delete only hook objects with `statusMessage: "artium-axi managed tools"` from `hooks.SessionStart`, preserving unrelated entries.
+Only explicit `setup --host <host> --hook` installs or repairs ambient context, alongside authenticated skill installation.
+Discovery, home, help and ordinary tool invocations never modify host settings.
+Re-run setup after relocating the executable; repeated setup with unchanged files preserves their modification times.
+Edited or unmanaged skills and OpenCode plugins require `--force` for replacement, and invalid Claude or Codex hook JSON refuses installation before writing skills.
+Authentication and installation failures leave existing files intact.
+
+| Host | Ambient integration | Removal |
+| --- | --- | --- |
+| Claude Code | `hooks.SessionStart` in the active Claude directory's `settings.json` | Remove only hook objects with `statusMessage: "artium-axi managed tools"`. |
+| Codex | `hooks.SessionStart` in `$CODEX_HOME/hooks.json`, otherwise `~/.codex/hooks.json` | Remove only hook objects with the same Artium status message. |
+| OpenCode 1.19.x | `plugins/artium-axi.js` under the active OpenCode directory, using `experimental.chat.system.transform` | Remove only that managed plugin. |
+
+Claude and Codex hooks execute a quoted shell command rather than a separate argument-array field.
+Setup prefers `artium-axi` on PATH only when the first executable with that name resolves to the current client; otherwise it records the absolute Node and client paths.
+Codex hooks are enabled by default in the [current hook contract](https://learn.chatgpt.com/docs/hooks); if disabled, enable `[features].hooks = true` yourself, subject to administrator policy, then review and trust the hook in Codex.
+Setup never changes Codex policy, enables a disabled feature or approves a hook's trust record.
+Claude's [SessionStart contract](https://code.claude.com/docs/en/hooks#sessionstart) supplies stdout as session context.
+OpenCode loads [local plugins](https://opencode.ai/docs/plugins/#from-local-files) at startup; its released [1.19.5 plugin interface](https://github.com/anomalyco/opencode/blob/v1.19.5/packages/plugin/src/index.ts) permits appending to `output.system` in the system transform hook.
+The OpenCode plugin obtains fresh context before each model request rather than retaining grants across a session.
+Restart the host after setup; integration tests exercise the installed command/plugin contracts offline, without a model or vendor API call.
+
+`session-context` fetches the signed-in user's `/v1/tools` snapshot, allowing ordinary session refresh, with a five-second overall deadline that also cancels refresh-lock waits.
+It emits at most one row per known tool, containing only name, status and read/write posture.
+It never emits usernames, roles, tokens, server URLs, session expiry or server-provided error text.
+It does not grant access or bypass server write gates, and it never substitutes cached grants after an authentication, TLS, configuration or connectivity failure.
+Concurrent login or logout also withholds grants with `SESSION_CHANGED`; refresh within the same login remains supported.
+Such failures emit `artium: unavailable` with the error code and a doctor command, returning 0 so the host can deliver the diagnostic as context.
+An OpenCode child that cannot start or finish emits `CLIENT_START_FAILED`; the plugin bounds its child runtime to eight seconds and output to 16 KiB.
+These server-wide grants have no project-specific subset; the context is scoped to the active local user's authenticated account, and no tool invocation or transcript capture occurs.
+
+See [supported integrations and catalog exceptions](safety.md#agent-session-context) for platform, host API and capture boundaries.
 Remove only Artium-managed skill directories you intend to uninstall; inspect their content and managed checksum marker first.
 There is no setup uninstall command.
 Skills for granted but disabled tools can be installed; execution still returns `TOOL_DISABLED`.
@@ -354,7 +385,7 @@ For authenticated calls, send one UTF-8 JSON object of at most 64 KiB to fd 3, t
 The optional fields `status: "authenticated"`, `accessExpiresAt` and `familyExpiresAt` (integer Unix milliseconds) allow a rotation record to be reused as input; other fields are refused.
 The caller owns expiry policy, refresh serialization across processes and secure persistence.
 Managed mode supports `login`, the home view, `whoami`, `tools`, `tools show`, `doctor`, `download` and tool commands.
-`passwd`, `logout`, `setup` and `update` are refused before configuration, private-channel reads or network access; ordinary sign-in and its server-version warning remain unchanged without the flag.
+`passwd`, `logout`, `setup`, `update` and the ordinary-session-only `session-context` are refused before configuration, private-channel reads or network access; ordinary sign-in and its server-version warning remain unchanged without the flag.
 Help is available without private channels through `artium-axi --help`; use `artium-axi --managed-session --help` or `artium-axi login --help` for the pipe protocol.
 
 To obtain the first session, run `artium-axi --managed-session login --username <username> --password-stdin` with the password on protected inherited stdin, or `artium-axi --managed-session login --sso` for browser approval.

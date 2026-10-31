@@ -16,6 +16,9 @@ Administrators deploy and configure the server; client users sign in and discove
 ## Quickstart
 
 Use Linux with Node **24.11.0+** and a trusted HTTPS server URL and account from your administrator.
+The npm package installs only the client: an administrator must separately [deploy the Artium server](docs/admin-guide.md#set-up-a-host), configure authentication and grant your account access to enabled tools.
+The client host needs DNS and outbound HTTPS connectivity to that server, plus trust in its TLS certificate chain.
+No vendor credentials belong on the client host.
 
 ```sh
 npm install --global @knowttl/artium-axi
@@ -42,20 +45,25 @@ See [verified server downloads and updates](docs/client-reference.md#verified-cl
 
 ## Use with your agent
 
-After sign-in, install managed skills and the optional Claude Code discovery hook:
+After sign-in on Linux, explicitly install managed skills and optional ambient session context for your host:
 
 ```sh
 artium-axi setup --host claude --hook
+artium-axi setup --host codex --hook
+artium-axi setup --host opencode --hook
 ```
 
-For Codex, OpenCode or Pi, use `--host codex`, `--host opencode` or `--host pi` without `--hook`.
-The Claude `SessionStart` hook injects `tools` output; skills teach managed command discovery and grant no permissions.
+Choose your host's command; omit `--hook` to install skills only, including `--host pi`.
+Claude Code and Codex use `SessionStart`; OpenCode 1.19.x uses a local plugin to add context before model requests.
+Codex requires hooks enabled and host approval of the installed hook; setup preserves those trust and administrator controls.
+Ambient context contains current tool names, status and read/write posture, with explicit authentication or connectivity failure disclosure and no identity or session metadata.
+Skills teach managed command discovery and grant no permissions.
 Artium's authenticated setup fetches granted tools' adapted skills; a standalone skill installer does not configure this server account.
 Start with the [compact investigation guide](skill/artium-axi/SKILL.md#investigation-quick-guide) in the base skill.
 See the [command reference](docs/commands.md) and authenticated `artium-axi tools show <tool>` for commands.
 Re-run setup after moving the executable or changing grants.
-To remove the hook, delete only objects labelled `statusMessage: "artium-axi managed tools"` from `hooks.SessionStart` in the Claude host's `settings.json`.
-See [installation paths and manual skill removal](docs/client-reference.md#agent-installation).
+See [installation paths, host requirements and manual removal](docs/client-reference.md#agent-installation) and [supported integration boundaries](docs/safety.md#agent-session-context).
+Ordinary discovery and tool calls never install or repair agent settings.
 
 <a id="features"></a>
 <a id="commands"></a>
@@ -114,6 +122,8 @@ Connection settings are saved in `config.json` beside `session.json`; tool profi
 | `XDG_CONFIG_HOME` | Linux/macOS config base | `~/.config` |
 | `APPDATA` | Windows config base | Required on Windows |
 | `CLAUDE_CONFIG_DIR` | Claude setup directory | `~/.claude` |
+| `CODEX_HOME` | Codex hook configuration directory; skills use `~/.agents` | `~/.codex` |
+| `OPENCODE_CONFIG_DIR` | OpenCode setup directory | `${XDG_CONFIG_HOME:-~/.config}/opencode` |
 | `PI_CODING_AGENT_DIR` | Pi setup directory | `~/.pi/agent` |
 | `ARTIUM_AXI_TEST_HTTP` | Test-only loopback HTTP when `1` | Disabled |
 | `ARTIUM_AXI_SESSION_ACL_PATH`, `ARTIUM_AXI_SESSION_ACL_KIND` | Internal Windows ACL subprocess inputs | Set by client; do not configure |
@@ -137,6 +147,7 @@ Tool output limits vary; `--full` restores supported text within byte/time budge
 | 2 | Usage or configuration error |
 
 See [output behavior](docs/client-reference.md#toon-output-behavior) and the generated [error catalogue](docs/errors.md).
+The [`session-context` command](docs/commands.md) also exits 0 when it emits an unavailable diagnostic for an agent host.
 
 ## Troubleshooting
 

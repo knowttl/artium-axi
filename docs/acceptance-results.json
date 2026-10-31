@@ -1,0 +1,47 @@
+{
+  "issue": 238,
+  "scope": "Client startup identity, version aliases and explicit ambient session setup",
+  "environment": {
+    "platform": "Linux x64",
+    "node": "24.14.0",
+    "pnpm": "10.22.0",
+    "identities": "synthetic only",
+    "services": "loopback fakes only"
+  },
+  "implementationChecks": [
+    {
+      "command": "pnpm exec vitest run test/client-package.test.ts test/cli-setup.test.ts test/cli.test.ts",
+      "exitStatus": 0,
+      "testsPassed": 410,
+      "note": "Focused suites passed before the final OpenCode filename and additional failure-case changes; the final package suite was rerun below."
+    },
+    {
+      "command": "pnpm exec vitest run test/client-package.test.ts",
+      "exitStatus": 0,
+      "testsPassed": 22,
+      "note": "Builds dist/npm, packs and installs the tarball offline into an empty prefix, then executes its installed client and generated host integrations with isolated configuration."
+    },
+    { "command": "pnpm lint", "exitStatus": 0 },
+    { "command": "pnpm build", "exitStatus": 0 },
+    { "command": "pnpm test:axi", "exitStatus": 0 }
+  ],
+  "verifiedBehaviors": [
+    "--version, -v and -V each emit the bare client version and exit 0 without configuration or host writes",
+    "Home identifies the executable and client before missing configuration, refused authentication and unavailable connectivity diagnostics without session data",
+    "A clean offline npm installation signs in against a fake and discovers tools using saved connection settings",
+    "Claude Code and Codex SessionStart commands execute current minimal tool context",
+    "The OpenCode 1.19.x local JavaScript plugin appends fresh context through its published system transform interface",
+    "Explicit setup preserves unrelated settings, repeats without writes, repairs relocated paths and refuses unmanaged or edited plugins without force",
+    "PATH selection uses the first executable and falls back to the installed client when another binary shadows it",
+    "Discovery preserves host files; authentication and installation failures preserve existing files",
+    "Ambient context reflects removed grants and explicitly reports authentication, connectivity and missing-executable failures without cached grants"
+  ],
+  "limitations": [
+    "Host contract tests execute installed commands and plugin exports without a live model session; host trust approval remains user-controlled",
+    "Hook installation is supported on Linux; Pi and other platforms retain skill-only setup",
+    "OpenCode support is bounded to its released 1.19.x plugin interface",
+    "The required container acceptance is unverified under the offline-only constraint: its fresh private BuildKit cache downloads pinned build dependencies",
+    "The private hygiene deny list is intentionally unavailable to this worker; private hygiene acceptance is unverified",
+    "The no-mistakes pipeline must validate the committed candidate; this file records implementation evidence, not final delivery approval"
+  ]
+}

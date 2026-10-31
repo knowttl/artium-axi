@@ -115,15 +115,19 @@ export class SessionStore {
     catch { throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE') }
   }
 
-  async locked<T>(action: () => Promise<T>): Promise<T> {
+  async locked<T>(action: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     this.secureDirectory()
     const lock = join(this.directory, 'session.lock')
     const deadline = Date.now() + 100_000
     while (true) {
+      if (signal?.aborted) throw new ArtiumError('SERVER_UNAVAILABLE')
       // Watch before attempting acquisition so a release cannot be missed.
       const watcher = watch(this.directory)
       let timer: NodeJS.Timeout | undefined
+      let cancel: (() => void) | undefined
       const changed = new Promise<void>((resolve, reject) => {
+        cancel = () => reject(new ArtiumError('SERVER_UNAVAILABLE'))
+        signal?.addEventListener('abort', cancel, { once: true })
         watcher.once('change', () => resolve())
         watcher.once('error', () => reject(new ArtiumError('SESSION_STORAGE_UNAVAILABLE')))
         timer = setTimeout(() => reject(new ArtiumError('SESSION_BUSY')), Math.max(0, deadline - Date.now()))
@@ -135,7 +139,11 @@ export class SessionStore {
           await changed
           continue
         }
-      } finally { watcher.close(); clearTimeout(timer) }
+      } finally {
+        watcher.close()
+        clearTimeout(timer)
+        if (cancel) signal?.removeEventListener('abort', cancel)
+      }
       try { return await action() }
       finally { rmSync(lock, { recursive: true }) }
     }

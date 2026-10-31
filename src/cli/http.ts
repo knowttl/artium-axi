@@ -119,13 +119,13 @@ export class Client {
     if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
     if (session.accessExpiresAt <= Date.now() + ACCESS_EXPIRY_SKEW_MS) {
       const expiring = session
-      session = await this.sessions.locked(() => this.refresh(expiring))
+      session = await this.sessions.locked(() => this.refresh(expiring), this.cancellation.signal)
     }
     let result: unknown
     try { result = await this.request(path, method, input, session.accessToken) }
     catch (error) {
       if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED') throw error
-      const fresh = await this.sessions.locked(() => this.refresh(session))
+      const fresh = await this.sessions.locked(() => this.refresh(session), this.cancellation.signal)
       result = await this.request(path, method, input, fresh.accessToken)
     }
     if (previous) this.reload(previous)
@@ -218,6 +218,6 @@ export class Client {
         await this.request('/v1/auth/password', 'POST', input, fresh.accessToken)
       }
       this.sessions.remove()
-    })
+    }, this.cancellation.signal)
   }
 }

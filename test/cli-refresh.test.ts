@@ -14,7 +14,7 @@ let directory: string
 let url: string
 let store: SessionStore
 let requests: { path: string, authorization?: string, body: unknown }[]
-let scenario: 'refresh' | 'still-expired' | 'disconnect' | 'invalid' | 'unavailable' | 'completed' | 'bad-refresh' | 'login-replaced' | 'rotated'
+let scenario: 'refresh' | 'still-expired' | 'disconnect' | 'invalid' | 'unavailable' | 'completed' | 'bad-refresh' | 'login-replaced' | 'rotated' | 'hang'
 let homeScenario: { changeAt?: string, transition?: 'replace' | 'remove', expiresAt?: string } | undefined
 let original: ReturnType<SessionStore['write']>
 let server: ReturnType<typeof createServer>
@@ -52,6 +52,7 @@ beforeEach(async () => {
       })
     }
     if (request.url === '/v1/auth/refresh') {
+      if (scenario === 'hang') return
       reply.writeHead(200, { 'content-type': 'application/json' })
       reply.end(JSON.stringify(scenario === 'bad-refresh' ? {} : { ...pair, accessToken: 'CANARY-new', refreshToken: 'CANARY-next' }))
     } else if (scenario === 'disconnect') request.socket.destroy()
@@ -121,6 +122,37 @@ test('a second expiry ends the call without another refresh', async () => {
   expect(requests.map(request => request.path)).toEqual(['/v1/tools/falcon-axi/run', '/v1/auth/refresh', '/v1/tools/falcon-axi/run'])
 })
 
+test.each([true, false])('concurrent ambient deadlines release refresh locks before the host timeout, expired=%s (R1)', async expired => {
+  scenario = 'hang'
+  store.write({ ...pair, accessExpiresAt: expired ? Date.now() - 1 : pair.accessExpiresAt })
+  const ambient = () => promisify(execFile)(process.execPath, [join(directory, 'artium-axi.mjs'), 'session-context'], {
+    cwd: directory, timeout: 8_000,
+    env: { XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' },
+  }).catch(error => ({ stdout: error.stdout, stderr: error.stderr, killed: error.killed }))
+  const refreshing = once(server, 'request')
+  const first = ambient()
+  await refreshing
+  const results = await Promise.all([first, ambient()])
+  for (const result of results) expect(result).toEqual({
+    stdout: expect.stringContaining('artium: unavailable\nreason: SERVER_UNAVAILABLE\n'), stderr: '',
+  })
+  scenario = 'refresh'
+  homeScenario = {}
+  expect(await run(['tools'])).toMatchObject({ code: 0, stdout: expect.stringContaining('tools: 0 available') })
+})
+
+test('cancelling a refresh lock wait preserves the owner and permits later requests (R1)', async () => {
+  store.write({ ...pair, accessExpiresAt: Date.now() - 1 })
+  const client = new Client({ XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' })
+  await store.locked(async () => {
+    const pending = client.authenticated('/v1/tools', 'GET')
+    client.cancel()
+    await expect(pending).rejects.toMatchObject({ code: 'SERVER_UNAVAILABLE' })
+  })
+  homeScenario = {}
+  expect(await run(['tools'])).toMatchObject({ code: 0, stdout: expect.stringContaining('tools: 0 available') })
+})
+
 test.each(['disconnect', 'invalid', 'unavailable', 'completed'] as const)('an uncertain or completed %s run is never retried', async outcome => {
   scenario = outcome
   expect((await run()).code).toBe(outcome === 'completed' ? 7 : 1)
@@ -161,8 +193,24 @@ test.each([
   { changeAt: '/v1/tools', transition: 'remove' as const },
 ])('home withholds composite output when the session changes during $changeAt: $transition', async change => {
   homeScenario = change
-  expect(await run([])).toMatchObject({ code: 1, stdout: expect.stringMatching(/^error:\n  code: "SESSION_CHANGED"/), stderr: '' })
+  const result = await run([])
+  expect(result).toMatchObject({ code: 1, stderr: '' })
+  expect(result.stdout.startsWith(`bin: ${JSON.stringify(join(directory, 'artium-axi.mjs'))}\ndescription: Run managed upstream tools through one local sign-in.\nerror:\n  code: "SESSION_CHANGED"`)).toBe(true)
+  expect(result.stdout).not.toMatch(/^(user|server|roles|sessionExpiresAt|accessExpiresAt|tools)[:\[]/m)
   expect(requests.map(request => request.path).sort()).toEqual(['/v1/me', '/v1/tools'])
+})
+
+test.each(['replace', 'remove'] as const)('ambient context withholds grants after session %s (R2)', async transition => {
+  homeScenario = { changeAt: '/v1/tools', transition }
+  expect(await run(['session-context'])).toEqual({ code: 0, stderr: '',
+    stdout: 'artium: unavailable\nreason: SESSION_CHANGED\nnote: Current tool access could not be verified; no cached grants are shown.\nnext: artium-axi doctor\n' })
+})
+
+test('ambient context permits refresh within the original login (R2)', async () => {
+  homeScenario = { expiresAt: '/v1/tools' }
+  expect(await run(['session-context'])).toEqual({ code: 0, stderr: '',
+    stdout: 'artium: available\ntools[0]{name,status,readOnly}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n' })
+  expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
 })
 
 test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the original login', async expiresAt => {

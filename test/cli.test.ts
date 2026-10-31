@@ -396,7 +396,7 @@ test.each(['password', 'sso'])('%s login remembers connection settings for tools
   const settings = JSON.parse(readFileSync(join(configuration, '.claude/settings.json'), 'utf8'))
   const hook = settings.hooks.SessionStart[0].hooks[0]
   response = { status: 200, body: { tools: [] } }
-  expect((await execute(hook.command, hook.args, options)).stdout).toContain('tools: 0 available')
+  expect((await execute('sh', ['-c', hook.command], options)).stdout).toContain('artium: available\ntools[0]{name,status,readOnly}:')
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
@@ -1381,10 +1381,10 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: gh-axi, setup, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, beyondtrust-axi, checkpoint-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: gh-axi, setup, session-context, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, beyondtrust-axi, checkpoint-axi, az-axi, mg-axi' },
   { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
-  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, --managed-session' },
+  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, -v, -V, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
   { args: ['tools', 'show', 'falcon-axi', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
