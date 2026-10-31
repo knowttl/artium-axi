@@ -160,7 +160,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       const expectedBody = recorded.body?.description === 'awx-axi' && recorded.body?.scope === 'write' && Object.keys(recorded.body).length === 2
       const expectedAuthorization = `Basic ${Buffer.from('synthetic-awx:CANARY-awx-password').toString('base64')}`
       if (!basicAuthEnabled) {
-        res.writeHead(401)
+        res.writeHead(401, { 'WWW-Authenticate': 'Bearer realm=api authorization_url=/api/o/authorize/' })
         res.end(JSON.stringify({ detail: `Authentication credentials were not provided. ${basicPassword(req.headers.authorization)}` }))
         return
       }

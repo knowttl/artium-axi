@@ -312,7 +312,9 @@ Follow the [runbook password sign-in flow](runbook.md#roles-credentials-and-heal
 Password sign-in sends one HTTPS POST to `/api/v2/tokens/` with basic authentication, asks for description `awx-axi` and scope `write`, and stores only the returned token.
 The password is discarded, never written to the credential or logs, and registered for output redaction while it is in memory.
 Later calls use Bearer authentication only.
-A controller that has basic authentication disabled returns a clear error and stores nothing from that attempt.
+An HTTP 401 during token acquisition returns `UPSTREAM_AUTH_FAILED` and stores nothing from that attempt.
+The error advises checking the credentials and controller authentication configuration, with an existing personal access token as an alternative.
+A Bearer-only challenge does not establish that Basic authentication is disabled; the credentials may be incorrect or the authentication configuration may not support password sign-in.
 The shared profile writer injects the token and registers it for output scanning.
 Artium owns the default-off `allowWrites` setting and removes it before writing the upstream profile.
 See [AWX setup](tool-credentials.md#awx) for credential setup and the supported command boundary.
