@@ -46,9 +46,10 @@ beforeEach(() => {
   write('test/cli.test.ts', 'export {}\n')
   write('test/client-package.test.ts', 'export {}\n')
   write('test/npm-package.test.ts', 'export {}\n')
-  write('test/integration/api.test.ts', 'export {}\n')
-  write('test/integration/cli-auth.test.ts', 'export {}\n')
-  write('test/integration/tool-skills.test.ts', 'export {}\n')
+  for (const name of ['api', 'beyondtrust', 'checkpoint', 'cli-auth', 'file-input', 'hybrid',
+    'mg-mail-transfers', 'tool-skills', 'transfers']) {
+    write(`test/integration/${name}.test.ts`, 'export {}\n')
+  }
   write('tools/inventories/example.json', '{}\n')
   write('skill/artium-axi/SKILL.md', '# Runtime skill\n')
   git('init', '--quiet')
@@ -66,11 +67,17 @@ test('documentation selects only generated-reference validation', () => {
   expect(plan()).toMatchObject({ mode: 'docs', base, tests: [], checks: [['node', 'scripts/errors-reference.mjs']] })
 })
 
-test('CLI changes retain bundled, installed-package and authentication journeys', () => {
-  write('src/cli/session.ts', 'export const value = 2\n')
+test.each([
+  ['src/cli/session.ts', 'export const value = 2\n'],
+  ['skill/artium-axi/SKILL.md', '# Updated runtime guidance\n'],
+])('%s retains all bundle consumers and installed-package journeys', (path, content) => {
+  write(path, content)
   expect(plan()).toMatchObject({ mode: 'affected', tests: [
     'src/cli/session.test.ts', 'test/cli.test.ts', 'test/client-package.test.ts',
-    'test/integration/cli-auth.test.ts', 'test/npm-package.test.ts',
+    'test/integration/api.test.ts', 'test/integration/beyondtrust.test.ts', 'test/integration/checkpoint.test.ts',
+    'test/integration/cli-auth.test.ts', 'test/integration/file-input.test.ts', 'test/integration/hybrid.test.ts',
+    'test/integration/mg-mail-transfers.test.ts', 'test/integration/tool-skills.test.ts',
+    'test/integration/transfers.test.ts', 'test/npm-package.test.ts',
   ] })
 })
 
@@ -78,7 +85,10 @@ test('server changes include transitive re-exports, dynamic imports and public A
   write('src/server/feature.ts', 'export const value = 2\n')
   expect(plan()).toMatchObject({ mode: 'affected', tests: [
     'src/server/dynamic.test.ts', 'src/server/feature.test.ts', 'test/cli.test.ts',
-    'test/integration/api.test.ts', 'test/integration/cli-auth.test.ts', 'test/integration/tool-skills.test.ts',
+    'test/integration/api.test.ts', 'test/integration/beyondtrust.test.ts', 'test/integration/checkpoint.test.ts',
+    'test/integration/cli-auth.test.ts', 'test/integration/file-input.test.ts', 'test/integration/hybrid.test.ts',
+    'test/integration/mg-mail-transfers.test.ts', 'test/integration/tool-skills.test.ts',
+    'test/integration/transfers.test.ts',
   ] })
 })
 
@@ -92,14 +102,6 @@ test.each(['src/shared/api.ts', 'pnpm-lock.yaml', 'tools/inventories/example.jso
       ['node', 'scripts/mg-headless-schema.mjs'], ['pnpm', 'lint'], ['pnpm', 'exec', 'vitest', 'run'],
     ] })
   })
-
-test('embedded Markdown runs bundled CLI and package tests', () => {
-  write('skill/artium-axi/SKILL.md', '# Updated runtime guidance\n')
-  expect(plan()).toMatchObject({ mode: 'affected', tests: [
-    'src/cli/session.test.ts', 'test/cli.test.ts', 'test/client-package.test.ts',
-    'test/integration/cli-auth.test.ts', 'test/npm-package.test.ts',
-  ] })
-})
 
 test('README changes retain the installed-package journeys without server tests', () => {
   write('README.md', '# Updated package documentation\n')

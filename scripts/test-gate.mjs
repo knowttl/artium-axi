@@ -67,7 +67,7 @@ function selectGate(root, { base, full = false } = {}) {
   const packages = () => add(file => /^test\/(?:npm-package|client-package)\.test\.ts$/.test(file))
   const cli = () => {
     add(file => file.startsWith('src/cli/') || /^test\/cli(?:[.-])/.test(file))
-    add(file => file === 'test/integration/cli-auth.test.ts' || file === 'test/integration/file-input.test.ts')
+    add(file => /^test\/integration\/(?:api|beyondtrust|checkpoint|cli-auth|file-input|hybrid|mg-mail-transfers|tool-skills|transfers)\.test\.ts$/.test(file))
     packages()
   }
   if (full) reasons.push('explicit full suite')
