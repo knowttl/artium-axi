@@ -19,6 +19,7 @@ Contents:
 - [10. Migration](#10-migration)
 
 Status: AGREED.
+The proposed [connection-lifetime amendment](#proposed-opt-in-connection-lifetime-amendment) is excluded from this agreement pending owner approval.
 The owner approved it on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
 This is the agreed contract; current host rollout and remaining tool migrations are tracked in [credential-migration.md](credential-migration.md).
 Round 2 added the owner's requirement that credential storage work the same on Windows and Linux.
@@ -262,6 +263,7 @@ Per-tool policy covers the inventory, blocked commands and flags, and hosted res
 ### Proposed opt-in connection-lifetime amendment
 
 Status: PROPOSED, held for owner approval as a security-sensitive credential-custody change.
+The amendment and its conformance checks MUST be submitted as a separate artium-axi PR and MUST NOT be merged under standing authority; explicit owner approval is required.
 Section 9's agreed per-call behavior remains the default.
 This proposal does not opt in any existing tool or authorize connection admission.
 A design depending on this extension MUST NOT be labelled fully conformant until the owner agrees to the amendment and its implementation passes conformance.
