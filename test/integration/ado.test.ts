@@ -1,4 +1,5 @@
 import { readdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, vi } from 'vitest'
@@ -7,6 +8,7 @@ import inventory from '../../tools/inventories/ado-axi.json' with { type: 'json'
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { createApp } from '../../src/server/app.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { ADO_API_BODY_MAX_BYTES } from '../../src/server/adapters/ado-api.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { PreparedCall } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -362,6 +364,12 @@ test.each([
       expect(query.json()).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('Synthetic work item') })
       const write = ['work-item', 'update', '42', '--title', 'Synthetic changed title']
       expect((await run(write)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      const patchBody = '[{"op":"add","path":"/fields/System.Title","value":"Synthetic raw TD-067"}]'
+      const rawBody = patchBody.padEnd(ADO_API_BODY_MAX_BYTES)
+      const rawPath = '_apis/wit/workitems/42'
+      vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ PATCH: ['_apis/wit/workitems/*'] }))
+      const rawWrite = ['api', rawPath, '-X', 'PATCH', '--content-type', 'json-patch', '--body', rawBody, '--no-project']
+      expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       const switched = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/ado-axi', headers,
         payload: { nativeSettings: { allowWrites: true }, expectedRevision: 3 } })
       expect(switched.statusCode, switched.body).toBe(200)
@@ -387,12 +395,73 @@ test.each([
       expect(audit).toContainEqual(expect.objectContaining({ action: 'read' }))
       expect(JSON.stringify(audit)).not.toContain(secret)
       expect(JSON.stringify(audit)).not.toContain(Buffer.from(':CANARY-ado-pat').toString('base64'))
+      // TD-067: exercise the real HTTP policy, credential, runner and pinned API command.
+      await send('/__ado/reset', 'POST')
+      for (const path of ['_apis/wit/workitems/43/other', '../_apis/wit/workitems/42',
+        '_apis/%2e%2e/wit/workitems/42', '_apis/%252e%252e/wit/workitems/42',
+        '_apis/wit/../workitems/42', '_apis/wit/./workitems/42', '_apis/wit%2fworkitems/42',
+        '_apis/wit%5cworkitems/42', '_apis/wit/workitems/%zz',
+        'https://dev.azure.com/other/_apis/wit/workitems/42', '//other/_apis/wit/workitems/42',
+        '_apis/wit/workitems/42?other=1', '_apis/wit/workitems/42%3fother=1']) {
+        expect((await run(['api', path, '--method=PATCH', '--body', rawBody])).json())
+          .toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      }
+      for (const extra of [['--host', 'dev'], ['--query', 'other=1']]) {
+        expect((await run([...rawWrite, ...extra])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      }
+      for (const body of ['{invalid', JSON.stringify('x'.repeat(ADO_API_BODY_MAX_BYTES))]) {
+        expect((await run(['api', rawPath, '--method', 'PATCH', '--body', body])).json())
+          .toMatchObject({ error: { code: 'INVALID_INPUT' } })
+      }
+      for (const configuration of [undefined, '{}', '{invalid', '[]']) {
+        vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', configuration)
+        expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      }
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
+      vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ PATCH: ['_apis/wit/workitems/*'] }))
+      expect((await run(rawWrite)).json()).toMatchObject({ exitCode: 0 })
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([
+        expect.objectContaining({ method: 'PATCH', path: '/synthetic-org/_apis/wit/workitems/42', body: JSON.parse(rawBody) }),
+      ])
+      const journal = db.prepare("SELECT user_id, outcome, arguments FROM audit WHERE event = 'ado-api' ORDER BY id").all() as
+        { user_id: string, outcome: string, arguments: string }[]
+      expect(journal).toContainEqual({ user_id: 'synthetic-development-user', outcome: 'refused', arguments: JSON.stringify({
+        method: 'PATCH', path: rawPath, decision: 'refused', bodySha256: createHash('sha256').update(rawBody).digest('hex'), bodyBytes: Buffer.byteLength(rawBody),
+      }) })
+      expect(journal.at(-1)).toEqual({ user_id: 'synthetic-development-user', outcome: 'allowed', arguments: JSON.stringify({
+        method: 'PATCH', path: rawPath, decision: 'allowed', bodySha256: createHash('sha256').update(rawBody).digest('hex'), bodyBytes: Buffer.byteLength(rawBody),
+      }) })
+      expect(journal.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({ path: null, decision: 'refused' }))
+      expect(journal.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({
+        decision: 'refused', bodyBytes: ADO_API_BODY_MAX_BYTES + 2,
+        bodySha256: createHash('sha256').update(JSON.stringify('x'.repeat(ADO_API_BODY_MAX_BYTES))).digest('hex'),
+      }))
+      expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('Synthetic raw TD-067')
+      for (const row of [
+        { method: 'POST', path: '_apis/wit/workItems/42/comments', body: { text: 'Synthetic raw comment' } },
+        { method: 'PUT', path: '_apis/git/repositories/Synthetic%20Repo/pullrequests/42/reviewers/11111111-1111-4111-8111-111111111111', body: { vote: 10 } },
+        { method: 'DELETE', path: '_apis/git/repositories/Synthetic%20Repo/pullrequests/42/reviewers/11111111-1111-4111-8111-111111111111', body: {} },
+      ]) {
+        await send('/__ado/reset', 'POST')
+        vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ [row.method]: [row.path] }))
+        const response = await run(['api', row.path, '--method', row.method, '--body', JSON.stringify(row.body)])
+        expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+        expect(JSON.parse(await send('/__evidence')).requests).toEqual([
+          expect.objectContaining({ method: row.method, path: `/synthetic-org/Synthetic%20Project/${row.path}`, body: row.body }),
+        ])
+      }
+      await send('/__ado/reset', 'POST')
+      db.prepare("DELETE FROM role_tools WHERE tool = 'ado-axi'").run()
+      expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'TOOL_NOT_GRANTED' } })
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
+      expect(db.prepare("SELECT user_id, outcome FROM audit WHERE event = 'ado-api' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ user_id: 'synthetic-development-user', outcome: 'refused' })
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
       // Enabling writes replaces the credential revision and invalidates its token.
       expect(network.requests).toHaveLength(value.auth === 'pat' ? 0 : 2)
       if (value.auth === 'client-secret') {
         expect(network.requests.map(request => request.form.get('scope'))).toEqual(Array(2).fill('499b84ac-1321-427f-aa17-267ca6975798/.default'))
       }
-    } finally { await app.close(); db.close() }
+    } finally { vi.unstubAllEnvs(); await app.close(); db.close() }
   })
 })

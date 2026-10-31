@@ -34,6 +34,11 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi checkpoint-axi [<args>]` | Investigate Check Point Email Security with managed regional credentials; [tool reference](https://www.npmjs.com/package/@knowttl/checkpoint-axi). |
 | `artium-axi gh-axi [<args>]` | Read and update GitHub data with managed credentials; [tool reference](https://www.npmjs.com/package/gh-axi). |
 
+TD-067: `artium-axi ado-axi api <relative-path>` defaults to GET without a body.
+For a listed write, use `artium-axi ado-axi api _apis/wit/workitems/42 -X PATCH --content-type json-patch --body '[{"op":"add","path":"/fields/System.Title","value":"Synthetic title"}]' --no-project`.
+POST, PATCH, PUT and DELETE require administrator-enabled writes and the [server method/path allow list](admin-guide.md#server-settings-and-custody); every decision is journaled with the body hash and byte count.
+The body must be valid JSON of at most 65,536 UTF-8 bytes.
+
 `artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
 The [full client reference](client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
 GitHub PR details support field selection, for example `artium-axi gh-axi pr view 42 -R OWNER/NAME --fields number,title,mergeStateStatus,body`.

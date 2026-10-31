@@ -351,6 +351,7 @@ See the [API contract](../src/shared/api.ts) and [retention and export runbook](
 | `ARTIUM_AXI_ADMIN_PASSWORD_FILE` | UTF-8 file containing the exact first-start password, without an added newline. |
 | `ARTIUM_AXI_TRUSTED_PROXIES` | Comma-separated verified proxy source IP addresses; default trusts none. |
 | `ARTIUM_AXI_AUDIT_STDOUT` | `1` streams committed audit records as JSON lines; SQLite remains authoritative. |
+| `ARTIUM_AXI_ADO_API_WRITE_PATHS` | Server-only TD-067 JSON allow list by uppercase method, default `{}`. Example: `{"PATCH":["_apis/wit/workitems/*"]}`. See the path contract below. |
 
 The server listens on HTTP port 8080 behind a trusted HTTPS reverse proxy.
 The [Compose example](../compose.example.yaml) publishes only on host loopback and supplies a master-key secret, not bootstrap credentials.
@@ -372,6 +373,21 @@ See [backup, restore, rotation and rollback](runbook.md#backup-restore-and-upgra
 Development and verification use only fakes, synthetic identities and canary credentials.
 Fake-service results do not establish live platform permissions or production readiness.
 Never put tokens or keys in arguments, source files, images or logs.
+TD-067 raw ADO API writes require both the existing administrator write switch and this server allow list.
+Configure it in the server process environment; it is never accepted from a client or forwarded to the tool.
+Keys are `POST`, `PATCH`, `PUT` or `DELETE`; values are arrays of relative REST paths.
+Each pattern matches the complete normalized relative path, case sensitively; a whole segment `*` matches exactly one nonempty segment.
+Other segments match literally after canonical percent encoding.
+The path is relative to the managed organization and selected project, or organization only with `--no-project`.
+No default pattern permits writes; malformed configuration fails closed.
+Empty segments, dot segments, encoded traversal, nested percent encodings, URLs, backslashes, controls, query strings and fragments are refused.
+Write `--host` and `--query` overrides are refused; use `--api-version` for the REST version.
+Bodies must be valid JSON, at most `ADO_API_BODY_MAX_BYTES` (65,536 UTF-8 bytes); JSON, JSON Patch and JSON Merge Patch media types are supported.
+Audit event `ado-api` persists `method`, normalized `path`, `decision`, `bodySha256` and `bodyBytes` as JSON in `arguments`, with the authenticated user in `user_id`.
+The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal; an unnormalizable path is recorded as `null`, never the unsafe input.
+Execution outcome remains in the normal run-terminal record.
+Body text is never included in this decision journal, and audit persistence failure prevents forwarding.
+
 The server refuses the removed development-authentication settings `ARTIUM_AXI_DEV` and `ARTIUM_AXI_DEV_TOKEN_FILE`.
 
 Local passwords use Argon2id and accept any non-empty password of at most 512 UTF-8 bytes, preserving spaces and Unicode.

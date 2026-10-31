@@ -292,7 +292,12 @@ Writes are off by default; follow [write-access administration](runbook.md#roles
 Artium classifies every command using the reviewed [ADO inventory](../tools/inventories/ado-axi.json), which binds the routing review to upstream source digests.
 Artium manages `--org`, `--profile` and `--config`; those overrides and the top-level `config` and `update` commands are refused.
 Use `--project` to select another project within the managed organization.
-The `api` command accepts relative paths and GET only, even when writes are enabled; body flags and absolute URLs are refused.
+The `api` command defaults to GET without a body.
+TD-067 permits `-X/--method POST|PATCH|PUT|DELETE` (or a matching positional method) with a JSON `--body` only when `allowWrites` is enabled and the method/path is on the [server allow list](admin-guide.md#server-settings-and-custody).
+Absolute URLs, traversal, write host/query overrides and non-JSON content types are refused before forwarding.
+JSON and JSON Patch bodies are limited to 65,536 UTF-8 bytes, including whitespace.
+Use `--content-type json-patch` for work-item patch operations.
+Artium journals each raw mutation decision with user, method, normalized path, body SHA-256 and byte count, without saving the body.
 All commands refuse repeated flags, stdin and files.
 Use `pipeline watch --timeout 50` or less to stay within the runner's call timeout.
 Writes are journaled by Artium only; see [audit action classification](admin-guide.md#audit-screen-and-api).

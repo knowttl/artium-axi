@@ -75,7 +75,7 @@ const data = { generatedBy: 'scripts/ado-inventory.mjs', tool: 'ado-axi', ...pin
     tests: 'test', repos: 'repo', refs: 'ref', projects: 'project' },
   discovery: { commands: ['work-item', 'pr', 'pipeline', 'test', 'repo', 'ref', 'project', 'api', 'doctor'],
     example: ['project', 'list', '--limit', '1'],
-    help: 'ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\napi accepts relative paths and GET only. Writes are off by default; administrators control allowWrites. No stdin or files. For pipeline watch use --timeout 50 or less.\n' },
+    help: 'ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\napi defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires allowWrites, a server-listed relative path and bounded JSON --body. Decisions are journaled (TD-067). No stdin or files. For pipeline watch use --timeout 50 or less.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const destination = new URL('inventories/ado-axi.json', root)
 const contents = JSON.stringify(data, null, 2) + '\n'

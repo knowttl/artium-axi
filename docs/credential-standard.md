@@ -297,6 +297,9 @@ See the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-t
 See [GitHub setup](tool-credentials.md#github) for authentication, device-flow scopes and token lifecycle, token caching and key rotation.
 
 ado-axi is a third-party, non-standard tool adapted by Artium without changing its upstream implementation.
+TD-067 raw API mutations use the same role policy, credential revision and administrator write switch as other ADO writes.
+The adapter additionally enforces the server method/path allow list and bounded JSON body, canonicalizes the forwarded path and provides a GET recovery read.
+The runner durably journals the allow/refuse decision before forwarding, separately from the existing host-classified write outcome; no body content enters the decision journal.
 The [host adapter](../src/server/adapters/ado.ts) owns its credential schema.
 It uses the shared credential editor and input normalization, but prepares its upstream profile itself instead of using the shared profile writer.
 Each isolated call receives `ADO_AXI_CONFIG` pointing to a private profile file.

@@ -42,7 +42,7 @@ const commands = {
   'ldap-axi': { usage: 'artium-axi ldap-axi [<args>]', purpose: 'Read directory data with the managed LDAP bind identity.',
     flags: ['Arguments after ldap-axi are forwarded upstream, including --help.'], example: `artium-axi ldap-axi ${ldap.discovery.example.join(' ')}` },
   'ado-axi': { usage: 'artium-axi ado-axi [<args>]', purpose: 'Run Azure DevOps commands with managed credentials.',
-    flags: ['Arguments after ado-axi include --help. Organization and credentials are managed by Artium; api is GET only; writes are off by default.'], example: 'artium-axi ado-axi project list --limit 1' },
+    flags: ['Arguments after ado-axi include --help. Organization and credentials are managed by Artium. api defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires writes enabled, a server-listed path and a bounded JSON --body (TD-067).'], example: 'artium-axi ado-axi project list --limit 1' },
   'awx-axi': { usage: 'artium-axi awx-axi [<args>]', purpose: 'Inspect AWX automation with managed credentials.',
     flags: ['Arguments after awx-axi include --help. Operational writes are off by default; configuration, deletion and security writes are blocked.'], example: 'artium-axi awx-axi job list --limit 1' },
   'tenable-axi': { usage: 'artium-axi tenable-axi [<args>]', purpose: 'Investigate Tenable One with managed API keys.',
