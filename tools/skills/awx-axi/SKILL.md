@@ -76,7 +76,7 @@ commands[24 total]:
 `approval`: list, show, approve, deny.
 `project`: create, edit, copy, delete, list, show, playbooks, updates, roles, sync, notification-add/remove.
 `inventory`: create, edit, delete, sync, host-create/edit/delete, host-bulk-create/delete, group-create/edit/delete, group-add-host/remove-host, group-add-child/remove-child, source-create/edit/delete, source-credential-add/remove, source-notification-add/remove, list, show, groups, hosts, sources, updates, constructed-list, constructed-show.
-`host`: list, show.
+`host`: list, show, inspect.
 `group`: list, show.
 `inventory-source`: list, show.
 `schedule`: create, edit, delete, list, show, credential-add/remove, label-add/remove, instance-group-add/remove.
@@ -121,6 +121,7 @@ Run `npx -y awx-axi --help` for top-level usage, or `npx -y awx-axi <command> --
 - Use `inventory host-bulk-create` and `inventory host-bulk-delete` for AWX's genuine bulk host endpoints.
 - Use `inventory edit <id|name> --host-filter <filter>` to update a smart inventory's host filter.
 - Use `host list` to search visible hosts across inventories, or `host show <id|name>` for groups, variables, and facts.
+- Use `host inspect 501,601` or `host inspect web-01,web-02 --inventory 11` for selected host details: 1-10 selectors, 100 GET attempts including retries/pages, 60 seconds and 20,000 rendered characters. Inventory scopes names and verifies IDs. Per-host complete/failed/skipped status, partial errors and labeled previews are explicit; any ambiguous selector exits 2, other incomplete details exit 1. Use `host show <id>` to recover full details.
 - Use `group list` and `group show <id|name>` for direct host and child-group membership with parsed variables.
 - Use `inventory-source list` and `inventory-source show <id|name>` for source configuration, update state, and direct update history.
 - Use `workflow template-nodes <id|name>` and `workflow template-node <id>` for editable workflow-template nodes, prompts, runtime context, convergence, and success/failure/always edges. These are distinct from `workflow nodes <run-id>`, which reads a workflow job run.

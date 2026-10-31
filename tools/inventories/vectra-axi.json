@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "vectra-axi",
-  "version": "0.1.13",
-  "integrity": "sha512-oUaTXzT/O9YzVfxHwSarEvLxvUBGwyPoYnAMWa0+tv/7KvG62fkDrOSBb6gXHl9uxfTvpHTOLxzpNATR1VgMwA==",
+  "version": "0.1.14",
+  "integrity": "sha512-3fQ2IwQxJnd88lIKlGW0N3bce2/sS+iLWe2oUEEJ82Ntid2kVQtXnUdawJtmXQRqiwssBe/HAsH0QGi2pqhejg==",
   "parserEvidence": "Installed pinned catalogue exports, provisional until adapter acceptance",
-  "packageManifestSha256": "b763137981f5f8ff2c188de28d436e28f4ab09edfabd5a0d29df318351604475",
-  "skillSha256": "d56d7dd6f5da32d21baaf3ded909908767a2519e025373f3447bfc4755bd1e09",
+  "packageManifestSha256": "cceb0e722a79800cc9c21b50f5b83afac2a31278e88ecd7134918def53b58786",
+  "skillSha256": "4c14b7fa56eae1a9bdf24b3fdeefe6d77ba7c470b056bd854fb561eebb511714",
   "environment": [
     {
       "name": "VECTRA_AXI_CONFIG",
@@ -262,7 +262,8 @@
         "--state <state>": "Filter by server-side detection state",
         "--detection-type <type>": "Filter by server-side detection type",
         "--detection-category <category>": "Filter by server-side detection category",
-        "--host-id <id>": "Filter by server-side host ID (positive integer); find it with host list --name <text>, then detection list --host-id <id>",
+        "--host-id <id>": "Filter by server-side host ID (positive integer); cannot combine with --host-name",
+        "--host-name <text>": "Resolve a server-side host name search before listing detections; requires one unique ID in a complete bounded lookup, shares traversal budgets; cannot combine with --host-id",
         "--tags <tags>": "Filter by server-side tags",
         "--certainty-gte <score>": "Filter by server-side minimum certainty",
         "--threat-gte <score>": "Filter by server-side minimum threat",
@@ -306,7 +307,7 @@
     },
     "source": {
       "path": "dist/src/catalogue.js",
-      "sha256": "a9cb858df84d6d48f6e745b906235514743c08716a99d9a7f05b15e16b8d1b01"
+      "sha256": "0a8b291772b3dd246ed8ee12868d6c0253063e69d697d0e9e80cf357306c4025"
     }
   },
   "flags": [
@@ -480,6 +481,10 @@
     },
     {
       "name": "host-id",
+      "disposition": "passthrough candidate"
+    },
+    {
+      "name": "host-name",
       "disposition": "passthrough candidate"
     },
     {
@@ -726,6 +731,7 @@
         "detection-type": "value",
         "detection-category": "value",
         "host-id": "value",
+        "host-name": "value",
         "tags": "value",
         "certainty-gte": "value",
         "threat-gte": "value",

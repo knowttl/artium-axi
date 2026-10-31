@@ -47,7 +47,7 @@ test('Azure query help retains usable input examples with the hosted executable'
 })
 
 test('hosted discovery advertises only flags accepted by the managed adapter', () => {
-  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.16' })
+  const view = toolView({ name: 'az-axi', status: 'ok', version: '0.1.17' })
   const help = JSON.parse(view.split('upstreamHelp: ')[1]) as string
   const flags = help.split('\n').find(line => line.startsWith('Flags: '))!.slice(7).split(', ')
   const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)

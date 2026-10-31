@@ -8,7 +8,7 @@ const packageRoot = new URL('node_modules/awx-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for awx-axi')
-// Reviewed against the 0.1.9 domain plans and transport gates. Survey is a GET;
+// Reviewed against the 0.1.11 domain plans and transport gates. Survey is a GET;
 // notification-template test sends a notification and is a write.
 const reads = {
   job: 'list show stdout events hosts watch', template: 'list show object-roles survey',
@@ -16,7 +16,7 @@ const reads = {
   'system-job-template': 'list show', 'system-job': 'list show events notifications',
   credential: 'list show object-roles', approval: 'list show', 'ad-hoc': 'list show events stdout',
   project: 'list show playbooks updates roles', inventory: 'list show groups hosts sources updates constructed-list constructed-show',
-  host: 'list show', group: 'list show', 'inventory-source': 'list show', schedule: 'list show',
+  host: 'list show inspect', group: 'list show', 'inventory-source': 'list show', schedule: 'list show',
   'execution-environment': 'list show', user: 'list show', notification: 'list show',
   'notification-template': 'list show', 'activity-stream': 'list show',
   team: 'list show users projects credentials roles object-roles access-list', role: 'list show parents children users teams',

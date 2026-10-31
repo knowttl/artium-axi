@@ -1,17 +1,21 @@
 {
   "generatedBy": "scripts/hybrid-inventory.mjs",
   "tool": "hybrid-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-PD1uoPTvVVLTXPPdTowJ4Mg13wY87fI9Om+omVqSfuHOtedm1HR+llYQmrlwm2EeHhiTqVXXP8Q4A2f3HXabnw==",
+  "version": "0.1.5",
+  "integrity": "sha512-iwCPxkAlwni9NRsirBv5F7lBZPHZLzvxY4nhA+VRPDAiPkEr0g2W8/bE2/3ab+5GtiXpY9PI7wJgUPkh/fYf2Q==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
+      "path": "dist/src/bounded-wait.js",
+      "sha256": "624f7be57ac4997c36a97c1aba74a9545bb626056b58bd911c4ab3ab3678fc87"
+    },
+    {
       "path": "dist/src/catalogue.js",
-      "sha256": "cf353500382a0c33a6fa2c1735543ae43ecc10eb53c68e727a8940f7f881b380"
+      "sha256": "d0d4f9b302ef4576a576e7139182b3b7ad317b11d8c18c8eecccc730a20a92fc"
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "85424239ee66a94aeb77789392277c300d784c9e77297c72a2b40fa22349abc7"
+      "sha256": "558763b0bade950ef5b5f6a9372e2ae56c89a941bed956376a114ad0b1013772"
     },
     {
       "path": "dist/src/download-catalogue.js",
@@ -31,7 +35,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "c151a3662a623360ef3d4d40d7c268b8a090983ee7949131237a7704d02a63b8"
+      "sha256": "bc5893b3d11179d3b99d462efee57e22603b4e5ea0af919def92bb906f32e620"
     },
     {
       "path": "dist/src/private-file.js",
@@ -47,7 +51,7 @@
     },
     {
       "path": "dist/src/report-catalogue.js",
-      "sha256": "3c3346176cf5aabaf177c40a03efd1c67683640a95c8899f71cab1ec4bd95195"
+      "sha256": "e22cca8feb6daff90efe18232db07d185b5c84a5630b1ff5322f003fa163c1b1"
     },
     {
       "path": "dist/src/report-file.js",
@@ -55,7 +59,7 @@
     },
     {
       "path": "dist/src/reports.js",
-      "sha256": "167fa9b8a542b149b8056dbb5f27bbe70c0ed4385662fc6ae9698c40e421a8d7"
+      "sha256": "9f25a4430dc0330fdcc7cee8b8369f69af18dbd4558bad81141c7695031c661a"
     },
     {
       "path": "dist/src/response-diagnostics.js",
@@ -71,23 +75,23 @@
     },
     {
       "path": "dist/src/search.js",
-      "sha256": "cf6192817869625e1d70030c2df748535c39d48632d8e5604cd020003807ef37"
+      "sha256": "0e359414e24518e103e4fb15e67dfca6c495b6c5d5d6a6d8c12eb7b359b72d0a"
     },
     {
       "path": "dist/src/session.js",
-      "sha256": "c55dce9aea70c4f213a040968783bb81296127395367136593985bfe99b4788c"
+      "sha256": "2f72f041746cc43f3e367fc67633863babeacd0e2faf5c32ec17f6175dda8799"
     },
     {
       "path": "dist/src/setup.js",
-      "sha256": "1360cb697983a40d92525e3e16d019157b40eed05a0b22b515d6b13b33b616ec"
+      "sha256": "7c95554f669578bbce26d4cbd2e787fd1e13401f60a767276ffaa8f1f828ed1f"
     },
     {
       "path": "dist/src/submission-catalogue.js",
-      "sha256": "91632f5c8edf427a17acaf960b872aec68f2ac946dcdecbf4bba67657117778b"
+      "sha256": "2a2a3c2ab4aaa86bce63b01529091f64c7a205ee17ce2f1632922f3a91593c3a"
     },
     {
       "path": "dist/src/submissions.js",
-      "sha256": "a723e2c911eed849e7a101bf1f0d193732f52d61f6057e78d1af7f95b68808c1"
+      "sha256": "8969794cb3a57189c3a60a38af69fcbe001c0acda2fc34bf512771c6aa802f2f"
     },
     {
       "path": "dist/src/transport-core.js",
@@ -186,7 +190,7 @@
       }
     }
   },
-  "skillSha256": "59ce5bf65f22710bc33fbbf6279668f32752b5a8ef7e3cab8ab185fff626bbd2",
+  "skillSha256": "89f8a9d5fc5d7afdaee0b44fc5e09b7c2380df9fce09166bf62f9d70063c92fe",
   "nativeWriteSettings": {
     "supportedOperations": [
       "convertQuickScan",
@@ -389,6 +393,7 @@
       "command": "home",
       "effect": "read",
       "flags": {
+        "offline": "Local profile and policy only; no HTTP or credential-file reads; default false",
         "help": "Show help; default false",
         "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
         "profile": "Profile name; default HYBRID_AXI_PROFILE or profile precedence"
@@ -573,12 +578,36 @@
       }
     },
     {
+      "command": "quick-scan wait",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "full": "All response fields; default false",
+        "fields": "Comma-separated response fields; default compact fields",
+        "timeout": "Required deadline in seconds, integer 1-20; checks every second within shared transport budgets"
+      }
+    },
+    {
       "command": "quota",
       "effect": "read",
       "flags": {
         "help": "Show help; default false",
         "config": "Config path; default HYBRID_AXI_CONFIG or platform config",
         "profile": "Profile name; default profile precedence"
+      }
+    },
+    {
+      "command": "report batch",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "limit": "Required maximum summaries, integer 1-20; remaining IDs are disclosed as incomplete"
       }
     },
     {
@@ -677,6 +706,18 @@
         "profile": "Profile name; default profile precedence",
         "fields": "Comma-separated response fields; default compact fields",
         "full": "All fields and untruncated text; default false"
+      }
+    },
+    {
+      "command": "report wait",
+      "effect": "read",
+      "flags": {
+        "help": "Show help; default false",
+        "config": "Config path; default platform config",
+        "profile": "Profile name; default profile precedence",
+        "fields": "Comma-separated response fields; default compact fields",
+        "full": "All fields and untruncated text; default false",
+        "timeout": "Required deadline in seconds, integer 1-20; checks every second within shared transport budgets"
       }
     },
     {

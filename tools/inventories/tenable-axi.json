@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.5",
-  "integrity": "sha512-jvsQ/xPesbNjmXX3dJgTmTrt+e2dnsyo5V7bW4+q2UgWpYi6KY/eURrrEQNGI6Vt9nWhU3ESWEs0O+8iW+Lexw==",
+  "version": "0.1.6",
+  "integrity": "sha512-nE+1hpNUQ5uKydfD4Fe8wUq+f1BoaO25Sp2LfDf4sNl1OE54l15KiYC+86IREaI4kywnxqZcnnlSOyB7FIssvg==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "path": "dist/src/attack-export-catalogue.js",
-      "sha256": "7127a33fdbb01db34886b2c91b36bdc174131819b5753c1201c56999389584ee"
+      "sha256": "d5cd664440a29a9b8747ccfdd682781b4a51c33033ffdfb557bb43a81ca66048"
     },
     {
       "path": "dist/src/attack-export.js",
-      "sha256": "38adf6d13ab1afe4f8d0123803257c2f10a1c47b9a7f9b216ee9107ea30368c8"
+      "sha256": "14bc4a0270bcc2970718533747ea68a0d91aae7b8fae9d9833d3a5b09e090754"
     },
     {
       "path": "dist/src/attack.js",
@@ -27,11 +27,15 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "df6dfee98019af2da15ac7a3c4d1ea7b3860c73021cbf2f08ac52386a64f441c"
+      "sha256": "66e75b328ea54d9f278c8fc474a92d450f1f1477698c4922d66e1211c09f6514"
     },
     {
       "path": "dist/src/export-file.js",
       "sha256": "2eb4f73e2d9a3361283a62e887c6cf95de70d5d3f353441bcd4de738377d57df"
+    },
+    {
+      "path": "dist/src/export-wait.js",
+      "sha256": "9e92fdefb57934de12f5d8140eebe1976aa223083787ea96d098bafe4c3887a6"
     },
     {
       "path": "dist/src/exposure-contracts.js",
@@ -39,7 +43,7 @@
     },
     {
       "path": "dist/src/exposure.js",
-      "sha256": "db005db00fbf1dba311bad8e78a872836994909a9ce46b9bd8d498d72cfc7d2d"
+      "sha256": "86b583fc297d130a6e80873eed8e994535cb271419dfa9cb944d02b66faff0a8"
     },
     {
       "path": "dist/src/hook-install.js",
@@ -47,19 +51,19 @@
     },
     {
       "path": "dist/src/inventory-catalogue.js",
-      "sha256": "9000156bdbc7e9e8a461f89a602f6fa1e9d7217eabe30a67195be79442f8afe6"
+      "sha256": "9d3957672261e032858848cc149767c4eb3b8ad00ad0f41507a31be0b8e29f18"
     },
     {
       "path": "dist/src/inventory-export-catalogue.js",
-      "sha256": "cf07efc8540e83fcda3f79df4a5ec6c75e081e1557a52e6e178a24ee7d393905"
+      "sha256": "573f3222ff8372cc41e09212b75cb6a7abee0153d9d1ff01a2b7093979b84e61"
     },
     {
       "path": "dist/src/inventory-export.js",
-      "sha256": "176bd2aef67901383e29f5984867d104fdb8278a40d13d1281aa459ea44a8f9c"
+      "sha256": "4272b9fa021946a271e5c0336eb3a83a88399e4633b95b4b7dfb992befc8a6ce"
     },
     {
       "path": "dist/src/inventory.js",
-      "sha256": "700efba15d086ba88be5444d66f131c9d7482e198dfd050eefc7ecd4f1b96bfe"
+      "sha256": "2eee9ae55561676a3b99034f4a64a358cca715186b4fa593f19650a0afea0ced"
     },
     {
       "path": "dist/src/inventory/schema.js",
@@ -67,7 +71,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "4169d7a4bc6753d202d515b488ca8863b7368e31e8166f9e958c2fd1c6b05d22"
+      "sha256": "278626e84bac8d81ecd5c6b1b858a977b2eeb45043f9d21553b1326e57b0df7b"
     },
     {
       "path": "dist/src/platform-tag-catalogue.js",
@@ -103,7 +107,7 @@
     },
     {
       "path": "dist/src/setup.js",
-      "sha256": "2e9c8430b4fbf0f95e0e31267ba828107fd054e9d525a5c970f7c9c2e20d5348"
+      "sha256": "70a1c0bb0e7ad33b5ecb13e86fbf757f087b900741958bab6a9d4a5cf5ac5139"
     },
     {
       "path": "dist/src/transport-core.js",
@@ -115,7 +119,7 @@
     },
     {
       "path": "dist/src/writes-core.js",
-      "sha256": "55a76961512751653c8d14778b6b74094318ba1527b50dedf2167127f1e7c1f9"
+      "sha256": "9b05c6b10a5806bb2d0b01d117080d510af5c0125c72485f4294fc18f9c92fb1"
     },
     {
       "path": "dist/src/writes.js",
@@ -205,7 +209,7 @@
       }
     }
   },
-  "skillSha256": "40f40ad818e54c71aa11654a039922bb48cd0d9c303b8a812598c9c0661ad5e7",
+  "skillSha256": "b8a0370a3573fa4466265624023b7c1fa554e3f17abe4eb9b0f4cfd839246b21",
   "nativeWriteSettings": {
     "supportedOperations": [
       "apa-export-attack-path",
@@ -288,6 +292,21 @@
   ],
   "format": "TOON",
   "commands": [
+    {
+      "command": "asset investigate",
+      "effect": "read",
+      "flags": {
+        "config": "Config path; default credential precedence",
+        "profile": "Profile name; default credential precedence",
+        "fields": "Comma-separated display or wire properties; display names: id, name, severity, state, sensor_type; default compact view",
+        "full": "Show untruncated text; does not add fields or rows; default false",
+        "help": "Show help",
+        "query": "Required asset simple query text; lookup returns at most two compact asset candidates",
+        "limit": "Maximum emitted rows, 1-10000; default 100",
+        "all": "Read up to 10000 rows within invocation budgets; excludes --limit",
+        "extra-properties": "Comma-separated extra wire properties"
+      }
+    },
     {
       "command": "asset list",
       "effect": "read",
@@ -582,7 +601,8 @@
         "execute": "Create once; default preview",
         "dry-run": "Explicit preview; excludes --execute",
         "confirm": "Exact confirmation from preview",
-        "intent-id": "Unique execution intent for replay protection"
+        "intent-id": "Unique execution intent for replay protection",
+        "wait": "After confirmed creation, poll within the shared 20-second/20-request budgets; never creates a replacement; default false"
       }
     },
     {
@@ -623,7 +643,8 @@
         "body-file": "Required strict operation-specific JSON file, at most 1 MiB; '-' reads stdin",
         "execute": "Create the previewed job once; default false",
         "dry-run": "Preview only; excludes --execute",
-        "confirm": "Exact confirmation string from preview; required with --execute"
+        "confirm": "Exact confirmation string from preview; required with --execute",
+        "wait": "After confirmed creation, poll within the shared 20-second/20-request budgets; never creates a replacement; default false"
       }
     },
     {
@@ -638,7 +659,8 @@
         "body-file": "Required strict operation-specific JSON file, at most 1 MiB; '-' reads stdin",
         "execute": "Create the previewed job once; default false",
         "dry-run": "Preview only; excludes --execute",
-        "confirm": "Exact confirmation string from preview; required with --execute"
+        "confirm": "Exact confirmation string from preview; required with --execute",
+        "wait": "After confirmed creation, poll within the shared 20-second/20-request budgets; never creates a replacement; default false"
       }
     },
     {
@@ -673,7 +695,8 @@
         "execute": "Create once; default preview",
         "dry-run": "Explicit preview; excludes --execute",
         "confirm": "Exact confirmation from preview",
-        "intent-id": "Unique execution intent for replay protection"
+        "intent-id": "Unique execution intent for replay protection",
+        "wait": "After confirmed creation, poll within the shared 20-second/20-request budgets; never creates a replacement; default false"
       }
     },
     {
@@ -699,7 +722,8 @@
         "fields": "Comma-separated output fields; default compact view",
         "full": "Full output; default false",
         "help": "Show help",
-        "id": "Required export UUID"
+        "id": "Required export UUID",
+        "wait": "Poll once per second within 20-second/20-request budgets; default false"
       }
     },
     {
@@ -714,7 +738,8 @@
         "body-file": "Required strict operation-specific JSON file, at most 1 MiB; '-' reads stdin",
         "execute": "Create the previewed job once; default false",
         "dry-run": "Preview only; excludes --execute",
-        "confirm": "Exact confirmation string from preview; required with --execute"
+        "confirm": "Exact confirmation string from preview; required with --execute",
+        "wait": "After confirmed creation, poll within the shared 20-second/20-request budgets; never creates a replacement; default false"
       }
     },
     {

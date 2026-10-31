@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/awx-inventory.mjs",
   "tool": "awx-axi",
-  "version": "0.1.9",
-  "integrity": "sha512-7m/IWbfU7bd5JbKqu9FaLK1Pf5QaxQBl+tOAaHHOBzgUOHQDpHKRAVL4xy5Ww0vLiR7PcsRK/kDp71GqS/Kb6g==",
+  "version": "0.1.11",
+  "integrity": "sha512-lU2dJwxaspKkIyV58PGosCVa/0i9Jw2miuvI+45Vgkz4fZx0F1mbXGD6M2kryid/K6pnJs/RKKtCk5dXW8yLpA==",
   "parserEvidence": "Published domain registry, reviewed plan effects and transport safety gates",
   "sources": [
     {
@@ -11,7 +11,7 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "a53f9f52a3f5e85e9dd336a0341cd25a16b69725ce3f1ddaf671215923e2d024"
+      "sha256": "db8f120dcd1f6a4d2e99a334bb7608170007f889c2ae6a230a3f2fdf9450711e"
     },
     {
       "path": "dist/commands/auth.js",
@@ -23,11 +23,11 @@
     },
     {
       "path": "dist/commands/setup.js",
-      "sha256": "1eb8493b36d922d9e6ce3ad62072328c194f8345e9a572a9219538093246d0cc"
+      "sha256": "19b02ffd65a8b66cb0f33d03294a7a896a38d5a0f4e4ae4396bb9b58956bce5a"
     },
     {
       "path": "dist/core/auth.js",
-      "sha256": "154de0a41b56e4aa82df170319b439bc77f4367254d3df934c13c28f678262c4"
+      "sha256": "413520f3e17113c7bf294033f24569d2317a559e491f707fd3d6cd3bc75efb55"
     },
     {
       "path": "dist/core/controller-discovery.js",
@@ -35,7 +35,7 @@
     },
     {
       "path": "dist/core/errors.js",
-      "sha256": "1727d3b326fbe02e27554acf7c3249ce7aa9d80c95c2bf98d311349c4325b3ff"
+      "sha256": "1eac1099f11889159b57b6b5bc810e080f0343ee8fab2a73ead8b59fa3b7ada5"
     },
     {
       "path": "dist/core/flags.js",
@@ -51,7 +51,7 @@
     },
     {
       "path": "dist/core/paginate.js",
-      "sha256": "d952bc390a4ac2da263b1d98c24f05e416652335904de37b26379576632059a3"
+      "sha256": "c2b470e1f1d6c3384fc985f288725121362c84840cb2662e5e6046e8d3820082"
     },
     {
       "path": "dist/core/poll.js",
@@ -71,11 +71,11 @@
     },
     {
       "path": "dist/core/registry.js",
-      "sha256": "89d3983928dd3a63712e9c78a4959c2e9c950097a3d200f6d1ccf2c3327bbdfd"
+      "sha256": "08903d2ebdaa7364f2e3544a68d52189ce2f3ea8128da41b27a7ad6657cda3bf"
     },
     {
       "path": "dist/core/resolve.js",
-      "sha256": "04f423ff03641e02a0cd679b638c651a6cd31615fedaec6f7f2f4561ad1e33d0"
+      "sha256": "74e4976ab119cc8bb7fa36d158ca7c9ecd31ecd094b8946e2c639cadeeead1b5"
     },
     {
       "path": "dist/core/tls-fetch.js",
@@ -83,7 +83,7 @@
     },
     {
       "path": "dist/core/transport.js",
-      "sha256": "142d2104e9025b7e37c6df2cbae818b9ab7743f31cee6a2cbd1d8ee6697c02de"
+      "sha256": "afe5116739206fa77f5105076816c9d775658ad972d00698b0fdd9b1fec70721"
     },
     {
       "path": "dist/domains/activity-stream/index.js",
@@ -111,7 +111,7 @@
     },
     {
       "path": "dist/domains/host/index.js",
-      "sha256": "478ff268a6a6a8452aa206be7671e402782fbfde8504808d9cc4fe10205b6707"
+      "sha256": "b877d333f0edb1b0b47179a73efa68d48f53c6fa27517d583c826cc1d4ad1ad0"
     },
     {
       "path": "dist/domains/inventory-source/index.js",
@@ -174,8 +174,12 @@
       "sha256": "811a3b1df2bfa7a2f76f6fb1c3464de91ed2b7c171788bc82ae4cd991ce4c52a"
     },
     {
+      "path": "dist/response-diagnostics.js",
+      "sha256": "8bb941f0511e32952707cda6330ddf458642fe33c286085562fe55fc49b58918"
+    },
+    {
       "path": "dist/skill.js",
-      "sha256": "c90e9659a17a6bb21e75588ec86c1fcf47490251fb42aae5447efd2c5a93723e"
+      "sha256": "ed64c8fbefe21a9f20e21393d7831e776ab24ad011e99084b609851f3f90500d"
     }
   ],
   "credentialSchema": {
@@ -267,7 +271,7 @@
       }
     }
   },
-  "skillSha256": "91c6cc7e30b0786a349c970c5bf1f689ebcb74f7d008016f0ee1a6a2f8e3cb93",
+  "skillSha256": "50660f4e39ecf72c20a598ff4e5324aae780d223ffb7ab834a476f56b4d68284",
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",
@@ -2677,6 +2681,20 @@
       "positionals": {
         "names": [
           "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "host inspect",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "inventory": "value"
+      },
+      "positionals": {
+        "names": [
+          "<selectors>"
         ],
         "required": 1
       }

@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.18",
-  "integrity": "sha512-eAdAfMWD7gx+1bX7keI4inSzP+7e7JlFk1X7Y6E3DNx4bo5eTfBxdSv/MT62B6uWFsLKVHu0WEhuBB553u5pDw==",
+  "version": "0.1.19",
+  "integrity": "sha512-8y7vQ32jGnzhMQ2zKBQWtLljZI1rgxkJVpY1Qxww2FtSnTwmaOzdo5+djdDXDJxYXE/azqI6Wrs6/5nceuL7jA==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "10e74ec55cddc3125609be50e633db0ff8bcd1b350a0cde4f02f205f80ec0ba7",
-  "skillSha256": "682d1d608593aa438488a41b894c3068243ab9897cbcadcac0184aaa2dd09d49",
+  "packageManifestSha256": "2805d8d261be14b9b7601867c3bcfd78ab831cb7a383bf81308af91f7974c76e",
+  "skillSha256": "efdc55d2c4a7cee3dd46250bc844385c2b6c4ebf0c9e0072147c08599461f885",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -43,11 +43,11 @@
   "environmentSources": [
     {
       "path": "dist/profiles.js",
-      "sha256": "2f681aeb6e28398b3850865ff239490f74569f02a21926af97f7777fa4350b1f"
+      "sha256": "94c9684de6b0db8a41c7d66aa99ad9263b618dd37d76cbb6d0ecf639b3ce791c"
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
+      "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
     },
     {
       "path": "dist/msal-app-provider.js",
@@ -97,11 +97,11 @@
     "sources": [
       {
         "path": "dist/profiles.js",
-        "sha256": "2f681aeb6e28398b3850865ff239490f74569f02a21926af97f7777fa4350b1f"
+        "sha256": "94c9684de6b0db8a41c7d66aa99ad9263b618dd37d76cbb6d0ecf639b3ce791c"
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
+        "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
       }
     ]
   },
@@ -198,15 +198,15 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "cb5ceac3c11aa79697cb0b51bf416d70e3a5b3382058b102de128ea147dbe318"
+        "sha256": "74379919181b079e6323d8a76342fd4b32f253031886e3c42b3e61b9e3ecbefc"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "d11e0f6b5c5c694b0be07d7862d59bc74609cfe01c02ceee8627122bf9c1a683"
+        "sha256": "762b0e3bffbd311730cae8456d7cfc289f08b0fe3825632a8b5d2acef58d19c0"
       },
       {
         "path": "dist/profiles.js",
-        "sha256": "2f681aeb6e28398b3850865ff239490f74569f02a21926af97f7777fa4350b1f"
+        "sha256": "94c9684de6b0db8a41c7d66aa99ad9263b618dd37d76cbb6d0ecf639b3ce791c"
       },
       {
         "path": "dist/msal-app-provider.js",
@@ -214,7 +214,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
+        "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
       }
     ]
   },
@@ -340,11 +340,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "cb5ceac3c11aa79697cb0b51bf416d70e3a5b3382058b102de128ea147dbe318"
+        "sha256": "74379919181b079e6323d8a76342fd4b32f253031886e3c42b3e61b9e3ecbefc"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "d11e0f6b5c5c694b0be07d7862d59bc74609cfe01c02ceee8627122bf9c1a683"
+        "sha256": "762b0e3bffbd311730cae8456d7cfc289f08b0fe3825632a8b5d2acef58d19c0"
       },
       {
         "path": "dist/mail-message-writes.js",
@@ -360,7 +360,7 @@
       },
       {
         "path": "dist/mail-write-runner.js",
-        "sha256": "5baeb554c6f4c7a329eef51b8e5d5f477d3dead71e1074028033f718eb4a141c"
+        "sha256": "99ff0f353dce588f97edebfd97e11285456d370bf6199bebd0c5303aac606397"
       },
       {
         "path": "dist/mail-download.js",
@@ -368,7 +368,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "80857b6fadd16a884d8441a2b23bf1bee0f25d1fc3c52e19b8f11a5d220ddb38"
+        "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
       }
     ]
   },
@@ -542,6 +542,9 @@
       "name": "odata"
     },
     {
+      "name": "offline"
+    },
+    {
       "name": "operation-id"
     },
     {
@@ -629,6 +632,7 @@
       "flags": {
         "help": "boolean",
         "profile": "value",
+        "offline": "boolean",
         "config": "value"
       },
       "positionalInput": false
@@ -3121,6 +3125,18 @@
       "positionalInput": false
     },
     {
+      "command": "entra risk-detection correlate",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "id": "value",
+        "limit": "value",
+        "config": "value"
+      },
+      "positionalInput": false
+    },
+    {
       "command": "entra risk-detection show",
       "flags": {
         "help": "boolean",
@@ -5337,6 +5353,7 @@
         "mailbox": "value",
         "fields": "value",
         "full": "boolean",
+        "scopes": "value",
         "limit": "value",
         "cursor": "value",
         "config": "value"
@@ -5352,6 +5369,7 @@
         "mailbox": "value",
         "fields": "value",
         "full": "boolean",
+        "scopes": "value",
         "id": "value",
         "config": "value"
       },

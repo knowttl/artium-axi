@@ -46,6 +46,14 @@ test('a dry-run remains a read even when confirm is present', async () => {
   expect(call.write).toBeUndefined()
 })
 
+test('batch host inspection is admitted without write authority', async () => {
+  const call = await adapter().prepare(['host', 'inspect', '501,601', '--inventory', '11'], reference)
+  expect(call.args).toEqual(['host', 'inspect', '501,601', '--inventory=11'])
+  expect(call.effect).toBe('read')
+  expect(call.environment.AWX_AXI_READ_ONLY).toBe('true')
+  expect(call.write).toBeUndefined()
+})
+
 test.each(inventory.commands.filter(route => route.effect === 'configuration-write').map(route => route.command))('%s managed help describes configuration authority and excludes blocked input', async command => {
   const call = await adapter(false, true).prepare([...command.split(' '), '--help'], reference)
   const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })

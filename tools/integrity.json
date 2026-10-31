@@ -16,35 +16,35 @@
     "integrity": "sha512-WGfsTvrzA+QNejvqlcDaQ9ClHXABfc7oi9k8VK++YHYQVEvtod5GzL0n02brEqJUJMbQZNSZr4kAXYTfYp7mKA=="
   },
   "@knowttl/hybrid-axi": {
-    "version": "0.1.4",
-    "integrity": "sha512-PD1uoPTvVVLTXPPdTowJ4Mg13wY87fI9Om+omVqSfuHOtedm1HR+llYQmrlwm2EeHhiTqVXXP8Q4A2f3HXabnw=="
+    "version": "0.1.5",
+    "integrity": "sha512-iwCPxkAlwni9NRsirBv5F7lBZPHZLzvxY4nhA+VRPDAiPkEr0g2W8/bE2/3ab+5GtiXpY9PI7wJgUPkh/fYf2Q=="
   },
   "@knowttl/tenable-axi": {
-    "version": "0.1.5",
-    "integrity": "sha512-jvsQ/xPesbNjmXX3dJgTmTrt+e2dnsyo5V7bW4+q2UgWpYi6KY/eURrrEQNGI6Vt9nWhU3ESWEs0O+8iW+Lexw=="
+    "version": "0.1.6",
+    "integrity": "sha512-nE+1hpNUQ5uKydfD4Fe8wUq+f1BoaO25Sp2LfDf4sNl1OE54l15KiYC+86IREaI4kywnxqZcnnlSOyB7FIssvg=="
   },
   "awx-axi": {
-    "version": "0.1.9",
-    "integrity": "sha512-7m/IWbfU7bd5JbKqu9FaLK1Pf5QaxQBl+tOAaHHOBzgUOHQDpHKRAVL4xy5Ww0vLiR7PcsRK/kDp71GqS/Kb6g=="
+    "version": "0.1.11",
+    "integrity": "sha512-lU2dJwxaspKkIyV58PGosCVa/0i9Jw2miuvI+45Vgkz4fZx0F1mbXGD6M2kryid/K6pnJs/RKKtCk5dXW8yLpA=="
   },
   "@knowttl/ado-axi": {
     "version": "0.5.1",
     "integrity": "sha512-yA7m//5jr9Fi6Ec1tY1vaE3wINlJ8oeFGsNP7otUMXfBbBjrzZ4a14GKQ9XAr8Q3DBxYP2UF79VzBp9WbrXJKg=="
   },
   "@knowttl/az-axi": {
-    "version": "0.1.16",
-    "integrity": "sha512-rYAA0J3Af8UiNj5si+T5dfAm1zVmxUcbvppF6uIdSCVrN6eVZH6N7GqKv5PY32Bcu8b/fAHh+VPFiuRliCRD1Q=="
+    "version": "0.1.17",
+    "integrity": "sha512-+c5nDJGeX4p51VbRhca2W93LcIRiSda0jLGpfGZH8KhXnh+zneq/PjzpGdNd2ZbvWtJ3l70uq7fxYxFp13XZQw=="
   },
   "@knowttl/vectra-axi": {
-    "version": "0.1.13",
-    "integrity": "sha512-oUaTXzT/O9YzVfxHwSarEvLxvUBGwyPoYnAMWa0+tv/7KvG62fkDrOSBb6gXHl9uxfTvpHTOLxzpNATR1VgMwA=="
+    "version": "0.1.14",
+    "integrity": "sha512-3fQ2IwQxJnd88lIKlGW0N3bce2/sS+iLWe2oUEEJ82Ntid2kVQtXnUdawJtmXQRqiwssBe/HAsH0QGi2pqhejg=="
   },
   "@knowttl/ldap-axi": {
     "version": "0.3.2",
     "integrity": "sha512-sbqAXW/D7S190FCid6euDfXWKTP+khtWeZSZy9BTICEskF+OF2w7Asd5OvT/EBiPVGQN5Sq+j6YBiH/dL3tPWA=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.18",
-    "integrity": "sha512-eAdAfMWD7gx+1bX7keI4inSzP+7e7JlFk1X7Y6E3DNx4bo5eTfBxdSv/MT62B6uWFsLKVHu0WEhuBB553u5pDw=="
+    "version": "0.1.19",
+    "integrity": "sha512-8y7vQ32jGnzhMQ2zKBQWtLljZI1rgxkJVpY1Qxww2FtSnTwmaOzdo5+djdDXDJxYXE/azqI6Wrs6/5nceuL7jA=="
   }
 }
