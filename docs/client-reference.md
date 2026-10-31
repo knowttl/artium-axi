@@ -148,14 +148,12 @@ Close stdin, pass a local file with the relevant file flag, or use `--body`/`--b
 Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
-Each file travels on the existing authenticated call as `{name, size, contentBase64}`.
-The shared `inputLimits.fileBytes` cap is 1 MiB per file, enforced by the streaming client reader and independently by the server before tool execution; existing aggregate limits remain 4 MiB and eight files.
-Older API clients may omit `size`; a supplied size must match the decoded bytes.
+The [shared API contract](../src/shared/api.ts) owns the named-file fields, optional size compatibility and input limits, enforced by the streaming client reader and independently by the server before tool execution.
 Only commands declaring the corresponding file flag in the reviewed inventory accept uploads; an extra upload or a file on a non-declaring command returns `UNSUPPORTED_INPUT`.
 The runner substitutes a private mode-0600 file path for the uploaded leaf argument inside a per-call mode-0700 directory, removed after success, error or cancellation.
-Every accepted upload records an `upload` audit event with user, tool, redacted command arguments, filename, byte size and SHA-256, never file contents.
+Adapters requiring stable paths for native confirmation retain their private profile upload paths and cleanup ownership.
+See [upload audit metadata](admin-guide.md#audit-screen-and-api) for what is recorded about accepted files.
 Authentication, role checks, write confirmations, redaction and call limits apply as usual.
-The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
 GitHub writes require an administrator-enabled exact operation, then an Artium preview and `--confirm <returned-value>` on the same request.
 GitHub gist create/edit with `--filename` captures bounded piped stdin; repeat identical content when confirming.
 Other GitHub commands leave stdin unread and reject input through the API; local files are unavailable.

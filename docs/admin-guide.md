@@ -296,6 +296,9 @@ This filter does not change stored outcomes: a non-zero tool exit can still have
 When a normal managed run exits non-zero, its terminal record stores the tool's own bounded failure code in `error_code` from a recognized `code:` or `error_code:` line, falling back to an Azure `AADSTS` provider code found in the output.
 Audit records exclude failure messages, help text and tool output; a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
+Each upload accepted by command input validation emits an `upload` event before credential preparation and tool execution.
+Its `arguments` contains the redacted command and file metadata: uploaded leaf name, decoded byte size and server-computed SHA-256, never the original local path or file contents.
+An upload event's `success` outcome records input acceptance, not successful tool execution or a completed upstream write.
 Open an event in the table to inspect every persisted field.
 Terminal row details can also show a separately retained failure diagnostic; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions).
 Pagination retains filters; starting a new search includes records inserted after the previous search began.

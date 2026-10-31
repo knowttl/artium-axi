@@ -104,7 +104,8 @@ try {
     assert.equal(result.code, 0, result.stdout + result.stderr)
     assert.match(result.stdout, /Synthetic Device/)
     assert.ok(!result.stdout.includes(query))
-    assert.deepEqual(cliRequests.at(-1), { args: ['security', 'hunting', 'query', ...fileArgs], ...input })
+    assert.deepEqual(cliRequests.at(-1), { args: ['security', 'hunting', 'query', ...fileArgs],
+      files: [{ ...input.files[0], size: Buffer.byteLength(query) }] })
   }
   writeFileSync(join(directory, 'query.kql'), query.padEnd(65536, ' '))
   const boundary = await cli(hunting)
@@ -214,7 +215,7 @@ try {
   const rulePreview = await cli(['mail', 'rule', 'create', '--mailbox', 'mailbox@contoso.example', '--file=rule.json'])
   assert.equal(rulePreview.code, 0, rulePreview.stdout + rulePreview.stderr)
   assert.match(rulePreview.stdout, /dry-run/)
-  assert.deepEqual(cliRequests.at(-1).files, [{ name: 'rule.json', contentBase64: Buffer.from(ruleText).toString('base64') }])
+  assert.deepEqual(cliRequests.at(-1).files, [{ name: 'rule.json', size: Buffer.byteLength(ruleText), contentBase64: Buffer.from(ruleText).toString('base64') }])
   const ruleCreated = await cli(['mail', 'rule', 'create', '--mailbox', 'mailbox@contoso.example', '--file', 'rule.json',
     '--execute', '--confirm', 'Reviewed'])
   assert.equal(ruleCreated.code, 0, ruleCreated.stdout + ruleCreated.stderr)
