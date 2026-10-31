@@ -71,6 +71,11 @@ CLI and package journeys use private writable copies, install prefixes, npm cach
 Preparation always rebuilds from current source and package content; it does not reuse artifacts from previous invocations.
 Selection does not waive the separate container acceptance or private hygiene requirements.
 
+The [gate configuration](.no-mistakes.yaml) owns the validation-handoff evidence fields, reuse rules, repair requirements and documentation-stage policy.
+The Test report includes the absolute path to the handoff outside the checkout and its raw logs and selection records, so a later run can receive them through `--verification-plan <file>`.
+The verification plan is a UTF-8 file that identifies the saved handoff and the required offline checks, not a command string or a replacement for the baseline.
+Keep process evidence uncommitted.
+
 ## Container acceptance
 
 Run `pnpm test:containers` when required by the [gate configuration](.no-mistakes.yaml), which owns the triggering paths, exemptions and release requirements.
