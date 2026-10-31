@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.30](https://github.com/knowttl/artium-axi/compare/v0.0.29...v0.0.30) (2026-10-31)
+
+
+### Bug Fixes
+
+* **deps:** update approved investigation tool releases ([#255](https://github.com/knowttl/artium-axi/issues/255)) ([d05f1da](https://github.com/knowttl/artium-axi/commit/d05f1da04e85b0dd5f1919c9e99be648ad473674))
+
 ## [0.0.29](https://github.com/knowttl/artium-axi/compare/v0.0.28...v0.0.29) (2026-10-31)
 
 
