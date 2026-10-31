@@ -45,7 +45,7 @@ See [verified server downloads and updates](docs/client-reference.md#verified-cl
 
 ## Use with your agent
 
-After sign-in, explicitly install managed skills and optional ambient session context for your host:
+After sign-in on Linux, explicitly install managed skills and optional ambient session context for your host:
 
 ```sh
 artium-axi setup --host claude --hook
@@ -62,8 +62,7 @@ Artium's authenticated setup fetches granted tools' adapted skills; a standalone
 Start with the [compact investigation guide](skill/artium-axi/SKILL.md#investigation-quick-guide) in the base skill.
 See the [command reference](docs/commands.md) and authenticated `artium-axi tools show <tool>` for commands.
 Re-run setup after moving the executable or changing grants.
-To remove the hook, delete only objects labelled `statusMessage: "artium-axi managed tools"` from `hooks.SessionStart` in the Claude host's `settings.json`.
-See [installation paths, host requirements and manual removal](docs/client-reference.md#agent-installation) for Codex and OpenCode.
+See [installation paths, host requirements and manual removal](docs/client-reference.md#agent-installation) and [supported integration boundaries](docs/safety.md#agent-session-context).
 Ordinary discovery and tool calls never install or repair agent settings.
 
 <a id="features"></a>
@@ -148,6 +147,7 @@ Tool output limits vary; `--full` restores supported text within byte/time budge
 | 2 | Usage or configuration error |
 
 See [output behavior](docs/client-reference.md#toon-output-behavior) and the generated [error catalogue](docs/errors.md).
+The [`session-context` command](docs/commands.md) also exits 0 when it emits an unavailable diagnostic for an agent host.
 
 ## Troubleshooting
 

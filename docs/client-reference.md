@@ -118,7 +118,7 @@ Transfer audit selectors are hashed; mailbox and resource IDs are not retained i
 
 See the [command reference](commands.md) for client commands and managed tool entry points.
 `artium-axi --version`, `artium-axi -v` and `artium-axi -V` each print only the client package version and a newline, then exit 0 without loading the command graph, configuration, sign-in or network access.
-The home view identifies the executable and describes the client before configuration, authentication or connectivity diagnostics, even when no session can be verified.
+The home view emits `bin` with the absolute executable path and `description` before configuration, authentication or connectivity diagnostics, even when no session can be verified.
 Browser SSO works on headless and SSH hosts.
 
 Add `--help` to a local command to inspect its accepted flags.
@@ -295,7 +295,7 @@ Setup installs `skills/<name>/SKILL.md` under the following host directories:
 Only explicit `setup --host <host> --hook` installs or repairs ambient context, alongside authenticated skill installation.
 Discovery, home, help and ordinary tool invocations never modify host settings.
 Re-run setup after relocating the executable; repeated setup with unchanged files preserves their modification times.
-Edited or unmanaged skills and OpenCode plugins require `--force` for replacement, and invalid host JSON refuses installation before writing skills.
+Edited or unmanaged skills and OpenCode plugins require `--force` for replacement, and invalid Claude or Codex hook JSON refuses installation before writing skills.
 Authentication and installation failures leave existing files intact.
 
 | Host | Ambient integration | Removal |
@@ -321,10 +321,7 @@ Such failures emit `artium: unavailable` with the error code and a doctor comman
 An OpenCode child that cannot start or finish emits `CLIENT_START_FAILED`; the plugin bounds its child runtime to eight seconds and output to 16 KiB.
 These server-wide grants have no project-specific subset; the context is scoped to the active local user's authenticated account, and no tool invocation or transcript capture occurs.
 
-Catalog exceptions: hook installation is supported on Linux only; other platforms retain skill installation without `--hook`.
-Pi retains skill-only setup because this installer has no verified Pi session-context contract.
-OpenCode support is for the released 1.19.x plugin API above; an incompatible future plugin API is not claimed.
-No session-end capture is installed, because this integration reads authorization context and does not collect transcripts or activity.
+See [supported integrations and catalog exceptions](safety.md#agent-session-context) for platform, host API and capture boundaries.
 Remove only Artium-managed skill directories you intend to uninstall; inspect their content and managed checksum marker first.
 There is no setup uninstall command.
 Skills for granted but disabled tools can be installed; execution still returns `TOOL_DISABLED`.
