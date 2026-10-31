@@ -81,7 +81,10 @@ test('file inputs normalize uploaded leaves and explicit stdin only', async () =
   const call = await adapter.prepare(['tag', 'value', 'create', '--body-file=body.json'], reference, { files: [file] })
   expect(call.args).toEqual(['tag', 'value', 'create', '--body-file', 'body.json'])
   expect(call.fileArguments).toEqual([4])
-  await expect(adapter.prepare(['tag', 'value', 'create', '--body-file', '-'], reference, { stdin: '{}' })).resolves.toBeDefined()
+  const stdin = await adapter.prepare(['tag', 'value', 'create', '--body-file', '-'], reference, { stdin: '{}' })
+  expect(stdin.args).toEqual(['tag', 'value', 'create', '--body-file', '-'])
+  expect(stdin.fileArguments).toEqual([])
+  expect(stdin.files).toEqual([])
   await expect(adapter.prepare(['card', 'list'], reference, { stdin: '{}' })).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 

@@ -1,10 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { hashToken } from '../../src/server/auth/tokens.js'
-import { hashPassword } from '../../src/server/auth/local.js'
+import argon2 from 'argon2'
 
 export async function seedToolUser(db: Database.Database): Promise<void> {
-  const hash = await hashPassword('CANARY-local-password')
+  // Seed a real, inexpensive fixture hash without changing production defaults.
+  const hash = await argon2.hash('CANARY-local-password', { type: argon2.argon2id, memoryCost: 1024, timeCost: 1, parallelism: 1 })
   db.prepare(`INSERT INTO users (id, username, display_name, password_hash, must_change)
     VALUES ('synthetic-development-user', 'synthetic-user', 'Synthetic User', ?, 0)`).run(hash)
   db.exec(`INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');

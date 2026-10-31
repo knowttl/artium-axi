@@ -27,6 +27,15 @@ const write = async (stream, value) => {
 
 try {
   switch (mode) {
+    case 'controlled-health':
+      process.once('message', result => {
+        process.stdout.write(result.stdout)
+        process.stderr.write(result.stderr)
+        process.exitCode = result.exitCode
+        process.disconnect()
+      })
+      process.send({ ready: true })
+      break
     case 'input-file': {
       const path = args[args.indexOf('--note-file') + 1]
       const content = await readFile(path)

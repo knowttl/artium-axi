@@ -26,6 +26,7 @@ let polls: number[]
 let failure: ErrorCode
 let serverVersion: string | undefined
 let store: SessionStore
+let deviceLifetimeMs: number
 const session = { status: 'authenticated', accessToken: 'CANARY-access', refreshToken: 'CANARY-refresh',
   accessExpiresAt: Date.now() + 300_000, familyExpiresAt: Date.now() + 28_800_000 }
 
@@ -35,13 +36,14 @@ beforeEach(async () => {
   polls = []
   failure = 'DEVICE_POLL_LIMITED'
   serverVersion = undefined
+  deviceLifetimeMs = 60_000
   server = createServer(async (request, reply) => {
     for await (const _chunk of request) { /* Drain the request body. */ }
     reply.setHeader('content-type', 'application/json')
     if (serverVersion) reply.setHeader('x-artium-cli-version', serverVersion)
     if (request.url === '/v1/auth/device') {
       reply.end(JSON.stringify({ deviceCode: 'CANARY-device', userCode: 'ABCD-EFGH', verificationUri: url + '/device',
-        expiresAt: Date.now() + 60_000, intervalMs: 1000 }))
+        expiresAt: Date.now() + deviceLifetimeMs, intervalMs: 1000 }))
       return
     }
     polls.push(performance.now())
@@ -102,22 +104,17 @@ test.each(['DEVICE_DENIED', 'DEVICE_CODE_EXPIRED', 'SERVER_UNAVAILABLE'] as cons
 test('SSO login stops at device expiry after a polling limit', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+  deviceLifetimeMs = 1500
   const client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory })
-  const request = vi.spyOn(client, 'request')
-    .mockResolvedValueOnce({ deviceCode: 'CANARY-device', userCode: 'ABCD-EFGH', verificationUri: url + '/device',
-      expiresAt: Date.now() + 1500, intervalMs: 1000 })
-    .mockResolvedValueOnce({ status: 'pending' })
-    .mockRejectedValueOnce(new ArtiumError('DEVICE_POLL_LIMITED'))
-    .mockResolvedValue(session)
   vi.spyOn(process.stdout, 'write').mockReturnValue(true)
   vi.spyOn(process.stderr, 'write').mockReturnValue(true)
   // A real timer may wake before expiry and legitimately allow another poll.
   // Advance the clock exactly so this checks expiry rather than timer scheduling.
-  const wait = vi.mocked(setTimeout).mockImplementation(async ms => {
+  vi.mocked(setTimeout).mockImplementation(async ms => {
     vi.setSystemTime(Date.now() + ms!)
   })
   await expect(ssoLogin(client)).rejects.toMatchObject({ code: 'DEVICE_CODE_EXPIRED' })
   expect(store.read()).toBeUndefined()
-  expect(request).toHaveBeenCalledTimes(3)
-  expect(wait.mock.calls).toEqual([[1000], [500]])
+  expect(Date.now()).toBe(new Date('2026-01-01T00:00:01.500Z').getTime())
+  expect(polls).toHaveLength(2)
 })

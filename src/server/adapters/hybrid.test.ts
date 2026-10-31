@@ -29,12 +29,19 @@ test.each([{}, { apiKey: ' ' }, { apiKey: 'CANARY;key' }, { apiKey: 'CANARY key'
 })
 
 test.each([
-  ['setup'], ['setup', 'hooks'], ['profile', 'list'], ['quota', '--config=/tmp/config'],
-  ['quota', '--profile', 'other'], ['quota', '--origin', 'https://appliance.example'],
-  ['quota', '--'], ['quota', '--unknown'], ['quota', '--help=true'],
-  ['submit', 'file', '--file=/tmp/sample'], ['hunting', 'yara', 'create', '--body-file=/tmp/body'],
-].map(args => ({ args })))('managed boundary refuses $args', async ({ args }) => {
-  await expect(adapter.prepare(args, reference)).rejects.toBeDefined()
+  { args: ['setup'], code: 'FLAG_BLOCKED' },
+  { args: ['setup', 'hooks'], code: 'FLAG_BLOCKED' },
+  { args: ['profile', 'list'], code: 'FLAG_BLOCKED' },
+  { args: ['quota', '--config=/tmp/config'], code: 'FLAG_BLOCKED' },
+  { args: ['quota', '--profile', 'other'], code: 'FLAG_BLOCKED' },
+  { args: ['quota', '--origin', 'https://appliance.example'], code: 'FLAG_BLOCKED' },
+  { args: ['quota', '--'], code: 'INVALID_INPUT' },
+  { args: ['quota', '--unknown'], code: 'INVALID_INPUT' },
+  { args: ['quota', '--help=true'], code: 'INVALID_INPUT' },
+  { args: ['submit', 'file', '--file=/tmp/sample'], code: 'UNSUPPORTED_INPUT' },
+  { args: ['hunting', 'yara', 'create', '--body-file=/tmp/body'], code: 'UNSUPPORTED_INPUT' },
+])('managed boundary refuses $args with $code', async ({ args, code }) => {
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code })
 })
 
 test.each([['hash', 'file', 'a'.repeat(64)], ['report', 'file', 'synthetic-job']].map(args => ({ args })))('download refusal names the authenticated save command: $args', async ({ args }) => {
@@ -47,7 +54,10 @@ test('uploaded leaves and explicit JSON stdin normalize without server file acce
   const call = await adapter.prepare(['submit', 'file', '--file=sample.bin', '--environment-id', '160'], reference, { files })
   expect(call.args).toEqual(['submit', 'file', '--file', '/proc/self/cwd/hybrid-axi/uploads/sample.bin', '--environment-id', '160'])
   expect(call.files[1]).toEqual({ name: 'hybrid-axi/uploads/sample.bin', content: Buffer.from('inert synthetic sample') })
-  await expect(adapter.prepare(['hunting', 'yara', 'create', '--body-file', '-'], reference, { stdin: '{}' })).resolves.toBeDefined()
+  const stdin = await adapter.prepare(['hunting', 'yara', 'create', '--body-file', '-'], reference, { stdin: '{}' })
+  expect(stdin.args).toEqual(['hunting', 'yara', 'create', '--body-file', '-'])
+  expect(stdin.fileArguments).toEqual([])
+  expect(stdin.files.map(file => file.name)).toEqual(['hybrid-axi/config.json'])
   await expect(adapter.prepare(['quota'], reference, { stdin: '{}' })).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
