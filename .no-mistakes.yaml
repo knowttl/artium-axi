@@ -19,7 +19,10 @@ review:
         Review focus for this build: does the change work as its plan task specifies, and is it well designed? Raise functional bugs, broken or missing flows, wrong results, crashes, hangs, data loss, regressions, unhandled errors that break a flow, missing tests for the slice's behaviour, and style, simplification and design-principle issues. Security hardening and threat-model concerns are deferred until the full app is built: do not raise them unless they cause a functional bug.
         Keep code, docs, tests and generated assets generic: no real employer hostnames, tenant names, secret names or credentials.
         Use only fakes, synthetic users and canary credentials during the build; escalate live services, real credentials, deployment and irreversible actions.
-        For every repair, identify the reported invariant and inspect its sibling callers, cases and failure paths before editing. Repair the whole invariant in one round, verify through its public interface, then review the whole base-to-head diff again, including earlier repairs. Do not cap valid findings or narrow design/style review.
+        Review the intended public outcomes across sibling callers and error paths together, using the submission checklist in CONTRIBUTING.md.
+        For startup changes, include installed executable paths, every supported host hook, account replacement, cancellation and session-lock release. For writes, include uncertain outcomes, rename recovery, native help and confirmation rules.
+        For every repair, identify the reported invariant and inspect its sibling callers, cases and failure paths before editing. Repair the whole invariant together rather than only the reported example, verify through its public interface, then review the complete base-to-candidate diff, including earlier repairs and final documentation. A focused repair check never replaces this final-diff review.
+        Do not cap valid findings, narrow design/style review, lower acceptance standards or reduce the configured repair budget to shorten elapsed time. This checklist adds no review gate.
         Before a repair's focused verification, run pnpm install --frozen-lockfile if dependencies are missing, using the package.json Node and pnpm toolchain. Complete pnpm build before any probe that uses dist. Do not return a repair as verified when dependencies or compiled output prevented verification.
     - path: "**"
       instructions: |
@@ -38,6 +41,7 @@ document:
     AGENTS.md owns concise development instructions and pointers, not duplicate design prose.
     Private plans, probes and employer policy exceptions stay outside this code repository.
     Preserve the distinction between local evidence and unverified owner live acceptance.
+    Batch final documentation against the repaired public behavior, checking sibling command examples and error/recovery guidance together before the final candidate review. Preserve required validation when documentation changes candidate identities.
     Do not run tests or dependency installs again during documentation housekeeping.
     Attach the Test step's validation handoff and saved logs to the final report instead of repeating commands for presentation. Preserve each result's tested head and input identity; documentation edits do not turn historical results into passes for the new candidate. Record any resulting mismatch and leave required final-candidate validation to the Test gate.
 
