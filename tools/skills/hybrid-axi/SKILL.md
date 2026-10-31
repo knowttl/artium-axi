@@ -100,7 +100,9 @@ The [command reference](https://github.com/knowttl/hybrid-axi/blob/main/docs/com
 | HTTP 404 | Missing or unavailable resource; never infer a clean verdict or automatically submit it |
 | HTTP 425 on Labs overview | Analysis pending; follow the exact overview resumption hint |
 | HTTP 410 on container summary | Read report children, then use known child IDs |
-| MALFORMED_RESPONSE / UPSTREAM_ERROR | Inspect structured diagnostics; never interpret failure as empty data |
+| MALFORMED_RESPONSE | Check API compatibility using HTTP status, bounded content type, shape and issue paths; response values and validator messages are omitted, unsafe keys become `<key>`, and arrays show only the first element with a count; never interpret failure as empty data |
+| INVALID_RESPONSE | Command-level response contract mismatch; report it without treating it as empty data; transport shape diagnostics are unavailable at this later check |
+| UPSTREAM_ERROR | Inspect the redacted upstream message and bounded validation_errors when supplied; never interpret failure as empty data |
 | TIMEOUT / network failure | Outcome may be ambiguous; inspect known result IDs before any new send |
 
 Exit 0 is success (including pending state); exit 1 is runtime failure.

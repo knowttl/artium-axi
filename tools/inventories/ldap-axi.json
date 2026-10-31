@@ -1,14 +1,14 @@
 {
   "generatedBy": "scripts/ldap-inventory.mjs",
   "tool": "ldap-axi",
-  "version": "0.3.1",
-  "integrity": "sha512-gO6n3ewNtHB/+stDi6hEwnF0QLlk/u86FnHmeZeE40Mgqagfs3xhjhosmZMj1To5JMJUAjzitfWgZWy1FhZCNw==",
+  "version": "0.3.2",
+  "integrity": "sha512-sbqAXW/D7S190FCid6euDfXWKTP+khtWeZSZy9BTICEskF+OF2w7Asd5OvT/EBiPVGQN5Sq+j6YBiH/dL3tPWA==",
   "parserEvidence": "Installed pinned command schemas and reviewed CLI globals and entry routes",
   "skillSha256": "0fd60163e192fce5bf6222d885e012638047b039af2b1a1df87a4d51057c148b",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "b008a0998101444367dbfc1d34daa80706c63520abcaf36eb667230c50e1161d"
+      "sha256": "5752d384c0ed18317f7b898e319e7ed5dd9adc6a76d58e8e44f69a46a3413f60"
     },
     {
       "path": "README.md",

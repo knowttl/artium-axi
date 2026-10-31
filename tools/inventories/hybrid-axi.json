@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/hybrid-inventory.mjs",
   "tool": "hybrid-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-+8WKzpEbj+/RZdKCUcNG4Awql4ALe0sRMFlc9e8E7Km874G0Zfmrn1bErBpvf6wwPNYfVSB8jKt5IuB85qxGLQ==",
+  "version": "0.1.4",
+  "integrity": "sha512-PD1uoPTvVVLTXPPdTowJ4Mg13wY87fI9Om+omVqSfuHOtedm1HR+llYQmrlwm2EeHhiTqVXXP8Q4A2f3HXabnw==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -58,6 +58,10 @@
       "sha256": "167fa9b8a542b149b8056dbb5f27bbe70c0ed4385662fc6ae9698c40e421a8d7"
     },
     {
+      "path": "dist/src/response-diagnostics.js",
+      "sha256": "7acea5c3133ebf8ca5b54aa5122ef7996ff183482c384c086eb4efdf709d140d"
+    },
+    {
       "path": "dist/src/search-catalogue.js",
       "sha256": "42fa4e7e979914c67f99fd9b083f18030ed58c01dc6cbaddea3a03553ac2a353"
     },
@@ -87,7 +91,7 @@
     },
     {
       "path": "dist/src/transport-core.js",
-      "sha256": "b3d69e4109401830dc757ab9f38af3a28c5d219120703ce3fa56dc7ba5654d65"
+      "sha256": "99c81f558aa6a4a26af6141f7fce423a75c498d153d9ac9ded6d58cb24e00589"
     },
     {
       "path": "dist/src/transport.js",
@@ -182,7 +186,7 @@
       }
     }
   },
-  "skillSha256": "a7af7087e17eb4c93fc6185c102baf6ec9d31b70fc27999ffe872a5ae7006a9f",
+  "skillSha256": "59ce5bf65f22710bc33fbbf6279668f32752b5a8ef7e3cab8ab185fff626bbd2",
   "nativeWriteSettings": {
     "supportedOperations": [
       "convertQuickScan",

@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-w6duZJXvoRvPjKpznqd3GmfsR6/nViR/mEdbN16h25XBpbtR9NhmptG1IQLnIPC4A1s/hu/keHPnacV/sPmrVA==",
+  "version": "0.1.5",
+  "integrity": "sha512-jvsQ/xPesbNjmXX3dJgTmTrt+e2dnsyo5V7bW4+q2UgWpYi6KY/eURrrEQNGI6Vt9nWhU3ESWEs0O+8iW+Lexw==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -94,6 +94,10 @@
       "sha256": "6f0eb3f6ba860e59e7bfd764a0d3932b52101e4013acea4ee5aa63081a1f83db"
     },
     {
+      "path": "dist/src/response-diagnostics.js",
+      "sha256": "7acea5c3133ebf8ca5b54aa5122ef7996ff183482c384c086eb4efdf709d140d"
+    },
+    {
       "path": "dist/src/response.js",
       "sha256": "44277f2a0c28b3e6801c47578603270ed59c76aac5214c6428fd2dbf8a83f1d4"
     },
@@ -103,7 +107,7 @@
     },
     {
       "path": "dist/src/transport-core.js",
-      "sha256": "3419fbee2b091109495216c4da4f68fdaa1779449f9eee29a9ec429b0d306195"
+      "sha256": "f0ec671ed86be3e76286495bd75723d448696a1f0060b99b8f582eaf1679bd34"
     },
     {
       "path": "dist/src/transport.js",
@@ -201,7 +205,7 @@
       }
     }
   },
-  "skillSha256": "eaf6c39a3e7cbf82b628d4077eab743b16b98ecc8f17dcda6734d746b1a177f7",
+  "skillSha256": "40f40ad818e54c71aa11654a039922bb48cd0d9c303b8a812598c9c0661ad5e7",
   "nativeWriteSettings": {
     "supportedOperations": [
       "apa-export-attack-path",

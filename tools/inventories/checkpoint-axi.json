@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/checkpoint-inventory.mjs",
   "tool": "checkpoint-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-f+ipm5OeIgeOXY1MnTaU3sWE/v0Ay44XNOKHY2gifdEz08nkDe8I5vUbYewcUlxMawYWFoGfmF23tV22anxVng==",
+  "version": "0.1.5",
+  "integrity": "sha512-zmBdIDk8Q0OjSysuRrZPvEgbqfNJQV4Op6cHrua9n69arnJ/yuOxFscCAXP5SUFyppXR3dOeMiA0c/fyXFwvWA==",
   "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
   "sources": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "11a2e7f6c8ba3fc5507aa8ca33d480337a5a64bf79c241f4ed478f512ac8fa92"
+      "sha256": "42d1ed2e0fdca042bf7861888307ac2b86ad2c5043c959a50b7b42195dca539b"
     },
     {
       "path": "dist/src/doctor.js",
-      "sha256": "7f25c415bc59b12e6d0a6155d701c3646bd3370e0b2024a29efdbaf5e4c0ffed"
+      "sha256": "9993be894dbef4512547d52f225982e71291edadc262cf43d2c7d152f460c3d5"
     },
     {
       "path": "dist/src/downloads.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/reads.js",
-      "sha256": "639ad32c60f06830905b7be34ed853abef64bb79a56dd0211846a1cc21855c1f"
+      "sha256": "1c83a607150bc23583662457f3ae09bab19e36fe5c5f581e5bb92501583159c0"
     },
     {
       "path": "dist/src/redact.js",
@@ -50,12 +50,16 @@
       "sha256": "44288abe19a68fa672bc04ad167141717aed5c3a333b2420b14ee68e13abee78"
     },
     {
+      "path": "dist/src/response-diagnostics.js",
+      "sha256": "7acea5c3133ebf8ca5b54aa5122ef7996ff183482c384c086eb4efdf709d140d"
+    },
+    {
       "path": "dist/src/response-invalid.js",
-      "sha256": "323428f95087fec84e36dab86c7a64ecad69f43e9188f6c6425b64498dac6b5c"
+      "sha256": "6626bf67e0b5f422c109d943ae50fe28cff6e83eb7ecc5e9bbb49fa5bae4ff66"
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "241eff8feb3addcd5ea1d099e31b101f956ab5f34fe49117f0922ddcdcd63f78"
+      "sha256": "080901a1cc7bb4d6e0d5223173308297f9ab338df8f0414e5c52c4529b819faa"
     },
     {
       "path": "dist/src/write-exceptions.js",
@@ -67,7 +71,7 @@
     },
     {
       "path": "dist/src/writes.js",
-      "sha256": "4f683a01ab151b4b1e61588b6c3fe86f3d8a34ebdbdb1a257dc42cae21e6f5ed"
+      "sha256": "e3bca0f6cef9e37d12c62012c2ebd6515daf56bd775d5916f869277ea1a59807"
     }
   ],
   "credentialSchema": {
@@ -225,7 +229,7 @@
     "uae": "https://cloudinfra-gw.me.portal.checkpoint.com",
     "in": "https://cloudinfra-gw.in.portal.checkpoint.com"
   },
-  "skillSha256": "33011d4e7abc8fd76b0b3b38450cfdff545117a1950e22ee5176ab3c2cf589c9",
+  "skillSha256": "80241da4921bfa7dcbf97fa099cd57ce1c3d4313e0bad25a9e0e9788d9608a8f",
   "nativeWriteSettings": {
     "supportedOperations": [
       "attachment.download",

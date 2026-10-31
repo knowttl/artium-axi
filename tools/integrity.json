@@ -8,20 +8,20 @@
     "integrity": "sha512-frarCzBzqv3eYR+A15frkrS73OZe2nf7tGwoHq+WPlRaij+RHna6geH3fgq4UQoytjWvefHQYkal9EDyUgtcTw=="
   },
   "@knowttl/checkpoint-axi": {
-    "version": "0.1.4",
-    "integrity": "sha512-f+ipm5OeIgeOXY1MnTaU3sWE/v0Ay44XNOKHY2gifdEz08nkDe8I5vUbYewcUlxMawYWFoGfmF23tV22anxVng=="
+    "version": "0.1.5",
+    "integrity": "sha512-zmBdIDk8Q0OjSysuRrZPvEgbqfNJQV4Op6cHrua9n69arnJ/yuOxFscCAXP5SUFyppXR3dOeMiA0c/fyXFwvWA=="
   },
   "@knowttl/beyondtrust-axi": {
     "version": "0.1.4",
     "integrity": "sha512-A6vBEpopJdcgsBozBIrnCMD891Saa9gwKTD8mH7XdGoi8zasKspY3uhmaw4fNUoL3898oT0EcE3X6Eq8tOrJHw=="
   },
   "@knowttl/hybrid-axi": {
-    "version": "0.1.3",
-    "integrity": "sha512-+8WKzpEbj+/RZdKCUcNG4Awql4ALe0sRMFlc9e8E7Km874G0Zfmrn1bErBpvf6wwPNYfVSB8jKt5IuB85qxGLQ=="
+    "version": "0.1.4",
+    "integrity": "sha512-PD1uoPTvVVLTXPPdTowJ4Mg13wY87fI9Om+omVqSfuHOtedm1HR+llYQmrlwm2EeHhiTqVXXP8Q4A2f3HXabnw=="
   },
   "@knowttl/tenable-axi": {
-    "version": "0.1.4",
-    "integrity": "sha512-w6duZJXvoRvPjKpznqd3GmfsR6/nViR/mEdbN16h25XBpbtR9NhmptG1IQLnIPC4A1s/hu/keHPnacV/sPmrVA=="
+    "version": "0.1.5",
+    "integrity": "sha512-jvsQ/xPesbNjmXX3dJgTmTrt+e2dnsyo5V7bW4+q2UgWpYi6KY/eURrrEQNGI6Vt9nWhU3ESWEs0O+8iW+Lexw=="
   },
   "awx-axi": {
     "version": "0.1.9",
@@ -36,12 +36,12 @@
     "integrity": "sha512-4gY1OZ7ab9An4bRO74Qc9cSFQwBwb1H7o8I4toltj0AnxDHHOZYQL6dDSOwZH8QjPlV6l82iX3E+M6yqdxwe+w=="
   },
   "@knowttl/vectra-axi": {
-    "version": "0.1.12",
-    "integrity": "sha512-X1QYP/beokxC7TX+SBuvMZCHwCyKUz/hRigikpQjgOTp4imzhP2HLEF7Ga1rmHZNGH5sDrISjnQpbJzzMoEpCg=="
+    "version": "0.1.13",
+    "integrity": "sha512-oUaTXzT/O9YzVfxHwSarEvLxvUBGwyPoYnAMWa0+tv/7KvG62fkDrOSBb6gXHl9uxfTvpHTOLxzpNATR1VgMwA=="
   },
   "@knowttl/ldap-axi": {
-    "version": "0.3.1",
-    "integrity": "sha512-gO6n3ewNtHB/+stDi6hEwnF0QLlk/u86FnHmeZeE40Mgqagfs3xhjhosmZMj1To5JMJUAjzitfWgZWy1FhZCNw=="
+    "version": "0.3.2",
+    "integrity": "sha512-sbqAXW/D7S190FCid6euDfXWKTP+khtWeZSZy9BTICEskF+OF2w7Asd5OvT/EBiPVGQN5Sq+j6YBiH/dL3tPWA=="
   },
   "@knowttl/mg-axi": {
     "version": "0.1.18",

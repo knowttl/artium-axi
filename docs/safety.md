@@ -87,6 +87,8 @@ Rejected searches preserve redacted server diagnostics, completed searches inclu
 Vectra `host show` and `entity show --type host`, plus the matching raw host reads, retain every returned API field under `host`, separate from CLI metadata.
 Use `--full` on host/entity detail commands for complete returned text; secret redaction still applies, and upstream omissions cannot be restored.
 QUX collection reads support bounded `--all` traversal and opaque `--cursor` continuation with the original filters.
+Vectra bounded windows with a remaining cursor report `complete: false` even on exit 0; failed reads exit 1.
+For checkpoint feeds, completeness covers the current batch, not future events; see the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) for the completeness contract.
 Detection and host IDs must be positive integers, including detection-list host and ID-range filters.
 Detection `--fields` can include triage, assignment and filtering metadata; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the field names and pagination budgets.
 

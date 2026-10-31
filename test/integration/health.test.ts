@@ -620,7 +620,7 @@ test('the current CLI version is accepted', async () => {
   const response = await app.inject({ url: '/v1/tools', headers: { 'x-artium-cli-version': cliVersion, authorization: `Bearer ${token}` } })
   expect(response.statusCode).toBe(200)
   expect(toolsResponseSchema.parse(response.json()).tools).toEqual([
-    { name: 'falcon-axi', version: '0.8.3', status: 'unknown', readOnly: true },
+    { name: 'falcon-axi', version: '0.8.4', status: 'unknown', readOnly: true },
   ])
 })
 

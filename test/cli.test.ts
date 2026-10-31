@@ -817,8 +817,8 @@ test.each([
 
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.3' }] } }
-  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version,readOnly}:\n  falcon-axi,ok,"0.8.3",true\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.4' }] } }
+  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version,readOnly}:\n  falcon-axi,ok,"0.8.4",true\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
   expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
   expect((await cli(['tools'])).stdout).toBe('tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n')
@@ -1063,7 +1063,7 @@ test.each([
     '/health/ready': readiness,
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.3' },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.4' },
       { name: 'vectra-axi', status: 'error', version: '0.1.3' }] } },
   }
   try {
@@ -1072,7 +1072,7 @@ test.each([
       /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token \(session expires [^\n]+\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
-    doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.3' }] }
+    doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.4' }] }
     expect(await cli(['doctor'])).toMatchObject({ code: 0, stdout: expect.stringContaining('pass: falcon-axi (ok)') })
   } finally { doctorResponses = undefined }
 })
@@ -1212,7 +1212,7 @@ test.each([
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.8.3', status }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.8.4', status }] } },
   }
   try {
     const result = await cli(['doctor'])
@@ -1230,7 +1230,7 @@ test('doctor shows the server category for every unhealthy tool without diagnost
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [
-      { name: 'falcon-axi', version: '0.8.3', status: 'ok' },
+      { name: 'falcon-axi', version: '0.8.4', status: 'ok' },
       { name: 'beyondtrust-axi', version: '0.1.4', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
       { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED' },
     ] } },
@@ -1251,7 +1251,7 @@ test('doctor reports checking health as pending, not a failure', async () => {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.8.3', status: 'checking' }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.8.4', status: 'checking' }] } },
   }
   try {
     expect(await cli(['doctor'])).toMatchObject({ code: 0, stderr: '',
@@ -1463,10 +1463,10 @@ test.each([
 
 test('tool detail uses pinned help without running the tool', async () => {
   requests = []
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.3' }] } }
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.8.4' }] } }
   const result = await cli(['tools', 'show', 'falcon-axi'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
-  expect(result.stdout).toContain('version: "0.8.3"\nstatus: ok\nreadOnly: true\ncommands[')
+  expect(result.stdout).toContain('version: "0.8.4"\nstatus: ok\nreadOnly: true\ncommands[')
   expect(result.stdout).toContain('example: artium-axi falcon-axi detection list\nupstreamHelp:')
   expect(result.stdout).toContain('default 20, ceiling 10000')
   const discovery = decode(result.stdout) as { commands: string[] }
@@ -1486,15 +1486,15 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.14' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.18' },
-  { tool: 'vectra-axi', example: 'detection list', version: '0.1.12' },
-  { tool: 'falcon-axi', example: 'detection list', version: '0.8.3' },
-  { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.1' },
+  { tool: 'vectra-axi', example: 'detection list', version: '0.1.13' },
+  { tool: 'falcon-axi', example: 'detection list', version: '0.8.4' },
+  { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.2' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.4.7' },
   { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.45' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.9' },
-  { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.4' },
-  { tool: 'hybrid-axi', example: 'quota', version: '0.1.3' },
-  { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.4' },
+  { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.5' },
+  { tool: 'hybrid-axi', example: 'quota', version: '0.1.4' },
+  { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.5' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
   response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
   const listing = await cli(['tools'])
