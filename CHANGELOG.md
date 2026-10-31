@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.0.29](https://github.com/knowttl/artium-axi/compare/v0.0.28...v0.0.29) (2026-10-31)
+
+
+### Features
+
+* enable declared file uploads and audit metadata ([#233](https://github.com/knowttl/artium-axi/issues/233)) ([4fc023c](https://github.com/knowttl/artium-axi/commit/4fc023c9ff7605980b8d34339b36528aa015c1f1))
+* enable separately gated AWX configuration writes ([#245](https://github.com/knowttl/artium-axi/issues/245)) ([ff78fbb](https://github.com/knowttl/artium-axi/commit/ff78fbba3826f30b32b00ad0636ccebf505d301b))
+* integrate ado-axi fork and expanded gated commands ([#244](https://github.com/knowttl/artium-axi/issues/244)) ([57a018f](https://github.com/knowttl/artium-axi/commit/57a018f2729e692c5d8fdf9f3f2690d766344ee2))
+* support gated Azure DevOps raw API writes ([#235](https://github.com/knowttl/artium-axi/issues/235)) ([08e3784](https://github.com/knowttl/artium-axi/commit/08e3784627ba57cc5f7361130087f72979f43ee4))
+
+
+### Bug Fixes
+
+* **cli:** correct version aliases, startup identity and host session context ([#243](https://github.com/knowttl/artium-axi/issues/243)) ([5b02cc8](https://github.com/knowttl/artium-axi/commit/5b02cc8aae87e9367c673ff9d68e896e66094aaf))
+* correct AWX password sign-in failure guidance ([#239](https://github.com/knowttl/artium-axi/issues/239)) ([6371996](https://github.com/knowttl/artium-axi/commit/63719968d6dfae0d1d8c5b59a284fab388626a3a))
+* **server:** increase per-user concurrency and queue runner calls ([#232](https://github.com/knowttl/artium-axi/issues/232)) ([6aff0ba](https://github.com/knowttl/artium-axi/commit/6aff0ba64b48c0391a697e93fa4d079dd0279917))
+* update bundled Azure, ADO, and BeyondTrust tools ([#247](https://github.com/knowttl/artium-axi/issues/247)) ([d939137](https://github.com/knowttl/artium-axi/commit/d93913742560685e6b73a53c20676a651971390b))
+
 ## [0.0.28](https://github.com/knowttl/artium-axi/compare/v0.0.27...v0.0.28) (2026-10-31)
 
 
