@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.28](https://github.com/knowttl/artium-axi/compare/v0.0.27...v0.0.28) (2026-10-31)
+
+
+### Bug Fixes
+
+* show tool-specific credential guidance and schema defaults ([#228](https://github.com/knowttl/artium-axi/issues/228)) ([19dafb4](https://github.com/knowttl/artium-axi/commit/19dafb460ac8d60120ae6db5fb4d0334543d8845))
+* update bundled tools for response diagnostics and completeness ([#231](https://github.com/knowttl/artium-axi/issues/231)) ([f7904a0](https://github.com/knowttl/artium-axi/commit/f7904a0a13a87f7dee93af8bf4fc8d7788dcf22b))
+
 ## [0.0.27](https://github.com/knowttl/artium-axi/compare/v0.0.26...v0.0.27) (2026-10-30)
 
 
