@@ -15,7 +15,7 @@ test('the pinned ado-axi requests exactly the supported six az arguments', async
     const record = join(directory, 'az-argv')
     writeFileSync(profile, JSON.stringify({ defaultProfile: 'artium', profiles: { artium: { org: 'synthetic-org', auth: 'az' } } }))
     const result = spawnSync(process.execPath, ['--import', join(process.cwd(), 'test/fake-service/ado-transport.mjs'),
-      join(process.cwd(), 'tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js'), 'project', 'list'], {
+      join(process.cwd(), 'tools/node_modules/@knowttl/ado-axi/dist/bin/ado-axi.js'), 'project', 'list'], {
       encoding: 'utf8', timeout: 10_000, cwd: directory,
       env: { PATH: `${join(process.cwd(), 'test/fixtures/ado-recording-az')}:/usr/bin:/bin`, HOME: directory,
         ADO_AXI_CONFIG: profile, ARTIUM_TEST_AZ_RECORD: record, ARTIUM_TEST_ADO_ORIGIN: `https://localhost:${port}`,

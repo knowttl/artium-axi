@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@jeffreyhaen/ado-axi':
-        specifier: 0.4.7
-        version: 0.4.7
+      '@knowttl/ado-axi':
+        specifier: 0.5.0
+        version: 0.5.0
       '@knowttl/az-axi':
         specifier: 0.1.14
         version: 0.1.14
@@ -59,8 +59,8 @@ packages:
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
 
-  '@jeffreyhaen/ado-axi@0.4.7':
-    resolution: {integrity: sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw==}
+  '@knowttl/ado-axi@0.5.0':
+    resolution: {integrity: sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -376,7 +376,7 @@ snapshots:
       minipass: 7.1.3
     optional: true
 
-  '@jeffreyhaen/ado-axi@0.4.7':
+  '@knowttl/ado-axi@0.5.0':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

@@ -341,7 +341,7 @@ The per-tool migration and suggested order are in [credential-migration.md](cred
 
 Scope rule, from the owner in round 3: az-axi changes are made only in knowttl/az-axi.
 This standard proposes no change to either of the following:
-- ado-axi (jeffreyhaen/ado-axi), the upstream project that az-axi vendors files from.
+- ado-axi (knowttl/ado-axi), Artium's pinned fork of the project that az-axi vendors files from.
 - The Microsoft `az` CLI, whose `az login` session in `~/.azure` stays the ambient source for `auth: "az"`.
 az-axi edits that touch vendored files, such as `src/lib/config.ts` and `src/lib/auth.ts`, update those files' "Local changes" rows in `UPSTREAM.md` in the same commit.
 This is az-axi's own rule (`UPSTREAM.md:5`).

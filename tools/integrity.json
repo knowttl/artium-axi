@@ -27,9 +27,9 @@
     "version": "0.1.9",
     "integrity": "sha512-7m/IWbfU7bd5JbKqu9FaLK1Pf5QaxQBl+tOAaHHOBzgUOHQDpHKRAVL4xy5Ww0vLiR7PcsRK/kDp71GqS/Kb6g=="
   },
-  "@jeffreyhaen/ado-axi": {
-    "version": "0.4.7",
-    "integrity": "sha512-qA7qpO0vjlib6r1hOOBfY0+cWn0mVCLBmkFUktJJANPelwbTiZuqgfwgk5D1lGG0q9rgCv+aPJrHOphmWJv0fw=="
+  "@knowttl/ado-axi": {
+    "version": "0.5.0",
+    "integrity": "sha512-Fsh1bsqjKIYf0sRWRMxGFAQ0jvVW3Iu9/BZW9TWBOZBk0+XIoNLLuWg/+JbxobjZ2rmhO4HrpaE859RLYeLD0w=="
   },
   "@knowttl/az-axi": {
     "version": "0.1.14",

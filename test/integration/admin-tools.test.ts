@@ -1488,7 +1488,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'az-axi', version: '0.1.14', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.18', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.2', health: { status: 'disabled' } },
-    { name: 'ado-axi', version: '0.4.7', health: { status: 'disabled' } },
+    { name: 'ado-axi', version: '0.5.0', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.9', health: { status: 'disabled' } },
     { name: 'tenable-axi', version: '0.1.5', health: { status: 'disabled' } },
     { name: 'hybrid-axi', version: '0.1.4', health: { status: 'disabled' } },

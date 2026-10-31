@@ -71,6 +71,22 @@ test.each([
     check: ['api', '_apis/wit/workitems/42', '--no-project', '--query', '$expand=all', '--full'] },
   { args: ['work-item', 'links', 'add', '42', '--related', '43'],
     check: ['api', '_apis/wit/workitems/42', '--no-project', '--query', '$expand=all', '--full'] },
+  { args: ['work-item', 'delete', '42', '--destroy', '--confirm-destroy', '--if-rev', '3'],
+    check: ['api', '_apis/wit/workitems/42', '--no-project', '--query', '$expand=all', '--full'] },
+  { args: ['work-item', 'link', 'remove', '42', '--index', '0'],
+    check: ['api', '_apis/wit/workitems/42', '--no-project', '--query', '$expand=all', '--full'] },
+  { args: ['repo', 'update', '--repo', 'Synthetic Repo', '--name', 'Renamed'],
+    check: ['repo', 'list', '--full', '--limit', '1000'] },
+  { args: ['repo', 'policy', 'delete', '7', '--if-rev', '3', '--confirm-delete'],
+    check: ['repo', 'policy', 'show', '7', '--full'] },
+  { args: ['pipeline', 'update', '7', '--definition', '{"name":"Synthetic"}'],
+    check: ['pipeline', 'show', '7', '--full'] },
+  { args: ['pipeline', 'build', 'tag', 'add', '8', '--tag', 'Synthetic'],
+    check: ['api', '_apis/build/builds/8', '--full'] },
+  { args: ['pipeline', 'folder', 'create', '--path', '\\Synthetic'],
+    check: ['pipeline', 'folder', 'list', '--full', '--path', '\\Synthetic'] },
+  { args: ['pipeline', 'release', 'create', '--definition', '7', '--draft'],
+    check: ['pipeline', 'release', 'list', '--full', '--limit', '1000', '--definition', '7'] },
   { args: ['wi', 'comment', '42', '--body', 'Synthetic comment'],
     check: ['api', '_apis/wit/workItems/42/comments', '--api-version', '7.1-preview.4', '--query', '$order=desc&$top=200', '--full'] },
   { args: ['pr', 'create', '--repo', 'Synthetic Repo', '--source', 'feature', '--target', 'main', '--title', 'Synthetic PR'],
@@ -208,7 +224,7 @@ test('refuses an absent host classification', async () => {
 test.each(['--help', 'work-item', 'work-item update', 'wi update', 'pr', 'pr update', 'prs update', 'pipeline', 'test', 'repo', 'ref', 'project', 'api', 'doctor'])(
   'rewrites published %s help to managed guidance', command => {
     const args = command === '--help' ? [command] : [...command.split(' '), '--help']
-    const result = spawnSync(process.execPath, ['tools/node_modules/@jeffreyhaen/ado-axi/dist/bin/ado-axi.js', ...args], { encoding: 'utf8' })
+    const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/ado-axi/dist/bin/ado-axi.js', ...args], { encoding: 'utf8' })
     expect(result.status, result.stderr).toBe(0)
     const output = rewriteSuggestions(result.stdout, 'ado-axi')
     expect(output).toContain('Artium manages the organization')
@@ -228,7 +244,7 @@ test.each(['--help', 'work-item', 'work-item update', 'wi update', 'pr', 'pr upd
   })
 
 test('discovery presents a managed example', () => {
-  expect(toolView({ name: 'ado-axi', version: '0.4.7', status: 'unconfigured' })).toContain('artium-axi ado-axi project list --limit 1')
+  expect(toolView({ name: 'ado-axi', version: '0.5.0', status: 'unconfigured' })).toContain('artium-axi ado-axi project list --limit 1')
 })
 
 test.each(['json', 'toon'])('rewrites %s suggestions without touching data fields', format => {
