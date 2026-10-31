@@ -254,7 +254,7 @@ The home view and `whoami` display `sessionExpiresAt` and `accessExpiresAt` as U
 Doctor includes the session deadline and remaining time in its token diagnostic.
 
 See the [README output contract](../README.md#toon-output-and-errors) for upstream stream handling and hosted status filtering.
-If a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
+For commands other than bare version flags, if a reader closes stdout or stderr early, the CLI suppresses `EPIPE` without changing the command's exit status or interrupting the other stream.
 For managed tools, recognized TOON or JSON root `help` suggestions, plain upstream help and bundled tool-detail help use `artium-axi <tool>` commands, including examples originally invoking `npx -y @knowttl/<tool>`.
 Adapted root `help` values containing commas or newlines are quoted; removed suggestions are omitted from arrays and their counts are updated, including an empty array when none remain.
 Recognized flag listings and command suggestions omit managed flags declared in each pinned [tool inventory](../tools/inventories/)'s `unsafeOverrides`, including Graph profile, config and scopes selectors.
@@ -267,6 +267,7 @@ Capture is capped at 4 MiB per stream, with truncation diagnostics on stderr.
 For a non-zero upstream tool exit, the CLI appends `artium-axi: request_id <id>` on stderr when the server supplies a valid request ID in `x-artium-request-id`; successful tool exits add no ID line.
 Keep that ID for the [failed-call troubleshooting path](runbook.md#troubleshoot-a-failed-tool-call).
 Artium failures withhold captured output and return exit 2 for usage or client configuration failures, or exit 1 for other failures.
+See the [`session-context` failure format](#agent-installation) for its host-delivery exception.
 CLI errors preserve a server-provided `requestId`; failures without one omit the field rather than inventing an ID.
 Unexpected local CLI failures use `INTERNAL_ERROR` with `The CLI failed locally`, a bounded error class and function context, without exception messages, custom exception names or stacks.
 Report that class and function to the CLI maintainer, and check the previous call outcome before retrying.
@@ -313,10 +314,11 @@ OpenCode loads [local plugins](https://opencode.ai/docs/plugins/#from-local-file
 The OpenCode plugin obtains fresh context before each model request rather than retaining grants across a session.
 Restart the host after setup; integration tests exercise the installed command/plugin contracts offline, without a model or vendor API call.
 
-`session-context` fetches only the signed-in user's `/v1/tools` snapshot with a five-second request deadline.
+`session-context` fetches the signed-in user's `/v1/tools` snapshot, allowing ordinary session refresh, with a five-second overall deadline that also cancels refresh-lock waits.
 It emits at most one row per known tool, containing only name, status and read/write posture.
 It never emits usernames, roles, tokens, server URLs, session expiry or server-provided error text.
 It does not grant access or bypass server write gates, and it never substitutes cached grants after an authentication, TLS, configuration or connectivity failure.
+Concurrent login or logout also withholds grants with `SESSION_CHANGED`; refresh within the same login remains supported.
 Such failures emit `artium: unavailable` with the error code and a doctor command, returning 0 so the host can deliver the diagnostic as context.
 An OpenCode child that cannot start or finish emits `CLIENT_START_FAILED`; the plugin bounds its child runtime to eight seconds and output to 16 KiB.
 These server-wide grants have no project-specific subset; the context is scoped to the active local user's authenticated account, and no tool invocation or transcript capture occurs.
