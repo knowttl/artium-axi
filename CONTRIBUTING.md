@@ -38,6 +38,13 @@ It does not run container acceptance or the private hygiene check.
 Before publication, follow the [private hygiene requirements](#private-hygiene-check).
 
 Every change ships from a feature branch through the local no-mistakes pipeline configured in [.no-mistakes.yaml](.no-mistakes.yaml).
+Before submission, check the intended public outcomes across sibling callers and error paths using the review checklist in the gate configuration.
+For startup changes, cover installed executable paths, every supported host hook, account replacement, cancellation and session-lock release.
+For write changes, cover uncertain outcomes, rename recovery, native help and confirmation rules.
+Repair the whole reported invariant together, then review the complete base-to-candidate diff, including earlier repairs and final documentation.
+Batch documentation against the repaired behavior before final candidate review; focused checks do not replace the full final-diff review or required validation.
+Keep valid findings, acceptance standards and the configured repair budget intact.
+Coordinate overlapping upstream pin or generated-inventory changes while an approved change awaits merge, and refresh the base before expensive validation where practical.
 Commit the changes before starting:
 
 ```sh
