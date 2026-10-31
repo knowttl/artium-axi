@@ -19,6 +19,7 @@ Contents:
 - [10. Migration](#10-migration)
 
 Status: AGREED.
+The proposed [connection-lifetime amendment](#proposed-opt-in-connection-lifetime-amendment) is excluded from this agreement pending owner approval.
 The owner approved it on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
 This is the agreed contract; current host rollout and remaining tool migrations are tracked in [credential-migration.md](credential-migration.md).
 Round 2 added the owner's requirement that credential storage work the same on Windows and Linux.
@@ -258,6 +259,45 @@ For each call, the host:
 
 The shared profile writer owns schema validation and secret injection.
 Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
+
+### Proposed opt-in connection-lifetime amendment
+
+Status: PROPOSED, held for owner approval as a security-sensitive credential-custody change.
+The amendment and its conformance checks MUST be submitted as a separate artium-axi PR and MUST NOT be merged under standing authority; explicit owner approval is required.
+Section 9's agreed per-call behavior remains the default.
+This proposal does not opt in any existing tool or authorize connection admission.
+A design depending on this extension MUST NOT be labelled fully conformant until the owner agrees to the amendment and its implementation passes conformance.
+
+Only an admitted tool whose reviewed host integration explicitly declares a connection-lifetime requirement MAY request this extension.
+Command arguments, credentials, environment variables and possession of a connection handle MUST NOT enable it.
+The host MUST authorize each connection for its authenticated caller and selected credential before creating its worker.
+The extension changes only the lifetime of the private profile and SecretRefs: they MAY remain available until that connection closes, across commands on that connection.
+It grants no additional tool, credential, host, account or command authority.
+
+For each connection, the host MUST:
+
+1. Supervise one worker with a private, initially empty HOME, XDG directories and temporary directory, isolated from every other connection.
+   The shared profile writer MUST validate the selected credential against the tool's shipped schema and write exactly one profile named `artium`, also the `defaultProfile`.
+   It MUST substitute `ARTIUM_SECRET_<n>` environment references for secret fields and register every resolved value for output scanning.
+2. Construct the worker environment from only that selected credential, trusted runtime settings and its private inherited IPC handle.
+   It MUST NOT inherit ambient SSH agents, unrelated credentials or developer configuration, and MUST NOT fall back to them when the selected credential is absent or invalid.
+   No public worker listener or caller-controlled credential override is authorized by this extension.
+3. Keep known-secret redaction data available for the entire worker lifetime, including idle intervals and later commands.
+   The worker MUST apply section 8 and the parent MUST scan output before any persistence or delivery, including stdout, stderr and failure paths.
+   Releasing private-key buffers after authentication where supported MUST NOT remove known-secret output protection.
+   Memory release is best effort, never a secure-erasure guarantee.
+4. On connection close, revoke further dispatch, terminate the worker and remove all its private directories and profile files before reporting local cleanup complete.
+   The same cleanup MUST run after worker failure or forced termination.
+   Server restart recovery MUST remove abandoned worker directories before admitting new work; connections MUST NOT survive a server restart or be silently reconnected.
+5. Recheck current authorization and selected credential and host-trust revisions before dispatch.
+   Revoking the extension declaration or tool admission, removing caller access, invalidating the caller's session, disabling the host, or changing the selected credential or host trust MUST fence further dispatch and close affected connections through the same termination and cleanup path.
+   Queued work MUST be discarded and active work cancelled before revocation is acknowledged; an unresponsive worker MUST be terminated.
+   Already dispatched remote work can have an uncertain outcome; revocation does not promise reversal or secure erasure.
+
+The [credential-profile conformance tests](../src/server/adapters/credential-profile-lifetime.test.ts) exercise the shared writer and real runner with a synthetic multi-command worker and no network.
+They cover profile and SecretRef reuse until close, private paths and selected-credential isolation, cleanup after close and worker crash, abandoned-profile removal before restart admission, and parent canary scanning on early and later commands.
+These checks establish custody primitives only: they do not implement or establish production connection admission, private IPC authorization, revocation fencing, or packaged ssh-axi conformance.
+An opting-in integration MUST additionally verify those behaviors, including ownership isolation and targeted revocation without closing another caller's connection, before claiming conformance.
 
 ### Per-tool host-facing schemas
 
