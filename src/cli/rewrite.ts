@@ -126,17 +126,6 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   }
   const flags = managedFlags[tool]
   if (!flags) return output
-  if (tool === 'awx-axi') {
-    const command = /^awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(output)?.[1]
-    const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
-    if (route) return encode({ command: `artium-axi awx-axi ${route.command}`,
-      usage: `artium-axi awx-axi ${route.command} ${route.positionals.names.join(' ')}`.trimEnd(),
-      flags: Object.fromEntries(Object.entries(route.flags).map(([name, kind]) => [`--${name}`, kind])),
-      examples: [`artium-axi awx-axi ${route.command} --help`,
-        `artium-axi awx-axi ${route.command} ${route.positionals.names.join(' ')} [flags] --dry-run`.replace('  ', ' '),
-        `artium-axi awx-axi ${route.command} ${route.positionals.names.join(' ')} [flags] --confirm`.replace('  ', ' ')],
-      help: [awx.discovery.help.split('\n')[1], `AWX must authorize ${route.command} and access to each referenced resource.`] }) + '\n'
-  }
   const executable = new RegExp(`^(?:artium-axi |npx -y @knowttl/)?${tool}(?=\\s|$)`)
   if (executable.test(output.replace(/^[ \t]*(?:(?:Command|Native operation|Examples|Usage): )?/, ''))
     || tool === 'ldap-axi' && ldapHelp.test(output)) return hostedHelp(output, tool, flags, true)
@@ -299,6 +288,14 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'awx-axi') {
+    const command = /^(?:artium-axi )?awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(help)?.[1]
+    const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
+    if (route) {
+      help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => Object.hasOwn(route.flags, name) ? option : '')
+        .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !Object.hasOwn(route.flags, name))).join('\n')
+      const permission = `AWX must authorize ${route.command} and access to each referenced resource.`
+      if (!help.includes(permission)) help = help.trimEnd() + '\n' + permission + '\n'
+    }
     const guidance = awx.discovery.help.split('\n')[1] + ' Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))
       .filter(line => !/^(?:Run|Use) .*\bawx-axi job stdout\b.*--download\b/.test(line))

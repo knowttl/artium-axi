@@ -65,7 +65,8 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   if (createsRun) checkArgs = ['job', 'list', '--type', 'all', '--limit', '100']
   else if (configuration && route.command.startsWith('workflow node-')) {
     checkArgs = ['workflow', route.command === 'workflow node-create' ? 'template-nodes' : 'template-node', rest[0]]
-  } else if (effect === 'write' && rest.length && !(configuration && /(?:create|copy)$/.test(route.command))) {
+  } else if (effect === 'write' && rest.length && !(configuration
+    && (/(?:create|copy)$/.test(route.command) || /edit$/.test(route.command) && flags.has('name')))) {
     checkArgs = [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
   }
   return { args: [...(route.command === 'home' ? [] : positionals), ...[...flags].map(([name, value]) => value === true ? `--${name}` : `--${name}=${value}`)], effect, configuration,

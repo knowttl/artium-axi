@@ -46,19 +46,46 @@ test('a dry-run remains a read even when confirm is present', async () => {
   expect(call.write).toBeUndefined()
 })
 
-test.each(['template create', 'project create', 'inventory source-create', 'workflow node-create', 'schedule create'])('%s managed help describes configuration authority and excludes blocked input', async command => {
+test.each(inventory.commands.filter(route => route.effect === 'configuration-write').map(route => route.command))('%s managed help describes configuration authority and excludes blocked input', async command => {
   const call = await adapter(false, true).prepare([...command.split(' '), '--help'], reference)
   const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
-  const document = decode(help) as { command: string, flags: Record<string, string>, help: string[] }
-  expect(document.command).toBe(`artium-axi awx-axi ${command}`)
-  expect(document.flags).toMatchObject({ '--confirm': 'boolean', '--dry-run': 'boolean' })
-  expect(document.flags).not.toHaveProperty('--credential')
-  expect(document.flags).not.toHaveProperty('--extra-vars')
-  expect(document.flags).not.toHaveProperty('--scm-url')
-  expect(document.help.join(' ')).toContain('allowConfigurationWrites and --confirm')
-  expect(document.help.join(' ')).toContain(`AWX must authorize ${command}`)
+  expect(help).toContain(`artium-axi awx-axi ${command}`)
+  expect(help).toContain('--confirm')
+  expect(help).toContain('--dry-run')
+  expect(help).not.toMatch(/--(?:credential|extra-vars|variables|source-vars|scm-url|[a-z-]+-file)\b/)
+  expect(help).toContain('allowConfigurationWrites and --confirm')
+  expect(help).toContain(`AWX must authorize ${command}`)
+})
+
+test.each([
+  { command: 'workflow node-link', requirement: '--on <success|failure|always> --to <node-id>' },
+  { command: 'template notification-add', requirement: 'started, success, or error' },
+  { command: 'workflow notification-add', requirement: 'started, success, error, or approval' },
+  { command: 'project notification-add', requirement: 'started, success, or error' },
+  { command: 'inventory source-notification-add', requirement: 'started, success, or error' },
+  ...['schedule create', 'schedule edit'].flatMap(command => [
+    { command, requirement: 'ask_inventory_on_launch' }, { command, requirement: 'ask_limit_on_launch' },
+    { command, requirement: 'ask_tags_on_launch' }, { command, requirement: 'ask_skip_tags_on_launch' },
+  ]),
+])('$command managed help retains $requirement', ({ command, requirement }) => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain(requirement)
+})
+
+test.each([
+  { command: 'template edit', group: 'template' }, { command: 'workflow edit', group: 'workflow' },
+  { command: 'project edit', group: 'project' }, { command: 'inventory edit', group: 'inventory' },
+  { command: 'inventory host-edit', group: 'host' }, { command: 'inventory group-edit', group: 'group' },
+  { command: 'inventory source-edit', group: 'inventory-source' }, { command: 'schedule edit', group: 'schedule' },
+])('$command recovery covers both rename outcomes', async ({ command, group }) => {
+  const call = await adapter(false, true).prepare([...command.split(' '), 'Old', '--name', 'New', '--confirm'], reference)
+  expect(call.write?.checkArgs).toEqual([group, 'list', '--limit', '100'])
+  const recovery = await adapter().prepare(call.write!.checkArgs, reference)
+  expect(recovery.effect).toBe('read')
+  expect(recovery.args).toEqual([group, 'list', '--limit=100'])
 })
 
 test.each(fixedSchemaLists)('%s list refuses unsupported field projection', command => {
