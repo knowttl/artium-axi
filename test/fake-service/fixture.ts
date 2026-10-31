@@ -10,14 +10,17 @@ export async function withFakeService(check: (fixture: {
   directory: string
   port: number
   send: (path: string, method?: string, trusted?: boolean) => Promise<string>
-}) => Promise<void>) {
+}) => Promise<void>, onHeldRequest?: () => void) {
   const root = fileURLToPath(new URL('../../', import.meta.url))
   const directory = mkdtempSync(join(root, '.tmp-tls-'))
   let child: ReturnType<typeof spawn> | undefined
   try {
     createTestCertificates(directory, ['localhost'])
     child = spawn(process.execPath, [join(root, 'test/fake-service/server.mjs'), directory, '0'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    })
+    child.on('message', message => {
+      if (message === 'held-request') onHeldRequest?.()
     })
     const [chunk] = await once(child.stdout!, 'data', { signal: AbortSignal.timeout(3000) })
     const port = Number(chunk.toString().trim().split(' ')[1])

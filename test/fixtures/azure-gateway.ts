@@ -13,6 +13,7 @@ import { FakeTokenTransport, azureTestTenant } from './azure-token-transport.js'
 import { issueTestAccessToken, seedToolUser } from './tokens.js'
 
 export const subscription = '44444444-4444-4444-8444-444444444444'
+export const azureGatewayTimeoutMs = 5000
 
 export function hostedArgs(command: string): string[] {
   const tokens = command.match(/'[^']*'|[^\s]+/g)!.map(token => token.startsWith("'") ? token.slice(1, -1) : token)
@@ -24,7 +25,7 @@ export async function withAzureGateway(check: (fixture: {
   run: (args: string[], input?: { stdin: string }) => Promise<{ statusCode: number, json(): unknown }>
   send: (path: string) => Promise<string>
   db: ReturnType<typeof openStore>
-}) => Promise<void>, outcome: 'hold' | '504' | 'drop' = 'hold') {
+}) => Promise<void>, outcome: 'hold' | '504' | 'drop' = 'hold', onHeldRequest?: () => void) {
   await withFakeService(async ({ directory, port, send }) => {
     const db = openStore(join(directory, 'artium.db'),
       new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
@@ -40,7 +41,7 @@ export async function withAzureGateway(check: (fixture: {
         args: ['--import', fileURLToPath(new URL('../fake-service/azure-transport.mjs', import.meta.url)),
           fileURLToPath(new URL('../../tools/node_modules/@knowttl/az-axi/dist/bin/az-axi.js', import.meta.url)), ...call.args],
         // Include child startup under parallel suite load before timing out a held response.
-        fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: 5000 },
+        fileArguments: call.fileArguments?.map(index => index + 3), limits: { timeoutMs: azureGatewayTimeoutMs },
         environment: { ...call.environment, NODE_EXTRA_CA_CERTS: join(directory, 'ca.crt'),
           ARTIUM_TEST_AZURE_OUTCOME: outcome,
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
@@ -57,5 +58,5 @@ export async function withAzureGateway(check: (fixture: {
       await app.close()
       db.close()
     }
-  })
+  }, onHeldRequest)
 }

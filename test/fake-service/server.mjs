@@ -502,6 +502,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       req.on('end', () => {
         mutations++
         resources.set(target, { id: target, properties: { status: 'Resolved' } })
+        process.send?.('held-request')
       })
     } else res.end(JSON.stringify(resources.get(target) ?? { id: target, properties: { status: 'Active' } }))
   } else if (url.pathname.endsWith('/providers/Microsoft.OperationalInsights/workspaces') && url.pathname.includes('44444444-4444-4444-8444-444444444444')) {
@@ -524,6 +525,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(504)
           res.end(JSON.stringify({ error: { code: 'GatewayTimeout' } }))
         }
+        if (req.headers['x-artium-test-outcome'] === 'hold') process.send?.('held-request')
       })
     } else if (url.pathname.endsWith('/comments')) {
       res.end(JSON.stringify({ value: [...resources.values()].filter(resource => resource.id.startsWith(url.pathname + '/')) }))
@@ -542,6 +544,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       req.on('end', () => {
         mutations++
         resources.set(url.pathname, { id: url.pathname, ...JSON.parse(body) })
+        process.send?.('held-request')
       })
     } else if (resources.has(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname)))
     else if (url.pathname.includes('/securityRules/')) {
@@ -558,6 +561,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const value = JSON.parse(body)
         resources.set(url.pathname, value.properties?.tags ? { properties: { tags: value.properties.tags } } : value)
       }
+      process.send?.('held-request')
     })
   } else if (resources.has(url.pathname)) {
     res.end(JSON.stringify(resources.get(url.pathname)))

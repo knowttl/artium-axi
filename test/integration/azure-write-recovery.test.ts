@@ -1,13 +1,23 @@
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { errorResponseSchema, runSuccessSchema } from '../../src/shared/api.js'
 import { decode } from '@toon-format/toon'
-import { hostedArgs, subscription, withAzureGateway } from '../fixtures/azure-gateway.js'
+import { azureGatewayTimeoutMs, hostedArgs, subscription, withAzureGateway } from '../fixtures/azure-gateway.js'
 
 const apiTarget = `/subscriptions/${subscription}/resourceGroups/runner-timeout-api`
 const nativeTarget = `/subscriptions/${subscription}/resourceGroups/runner-timeout-native`
 const readTarget = `/subscriptions/${subscription}/resourceGroups/runner-timeout-read`
 const incidentId = '11111111-1111-4111-8111-111111111111'
 const incidentTarget = `/subscriptions/${subscription}/resourceGroups/runner-timeout-recovery/providers/Microsoft.OperationalInsights/workspaces/synthetic workspace/providers/Microsoft.SecurityInsights/incidents/${incidentId}`
+
+async function withRecoveryGateway(check: Parameters<typeof withAzureGateway>[0]) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  try {
+    // The real service has applied the request and withheld its response before the runner deadline fires.
+    await withAzureGateway(check, 'hold', () => vi.advanceTimersByTime(azureGatewayTimeoutMs))
+  } finally {
+    vi.useRealTimers()
+  }
+}
 
 test('an Azure executed no-op is audited as a read', async () => {
   await withAzureGateway(async ({ run, send, db }) => {
@@ -37,7 +47,7 @@ test.each([
     code: 'TIMEOUT', path: readTarget, mutations: 0, method: 'GET', operation: 'exceeded its timeout',
     guidance: 'Check the tool status before retrying.', check: ['sub', 'list'] },
 ])('$name preserves its outcome when the fake service holds its response', async ({ args, code, path, mutations, method, operation, guidance, check }) => {
-  await withAzureGateway(async ({ run, send, db }) => {
+  await withRecoveryGateway(async ({ run, send, db }) => {
       const response = await run(args)
       expect(response.statusCode).toBe(504)
       const error = errorResponseSchema.parse(response.json()).error
@@ -64,7 +74,7 @@ test.each([
   { name: 'subscription alert', args: ['security', 'alert', 'update', '-s', subscription, '-l', ' synthetic location ',
     '-n', ' runner-timeout-alert ', '--status', 'resolve', '--execute'], state: { properties: { status: 'Resolved' } } },
 ])('$name recovery exposes the applied state', async ({ args, state }) => {
-  await withAzureGateway(async ({ run, send }) => {
+  await withRecoveryGateway(async ({ run, send }) => {
     const response = await run(args)
     expect(response.statusCode).toBe(504)
     const error = errorResponseSchema.parse(response.json()).error
@@ -83,7 +93,7 @@ test.each([
   ['--ids', ` ${incidentTarget} `],
   ['--incident-id', ` ${incidentId} `, '-g', ' runner-timeout-recovery ', '--workspace-name', ' synthetic workspace '],
 ].map(selectors => [selectors]))('comment recovery exposes the applied comment for %j', async selectors => {
-  await withAzureGateway(async ({ run, send }) => {
+  await withRecoveryGateway(async ({ run, send }) => {
     const response = await run(['sentinel', 'incident', 'comment', 'create', '-s', subscription,
       ...selectors, '--message', 'synthetic applied comment', '--execute'])
     expect(response.statusCode, JSON.stringify({ selectors, response: response.json() })).toBe(504)
@@ -110,7 +120,7 @@ test.each([
   { selectors: ['--ids', ` ${incidentTarget} `], owner: incidentId, expectedOwner: { objectId: incidentId } },
   { selectors: ['--name', ` ${incidentId} `, '-g', ' runner-timeout-recovery ', '--workspace-name', ' synthetic workspace '], owner: incidentId, expectedOwner: { objectId: incidentId } },
 ])('incident recovery exposes every changed field for $selectors and $owner', async ({ selectors, owner, expectedOwner }) => {
-  await withAzureGateway(async ({ run, send }) => {
+  await withRecoveryGateway(async ({ run, send }) => {
     const comment = 'synthetic classification '.repeat(160) + 'synthetic tail'
     const response = await run(['sentinel', 'incident', 'update', '-s', subscription, ...selectors,
       '--status', 'Closed', '--severity', 'High', '--classification', 'TruePositive',
@@ -146,7 +156,7 @@ test.each([
     expected: { sourcePortRanges: ['1000-2000', '3000'], sourceAddressPrefixes: ['10.0.0.0/24', '10.2.0.0/24'],
       destinationPortRanges: ['443', '8443'], destinationAddressPrefixes: ['10.1.0.0/24', '10.3.0.0/24'] } },
 ])('rule recovery exposes every changed field for $selectors', async ({ selectors, sourcePorts, sourceAddresses, destinationPorts, destinationAddresses, expected }) => {
-  await withAzureGateway(async ({ run, send }) => {
+  await withRecoveryGateway(async ({ run, send }) => {
     const response = await run(['network', 'nsg', 'rule', 'create', '-s', subscription, ...selectors,
       '-n', 'synthetic-rule', '--priority', '123', '--direction', 'Outbound', '--access', 'Deny', '--protocol', 'Tcp',
       '--source-address-prefixes', ...sourceAddresses, '--source-port-ranges', ...sourcePorts,
@@ -167,7 +177,7 @@ test.each([
 })
 
 test('API runner timeout recovery exposes the complete long changed value', async () => {
-  await withAzureGateway(async ({ run, send }) => {
+  await withRecoveryGateway(async ({ run, send }) => {
     const value = 'synthetic classification '.repeat(200)
     const response = await run(['api', 'PUT', incidentTarget, '--api-version', '2025-09-01', '--execute'],
       { stdin: JSON.stringify({ properties: { classificationComment: value } }) })
