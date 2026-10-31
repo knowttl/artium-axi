@@ -364,7 +364,8 @@ For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspecti
 Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
-Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE`, `UPSTREAM_ERROR` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
+Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
+Generic `UPSTREAM_ERROR` failures retain the tool's redacted diagnostic text and use the ordinary authentication, network or tool-failure classification.
 For Check Point schema-validation failures, `RESPONSE_INVALID` names the failing JSON path and received type without response values, for example `$.responseData[0].entityPayload.subject: object`.
 For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded `shape` report containing JSON paths and value types, bounded validator `issuePaths`, and matching `issues` annotations, never response values or validation-library error text.
 Each issue annotation includes `path`, `received` and `expected` types (`unknown` when the expected type is unavailable or outside the safe type vocabulary), plus the Zod `code` when recognized.
