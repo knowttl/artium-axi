@@ -52,6 +52,9 @@ GitHub PR details support field selection, for example `artium-axi gh-axi pr vie
 The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
 
 For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned upstream commands and flags with the reviewed Artium boundary.
+Ordinary create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes require administrator `allowConfigurationWrites` plus `--confirm` and AWX resource permission.
+This control defaults off and is separate from operational `allowWrites`; use `--dry-run` for a preview when enabled.
+Credentials, secret input, files/stdin, deletes, removals, bulk and security administration remain blocked.
 See its [scope and managed equivalents](awx-parity.md) for client-local exceptions and planned delivery slices, and the [write boundary](safety.md#write-gates-by-tool) for current permissions.
 
 ## Check Point Email Security

@@ -323,7 +323,7 @@
       "--limit",
       "1"
     ],
-    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the HTTPS origin and token. Operational writes require administrator allowWrites and --confirm. Configuration, deletion and security writes are blocked. No stdin or files. Use job watch --timeout 50 or less.\n"
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm. Ordinary configuration create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes require separate allowConfigurationWrites and --confirm. AWX permissions still apply. Credentials, secret input, files/stdin, deletes, removals, bulk and security administration stay blocked. Use job watch --timeout 50 or less.\n"
   },
   "suggestionFields": [
     "help"
@@ -540,7 +540,7 @@
     },
     {
       "command": "template instance-group-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -572,7 +572,7 @@
     },
     {
       "command": "template label-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -604,7 +604,7 @@
     },
     {
       "command": "template notification-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -638,7 +638,7 @@
     },
     {
       "command": "template create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -647,7 +647,6 @@
         "playbook": "value",
         "description": "value",
         "execution-environment": "value",
-        "extra-vars": "value",
         "limit": "value",
         "verbosity": "value",
         "job-type": "value",
@@ -663,7 +662,7 @@
     },
     {
       "command": "template edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -672,7 +671,6 @@
         "playbook": "value",
         "description": "value",
         "execution-environment": "value",
-        "extra-vars": "value",
         "limit": "value",
         "verbosity": "value",
         "job-type": "value",
@@ -703,7 +701,7 @@
     },
     {
       "command": "template copy",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -804,12 +802,11 @@
     },
     {
       "command": "workflow node-create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "template": "value",
         "inventory": "value",
-        "extra-vars": "value",
         "limit": "value",
         "scm-branch": "value",
         "job-type": "value",
@@ -828,12 +825,11 @@
     },
     {
       "command": "workflow node-edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "template": "value",
         "inventory": "value",
-        "extra-vars": "value",
         "limit": "value",
         "scm-branch": "value",
         "job-type": "value",
@@ -867,7 +863,7 @@
     },
     {
       "command": "workflow node-link",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "on": "value",
@@ -933,7 +929,7 @@
     },
     {
       "command": "workflow node-label-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -965,7 +961,7 @@
     },
     {
       "command": "workflow node-instance-group-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -997,7 +993,7 @@
     },
     {
       "command": "workflow node-add-approval",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1015,7 +1011,7 @@
     },
     {
       "command": "workflow notification-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -1049,7 +1045,7 @@
     },
     {
       "command": "workflow label-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -1081,7 +1077,7 @@
     },
     {
       "command": "workflow copy",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1097,13 +1093,12 @@
     },
     {
       "command": "workflow create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "organization": "value",
         "description": "value",
-        "extra-vars": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -1116,13 +1111,12 @@
     },
     {
       "command": "workflow edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "organization": "value",
         "description": "value",
-        "extra-vars": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -1996,7 +1990,7 @@
     },
     {
       "command": "project notification-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -2030,15 +2024,13 @@
     },
     {
       "command": "project create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "organization": "value",
         "scm-type": "value",
-        "scm-url": "value",
         "scm-branch": "value",
-        "credential": "value",
         "description": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
@@ -2052,15 +2044,13 @@
     },
     {
       "command": "project edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "organization": "value",
         "scm-type": "value",
-        "scm-url": "value",
         "scm-branch": "value",
-        "credential": "value",
         "description": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
@@ -2208,13 +2198,12 @@
     },
     {
       "command": "inventory group-create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "inventory": "value",
         "description": "value",
-        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2227,12 +2216,11 @@
     },
     {
       "command": "inventory group-edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "description": "value",
-        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2260,7 +2248,7 @@
     },
     {
       "command": "inventory group-add-host",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "host": "value",
@@ -2292,7 +2280,7 @@
     },
     {
       "command": "inventory group-add-child",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "child": "value",
@@ -2324,15 +2312,13 @@
     },
     {
       "command": "inventory source-create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "inventory": "value",
         "source": "value",
         "source-project": "value",
-        "credential": "value",
-        "source-vars": "value",
         "update-on-launch": "boolean",
         "confirm": "boolean",
         "dry-run": "boolean"
@@ -2346,14 +2332,12 @@
     },
     {
       "command": "inventory source-edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "source": "value",
         "source-project": "value",
-        "credential": "value",
-        "source-vars": "value",
         "update-on-launch": "boolean",
         "no-update-on-launch": "boolean",
         "confirm": "boolean",
@@ -2415,7 +2399,7 @@
     },
     {
       "command": "inventory source-notification-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -2449,7 +2433,7 @@
     },
     {
       "command": "inventory create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -2457,7 +2441,6 @@
         "kind": "value",
         "host-filter": "value",
         "description": "value",
-        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2470,14 +2453,13 @@
     },
     {
       "command": "inventory edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "organization": "value",
         "host-filter": "value",
         "description": "value",
-        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2522,13 +2504,12 @@
     },
     {
       "command": "inventory host-create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "inventory": "value",
         "description": "value",
-        "variables": "value",
         "enabled": "boolean",
         "disabled": "boolean",
         "confirm": "boolean",
@@ -2543,13 +2524,12 @@
     },
     {
       "command": "inventory host-edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
         "inventory": "value",
         "description": "value",
-        "variables": "value",
         "enabled": "boolean",
         "disabled": "boolean",
         "confirm": "boolean",
@@ -2827,7 +2807,7 @@
     },
     {
       "command": "schedule label-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -2859,7 +2839,7 @@
     },
     {
       "command": "schedule instance-group-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -2891,7 +2871,7 @@
     },
     {
       "command": "schedule create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -2900,7 +2880,6 @@
         "description": "value",
         "inventory": "value",
         "limit": "value",
-        "extra-vars": "value",
         "job-tags": "value",
         "skip-tags": "value",
         "enabled": "boolean",
@@ -2917,7 +2896,7 @@
     },
     {
       "command": "schedule edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -2926,7 +2905,6 @@
         "description": "value",
         "inventory": "value",
         "limit": "value",
-        "extra-vars": "value",
         "job-tags": "value",
         "skip-tags": "value",
         "enabled": "boolean",

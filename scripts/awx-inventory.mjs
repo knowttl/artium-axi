@@ -25,13 +25,24 @@ const writeVerbs = /^(?:(?:host-bulk|host|group|source|node|token|credential)-)?
 const operationalWrites = ['job launch', 'job cancel', 'job relaunch', 'template launch', 'workflow launch',
   'approval approve', 'approval deny', 'project sync', 'inventory sync', 'ad-hoc launch',
   'system-job-template launch', 'system-job cancel', 'notification-template test']
+const configurationWrites = [
+  'template create', 'template edit', 'template copy', 'template instance-group-add', 'template label-add', 'template notification-add',
+  'workflow create', 'workflow edit', 'workflow copy', 'workflow node-create', 'workflow node-edit', 'workflow node-link',
+  'workflow node-label-add', 'workflow node-instance-group-add', 'workflow node-add-approval', 'workflow notification-add', 'workflow label-add',
+  'project create', 'project edit', 'project notification-add',
+  'inventory create', 'inventory edit', 'inventory host-create', 'inventory host-edit', 'inventory group-create', 'inventory group-edit',
+  'inventory group-add-host', 'inventory group-add-child', 'inventory source-create', 'inventory source-edit', 'inventory source-notification-add',
+  'schedule create', 'schedule edit', 'schedule label-add', 'schedule instance-group-add',
+]
+const configurationBlockedFlags = new Set(['credential', 'extra-vars', 'variables', 'source-vars', 'scm-url'])
 const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const read = reads[domain.name]?.split(' ').includes(route.name)
   if (!read && !writeVerbs.test(route.name)) throw new Error(`Unclassified command: ${domain.name} ${route.name}`)
   const command = `${domain.name} ${route.name}`
-  return { command, effect: read ? 'read' : operationalWrites.includes(command) ? 'write' : 'blocked',
+  return { command, effect: read ? 'read' : operationalWrites.includes(command) ? 'write' : configurationWrites.includes(command) ? 'configuration-write' : 'blocked',
     flags: { help: 'boolean', ...Object.fromEntries(route.flags
-      .filter(flag => flag.name !== 'fields'
+      .filter(flag => !(configurationWrites.includes(command) && (configurationBlockedFlags.has(flag.name) || flag.name.endsWith('-file')))
+        && flag.name !== 'fields'
         && (command !== 'job stdout' || !['download', 'full', 'ansi'].includes(flag.name))
         && (command !== 'job events' || flag.name !== 'type'))
       .map(flag => [flag.name, flag.takesValue ? 'value' : 'boolean'])) },
@@ -53,7 +64,7 @@ const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin
     nativeWrites: 'host-classified', inputs: { stdin: 'unsupported', files: 'unsupported' } },
   discovery: { commands: [...DOMAINS.map(domain => domain.name), 'auth status', 'doctor'],
     example: ['job', 'list', '--limit', '1'],
-    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the HTTPS origin and token. Operational writes require administrator allowWrites and --confirm. Configuration, deletion and security writes are blocked. No stdin or files. Use job watch --timeout 50 or less.\n' },
+    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm. Ordinary configuration create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes require separate allowConfigurationWrites and --confirm. AWX permissions still apply. Credentials, secret input, files/stdin, deletes, removals, bulk and security administration stay blocked. Use job watch --timeout 50 or less.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const outputs = [['inventories/awx-axi.json', JSON.stringify(data, null, 2) + '\n'], ['skills/awx-axi/SKILL.md', skill]]
 for (const [path, contents] of outputs) {

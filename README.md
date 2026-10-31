@@ -84,7 +84,7 @@ Write capabilities below require administrator opt-in.
 | LDAP | Directory investigation over verified TLS | Read-only | [Credentials](docs/tool-credentials.md#ldap) |
 | Azure DevOps | Organization and project workflows | Reads; reviewed writes; API writes on server-listed paths (TD-067) | [Credentials](docs/tool-credentials.md#azure-devops) |
 | GitHub | Repository investigation and collaboration | Reads; selected writes | [Credentials](docs/tool-credentials.md#github) |
-| AWX | Jobs, workflows and operational actions | Reads; selected writes | [Credentials](docs/tool-credentials.md#awx) |
+| AWX | Jobs, workflows, operational actions and ordinary resource configuration | Reads; separate operational and configuration write controls | [Credentials](docs/tool-credentials.md#awx) |
 | Tenable One | Exposure investigation and export jobs | Reads; selected writes | [Credentials](docs/tool-credentials.md#tenable-one) |
 | Hybrid Analysis | Sandbox investigations, YARA and archives | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#hybrid-analysis) |
 | Check Point Email Security | Email investigation and response | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#check-point-email-security) |

@@ -8,7 +8,7 @@ type WriteUpdate = z.infer<typeof writeAccessInputSchema>
 
 // Adapters own the native shape and capability boundary; callers only see normalized state.
 export function writePolicy(options: {
-  allowDeletes?: boolean, reason?: string, supportedOperations?: readonly string[], unlocks: string, blocked: string,
+  allowDeletes?: boolean, allowConfigurationWrites?: boolean, reason?: string, supportedOperations?: readonly string[], unlocks: string, blocked: string,
 }) {
   const supportedOperations = options.supportedOperations
   function read(settings: Settings): WriteState {
@@ -19,10 +19,12 @@ export function writePolicy(options: {
   }
   return { read, update(settings: Settings, input: WriteUpdate): Settings {
     if (input.allowDeletes !== undefined && !options.allowDeletes) throw new ArtiumError('INVALID_INPUT', 'This tool does not use a delete grant.')
+    if (input.allowConfigurationWrites !== undefined && !options.allowConfigurationWrites) throw new ArtiumError('INVALID_INPUT', 'This tool does not use a configuration write grant.')
     if (options.reason) throw new ArtiumError('INVALID_INPUT', options.reason)
     if (!supportedOperations) {
       if (input.operations !== undefined) throw new ArtiumError('INVALID_INPUT', 'This tool does not use an operations allow-list.')
-      return { ...settings, allowWrites: input.enabled }
+      return { ...settings, allowWrites: input.enabled,
+        ...(input.allowConfigurationWrites !== undefined ? { allowConfigurationWrites: input.allowConfigurationWrites } : {}) }
     }
     const operations = input.operations ?? read(settings).allowedOperations
     if ((input.enabled || input.operations !== undefined) && operations.some(operation => !supportedOperations.includes(operation))) {

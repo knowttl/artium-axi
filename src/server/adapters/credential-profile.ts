@@ -109,6 +109,8 @@ export class CredentialProfile {
       delete this.inputSchema.if
       delete this.inputSchema.else
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow operational writes' }
+      this.inputSchema.properties.allowConfigurationWrites = { type: 'boolean', title: 'Allow ordinary AWX configuration writes',
+        description: 'Create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes. Requires --confirm and AWX permission. Credentials, secret input, deletes, removals, bulk and security administration stay blocked.' }
       this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
         if: { required: ['signIn'], properties: { signIn: { const: 'password' } } },
         then: { required: ['username', 'password'], not: { anyOf: [{ required: ['token'] }] } },
@@ -245,6 +247,7 @@ export class CredentialProfile {
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
+    if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
     const environment: Record<string, string> = {}
     if (tool === 'beyondtrust-axi') environment.BEYONDTRUST_AXI_CONFIG = '/proc/self/cwd/beyondtrust-axi/config.json'

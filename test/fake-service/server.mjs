@@ -10,6 +10,7 @@ const requests = []
 const resources = new Map()
 let mutations = 0
 let basicAuthEnabled = true
+let awxConfigurationAllowed = true
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
 const certs = process.argv[2] ?? '/certs'
@@ -94,11 +95,17 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     requests.length = 0
     mutations = 0
     basicAuthEnabled = true
+    awxConfigurationAllowed = true
     res.end('{}')
     return
   }
   if (url.pathname === '/__awx/basic-auth' && req.method === 'POST') {
     basicAuthEnabled = url.searchParams.get('enabled') !== 'false'
+    res.end('{}')
+    return
+  }
+  if (url.pathname === '/__awx/configuration-permission' && req.method === 'POST') {
+    awxConfigurationAllowed = url.searchParams.get('enabled') !== 'false'
     res.end('{}')
     return
   }
@@ -177,8 +184,27 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   if (url.pathname.startsWith('/api/v2/')) {
     const authorization = req.headers.authorization
     const canaryReceived = authorization === 'Bearer CANARY-awx-token' || authorization === 'Bearer CANARY-awx-minted-token'
-    requests.push({ method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived })
+    const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
+    requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules)\//.test(url.pathname)
+    if (configurationPath && ['POST', 'PATCH'].includes(req.method)) {
+      let body = ''
+      req.setEncoding('utf8')
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        const payload = JSON.parse(body || '{}')
+        recorded.body = payload
+        if (!awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        mutations++
+        const path = req.method === 'PATCH' ? url.pathname : `${url.pathname}42/`
+        const resource = { id: 42, ...resources.get(path), ...payload }
+        resources.set(path, resource)
+        res.writeHead(req.method === 'PATCH' ? 200 : 201)
+        res.end(JSON.stringify(resource))
+      })
+      return
+    }
     if (req.method !== 'GET') {
       mutations++
       if (url.pathname === '/api/v2/jobs/42/cancel/') { res.writeHead(202); res.end('{}'); return }
@@ -191,6 +217,15 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     }
     if (url.pathname === '/api/v2/unified_jobs/' || url.pathname === '/api/v2/jobs/') {
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
+    }
+    if (configurationPath && req.method === 'GET') {
+      if (/\/\d+\/$/.test(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname) ?? { id: 42, name: 'Synthetic resource' }))
+      else {
+        const rows = [...resources.entries()].filter(([path]) => path.startsWith(url.pathname) && /^\d+\/$/.test(path.slice(url.pathname.length)))
+          .map(([, value]) => value).filter(value => !url.searchParams.has('name') || value.name === url.searchParams.get('name'))
+        res.end(JSON.stringify({ count: rows.length, next: null, results: rows }))
+      }
+      return
     }
     res.end(JSON.stringify({ count: 0, next: null, results: [] }))
     return
