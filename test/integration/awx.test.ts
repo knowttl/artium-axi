@@ -274,10 +274,15 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
       expect(later.every((request: { auth: string, canaryReceived: boolean }) => request.auth === 'Bearer' && request.canaryReceived)).toBe(true)
       await send('/__awx/basic-auth?enabled=false', 'POST')
       const stored = minted
-      const denied = await save('PATCH', { origin, signIn: 'password', username, password })
+      const denied = await save(initialMethod, { origin, signIn: 'password', username, password })
       expect(denied.statusCode, denied.body).toBe(503)
-      expect(denied.json().error.message).toContain('basic authentication disabled')
-      expect(denied.json().error.next).toContain('Paste an existing personal access token')
+      // Regression #236: AWX's Bearer challenge does not establish whether Basic authentication is enabled.
+      expect(denied.json()).toMatchObject({ error: {
+        code: 'UPSTREAM_AUTH_FAILED',
+        message: 'Controller authentication failed. The credentials may be incorrect or the authentication configuration may not support password sign-in.',
+        next: 'Check the credentials and controller authentication configuration, or paste an existing personal access token.',
+      } })
+      expect(denied.body).not.toContain('disabled')
       absent(denied.body)
       expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin, token: stored })
       const staleInspection = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })

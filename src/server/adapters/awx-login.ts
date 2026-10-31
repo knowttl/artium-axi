@@ -36,20 +36,12 @@ function failure(code: ErrorCode, message: string, next: string, secrets: readon
   return error
 }
 
-function offersBasic(header: string | null): boolean {
-  return header !== null && /(^|,)\s*basic(?:\s|=|$)/i.test(header)
-}
-
-function statusFailure(status: number, authenticate: string | null, secrets: readonly string[], host: string): ArtiumError {
+function statusFailure(status: number, secrets: readonly string[], host: string): ArtiumError {
   const diagnostic = { stage: 'token acquisition' as const, ...(host ? { host } : {}) }
-  if (status === 401 && !offersBasic(authenticate)) return failure('UPSTREAM_AUTH_FAILED',
-    'This controller has basic authentication disabled, so a username and password cannot mint a token.',
-    'Paste an existing personal access token instead.', secrets,
-    { ...diagnostic, message: 'The controller did not offer basic authentication.' })
   if (status === 401) return failure('UPSTREAM_AUTH_FAILED',
-    'The controller rejected the username or password.',
-    'Check the username and password, or paste an existing personal access token.', secrets,
-    { ...diagnostic, message: 'The controller rejected the username or password.' })
+    'Controller authentication failed. The credentials may be incorrect or the authentication configuration may not support password sign-in.',
+    'Check the credentials and controller authentication configuration, or paste an existing personal access token.', secrets,
+    { ...diagnostic, message: 'The controller rejected authentication.' })
   if (status === 403) return failure('UPSTREAM_AUTH_FAILED',
     'The controller refused to mint a personal access token.',
     'Check that this account may create tokens, or paste an existing personal access token.', secrets,
@@ -124,7 +116,7 @@ export async function exchangeAwxPassword(value: Record<string, unknown>, trust:
       signal: controller.signal,
     }, trust)
     const text = await response.text()
-    if (response.status !== 201) throw statusFailure(response.status, response.headers.get('www-authenticate'), secrets, host)
+    if (response.status !== 201) throw statusFailure(response.status, secrets, host)
     let parsed: unknown
     try { parsed = JSON.parse(text) } catch { parsed = undefined }
     const record = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
