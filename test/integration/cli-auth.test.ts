@@ -1,10 +1,11 @@
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { hashToken } from '../../src/server/auth/tokens.js'
@@ -30,11 +31,10 @@ let store: SessionStore
 let bundle: string
 const startingPassword = 'CANARY-local-password'
 const newPassword = 'CANARY-new-password'
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-cli-auth-'))
   bundle = join(directory, 'artium-axi.mjs')
-  copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  copyClientInput('bundle', bundle)
   db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
   await seedToolUser(db)
   const runner = await Runner.create(join(directory, 'calls'))

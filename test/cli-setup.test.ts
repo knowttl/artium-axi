@@ -1,4 +1,4 @@
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { copyClientInput } from './fixtures/client-inputs.js'
 import { Client } from '../src/cli/http.js'
 import { setup } from '../src/cli/setup.js'
 import { SessionStore } from '../src/cli/session.js'
@@ -32,8 +33,7 @@ const server = createServer((request, reply) => {
     content: loadToolSkill(name, name === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : name === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : name === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : name === 'ado-axi' ? 'tools/node_modules/@knowttl/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${name}/skills/${name}/SKILL.md`) })) }))
 })
 beforeAll(async () => {
-  execFileSync(process.execPath, ['scripts/build-cli.mjs'])
-  copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  copyClientInput('bundle', bundle)
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   url = `http://127.0.0.1:${(server.address() as { port: number }).port}`

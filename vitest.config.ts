@@ -8,6 +8,7 @@ export default defineConfig({
     // Real password hashing and child processes need headroom under concurrent load.
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    globalSetup: ['test/fixtures/client-inputs-setup.ts'],
     projects: [
       { extends: true, test: { name: 'unit', include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
         exclude: [...configDefaults.exclude, 'test/integration/**'] } },

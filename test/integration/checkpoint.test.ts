@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { mkdir, readdir, stat } from 'node:fs/promises'
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
-import { beforeAll, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 import { createApp } from '../../src/server/app.js'
 import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js'
 import type { PreparedCall } from '../../src/server/adapters/types.js'
@@ -23,8 +24,6 @@ import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
-
 async function withCheckpoint(check: (fixture: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, directory: string,
   post: (path: string, body?: unknown) => Promise<Response>,
@@ -33,6 +32,7 @@ async function withCheckpoint(check: (fixture: {
   evidence: () => Promise<{ requests: { path: string, canaryReceived: boolean }[], mutations: number }>,
 }) => Promise<void>) {
   await withFakeService(async ({ directory, port, send }) => {
+    const bundle = copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
     const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), key)
     const credentials = createCredentialStore(db, key)
@@ -66,7 +66,7 @@ async function withCheckpoint(check: (fixture: {
     const post = (path: string, body: unknown = {}) => fetch(url + path, { method: 'POST', headers, body: JSON.stringify(body) })
     const settings = async () => (await fetch(url + '/v1/admin/tools/checkpoint-axi', { headers })).json()
     const cli = async (args: string[]) => {
-      const child = spawn(process.execPath, [join(process.cwd(), 'dist/cli/artium-axi.mjs'), 'download', ...args, '--password-stdin'],
+      const child = spawn(process.execPath, [bundle, 'download', ...args, '--password-stdin'],
         { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory }, stdio: ['pipe', 'pipe', 'pipe'] })
       let stdout = ''
       let stderr = ''

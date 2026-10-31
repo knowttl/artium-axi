@@ -5,6 +5,7 @@ import type { Writable, Readable } from 'node:stream'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 import { toolInput } from '../../src/cli/input.js'
 import { createApp } from '../../src/server/app.js'
 import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
@@ -23,6 +24,7 @@ import { seedToolUser } from '../fixtures/tokens.js'
 
 test('managed Hybrid Analysis reads and native guarded writes use the published CLI with synthetic credentials', async () => {
   await withFakeService(async ({ directory, port, send }) => {
+    const bundle = copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     const store = createCredentialStore(db, provider)
@@ -149,7 +151,7 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       } })).statusCode).toBe(401)
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const cli = async (args: string[]) => {
-        const child = spawn(process.execPath, [join(process.cwd(), 'dist/cli/artium-axi.mjs'), '--managed-session', 'download', ...args, '--password-stdin'],
+        const child = spawn(process.execPath, [bundle, '--managed-session', 'download', ...args, '--password-stdin'],
           { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }, stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] })
         let stdout = ''
         let stderr = ''

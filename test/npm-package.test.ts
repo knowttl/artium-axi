@@ -3,9 +3,10 @@ import { once } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from 'vitest'
+import { copyClientInput } from './fixtures/client-inputs.js'
 import { SessionStore } from '../src/cli/session.js'
 import { cliVersion } from '../src/shared/version.js'
 
@@ -22,12 +23,15 @@ test('npm tarball installs an offline client and sets up its embedded skill with
     reply.end(JSON.stringify({ skills: [] }))
   })
   try {
-    execFileSync(process.execPath, ['scripts/build-npm.mjs'])
-    const [packed] = JSON.parse(execFileSync('npm', ['pack', resolve('dist/npm'), '--json', '--pack-destination', directory], { encoding: 'utf8' }))
-    expect(packed.files.map((file: { path: string }) => file.path).sort()).toEqual([
+    const tarball = copyClientInput('tarball', join(directory, 'client.tgz'))
+    const files = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' })
+      .trim().split('\n').map(path => path.replace(/^package\//, '')).sort()
+    expect(files).toEqual([
       'LICENSE', 'NOTICE', 'README.md', 'bin/artium-axi.mjs', 'package.json', 'skill/artium-axi/SKILL.md',
     ])
-    execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', directory, join(directory, packed.filename)])
+    execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', directory,
+      '--cache', join(directory, 'cache'), tarball],
+    { env: { PATH: process.env.PATH, HOME: directory, NPM_CONFIG_UPDATE_NOTIFIER: 'false' } })
     const executable = join(directory, 'node_modules', '.bin', 'artium-axi')
     server.listen(0, '127.0.0.1')
     await once(server, 'listening')

@@ -1,4 +1,4 @@
-import { execFile, execFileSync, fork, spawn } from 'node:child_process'
+import { execFile, fork, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
 import { EventEmitter, once } from 'node:events'
@@ -13,6 +13,7 @@ import type { TLSSocket } from 'node:tls'
 import { build } from 'esbuild'
 import { decode } from '@toon-format/toon'
 import { afterAll, beforeAll, expect, test } from 'vitest'
+import { copyClientInput } from './fixtures/client-inputs.js'
 import { createTestCertificates } from './fake-service/certificates.mjs'
 import { SessionStore } from '../src/cli/session.js'
 import { Client, DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
@@ -36,8 +37,7 @@ let beforeReply: ((path: string, reply: ServerResponse) => Promise<void>) | unde
 const server = createServer()
 
 beforeAll(async () => {
-  execFileSync(process.execPath, ['scripts/build-cli.mjs'])
-  copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  copyClientInput('bundle', bundle)
   await build({ entryPoints: ['src/cli/main.ts'], outfile: expiryBundle, bundle: true,
     platform: 'node', format: 'esm', target: 'node24.11', loader: { '.md': 'text' },
     banner: { js: "Date.now = () => Date.parse('2026-01-01T08:50:00Z')" } })

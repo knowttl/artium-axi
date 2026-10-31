@@ -66,6 +66,9 @@ README and license changes also run the package journeys that copy those files.
 Freshness checks and types run for runtime changes.
 Run `pnpm test:gate --full` before every release and at least weekly during active local development to catch missing ownership relationships.
 `pnpm test` and `pnpm check` always retain the full suite, including release automation.
+Each Vitest invocation prepares the standalone CLI and npm tarball once in a unique temporary directory and removes them after the run.
+CLI and package journeys use private writable copies, install prefixes, npm caches and session directories rather than rebuilding shared `dist/` inputs.
+Preparation always rebuilds from current source and package content; it does not reuse artifacts from previous invocations.
 Selection does not waive the separate container acceptance or private hygiene requirements.
 
 ## Container acceptance

@@ -1,10 +1,11 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { decode } from '@toon-format/toon'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 import type Database from 'better-sqlite3'
 import { createApp } from '../../src/server/app.js'
 import { ArtifactStore, artifactDefaults } from '../../src/server/artifacts.js'
@@ -34,11 +35,11 @@ const selections: TransferScope['selection'][] = [
 const credential = { mode: 'application', auth: 'client-secret', clientSecret: 'CANARY-graph-secret',
   tenantId: '00000000-0000-0000-0000-000000000001', clientId: '00000000-0000-0000-0000-000000000002' }
 const settings = { enabledPacks: ['entra', 'mail'], writes: { allowWrites: true, operations: selections.map(item => item.operation) } }
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   // Install the rejecting boundary before constructing the application.
   vi.stubGlobal('fetch', vi.fn(() => { throw new Error('Network is forbidden in this fixture') }))
   directory = await mkdtemp(join(tmpdir(), 'artium-mail-transfer-'))
+  copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
   const root = join(directory, 'artifacts')
   await mkdir(root, { mode: 0o700 })
   const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
@@ -111,7 +112,7 @@ test('bundled CLI saves and receipts Graph MIME bytes in a new private file', as
   await mkdir(join(directory, 'downloads'), { mode: 0o700 })
   const destination = join(directory, 'downloads', 'message.eml')
   const cli = async (args: string[]) => {
-    const child = spawn(process.execPath, [join(process.cwd(), 'dist/cli/artium-axi.mjs'), 'download', ...args, '--password-stdin'],
+    const child = spawn(process.execPath, [join(directory, 'artium-axi.mjs'), 'download', ...args, '--password-stdin'],
       { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory }, stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = '', stderr = ''
     child.stdout.on('data', chunk => { stdout += chunk })

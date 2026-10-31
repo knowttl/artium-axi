@@ -1,10 +1,11 @@
-import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { execFile, execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -25,7 +26,6 @@ let db: Database.Database
 let app: ReturnType<typeof createApp>
 let headers: { authorization: string }
 const loadToolSkill = toolSkills.loadToolSkill
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-skills-api-'))
   db = openStore(join(directory, 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
@@ -107,7 +107,7 @@ test('one unavailable granted skill fails the whole snapshot', async () => {
 test('the standalone CLI adds a new role grant using the same signed-in session', async () => {
   const url = await app.listen({ host: '127.0.0.1', port: 0 })
   const bundle = join(directory, 'standalone.mjs')
-  copyFileSync('dist/cli/artium-axi.mjs', bundle)
+  copyClientInput('bundle', bundle)
   new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated',
     accessToken: headers.authorization.slice('Bearer '.length), refreshToken: 'CANARY-refresh',
     accessExpiresAt: Date.now() + 3_600_000, familyExpiresAt: Date.now() + 43_200_000 })

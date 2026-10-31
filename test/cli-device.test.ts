@@ -1,4 +1,4 @@
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import { promisify } from 'node:util'
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { copyClientInput } from './fixtures/client-inputs.js'
 import { ssoLogin } from '../src/cli/device.js'
 import { Client } from '../src/cli/http.js'
 import { SessionStore } from '../src/cli/session.js'
@@ -28,9 +29,9 @@ let store: SessionStore
 const session = { status: 'authenticated', accessToken: 'CANARY-access', refreshToken: 'CANARY-refresh',
   accessExpiresAt: Date.now() + 300_000, familyExpiresAt: Date.now() + 28_800_000 }
 
-beforeAll(() => { execFileSync(process.execPath, ['scripts/build-cli.mjs']) })
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-cli-device-'))
+  copyClientInput('bundle', join(directory, 'artium-axi.mjs'))
   polls = []
   failure = 'DEVICE_POLL_LIMITED'
   serverVersion = undefined
@@ -64,7 +65,7 @@ afterEach(async () => {
 })
 
 async function login() {
-  return promisify(execFile)(process.execPath, ['dist/cli/artium-axi.mjs', 'login', '--sso'], {
+  return promisify(execFile)(process.execPath, [join(directory, 'artium-axi.mjs'), 'login', '--sso'], {
     env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' },
   })
 }

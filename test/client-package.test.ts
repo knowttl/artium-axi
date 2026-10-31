@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
+import { copyClientInput } from './fixtures/client-inputs.js'
 import { SessionStore } from '../src/cli/session.js'
 import { ArtiumError, errorResponse } from '../src/shared/errors.js'
 import { cliVersion } from '../src/shared/version.js'
@@ -24,6 +25,8 @@ const server = createServer((request, reply) => {
   if (request.url === '/v1/auth/login') {
     reply.end(JSON.stringify({ status: 'authenticated', accessToken: 'CANARY-package-access', refreshToken: 'CANARY-package-refresh',
       accessExpiresAt: Date.now() + 3_600_000, familyExpiresAt: Date.now() + 43_200_000 }))
+  } else if (request.url === '/v1/auth/logout' && request.headers.authorization === 'Bearer CANARY-package-refresh') {
+    reply.writeHead(204).end()
   } else if (request.headers.authorization !== 'Bearer CANARY-package-access') {
     reply.writeHead(401).end(JSON.stringify(errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-request')))
   } else if (request.url === '/v1/skills') reply.end(JSON.stringify({ skills: [] }))
@@ -34,12 +37,11 @@ const server = createServer((request, reply) => {
 })
 
 beforeAll(async () => {
-  execFileSync(process.execPath, ['scripts/build-npm.mjs'])
   const npmEnv = { PATH: process.env.PATH, HOME: directory, NPM_CONFIG_OFFLINE: 'true', NPM_CONFIG_UPDATE_NOTIFIER: 'false' }
-  const packed = JSON.parse(execFileSync('npm', ['pack', './dist/npm', '--json', '--pack-destination', directory], { encoding: 'utf8', env: npmEnv }))[0]
+  const tarball = copyClientInput('tarball', join(directory, 'client.tgz'))
   const prefix = join(directory, 'install')
   execFileSync('npm', ['install', '--global', '--prefix', prefix, '--offline', '--ignore-scripts', '--no-audit', '--no-fund',
-    '--cache', join(directory, 'cache'), join(directory, packed.filename)],
+    '--cache', join(directory, 'cache'), tarball],
   { env: npmEnv, encoding: 'utf8' })
   binary = join(prefix, 'bin/artium-axi')
   server.listen(0, '127.0.0.1')
@@ -133,6 +135,27 @@ test('clean offline package install signs in and discovers with saved connection
   expect(home.stdout).toContain('az-axi,ok,"synthetic",true')
   expect((await run(['tools'], saved)).stdout).toContain('az-axi,ok,"synthetic",true')
   expect(readdirSync(env.HOME)).toEqual(['config'])
+})
+
+test('private package installs and sessions survive another consumers edits and logout', async () => {
+  const other = mkdtempSync(join(directory, 'consumer-'))
+  const tarball = copyClientInput('tarball', join(other, 'client.tgz'))
+  execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund',
+    '--prefix', other, '--cache', join(other, 'cache'), tarball],
+  { env: { PATH: process.env.PATH, HOME: other, NPM_CONFIG_UPDATE_NOTIFIER: 'false' }, encoding: 'utf8' })
+  const executable = join(other, 'node_modules/.bin/artium-axi')
+  const first = signedIn()
+  const second = signedIn()
+  writeFileSync(tarball, 'private tarball edit')
+  writeFileSync(join(directory, 'client.tgz'), 'another private tarball edit')
+  expect(await run(['logout'], first)).toEqual({ code: 0, stderr: '',
+    stdout: 'status: logged-out\nremoteRevocation: verified\n' })
+  expect(await run(['--version'], second, executable)).toEqual({ code: 0, stdout: `${cliVersion}\n`, stderr: '' })
+  expect(await run(['tools'], second, executable)).toMatchObject({ code: 0,
+    stdout: expect.stringContaining('az-axi,ok,"synthetic",true') })
+  const fresh = copyClientInput('tarball', join(other, 'fresh.tgz'))
+  expect(JSON.parse(execFileSync('tar', ['-xOzf', fresh, 'package/package.json'], { encoding: 'utf8' })))
+    .toMatchObject({ name: '@knowttl/artium-axi', version: cliVersion })
 })
 
 test.each(['claude', 'codex', 'opencode'])('%s ambient integration executes current grants and discloses authentication and offline failures', async host => {
