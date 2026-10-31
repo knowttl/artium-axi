@@ -3,7 +3,7 @@ no_ci: true
 
 commands:
   prepare: "CI=true pnpm install --frozen-lockfile"
-  test: "pnpm test"
+  test: "pnpm test:gate"
   lint: "pnpm lint"
 
 auto_fix:
@@ -44,7 +44,9 @@ test:
   evidence:
     attach_media: false
   instructions: |
-    The configured pnpm test command runs the full real local suite once as the baseline.
+    The configured pnpm test:gate command records its base, input identity, selected files and reasons, then runs affected checks or the conservative full fallback once as the baseline.
+    Require pnpm test:gate --full before releases and at least weekly for local validation; pnpm test and pnpm check retain the full suite.
+    After repairs, rerun pnpm test:gate against the complete base-to-candidate diff; never validate only the last repair.
     Use targeted public CLI, API and browser flows for additional evidence only when needed.
     Reuse baseline evidence instead of rerunning the unchanged full suite.
     Use only fakes, synthetic identities and canary credentials during implementation.
