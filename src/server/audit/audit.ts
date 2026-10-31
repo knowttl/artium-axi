@@ -22,6 +22,7 @@ type Outcome = 'success' | 'failure' | ErrorCode
 type Arguments = { args: readonly string[], sensitive: SensitiveArguments }
 type CredentialTestEvidence = { checkedAt: number | null, credentialRevision: number | null, errorCode: ErrorCode | null }
 export type AuditEvent = Context & (
+  | ({ event: 'upload', outcome: 'success', file: { name: string, size: number, sha256: string } } & Arguments)
   | { event: 'transfer', outcome: z.infer<typeof transferOutcomeSchema>, credentialRevision: number,
     transfer: z.infer<typeof transferAuditSchema> }
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
@@ -220,7 +221,8 @@ export class Audit {
       ? event : undefined
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
-      arguments: event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
+      arguments: event.event === 'upload' ? JSON.stringify({ command: redactArguments(event.args, event.sensitive), file: event.file }) :
+        event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
         event.event === 'tool-write-access' ? JSON.stringify({ enabled: event.enabled, operations: event.operations,
           ...(event.allowDeletes !== undefined ? { allowDeletes: event.allowDeletes } : {}),
           unsupportedOperationCount: event.unsupportedOperationCount }) :

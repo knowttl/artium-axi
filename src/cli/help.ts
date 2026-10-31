@@ -4,6 +4,7 @@ import falcon from '../../tools/inventories/falcon-axi.json' with { type: 'json'
 import vectra from '../../tools/inventories/vectra-axi.json' with { type: 'json' }
 import ldap from '../../tools/inventories/ldap-axi.json' with { type: 'json' }
 import { transferLimits, transferWarning } from '../shared/api.js'
+import { inputLimits } from '../shared/api.js'
 
 const commands = {
   'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
@@ -65,6 +66,7 @@ export type HelpCommand = keyof typeof commands
 export function commandHelp(command: HelpCommand): string {
   const entry = commands[command]
   const flags = [toolSchema.safeParse(command).success ? '--help before the tool name (default false)' : '--help (default false)', ...entry.flags,
+    ...(command === 'vectra-axi' ? [`Declared file flags read local files (maximum ${inputLimits.fileBytes} bytes each), including --note-file <path>; uploads are audited and deleted after the call.`] : []),
     ...(command === 'update' ? [] : ['--managed-session before the command (default false; caller-owned sessions; see artium-axi --managed-session --help)'])]
   const protocol = [
     'Session JSON on inherited pipe fd 3, new sessions and rotations as JSON lines on private pipe fd 4; no session file.',

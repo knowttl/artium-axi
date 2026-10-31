@@ -148,13 +148,21 @@ Close stdin, pass a local file with the relevant file flag, or use `--body`/`--b
 Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
+Each file travels on the existing authenticated call as `{name, size, contentBase64}`.
+The shared `inputLimits.fileBytes` cap is 1 MiB per file, enforced by the streaming client reader and independently by the server before tool execution; existing aggregate limits remain 4 MiB and eight files.
+Older API clients may omit `size`; a supplied size must match the decoded bytes.
+Only commands declaring the corresponding file flag in the reviewed inventory accept uploads; an extra upload or a file on a non-declaring command returns `UNSUPPORTED_INPUT`.
+The runner substitutes a private mode-0600 file path for the uploaded leaf argument inside a per-call mode-0700 directory, removed after success, error or cancellation.
+Every accepted upload records an `upload` audit event with user, tool, redacted command arguments, filename, byte size and SHA-256, never file contents.
+Authentication, role checks, write confirmations, redaction and call limits apply as usual.
 The API supports bounded stdin and named uploads through the [shared API contract](../src/shared/api.ts).
 GitHub writes require an administrator-enabled exact operation, then an Artium preview and `--confirm <returned-value>` on the same request.
 GitHub gist create/edit with `--filename` captures bounded piped stdin; repeat identical content when confirming.
 Other GitHub commands leave stdin unread and reject input through the API; local files are unavailable.
 See [GitHub write setup](tool-credentials.md#github) for operation tiers and recovery after `UNKNOWN_OUTCOME`.
 Vectra file inputs use named uploads through the run API, or bounded stdin where the upstream flag accepts `-`; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the accepted file flags.
-The bundled CLI does not upload Vectra files or capture Vectra stdin, and server file paths are unavailable.
+The bundled CLI uploads Vectra files through those declared flags, including `--note-file <local-path>` for long notes; it does not capture Vectra stdin, and server file paths are unavailable.
+ADO uploads remain unavailable until the ado-axi integration declares a supported command.
 Hybrid Analysis also uploads local `--file`, `--body-file` and `--hashes-file` inputs; `--body-file -` reads bounded JSON stdin.
 Its run API accepts uploaded leaf names or `-` for explicit JSON stdin with `--body-file`; server file paths are unavailable.
 Its native upload confirmation remains bound to the uploaded bytes and a stable path within the isolated Linux runner.

@@ -17,7 +17,7 @@ test.each(['create', 'update'])('mail rule %s uploads a local file as the fixed 
   writeFileSync(path, text)
   expect(await toolInput('mg-axi', ['mail', 'rule', action, `--file=${path}`])).toEqual({
     args: ['mail', 'rule', action, '--file=rule.json'],
-    files: [{ name: 'rule.json', contentBase64: Buffer.from(text).toString('base64') }],
+    files: [{ name: 'rule.json', size: Buffer.byteLength(text), contentBase64: Buffer.from(text).toString('base64') }],
   })
 })
 
@@ -109,7 +109,7 @@ test.each([
   try {
     expect(await toolInput('az-axi', [...prefix, path]))
       .toEqual({ args: [...prefix, 'query.kql'],
-        files: [{ name: 'query.kql', contentBase64: Buffer.from('Heartbeat').toString('base64') }] })
+        files: [{ name: 'query.kql', size: 9, contentBase64: Buffer.from('Heartbeat').toString('base64') }] })
     expect(reading).not.toHaveBeenCalled()
   } finally { pipe.destroy() }
 }, 1000)
@@ -146,8 +146,8 @@ test.each([
   { tool: 'az-axi', args: ['graph', 'query'], alternative: '--file' },
   { tool: 'az-axi', args: ['monitor', 'log-analytics', 'query'], alternative: '--file' },
   { tool: 'az-axi', args: ['api', 'POST', '/synthetic'], alternative: '--data' },
-  { tool: 'hybrid-axi', args: ['api', '--body-file', '-'], alternative: '--body-file' },
-  ...tenable.adapterBoundary.inputFileFlags.map(flag => ({ tool: 'tenable-axi', args: ['asset', 'list', `--${flag}`, '-'], alternative: `--${flag}` })),
+  { tool: 'hybrid-axi', args: ['hunting', 'yara', 'create', '--body-file', '-'], alternative: '--body-file' },
+  ...tenable.adapterBoundary.inputFileFlags.map(flag => ({ tool: 'tenable-axi', args: [...tenable.commands.find(route => Object.hasOwn(route.flags, flag))!.command.split(' '), `--${flag}`, '-'], alternative: `--${flag}` })),
 ])('$tool fails at the stdin deadline: $args', async ({ tool, args, alternative }) => {
   vi.useFakeTimers()
   const pipe = new PassThrough()
@@ -165,16 +165,17 @@ test('Azure accepts closed empty stdin', async () => {
 })
 
 test.each(tenable.adapterBoundary.inputFileFlags)('Tenable uploads only declared --%s inputs', async flag => {
+  const command = tenable.commands.find(route => Object.hasOwn(route.flags, flag))!.command.split(' ')
   const path = join(directory, 'input.json')
   writeFileSync(path, '{}')
-  expect(await toolInput('tenable-axi', ['asset', 'list', `--${flag}`, path]))
-    .toEqual({ args: ['asset', 'list', `--${flag}`, 'input.json'],
-      files: [{ name: 'input.json', contentBase64: Buffer.from('{}').toString('base64') }] })
+  expect(await toolInput('tenable-axi', [...command, `--${flag}`, path]))
+    .toEqual({ args: [...command, `--${flag}`, 'input.json'],
+      files: [{ name: 'input.json', size: 2, contentBase64: Buffer.from('{}').toString('base64') }] })
 })
 
 test.each(tenable.adapterBoundary.inputFileFlags)('Tenable reads bounded stdin for --%s -', async flag => {
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['{}']) as typeof process.stdin)
-  const args = ['asset', 'list', `--${flag}=-`]
+  const args = [...tenable.commands.find(route => Object.hasOwn(route.flags, flag))!.command.split(' '), `--${flag}=-`]
   expect(await toolInput('tenable-axi', args)).toEqual({ args, stdin: '{}' })
 })
 

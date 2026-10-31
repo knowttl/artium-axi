@@ -2,6 +2,7 @@
 
 This table follows the [CLI help registry](../src/cli/help.ts) and is kept identical to the table in [SKILL.md](../skill/artium-axi/SKILL.md).
 Tool reference links describe upstream commands; Artium controls availability, credentials and permissions.
+Declared command file flags upload local bytes over the authenticated call channel, capped at 1 MiB per file and audited without contents; see [file input handling](client-reference.md#command-surface-and-subcommands) and the [TD-066 runner contract](file-input-design.md).
 
 | Command | Purpose |
 | --- | --- |

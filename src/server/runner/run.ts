@@ -1,4 +1,6 @@
 import type Database from 'better-sqlite3'
+import { createHash } from 'node:crypto'
+import { validateFileInput } from '../../shared/file-input.js'
 import { encode } from '@toon-format/toon'
 import { runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
@@ -48,12 +50,18 @@ export async function runTool<Credential>(
       args = parsed.data.args
       input = { stdin: parsed.data.stdin, files: parsed.data.files }
       adapter.validateArgs(args, input)
+      validateFileInput(adapter.name, args, input)
     } catch (error) {
       audit.record({ event: 'denial', userId, tool: adapter.name, requestId: context.requestId,
         clientAddress: context.clientAddress, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
       throw error
     }
     const identity = { userId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
+    for (const file of input.files ?? []) {
+      const bytes = Buffer.from(file.contentBase64, 'base64')
+      audit.record({ ...identity, event: 'upload', outcome: 'success', args, sensitive: adapter.sensitiveArguments(args),
+        file: { name: file.name, size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } })
+    }
     audit.record({ ...identity, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args) })
     let write: PreparedCall['write']
     let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
