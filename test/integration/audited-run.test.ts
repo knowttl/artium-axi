@@ -9,6 +9,8 @@ import type { MockInstance } from 'vitest'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { decode } from '@toon-format/toon'
@@ -401,6 +403,50 @@ test('a classified write ending on a signal records an unknown outcome', async (
     .rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME', message: 'Unknown outcome for synthetic-write synthetic-target.',
       next: expect.stringContaining('artium-axi falcon-axi print synthetic-state') })
   expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'write' })
+})
+
+describe('AWX native write failure recovery (R1)', () => {
+  function execution(code: string) {
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'awx-axi')")
+    const awx = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
+      token: 'CANARY-awx-token', allowWrites: true, allowConfigurationWrites: true }) })
+    const prepare = awx.prepare.bind(awx)
+    awx.prepare = async (...input) => ({ ...await prepare(...input), executable: fakeTool.executable,
+      args: [...fakeTool.args, 'tool-failure', code] })
+    const identities = new SharedIdentityResolver(new FakeCredentialStore([
+      { reference: { id: 'synthetic-awx', tool: 'awx-axi', revision: 1 }, value: {} },
+    ]))
+    return (args: string[]) => runTool(db, audit, runner, token, { args }, awx, identities, context)
+  }
+
+  test.each(awxInventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))(
+    '$command returns read-back guidance after a lost response', async route => {
+      const run = execution('CONTROLLER_UNREACHABLE')
+      const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
+      await expect(run(args)).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
+        next: expect.stringContaining('Check current state before trying again: artium-axi awx-axi ') })
+      expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
+        .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    })
+
+  test('a gateway timeout on workflow copy warns against replay', async () => {
+    await expect(execution('SERVER_BUSY')(['workflow', 'copy', '42', '--confirm'])).rejects.toMatchObject({
+      code: 'UNKNOWN_OUTCOME', next: expect.stringContaining('artium-axi awx-axi workflow list --limit 100'),
+    })
+  })
+
+  test.each(['FORBIDDEN', 'VALIDATION_ERROR'])('%s remains a definite refusal', async code => {
+    const result = await execution(code)(['workflow', 'copy', '42', '--confirm'])
+    expect(result).toMatchObject({ exitCode: 1, stderr: expect.stringContaining(`code: ${code}`) })
+    expect(db.prepare("SELECT outcome, error_code FROM audit WHERE event = 'run-terminal'").get())
+      .toEqual({ outcome: 'completed', error_code: code })
+  })
+
+  test('an unreachable controller on a read remains an ordinary failure', async () => {
+    const result = await execution('CONTROLLER_UNREACHABLE')(['workflow', 'list'])
+    expect(result).toMatchObject({ exitCode: 1, stderr: expect.stringContaining('code: CONTROLLER_UNREACHABLE') })
+  })
 })
 
 test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
