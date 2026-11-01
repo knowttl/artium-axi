@@ -6,17 +6,39 @@ export const adminStyle = tokens + components
 export const adminScript = `
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
-    const scope = button.closest('.copy-group') || button.parentElement;
-    const input = scope.querySelector('input, textarea');
+    const scope = button.closest('[data-copy-scope], .copy-group') || button.parentElement;
+    const source = scope.querySelector('input, textarea, pre, [data-copy-text]');
     const status = scope.querySelector('[data-copy-status]');
     try {
-      await navigator.clipboard.writeText(input.value);
+      await navigator.clipboard.writeText(source.value ?? source.textContent);
       status.textContent = 'Copied.';
     } catch {
-      input.focus(); input.select();
+      if (source.select) { source.focus(); source.select(); } else getSelection().selectAllChildren(source);
       status.textContent = 'Copy unavailable. Copy the selected text manually.';
     }
   });
+}
+for (const button of document.querySelectorAll('[data-history-back]')) {
+  if (history.length < 2) continue;
+  button.hidden = false;
+  button.addEventListener('click', () => history.back());
+}
+// Server-rendered open dialogs are the no-JavaScript view; make them modal and leave the view on close.
+for (const dialog of document.querySelectorAll('dialog[open][data-close-href]')) {
+  // Removing the attribute, unlike close(), queues no close event.
+  dialog.removeAttribute('open');
+  dialog.addEventListener('close', () => location.assign(dialog.dataset.closeHref), { once: true });
+  dialog.showModal();
+  dialog.querySelector('input:not([type=hidden]), select')?.focus();
+}
+const toastMessage = sessionStorage.getItem('artium-toast');
+if (toastMessage) {
+  sessionStorage.removeItem('artium-toast');
+  const toast = document.getElementById('toast');
+  if (toast) {
+    toast.textContent = toastMessage;
+    setTimeout(() => { toast.textContent = ''; }, 6000);
+  }
 }
 for (const time of document.querySelectorAll('time[datetime]')) {
   time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -146,41 +168,34 @@ for (const dialog of document.querySelectorAll('dialog.sheet')) {
   openSheet(dialog);
 }
 
-// Tier 2 names the action in the title and confirm button; tier 3 also requires typing the exact name.
-function confirmChange(form) {
+// Tier 2 names the action and its consequence; tier 3 (data-confirm-name) also needs the exact name typed.
+function confirmChange(form, fallbackAction) {
   const dialog = document.getElementById('confirmation');
-  const action = form.dataset.confirmAction || 'Confirm change';
-  const name = form.dataset.confirmName;
-  const confirm = dialog.querySelector('[data-confirm-button]');
+  const action = form.dataset.confirmAction || fallbackAction;
+  const name = form.dataset.confirmName || '';
   const field = dialog.querySelector('[data-confirm-name-field]');
-  const typed = field.querySelector('input');
-  dialog.querySelector('h2').textContent = form.dataset.confirmTitle || action;
+  const input = field.querySelector('input');
+  const confirm = dialog.querySelector('[data-confirm-button]');
+  const mark = dialog.querySelector('[data-confirm-mark]');
+  dialog.querySelector('[data-confirm-title]').textContent = form.dataset.confirmTitle || action + '?';
   dialog.querySelector('[data-consequence]').textContent = form.dataset.confirm;
+  dialog.querySelector('[data-confirm-name]').textContent = name;
+  mark.className = 'ico-circle ' + (name ? 'err' : 'warn');
+  mark.querySelector('use').setAttribute('href', name ? '#i-trash' : '#i-alert');
   confirm.textContent = action;
   confirm.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
-  dialog.classList.toggle('danger', Boolean(name));
   field.hidden = !name;
-  field.querySelector('[data-confirm-name]').textContent = name || '';
-  typed.value = '';
+  input.value = '';
   confirm.disabled = Boolean(name);
-  typed.oninput = () => { confirm.disabled = typed.value !== name; };
+  input.oninput = () => { confirm.disabled = input.value !== name; };
   dialog.returnValue = '';
   return new Promise(resolve => {
-    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirmed'), { once: true });
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirmed' && (!name || input.value === name)), { once: true });
     dialog.showModal();
-    if (name) typed.focus();
+    if (name) input.focus();
   });
 }
 
-const toast = document.querySelector('[data-toast]');
-const savedToast = sessionStorage.getItem('artium-toast');
-if (savedToast !== null) {
-  sessionStorage.removeItem('artium-toast');
-  if (toast) {
-    toast.textContent = savedToast;
-    setTimeout(() => { toast.textContent = ''; }, 6000);
-  }
-}
 for (const form of document.querySelectorAll('form[data-track-changes]')) {
   const save = form.querySelector('button:not([type])');
   const discard = form.querySelector('[data-discard]');
@@ -210,7 +225,8 @@ for (const link of document.querySelectorAll('[data-close-dialog]')) {
   });
 }
 // A dialog rendered open for readers without JavaScript becomes modal once the script runs.
-for (const dialog of document.querySelectorAll('dialog.modal[open]')) {
+// Views with data-close-href are handled above, because closing them leaves the page.
+for (const dialog of document.querySelectorAll('dialog.modal[open]:not([data-close-href])')) {
   dialog.close();
   dialog.showModal();
 }
@@ -225,9 +241,10 @@ function showError(target, error) {
   if (error.code === 'REVISION_CONFLICT') {
     const reload = document.createElement('button');
     reload.type = 'button';
-    reload.textContent = 'Reload latest values';
+    reload.className = 'btn btn-secondary btn-sm';
+    reload.textContent = 'Reload latest';
     reload.addEventListener('click', () => location.reload());
-    target.append(' ', reload);
+    target.append(document.createElement('br'), reload);
   }
   target.focus();
 }
@@ -485,14 +502,14 @@ document.addEventListener('submit', async event => {
   button.disabled = true;
   const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
-    : form.closest('dialog.sheet')?.querySelector('[data-sheet-message]') || document.getElementById('message'));
+    : form.closest('dialog')?.querySelector('[data-form-error], [data-sheet-message]') || document.getElementById('message'));
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
   try {
-    if (form.dataset.confirm && !await confirmChange(form)) return;
+    if (form.dataset.confirm && !await confirmChange(form, (event.submitter || button).textContent.trim())) return;
     const profileFields = form.querySelectorAll('[data-profile-field]');
     if (profileFields.length) {
       body.value = Object.create(null);
@@ -580,7 +597,7 @@ document.addEventListener('submit', async event => {
       showError(message, result.error);
       return;
     }
-    if (form.dataset.successMessage) sessionStorage.setItem('artium-toast', form.dataset.successMessage);
+    sessionStorage.setItem('artium-toast', form.dataset.successMessage || 'Change saved.');
     // {id} names the record the request created, such as a new role.
     if (form.dataset.successUrl?.includes('{id}')) location.assign(form.dataset.successUrl.replace('{id}', encodeURIComponent((await response.json()).id)));
     else if (form.dataset.successUrl) location.assign(form.dataset.successUrl);

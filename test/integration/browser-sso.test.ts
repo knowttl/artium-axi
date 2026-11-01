@@ -454,8 +454,8 @@ test('device approval requires a fresh SSO sign-in, displays the request and iss
   const device = await deviceRequest()
   const browser = await deviceBrowser(device.userCode)
   expect(fake.authorizations.at(-1)).toMatchObject({ prompt: 'login' })
-  expect(browser.page.body).toContain('Requesting IP: <strong>127.0.0.1</strong>')
-  expect(browser.page.body).toContain('Requested: ')
+  expect(browser.page.body).toContain('<dt>Requested from</dt><dd class="mono">127.0.0.1</dd>')
+  expect(browser.page.body).toContain('<dt>When</dt><dd><time datetime=')
   expect(browser.page.body).toContain('Never approve a code someone sent you')
   expect(browser.page.headers['content-security-policy']).toContain("script-src 'self'")
   expect((await app.inject({ method: 'POST', url: '/device', headers: browser.headers,

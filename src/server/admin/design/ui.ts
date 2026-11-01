@@ -69,8 +69,38 @@ export function card(title: string, description: string, body: string, options: 
   return `<section class="card${options.danger ? ' danger' : ''}"><div class="card-head"><div><h2>${escape(title)}</h2>${description ? `<p>${escape(description)}</p>` : ''}</div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}${options.foot ? `<div class="card-foot">${options.foot}</div>` : ''}</section>`
 }
 
-export function callout(tone: 'info' | 'ok' | 'warn' | 'err', title: string, text: string, actions = ''): string {
-  return `<div class="callout ${tone}" role="status">${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow"><strong>${escape(title)}</strong><p>${text}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
+export type Tone = 'ok' | 'warn' | 'err' | 'info'
+
+// Text is trusted HTML inside a paragraph; the title is optional. role="status" for results.
+export function callout(tone: Tone, title: string, text: string, actions = ''): string {
+  return `<div class="callout ${tone}" role="status">${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow">${title ? `<strong>${escape(title)}</strong>` : ''}<p>${text}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
+}
+
+export function tabs(base: string, current: string, items: { id: string, label: string, note?: string }[]): string {
+  return `<nav class="utabs" aria-label="Sections">${items.map(item => `<a href="${escape(base)}?tab=${escape(item.id)}"${item.id === current ? ' aria-current="page"' : ''}>${escape(item.label)}${item.note ? `<span class="n">${escape(item.note)}</span>` : ''}</a>`).join('')}</nav>`
+}
+
+// One step of an ordered checklist. Detail is trusted HTML.
+export function step(number: number, state: 'done' | 'current' | 'todo', title: string, detail: string): string {
+  return `<li class="vstep ${state === 'todo' ? '' : state}"><span class="mark">${state === 'done' ? `${icon('check')}<span class="sr-only">Done:</span>` : number}</span><div><strong>${escape(title)}</strong>${detail}</div></li>`
+}
+
+// Copy controls: confirm.js copies the input, pre or [data-copy-text] inside [data-copy-scope] and reports in its status.
+export function copyField(label: string, value: string): string {
+  return `<div data-copy-scope><div class="copyfield"><input readonly aria-label="${escape(label)}" value="${escape(value)}"><button type="button" class="btn btn-secondary" data-copy>${icon('copy')}Copy</button></div><p class="copy-status" role="status" data-copy-status></p></div>`
+}
+
+export function copyBlock(label: string, text: string): string {
+  return `<div class="copyblock" data-copy-scope><pre class="code" aria-label="${escape(label)}">${escape(text)}</pre><button type="button" class="btn btn-secondary btn-sm" data-copy aria-label="Copy: ${escape(label)}">${icon('copy')}Copy</button><p class="copy-status" role="status" data-copy-status></p></div>`
+}
+
+export function copyValue(label: string, value: string): string {
+  return `<span class="copyvalue" data-copy-scope><span data-copy-text>${escape(value)}</span><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy ${escape(label)}">${icon('copy')}</button><span class="copy-status" role="status" data-copy-status></span></span>`
+}
+
+// A dialog view rendered open by the server: the page's no-JavaScript fallback. confirm.js makes it modal; closing returns to closeHref.
+export function viewDialog(title: string, description: string, body: string, closeHref: string): string {
+  return `<dialog open class="modal" data-close-href="${escape(closeHref)}" aria-labelledby="view-dialog-title"><div class="modal-body"><div class="modal-head"><h2 id="view-dialog-title">${escape(title)}</h2><a class="btn btn-ghost btn-icon btn-sm" href="${escape(closeHref)}" aria-label="Close">${icon('x')}</a></div>${description ? `<p>${escape(description)}</p>` : ''}<p class="modal-error" data-form-error role="alert" tabindex="-1"></p>${body}</div></dialog>`
 }
 
 export interface Sheet {
@@ -134,12 +164,23 @@ export interface Viewer {
 }
 
 export interface Page extends PageHeader {
+  // Interstitial screens (sign-in, password, confirmation, CLI approval, results, errors) use the auth card.
+  layout?: 'auth'
+  // An auth card result shows a status mark beside its title instead of the brand row.
+  mark?: { icon: IconName, tone: Tone | 'neutral' }
+  // Detail pages show their parent page in the breadcrumb.
+  parent?: { href: string, label: string }
+  // One escaped line under the auth card.
+  footnote?: string
   title: string
   content: string
   help: string
   path: string
   viewer?: Viewer
 }
+
+// What a page route chooses beyond its title, description and content.
+export type PageOptions = Omit<Page, 'title' | 'description' | 'content' | 'help' | 'path' | 'viewer'>
 
 const navigation: { group?: string, href: string, label: string, icon: IconName }[] = [
   { href: '/admin', label: 'Overview', icon: 'home' },
@@ -154,10 +195,13 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
 const brand = (href: string) => `<a class="brand" href="${href}"><span class="logo" aria-hidden="true">A</span>Artium</a>`
 
 // Initials are decorative; the name is always adjacent text.
-export function avatar(name: string, large = false): string {
+export function initials(name: string): string {
   const words = name.trim().split(/\s+/)
-  const initials = (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
-  return `<span class="avatar${large ? ' lg' : ''}" aria-hidden="true">${escape(initials)}</span>`
+  return (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
+}
+
+export function avatar(name: string, large = false): string {
+  return `<span class="avatar${large ? ' lg' : ''}" aria-hidden="true">${escape(initials(name))}</span>`
 }
 
 function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down'): string {
@@ -182,23 +226,35 @@ function reauthPill(viewer: Viewer): string {
   return `<span class="unlock ${on ? 'on' : 'off'}" data-reauth-until="${viewer.reauthUntil}" data-reauth-method="${viewer.sso ? 'sso' : 'local'}" title="Changes need an identity confirmation in the last 15 minutes. You are asked to confirm when you save.">${icon(on ? 'unlock' : 'lock')}<span data-reauth-text>${reauthText(viewer.reauthUntil)}</span></span>`
 }
 
+// Confirmation tiers: a form's data-confirm text is the tier-2 consequence; data-confirm-name adds the tier-3 typed name.
+// confirm.js titles the dialog with the action and repeats its verb on the confirm button.
 function dialogs(viewer: Viewer): string {
-  const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><label data-confirm-name-field hidden>Type <strong data-confirm-name></strong> to confirm<input data-confirm-name-input autocomplete="off" spellcheck="false"></label></div><div class="modal-foot"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed" data-confirm-button>Confirm change</button></div></form></dialog>`
+  const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title" aria-describedby="confirmation-consequence"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title"><span class="ico-circle warn" data-confirm-mark>${icon('alert')}</span><span data-confirm-title>Confirm change</span></h2><p id="confirmation-consequence" data-consequence></p>
+    <div class="field" data-confirm-name-field hidden><label for="confirmation-name">Type <strong class="mono" data-confirm-name></strong> to confirm</label><input id="confirmation-name" class="mono" data-confirm-name-input autocomplete="off" spellcheck="false"></div></div>
+    <div class="modal-foot"><button class="btn btn-ghost" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed" data-confirm-button>Confirm change</button></div></form></dialog>`
   if (!viewer.administrator || viewer.mustChange) return confirmation
-  return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title">${viewer.sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${viewer.sso ? 'Confirm your identity with your provider in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><label>Password <input name="password" type="password" autocomplete="current-password" required></label></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-secondary" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
+  return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Admin changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
 }
 
-const message = '<p id="message" class="message" role="alert" tabindex="-1"></p>'
-// Tier-1 results: confirm.js shows the saved action's message here after the page reloads.
-const toast = '<p class="toast" role="status" data-toast></p>'
+// Results of an action: #toast announces success politely, #message carries errors.
+const toasts = '<div class="toasts"><p id="toast" class="toast ok" role="status"></p><p id="message" class="toast err" role="alert" tabindex="-1"></p></div>'
+
+function authCard(page: Page): string {
+  const { viewer } = page
+  const home = !viewer ? '/login' : viewer.mustChange ? '/password' : viewer.administrator ? '/admin' : '/account'
+  const head = page.mark
+    ? `<div class="auth-head"><span class="ico-circle ${page.mark.tone === 'neutral' ? '' : page.mark.tone}">${icon(page.mark.icon)}</span><h1>${escape(page.title)}</h1></div>${page.description ? `<p>${escape(page.description)}</p>` : ''}`
+    : brand(home) + pageHeader(page.title, { description: page.description })
+  const signedIn = viewer ? `<form class="auth-foot" method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">Signed in as ${escape(viewer.name)} · <button class="link">Sign out</button>${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}</form>` : ''
+  return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}
+      <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
+}
 
 export function appShell(page: Page): string {
   const { viewer } = page
+  if (!viewer || page.layout === 'auth') return authCard(page)
   const head = pageHeader(page.heading ?? page.title, page)
-  if (!viewer) {
-    return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${brand('/login')}${head}${message}${page.content}</div>
-      <details class="page-help auth-help"><summary>Help with ${escape(page.title.toLowerCase())}</summary>${page.help}</details></div></main>`
-  }
+  const message = toasts
   if (!viewer.administrator || viewer.mustChange) {
     return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down')}</div></header>
       <main id="main" class="content narrow" tabindex="-1">${head}${message}${page.content}</main></div>${dialogs(viewer)}${sprite}`
@@ -210,11 +266,11 @@ export function appShell(page: Page): string {
     group = item.group
     return `${label}<a class="nav-item" href="${item.href}"${item === active ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}</a>`
   }).join('')
-  const parent = page.heading && active ? `<a href="${active.href}">${escape(active.label)}</a>` : active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span>` : ''
+  const parent = page.parent ? `<a href="${escape(page.parent.href)}">${escape(page.parent.label)}</a>` : page.heading && active ? `<a href="${active.href}">${escape(active.label)}</a>` : active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span>` : ''
   const crumbs = `<p class="crumbs">${parent ? `${parent}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.heading ?? page.title)}</strong></p>`
   return `<a class="skip" href="#main">Skip to content</a><div class="app">
     <div class="side" id="nav"><div class="side-head">${brand('/admin')}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
       <nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up')}</div></div>
     <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${reauthPill(viewer)}${learn(page.title, page.help)}</div></header>
-      <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${toast}${dialogs(viewer)}${sprite}`
+      <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
 }

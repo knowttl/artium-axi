@@ -7,6 +7,8 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import { deviceDefaults } from '../config.js'
 import { escape } from '../admin/escape.js'
+import { callout } from '../admin/design/ui.js'
+import { timestamp } from '../admin/forms.js'
 import { AuthRateLimits } from './attempts.js'
 import { browserCookie, browserPage } from './browser.js'
 import { browserIdentity, readBrowserSession } from './sessions.js'
@@ -93,8 +95,8 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
   app.get('/device', async (request, reply) => {
     const input = z.strictObject({ code: deviceUserCodeSchema.optional() }).safeParse(request.query)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
-    if (!input.data.code) return browserPage(reply, 'CLI approval', `<p>Enter the code shown by your CLI sign-in or identity confirmation request on your own terminal.</p>
-      <form method="get" action="/device"><label>Device code <input name="code" autocomplete="off" maxlength="9" required></label><button>Continue</button></form>`)
+    if (!input.data.code) return browserPage(reply, 'CLI approval', `<form method="get" action="/device"><div class="field"><label for="code">Device code</label><input id="code" class="mono" name="code" autocomplete="off" maxlength="9" required></div><button class="btn btn-primary">Continue</button></form>`,
+      undefined, 'Enter the code shown by your CLI sign-in or identity confirmation request on your own terminal.')
     entryLimits.admitAddress(request.ip)
     const code = input.data.code
     const row = byUserCode(code)
@@ -103,22 +105,23 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
       try { current = readBrowserSession(db, request.cookies[browserCookie]!) }
       catch (error) { if (!(error instanceof ArtiumError)) throw error }
     }
-    const details = `<section><h2>Approve CLI ${row.reauth ? 'identity confirmation' : 'sign-in'}</h2><p>Code: <strong>${escape(code)}</strong></p>
-      <p>Requesting IP: <strong>${escape(row.address)}</strong></p><p>Requested: ${escape(new Date(row.createdAt).toISOString())}</p>
-      <p>Warning: Approve only if you just ${row.reauth ? 'requested identity confirmation' : 'ran artium-axi login --sso'} on a device you control and the code matches your terminal.
-      ${row.reauth ? 'Approval confirms your identity for privileged CLI operations.' : 'Approval gives that device access to your artium tools for up to 8 hours.'} Never approve a code someone sent you.</p></section>`
+    const details = `<p>Approve only if you just ${row.reauth ? 'requested identity confirmation' : 'ran <code>artium-axi login --sso</code>'} on a device you control and the code matches your terminal.</p>
+      <div class="bigcode" role="group" aria-label="Code">${escape(code)}</div>
+      <dl class="kv"><dt>Requested from</dt><dd class="mono">${escape(row.address)}</dd><dt>When</dt><dd>${timestamp(row.createdAt)}</dd><dt>Grants</dt><dd>${row.reauth ? 'Identity confirmation for privileged CLI operations' : 'Your tools, for up to 8 hours'}</dd></dl>
+      <p class="hint">Never approve a code someone sent you.</p>`
     const proved = current && row.proof === hashToken(request.cookies[browserCookie]!)
     const csrf = reply.generateCsrf()
-    let actions = '<p>This request is already approved. Return to your terminal.</p>'
+    let actions = callout('ok', '', 'This request is already approved. Return to your terminal.')
     if (!row.approved && proved) {
-      actions = `<p>Approve as ${escape(current!.username)}.</p><form method="post" action="/device">
+      actions = `<form method="post" action="/device">
         <input type="hidden" name="_csrf" value="${escape(csrf)}"><input type="hidden" name="code" value="${escape(code)}">
-        <button name="decision" value="approve">Approve</button><button name="decision" value="deny">This wasn't me</button></form>`
+        <p class="hint">Approving as ${escape(current!.username)}.</p>
+        <div class="auth-actions"><button class="btn btn-danger-outline" name="decision" value="deny">This wasn't me</button><button class="btn btn-primary" name="decision" value="approve">Approve</button></div></form>`
     } else if (!row.approved) {
-      actions = '<p>Confirm your identity with a fresh provider sign-in before approving.</p>' + providers().map(provider =>
-        `<p><a data-device-sso href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start?device=${encodeURIComponent(code)}">Sign in with ${escape(provider.name)}</a></p>`).join('')
+      actions = '<p>Confirm your identity with a fresh provider sign-in before approving.</p>' + providers().map((provider, index) =>
+        `<a class="btn ${index ? 'btn-secondary' : 'btn-primary'}" data-device-sso href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start?device=${encodeURIComponent(code)}">Sign in with ${escape(provider.name)}</a>`).join('')
     }
-    return browserPage(reply, row.reauth ? 'CLI identity confirmation' : 'CLI sign-in', details + actions, current)
+    return browserPage(reply, row.reauth ? 'Approve CLI identity confirmation?' : 'Approve CLI sign-in?', details + actions, current, undefined, { layout: 'auth', helpTopic: 'CLI approval' })
   })
   app.post('/device', async (request, reply) => {
     entryLimits.admitAddress(request.ip)
@@ -133,7 +136,8 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
       outcome: 'success', requestId: request.id, clientAddress: request.ip, requestingAddress: row.address })
     if (denied) row.denied = true
     else row.approved = token
-    return browserPage(reply, 'CLI sign-in', `<p>${denied ? 'Request denied. No CLI access was granted.' : 'Request approved. Return to your terminal.'}</p><p><a href="/account">Account</a></p>`, current)
+    return browserPage(reply, denied ? 'Request denied' : 'Request approved', '<a class="btn btn-secondary" href="/account">Your account</a>', current,
+      denied ? 'No CLI access was granted.' : 'Return to your terminal.', { layout: 'auth', helpTopic: 'CLI approval', mark: denied ? { icon: 'x', tone: 'neutral' } : { icon: 'check', tone: 'ok' } })
   })
   app.addHook('onClose', async () => { requests.clear() })
   return {

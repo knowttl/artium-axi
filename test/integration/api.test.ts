@@ -165,7 +165,7 @@ test('spawn failure logs errno and correlation without executable, arguments or 
 test('browser error page displays its response request ID', async () => {
   const response = await app.inject('/admin/missing')
   expect(response.statusCode).toBe(404)
-  expect(response.body).toContain(`Request ID: ${response.headers['x-artium-request-id']}`)
+  expect(response.body).toContain(`<dt>Request ID</dt><dd class="mono"><span class="copyvalue" data-copy-scope><span data-copy-text>${response.headers['x-artium-request-id']}</span>`)
 })
 
 test.each([
@@ -720,11 +720,21 @@ test.each(['stdout', 'stderr'])('security: bundled CLI withholds every encoded c
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(canary)
 })
 
-test('malformed JSON, content type, unknown tool and body byte limit use safe errors', async () => {
+test('malformed JSON, content type and unknown tool use safe errors', async () => {
   await expectFailure(await fetch(`${url}/v1/tools/falcon-axi/run`, { method: 'POST', headers, body: '{' }), 'INVALID_INPUT')
   await expectFailure(await run({ args: [] }, { ...headers, 'content-type': 'text/plain' }), 'INVALID_INPUT')
   await expectFailure(await fetch(`${url}/v1/tools/unknown/run`, { method: 'POST', headers, body: '{"args":[]}' }), 'INVALID_INPUT')
-  await expectFailure(await run({ args: [], stdin: 'x'.repeat(inputLimits.requestBytes) }), 'INVALID_INPUT')
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('body byte limit uses a safe error without retrieving credentials', async () => {
+  // Inject to avoid EPIPE when the parser closes HTTP before fetch finishes uploading.
+  const response = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,
+    payload: JSON.stringify({ args: [], stdin: 'x'.repeat(inputLimits.requestBytes) }) })
+  expect(response.statusCode).toBe(errors.INVALID_INPUT.status)
+  expect(response.headers.connection).toBe('close')
+  expect(errorResponseSchema.parse(response.json())).toEqual({ error: { code: 'INVALID_INPUT', source: 'artium-axi',
+    message: errors.INVALID_INPUT.message, next: errors.INVALID_INPUT.next, requestId: expect.any(String) } })
   expect(getCredential).not.toHaveBeenCalled()
 })
 
