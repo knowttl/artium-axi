@@ -51,12 +51,12 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .note { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--fs-sm); }
 
 /* Buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; border: 1px solid transparent; border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; text-decoration: none; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; border: 1px solid var(--transparent); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; text-decoration: none; cursor: pointer; }
 .btn-primary { background: var(--primary); color: var(--primary-fg); }
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-secondary { background: var(--bg); color: var(--text); border-color: var(--border-strong); }
 .btn-secondary:hover { background: var(--bg-hover); }
-.btn-ghost { background: transparent; color: var(--text-muted); }
+.btn-ghost { background: var(--transparent); color: var(--text-muted); }
 .btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
 .btn-sm { height: var(--ctl-h-sm); padding: 0 10px; font-size: var(--fs-xs); }
 .btn-icon { width: var(--ctl-h); padding: 0; }

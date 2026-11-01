@@ -25,7 +25,8 @@ This document is the reference for every current and future screen.
 
 `test/design-system.test.ts` enforces these rules over the served stylesheet and rendered pages:
 
-- No hex, `rgb(` or `hsl(` colour outside `tokens.ts`.
+- No colour literal of any form outside `tokens.ts`, including named colours, transparent, hex, rgb/rgba, hsl/hsla, hwb, oklch, oklab, lab, lch and color(), in stylesheets or rendered colour presentation attributes.
+- `currentColor` and token references inherit colours; `none` means no paint.
 - No `style` attribute in any rendered page.
 - Every icon is a `<use>` of a symbol in the shared sprite; pages contain no ad hoc SVG shapes.
 - One `h1` per page.

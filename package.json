@@ -35,7 +35,9 @@
   "devDependencies": {
     "@actions/expressions": "0.3.61",
     "@types/better-sqlite3": "9.6.0",
+    "@types/css-tree": "3.2.0",
     "@types/node": "22.20.5",
+    "css-tree": "3.2.1",
     "esbuild": "0.28.2",
     "parse5": "8.0.0",
     "postcss": "8.5.29",

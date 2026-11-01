@@ -2,6 +2,7 @@
 export const tokens = `
 :root {
   color-scheme: light;
+  --transparent: transparent;
   --bg: #ffffff;
   --bg-subtle: #fafafa;
   --bg-muted: #f4f4f5;

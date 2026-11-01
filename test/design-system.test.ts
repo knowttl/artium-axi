@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
+import * as cssTree from 'css-tree'
 import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import postcss, { type AnyNode } from 'postcss'
 import { afterAll, beforeAll, expect, test } from 'vitest'
@@ -18,12 +19,24 @@ import { FakeCredentialStore } from './fixtures/credential-store.js'
 import { seedToolUser } from './fixtures/tokens.js'
 
 // Rules from docs/design-system.md: colours live only in tokens, pages never style themselves, icons come from the sprite.
-const colour = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\(/i
+function hasColourLiteral(value: string) {
+  let found = false
+  cssTree.walk(cssTree.parse(value, { context: 'value', parseCustomProperty: true }), function (node) {
+    if (node.type === 'Identifier' && node.name.toLowerCase() === 'currentcolor') return
+    if (node.type === 'Identifier' || node.type === 'Hash' || node.type === 'Function') {
+      if (cssTree.lexer.matchType('color', node).matched) {
+        found = true
+        return this.break
+      }
+    }
+  })
+  return found
+}
 
 function colourDeclarations(css: string) {
   const declarations: { property: string; value: string; context: string[] }[] = []
   postcss.parse(css).walkDecls(declaration => {
-    if (!colour.test(declaration.value)) return
+    if (!hasColourLiteral(declaration.value)) return
     const context: string[] = []
     for (let parent: AnyNode | undefined = declaration.parent; parent; parent = parent.parent) {
       if (parent.type === 'rule') context.push(parent.selector)
@@ -32,6 +45,21 @@ function colourDeclarations(css: string) {
     declarations.push({ property: declaration.prop, value: declaration.value, context })
   })
   return declarations
+}
+
+function assertTokenColours(css: string) {
+  expect(colourDeclarations(css)).toEqual(colourDeclarations(tokens))
+}
+
+function assertPresentationColours(page: DefaultTreeAdapterMap['element'][]) {
+  const colourAttributes = new Set(['fill', 'stroke', 'color', 'bgcolor', 'bordercolor', 'text', 'link', 'alink', 'vlink'])
+  for (const element of page) {
+    for (const attribute of element.attrs) {
+      if (colourAttributes.has(attribute.name) || attribute.name.endsWith('-color')) {
+        expect(hasColourLiteral(attribute.value), `${element.tagName}[${attribute.name}="${attribute.value}"]`).toBe(false)
+      }
+    }
+  }
 }
 
 function elements(node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] {
@@ -69,8 +97,46 @@ afterAll(async () => {
 test('the served stylesheet defines colours only through the token contract', async () => {
   const response = await app.inject({ url: '/admin/assets/style.css' })
   expect(response.statusCode).toBe(200)
-  expect(colourDeclarations(response.body)).toEqual(colourDeclarations(tokens))
+  assertTokenColours(response.body)
 })
+
+const literalColours = [
+  'red', 'ReBeccAPurple', 'CanvasText', 'transparent', '#abc', '#abcd', '#aabbcc', '#aabbccdd',
+  'rgb(255 0 0)', 'rgba(255, 0, 0, .5)', 'hsl(0 100% 50%)', 'hsla(0, 100%, 50%, .5)',
+  'hwb(0 0% 0%)', 'oklch(60% .2 30)', 'oklab(60% .2 .1)', 'lab(60% 20 30)', 'lch(60% 30 40)',
+  'color(display-p3 1 0 0)',
+]
+
+test.each(literalColours)('R4: the stylesheet guard rejects a component colour literal: %s', colour => {
+  expect(() => assertTokenColours(tokens + `.content { color: ${colour}; }`)).toThrow()
+})
+
+test.each(literalColours)('R4: the presentation guard rejects a colour literal: %s', colour => {
+  expect(() => assertPresentationColours(elements(parse(`<svg fill="${colour}"></svg>`)))).toThrow()
+})
+
+test.each([
+  '.content { border: 1px solid red; }',
+  '.content { box-shadow: 0 0 2px oklch(60% .2 30); }',
+  '.content { --accent: red; }',
+  '.content { color: var(--text, red); }',
+  '@media (prefers-color-scheme: dark) { .content { background: linear-gradient(red, blue); } }',
+])('R4: the stylesheet guard rejects nested and shorthand colours: %s', rule => {
+  expect(() => assertTokenColours(tokens + rule)).toThrow()
+})
+
+test.each(['fill', 'stroke', 'color', 'stop-color', 'flood-color', 'lighting-color', 'bgcolor', 'bordercolor', 'text', 'link', 'alink', 'vlink'])(
+  'R4: the presentation guard checks %s', attribute => {
+    expect(() => assertPresentationColours(elements(parse(`<svg ${attribute}="red"></svg>`)))).toThrow()
+  },
+)
+
+test.each(['currentColor', 'none', 'inherit', 'var(--text)', 'url(#i-red)'])(
+  'the colour guards allow a reference or non-colour value: %s', value => {
+    expect(() => assertTokenColours(tokens + `.content { fill: ${value}; }`)).not.toThrow()
+    expect(() => assertPresentationColours(elements(parse(`<svg fill="${value}"></svg>`)))).not.toThrow()
+  },
+)
 
 test.each([
   ['/admin', 'admin'], ['/admin/users', 'admin'], ['/admin/users/synthetic-ordinary', 'admin'], ['/admin/roles', 'admin'],
@@ -81,6 +147,7 @@ test.each([
   const response = await app.inject({ url, headers: session ? { cookie: `${browserCookie}=${session}` } : {} })
   expect(response.statusCode).toBe(200)
   const page = elements(parse(response.body))
+  assertPresentationColours(page)
   const sprites = page.filter(element => element.tagName === 'svg' && element.attrs.some(attribute => attribute.name === 'class' && attribute.value === 'sprite'))
   expect(sprites.length).toBeLessThanOrEqual(1)
   const sprite = sprites[0]
@@ -88,7 +155,6 @@ test.each([
     .map(element => element.attrs.find(attribute => attribute.name === 'id')?.value) : []
   for (const element of page) {
     expect(element.attrs.filter(attribute => attribute.name === 'style')).toEqual([])
-    for (const attribute of element.attrs) expect(attribute.value).not.toMatch(colour)
     if (element.tagName !== 'svg' || element === sprite) continue
     const descendants = elements(element).slice(1)
     expect(descendants.map(child => child.tagName)).toEqual(['use'])
