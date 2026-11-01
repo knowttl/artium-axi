@@ -153,13 +153,13 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       { title: 'Granted to a role', detail: roles.length ? escape(grants) : 'No roles yet', state: roles.length ? 'done' : 'todo' },
     ])
     const writesNote = !writes.capable ? 'Read-only' : tool.readOnly ? 'Off' : writes.supportedOperations ? `${writes.allowedOperations.length} on` : 'On'
-    const navigation = tabs('Tool sections', [
-      { href: '?tab=connection', label: 'Connection', icon: 'globe', current: tab === 'connection' },
-      { href: '?tab=writes', label: 'Write permissions', icon: 'zap', note: writesNote, current: tab === 'writes' },
-      { href: '?tab=certificates', label: 'Certificates', icon: 'cert', current: tab === 'certificates' },
-      { href: '?tab=access', label: 'Access', icon: 'users', note: String(roles.length), current: tab === 'access' },
-      { href: '?tab=advanced', label: 'Advanced', icon: 'sliders', current: tab === 'advanced' },
-    ])
+    const navigation = tabs(`/admin/tools/${tool.name}`, tab, [
+      { id: 'connection', label: 'Connection', icon: 'globe' },
+      { id: 'writes', label: 'Write permissions', icon: 'zap', note: writesNote },
+      { id: 'certificates', label: 'Certificates', icon: 'cert' },
+      { id: 'access', label: 'Access', icon: 'users', note: String(roles.length) },
+      { id: 'advanced', label: 'Advanced', icon: 'sliders' },
+    ], 'Tool sections')
     const result = '<p class="note" data-test-result role="status"></p>'
 
     let panel: string
@@ -204,7 +204,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     }
     // The filter form sits outside the write form; its controls join it through the form attribute.
     const filterForm = tab === 'writes' && writes.capable && writes.supportedOperations ? `<form id="ops-filter" method="get" action="/admin/tools/${tool.name}" hidden><input type="hidden" name="tab" value="writes"></form>` : ''
-    return browserPage(reply, product, stateTemplates + failure + setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${test}${enable}</div>`, helpTitle: 'Tools' })
+    return browserPage(reply, product, stateTemplates + failure + setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${test}${enable}</div>`, helpTopic: 'Tools' })
 
     function writesPanel(): string {
       const blocked = noteCard('Always blocked', `<p>${escape(writes.blocked)}</p>`)

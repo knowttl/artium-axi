@@ -25,6 +25,7 @@ export const tokens = `
   --err: #b91c1c;  --err-soft: #fef2f2;  --err-border: #fecaca;
   --info: #1d4ed8; --info-soft: #eff6ff; --info-border: #bfdbfe;
   --shadow-pop: 0 1px 2px rgb(0 0 0 / 4%), 0 8px 24px rgb(0 0 0 / 8%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 8%);
   --overlay: rgb(9 9 11 / 40%);
   --code-bg: #fafafa;
 
@@ -57,12 +58,14 @@ export const tokens = `
     --primary-hover: #e4e4e7;
     --primary-fg: #09090b;
     --danger-solid: #dc2626;
+    --danger-fg: #ffffff;
     --focus: #60a5fa;
     --ok: #4ade80;   --ok-soft: #052e16;   --ok-border: #14532d;
     --warn: #fbbf24; --warn-soft: #2a1a04; --warn-border: #713f12;
     --err: #f87171;  --err-soft: #2a0a0a;  --err-border: #7f1d1d;
     --info: #60a5fa; --info-soft: #0b1a33; --info-border: #1e3a8a;
     --shadow-pop: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 50%);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --overlay: rgb(0 0 0 / 60%);
     --code-bg: #0f0f11;
   }

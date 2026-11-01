@@ -204,7 +204,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
             bound.provider_id !== transaction.provider.id) throw new ArtiumError('SSO_STATE_INVALID')
           db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(authTime.data * 1000, session.id)
         })
-        return browserPage(reply, 'Identity confirmed', '<p>Your identity has been confirmed.</p><p><a href="/reauth?complete=1">Continue to artium</a></p>')
+        return browserPage(reply, 'Identity confirmed', '<a class="btn btn-primary" href="/reauth?complete=1">Continue to Artium</a>', undefined,
+          'Your identity has been confirmed.', { mark: { icon: 'check', tone: 'ok' } })
       }
       const csrfSecret = randomBytes(32).toString('base64url')
       const events: AuditEvent[] = []
@@ -268,7 +269,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       reply.setCookie(browserCookie, session.id, cookieOptions).setCookie('_csrf', csrfSecret, cookieOptions)
       if (transaction.device) devices!.signedIn(transaction.device.code, session.id)
       // A document and user navigation establish a same-site hop before Strict cookies are needed.
-      return browserPage(reply, 'Sign-in complete', `<p>Your identity has been verified.</p><p><a href="${escape(transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account')}">Continue to artium</a></p>`)
+      return browserPage(reply, 'Sign-in complete', `<a class="btn btn-primary" href="${escape(transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account')}">Continue to Artium</a>`,
+        undefined, 'Your identity has been verified.', { mark: { icon: 'check', tone: 'ok' } })
     } catch (error) {
       const failure = error instanceof ArtiumError ? error : new ArtiumError('SSO_PROVIDER_ERROR')
       audit.record({ ...event, userId, subject, outcome: failure.code })

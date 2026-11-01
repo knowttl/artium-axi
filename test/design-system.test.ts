@@ -15,6 +15,7 @@ import { SharedIdentityResolver } from '../src/server/policy/identity-resolver.j
 import { Runner } from '../src/server/runner/runner.js'
 import { openStore } from '../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../src/server/store/key-provider.js'
+import { ProviderCredentials } from '../src/server/store/provider-credentials.js'
 import { FakeCredentialStore } from './fixtures/credential-store.js'
 import { seedToolUser } from './fixtures/tokens.js'
 
@@ -77,13 +78,16 @@ let ordinary: string
 
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-design-'))
-  db = openStore(join(directory, 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+  db = openStore(join(directory, 'artium.db'), key)
   await seedToolUser(db)
   db.exec(`UPDATE users SET administrator = 1;
     INSERT INTO users (id, username, display_name, password_hash, must_change)
-    SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1`)
+    SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
+    INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('synthetic-rule', 'synthetic-provider', 'groups', 'Readers', 'synthetic-role')`)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
-    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), providerCredentials: new ProviderCredentials(db, key) })
   admin = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf').id
   ordinary = createBrowserSession(db, 'synthetic-ordinary', 'CANARY-csrf').id
 })
@@ -141,13 +145,18 @@ test.each(['currentColor', 'none', 'inherit', 'var(--text)', 'url(#i-red)'])(
 test.each([
   ['/admin', 'admin'], ['/admin/users', 'admin'], ['/admin/users/synthetic-ordinary', 'admin'], ['/admin/roles', 'admin'],
   ['/admin/roles/synthetic-role', 'admin'], ['/admin/invitations', 'admin'], ['/admin/tools', 'admin'],
-  ...['connection', 'writes', 'certificates', 'access', 'advanced'].map(tab => [`/admin/tools/vectra-axi?tab=${tab}`, 'admin']),
+  ...['connection', 'writes', 'certificates', 'access', 'advanced'].map((tab): [string, string] => [`/admin/tools/vectra-axi?tab=${tab}`, 'admin']),
   ['/admin/tools/awx-axi?tab=writes', 'admin'], ['/admin/tools/ldap-axi?tab=writes', 'admin'], ['/admin/audit', 'admin'],
-  ['/admin/settings/sign-in', 'admin'], ['/account', 'admin'], ['/account', 'ordinary'], ['/login', 'signed out'],
-])('%s for a %s viewer has no inline styles, colour literals or ad hoc icons', async (url, viewer) => {
+  ['/admin/settings/sign-in', 'admin'], ['/admin/settings/sign-in?add=choose', 'admin'], ['/admin/settings/sign-in?add=oidc', 'admin'],
+  ['/admin/settings/sign-in/synthetic-provider', 'admin'], ['/admin/settings/sign-in/synthetic-provider?tab=credential', 'admin'],
+  ['/admin/settings/sign-in/synthetic-provider?tab=rules', 'admin'], ['/admin/settings/sign-in/synthetic-provider?tab=rules&rule=synthetic-rule', 'admin'],
+  ['/admin/settings/sign-in/synthetic-provider?tab=settings', 'admin'], ['/admin/settings/sign-in/synthetic-provider/matches/synthetic-rule', 'admin'],
+  ['/account', 'admin'], ['/account', 'ordinary'], ['/password', 'ordinary'], ['/reauth', 'admin'], ['/login', 'signed out'], ['/device', 'signed out'],
+  ['/admin/missing', 'admin', 404], ['/admin/missing', 'signed out', 404],
+])('%s for a %s viewer has no inline styles, colour literals or ad hoc icons', async (url, viewer, status = 200) => {
   const session = viewer === 'admin' ? admin : viewer === 'ordinary' ? ordinary : undefined
   const response = await app.inject({ url, headers: session ? { cookie: `${browserCookie}=${session}` } : {} })
-  expect(response.statusCode).toBe(200)
+  expect(response.statusCode).toBe(status)
   const page = elements(parse(response.body))
   assertPresentationColours(page)
   const sprites = page.filter(element => element.tagName === 'svg' && element.attrs.some(attribute => attribute.name === 'class' && attribute.value === 'sprite'))

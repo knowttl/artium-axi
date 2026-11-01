@@ -43,7 +43,7 @@ Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and statu
 - Text: `--text`, `--text-muted`, `--text-faint`.
 - Actions: `--primary`, `--primary-hover`, `--primary-fg`, `--danger-solid`, `--danger-fg`, `--focus`.
 - Status: `--ok`, `--warn`, `--err`, `--info`, each with `-soft` and `-border`.
-- Elevation, used only by floating layers: `--shadow-pop`, `--overlay`.
+- Elevation: `--shadow-pop` and `--overlay` for floating layers; `--shadow-sm` for the selected segmented-control option.
 - Type: `--font`, `--mono`, and sizes `--fs-xs`, `--fs-sm`, `--fs-base`, `--fs-md`, `--fs-lg`, `--fs-xl`; values are defined in `tokens.ts`.
 - Shape and layout: `--r-sm`, `--r-md`, `--r-lg`, `--r-full`, `--ctl-h`, `--ctl-h-sm`, `--side-w`, `--content-max`, `--content-narrow`, `--aside-w`, `--topbar-h`, `--gutter`.
 
@@ -55,11 +55,13 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 
 | Component | Markup | States | Accessibility |
 | --- | --- | --- | --- |
-| App shell | `appShell()`: `.app`, `.side`, `.main`, `.topbar`, `.content` | Administrator (sidebar), ordinary or must-change user (top bar only), signed out (auth card) | Skip link to `main#main`; `nav` labelled "Administration" |
+| App shell | `appShell()`: `.app`, `.side`, `.main`, `.topbar`, `.content` | Administrator (sidebar), ordinary user (top bar only), signed out or `layout: 'auth'` (auth card) | Skip link to `main#main`; sidebar `nav` labelled "Administration" |
 | Nav item | `.nav-item`, `.nav-label` | default, hover, current | `aria-current="page"` on the current section |
 | Recent-auth pill | `.unlock.on`, `.unlock.off` | unlocked with minutes left, locked | Text carries the state; refreshed every 30 seconds |
 | Account menu | `.account-menu` with `.popover` | closed, open | Native disclosure; "Signed in as" is announced |
 | Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
+| Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
+| Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
 | Page header | `pageHeader()`: `.page-head`, `.actions`; identity variant `.page-head.identity`, `.meta` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or `toolIcon(tool, 'lg')` and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
 | Button | `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus, disabled | Icon-only buttons need `aria-label`; verbs name the result |
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
@@ -71,25 +73,27 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions and additional detail | `role="status"` by default; blocking errors use `role="alert"` |
 | Steps and meter | `.vsteps`, `.vstep` (`.done`, `.current`); native `<progress class="meter">` | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
 | Key-value list | `.kv` | | `<dl>` |
-| Copy field | `.copy-group` with `.copyfield`, `[data-copy]` and `.copy-status` | copied, unavailable | Result announced in the status line |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico` | sm, lg | Initials are `aria-hidden`; the name is adjacent text |
+| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
-| Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot` | open; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
 | Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from `?sheet=<name>` without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
 | Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
-| Toast | `[data-toast]` `.toast` | empty (hidden), success | Polite live region; shows a tier-1 result after the page reloads |
-| Tabs | `tabs()`: `nav.utabs` | current, with a note or count | Links with `?tab=`, `aria-current="page"`; each tab is its own server-rendered view |
+| Option card | `.options`, `.option` | unchecked, checked | Native radio |
+| Code and copy | `copyBlock()`, `copyField()`, `copyValue()`: `[data-copy-scope]` with `[data-copy]` and `.copy-status`; existing `.copy-group` fields also supported | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
+| Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
+| Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
+| View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
+| Auth card | `.auth`, `.auth-card`, `.auth-head`, `.auth-actions`, `.divider`, `.bigcode`, `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action follows cancel or deny within `.auth-actions` |
+| Toasts | `.toasts` with `#toast.toast.ok` and `#message.toast.err` | empty (hidden), success, error, conflict with **Reload latest** | `#toast` is a polite `status` region that shows a tier-1 or tier-2 result after the page reloads; `#message` is an `alert` |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
 | Credential editor | `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Each input sits inside its label; `aria-describedby` links its hint |
-| Auth card | `.auth`, `.auth-card` | | One `h1` |
-| Message | `#message.message` | empty (hidden), error | Live region for action results |
+| Tabs | `tabs()`: `nav.utabs` | current, with a note or count | Links with `?tab=`, `aria-current="page"`; each tab is its own server-rendered view |
 
 Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
 
@@ -116,15 +120,27 @@ Administrator-added Check Point event actions appear by exact code under Other o
 
 ## Confirmations
 
-API forms opened with `apiFormTag()` choose their tier:
+**Confirmation tiers.**
+API forms opened with `apiFormTag()` or `apiForm()` choose their tier:
 
-- Tier 1 has an empty `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` is shown in the toast after the page reloads.
-- Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb, which labels its confirm button and, by default, titles the dialog.
+- Tier 1 has an empty `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` (default "Change saved.") is shown in the toast after the page reloads.
+- Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb (the button text when absent), which labels its confirm button and, by default, titles the dialog.
   `data-confirm-title` overrides the dialog title.
-- Tier 3 also sets `data-confirm-name`: the dialog turns red and its confirm button stays disabled until that exact name is typed.
+- Tier 3 also sets `data-confirm-name`: the dialog shows a red status mark and confirm button, which stays disabled until that exact name is typed.
 
 `data-success-url` sends the person to another page after success; `{id}` in it is replaced with the created record's id.
 Recent-auth confirmation and CSRF apply to every tier; revision-checked mutations also include `expectedRevision`.
+Confirmation does not change the request, CSRF token, revision check or recent-auth flow.
+
+**Interstitials.**
+Sign-in, password, identity confirmation, CLI approval, results and error pages use the auth card, including for signed-in people, who also get a sign-out link under the card.
+For the optional provider sign-out choice, see [browser administration](admin-guide.md#browser-administration).
+Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
+
+**Dialog views without JavaScript.**
+Add and edit forms that open as dialogs have a query-parameter view rendered open by the server, so their fields and close link remain accessible without scripts.
+Submitting API forms requires JavaScript.
+Form errors appear inside the open dialog so they remain visible and can receive focus.
 
 ## Navigation
 

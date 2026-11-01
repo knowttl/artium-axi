@@ -112,7 +112,8 @@ try {
     assert.match(identity.stdout, /synthetic-admin/)
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)
-    assert.match(listing.stdout, /falcon-axi,unknown,"0.9.0"/)
+    // Discovery is independent of background health-check timing.
+    assert.match(listing.stdout, /^  falcon-axi,[^,\r\n]+,"0\.9\.0",/m)
     const home = await cli([])
     assert.equal(home.code, 0, home.stdout + home.stderr)
     assert.match(home.stdout, /user: "synthetic-admin"/)

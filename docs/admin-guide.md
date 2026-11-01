@@ -108,19 +108,22 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` opens it without JavaScript; submission requires JavaScript). |
 | `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
-| `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
+| `/account` | Review your roles and tools, follow the three-step CLI setup, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools in a table with state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
 | `/admin/tools/:tool` | Header with state, write badges, **Test connection** and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
 | `/admin/audit` | Filter, page through and export authentication, administration and tool-call records, and open one in a detail panel. |
-| `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
+| `/admin/settings/sign-in` | Review the sign-in mode, break-glass readiness and pending invitations, and add providers; see [Sign-in settings](admin-guide.md#sign-in-settings). |
+| `/admin/settings/sign-in/:id` | Provider Setup checklist, Credential, Role rules and Settings tabs, and the Enable sign-in control. |
+| `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
+| `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
 Tool State reflects the latest cached check for the current credential even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
 The Needs attention filter includes Failing and Needs credential states.
 
-For users granted Hybrid Analysis, Check Point or Microsoft Graph, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
+For users granted Hybrid Analysis, Check Point, Microsoft Graph or BeyondTrust, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving), [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving) and [BeyondTrust endpoint content](client-reference.md#beyondtrust-pm-cloud), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
 See the [capability boundary](safety.md) for current availability.
 
@@ -139,7 +142,7 @@ Disabled and archived users remain listed as role members and must have that rol
 Archived user detail is read-only and displays retained roles, grant provenance and change history.
 The API still allows retained direct assignments to be removed without restoring sign-in and refuses new direct assignments, including reassigning a removed direct grant.
 See [Sign-in settings](admin-guide.md#sign-in-settings) for removing rule-origin grants.
-Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
+Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in & SSO** first.
 Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
 Deletion removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
@@ -151,24 +154,27 @@ Session revocation and administration changes commit with their audit records.
 After 15 minutes without identity confirmation, administration mutations require reauthentication.
 See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for the administration UI's inspection, trust modes, rotation and network-path warning.
 Administration screens share a sidebar; ordinary users get a top bar only.
-Signed-in screens have an account menu showing identity and sign-in source, with links to your account and sign-out.
+Signed-in dashboard screens have an account menu showing identity and sign-in source, with links to your account and sign-out.
+Signed-in authentication cards instead show your identity and a sign-out control below the card.
 On administration screens, the top bar also shows the remaining confirmation window: "Changes unlocked" with the minutes left, or "Changes locked".
 Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
 SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
 For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
 Confirmation is refused if that claim is absent or stale.
-After confirming with the same identity, use **Continue to artium** to resume the pending action in the original window.
+After confirming with the same identity, use **Continue to Artium** to resume the pending action in the original window.
 Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
 Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.
 SSO sign-out optionally also visits the provider's discovered end-session endpoint, when supported.
+Select **Also sign out of your identity provider** in the account menu or below a signed-in authentication card to request it; the checkbox starts unchecked.
 After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
-Confirmation dialogs explain consequences before changes.
+Confirmation dialogs are titled with the action and explain its consequence before the change; removing an SSO role rule also requires typing its claim value.
 Archiving a person requires typing their exact username before the **Archive** confirmation button becomes available.
 Role creation and rename save without an additional action confirmation dialog; saving tool grants requires confirmation, and deleting an eligible role requires typing its exact name.
 The role's deletion control is disabled while blockers remain and lists their counts.
+Successful changes show a short confirmation, and a change that another administrator made first shows **Reload latest**.
 Recent identity confirmation still applies to these actions; each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
 
@@ -225,13 +231,13 @@ For a new installation, follow [Graph credential setup](tool-credentials.md#micr
 
 ### Sign-in settings
 
-Open **Sign-in settings** at `/admin/settings/sign-in` to add a single-tenant Entra ID provider using its name and directory tenant UUID.
-Open the provider to save its application client UUID and credential.
+Open **Sign-in & SSO** at `/admin/settings/sign-in`, choose **Add provider** and pick **Microsoft Entra ID** to add a single-tenant provider using its name and directory tenant UUID.
+Open the provider's **Credential** tab to save its application client UUID and credential.
 Certificate authentication is preferred: paste or upload one PEM containing the certificate and matching unencrypted private key; Artium calculates the SHA-256 fingerprint.
 The application's public certificate registration is an owner setup step; saving here does not contact the provider.
 A client secret is also accepted, with an in-page warning recommending certificates.
 
-For another OpenID Connect provider, choose **Add OpenID Connect provider** and enter its name and exact HTTPS issuer URL.
+For another OpenID Connect provider, choose **Add provider**, pick **OpenID Connect** and enter its name and exact HTTPS issuer URL.
 Discovery reads the issuer's OpenID configuration over verified TLS and rejects redirects and mismatched issuers.
 Register the provider page's exact callback URI in a confidential web application, then save its client ID and RSA certificate (`private_key_jwt`) or client secret (`client_secret_post` or `client_secret_basic`, selected from discovery with POST preferred).
 If discovery omits the supported client-authentication methods, secret authentication defaults to Basic.
@@ -250,7 +256,8 @@ Settings and credential saves require administrator capability and the [confirma
 The [provider and role-rule API contracts](../src/shared/api.ts) own the request and response fields.
 
 Providers start disabled.
-The provider page includes its setup guide, copy buttons for redirect and post-logout URIs, and an audited activation control requiring recent authentication.
+The provider's **Setup** tab is a checklist that ticks the steps Artium can verify (issuer or tenant saved, credential saved, break-glass administrator ready, enabled), with copy buttons for redirect and post-logout URIs.
+**Enable sign-in** in the provider header is an audited activation control requiring recent authentication; until setup is ready it stays disabled and the Setup tab lists what is missing.
 Activation requires a locally valid matching credential and an enabled, unlocked, unarchived break-glass local administrator with a permanent password.
 Test that emergency account in a separate browser before enabling SSO, then test an invitation claim and provider sign-in while keeping break-glass access open.
 Local checks cannot prove provider credential acceptance or access-policy configuration.
@@ -263,9 +270,9 @@ The users table and signed-in account menu identify designated accounts.
 Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
 When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
 Fresh installations designate no accounts automatically and keep providers disabled.
-On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
-Generic provider pages offer the same rule editor with a claim-name field.
-Each rule's Who matches link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
+On an Entra provider's **Role rules** tab, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
+Generic providers offer the same rule editor with a claim-name field.
+Each rule's match-count link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
 Counts refresh on page reload and include matches for new rules before the next role sync.
 These saved claims are not a live directory query; users without recorded sign-in claims are unknown.
 The target role supplies tool access; rules never grant administrator capability.
@@ -291,7 +298,7 @@ Linking preserves the existing user id, username, display name, administrator fl
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
 For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
-Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and UTC time before choosing **Approve**.
+Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and time before choosing **Approve**.
 Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
 Choose **This wasn't me** to deny an unexpected request.
 Codes expire after 10 minutes and can grant access only once.
