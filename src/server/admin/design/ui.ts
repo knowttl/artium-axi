@@ -49,26 +49,34 @@ export function icon(name: IconName): string {
   return `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`
 }
 
-// `actions` is trusted markup placed beside the title, such as buttons or an inline editor.
-export function pageHeader(title: string, description?: string, actions = ''): string {
-  return `<div class="page-head"><div><h1>${escape(title)}</h1>${description ? `<p>${escape(description)}</p>` : ''}</div>${actions}</div>`
+export interface PageHeader {
+  // A detail page names its record in the h1 and crumbs while `title` keeps naming the screen.
+  heading?: string
+  description?: string
+  // Trusted markup for at most one primary action plus secondary actions, wrapped in `<div class="actions">`.
+  actions?: string
+  // Identity variant: an avatar or tool icon before the title, and badges under it.
+  lead?: string
+  meta?: string
 }
 
-export function card(title: string, description: string, body: string, options: { actions?: string } = {}): string {
-  return `<section class="card"><div class="card-head"><div><h2>${escape(title)}</h2><p>${escape(description)}</p></div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}</section>`
+export function pageHeader(title: string, header: PageHeader = {}): string {
+  const text = `<div class="grow"><h1>${escape(title)}</h1>${header.meta ? `<div class="row meta">${header.meta}</div>` : ''}${header.description ? `<p>${escape(header.description)}</p>` : ''}</div>`
+  return `<div class="page-head${header.lead ? ' identity' : ''}">${header.lead ?? ''}${text}${header.actions ?? ''}</div>`
+}
+
+export function card(title: string, description: string, body: string, options: { actions?: string, foot?: string, danger?: boolean } = {}): string {
+  return `<section class="card${options.danger ? ' danger' : ''}"><div class="card-head"><div><h2>${escape(title)}</h2>${description ? `<p>${escape(description)}</p>` : ''}</div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}${options.foot ? `<div class="card-foot">${options.foot}</div>` : ''}</section>`
+}
+
+// Results keep the default status role; blocking errors pass role "alert". `more` is trusted markup after the text.
+export function callout(tone: 'info' | 'ok' | 'warn' | 'err', title: string, text: string, actions = '', options: { role?: 'status' | 'alert', attributes?: string, more?: string } = {}): string {
+  return `<div class="callout ${tone}" role="${options.role ?? 'status'}"${options.attributes ? ' ' + options.attributes : ''}>${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow"><strong>${escape(title)}</strong><p>${text}</p>${options.more ?? ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
 }
 
 // A compact card for side guidance: a small heading and short text, no header bar.
 export function noteCard(title: string, body: string): string {
   return `<section class="card"><div class="card-body"><h3>${escape(title)}</h3>${body}</div></section>`
-}
-
-export type Tone = 'ok' | 'warn' | 'err' | 'info'
-
-// Results use role="status"; blocking errors pass role "alert".
-export function callout(tone: Tone, title: string, body: string, options: { role?: 'status' | 'alert', attributes?: string } = {}): string {
-  const glyph: IconName = tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert'
-  return `<div class="callout ${tone}"${options.role ? ` role="${options.role}"` : ''}${options.attributes ? ' ' + options.attributes : ''}>${icon(glyph)}<div class="grow"><b>${escape(title)}</b>${body}</div></div>`
 }
 
 // Tabs are links, so each tab is its own server-rendered view.
@@ -81,6 +89,46 @@ const stepWords = { done: 'Done', fail: 'Failed', todo: 'To do' }
 export function steps(items: { title: string, detail: string, state: StepState, attributes?: string }[]): string {
   const current = items.findIndex(item => item.state !== 'done')
   return `<ol class="steps">${items.map((item, index) => `<li class="step ${item.state}${index === current ? ' current' : ''}"${item.attributes ? ' ' + item.attributes : ''}><span class="mark" aria-hidden="true">${item.state === 'done' ? icon('check') : item.state === 'fail' ? icon('x') : index + 1}</span><div><b><span class="sr-only" data-step-state>${stepWords[item.state]}: </span>${escape(item.title)}</b><span>${item.detail}</span></div></li>`).join('')}</ol>`
+}
+
+export interface Sheet {
+  name: string
+  // True when the page was requested with ?sheet=<name>.
+  open: boolean
+  // The page without the sheet; Close and Cancel link here.
+  closeHref: string
+  title: string
+  description: string
+  body: string
+  submit: string
+  // Wraps the body and footer, usually in the form that the submit button sends.
+  wrap: (inner: string) => string
+}
+
+// A side sheet on a native dialog. Without JavaScript the page renders it open from ?sheet=<name>,
+// with a scrim and Cancel linking back to the page; confirm.js reopens it as a modal.
+export function sheet(sheet: Sheet): string {
+  const id = `sheet-${escape(sheet.name)}`
+  const close = escape(sheet.closeHref)
+  return `${sheet.open ? `<a class="scrim" href="${close}" tabindex="-1" aria-hidden="true" data-sheet-scrim></a>` : ''}<dialog class="sheet" id="${id}" aria-labelledby="${id}-title"${sheet.open ? ' open' : ''}>
+    <div class="sheet-head"><div class="grow"><h2 id="${id}-title">${escape(sheet.title)}</h2><p>${escape(sheet.description)}</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${close}" data-sheet-close aria-label="Close">${icon('x')}</a></div>
+    ${sheet.wrap(`<div class="sheet-body"><p class="message" data-sheet-message role="alert" tabindex="-1"></p>${sheet.body}</div><div class="sheet-foot"><a class="btn btn-ghost" href="${close}" data-sheet-close>Cancel</a>${sheet.submit}</div>`)}</dialog>`
+}
+
+// A labelled field; the control receives its id and the hint's aria-describedby.
+export function field(id: string, label: string, control: (attributes: string) => string, hint = ''): string {
+  const attributes = `id="${escape(id)}"${hint ? ` aria-describedby="${escape(id)}-hint"` : ''}`
+  return `<div class="field"><label for="${escape(id)}">${escape(label)}</label>${control(attributes)}${hint ? `<p class="hint" id="${escape(id)}-hint">${escape(hint)}</p>` : ''}</div>`
+}
+
+// A checkbox with a bold title and a one-line description.
+export function checkOption(input: string, title: string, description = ''): string {
+  return `<label class="check">${input}<span><strong>${escape(title)}</strong>${description ? `<span>${escape(description)}</span>` : ''}</span></label>`
+}
+
+// A link that opens a sheet: a modal with JavaScript, otherwise the ?sheet= view of the page.
+export function sheetLink(name: string, href: string, label: string, className: string, iconName?: IconName): string {
+  return `<a class="${className}" href="${escape(href)}" data-sheet="sheet-${escape(name)}">${iconName ? icon(iconName) : ''}${escape(label)}</a>`
 }
 
 // A list footer: a summary on the left and cursor links on the right; a null href is the current end.
@@ -103,14 +151,8 @@ export interface Viewer {
   reauthUntil: number
 }
 
-export interface Page {
+export interface Page extends PageHeader {
   title: string
-  // A detail page names its record in the h1 and crumbs while `title` keeps naming the screen.
-  heading?: string
-  actions?: string
-  description?: string
-  // Replaces the default page header, for identity headers that still hold the page's only h1.
-  header?: string
   content: string
   help: string
   path: string
@@ -130,10 +172,10 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
 const brand = (href: string) => `<a class="brand" href="${href}"><span class="logo" aria-hidden="true">A</span>Artium</a>`
 
 // Initials are decorative; the name is always adjacent text.
-export function avatar(name: string): string {
+export function avatar(name: string, large = false): string {
   const words = name.trim().split(/\s+/)
   const initials = (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
-  return `<span class="avatar" aria-hidden="true">${escape(initials)}</span>`
+  return `<span class="avatar${large ? ' lg' : ''}" aria-hidden="true">${escape(initials)}</span>`
 }
 
 function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down'): string {
@@ -170,7 +212,7 @@ const toast = '<p class="toast" role="status" data-toast></p>'
 
 export function appShell(page: Page): string {
   const { viewer } = page
-  const head = page.header ?? pageHeader(page.heading ?? page.title, page.description, page.actions)
+  const head = pageHeader(page.heading ?? page.title, page)
   if (!viewer) {
     return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${brand('/login')}${head}${message}${page.content}</div>
       <details class="page-help auth-help"><summary>Help with ${escape(page.title.toLowerCase())}</summary>${page.help}</details></div></main>`

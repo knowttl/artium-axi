@@ -198,7 +198,7 @@ test.each([
   const cookie = { cookie: 'artium-session=' + session.id }
   const userPage = await app.inject({ url: '/admin/users/synthetic-ordinary', headers: cookie })
   expect(userPage.statusCode).toBe(200)
-  expect(userPage.body).toContain(`</a> (${assignment})`)
+  expect(userPage.body).toContain(`>Synthetic Role · ${assignment.replace('Rule', 'SSO rule')}</a>`)
   expect(userPage.body).not.toContain('No retained roles remain.')
   const rolePage = await app.inject({ url: '/admin/roles/synthetic-role', headers: cookie })
   expect(rolePage.statusCode).toBe(200)

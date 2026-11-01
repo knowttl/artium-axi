@@ -12,7 +12,7 @@ import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
 import { pageHelp } from '../admin/forms.js'
-import { appShell } from '../admin/design/ui.js'
+import { appShell, type PageHeader } from '../admin/design/ui.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
@@ -23,7 +23,7 @@ export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite
 const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
-  page: { heading?: string, actions?: string, header?: string, helpTitle?: string } = {}) {
+  header: Omit<PageHeader, 'description'> & { helpTitle?: string } = {}) {
   const viewer = current && {
     name: current.display_name,
     method: current.source === 'sso' ? 'SSO' : current.break_glass ? 'Break-glass' : 'Password',
@@ -34,7 +34,8 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
     csrf: reply.generateCsrf(),
     reauthUntil: current.reauthenticated_at === null ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs,
   }
-  const body = appShell({ title, heading: page.heading, actions: page.actions, header: page.header, description, content, help: pageHelp(page.helpTitle ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer })
+  const { helpTitle, ...pageHeader } = header
+  const body = appShell({ title, ...pageHeader, description, content, help: pageHelp(helpTitle ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer })
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 

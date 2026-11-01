@@ -139,12 +139,12 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const test = formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
     const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +
       `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}"><button class="toggle" role="switch" aria-checked="${tool.enabled}"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>Enabled</button></form>`
-    const header = `<div class="page-head identity">${toolIcon(tool.name, 'lg')}<div class="grow"><h1>${escape(product)}</h1><div class="row meta"><span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span data-tool-state>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked <span data-check-time>${timestamp(tool.health.checkedAt, 'never')}</span></span></div></div><div class="actions">${test}${enable}</div></div>
-      <template data-state="ok">${setupBadge('healthy')}</template><template data-state="error">${setupBadge('failing')}</template>`
+    const meta = `<span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span data-tool-state>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked <span data-check-time>${timestamp(tool.health.checkedAt, 'never')}</span></span>`
+    const stateTemplates = `<template data-state="ok">${setupBadge('healthy')}</template><template data-state="error">${setupBadge('failing')}</template>`
 
     const definition = tool.health.errorCode && tool.health.errorCode in errors ? errors[tool.health.errorCode as keyof typeof errors] : undefined
-    const failure = callout('err', 'Last test failed', `<p data-check-summary>${escape(tool.health.diagnostic?.message ?? definition?.message ?? '')} ${escape(tool.health.diagnostic?.hint ?? definition?.next ?? '')}</p><p>Agents calling this tool get <code data-check-error>${escape(tool.health.errorCode ?? '')}</code>.${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ` Review the endpoint on <a href="?tab=certificates">Certificates</a>.` : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(tool.health.diagnostic))}</pre></details>`,
-      { attributes: `data-check-failure${failing ? '' : ' hidden'}` })
+    const failure = callout('err', 'Last test failed', `<span data-check-summary>${escape(tool.health.diagnostic?.message ?? definition?.message ?? '')} ${escape(tool.health.diagnostic?.hint ?? definition?.next ?? '')}</span>`, '',
+      { attributes: `data-check-failure${failing ? '' : ' hidden'}`, more: `<p>Agents calling this tool get <code data-check-error>${escape(tool.health.errorCode ?? '')}</code>.${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ` Review the endpoint on <a href="?tab=certificates">Certificates</a>.` : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(tool.health.diagnostic))}</pre></details>` })
     const grants = roles.map(role => role.name).join(', ')
     const setup = steps([
       { title: 'Credential saved', detail: credential.configured ? timestamp(credential.updatedAt) : 'Not saved yet', state: credential.configured ? 'done' : 'todo' },
@@ -171,7 +171,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           <p>Use a dedicated machine account. This reuses the GitHub CLI OAuth client ID and requests repo, read:org, gist, workflow and project. These broad scopes permit writes outside Artium even while Artium writes are off.</p>
           <p>The non-expiring OAuth token appears as GitHub CLI in GitHub Settings, Applications, Authorized OAuth Apps. Revoke it there. Store and rotate it like every other secret. No automatic refresh is performed. Connecting replaces the shared credential only after approval.</p>
           ${device ? `<p>Connected account: <strong>${escape(credential.metadata.login)}</strong>. ${credential.metadata.accessTokenExpiresAt ? 'Provider expiry: ' + timestamp(Number(credential.metadata.accessTokenExpiresAt)) : 'No scheduled expiry.'}</p>` : ''}
-          ${tool.health.errorCode === 'CREDENTIAL_EXPIRED' ? callout('err', 'The credential expired or was revoked', '<p>Reconnect below.</p>', { role: 'alert' }) : ''}
+          ${tool.health.errorCode === 'CREDENTIAL_EXPIRED' ? callout('err', 'The credential expired or was revoked', 'Reconnect below.', '', { role: 'alert' }) : ''}
           ${formStart(githubDeviceRoutes.start.path, 'POST', 'Connect a shared GitHub account with repo, read:org, gist, workflow and project scopes? This replaces the deployment credential after authorization.', 'data-connect-github')}${revisionInputs(credential.revision)}<label>GitHub HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? 'https://github.com')}"></label><button class="btn btn-secondary">${icon('link')}${device ? 'Reconnect with GitHub' : 'Connect with GitHub'}</button></form>
           <div class="column" data-github-authorization hidden><p>Open <a data-github-link target="_blank" rel="noopener noreferrer"></a> and enter:</p><div class="bigcode" data-github-code></div><p data-github-status role="status"></p><div><button type="button" class="btn btn-ghost btn-sm" data-cancel-github>Cancel connection</button></div></div>
           <p>Alternatively, choose token or github-app below to replace the credential using another method.</p></div></section>`
@@ -197,14 +197,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' })
     } else {
       const writeState = `${awx ? 'operational writes' : 'writes'} ${writes.enabled ? 'on' : 'off'}${awx ? `; configuration changes ${configurationWrites ? 'on' : 'off'}` : ''}`
-      panel = callout('warn', 'This replaces all native settings', '<p>Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.</p>') +
+      panel = callout('warn', 'This replaces all native settings', 'Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.', '') +
         formStart(api, 'PATCH', 'Replace native settings while keeping the credential?', '', 'card') +
         `<div class="card-head"><div><h2>Native settings (JSON)</h2><p>Current: ${escape(writeState)}.</p></div></div><div class="card-body"><input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" data-json-check rows="10" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label><p class="note" data-json-status aria-live="polite"></p></div>
         <div class="card-foot"><span>{} clears settings.</span><div class="actions"><button class="btn btn-secondary btn-sm">Replace settings</button></div></div></form>`
     }
     // The filter form sits outside the write form; its controls join it through the form attribute.
     const filterForm = tab === 'writes' && writes.capable && writes.supportedOperations ? `<form id="ops-filter" method="get" action="/admin/tools/${tool.name}" hidden><input type="hidden" name="tab" value="writes"></form>` : ''
-    return browserPage(reply, product, failure + setup + result + navigation + panel + filterForm, current, undefined, { header, helpTitle: 'Tools' })
+    return browserPage(reply, product, stateTemplates + failure + setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${test}${enable}</div>`, helpTitle: 'Tools' })
 
     function writesPanel(): string {
       const blocked = noteCard('Always blocked', `<p>${escape(writes.blocked)}</p>`)
@@ -218,7 +218,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const grant = `<p class="note">${writes.enabled ? `Current grant: ${escape(writes.unlocks)}` : awx ? 'No operational actions are currently granted.' : 'No write actions are currently granted.'}</p>`
       const confirmation = 'Save write access and the selected operations for this tool? Other native settings stay unchanged. Turning writes on allows the actions described on this page; turning writes off blocks them. This change is audited.'
       const unsupported = writes.supportedOperations && writes.allowedOperations.some(operation => !writes.supportedOperations!.includes(operation))
-        ? callout('err', 'Unsupported operations saved', '<p>The saved allow-list contains operations outside the pinned catalogue. Saving write permissions removes them.</p>', { role: 'alert' }) : ''
+        ? callout('err', 'Unsupported operations saved', 'The saved allow-list contains operations outside the pinned catalogue. Saving write permissions removes them.', '', { role: 'alert' }) : ''
       const save = '<div class="actions"><button class="btn btn-primary btn-sm">Save write permissions</button></div>'
       let form: string
       if (writes.supportedOperations) {
@@ -228,7 +228,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         form = formStart(api + '/write-access', 'PATCH', confirmation, '', 'card') + `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}">` +
           `<div class="card-body">${switches}</div><div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span>${save}</div></form>`
       }
-      const warning = callout('warn', 'Read before enabling', `<p>${escape(writes.unlocks)}</p>`)
+      const warning = callout('warn', 'Read before enabling', escape(writes.unlocks), '')
       return `<div class="split has-aside" data-write-access><div class="column">${unsupported}${form}${grant}</div><div class="column">${blocked}${warning}</div></div>`
     }
 
@@ -286,11 +286,11 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         ? '<option value="ca">Trust the issuing CA</option></select></label><p>GitHub CLI requires an issuing CA. Leaf pinning is unavailable. Use the server trusted CA bundle for self-signed endpoints.</p>'
         : '<option value="ca">Trust the issuing CA (recommended, renewed certificates keep working)</option><option value="pin">Strict leaf pinning (re-trust after every rotation)</option></select></label><p>Self-signed endpoints keep a leaf pin. Hostname and date verification always apply.</p>'
       const dialog = `<dialog id="certificate-inspection" class="modal" aria-labelledby="certificate-inspection-title"><div class="modal-body"><h2 id="certificate-inspection-title">Trust this certificate for ${escape(product)}?</h2>
-        ${callout('warn', 'Compare the fingerprint before trusting', '<p>Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.</p>', { role: 'alert' })}
+        ${callout('warn', 'Compare the fingerprint before trusting', 'Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.', '', { role: 'alert' })}
         <div data-certificate-details></div><p data-certificate-error role="alert"></p>${formStart(api + '/certificates/trust', 'POST', '', 'data-trust-certificate')}<input type="hidden" name="inspectionId"><label>Trust mode<select name="mode">${trustModes}<button class="btn btn-primary">Trust certificate</button></form></div>
         <div class="modal-foot"><button type="button" class="btn btn-ghost" data-close-certificate>Close</button></div></dialog>`
       return `<section class="card" data-trusted-certificates><div class="card-head"><div><h2>Trusted certificates</h2><p>Trust applies only to this tool's saved credential. CA trust allows leaf renewal; strict pinning needs re-trust after rotation.</p></div></div>
-        ${expiring ? `<div class="card-body">${callout('warn', 'A trusted certificate expires soon', '<p>A trusted certificate has expired or expires within 30 days. Re-inspect this endpoint for rotation.</p>', { role: 'alert' })}</div>` : ''}${table}<div class="card-foot">${foot}</div></section>${dialog}`
+        ${expiring ? `<div class="card-body">${callout('warn', 'A trusted certificate expires soon', 'A trusted certificate has expired or expires within 30 days. Re-inspect this endpoint for rotation.', '', { role: 'alert' })}</div>` : ''}${table}<div class="card-foot">${foot}</div></section>${dialog}`
     }
   })
 }
