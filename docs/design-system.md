@@ -70,8 +70,8 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Table | `.tbl`, `.cell-main`, `.num`; add `.stack-sm` for stacked rows on narrow screens | row link in the first cell | Real `<table>` with `th scope`; stacked cells label themselves from `data-label` |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
-| Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; part of a form, never auto-saves |
-| Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; labels and tags come from `tools/inventories/write-operations.json` |
+| Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
+| Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
 | Tool icon | `toolIcon()`: `.tool-ico`, `.tool-ico.lg` | sm, lg | Initials are `aria-hidden`; the product name is adjacent text |
 | Credential editor | `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Each input sits inside its label with a one-sentence hint |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
@@ -94,7 +94,8 @@ Only `status.ts` renders these words.
 ## Write operation labels and risk
 
 Write permission pages show each operation's plain label, then its exact code.
-Labels, resource groups and the Delete and Bulk tags come only from the reviewed map in `tools/inventories/write-operations.json`, never from the operation name.
+Reviewed operations take their labels, resource groups and Delete and Bulk tags from `tools/inventories/write-operations.json`, never inferred from the operation name.
+Administrator-added Check Point event actions appear by exact code under Other operations, without inferred risk tags.
 `test/write-operations.test.ts` fails when an adapter's pinned catalogue gains or loses an operation the map does not list, so each new operation is reviewed before it ships.
 
 ## Navigation

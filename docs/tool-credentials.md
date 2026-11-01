@@ -310,8 +310,8 @@ Use a dedicated machine account and follow the [credential rotation procedure](r
 Tokens only reach children through private environment injection and are scanned for output disclosure.
 The admin API never returns the token.
 
-Classic PAT setup uses `repo`, `read:org`, `gist`, `workflow` and `project` scopes so the planned operation set can work when enabled in later slices.
-Classic `repo` scope grants upstream write access even though Artium currently blocks all writes.
+Classic PAT setup uses `repo`, `read:org`, `gist`, `workflow` and `project` scopes for the supported operation set.
+Classic `repo` scope grants upstream write access; review the separate [Artium write boundary](safety.md#write-gates-by-tool) before granting it.
 Prefer a fine-grained PAT restricted to selected repositories and the corresponding contents, issues, pull requests, actions, discussions and projects permissions.
 Fine-grained tokens cannot access every classic-token feature; permission failures are errors, never empty results.
 Organization approval, SSO authorization and GHES token support depend on upstream policy and version.

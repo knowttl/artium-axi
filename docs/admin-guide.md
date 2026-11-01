@@ -117,6 +117,9 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
 | `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 
+Tool State reflects the latest cached check for the current credential even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
+The Needs attention filter includes Failing and Needs credential states.
+
 For users granted Hybrid Analysis, Check Point or Microsoft Graph, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
 See the [capability boundary](safety.md) for current availability.
@@ -169,7 +172,7 @@ Archiving disables sign-in, revokes all sessions and hides the user from the use
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
 Credential editors pre-fill non-secret values and never return stored secrets.
-Field labels use schema titles when available; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
+Field labels use schema titles when available, then plain labels for known fields, falling back to the property name; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
@@ -195,7 +198,7 @@ Use the **Write permissions** tab (`?tab=writes`) on a tool page to change write
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, **Operational actions** and **Configuration changes** are independent switches; review the [AWX write boundary](safety.md#write-gates-by-tool) before enabling either.
-For Falcon, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+For Falcon, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
 Check Point email/attachment downloads are separately selected and use [host-owned CLI confirmation](client-reference.md#check-point-email-and-attachment-saving), while mutations retain their native gates.
