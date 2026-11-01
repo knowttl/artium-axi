@@ -145,32 +145,79 @@ for (const dialog of document.querySelectorAll('dialog.sheet')) {
   history.replaceState(null, '', url);
   openSheet(dialog);
 }
-for (const form of document.querySelectorAll('[data-filters]')) {
-  form.querySelector('[data-filter-apply]')?.setAttribute('hidden', '');
-  for (const select of form.querySelectorAll('select')) select.addEventListener('change', () => form.requestSubmit());
-}
 
+// Tier 2 names the action in the title and confirm button; tier 3 also requires typing the exact name.
 function confirmChange(form) {
   const dialog = document.getElementById('confirmation');
-  const typed = dialog.querySelector('[data-confirm-typed]');
-  const input = typed.querySelector('input');
-  const button = dialog.querySelector('[data-confirm-button]');
+  const action = form.dataset.confirmAction || 'Confirm change';
   const name = form.dataset.confirmName;
-  dialog.querySelector('h2').textContent = form.dataset.confirmTitle || 'Confirm change';
+  const confirm = dialog.querySelector('[data-confirm-button]');
+  const field = dialog.querySelector('[data-confirm-name-field]');
+  const typed = field.querySelector('input');
+  dialog.querySelector('h2').textContent = form.dataset.confirmTitle || action;
   dialog.querySelector('[data-consequence]').textContent = form.dataset.confirm;
-  button.textContent = form.dataset.confirmAction || 'Confirm change';
-  button.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
-  typed.hidden = !name;
-  input.value = '';
-  typed.querySelector('label').textContent = name ? 'Type ' + name + ' to confirm' : '';
-  button.disabled = Boolean(name);
-  input.oninput = () => { button.disabled = input.value !== name; };
+  confirm.textContent = action;
+  confirm.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
+  dialog.classList.toggle('danger', Boolean(name));
+  field.hidden = !name;
+  field.querySelector('[data-confirm-name]').textContent = name || '';
+  typed.value = '';
+  confirm.disabled = Boolean(name);
+  typed.oninput = () => { confirm.disabled = typed.value !== name; };
   dialog.returnValue = '';
   return new Promise(resolve => {
     dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirmed'), { once: true });
     dialog.showModal();
-    if (name) input.focus();
+    if (name) typed.focus();
   });
+}
+
+const toast = document.querySelector('[data-toast]');
+const savedToast = sessionStorage.getItem('artium-toast');
+if (savedToast !== null) {
+  sessionStorage.removeItem('artium-toast');
+  if (toast) {
+    toast.textContent = savedToast;
+    setTimeout(() => { toast.textContent = ''; }, 6000);
+  }
+}
+for (const form of document.querySelectorAll('form[data-track-changes]')) {
+  const save = form.querySelector('button:not([type])');
+  const discard = form.querySelector('[data-discard]');
+  const initial = new URLSearchParams(new FormData(form)).toString();
+  const update = () => {
+    const dirty = new URLSearchParams(new FormData(form)).toString() !== initial;
+    save.disabled = !dirty;
+    discard.hidden = !dirty;
+  };
+  form.addEventListener('change', update);
+  form.addEventListener('reset', () => setTimeout(update));
+  update();
+}
+for (const link of document.querySelectorAll('[data-open-dialog]')) {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    const dialog = document.getElementById(link.dataset.openDialog);
+    if (!dialog.open) dialog.showModal();
+  });
+}
+for (const link of document.querySelectorAll('[data-close-dialog]')) {
+  link.addEventListener('click', event => {
+    const dialog = link.closest('dialog');
+    if (!dialog.matches(':modal')) return;
+    event.preventDefault();
+    dialog.close();
+  });
+}
+// A dialog rendered open for readers without JavaScript becomes modal once the script runs.
+for (const dialog of document.querySelectorAll('dialog.modal[open]')) {
+  dialog.close();
+  dialog.showModal();
+}
+for (const form of document.querySelectorAll('form[data-filters]')) {
+  for (const select of form.querySelectorAll('select')) select.addEventListener('change', () => form.requestSubmit());
+  const apply = form.querySelector('[data-filters-apply]');
+  if (apply) apply.hidden = true;
 }
 
 function showError(target, error) {
@@ -432,13 +479,13 @@ document.addEventListener('submit', async event => {
   }
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
-  const button = event.submitter || form.querySelector('button:not([type=button])');
+  const button = event.submitter || form.querySelector('button:not([type=button]):not([type=reset])');
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
-  const message = form.hasAttribute('data-trust-certificate')
+  const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
-    : form.closest('dialog.sheet')?.querySelector('[data-sheet-message]') || document.getElementById('message');
+    : form.closest('dialog.sheet')?.querySelector('[data-sheet-message]') || document.getElementById('message'));
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
@@ -533,9 +580,12 @@ document.addEventListener('submit', async event => {
       showError(message, result.error);
       return;
     }
-    if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
+    if (form.dataset.successMessage) sessionStorage.setItem('artium-toast', form.dataset.successMessage);
+    // {id} names the record the request created, such as a new role.
+    if (form.dataset.successUrl?.includes('{id}')) location.assign(form.dataset.successUrl.replace('{id}', encodeURIComponent((await response.json()).id)));
+    else if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
     else location.reload();
-  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; }
+  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; message.focus(); }
   finally { button.disabled = false; pendingAction = false; }
 });
 `

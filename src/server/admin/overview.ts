@@ -4,7 +4,7 @@ import { adminToolRoutes } from '../../shared/api.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
-import { badge, healthState, status, toolIcon, toolNames, writesStatus } from './design/status.js'
+import { stateBadge, toolIcon, toolProducts, toolStatus, writesStatus } from './design/status.js'
 import { avatar, card, icon } from './design/ui.js'
 import { escape } from './escape.js'
 import { adminRead, timestamp } from './forms.js'
@@ -51,21 +51,21 @@ export function registerOverviewPage(app: FastifyInstance, db: Database.Database
     const writesOn = tools.filter(tool => !tool.readOnly)
     const expiring = credentials.flatMap(credential => credentialCertificates(db, credential.id)
       .filter(pin => Math.min(Date.parse(pin.leaf.expiresAt), Date.parse(pin.certificate.expiresAt)) <= now + 30 * 86_400_000)
-      .map(pin => ({ tool: credential.tool as keyof typeof toolNames, pin })))
+      .map(pin => ({ tool: credential.tool as keyof typeof toolProducts, pin })))
     const unclaimable = pending.filter(invitation => !invitation.enabled)
 
     const attention = [
-      ...failing.map(tool => ({ lead: toolIcon(tool.name), title: `${toolNames[tool.name].name} test is failing`, text: `Its last check failed${tool.health.errorCode ? ` with ${tool.health.errorCode}` : ''}. People with this tool get errors until it passes.`, tag: badge('health', 'failing', true), href: `/admin/tools/${tool.name}`, action: 'Open tool' })),
-      ...missing.map(tool => ({ lead: toolIcon(tool.name), title: `${toolNames[tool.name].name} is enabled without a credential`, text: 'Calls fail until a credential is saved and tested.', tag: badge('setup', 'needs-credential', true), href: `/admin/tools/${tool.name}`, action: 'Add credential' })),
-      ...unclaimable.map(invitation => ({ lead: avatar(invitation.name), title: `${invitation.name} can’t claim their invitation yet`, text: `${invitation.provider} is not enabled. Invitations work once it is enabled.`, tag: badge('invitation', 'pending'), href: '/admin/invitations', action: 'Review' })),
-      ...expiring.map(({ tool, pin }) => ({ lead: toolIcon(tool), title: `A trusted certificate for ${toolNames[tool].name} expires soon`, text: `${pin.endpoint} expires within 30 days. Inspect and trust the renewed certificate.`, tag: '', href: `/admin/tools/${tool}`, action: 'Open tool' })),
+      ...failing.map(tool => ({ lead: toolIcon(tool.name), title: `${toolProducts[tool.name].name} test is failing`, text: `Its last check failed${tool.health.errorCode ? ` with ${tool.health.errorCode}` : ''}. People with this tool get errors until it passes.`, tag: stateBadge('health', 'failing', true), href: `/admin/tools/${tool.name}`, action: 'Open tool' })),
+      ...missing.map(tool => ({ lead: toolIcon(tool.name), title: `${toolProducts[tool.name].name} is enabled without a credential`, text: 'Calls fail until a credential is saved and tested.', tag: stateBadge('health', 'needs-credential', true), href: `/admin/tools/${tool.name}`, action: 'Add credential' })),
+      ...unclaimable.map(invitation => ({ lead: avatar(invitation.name), title: `${invitation.name} can’t claim their invitation yet`, text: `${invitation.provider} is not enabled. Invitations work once it is enabled.`, tag: stateBadge('invitation', 'pending'), href: '/admin/invitations', action: 'Review' })),
+      ...expiring.map(({ tool, pin }) => ({ lead: toolIcon(tool), title: `A trusted certificate for ${toolProducts[tool].name} expires soon`, text: `${pin.endpoint} expires within 30 days. Inspect and trust the renewed certificate.`, tag: '', href: `/admin/tools/${tool}`, action: 'Open tool' })),
     ]
     const needs = card('Needs attention', attention.length ? 'Each item names the broken link and the fix.' : 'No problems reported.', attention.length
       ? `<ul class="rows">${attention.map(item => `<li class="list-row">${item.lead}<div class="grow"><strong>${escape(item.title)}</strong><p>${escape(item.text)}</p></div>${item.tag}<a class="btn btn-secondary btn-sm" href="${escape(item.href)}">${escape(item.action)}</a></li>`).join('')}</ul>`
       : `<div class="card-body"><p class="note">${healthy.length === enabled.length && enabled.length ? `${icon('check')}Every enabled tool has a credential and its last check passed.` : enabled.length ? 'Enabled tools still need a passing check.' : 'No tools are enabled yet.'}</p></div>`)
 
-    const toolRows = enabled.map(tool => `<tr class="link"><td><div class="cell-main">${toolIcon(tool.name)}<div><a class="row-link" href="/admin/tools/${tool.name}"><strong>${escape(toolNames[tool.name].name)}</strong></a><span>${escape(tool.name)}</span></div></div></td>
-      <td>${tool.health.status === 'unconfigured' ? status('setup', 'needs-credential') : status('health', healthState(tool.health))}</td><td class="muted">${writesStatus(tool)}</td>
+    const toolRows = enabled.map(tool => `<tr class="link"><td><div class="cell-main">${toolIcon(tool.name)}<div><a class="row-link" href="/admin/tools/${tool.name}"><strong>${escape(toolProducts[tool.name].name)}</strong></a><span>${escape(tool.name)}</span></div></div></td>
+      <td>${toolStatus(tool)}</td><td class="muted">${writesStatus(tool)}</td>
       <td class="num faint">${grants.get(tool.name) ?? 0} role${grants.get(tool.name) === 1 ? '' : 's'}</td><td class="num faint">${timestamp(tool.health.checkedAt, 'Not checked')}</td></tr>`).join('')
     const toolCard = card('Tools', 'Enabled tools and their last check.', enabled.length
       ? `<div class="table-wrap"><table class="tbl stacked"><caption class="sr-only">Enabled tools</caption><thead class="sr-only"><tr><th scope="col">Tool</th><th scope="col">State</th><th scope="col">Writes</th><th scope="col">Roles</th><th scope="col">Last checked</th></tr></thead><tbody>${toolRows}</tbody></table></div>`
@@ -101,6 +101,6 @@ export function registerOverviewPage(app: FastifyInstance, db: Database.Database
       ${stat('Tools with writes on', String(writesOn.length), writesOn.length ? 'Writes are audited per operation' : 'Every tool is read-only', writesOn.length ? 'warn' : 'ok')}</div></section>`
     const summary = `Artium is serving ${enabled.length} enabled tool${enabled.length === 1 ? '' : 's'} to ${withAccess} ${withAccess === 1 ? 'person' : 'people'}. ${attention.length ? `${attention.length} thing${attention.length === 1 ? ' needs' : 's need'} you.` : 'Nothing needs you right now.'}`
     const content = `${stats}<div class="grid2"><div class="stack">${needs}${toolCard}</div><div class="stack">${setup}${recent}</div></div>`
-    return browserPage(reply, 'Overview', content, current, { description: summary })
+    return browserPage(reply, 'Overview', content, current, summary)
   })
 }

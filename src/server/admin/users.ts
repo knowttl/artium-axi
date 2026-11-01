@@ -9,7 +9,7 @@ import { adminScript, adminStyle } from './assets.js'
 import { escape } from './escape.js'
 import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
 import { sessionTable } from './session-table.js'
-import { badge, status, statusWord, toolIcon, toolNames } from './design/status.js'
+import { stateBadge, stateStatus, statusWord, toolIcon, toolProducts } from './design/status.js'
 import { avatar, callout, card, checkOption, field, icon, sheet, sheetLink } from './design/ui.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
@@ -18,7 +18,7 @@ type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
 export function roleOptions(roles: Role[], selected: string[], legend: string, empty: string, detail: (role: Role) => string = () => ''): string {
   return `<fieldset class="options"><legend>${escape(legend)}</legend><input type="hidden" name="roleIds" disabled>${roles.length ? roles.map(role =>
     checkOption(`<input type="checkbox" name="roleIds" value="${escape(role.id)}"${selected.includes(role.id) ? ' checked' : ''}>`, role.name,
-      (role.tools.map(tool => toolNames[tool].name).join(', ') || 'No tools yet') + detail(role))).join('') : `<p class="hint">${escape(empty)}</p>`}</fieldset>`
+      (role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet') + detail(role))).join('') : `<p class="hint">${escape(empty)}</p>`}</fieldset>`
 }
 
 // A role chip naming where the person's grant comes from: Direct, SSO rule, or both.
@@ -50,7 +50,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
   }
   const administratorOption = (selected: boolean, description: string) =>
     checkOption(`<input type="checkbox" name="administrator" data-type="boolean"${selected ? ' checked' : ''}>`, 'Administrator', description)
-  const signIn = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? badge('signIn', 'sso') : user.breakGlass ? badge('signIn', 'break-glass') : badge('signIn', 'password')
+  const signIn = (user: { source: string, breakGlass: boolean }) => stateBadge('signIn', user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password')
   const locked = (user: { lockedUntil: number | null }) => user.lockedUntil !== null && user.lockedUntil > Date.now()
 
   app.get('/admin/users', async (request, reply) => {
@@ -77,14 +77,14 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const filterRow = `<form class="filters" method="get" action="/admin/users" data-filters>
       <label class="input-wrap">${icon('search')}<span class="sr-only">Search</span><input name="q" type="search" value="${escape(query.data.q ?? '')}" maxlength="256" placeholder="Search name or username"></label>
       ${chip('source', 'Sign-in', [['local', 'Password'], ['sso', 'SSO']])}${chip('status', 'Status', [['enabled', 'Enabled'], ['disabled', 'Disabled']])}${chip('role', 'Role', roles.map(role => [role.id, role.name]))}
-      <input type="hidden" name="limit" value="${query.data.limit}"><button class="btn btn-secondary btn-sm" data-filter-apply>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/users">Clear</a>' : ''}
+      <input type="hidden" name="limit" value="${query.data.limit}"><button class="btn btn-secondary btn-sm" data-filters-apply>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/users">Clear</a>' : ''}
       <span class="count-note">${users.totalCount} ${users.totalCount === 1 ? 'person' : 'people'}</span></form>`
     const rows = users.users.map(user => {
       const chips = user.roleIds.map(id => roleChip(user, id, roleName(id), false)).join('')
       return `<tr class="link${user.enabled ? '' : ' dim'}"><td><div class="cell-main">${avatar(user.displayName)}<div><a class="row-link" href="/admin/users/${escape(encodeURIComponent(user.id))}"><strong>${escape(user.displayName)}</strong></a><span>${escape(user.username)}${user.id === current.user_id ? ' · you' : ''}</span></div></div></td>
-        <td><div class="row">${signIn(user)}${user.administrator ? badge('signIn', 'admin') : ''}</div></td>
+        <td><div class="row">${signIn(user)}${user.administrator ? stateBadge('signIn', 'admin') : ''}</div></td>
         <td>${chips ? `<div class="chips">${chips}</div>` : '<span class="none">No roles</span>'}</td>
-        <td>${status('person', user.enabled ? locked(user) ? 'locked' : 'enabled' : 'disabled')}</td><td class="num faint">${icon('chev')}</td></tr>`
+        <td>${stateStatus('person', user.enabled ? locked(user) ? 'locked' : 'enabled' : 'disabled')}</td><td class="num faint">${icon('chev')}</td></tr>`
     }).join('')
     const pager = `<span>Showing ${users.users.length} of ${users.totalCount}</span><div class="actions"><a class="btn btn-secondary btn-sm" href="${escape(link())}"${query.data.cursor ? '' : ' aria-disabled="true"'}>First page</a><a class="btn btn-secondary btn-sm" href="${escape(link(users.nextCursor ?? undefined))}"${users.nextCursor ? '' : ' aria-disabled="true"'}>Next</a></div>`
     const table = users.users.length
@@ -99,8 +99,8 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       submit: '<button class="btn btn-primary">Add user</button>',
       wrap: inner => actionForm(csrf, '/v1/admin/users', 'POST', inner, { consequence: 'Create this local account? They can sign in with the temporary password and must replace it first. Tool access comes from the selected roles.', title: 'Add user', action: 'Add user' }) })
     const content = `${filterRow}${table}${addUser}`
-    return browserPage(reply, 'People', content, current, { description: 'Everyone who can sign in. Tool access comes from their roles.',
-      actions: `<a class="btn btn-secondary" href="/admin/invitations?sheet=new-invitation">${icon('mail')}Invite with SSO</a>${sheetLink('add-user', link(query.data.cursor).replace('?', '?sheet=add-user&'), 'Add user', 'btn btn-primary', 'plus')}` })
+    return browserPage(reply, 'People', content, current, 'Everyone who can sign in. Tool access comes from their roles.',
+      { actions: `<div class="actions"><a class="btn btn-secondary" href="/admin/invitations?sheet=new-invitation">${icon('mail')}Invite with SSO</a>${sheetLink('add-user', link(query.data.cursor).replace('?', '?sheet=add-user&'), 'Add user', 'btn btn-primary', 'plus')}</div>` })
   })
 
   app.get('/admin/users/:id', async (request, reply) => {
@@ -118,11 +118,11 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const ruleGrants = user.roleGrants.filter(grant => grant.origin !== 'direct').map(grant => {
       const provider = db.prepare('SELECT kind FROM sso_providers JOIN role_rules ON role_rules.provider_id = sso_providers.id WHERE role_rules.id = ?')
         .get(grant.origin) as { kind: string }
-      return `<li class="list-row">${badge('grant', 'rule')}<div class="grow"><strong>${escape(roleName(grant.roleId))}</strong><p>From ${provider.kind === 'entra' ? 'Entra ID' : 'OpenID Connect'} rule <code>${escape(grant.origin)}</code></p></div></li>`
+      return `<li class="list-row">${stateBadge('grant', 'rule')}<div class="grow"><strong>${escape(roleName(grant.roleId))}</strong><p>From ${provider.kind === 'entra' ? 'Entra ID' : 'OpenID Connect'} rule <code>${escape(grant.origin)}</code></p></div></li>`
     }).join('')
     const form = (action: string, method: string, body: string, confirmation: Confirmation, attributes = '') => actionForm(csrf, action, method, body, confirmation, attributes)
-    const header = (state: string) => ({ parent: { label: 'People', href: '/admin/users', help: 'People' }, lead: avatar(user.displayName, true),
-      meta: `<code>${escape(user.username)}</code>${signIn(user)}${state}${user.administrator ? badge('signIn', 'admin') : ''}` })
+    const header = (state: string) => ({ heading: user.displayName, lead: avatar(user.displayName, true),
+      meta: `<code>${escape(user.username)}</code>${signIn(user)}${state}${user.administrator ? stateBadge('signIn', 'admin') : ''}` })
     const meta = `<div class="card-meta">${changed(db, user)}</div>`
 
     if (user.archivedAt !== null) {
@@ -131,7 +131,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
         `<div class="grid2"><div class="stack">${card('Roles', 'Membership is retained. This account stays archived.',
           `<div class="card-body stack">${retained ? `<div class="chips">${retained}</div>` : '<p class="none">No retained roles remain.</p>'}${ruleGrants ? `<ul class="rows">${ruleGrants}</ul>` : ''}</div>`)}</div>
           <div class="stack">${meta}</div></div>`
-      return browserPage(reply, user.displayName, content, current, header(badge('person', 'archived')))
+      return browserPage(reply, 'People', content, current, undefined, header(stateBadge('person', 'archived')))
     }
 
     const sessions = await adminRead(app, request, path + '/sessions', adminUserRoutes.sessions.response)
@@ -144,7 +144,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       { consequence: `Sign out all ${sessions.sessions.length} active browser and CLI sessions now?${sessions.sessions.some(session => session.current) ? ' This includes this browser.' : ''}`, title: 'Sign out everywhere', action: 'Sign out everywhere' }) : ''
     const menu = `<details class="more-menu"><summary class="btn btn-secondary btn-icon" aria-label="More actions">${icon('more')}</summary><div class="popover">
       ${user.source === 'local' ? sheetLink('reset-password', page + '?sheet=reset-password', 'Reset password…', '', 'key') : ''}${signOut}${breakGlass}<hr><a href="/admin/audit?user=${escape(encodeURIComponent(user.id))}">${icon('list')}View in audit log</a></div></details>`
-    const actions = `${user.source === 'local' && user.enabled ? `<a class="btn btn-secondary" href="/admin/invitations?userId=${escape(encodeURIComponent(user.id))}&amp;sheet=new-invitation">${icon('link')}Link to SSO</a>` : ''}${menu}`
+    const actions = `<div class="actions">${user.source === 'local' && user.enabled ? `<a class="btn btn-secondary" href="/admin/invitations?userId=${escape(encodeURIComponent(user.id))}&amp;sheet=new-invitation">${icon('link')}Link to SSO</a>` : ''}${menu}</div>`
 
     const rolesCard = form(path + '/roles', 'PUT', card('Roles', 'Direct roles are set here. Roles from SSO rules sync at each sign-in.',
       `<div class="card-body stack">${roleOptions(roles, user.directRoleIds, 'Direct roles', 'No roles yet. Create a role on Roles to grant tool access.', role => user.directRoleIds.includes(role.id) ? ' · Direct' : '')}${ruleGrants ? `<ul class="rows">${ruleGrants}</ul>` : ''}</div>`,
@@ -153,7 +153,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const grantedBy = (tool: { roleIds: string[] }) => tool.roleIds.map(id => roleChip(user, id, roleName(id), true)).join('')
     const usable = card('What can they use?', 'All tools from all their roles. A disabled person or tool cannot run calls.', user.effectiveTools.length
       ? `<div class="table-wrap"><table class="tbl stacked"><thead><tr><th scope="col">Tool</th><th scope="col">Can run calls</th><th scope="col">Granted by</th></tr></thead><tbody>${user.effectiveTools.map(tool =>
-        `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><strong>${escape(toolNames[tool.name].name)}</strong><span>${escape(tool.name)}</span></div></div></td><td>${status('access', tool.enabled ? 'yes' : user.enabled ? 'tool-disabled' : 'person-disabled')}${tool.enabled && tools.find(item => item.name === tool.name)?.health.status === 'error' ? ' <span class="none">(currently failing)</span>' : ''}</td><td><div class="chips">${grantedBy(tool)}</div></td></tr>`).join('')}</tbody></table></div>`
+        `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><strong>${escape(toolProducts[tool.name].name)}</strong><span>${escape(tool.name)}</span></div></div></td><td>${stateStatus('access', tool.enabled ? 'yes' : user.enabled ? 'tool-disabled' : 'person-disabled')}${tool.enabled && tools.find(item => item.name === tool.name)?.health.status === 'error' ? ' <span class="none">(currently failing)</span>' : ''}</td><td><div class="chips">${grantedBy(tool)}</div></td></tr>`).join('')}</tbody></table></div>`
       : '<div class="card-body"><p class="none">No tools granted. Assign a role that grants tools.</p></div>')
     const danger = card('Danger zone', '', `<ul class="rows">
       <li class="list-row"><div class="grow"><strong>${user.enabled ? 'Disable access' : 'Enable access'}</strong><p>${user.enabled ? 'Blocks sign-in and ends all their sessions now. You can enable them again later.' : 'Lets them sign in again. Revoked sessions stay signed out.'}</p></div>${form(path, 'PATCH',
@@ -173,6 +173,6 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       submit: '<button class="btn btn-primary">Reset password</button>',
       wrap: inner => form(path + '/password-reset', 'POST', inner, { consequence: `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`, title: 'Reset password', action: 'Reset password' }) }) : ''
     const content = `<div class="grid2"><div class="stack">${rolesCard}${usable}${sessionTable(csrf, path + '/sessions', sessions.sessions)}${danger}</div><div class="stack">${profile}${facts}${meta}</div></div>${reset}`
-    return browserPage(reply, user.displayName, content, current, { ...header(isLocked ? badge('person', 'locked', true) : badge('person', user.enabled ? 'enabled' : 'disabled', true)), actions })
+    return browserPage(reply, 'People', content, current, undefined, { ...header(stateBadge('person', isLocked ? 'locked' : user.enabled ? 'enabled' : 'disabled', true)), actions })
   })
 }

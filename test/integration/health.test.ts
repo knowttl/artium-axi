@@ -179,7 +179,8 @@ test.each([
   db.prepare('UPDATE users SET administrator = 1').run()
   const session = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf')
   const headers = { cookie: `${browserCookie}=${session.id}` }
-  const page = await app.inject({ url: '/admin/audit?requestId=retained-check', headers })
+  const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'retained-check' AND event = 'run-terminal'").get() as { id: number }
+  const page = await app.inject({ url: '/admin/audit?requestId=retained-check&record=' + id, headers })
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('Synthetic retained health failure')
   const exported = await app.inject({ url: '/v1/admin/audit/export?format=jsonl&requestId=retained-check', headers })

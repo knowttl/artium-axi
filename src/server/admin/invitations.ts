@@ -10,7 +10,7 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { hashToken } from '../auth/tokens.js'
 import { actionForm, adminRead, revision, timestamp } from './forms.js'
 import { escape } from './escape.js'
-import { badge } from './design/status.js'
+import { stateBadge } from './design/status.js'
 import { avatar, callout, card, field, icon, sheet, sheetLink } from './design/ui.js'
 import { roleOptions } from './users.js'
 
@@ -130,7 +130,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
       const open = invitation.status === 'pending' || invitation.status === 'expired'
       return `<tr data-invitation="${escape(invitation.id)}"><td><div class="cell-main">${avatar(invitation.displayName)}<div><strong>${escape(invitation.displayName)}</strong><span>${invitation.claimedAt !== null ? 'Account claimed' : invitation.userId ? 'Links a local account' : 'New account'}</span></div></div></td>
         <td><code>${escape(invitation.expectedUsername)}</code></td><td class="muted">${escape(provider.name)}</td>
-        <td>${chips ? `<div class="chips">${chips}</div>` : '<span class="none">None</span>'}</td><td>${badge('invitation', invitation.status)}</td>
+        <td>${chips ? `<div class="chips">${chips}</div>` : '<span class="none">None</span>'}</td><td>${stateBadge('invitation', invitation.status)}</td>
         <td class="muted">${timestamp(invitation.expiresAt)}</td>
         <td class="actions-cell">${open ? sheetLink('resend-' + invitation.id, withSheet('resend-' + invitation.id), 'Resend', 'btn btn-ghost btn-sm') +
           actionForm(csrf, action + '/revoke', 'POST', revision(invitation.revision) + '<button class="btn btn-ghost btn-sm danger">Revoke</button>',
@@ -161,8 +161,8 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
     const linkDialog = `<dialog id="invitation-link" class="modal" aria-labelledby="invitation-link-title"><div class="modal-body"><h2 id="invitation-link-title"><span class="ico-circle ok">${icon('link')}</span>Copy the invitation link now</h2><p>This link is shown once. Send it to the person over a channel you trust. Their provider must be enabled before they can claim it.</p>
       <div class="copy-group"><div class="copyfield"><input class="input" data-claim-link readonly aria-label="Invitation link"><button class="btn btn-primary" type="button" data-copy>${icon('copy')}Copy</button></div><p class="copy-status" data-copy-status role="status"></p></div></div>
       <form method="dialog" class="modal-foot"><button class="btn btn-secondary">Done</button></form></dialog>`
-    return browserPage(reply, 'Invitations', `${banner}${table}${create}${resends}${linkDialog}`, current, {
-      description: 'One-time links that let a person sign in with SSO (Entra ID or OpenID Connect) for the first time. Nothing is emailed; you send each link yourself.',
-      actions: providers.length ? sheetLink('new-invitation', withSheet('new-invitation'), 'New invitation', 'btn btn-primary', 'plus') : `<a class="btn btn-primary" href="/admin/settings/sign-in" aria-disabled="true">${icon('plus')}New invitation</a>` })
+    return browserPage(reply, 'Invitations', `${banner}${table}${create}${resends}${linkDialog}`, current,
+      'One-time links that let a person sign in with SSO (Entra ID or OpenID Connect) for the first time. Nothing is emailed; you send each link yourself.',
+      { actions: `<div class="actions">${providers.length ? sheetLink('new-invitation', withSheet('new-invitation'), 'New invitation', 'btn btn-primary', 'plus') : `<a class="btn btn-primary" href="/admin/settings/sign-in" aria-disabled="true">${icon('plus')}New invitation</a>`}</div>` })
   })
 }
