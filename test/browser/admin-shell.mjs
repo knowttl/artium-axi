@@ -434,6 +434,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     }
     await page.fill('[data-profile-field=origin]', base);
     await page.fill('[data-profile-field=token]', 'CANARY-certificate-review');
+    await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -688,6 +689,7 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'Save and test failed');
     check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Stored secret was displayed');
+    await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
@@ -770,6 +772,7 @@ for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculate
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.eval('(() => { const transfer = new DataTransfer(); transfer.items.add(new File([' + ${JSON.stringify(JSON.stringify(fixture.certificatePem))} + '], "synthetic-identity.pem", { type: "application/x-pem-file" })); const input = document.querySelector("[data-certificate-file]"); input.files = transfer.files; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
     await page.wait('[data-profile-field=privateKey]:not([required])');
+    await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
@@ -788,6 +791,7 @@ test('malformed certificate PEM keeps the draft and leaves the credential unconf
     await page.fill('[data-profile-field=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.fill('[data-certificate-pem]', 'CANARY-invalid-pem');
+    await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('#message:not(:empty)');
@@ -927,10 +931,12 @@ test('changing Vectra authentication requires new secrets and saves only the sel
     }
     await page.fill('[data-profile-field=origin]', 'https://appliance.example');
     await page.fill('[data-profile-field=token]', 'CANARY-original-token');
+    await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"oauth"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.click('[data-save-and-test]');
     check(await page.eval(() => document.querySelector('[data-profile-field=token]').disabled), 'Old token remains active');
     check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').required), 'New secret is not required');
     await page.click('form[data-save-tool] button');

@@ -5,6 +5,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
+import dns from 'node:dns/promises'
+import net from 'node:net'
+import tls from 'node:tls'
+import { syncBuiltinESMExports } from 'node:module'
 import { getCACertificates, setDefaultCACertificates } from 'node:tls'
 import { createApp } from '../../dist/src/server/app.js'
 import { Audit } from '../../dist/src/server/audit/audit.js'
@@ -170,6 +174,23 @@ proxy.listen(0, '127.0.0.1', async () => {
       authorizationEndpoint: `https://127.0.0.1:${proxy.address().port}/test/generic-oidc/authorize`,
       endSessionEndpoint: `https://127.0.0.1:${proxy.address().port}/test/generic-oidc/logout`,
     })
+  const local = host => ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host)
+  const sockets = new WeakSet()
+  const lookup = dns.lookup.bind(dns)
+  const connect = net.connect.bind(net)
+  const connectTls = tls.connect.bind(tls)
+  const ca = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  dns.lookup = (host, options) => local(host) ? lookup(host, options)
+    : Promise.resolve([{ address: '127.0.0.1', family: 4 }])
+  net.connect = (options, ...args) => {
+    if (!options.host || local(options.host)) return connect(options, ...args)
+    const socket = connect({ host: '127.0.0.1', port: proxy.address().port })
+    sockets.add(socket)
+    return socket
+  }
+  tls.connect = (options, ...args) => connectTls(options.socket && sockets.has(options.socket)
+    ? { ...options, servername: 'localhost', ca } : options, ...args)
+  syncBuiltinESMExports()
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
   const spki = createHash('sha256').update(cert.publicKey.export({ type: 'spki', format: 'der' })).digest('base64')
   console.log(JSON.stringify({ url: `https://localhost:${proxy.address().port}`, spki, clock: `${address.origin}/test/clock`,
