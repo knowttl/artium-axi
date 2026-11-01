@@ -6,16 +6,39 @@ export const adminStyle = tokens + components
 export const adminScript = `
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
-    const input = button.parentElement.querySelector('input, textarea');
-    const status = button.parentElement.querySelector('[data-copy-status]');
+    const scope = button.closest('[data-copy-scope]');
+    const source = scope.querySelector('input, pre, [data-copy-text]');
+    const status = scope.querySelector('[data-copy-status]');
     try {
-      await navigator.clipboard.writeText(input.value);
+      await navigator.clipboard.writeText(source.value ?? source.textContent);
       status.textContent = 'Copied.';
     } catch {
-      input.focus(); input.select();
+      if (source.select) { source.focus(); source.select(); } else getSelection().selectAllChildren(source);
       status.textContent = 'Copy unavailable. Copy the selected text manually.';
     }
   });
+}
+for (const button of document.querySelectorAll('[data-history-back]')) {
+  if (history.length < 2) continue;
+  button.hidden = false;
+  button.addEventListener('click', () => history.back());
+}
+// Server-rendered open dialogs are the no-JavaScript view; make them modal and leave the view on close.
+for (const dialog of document.querySelectorAll('dialog[open][data-close-href]')) {
+  // Removing the attribute, unlike close(), queues no close event.
+  dialog.removeAttribute('open');
+  dialog.addEventListener('close', () => location.assign(dialog.dataset.closeHref), { once: true });
+  dialog.showModal();
+  dialog.querySelector('input:not([type=hidden]), select')?.focus();
+}
+const toastMessage = sessionStorage.getItem('artium-toast');
+if (toastMessage) {
+  sessionStorage.removeItem('artium-toast');
+  const toast = document.getElementById('toast');
+  if (toast) {
+    toast.textContent = toastMessage;
+    setTimeout(() => { toast.textContent = ''; }, 6000);
+  }
 }
 for (const time of document.querySelectorAll('time[datetime]')) {
   time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -113,13 +136,30 @@ if (savedTest) {
   }
 }
 
-function confirmChange(consequence) {
+// Tier 2 names the action and its consequence; tier 3 (data-confirm-name) also needs the exact name typed.
+function confirmChange(form, action) {
   const dialog = document.getElementById('confirmation');
-  dialog.querySelector('[data-consequence]').textContent = consequence;
+  const name = form.dataset.confirmName || '';
+  const typed = dialog.querySelector('[data-confirm-typed]');
+  const input = typed.querySelector('input');
+  const confirm = dialog.querySelector('[data-confirm-action]');
+  const mark = dialog.querySelector('[data-confirm-mark]');
+  dialog.querySelector('[data-confirm-title]').textContent = action + '?';
+  dialog.querySelector('[data-consequence]').textContent = form.dataset.confirm;
+  dialog.querySelector('[data-confirm-name]').textContent = name;
+  mark.className = 'ico-circle ' + (name ? 'err' : 'warn');
+  mark.querySelector('use').setAttribute('href', name ? '#i-trash' : '#i-alert');
+  confirm.textContent = action;
+  confirm.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
+  typed.hidden = !name;
+  input.value = '';
+  confirm.disabled = Boolean(name);
+  input.oninput = () => { confirm.disabled = input.value !== name; };
   dialog.returnValue = '';
   return new Promise(resolve => {
-    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirmed'), { once: true });
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirmed' && (!name || input.value === name)), { once: true });
     dialog.showModal();
+    if (name) input.focus();
   });
 }
 
@@ -128,9 +168,10 @@ function showError(target, error) {
   if (error.code === 'REVISION_CONFLICT') {
     const reload = document.createElement('button');
     reload.type = 'button';
-    reload.textContent = 'Reload latest values';
+    reload.className = 'btn btn-secondary btn-sm';
+    reload.textContent = 'Reload latest';
     reload.addEventListener('click', () => location.reload());
-    target.append(' ', reload);
+    target.append(document.createElement('br'), reload);
   }
   target.focus();
 }
@@ -394,7 +435,7 @@ document.addEventListener('submit', async event => {
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
   try {
-    if (form.dataset.confirm && !await confirmChange(form.dataset.confirm)) return;
+    if (form.dataset.confirm && !await confirmChange(form, (event.submitter || button).textContent.trim())) return;
     const profileFields = form.querySelectorAll('[data-profile-field]');
     if (profileFields.length) {
       body.value = Object.create(null);
@@ -481,6 +522,7 @@ document.addEventListener('submit', async event => {
       showError(message, result.error);
       return;
     }
+    sessionStorage.setItem('artium-toast', form.dataset.done || 'Change saved.');
     if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
     else location.reload();
   } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; }

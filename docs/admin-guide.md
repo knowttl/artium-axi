@@ -108,14 +108,17 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/users` | Search and filter the users table by source, status or role; create local users. |
 | `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
 | `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for usage and claim availability. |
-| `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
+| `/account` | Review your roles and tools, follow the three-step CLI setup, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete eligible roles. |
 | `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
-| `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
+| `/admin/settings/sign-in` | Review the sign-in mode, break-glass readiness and pending invitations, and add providers; see [Sign-in settings](admin-guide.md#sign-in-settings). |
+| `/admin/settings/sign-in/:id` | Provider Setup checklist, Credential, Role rules and Settings tabs, and the Enable sign-in control. |
+| `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
+| `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
 For users granted Hybrid Analysis, Check Point or Microsoft Graph, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
@@ -157,7 +160,9 @@ SSO sign-out optionally also visits the provider's discovered end-session endpoi
 After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
-Confirmation dialogs explain consequences before changes; each screen also has expandable help.
+Confirmation dialogs are titled with the action and explain its consequence before the change; removing an SSO role rule also requires typing its claim value.
+Successful changes show a short confirmation, and a change that another administrator made first shows **Reload latest**.
+Each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
 
 User detail and Account list active browser sessions and CLI token families.
@@ -212,13 +217,13 @@ For a new installation, follow [Graph credential setup](tool-credentials.md#micr
 
 ### Sign-in settings
 
-Open **Sign-in settings** at `/admin/settings/sign-in` to add a single-tenant Entra ID provider using its name and directory tenant UUID.
-Open the provider to save its application client UUID and credential.
+Open **Sign-in & SSO** at `/admin/settings/sign-in`, choose **Add provider** and pick **Microsoft Entra ID** to add a single-tenant provider using its name and directory tenant UUID.
+Open the provider's **Credential** tab to save its application client UUID and credential.
 Certificate authentication is preferred: paste or upload one PEM containing the certificate and matching unencrypted private key; Artium calculates the SHA-256 fingerprint.
 The application's public certificate registration is an owner setup step; saving here does not contact the provider.
 A client secret is also accepted, with an in-page warning recommending certificates.
 
-For another OpenID Connect provider, choose **Add OpenID Connect provider** and enter its name and exact HTTPS issuer URL.
+For another OpenID Connect provider, choose **Add provider**, pick **OpenID Connect** and enter its name and exact HTTPS issuer URL.
 Discovery reads the issuer's OpenID configuration over verified TLS and rejects redirects and mismatched issuers.
 Register the provider page's exact callback URI in a confidential web application, then save its client ID and RSA certificate (`private_key_jwt`) or client secret (`client_secret_post` or `client_secret_basic`, selected from discovery with POST preferred).
 If discovery omits the supported client-authentication methods, secret authentication defaults to Basic.
@@ -237,7 +242,8 @@ Settings and credential saves require administrator capability and the [confirma
 The [provider and role-rule API contracts](../src/shared/api.ts) own the request and response fields.
 
 Providers start disabled.
-The provider page includes its setup guide, copy buttons for redirect and post-logout URIs, and an audited activation control requiring recent authentication.
+The provider's **Setup** tab is a checklist that ticks the steps Artium can verify (issuer or tenant saved, credential saved, break-glass administrator ready, enabled), with copy buttons for redirect and post-logout URIs.
+**Enable sign-in** in the provider header is an audited activation control requiring recent authentication; until setup is ready it stays disabled and the Setup tab lists what is missing.
 Activation requires a locally valid matching credential and an enabled, unlocked, unarchived break-glass local administrator with a permanent password.
 Test that emergency account in a separate browser before enabling SSO, then test an invitation claim and provider sign-in while keeping break-glass access open.
 Local checks cannot prove provider credential acceptance or access-policy configuration.
@@ -250,9 +256,9 @@ The users table and signed-in account menu identify designated accounts.
 Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
 When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
 Fresh installations designate no accounts automatically and keep providers disabled.
-On an Entra provider page, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
-Generic provider pages offer the same rule editor with a claim-name field.
-Each rule's Who matches link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
+On an Entra provider's **Role rules** tab, add, edit or remove role rules mapping an exact, case-sensitive Entra `roles` claim value to an artium role.
+Generic providers offer the same rule editor with a claim-name field.
+Each rule's match-count link opens the enabled, unarchived users whose last successful sign-in claims match that provider, issuer, claim name and value.
 Counts refresh on page reload and include matches for new rules before the next role sync.
 These saved claims are not a live directory query; users without recorded sign-in claims are unknown.
 The target role supplies tool access; rules never grant administrator capability.

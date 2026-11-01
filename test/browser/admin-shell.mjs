@@ -143,7 +143,7 @@ test('user detail designates a break-glass administrator and removing it signs t
 
 test('invitations show each new link once and allow resend and revoke through the real forms', async () => {
   browser(`
-    await page.open(base + '/admin/settings/sign-in');
+    await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -188,7 +188,7 @@ test('invitations show each new link once and allow resend and revoke through th
 
 test('invitations link an existing local user through its detail page and recent-auth confirmation', async () => {
   browser(`
-    await page.open(base + '/admin/settings/sign-in');
+    await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -223,16 +223,18 @@ test('invitations link an existing local user through its detail page and recent
 test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.open(base + '/admin/settings/sign-in');
+    await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('tbody a');
-    await page.click('tbody a');
-    await page.wait('[name=roleId]');
+    await page.wait('.list-row strong a');
+    const provider = await page.eval(() => document.querySelector('.list-row strong a').getAttribute('href'));
+    await page.open(base + provider + '?tab=rules');
     check(await page.eval(() => document.querySelector('main').innerText.includes('No role rules')), 'Missing rule empty state');
+    await page.click('a[href$="rule=new"]');
+    await page.wait('dialog[open] [name=roleId]');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Readers');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=roleId]', 'synthetic-role');
   `)
@@ -244,26 +246,31 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.wait('#reauth-dialog[open]');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('details:has(form[data-method=DELETE])');
-    await page.click('details:has(form[data-method=DELETE]) > summary');
-    check(await page.eval(() => document.querySelector('details:has(form[data-method=DELETE])').innerText.includes('falcon-axi')), 'Missing target tool access');
-    await page.fill('details form[data-method=PATCH] [name=value]', 'Artium.Analysts');
-    await page.click('details form[data-method=PATCH] button');
+    await page.wait('[data-rule]');
+    check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('CrowdStrike Falcon')), 'Missing target tool access');
+    await page.click('[data-rule] .menu summary');
+    await page.click('[data-rule] .menu a[href*="rule="]');
+    await page.wait('dialog[open] form[data-method=PATCH]');
+    await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
+    await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('details form[data-method=PATCH] [name=value][value="Artium.Analysts"]');
-    await page.click('details:has(form[data-method=DELETE]) > summary');
-    check(await page.eval(() => document.querySelector('details form[data-method=PATCH] [name=expectedRevision]').value === '2'), 'Rule revision did not advance');
-    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Rule editor overflows at 420px');
-    await page.click('details form[data-method=DELETE] button');
+    await page.wait('body:not(:has(dialog[data-close-href])) [data-rule]');
+    check(await page.eval(() => document.querySelector('[data-rule] .sentence').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
+    check(await page.eval(() => document.querySelector('[data-rule] form[data-method=DELETE] [name=expectedRevision]').value === '2'), 'Rule revision did not advance');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Rule list overflows at 420px');
+    await page.click('[data-rule] .menu summary');
+    await page.click('[data-rule] form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
+    check(await page.eval(() => document.querySelector('[data-confirm-action]').disabled), 'Removal did not require the typed value');
     await page.click('#confirmation button[value=cancel]');
-    check(await page.eval(() => !!document.querySelector('details form[data-method=DELETE]')), 'Cancel removed the rule');
-    await page.click('details form[data-method=DELETE] button');
+    check(await page.eval(() => !!document.querySelector('[data-rule]')), 'Cancel removed the rule');
+    await page.click('[data-rule] form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
+    await page.fill('#confirmation-name', 'Artium.Analysts');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('section:not(:has(form[data-method=DELETE])) > form[action="/v1/admin/sso/role-rules"]');
-    check(await page.eval(() => !document.querySelector('details form[data-method=DELETE]') && document.querySelector('main').innerText.includes('No role rules')), 'Rule was not removed');
+    await page.wait('section.card:not(:has([data-rule])) a[href$="rule=new"]');
+    check(await page.eval(() => !document.querySelector('[data-rule]') && document.querySelector('main').innerText.includes('No role rules')), 'Rule was not removed');
     check(await page.eval(async () => {
       const providers = (await (await fetch('/v1/admin/sso/providers')).json()).providers;
       const audit = (await (await fetch('/v1/admin/audit?event=admin-change')).json()).records;
@@ -278,17 +285,23 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
   browser(`
     await page.click('a.menu-open');
     await page.click('nav a[href="/admin/settings/sign-in"]');
-    await page.wait('[name=tenantId]');
+    await page.wait('main .page-head .actions a[href$="add=choose"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
+    await page.click('main .page-head .actions a[href$="add=choose"]');
+    await page.wait('dialog[open] [name=add][value=entra]:checked');
+    await page.click('dialog[open] form button');
+    await page.wait('[name=tenantId]');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('tbody a');
-    await page.click('tbody a');
+    await page.wait('.list-row strong a');
+    await page.click('.list-row strong a');
+    await page.wait('.vsteps');
+    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('main').innerText.includes('Set up this provider') && document.querySelector('main').innerText.includes('Not ready to enable')), 'Activation offered before completing setup');
+    await page.click('.utabs a[href$="tab=credential"]');
     await page.wait('[data-certificate-pem]');
-    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('main').innerText.includes('Entra setup guide')), 'Activation offered before completing setup');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.fill('[data-certificate-pem]', ${JSON.stringify(fixture.certificatePem)});
@@ -303,6 +316,8 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Settings page overflows at 420px');
+    await page.click('.utabs a[href$="tab=settings"]');
+    await page.wait('form:has([name=name])');
     await page.fill('form:has([name=name]) [name=name]', 'Renamed provider');
     await page.click('form:has([name=name]) button');
     await page.wait('#confirmation[open]');
@@ -321,14 +336,15 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
 
 test('sign-in settings can save a client secret and requires a replacement when the client changes', () => {
   browser(`
-    await page.open(base + '/admin/settings/sign-in');
+    await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic secret provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('tbody a');
-    await page.click('tbody a');
+    await page.wait('.list-row strong a');
+    const provider = await page.eval(() => document.querySelector('.list-row strong a').getAttribute('href'));
+    await page.open(base + provider + '?tab=credential');
     await page.wait('[data-profile-field=auth]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
     check(await page.eval(() => document.querySelector('[data-certificate]').hidden && document.querySelector('main').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
@@ -406,7 +422,8 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
       check(await page.eval(() => document.querySelectorAll('form[action="/logout"]').length === 1), 'Sign-out is missing or duplicated on ' + path);
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Horizontal overflow on ' + path);
-      check(await page.eval(() => document.querySelector('.account-menu summary').textContent.includes('Password')), 'Missing sign-in source on ' + path);
+      // Interstitials use the auth card, which names the signed-in person beside its sign-out link.
+      check(await page.eval(() => document.querySelector('.account-menu summary')?.textContent.includes('Password') || document.querySelector('form.auth-foot[action="/logout"]')?.textContent.includes('Synthetic User')), 'Missing signed-in identity on ' + path);
     }
     await page.open(base + '/admin#nav');
     await page.click('.account-menu summary');
@@ -1205,7 +1222,7 @@ test('user detail revokes the selected CLI session while another session stays u
   const second = await cliSession()
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
-    await page.click('section:has(h2):has(table caption) form[action$="/revoke"] button');
+    await page.click('.session-table form[action$="/revoke"] button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('access and refresh tokens')), 'Missing revoke consequence');
     await page.click('#confirmation button[value=confirmed]');
@@ -1290,6 +1307,7 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
     await page.click('button');
     await page.wait('a[href="/cli/artium-axi.mjs"]');
     check(await page.eval(() => location.pathname === '/account'), 'Ordinary user did not reach account');
+    await page.click('details.disclosure > summary');
     check(await page.eval(() => {
       const text = document.querySelector('main').innerText;
       return text.includes('Live malware: this archive may contain executable malware. Save only; do not extract or execute. Password protection is unverified; bytes are saved exactly as provided.')

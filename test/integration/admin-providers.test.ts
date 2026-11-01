@@ -99,14 +99,14 @@ test('generic provider activation requires a usable credential and break-glass a
   expect((await activation(provider.id)).json()).toMatchObject({ kind: 'oidc', enabled: true })
 })
 
-test('setup guide Users link opens the users page', async () => {
+test('setup checklist People link opens the users page', async () => {
   const provider = await create()
   const session = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf')
   const browserHeaders = { cookie: `${browserCookie}=${session.id}` }
   const guide = await app.inject({ url: '/admin/settings/sign-in/' + provider.id, headers: browserHeaders })
   expect(guide.statusCode).toBe(200)
-  const setupGuide = guide.body.split('<h2>Entra setup guide</h2>')[1]!
-  const usersLink = setupGuide.match(/<a href="([^"]+)">Users<\/a>/)![1]!
+  const setupGuide = guide.body.split('<h2>Set up this provider</h2>')[1]!
+  const usersLink = setupGuide.match(/<a href="([^"]+)">Open People<\/a>/)![1]!.replaceAll('&amp;', '&')
   const users = await app.inject({ url: usersLink, headers: browserHeaders })
   expect(users.statusCode).toBe(200)
   expect(users.body).toContain('<h1>Users</h1>')

@@ -25,6 +25,7 @@ import { registerRolesPages } from './admin/roles.js'
 import { registerAdminPages } from './admin/pages.js'
 import { registerAuditPage } from './admin/audit.js'
 import { escape } from './admin/escape.js'
+import { copyValue } from './admin/design/ui.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -108,7 +109,11 @@ export function createApp(options: {
         try { current = readBrowserSession(db, request.cookies[browserCookie]!) }
         catch (error) { if (!(error instanceof ArtiumError)) throw error }
       }
-      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)}</p><p>${escape(errors[failure.code].next)}</p><p><small>${escape(failure.code)}</small></p><p>Request ID: ${escape(request.id)}</p><p><a href="/login">Sign in</a> | <a href="/account">Account</a></p>`, current)
+      const [href, label] = !current ? ['/login', 'Sign in'] : current.must_change ? ['/password', 'Change password'] : current.administrator ? ['/admin', 'Overview'] : ['/account', 'Your account']
+      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)} ${escape(errors[failure.code].next)}</p>
+        <dl class="kv"><dt>Code</dt><dd class="mono">${escape(failure.code)}</dd><dt>Request ID</dt><dd class="mono">${copyValue('request ID', request.id)}</dd></dl>
+        <div class="auth-actions"><button type="button" class="btn btn-secondary" data-history-back hidden>Go back</button><a class="btn btn-primary" href="${href}">${label}</a></div>`,
+      current, undefined, { layout: 'auth', mark: { icon: 'alert', tone: 'warn' } })
     }
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })

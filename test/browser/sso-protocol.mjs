@@ -168,7 +168,7 @@ test('generic provider and Entra are both offered and generic sign-in reaches it
   browser(`await page.open(base + '/login');
     await page.wait('a[href="/auth/sso/synthetic-generic/start"]');
     check(await page.eval(() => !!document.querySelector('a[href="/auth/sso/synthetic-entra/start"]')), 'Entra provider missing');
-    check(await page.eval(() => document.querySelector('a[href="/auth/sso/synthetic-generic/start"]').textContent === 'Sign in with synthetic-generic'), 'Generic provider mislabeled');
+    check(await page.eval(() => document.querySelector('a[href="/auth/sso/synthetic-generic/start"]').textContent === 'Continue with synthetic-generic'), 'Generic provider mislabeled');
     await page.click('a[href="/auth/sso/synthetic-generic/start"]');
     await page.wait('[data-oidc-approve]');
     await page.click('[data-oidc-approve]');
@@ -187,7 +187,7 @@ test('generic callback routed to Entra is refused in the real browser', async ()
     await page.wait('[data-oidc-approve]');
     const callback = await page.eval(() => document.querySelector('[data-oidc-approve]').href);
     await page.open(callback.replace('/synthetic-generic/callback', '/synthetic-entra/callback'));
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.body.textContent.includes('SSO_STATE_INVALID')), 'Cross-provider callback accepted');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -212,7 +212,7 @@ test('generic named rules can be added edited previewed and removed through real
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
     await page.wait('nav[aria-label=Administration]');
-    await page.open(base + '/admin/settings/sign-in/synthetic-generic');
+    await page.open(base + '/admin/settings/sign-in/synthetic-generic?tab=rules&rule=new');
     await page.wait('form[action="/v1/admin/sso/role-rules"]');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=claim]', 'groups');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Readers');
@@ -220,29 +220,32 @@ test('generic named rules can be added edited previewed and removed through real
     await page.click('form[action="/v1/admin/sso/role-rules"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('a[href*="/matches/"]');
-    check(await page.eval(() => [...document.querySelectorAll('summary')].some(node => node.textContent.includes('Who matches: 1'))), 'Preview mixed providers or omitted saved claims');
+    await page.wait('a[data-who-matches]');
+    check(await page.eval(() => document.querySelector('[data-who-matches]').textContent === '1 match'), 'Preview mixed providers or omitted saved claims');
     const matches = await page.eval(() => document.querySelector('a[href*="/matches/"]').getAttribute('href'));
     await page.open(base + matches);
     await page.wait('table');
     check(await page.eval(() => document.querySelector('tbody').innerText.includes('synthetic-generic-user') && document.querySelectorAll('tbody tr').length === 1), 'Who matches included another provider');
-    await page.open(base + '/admin/settings/sign-in/synthetic-generic');
-    await page.click('details:has(form[action*="/role-rules/"]) summary');
-    await page.fill('details [name=claim]', 'custom.claim');
-    await page.click('details form[data-method=PATCH] button');
+    await page.open(base + '/admin/settings/sign-in/synthetic-generic?tab=rules');
+    await page.click('[data-rule] .menu summary');
+    await page.click('[data-rule] .menu a[href*="rule="]');
+    await page.wait('dialog[open] [name=claim]');
+    await page.fill('dialog[open] [name=claim]', 'custom.claim');
+    await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('details [name=claim][value="custom.claim"]');
-    check(await page.eval(() => [...document.querySelectorAll('summary')].some(node => node.textContent.includes('Who matches: 0'))), 'Claim edit did not refresh preview');
+    await page.wait('body:not(:has(dialog[data-close-href])) [data-who-matches]');
+    check(await page.eval(() => document.querySelector('[data-who-matches]').textContent === '0 matches' && document.querySelector('[data-rule] .sentence').innerText.includes('custom.claim')), 'Claim edit did not refresh preview');
     await page.open(base + matches);
     await page.wait('main');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('No users match')), 'Empty match state missing');
-    await page.open(base + '/admin/settings/sign-in/synthetic-generic');
-    await page.click('details:has(form[action*="/role-rules/"]) summary');
-    await page.click('details form[data-method=DELETE] button');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('No one matches')), 'Empty match state missing');
+    await page.open(base + '/admin/settings/sign-in/synthetic-generic?tab=rules');
+    await page.click('[data-rule] .menu summary');
+    await page.click('[data-rule] form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
+    await page.fill('#confirmation-name', 'Readers');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[action="/v1/admin/sso/role-rules"]');
+    await page.wait('section.card:not(:has([data-rule])) a[href$="rule=new"]');
     check(await page.eval(() => !document.querySelector('a[href*="/matches/"]')), 'Removed rule still present');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.events.filter(event => event.action?.endsWith('role-rule')).map(event => event.action),
@@ -254,7 +257,7 @@ test('generic ID token with another issuer is refused in the real browser', asyn
   browser(`await page.open(base + '/auth/sso/synthetic-generic/start');
     await page.wait('[data-oidc-approve]');
     await page.click('[data-oidc-approve]');
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.body.textContent.includes('SSO_TOKEN_INVALID')), 'Issuer mix-up accepted');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -380,7 +383,7 @@ test('stale provider authentication is refused and leaves the pending draft inta
   browser(prepareChange)
   openReauthPopup()
   browser(`await page.click('[data-oidc-approve]');
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Stale authentication was accepted');`)
   selectPage('/admin/roles')
   browser(`await page.click('[data-reauth-cancel]');
@@ -438,7 +441,7 @@ test('CSP-compatible link and Strict-cookie callback hop establish an SSO accoun
 test('uninvited identity is refused without creating a session', async () => {
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-browser-sso' } })
   browser(`${signIn}
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_NOT_INVITED')), 'Uninvited identity was not refused');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -453,7 +456,7 @@ test('SSO-enabled login page refuses an undesignated local administrator', async
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SIGN_IN_FAILED')), 'Undesignated administrator was admitted');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -486,7 +489,7 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
 test('tampered ID token is refused in the real callback page', async () => {
   await configure({ tamperSignature: true })
   browser(`${signIn}
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Tampered signature was accepted');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -497,7 +500,7 @@ test('tampered ID token is refused in the real callback page', async () => {
 test('wrong ID token issuer is refused in the real callback page', async () => {
   await configure({ claims: { iss: 'https://other.example' } })
   browser(`${signIn}
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Wrong issuer was accepted');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -512,7 +515,7 @@ test('replaying a completed callback cannot issue another session', async () => 
     await page.click('a[href="/account"]');
     await page.wait('section h2');
     await page.open(callback);
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_STATE_INVALID')), 'Callback replay was accepted');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -542,7 +545,7 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/settings/sign-in/synthetic-entra');
     await page.wait('form[action$="/activation"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Entra setup guide') && document.querySelector('main').innerText.includes('Assignment required')), 'Setup instructions missing');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Set up this provider') && document.querySelector('main').innerText.includes('Assignment required')), 'Setup instructions missing');
     const redirect = await page.eval(() => document.querySelector('[data-copy]').parentElement.querySelector('input').value);
     check(redirect === base + '/auth/sso/synthetic-entra/callback', 'Incorrect redirect URI');
     await page.eval(() => Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: async value => { window.copied = value; } }));
@@ -556,8 +559,8 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/activation"] [name=enabled][value=false]');
     await page.open(base + '/admin/settings/sign-in');
-    await page.wait('table');
-    check(await page.eval(() => document.querySelector('tbody').innerText.includes('Enabled')), 'Activated status missing');
+    await page.wait('.list-row');
+    check(await page.eval(() => [...document.querySelectorAll('.list-row')].some(row => row.innerText.includes('Synthetic Entra') && row.querySelector('.badges').innerText.includes('Enabled'))), 'Activated status missing');
     await page.open(base + '/admin/settings/sign-in/synthetic-entra');
     await page.click('form[action$="/activation"] button');
     await page.wait('#confirmation[open]');
@@ -577,9 +580,11 @@ test('who matches previews new rules from last validated claims and refreshes af
   browser(`${signIn}
     await page.wait('a[href="/admin"]');
     await page.click('a[href="/admin"]');
-    await page.open(base + '/admin/settings/sign-in/synthetic-entra');
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra?tab=rules');
+    await page.wait('[data-who-matches]');
+    check(await page.eval(() => [...document.querySelectorAll('[data-who-matches]')].filter(node => node.textContent === '1 match').length === 2), 'Validated role claims not counted');
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra?tab=rules&rule=new');
     await page.wait('form[action="/v1/admin/sso/role-rules"]');
-    check(await page.eval(() => [...document.querySelectorAll('summary')].filter(node => node.textContent.includes('Who matches: 1')).length === 2), 'Validated role claims not counted');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Extra');
     await page.eval(() => { document.querySelector('form[action="/v1/admin/sso/role-rules"] [name=roleId]').value = 'synthetic-role'; });
     await page.click('form[action="/v1/admin/sso/role-rules"] button');
@@ -591,15 +596,15 @@ test('who matches previews new rules from last validated claims and refreshes af
     await page.wait('a[href="/reauth?complete=1"]');
     await page.click('a[href="/reauth?complete=1"]');`)
   selectPage('/admin/settings/sign-in/')
-  browser(`await page.wait('#reauth-dialog:not([open])');
-    check(await page.eval(() => [...document.querySelectorAll('summary')].some(node => node.textContent.includes('Artium.Extra') && node.textContent.includes('Who matches: 1'))), 'New rule preview depended on existing grants');`)
+  browser(`await page.wait('body:not(:has(dialog[data-close-href])) [data-rule]');
+    check(await page.eval(() => [...document.querySelectorAll('[data-rule]')].some(node => node.innerText.includes('Artium.Extra') && node.querySelector('[data-who-matches]').textContent === '1 match')), 'New rule preview depended on existing grants');`)
   await configure({ claims: { roles: [] } })
   browser(`${claim('/auth/sso/synthetic-entra/start')}
     await page.wait('a[href="/admin"]');
     await page.click('a[href="/admin"]');
-    await page.open(base + '/admin/settings/sign-in/synthetic-entra');
-    await page.wait('form[action="/v1/admin/sso/role-rules"]');
-    check(await page.eval(() => [...document.querySelectorAll('summary')].filter(node => node.textContent.includes('Who matches: 0')).length === 3), 'Counts did not refresh after sign-in');`)
+    await page.open(base + '/admin/settings/sign-in/synthetic-entra?tab=rules');
+    await page.wait('[data-who-matches]');
+    check(await page.eval(() => [...document.querySelectorAll('[data-who-matches]')].filter(node => node.textContent === '0 matches').length === 3), 'Counts did not refresh after sign-in');`)
 })
 
 test('invitation claim grants direct and rule roles and a reused link is refused', async () => {
@@ -611,7 +616,7 @@ test('invitation claim grants direct and rule roles and a reused link is refused
     await page.wait('section h2');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic invited user')), 'Claimed account missing');
     await page.open(base + ${JSON.stringify(invitation.claimPath)});
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Reused link accepted');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -628,7 +633,7 @@ test('wrong-username claim refuses the identity and leaves the invitation unused
   const invitation = await invite()
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'Synthetic-Invited' } })
   browser(`${claim(invitation.claimPath)}
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Wrong username accepted');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -641,7 +646,7 @@ test('expired invitation link is refused before provider sign-in', async () => {
   assert.equal((await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ advanceMs: 86_400_000 }) })).status, 200)
   browser(`await page.open(base + ${JSON.stringify(invitation.claimPath)});
-    await page.wait('main small');
+    await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Expired link accepted');
   `)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()

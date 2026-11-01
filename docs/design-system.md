@@ -11,6 +11,7 @@ This document is the reference for every current and future screen.
 | [tokens.ts](../src/server/admin/design/tokens.ts) | All colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
 | `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the app shell and the icon sprite. |
+| `src/server/admin/design/status.ts` | The status vocabulary and product display names: each state's one word and tone, rendered only through `badge()` and `status()`. |
 
 `adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
 
@@ -59,16 +60,50 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Recent-auth pill | `.unlock.on`, `.unlock.off` | unlocked with minutes left, locked | Text carries the state; refreshed every 30 seconds |
 | Account menu | `.account-menu` with `.popover` | closed, open | Native disclosure; "Signed in as" is announced |
 | Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
-| Page header | `pageHeader()`: `.page-head` | title, optional one-line description | The page's only `h1` |
-| Button | `.btn` with `.btn-primary`, `.btn-secondary` or `.btn-ghost`; `.btn-sm`, `.btn-icon` | default, hover, focus, disabled | Icon-only buttons need `aria-label` |
-| Card | `card()`: `.card`, `.card-head` | plain | `h2` per card |
+| Page header | `pageHeader()`: `.page-head`, `.actions`, `.meta` | title, optional one-line description, header actions (at most one primary), identity variant with a lead icon and meta badges | The page's only `h1` |
+| Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
+| Button | `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon` | default, hover, focus, disabled | Icon-only buttons need `aria-label` |
+| Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status`; `.dot` | the vocabulary only | The word is always present; the dot is decorative |
+| Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`; `.card.warn`, `.card.danger` | plain, with header actions, with footer, warning | `h2` per card |
+| Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
+| Table | `.tbl`, `.cell-main`, `.num` | rows, empty state in the card body | Real `<table>` with `scope` |
+| Field | `field()`: `.field`, `label`, `.hint` | default, focus, disabled | `label for`; the hint is linked with `aria-describedby` |
+| Option card | `.options`, `.option` | unchecked, checked | Native radio |
+| Tabs | `tabs()`: `.utabs` | current, with note | Links with `?tab=`; `aria-current="page"`; each tab is its own server-rendered view |
+| Steps | `step()` in `ol.vsteps` | done, current, to do | Ordered list; done is also stated in text |
+| Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with title, with list | `role="status"` for results, `role="alert"` only for blocking errors |
+| Code and copy | `copyBlock()`, `copyField()`, `copyValue()` | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
+| Key-value list | `.kv` | | `<dl>` |
+| Segmented control | `.seg` with radio inputs | 2-4 options | Radio group; works without JavaScript |
+| Overflow menu | `.menu` with `.popover`; `.danger` item | closed, open | Native disclosure with a labelled summary |
+| Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
+| Tool icon | `toolIcon()`: `.tool-ico`, `.tool-ico.lg` | | `aria-hidden`; the product name from `toolName()` is adjacent text |
 | Avatar | `.avatar` | | Initials are `aria-hidden`; the name is adjacent text |
-| Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot` | open | `showModal`, Esc closes, title names the action |
-| Auth card | `.auth`, `.auth-card` | | One `h1` |
-| Message | `#message.message` | empty (hidden), error | Live region for action results |
+| Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, title names the action |
+| View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
+| Auth card | `.auth`, `.auth-card`, `.auth-head`, `.auth-actions`, `.divider`, `.bigcode`, `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action last in reading order |
+| Toasts | `.toasts` with `#toast.toast.ok` and `#message.toast.err` | empty (hidden), success, error, conflict with **Reload latest** | `#toast` is a polite `status` region; `#message` is an `alert` |
 
 Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
+
+## Patterns
+
+**Status vocabulary.**
+Every state has one word, rendered only by `status.ts`; colour is never the only signal.
+
+**Confirmation tiers.**
+Tier 1 has no dialog; the success toast and the updated "Last changed" line confirm the change.
+Tier 2 passes the consequence as the `apiForm` confirmation: the dialog is titled with the action and its confirm button repeats the verb.
+Tier 3 also passes `data-confirm-name`: the dialog turns red and its confirm button stays disabled until that exact name is typed.
+Confirmation does not change the request, CSRF token, revision check or recent-auth flow.
+
+**Interstitials.**
+Sign-in, password, identity confirmation, CLI approval, results and error pages use the auth card, including for signed-in people, who also get a sign-out link under the card.
+Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
+
+**Dialog views without JavaScript.**
+Add and edit forms that open as dialogs have a query-parameter view rendered open by the server, so they work without scripts.
 
 ## Navigation
 
