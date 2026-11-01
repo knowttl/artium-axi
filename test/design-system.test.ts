@@ -1,9 +1,12 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
+import postcss, { type AnyNode } from 'postcss'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createApp } from '../src/server/app.js'
+import { tokens } from '../src/server/admin/design/tokens.js'
 import { Audit } from '../src/server/audit/audit.js'
 import { browserCookie } from '../src/server/auth/browser.js'
 import { createBrowserSession } from '../src/server/auth/sessions.js'
@@ -16,9 +19,27 @@ import { seedToolUser } from './fixtures/tokens.js'
 
 // Rules from docs/design-system.md: colours live only in tokens, pages never style themselves, icons come from the sprite.
 const colour = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\(/i
-const uiSources = ['src/server/admin', 'src/server/admin/design', 'src/server/auth']
-  .flatMap(directory => readdirSync(directory).filter(file => file.endsWith('.ts')).map(file => join(directory, file)))
-  .concat('src/server/app.ts')
+
+function colourDeclarations(css: string) {
+  const declarations: { property: string; value: string; context: string[] }[] = []
+  postcss.parse(css).walkDecls(declaration => {
+    if (!colour.test(declaration.value)) return
+    const context: string[] = []
+    for (let parent: AnyNode | undefined = declaration.parent; parent; parent = parent.parent) {
+      if (parent.type === 'rule') context.push(parent.selector)
+      if (parent.type === 'atrule') context.push(`@${parent.name} ${parent.params}`)
+    }
+    declarations.push({ property: declaration.prop, value: declaration.value, context })
+  })
+  return declarations
+}
+
+function elements(node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] {
+  return [
+    ...('tagName' in node ? [node] : []),
+    ...('childNodes' in node ? node.childNodes.flatMap(elements) : []),
+  ]
+}
 
 let directory: string
 let db: Database.Database
@@ -45,9 +66,10 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-test('only the tokens module defines colours', () => {
-  const offenders = uiSources.filter(file => !file.endsWith('design/tokens.ts') && colour.test(readFileSync(file, 'utf8')))
-  expect(offenders).toEqual([])
+test('the served stylesheet defines colours only through the token contract', async () => {
+  const response = await app.inject({ url: '/admin/assets/style.css' })
+  expect(response.statusCode).toBe(200)
+  expect(colourDeclarations(response.body)).toEqual(colourDeclarations(tokens))
 })
 
 test.each([
@@ -58,12 +80,23 @@ test.each([
   const session = viewer === 'admin' ? admin : viewer === 'ordinary' ? ordinary : undefined
   const response = await app.inject({ url, headers: session ? { cookie: `${browserCookie}=${session}` } : {} })
   expect(response.statusCode).toBe(200)
-  const [page, sprite = ''] = response.body.split('<svg class="sprite"')
-  expect(page).not.toMatch(/\sstyle=/)
-  expect(page).not.toMatch(colour)
-  expect(page).not.toMatch(/<(?:path|circle|rect|symbol)\b/)
-  for (const [, name] of page!.matchAll(/<use href="#(i-[a-z]+)"/g)) expect(sprite).toContain(`<symbol id="${name}"`)
-  expect(page!.match(/<h1>/g)).toHaveLength(1)
+  const page = elements(parse(response.body))
+  const sprites = page.filter(element => element.tagName === 'svg' && element.attrs.some(attribute => attribute.name === 'class' && attribute.value === 'sprite'))
+  expect(sprites.length).toBeLessThanOrEqual(1)
+  const sprite = sprites[0]
+  const symbols = sprite ? elements(sprite).filter(element => element.tagName === 'symbol')
+    .map(element => element.attrs.find(attribute => attribute.name === 'id')?.value) : []
+  for (const element of page) {
+    expect(element.attrs.filter(attribute => attribute.name === 'style')).toEqual([])
+    for (const attribute of element.attrs) expect(attribute.value).not.toMatch(colour)
+    if (element.tagName !== 'svg' || element === sprite) continue
+    const descendants = elements(element).slice(1)
+    expect(descendants.map(child => child.tagName)).toEqual(['use'])
+    const reference = descendants[0]!.attrs.find(attribute => attribute.name === 'href')?.value
+    expect(reference).toMatch(/^#i-[a-z]+$/)
+    expect(symbols).toContain(reference!.slice(1))
+  }
+  expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
 })
 
 test('the admin navigation marks the section of the current page', async () => {

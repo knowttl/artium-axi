@@ -23,7 +23,7 @@ This document is the reference for every current and future screen.
 
 ## Rules
 
-`test/design-system.test.ts` enforces these rules over the UI sources and rendered pages:
+`test/design-system.test.ts` enforces these rules over the served stylesheet and rendered pages:
 
 - No hex, `rgb(` or `hsl(` colour outside `tokens.ts`.
 - No `style` attribute in any rendered page.

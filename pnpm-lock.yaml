@@ -57,6 +57,12 @@ importers:
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
+      parse5:
+        specifier: 8.0.0
+        version: 8.0.0
+      postcss:
+        specifier: 8.5.29
+        version: 8.5.29
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -497,6 +503,10 @@ packages:
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
 
+  entities@6.0.1:
+    resolution: {integrity: sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==}
+    engines: {node: '>=0.12'}
+
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
 
@@ -712,6 +722,9 @@ packages:
 
   openid-client@6.8.8:
     resolution: {integrity: sha512-ZsucJA5Ad04Uv7YN4ql+s4GXNmb9uAYQwyJTsJx7CH/MX3JZioLE2pVKi1SC+YrbSLA4Px3Gi30dMjgOZtb6pA==}
+
+  parse5@8.0.0:
+    resolution: {integrity: sha512-9m4m5GSgXjL4AjumKzq1Fgfp3Z8rsvjRNbnkVwfu2ImRqE5D0LnY2QfDen18FSY9C573YU5XxSapdHZTZ2WolA==}
 
   path-key@3.1.1:
     resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
@@ -1261,6 +1274,8 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
+  entities@6.0.1: {}
+
   es-module-lexer@2.3.2: {}
 
   esbuild@0.28.2:
@@ -1485,6 +1500,10 @@ snapshots:
     dependencies:
       jose: 6.2.12
       oauth4webapi: 3.8.8
+
+  parse5@8.0.0:
+    dependencies:
+      entities: 6.0.1
 
   path-key@3.1.1: {}
 
