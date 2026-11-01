@@ -61,6 +61,8 @@ beforeEach(async () => {
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-browser-password');
     await page.click('button');
+    await page.wait('nav[aria-label=Administration] a[href="/admin"][aria-current=page]');
+    await page.open(base + '/admin/users');
     await page.wait('form[action="/v1/admin/users"]');
   `)
 })
@@ -130,7 +132,7 @@ test('user detail designates a break-glass administrator and removing it signs t
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form:has([name=breakGlass][value=false])');
-    check(await page.eval(() => document.body.innerText.includes('Break-glass account')), 'Designation was not shown');
+    check(await page.eval(() => document.querySelector('.account-menu summary').innerText.includes('Break-glass')), 'Designation was not shown');
     await page.click('form:has([name=breakGlass]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -274,7 +276,8 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
 test('sign-in settings creates a disabled provider and saves a certificate without redisplaying its key', async () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.click('a[href="/admin/settings/sign-in"]');
+    await page.click('a.menu-open');
+    await page.click('nav a[href="/admin/settings/sign-in"]');
     await page.wait('[name=tenantId]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
     await page.fill('[name=name]', 'Synthetic provider');
@@ -363,7 +366,7 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.click('a[href*="event=run-start"]:not([href*="cursor="]):not([download])');
     await page.wait('tbody tr');
     check(await page.eval(() => document.querySelector('tbody dl').textContent.includes('synthetic-run-102')), 'First page did not restart the search');
-    await page.click('a[href="/admin/audit"]');
+    await page.click('main a[href="/admin/audit"]');
     await page.wait('[name=event]');
     check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
   `)
@@ -403,9 +406,11 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
       check(await page.eval(() => document.querySelectorAll('form[action="/logout"]').length === 1), 'Sign-out is missing or duplicated on ' + path);
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Horizontal overflow on ' + path);
-      check(await page.eval(() => document.querySelector('header').innerText.includes('Local password sign-in')), 'Missing sign-in source on ' + path);
+      check(await page.eval(() => document.querySelector('.account-menu summary').textContent.includes('Password')), 'Missing sign-in source on ' + path);
     }
-    await page.click('a[href="/account"]');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu a[href="/account"]');
     await page.wait('a[href="/password"]');
     check(await page.eval(() => location.pathname === '/account'), 'Account navigation failed');
     `)
@@ -905,7 +910,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('tbody a:not([href="/admin/roles/synthetic-role"])');
     check(await page.eval(() => [...document.querySelectorAll('tbody a')].some(link => link.textContent === 'Synthetic resumed role')), 'Pending role was not created');
-    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes allowed for')), 'Confirmation window was not refreshed');
+    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;
@@ -974,9 +979,11 @@ test('confirmed changes use the same action and stale drafts offer a reload reco
   `)
 })
 
-test('header sign-out ends the browser session', () => {
+test('account menu sign-out ends the browser session', () => {
   browser(`
-    await page.click('header form[action="/logout"] button');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.open(base + '/admin');
     await page.wait('[name=username]');
@@ -986,12 +993,14 @@ test('header sign-out ends the browser session', () => {
 
 test('ordinary accounts have account help and no administration navigation', () => {
   browser(`
-    await page.click('header form[action="/logout"] button');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('button');
-    await page.wait('nav[aria-label=Account]');
+    await page.wait('.account-menu');
     check(await page.eval(() => location.pathname === '/account'), 'Ordinary account did not open');
     check(await page.eval(() => !document.querySelector('nav[aria-label=Administration]')), 'Ordinary account has admin navigation');
     await page.click('.page-help summary');
@@ -1001,7 +1010,7 @@ test('ordinary accounts have account help and no administration navigation', () 
 
 test('user search combines filters, retains them through pagination and explains empty results', () => {
   browser(`
-    await page.open(base + '/admin?limit=1');
+    await page.open(base + '/admin/users?limit=1');
     await page.fill('[name=q]', 'synthetic');
     await page.fill('[name=source]', 'local');
     await page.fill('[name=status]', 'enabled');
@@ -1039,7 +1048,7 @@ test('a local user can be created from the table and its profile edited from det
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=displayName][value="Updated analyst"]');
     check(await page.eval(() => document.querySelector('[name=administrator]').checked), 'Administrator edit was not saved');
-    await page.click('a[href="/admin"]');
+    await page.click('main a[href="/admin/users"]');
     await page.wait('tbody');
     check(await page.eval(() => [...document.querySelectorAll('tbody tr')].some(row => row.innerText.includes('Updated analyst') && row.innerText.includes('Yes'))), 'Table did not reflect profile');
   `)
@@ -1083,7 +1092,7 @@ test('user detail unlock clears a lockout caused by failed sign-ins', async () =
 test('SSO user direct-role edits preserve rule access and offer no password reset', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/sso'), { method: 'POST' })).status, 200)
   browser(`
-    await page.open(base + '/admin?source=sso');
+    await page.open(base + '/admin/users?source=sso');
     check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').innerText.includes('SSO')), 'SSO source filter failed');
     await page.click('a[href="/admin/users/synthetic-sso"]');
     await page.wait('form[action$="/roles"]');
@@ -1130,7 +1139,9 @@ test('user detail resets a password and the person must change it at sign-in', (
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'Reset did not require password change');
-    await page.click('header form[action="/logout"] button');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-reset-password');
@@ -1270,7 +1281,9 @@ test('archiving from detail hides the user and shows retained history when reope
 test('ordinary account shows role tools and usable CLI guidance and can revoke its current browser', () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.click('header form[action="/logout"] button');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');

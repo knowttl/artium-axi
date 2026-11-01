@@ -139,7 +139,7 @@ test('browser sign-in creates an opaque secure server session and sign-out revok
   expect(response.cookies.find(cookie => cookie.name === browserCookie)).toMatchObject({ secure: true, httpOnly: true, sameSite: 'Strict' })
   expect(db.prepare('SELECT id FROM sessions').get()).toEqual({ id: hashToken(cookies[browserCookie]!) })
   expect(db.prepare('SELECT COUNT(*) AS count FROM tokens').get()).toEqual({ count: 0 })
-  expect((await request('GET', '/admin')).body).toContain('Signed in as Synthetic User.')
+  expect((await request('GET', '/admin')).body).toContain('Signed in as </span><strong>Synthetic User</strong>')
   const csrf = await token('/admin')
   const signedIn = { ...cookies }
   expect((await request('POST', '/logout', { _csrf: csrf })).headers.location).toBe('/login')
@@ -425,7 +425,7 @@ test('Users screen escapes HTML usernames, role names and change actors as text'
     .run('synthetic-second', now, userId)
   db.prepare('UPDATE roles SET name = ?').run('<img src=x onerror=alert(1)>')
   await signIn()
-  const response = await request('GET', '/admin')
+  const response = await request('GET', '/admin/users')
   expect(response.statusCode).toBe(200)
   expect(response.body).toContain('&lt;b&gt;synthetic&lt;/b&gt;')
   expect(response.body).not.toContain('<b>synthetic</b>')
@@ -440,12 +440,20 @@ test('Users screen paginates accounts and retains role choices from later API pa
   const insert = db.prepare('INSERT INTO roles (id, name) VALUES (?, ?)')
   for (let index = 0; index < 101; index++) insert.run(`role-${index.toString().padStart(3, '0')}`, `Role ${index}`)
   await signIn()
-  const response = await request('GET', '/admin?limit=1')
+  const response = await request('GET', '/admin/users?limit=1')
   expect(response.body).toContain('Role 100')
   expect(response.body).toContain('Next page')
-  const next = /href="(\/admin\?[^"]*cursor=[^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&')
+  const next = /href="(\/admin\/users\?[^"]*cursor=[^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&')
   expect((await request('GET', next)).body).not.toContain('Next page')
-  expect((await request('GET', '/admin?limit=101')).statusCode).toBe(400)
+  expect((await request('GET', '/admin/users?limit=101')).statusCode).toBe(400)
+})
+
+test('users-list bookmarks from before Overview still open the users list with their filters', async () => {
+  await signIn()
+  const response = await request('GET', '/admin?source=local&limit=1')
+  expect(response.statusCode).toBe(301)
+  expect(response.headers.location).toBe('/admin/users?source=local&limit=1')
+  expect((await request('GET', '/admin')).body).toContain('<h1>Overview</h1>')
 })
 
 test.each([

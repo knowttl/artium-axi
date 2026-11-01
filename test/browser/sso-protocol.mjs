@@ -131,7 +131,7 @@ test('generic provider settings and credential are editable and activation is ex
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
-    await page.wait('form[action="/v1/admin/users"]');
+    await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/settings/sign-in');
     await page.wait('form[action="/v1/admin/sso/providers"] [name=issuer]');
     await page.fill('form:has([name=issuer]) [name=name]', 'Synthetic created OIDC');
@@ -204,13 +204,14 @@ test('generic named rules can be added edited previewed and removed through real
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
     await page.wait('form[action="/logout"]');
+    await page.click('.account-menu summary');
     await page.click('form[action="/logout"] button');
     await page.wait('form[action="/login"]');
     await page.open(base + '/login');
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
-    await page.wait('form[action="/v1/admin/users"]');
+    await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/settings/sign-in/synthetic-generic');
     await page.wait('form[action="/v1/admin/sso/role-rules"]');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=claim]', 'groups');
@@ -356,7 +357,7 @@ test('SSO identity confirmation resumes the pending form through the real popup 
   browser(`await page.wait('a[href^="/admin/roles/"]');
     await page.wait('#reauth-dialog:not([open])');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic resumed role')), 'Pending role was not saved');
-    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes allowed for')), 'Recent-auth window was not updated');`)
+    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
   assert.equal(evidence.authorizations.at(-1).prompt, 'login')
@@ -396,6 +397,7 @@ test('optional Microsoft sign-out revokes artium before visiting the fake provid
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
     await page.wait('form[action="/logout"]');
+    await page.click('.account-menu summary');
     await page.click('[name=providerLogout]');
     await page.click('form[action="/logout"] button');
     await page.wait('[data-provider-signout]');
@@ -463,14 +465,14 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
-    await page.wait('form[action="/v1/admin/users"]');
-    check(await page.eval(() => document.body.innerText.includes('Break-glass account')), 'Break-glass identity flag missing');`)
+    await page.wait('nav[aria-label=Administration]');
+    check(await page.eval(() => document.querySelector('.account-menu summary').innerText.includes('Break-glass')), 'Break-glass identity flag missing');`)
   assert.equal((await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ advanceMs: 900_000 }) })).status, 200)
   browser(`await page.open(base + '/reauth');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/reauth"] button');
-    await page.wait('form[action="/v1/admin/users"]');
+    await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/audit');
     await page.wait('.audit-table');
     check(await page.eval(() => Array.from(document.querySelectorAll('.audit-table strong')).filter(node => node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
@@ -537,7 +539,7 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
-    await page.wait('form[action="/v1/admin/users"]');
+    await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/settings/sign-in/synthetic-entra');
     await page.wait('form[action$="/activation"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Entra setup guide') && document.querySelector('main').innerText.includes('Assignment required')), 'Setup instructions missing');
@@ -561,6 +563,7 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/activation"] [name=enabled][value=true]');
+    await page.click('.account-menu summary');
     await page.click('form[action="/logout"] button');
     await page.wait('form[action="/login"]');
     check(await page.eval(() => !document.querySelector('a[href="/auth/sso/synthetic-entra/start"]')), 'Deactivated provider offered sign-in');`)
@@ -652,6 +655,8 @@ test('local account linking keeps the account and role sync removes only rule ac
   browser(`${claim(invitation.claimPath)}
     await page.wait('a[href="/admin"]');
     await page.click('a[href="/admin"]');
+    await page.wait('nav[aria-label=Administration]');
+    await page.open(base + '/admin/users');
     await page.wait('a[href="/admin/users/synthetic-development-user"]');
     await page.click('a[href="/admin/users/synthetic-development-user"]');
     await page.wait('section h2');
@@ -666,6 +671,8 @@ test('local account linking keeps the account and role sync removes only rule ac
   browser(`${claim('/auth/sso/synthetic-entra/start')}
     await page.wait('a[href="/admin"]');
     await page.click('a[href="/admin"]');
+    await page.wait('nav[aria-label=Administration]');
+    await page.open(base + '/admin/users');
     await page.wait('a[href="/admin/users/synthetic-development-user"]');
     await page.click('a[href="/admin/users/synthetic-development-user"]');
     await page.wait('section h2');

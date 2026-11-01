@@ -19,6 +19,7 @@ import { AuthAttempts } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
 import { readBrowserSession, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
+import { registerOverviewPage } from './admin/overview.js'
 import { registerUsersPage } from './admin/users.js'
 import { registerRolesPages } from './admin/roles.js'
 import { registerAdminPages } from './admin/pages.js'
@@ -237,6 +238,7 @@ export function createApp(options: {
     return reply.code(204).send()
   })
   registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles }, options.providerCredentials)
+  registerOverviewPage(app, db)
   registerUsersPage(app, db)
   registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
