@@ -127,7 +127,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const formStart = (action: string, method: string, confirmation: string, attributes = '', className = '') =>
       `<form${className ? ` class="${className}"` : ''} data-api data-method="${method}" data-confirm="${escape(confirmation)}"${attributes ? ' ' + attributes : ''} action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">`
     const revisionInputs = (credentialRevision: number) => `<input type="hidden" name="expectedRevision" data-type="number" value="${credentialRevision}"><input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
-    const roles = db.prepare(`SELECT roles.id, roles.name, (SELECT COUNT(*) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
+    const roles = db.prepare(`SELECT roles.id, roles.name, (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
       FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, members: number }[]
     const tested = Boolean(db.prepare(`SELECT 1 FROM tool_health WHERE tool = ? AND credential_revision = ? AND status = 'ok'`).get(tool.name, credential.revision))
     const failing = tool.health.status === 'error'
