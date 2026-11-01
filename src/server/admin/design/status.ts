@@ -49,9 +49,9 @@ export function stateStatus<D extends StatusDomain>(domain: D, state: keyof Voca
 
 // Writes: Read-only, Always read-only, or how many operations are on.
 export function writesStatus(tool: { readOnly: boolean, writeAccess: { capable: boolean, enabled: boolean, allowedOperations: string[] } }): string {
-  if (tool.readOnly) return `<span class="status">${tool.writeAccess.capable ? 'Read-only' : `${icon('lock')}Always read-only`}</span>`
   const count = tool.writeAccess.enabled ? tool.writeAccess.allowedOperations.length : 0
-  return `<span class="status"><span class="dot warn" aria-hidden="true"></span>${count ? `${count} operation${count === 1 ? '' : 's'} on` : 'Writes on'}</span>`
+  const { word, tone, mark } = describeWrites(tool.readOnly, tool.writeAccess.capable, count || null)
+  return `<span class="status">${tone === 'warn' ? '<span class="dot warn" aria-hidden="true"></span>' : mark === 'lock' ? icon('lock') : ''}${word}</span>`
 }
 
 type ToolName = z.infer<typeof toolSchema>
@@ -140,9 +140,11 @@ export function setupBadge(name: SetupState): string {
 
 // Write capability as an icon and word; `operations` is the selected count, or null when the tool has no operation list.
 export function writes(tool: { capable: boolean, enabled: boolean, operations: number | null }, form: 'badge' | 'status'): string {
-  const render = (word: string, tone: 'neutral' | 'warn', mark: 'eye' | 'lock' | 'zap') => `<span class="${form} ${tone}">${icon(mark)}${word}</span>`
-  if (!tool.capable) return render('Always read-only', 'neutral', 'lock')
-  if (!tool.enabled) return render('Read-only', 'neutral', 'eye')
-  if (tool.operations === null) return render('Writes on', 'warn', 'zap')
-  return render(`${tool.operations} operation${tool.operations === 1 ? '' : 's'} on`, 'warn', 'zap')
+  const { word, tone, mark } = describeWrites(!tool.capable || !tool.enabled, tool.capable, tool.operations)
+  return `<span class="${form} ${tone}">${icon(mark)}${word}</span>`
+}
+
+function describeWrites(readOnly: boolean, capable: boolean, operations: number | null): { word: string, tone: 'neutral' | 'warn', mark: 'eye' | 'lock' | 'zap' } {
+  if (readOnly) return capable ? { word: 'Read-only', tone: 'neutral', mark: 'eye' } : { word: 'Always read-only', tone: 'neutral', mark: 'lock' }
+  return { word: operations === null ? 'Writes on' : `${operations} operation${operations === 1 ? '' : 's'} on`, tone: 'warn', mark: 'zap' }
 }
