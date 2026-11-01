@@ -62,7 +62,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
 | Page header | `pageHeader()`: `.page-head`, `.actions` | title, optional one-line description, optional actions; a detail page names its record in the `h1` and links its section in the crumbs | The page's only `h1` |
 | Button | `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon` | default, hover, focus, disabled (`aria-disabled` on link buttons) | Icon-only buttons need `aria-label` |
-| Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.danger`, `.card.empty` | plain, with footer actions, danger zone, empty state | `h2` per card |
+| Card | `card()` renders the header and supplied body, with optional header actions; form markup uses `.card-body`, `.card-foot` and `.card-note`; `.card.danger`, `.card.empty` | plain, with header actions, danger zone, empty state | `h2` per card |
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`; `.status` with `.dot` | words from the vocabulary only | The word carries the state; the dot is `aria-hidden` |
 | Chip | `.chips`, `.chip` | plain, with a grey dot for a disabled tool | Disabled state also in text |
 | Table | `.tbl`, `.num`, `.cell-main`, `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, numeric column, stacked rows below 760px | Real `<table>` with `<th scope>`; the first-cell link covers the row |

@@ -212,6 +212,7 @@ Review the Vectra grant warnings: host/account close closes every active detecti
 Choose **Save write permissions** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
+With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).

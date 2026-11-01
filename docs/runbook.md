@@ -442,7 +442,7 @@ See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
-Use “Test connection” on the tool page, or keep “Test after saving” selected (the default) on the Connection tab, to test the replacement with the fixed harmless read before enabling it.
+Use “Test connection” on the tool page to test the replacement with the fixed harmless read before enabling it; see [Connection tab save-and-test behavior](admin-guide.md#browser-administration) for testing during a save.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 AWX username-and-password sign-in mints a personal access token during credential save.
 Other upstream credential issuance, and revocation for every tool including AWX, remain live-only owner steps and are not exercised here.
