@@ -1043,6 +1043,10 @@ test('a local user can be created from the table and its profile edited from det
     const create = 'form[action="/v1/admin/users"]';
     await page.click('a[data-sheet="sheet-add-user"]');
     await page.wait('#sheet-add-user[open]');
+    await page.press('Escape');
+    await page.wait('a[data-sheet="sheet-add-user"]:focus');
+    await page.press('Enter');
+    await page.wait('#sheet-add-user[open]');
     await page.fill(create + ' [name=username]', 'synthetic-new');
     await page.fill(create + ' [name=displayName]', 'New analyst');
     await page.fill(create + ' [name=temporaryPassword]', 'CANARY-temporary-password');

@@ -128,7 +128,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     if (user.archivedAt !== null) {
       const retained = user.roleIds.map(id => roleChip(user, id, roleName(id), true)).join('')
       const removable = roles.filter(role => user.directRoleIds.includes(role.id))
-      const content = callout('info', `Archived ${new Date(user.archivedAt).toISOString().slice(0, 10)}`, `Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained. This page is read-only.`) +
+      const content = callout('info', 'Archived person', `Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained. This page is read-only.`) +
         `<div class="grid2"><div class="stack">${form(path + '/roles', 'PUT', card('Roles', 'Membership is retained. Remove direct roles that are no longer needed; rule grants remain. Changing roles does not restore sign-in.',
           `<div class="card-body stack">${retained ? `<div class="chips">${retained}</div>` : '<p class="none">No retained roles remain.</p>'}${ruleGrants ? `<ul class="rows">${ruleGrants}</ul>` : ''}${removable.length ? roleOptions(removable, user.directRoleIds, 'Direct roles to keep', '') : '<input type="hidden" name="roleIds" disabled><p class="none">No direct roles remain.</p>'}</div>`,
           { foot: `<span>Unchecked direct roles are removed.</span><div class="actions">${revision(user.revision)}<button class="btn btn-secondary btn-sm">Remove direct roles</button></div>` }),

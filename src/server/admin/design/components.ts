@@ -374,8 +374,9 @@ dialog.modal { width: 460px; padding: 0; }
   .tbl.stacked td { display: block; padding: 3px 14px; border: 0; }
   .tbl.stacked td.num, .tbl.stacked td.actions-cell { text-align: left; }
   .filters .input-wrap { width: 100%; }
-  .page-head > .actions { margin-left: 0; }
+  .page-head > .actions { flex-basis: 100%; margin-left: 0; }
   .callout { flex-wrap: wrap; }
+  .callout .grow { flex-basis: calc(100% - 28px); }
   .callout .actions { margin-left: 28px; }
   dialog.sheet { width: 100%; border-left: 0; }
   .app { display: block; }
@@ -388,6 +389,7 @@ dialog.modal { width: 460px; padding: 0; }
   .account-menu.down .who { display: none; }
   .crumbs span, .learn .label { display: none; }
   .list-row { flex-wrap: wrap; }
+  .list-row .grow { min-width: 60%; }
   .list-row .btn { margin-left: 36px; }
 }
 `

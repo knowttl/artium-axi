@@ -476,6 +476,19 @@ test.each([
   expect((await request('GET', path)).body).toContain(`id="${id}" aria-labelledby="${id}-title">`)
 })
 
+test('invitation navigation opens the creation sheet without JavaScript', async () => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES
+    ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://entra.example'),
+    ('synthetic-oidc', 'Synthetic OIDC', 'oidc', 'https://oidc.example')`)
+  await signIn()
+  const page = await request('GET', '/admin/invitations')
+  expect(page.body).toContain('href="/admin/invitations?limit=50&amp;sheet=new-invitation"')
+  const open = await request('GET', '/admin/invitations?sheet=new-invitation')
+  expect(open.body).toContain('id="sheet-new-invitation" aria-labelledby="sheet-new-invitation-title" open>')
+  expect(open.body).toContain('Synthetic Entra (not enabled yet)')
+  expect(open.body).toContain('Synthetic OIDC (not enabled yet)')
+})
+
 test.each([
   { name: 'idle', elapsed: browserDefaults.idleMs, lastSeenAgo: browserDefaults.idleMs },
   { name: 'absolute', elapsed: browserDefaults.absoluteMs, lastSeenAgo: 1 },

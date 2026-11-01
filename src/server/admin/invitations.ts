@@ -118,7 +118,9 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
     const banner = !providers.length
       ? callout('info', 'Add an SSO provider first', 'Invitations need an Entra ID or OpenID Connect provider. Add one in Sign-in &amp; SSO, then come back to invite people.', '<a class="btn btn-secondary btn-sm" href="/admin/settings/sign-in">Open Sign-in &amp; SSO</a>')
       : !enabled.length
-        ? callout('warn', 'Links can’t be claimed yet', `${providers.length === 1 ? `${escape(providers[0]!.name)} is` : 'No provider is'} not enabled. Finish its setup and enable it in Sign-in &amp; SSO; invitation links work once it is enabled.`,
+        ? callout('warn', 'Links can’t be claimed yet', providers.length === 1
+          ? `${escape(providers[0]!.name)} is not enabled. Finish its setup and enable it in Sign-in &amp; SSO; invitation links work once it is enabled.`
+          : 'No provider is enabled. Finish setting up a provider and enable it in Sign-in &amp; SSO; invitation links work once their provider is enabled.',
           `<a class="btn btn-secondary btn-sm" href="${providers.length === 1 ? `/admin/settings/sign-in/${escape(encodeURIComponent(providers[0]!.id))}` : '/admin/settings/sign-in'}">Open ${providers.length === 1 ? 'provider' : 'Sign-in &amp; SSO'}</a>`)
         : ''
     const rows = invitations.map(invitation => {
