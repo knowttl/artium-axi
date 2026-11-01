@@ -72,7 +72,7 @@ Upstream accounts are shared server-side service identities; users sign in with 
 
 7. **Configure tools and user access.**
    Follow [Tool credentials](tool-credentials.md) to save and test each credential, then follow the [activation requirements](admin-guide.md#browser-administration) before enabling the tool at `/admin/tools`.
-   Create a role at `/admin/roles`, grant it the enabled tools, create local users at `/admin`, and assign that role to them.
+   Create a role at `/admin/roles`, grant it the enabled tools, create local users at `/admin/users`, and assign that role to them.
    Assign a tool role to your administrator too if that account will run CLI calls; administrator capability alone grants no tool access.
    Finish with [Download and first call](client-reference.md#verified-client) and [Skill installation](../README.md#use-with-your-agent) on each agent host.
 
@@ -99,11 +99,13 @@ For manual deployment, follow the [administrator guide](admin-guide.md#set-up-a-
 
 Open `/login` through the trusted HTTPS proxy.
 Temporary passwords open `/password` and require a new login after changing them.
-Administrators land on `/admin`; ordinary users land on `/account` for tool access, CLI setup and session management.
+Administrators land on the Overview at `/admin`; ordinary users land on `/account` for tool access, CLI setup and session management.
+Administration pages share a left sidebar grouped into Access, Tools and Security; your account and sign-out are in the menu at its foot, and each page's help opens from **Learn** in the top bar.
 
 | Screen | Purpose |
 | --- | --- |
-| `/admin` | Search and filter the users table by source, status or role; create local users. |
+| `/admin` | Overview: the order to set up access, with a link to each step. Older `/admin?…` users-list links redirect to `/admin/users`. |
+| `/admin/users` | Search and filter the users table by source, status or role; create local users. |
 | `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
 | `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for usage and claim availability. |
 | `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
@@ -140,9 +142,9 @@ Profile, role and archive changes use revision checks; reload stale forms rather
 Session revocation and administration changes commit with their audit records.
 After 15 minutes without identity confirmation, administration mutations require reauthentication.
 See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for the administration UI's inspection, trust modes, rotation and network-path warning.
-Administration and account screens share a navigation menu.
-Signed-in screens have a header showing identity, sign-in source and sign-out.
-On administration screens, the header also shows the remaining confirmation window.
+Administration screens share a sidebar; ordinary users get a top bar only.
+Signed-in screens have an account menu showing identity and sign-in source, with links to your account and sign-out.
+On administration screens, the top bar also shows the remaining confirmation window: "Changes unlocked" with the minutes left, or "Changes locked".
 Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
 SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
 For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
@@ -244,7 +246,7 @@ Disabling all providers restores ordinary local password sign-in; existing artiu
 Local sign-in continues to work while all providers are disabled.
 On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
 Designation requires recent identity confirmation, checks the user revision and is audited.
-The users table and signed-in header identify designated accounts.
+The users table and signed-in account menu identify designated accounts.
 Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
 When any SSO provider is enabled, only designated local administrators may use password sign-in, password confirmation or password changes, through either browser or bearer routes.
 Fresh installations designate no accounts automatically and keep providers disabled.

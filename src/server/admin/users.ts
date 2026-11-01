@@ -30,7 +30,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
   const temporaryPassword = '<label>Temporary password <input type="password" name="temporaryPassword" autocomplete="new-password" required></label><p>Enter a password of at most 512 UTF-8 bytes. Share securely; the person must replace it on first sign-in.</p>'
   const administratorField = (selected: boolean) => `<label><input type="checkbox" name="administrator" data-type="boolean"${selected ? ' checked' : ''}> Administrator</label><p>Administrators can manage all users, roles and credentials. Tool access still comes from roles.</p>`
 
-  app.get('/admin', async (request, reply) => {
+  app.get('/admin/users', async (request, reply) => {
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const query = adminUserRoutes.list.input.safeParse(request.query)
@@ -45,14 +45,14 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       const next = new URLSearchParams(params)
       next.delete('cursor')
       if (cursor) next.set('cursor', cursor)
-      return '/admin?' + escape(next.toString())
+      return '/admin/users?' + escape(next.toString())
     }
-    const content = `<p><a href="/admin/invitations">Invite SSO user and manage invitations</a></p><section><h2>Find users</h2><form method="get" action="/admin" data-filters>
+    const content = `<p><a href="/admin/invitations">Invite SSO user and manage invitations</a></p><section><h2>Find users</h2><form method="get" action="/admin/users" data-filters>
       <label>Search <input name="q" value="${escape(query.data.q ?? '')}" maxlength="256"></label><p>Matches any part of a username or display name.</p>
       ${select('source', 'Sign-in source', [['local', 'Local password'], ['sso', 'SSO']])}
       ${select('status', 'Status', [['enabled', 'Enabled'], ['disabled', 'Disabled']])}
       ${select('role', 'Role', roles.map(role => [role.id, role.name]))}
-      <input type="hidden" name="limit" value="${query.data.limit}"><button>Search users</button> <a href="/admin">Clear filters</a></form>
+      <input type="hidden" name="limit" value="${query.data.limit}"><button>Search users</button> <a href="/admin/users">Clear filters</a></form>
       <p>${users.users.length} shown of ${users.totalCount} matching users.</p>
       ${users.users.length ? `<div class="table-scroll"><table><caption>Users</caption><thead><tr><th>Username</th><th>Display name</th><th>Source</th><th>Status</th><th>Administrator</th><th>Roles</th></tr></thead><tbody>${users.users.map(user =>
         `<tr><th scope="row"><a href="/admin/users/${escape(encodeURIComponent(user.id))}">${escape(user.username)}</a></th><td>${escape(user.displayName)}</td><td>${user.source === 'sso' ? 'SSO' : user.breakGlass ? 'Break-glass password' : 'Local password'}</td><td>${user.enabled ? 'Enabled' : 'Disabled'}</td><td>${user.administrator ? 'Yes' : 'No'}</td><td>${user.roleIds.map(id => escape(roles.find(role => role.id === id)?.name ?? id)).join(', ') || 'None'}</td></tr>`).join('')}</tbody></table></div>` : '<p>No matching users. Clear the filters or create a local user below.</p>'}
@@ -72,7 +72,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const user = await adminRead(app, request, path, adminUserRoutes.get.response)
     const roles = await allRoles(request)
     const assignedRole = (id: string) => `<a href="/admin/roles/${escape(encodeURIComponent(id))}">${escape(roles.find(role => role.id === id)?.name ?? id)}</a> (${[...new Set(user.roleGrants.filter(grant => grant.roleId === id).map(grant => grant.origin === 'direct' ? 'Direct' : 'Rule'))].join(', ')})`
-    if (user.archivedAt !== null) return browserPage(reply, 'Users', `<p><a href="/admin">Back to users</a></p><section><h2>${escape(user.username)}</h2><p>Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained.</p>${changed(db, user)}</section>
+    if (user.archivedAt !== null) return browserPage(reply, 'Users', `<p><a href="/admin/users">Back to users</a></p><section><h2>${escape(user.username)}</h2><p>Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained.</p>${changed(db, user)}</section>
       <section><h2>Roles</h2><p>Membership is retained. Remove direct roles here when they are no longer needed. Rule grants remain. Changing roles does not restore sign-in.</p>
       <p>${user.roleIds.map(assignedRole).join(', ') || 'No retained roles remain.'}</p>
       ${apiForm(reply.generateCsrf(), path + '/roles', 'PUT', 'Remove roles', revision(user.revision) + (user.directRoleIds.length ? roleFields(roles.filter(role => user.directRoleIds.includes(role.id)), user.directRoleIds) : '<input type="hidden" name="roleIds" disabled><p>No direct roles remain.</p>'), `Remove unchecked direct roles from ${user.username}? This account stays archived.`)}</section>`, current)
@@ -80,7 +80,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const csrf = reply.generateCsrf()
     const form = (action: string, method: string, label: string, fields: string, confirmation: string) =>
       apiForm(csrf, action, method, label, fields, confirmation)
-    const content = `<p><a href="/admin">Back to users</a></p><section><h2>${escape(user.username)}</h2>
+    const content = `<p><a href="/admin/users">Back to users</a></p><section><h2>${escape(user.username)}</h2>
       <p>Sign-in source: ${user.source === 'sso' ? 'SSO' : 'Local password'}. ${user.enabled ? 'Enabled' : 'Disabled'}.</p>${changed(db, user)}
       ${form(path, 'PATCH', 'Save profile', revision(user.revision) + `<label>Display name <input name="displayName" value="${escape(user.displayName)}" required></label>` + administratorField(user.administrator), `Update ${user.username}’s profile and administrator capability? Administrator access changes immediately.`)}</section>
       <section><h2>Roles</h2><p>Direct roles were assigned by an administrator. Rule roles come from SSO provider rules and are synchronized at each sign-in. Saving replaces direct roles and keeps rule grants.</p>
@@ -102,7 +102,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       ${user.source === 'local' ? `<details><summary>Reset password</summary>${form(path + '/password-reset', 'POST', 'Reset password', temporaryPassword, `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`)}</details>` : ''}</section>
       ${sessionTable(csrf, path + '/sessions', sessions.sessions)}
       <section><h2>Archive user</h2><p>Archive removes this user from the users table, blocks sign-in and revokes all sessions. Their identity, role assignments and audit history are kept. Archiving cannot be undone here; use Disable for temporary loss of access.</p>
-      ${apiForm(csrf, path + '/archive', 'POST', 'Archive user', revision(user.revision), `Archive ${user.username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained.`, 'data-success-url="/admin"')}</section>`
+      ${apiForm(csrf, path + '/archive', 'POST', 'Archive user', revision(user.revision), `Archive ${user.username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained.`, 'data-success-url="/admin/users"')}</section>`
     return browserPage(reply, 'Users', content, current)
   })
 }

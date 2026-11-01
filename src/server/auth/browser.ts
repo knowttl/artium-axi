@@ -11,7 +11,8 @@ import type { AuthAttempts } from './attempts.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
-import { adminNav, pageHelp } from '../admin/forms.js'
+import { pageHelp } from '../admin/forms.js'
+import { appShell } from '../admin/design/ui.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
@@ -21,19 +22,19 @@ export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
 const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account']
 
-export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession) {
-  const sso = current?.source === 'sso'
-  const until = current?.reauthenticated_at === null || current?.reauthenticated_at === undefined ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs
-  const remaining = Math.max(0, Math.ceil((until - Date.now()) / 60_000))
-  const csrf = current ? reply.generateCsrf() : ''
-  const header = current ? `<header class="site-header"><a class="brand" href="${current.administrator && !current.must_change ? '/admin' : '/account'}">artium-axi</a>
-    <div><p>Signed in as ${escape(current.display_name)}.</p><small>${current.source === 'sso' ? 'SSO sign-in' : current.break_glass ? 'Break-glass account' : 'Local password sign-in'}</small></div>
-    ${current.administrator && !current.must_change ? `<p data-reauth-until="${until}" data-reauth-method="${sso ? 'sso' : 'local'}">${remaining ? `Changes allowed for ${remaining} min` : 'Identity confirmation required for changes'}</p>` : ''}
-    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(csrf)}">${sso ? '<label><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button>Sign out</button></form></header>` : ''
-  const navigation = current && !current.must_change ? `<aside>${current.administrator ? adminNav(title) : `<nav aria-label="Account"><a href="/account">Account</a>${current.source === 'local' ? '<a href="/password">Change password</a>' : ''}</nav>`}</aside>` : ''
-  const dialogs = current ? `<dialog id="confirmation" aria-labelledby="confirmation-title"><form method="dialog"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button value="confirmed">Confirm change</button></div></form></dialog>
-    ${current.administrator && !current.must_change ? `<dialog id="reauth-dialog" aria-labelledby="reauth-title"><h2 id="reauth-title">${sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${sso ? 'Confirm your identity with your provider in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p><form data-reauth>${sso ? '' : '<label>Password <input name="password" type="password" autocomplete="current-password" required></label>'}<p data-reauth-error role="alert"></p><div class="dialog-actions"><button type="button" data-reauth-cancel>Cancel</button><button>Confirm and continue</button></div></form></dialog>` : ''}` : ''
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${header}<div class="page-layout">${navigation}<main id="main"><h1>${escape(title)}</h1>${pageHelp(title, current?.source)}<p id="message" role="alert" tabindex="-1"></p>${content}</main></div>${dialogs}</body></html>`)
+export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string) {
+  const viewer = current && {
+    name: current.display_name,
+    method: current.source === 'sso' ? 'SSO' : current.break_glass ? 'Break-glass' : 'Password',
+    administrator: Boolean(current.administrator),
+    mustChange: Boolean(current.must_change),
+    sso: current.source === 'sso',
+    local: current.source === 'local',
+    csrf: reply.generateCsrf(),
+    reauthUntil: current.reauthenticated_at === null ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs,
+  }
+  const body = appShell({ title, description, content, help: pageHelp(title, current?.source), path: reply.request.url.split('?')[0]!, viewer })
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script></head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,

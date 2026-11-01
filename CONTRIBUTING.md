@@ -41,6 +41,7 @@ Every change ships from a feature branch through the local no-mistakes pipeline 
 Before submission, check the intended public outcomes across sibling callers and error paths using the review checklist in the gate configuration.
 For startup changes, cover installed executable paths, every supported host hook, account replacement, cancellation and session-lock release.
 For write changes, cover uncertain outcomes, rename recovery, native help and confirmation rules.
+For web UI changes, follow the [design system](docs/design-system.md#changing-the-ui).
 Repair the whole reported invariant together, then review the complete base-to-candidate diff, including earlier repairs and final documentation.
 Batch documentation against the repaired behavior before final candidate review; focused checks do not replace the full final-diff review or required validation.
 Keep valid findings, acceptance standards and the configured repair budget intact.

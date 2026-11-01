@@ -1,50 +1,7 @@
-export const adminStyle = `
-body { margin: 0; color: #203349; background: #edf2f7; font: 16px/1.5 "Segoe UI", sans-serif; }
-main { max-width: 1100px; width: 100%; min-width: 0; box-sizing: border-box; margin: auto; padding: 28px; }
-nav { display: flex; flex-direction: column; gap: 8px; padding: 24px 16px; }
-nav a { padding: 8px 12px; text-decoration: none; border-left: 4px solid transparent; }
-nav a[aria-current=page] { background: #dce7f1; border-color: #31577a; font-weight: 600; }
-.site-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 16px 28px; padding: 16px 28px; background: white; border-bottom: 2px solid #31577a; }
-.site-header p, .site-header form { margin: 0; }
-.brand { font-size: 24px; font-weight: 700; text-decoration: none; }
-.site-header form { margin-left: auto; }
-.page-layout { display: flex; max-width: 1400px; margin: auto; }
-aside { flex: 0 0 190px; border-right: 1px solid #a5b4c3; }
-.page-help { background: white; padding: 16px; border-left: 4px solid #31577a; }
-.action-help { margin-top: 12px; font-size: 14px; }
-dialog { color: #203349; border: 2px solid #31577a; padding: 24px; width: 480px; max-width: calc(100% - 48px); box-sizing: border-box; max-height: calc(100% - 48px); overflow: auto; }
-dialog::backdrop { background: rgb(32 51 73 / 55%); }
-.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-#certificate-inspection, [data-trusted-certificates] { overflow-wrap: anywhere; }
-button:disabled { opacity: .6; cursor: wait; }
-a { color: #245781; } h1 { font-size: 32px; } h2 { font-size: 23px; margin-top: 0; }
-section { background: white; padding: 24px; margin: 24px 0; border-left: 4px solid #31577a; }
-form { margin: 16px 0; } label { display: block; margin: 10px 0; }
-input:not([type=checkbox]), select { display: block; max-width: 100%; width: 320px; box-sizing: border-box; padding: 8px; }
-pre { overflow-x: auto; }
-textarea { display: block; width: 100%; box-sizing: border-box; padding: 8px; font: 14px/1.5 monospace; }
-fieldset { border: 1px solid #a5b4c3; margin: 12px 0; }
-.table-scroll { max-width: 100%; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; text-align: left; }
-.session-table { min-width: 1000px; }
-.tools-table { min-width: 1000px; }
-.tools-table th, .tools-table td:not(:nth-child(4)):not(:nth-child(6)) { white-space: nowrap; }
-.tools-table td:nth-child(4) { min-width: 240px; }
-.tools-table td:nth-child(6) { min-width: 100px; }
-.session-table time, .session-table button { white-space: nowrap; }
-.audit-table { min-width: 1000px; }
-.audit-table td:nth-child(2) { min-width: 320px; }
-.audit-table th:nth-child(n+4), .audit-table td:nth-child(n+4) { min-width: 100px; }
-caption { text-align: left; font-weight: 600; margin-bottom: 12px; }
-th, td { padding: 12px; border-bottom: 1px solid #a5b4c3; overflow-wrap: anywhere; }
-thead { background: #edf2f7; }
-button { padding: 8px 16px; background: #31577a; color: white; border: 0; cursor: pointer; font: inherit; }
-:focus-visible { outline: 3px solid #ab6500; outline-offset: 3px; }
-details { border-top: 1px solid #a5b4c3; padding-top: 12px; } summary { cursor: pointer; }
-[hidden] { display: none !important; }
-[role=alert] { color: #9b2525; } small { overflow-wrap: anywhere; }
-@media (max-width: 760px) { main { padding: 16px; } section { padding: 16px; } .site-header { position: static; padding: 16px; gap: 12px; } .page-layout { display: block; } aside { border-right: 0; border-bottom: 1px solid #a5b4c3; } nav { flex-direction: row; flex-wrap: wrap; padding: 8px; gap: 4px; } }
-`
+import { components } from './design/components.js'
+import { tokens } from './design/tokens.js'
+
+export const adminStyle = tokens + components
 
 export const adminScript = `
 for (const button of document.querySelectorAll('[data-copy]')) {
@@ -67,7 +24,9 @@ const reauthState = document.querySelector('[data-reauth-until]');
 function updateReauthState() {
   if (!reauthState) return;
   const minutes = Math.max(0, Math.ceil((Number(reauthState.dataset.reauthUntil) - Date.now()) / 60000));
-  reauthState.textContent = minutes ? 'Changes allowed for ' + minutes + ' min' : 'Identity confirmation required for changes';
+  reauthState.querySelector('[data-reauth-text]').textContent = minutes ? 'Changes unlocked · ' + minutes + ' min' : 'Changes locked';
+  reauthState.className = 'unlock ' + (minutes ? 'on' : 'off');
+  reauthState.querySelector('use').setAttribute('href', minutes ? '#i-unlock' : '#i-lock');
 }
 updateReauthState();
 if (reauthState) setInterval(updateReauthState, 30000);

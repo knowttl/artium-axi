@@ -107,7 +107,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
     const lifetime = '<label>Expires in days<input name="expiresInDays" data-type="number" type="number" min="1" max="30" value="7" required></label><p>Choose 1 to 30 days. Resend starts a new expiry period and invalidates the old link.</p>'
     const form = (action: string, label: string, fields: string, confirmation: string, link = false) =>
       apiForm(csrf, action, 'POST', label, fields, confirmation, link ? 'data-invitation-link' : '')
-    const content = `<p><a href="/admin">Back to users</a> | <a href="/admin/settings/sign-in">Sign-in settings</a></p>
+    const content = `<p><a href="/admin/users">Back to users</a> | <a href="/admin/settings/sign-in">Sign-in settings</a></p>
       <p>Invitation links start Entra sign-in when the provider is enabled. Enable the provider in Sign-in settings after completing its setup guide. Nothing is emailed automatically.</p>
       <section><h2>${user ? 'Link local user to SSO' : 'Invite SSO user'}</h2>${user ? `<p>Linking ${escape(user.username)} keeps the existing account and history. No password, roles or sessions change until the invitation is claimed.</p>` : '<p>Create an account invitation. No account or tool access is created until it is claimed. To link an existing local account, open that user and choose Link to SSO.</p>'}
       ${providers.length ? form(adminInvitationRoutes.create.path, 'Create invitation',
