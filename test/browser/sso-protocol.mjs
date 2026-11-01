@@ -87,7 +87,8 @@ const prepareChange = `${signIn}
   await page.wait('a[href="/admin"]');
   await page.click('a[href="/admin"]');
   await page.open(base + '/admin/roles');
-  await page.wait('form[action="/v1/admin/roles"]');
+  await page.click('.page-head [data-open-dialog=new-role]');
+  await page.wait('#new-role[open]');
   await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
   await page.click('form[action="/v1/admin/roles"] button');
   await page.wait('#reauth-dialog[open]');
@@ -359,9 +360,8 @@ test('SSO identity confirmation resumes the pending form through the real popup 
     await page.wait('a[href="/reauth?complete=1"]');
     await page.click('a[href="/reauth?complete=1"]');`)
   selectPage('/admin/roles')
-  browser(`await page.wait('a[href^="/admin/roles/"]');
-    await page.wait('#reauth-dialog:not([open])');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic resumed role')), 'Pending role was not saved');
+  browser(`await page.wait('form[action$="/tools"]');
+    check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not saved');
     check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
@@ -484,7 +484,7 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
     await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/audit');
     await page.wait('.audit-table');
-    check(await page.eval(() => Array.from(document.querySelectorAll('.audit-table strong')).filter(node => node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
+    check(await page.eval(() => Array.from(document.querySelectorAll('.audit-table .badge.warn')).filter(node => node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
   const evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.events.filter(event => ['sign-in', 'reauth'].includes(event.event))
     .map(event => ({ event: event.event, method: event.authentication_method })), [

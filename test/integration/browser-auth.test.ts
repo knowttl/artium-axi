@@ -100,11 +100,13 @@ test('security: failure diagnostics appear only in administrator row details, ne
   audit.record({ ...terminal, requestId: 'secret-failure', failure: {
     diagnostic: { stage: 'tool run', message: password }, secrets: [password] } })
   expect(JSON.stringify(db.prepare('SELECT * FROM run_diagnostics').all())).not.toContain(password)
-  const anonymous = await request('GET', '/admin/audit')
+  const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'safe-failure'").get() as { id: number }
+  const detail = '/admin/audit?record=' + id
+  const anonymous = await request('GET', detail)
   expect(anonymous.statusCode).toBe(303)
   expect(anonymous.body).not.toContain('Synthetic private failure')
   await signIn()
-  const page = await request('GET', '/admin/audit')
+  const page = await request('GET', detail)
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('Failure diagnostic')
   expect(page.body).toContain('&lt;script&gt;Synthetic private failure&lt;/script&gt;')
@@ -119,7 +121,7 @@ test('security: failure diagnostics appear only in administrator row details, ne
   expect(lines.join('')).not.toContain(password)
   expect(JSON.stringify(stderr.mock.calls)).not.toContain(password)
   now += 14 * 24 * 60 * 60 * 1000
-  expect((await request('GET', '/admin/audit')).body).not.toContain('Synthetic private failure')
+  expect((await request('GET', detail)).body).not.toContain('Synthetic private failure')
 })
 
 test('security: an authenticated non-administrator cannot read retained failure diagnostics', async () => {
@@ -158,7 +160,7 @@ test('browser password sign-in and confirmation are flagged for a designated bre
   expect((await request('POST', '/reauth', { _csrf: await token('/reauth'), password })).statusCode).toBe(303)
   expect(db.prepare("SELECT event, authentication_method FROM audit WHERE event IN ('sign-in', 'reauth') ORDER BY id").all())
     .toEqual([{ event: 'sign-in', authentication_method: 'break-glass' }, { event: 'reauth', authentication_method: 'break-glass' }])
-  expect((await request('GET', '/admin/audit')).body).toContain('<strong>Break-glass</strong> sign-in')
+  expect((await request('GET', '/admin/audit')).body).toContain('<span class="mono">sign-in</span> <span class="badge warn">Break-glass</span>')
   const exported = await request('GET', '/v1/admin/audit/export?format=jsonl')
   expect(exported.body.trim().split('\n').map(line => JSON.parse(line).authentication_method)).toEqual(['break-glass', 'break-glass'])
 })
@@ -170,7 +172,7 @@ test('password confirmation after break-glass designation flags the password cha
   expect((await request('POST', '/password', { _csrf: await token('/password'), currentPassword: password, newPassword }))
     .headers.location).toBe('/login')
   await signIn(newPassword)
-  expect((await request('GET', '/admin/audit')).body).toContain('<strong>Break-glass</strong> password-change')
+  expect((await request('GET', '/admin/audit')).body).toContain('<span class="mono">password-change</span> <span class="badge warn">Break-glass</span>')
   const exported = await request('GET', '/v1/admin/audit/export?format=jsonl&event=password-change')
   expect(exported.statusCode).toBe(200)
   expect(JSON.parse(exported.body.trim())).toMatchObject({ event: 'password-change', authentication_method: 'break-glass' })
@@ -326,13 +328,17 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
     action: 'second', targetId: 'second', requestId: 'second', clientAddress: null })
   const filters = new URLSearchParams({ user: userId, tool: 'falcon-axi', outcome: 'success',
     from: new Date(now).toISOString(), to: new Date(now).toISOString(), limit: '1' })
-  const first = await request('GET', '/admin/audit?' + filters)
+  const [escaped, latest] = (db.prepare("SELECT id FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { id: number }[]).map(row => String(row.id))
+  const first = await request('GET', '/admin/audit?' + filters + '&record=' + latest)
   expect(first.statusCode).toBe(200)
   expect(first.body).toContain('<dt>action</dt><dd>second</dd>')
   expect(first.body).not.toContain('&lt;b&gt;action&lt;/b&gt;')
-  const next = /href="([^"]+)">Next page/.exec(first.body)![1]!.replaceAll('&amp;', '&')
-  expect(Object.fromEntries(new URL('http://localhost' + next).searchParams)).toMatchObject(Object.fromEntries(filters))
-  const second = await request('GET', next)
+  const next = /href="([^"]+)">Older/.exec(first.body)![1]!.replaceAll('&amp;', '&')
+  const older = new URL('http://localhost' + next)
+  expect(Object.fromEntries(older.searchParams)).toMatchObject(Object.fromEntries(filters))
+  expect(older.searchParams.has('record')).toBe(false)
+  older.searchParams.set('record', escaped!)
+  const second = await request('GET', older.pathname + older.search)
   expect(second.statusCode).toBe(200)
   expect(second.body).toContain('<dt>action</dt><dd>&lt;b&gt;action&lt;/b&gt;</dd>')
   expect(second.body).toContain('<dt>target_id</dt><dd>&lt;b&gt;target&lt;/b&gt;</dd>')
@@ -340,8 +346,26 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
   expect(second.body).toContain('<dt>client_address</dt><dd>&lt;b&gt;address&lt;/b&gt;</dd>')
   expect(second.body).toContain('&lt;b&gt;actor&lt;/b&gt;')
   expect(second.body).not.toContain('<b>')
-  expect(second.body).not.toContain('>Next page')
+  expect(second.body).toContain('<span class="btn btn-secondary btn-sm" aria-disabled="true">Older</span>')
   expect(second.headers['cache-control']).toBe('no-store')
+})
+
+test('R3: a displayed audit record opens after newer activity pushes it off the page', async () => {
+  await signIn()
+  const audit = new Audit(db)
+  const context = { event: 'admin-change' as const, userId, tool: null, outcome: 'success' as const,
+    targetId: 'synthetic-role', clientAddress: null }
+  const selected = audit.record({ ...context, action: 'selected-change', requestId: 'selected-change' })
+  const first = await request('GET', '/admin/audit?event=admin-change&limit=1')
+  const href = '/admin/audit?event=admin-change&limit=1&record=' + selected.id
+  expect(first.body).toContain(href.replaceAll('&', '&amp;'))
+  audit.record({ ...context, action: 'newer-change', requestId: 'newer-change' })
+  const opened = await request('GET', href)
+  expect(opened.statusCode).toBe(200)
+  expect(opened.body).toContain('<dt>action</dt><dd>selected-change</dd>')
+  expect(opened.body).toContain('<h2 id="record-title">admin-change · succeeded</h2>')
+  const current = await request('GET', '/admin/audit?event=admin-change&limit=1&record=' + (selected.id + 1))
+  expect(current.body).toContain(`<tr class="sel"><th scope="row"><a href="/admin/audit?event=admin-change&amp;limit=1&amp;record=${selected.id + 1}" aria-current="true">`)
 })
 
 test('Audit filters handle empty form fields and show a useful empty state', async () => {
@@ -349,7 +373,7 @@ test('Audit filters handle empty form fields and show a useful empty state', asy
   expect((await request('GET', '/admin/audit?user=&tool=&outcome=&from=&to=&limit=50')).statusCode).toBe(200)
   const empty = await request('GET', '/admin/audit?outcome=missing')
   expect(empty.body).toContain('No audit records match these filters.')
-  expect(empty.body).toContain('name="outcome" value="missing"')
+  expect(empty.body).toContain('<option value="missing" selected>missing</option>')
   const byErrorCode = await request('GET', '/admin/audit?errorCode=PERMISSION_DENIED')
   expect(byErrorCode.statusCode).toBe(200)
   expect(byErrorCode.body).toContain('name="errorCode" value="PERMISSION_DENIED"')
@@ -363,12 +387,13 @@ test('Audit screen applies request ID and failed-run filters to rows and export 
   const context = { userId, tool: 'falcon-axi' as const, clientAddress: null, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 } }
   audit.record({ ...context, requestId: 'synthetic-failed', event: 'run-terminal', outcome: 'completed', exitCode: 1 })
   audit.record({ ...context, requestId: 'synthetic-success', event: 'run-terminal', outcome: 'completed', exitCode: 0 })
-  const page = await request('GET', '/admin/audit?requestId=synthetic-failed&failed=1')
+  const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'synthetic-failed'").get() as { id: number }
+  const page = await request('GET', '/admin/audit?requestId=synthetic-failed&failed=1&record=' + id)
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('<dt>request_id</dt><dd>synthetic-failed</dd>')
   expect(page.body).not.toContain('synthetic-success')
   expect(page.body).toContain('name="requestId" value="synthetic-failed"')
-  expect(page.body).toContain('name="failed" value="1" checked')
+  expect(page.body).toContain('href="/admin/audit?requestId=synthetic-failed" aria-label="Clear filter: Failed runs only"')
   const links = [...page.body.matchAll(/download href="([^"]+)"/g)].map(match => new URL('http://localhost' + match[1].replaceAll('&amp;', '&')))
   expect(links).toHaveLength(2)
   expect(links.map(link => Object.fromEntries(link.searchParams))).toEqual([

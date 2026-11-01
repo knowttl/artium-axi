@@ -1,48 +1,69 @@
+import type { z } from 'zod'
+import type { adminToolSchema, toolSchema } from '../../../shared/api.js'
 import { escape } from '../escape.js'
 
-// Authoritative status labels and tones; render through badge() or status().
-type Dot = 'ok' | 'warn' | 'err' | 'info' | 'off'
-const states = {
-  'provider-enabled': { word: 'Enabled', dot: 'ok' },
-  'provider-disabled': { word: 'Disabled', dot: 'off' },
-  'needs-credential': { word: 'Needs credential', dot: 'warn', pill: 'warn' },
-  'credential-saved': { word: 'Saved', dot: 'ok' },
-  'tool-available': { word: 'Available', dot: 'ok' },
-  'tool-off': { word: 'Turned off by admin', dot: 'off' },
-  'session-current': { word: 'Current', pill: 'ok' },
-  'sign-in-password': { word: 'Password' },
-  'sign-in-sso': { word: 'SSO', pill: 'info' },
-  'sign-in-break-glass': { word: 'Break-glass', pill: 'warn' },
-  administrator: { word: 'Admin', pill: 'solid' },
-} satisfies Record<string, { word: string, dot?: Dot, pill?: 'ok' | 'warn' | 'err' | 'info' | 'solid' }>
-export type State = keyof typeof states
+// The status vocabulary from docs/design-system.md: one word and tone per server state.
+export type Tone = 'ok' | 'warn' | 'err' | 'info' | 'off' | 'neutral'
 
-function parts(state: State) {
-  const value: { word: string, dot?: Dot, pill?: string } = states[state]
-  return { word: value.word, pill: value.pill, dot: value.dot ? `<span class="dot ${value.dot}" aria-hidden="true"></span>` : '' }
+// A word with a dot; the word carries the state and the dot is decorative. `detail` adds its consequence.
+export function status(word: string, tone: Tone, detail?: string): string {
+  return `<span class="status"><span class="dot ${tone}" aria-hidden="true"></span>${escape(word)}${detail ? `<span class="hint">· ${escape(detail)}</span>` : ''}</span>`
 }
 
-export function badge(state: State): string {
-  const { word, pill, dot } = parts(state)
-  return `<span class="badge${pill ? ' ' + pill : ''}">${dot}${word}</span>`
+export function badge(word: string, tone: Tone = 'neutral'): string {
+  return `<span class="badge ${tone}">${escape(word)}</span>`
 }
 
-// Product display names and their two-letter icons, keyed by tool package.
-const tools: Record<string, [string, string]> = {
-  'falcon-axi': ['CrowdStrike Falcon', 'FA'], 'vectra-axi': ['Vectra', 'VE'], 'az-axi': ['Azure', 'AZ'], 'mg-axi': ['Microsoft Graph', 'MG'],
-  'ldap-axi': ['LDAP', 'LD'], 'ado-axi': ['Azure DevOps', 'AD'], 'gh-axi': ['GitHub', 'GH'], 'awx-axi': ['AWX', 'AW'],
-  'tenable-axi': ['Tenable One', 'TE'], 'hybrid-axi': ['Hybrid Analysis', 'HA'], 'checkpoint-axi': ['Check Point Email', 'CP'],
-  'beyondtrust-axi': ['BeyondTrust PM Cloud', 'BT'],
-}
-export function toolName(tool: string): string {
-  return tools[tool]?.[0] ?? tool
-}
-export function toolIcon(tool: string): string {
-  return `<span class="tool-ico" aria-hidden="true">${escape(tools[tool]?.[1] ?? tool.slice(0, 2).toUpperCase())}</span>`
+type ToolName = z.infer<typeof toolSchema>
+
+// Product display names and their two-letter marks, the one place tools are named for people.
+export const toolProducts: Record<ToolName, { name: string, mark: string }> = {
+  'falcon-axi': { name: 'CrowdStrike Falcon', mark: 'FA' },
+  'vectra-axi': { name: 'Vectra', mark: 'VE' },
+  'mg-axi': { name: 'Microsoft Graph', mark: 'MG' },
+  'ldap-axi': { name: 'LDAP', mark: 'LD' },
+  'az-axi': { name: 'Azure', mark: 'AZ' },
+  'ado-axi': { name: 'Azure DevOps', mark: 'AD' },
+  'awx-axi': { name: 'AWX', mark: 'AW' },
+  'gh-axi': { name: 'GitHub', mark: 'GH' },
+  'tenable-axi': { name: 'Tenable One', mark: 'TE' },
+  'hybrid-axi': { name: 'Hybrid Analysis', mark: 'HA' },
+  'checkpoint-axi': { name: 'Check Point Email', mark: 'CP' },
+  'beyondtrust-axi': { name: 'BeyondTrust PM Cloud', mark: 'BT' },
 }
 
-// A dot and word without a pill, for dense rows.
-export function status(state: State): string {
-  const { word, dot } = parts(state)
-  return `<span class="status">${dot}${word}</span>`
+// A disabled tool blocks every call first, so it outranks health.
+export function toolState(tool: Pick<z.infer<typeof adminToolSchema>, 'enabled' | 'health'>): { word: string, tone: Tone } {
+  if (!tool.enabled || tool.health.status === 'disabled') return { word: 'Disabled', tone: 'off' }
+  if (tool.health.status === 'checking') return { word: 'Checking', tone: 'info' }
+  if (tool.health.status === 'ok') return { word: 'Healthy', tone: 'ok' }
+  if (tool.health.status === 'error') return { word: 'Failing', tone: 'err' }
+  if (tool.health.status === 'unconfigured') return { word: 'Needs credential', tone: 'warn' }
+  return { word: 'Not checked', tone: 'neutral' }
+}
+
+export function personStatus(user: { enabled: boolean, archivedAt: number | null }): string {
+  if (user.archivedAt !== null) return status('Archived', 'neutral')
+  return user.enabled ? status('Enabled', 'ok') : status('Disabled', 'off')
+}
+
+export function grantOrigin(origin: string): string {
+  return origin === 'direct' ? badge('Direct') : badge('SSO rule', 'info')
+}
+
+// Outcomes stay exact codes; only their tone is derived.
+export function auditOutcome(record: { event: string, outcome: string, exit_code: number | null }): { word: string, tone: Tone } {
+  if (record.event === 'run-terminal') {
+    return record.outcome === 'completed' && record.exit_code === 0 ? { word: 'completed', tone: 'ok' }
+      : { word: record.outcome === 'completed' ? `completed · exit ${record.exit_code ?? 'unknown'}` : record.outcome, tone: 'err' }
+  }
+  if (record.event === 'ado-api') return { word: record.outcome, tone: record.outcome === 'allowed' ? 'ok' : 'err' }
+  if (record.event === 'transfer') {
+    const tone = record.outcome === 'ready' || record.outcome === 'delivery-completed' ? 'ok'
+      : ['preview', 'deleted', 'expired'].includes(record.outcome) ? 'neutral' : 'err'
+    return { word: record.outcome, tone }
+  }
+  if (record.outcome === 'success') return { word: record.outcome, tone: 'ok' }
+  if (record.event === 'run-start') return { word: record.outcome, tone: 'neutral' }
+  return { word: record.outcome, tone: 'err' }
 }

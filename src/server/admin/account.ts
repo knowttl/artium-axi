@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 import type { BrowserSession } from '../auth/sessions.js'
 import { listUserSessions } from '../auth/user-sessions.js'
 import { card, copyBlock, icon, step } from './design/ui.js'
-import { status, toolIcon, toolName } from './design/status.js'
+import { status, toolProducts } from './design/status.js'
 import { escape } from './escape.js'
 import { sessionTable } from './session-table.js'
 import { transferLimits, transferWarning, transferWarningFor } from '../../shared/api.js'
@@ -18,7 +18,7 @@ export function accountRoles(db: Database.Database, current: BrowserSession): st
 export function accountContent(db: Database.Database, current: BrowserSession, csrf: string, origin: string): string {
   const tools = db.prepare(`SELECT DISTINCT tools.name, tools.enabled FROM tools
     JOIN role_tools ON role_tools.tool = tools.name JOIN user_roles ON user_roles.role_id = role_tools.role_id
-    WHERE user_roles.user_id = ? ORDER BY tools.name`).all(current.user_id) as { name: string, enabled: number }[]
+    WHERE user_roles.user_id = ? ORDER BY tools.name`).all(current.user_id) as { name: keyof typeof toolProducts, enabled: number }[]
   const transfers = db.prepare(`SELECT tool, artifact_type, artifact_selector, archive_bytes, archive_sha256, outcome, client_save_outcome,
     native_journal_result, EXISTS(SELECT 1 FROM audit AS delivery WHERE delivery.transfer_id = prior.transfer_id
       AND delivery.outcome = 'delivery-completed') AS delivered
@@ -30,7 +30,7 @@ export function accountContent(db: Database.Database, current: BrowserSession, c
   const has = (name: string) => tools.some(tool => tool.name === name)
   const sso = current.source === 'sso' ? ' --sso' : ''
   const toolGrid = tools.length
-    ? `<ul class="tool-grid">${tools.map(tool => `<li>${toolIcon(tool.name)}<div><strong>${escape(toolName(tool.name))}</strong>${status(tool.enabled ? 'tool-available' : 'tool-off')}</div></li>`).join('')}</ul>`
+    ? `<ul class="tool-grid">${tools.map(tool => `<li><span class="tool-ico" aria-hidden="true">${toolProducts[tool.name].mark}</span><div><strong>${escape(toolProducts[tool.name].name)}</strong>${tool.enabled ? status('Available', 'ok') : status('Turned off by admin', 'off')}</div></li>`).join('')}</ul>`
     : '<p>No tools granted. Ask an administrator to assign a role that grants the tools you need.</p>'
   const download = `export ARTIUM_AXI_URL=${shellQuote(origin)}
 curl --fail --output artium-axi.mjs "$ARTIUM_AXI_URL/cli/artium-axi.mjs" &&
@@ -50,7 +50,7 @@ chmod 755 artium-axi.mjs`
     ${step(2, 'todo', 'Sign in', copyBlock('Sign-in commands', signIn) + `<p class="hint">${escape(signInHelp)}</p>`)}
     ${step(3, 'todo', 'Connect your agent', picker + '<p class="hint">Setup installs skills for your granted tools. Run it again after you get new tools.</p>')}</ol>`
   const saving = tools.some(tool => savingTools.includes(tool.name)) ? `<details class="card disclosure"><summary class="list-row">${icon('download')}<div class="grow"><strong>Saving files from tools</strong>
-      <p>${tools.filter(tool => savingTools.includes(tool.name)).map(tool => escape(toolName(tool.name))).join(', ')}. Saves happen only through the CLI on a controlled Linux host; the browser never handles the files.</p></div>${icon('chevd')}</summary><div class="card-body">
+      <p>${tools.filter(tool => savingTools.includes(tool.name)).map(tool => escape(toolProducts[tool.name].name)).join(', ')}. Saves happen only through the CLI on a controlled Linux host; the browser never handles the files.</p></div>${icon('chevd')}</summary><div class="card-body">
       <p>${escape(has('hybrid-axi') || has('checkpoint-axi') ? transferWarning : transferWarningFor(has('beyondtrust-axi') ? 'policy.download' : 'mail.message.export'))}</p><p>Use the local CLI on a dedicated controlled Linux analysis client.
       The browser provides guidance and metadata only. Artifact bytes are never saved, rendered, opened or executed here.
       Downloads require administrator selection of the requested write operation and a configured dedicated artifact mount.</p>

@@ -17,7 +17,7 @@ import { escape } from './escape.js'
 import { matchesClaim } from '../auth/role-claims.js'
 import { adminRead, apiForm, changed, revision, timestamp } from './forms.js'
 import { callout, card, copyField, field, icon, initials, step, tabs, viewDialog } from './design/ui.js'
-import { badge, toolName } from './design/status.js'
+import { badge, status, toolProducts } from './design/status.js'
 
 const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
   tab: z.enum(['setup', 'credential', 'rules', 'settings']).optional(), rule: z.string().min(1).max(256).optional() })
@@ -190,7 +190,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         const configured = Boolean(credentials?.read(provider.id))
         const href = `${list}/${escape(provider.id)}`
         return `<li class="list-row"><span class="tool-ico" aria-hidden="true">${escape(initials(provider.name))}</span><div class="grow"><strong><a href="${href}">${escape(provider.name)}</a></strong><p>${kindLabel(provider.kind)} · <span class="mono">${escape(provider.issuer)}</span></p></div>
-          <span class="badges">${configured ? '' : badge('needs-credential')}${badge(provider.enabled ? 'provider-enabled' : 'provider-disabled')}</span><a class="btn btn-secondary btn-sm" href="${href}" aria-label="${provider.enabled ? 'Open' : 'Continue setup of'} ${escape(provider.name)}">${provider.enabled ? 'Open' : 'Continue setup'}</a></li>`
+          <span class="badges">${configured ? '' : badge('Needs credential', 'warn')}${provider.enabled ? status('Enabled', 'ok') : status('Disabled', 'off')}</span><a class="btn btn-secondary btn-sm" href="${href}" aria-label="${provider.enabled ? 'Open' : 'Continue setup of'} ${escape(provider.name)}">${provider.enabled ? 'Open' : 'Continue setup'}</a></li>`
       }).join('')
       let content = `<div class="grid3">${summary('Current mode', enabledCount ? 'SSO, passwords for break-glass admins only' : 'Passwords for everyone',
         enabledCount ? `${enabledCount} provider${enabledCount === 1 ? ' is' : 's are'} enabled. Disabling every provider restores passwords for everyone.` : 'No provider is enabled. Enabling one limits passwords to designated break-glass administrators.')}
@@ -211,7 +211,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           apiForm(csrf, adminProviderRoutes.create.path, 'POST', 'Add provider', kind === 'entra' ? settingsFields() : oidcFields(), 'Create a disabled provider?', `data-success-url="${list}"`, 'btn btn-primary'), list)
       }
       return browserPage(reply, 'Sign-in & SSO', content, current, 'How people sign in to Artium and the CLI.',
-        { actions: `<a class="btn btn-primary" href="${list}?add=choose">${icon('plus')}Add provider</a>` })
+        { actions: `<div class="actions"><a class="btn btn-primary" href="${list}?add=choose">${icon('plus')}Add provider</a></div>` })
     } else {
       const provider = providers.find(provider => provider.id === id)
       if (!provider) throw new ArtiumError('NOT_FOUND')
@@ -291,7 +291,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           <p class="hint">Certificate authentication is preferred. Upload one PEM containing the certificate and matching unencrypted private key; the SHA-256 fingerprint is calculated automatically. Client secrets are accepted but are less secure than certificates.</p>` +
           apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
             `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile(provider.kind), credential.metadata, credential.configured),
-          'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', badge(credential.configured ? 'credential-saved' : 'needs-credential'))
+          'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', credential.configured ? badge('Saved', 'ok') : badge('Needs credential', 'warn'))
       } else if (tab === 'rules') {
         const fields = (value = '', roleId = '', claim = 'groups') => `<input type="hidden" name="providerId" value="${escape(id)}">${provider.kind === 'entra'
           ? '<input type="hidden" name="claim" value="roles"><p class="hint">Claim: <code>roles</code> (Entra app roles)</p>'
@@ -300,10 +300,10 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           field('rule-role', 'Artium role', describedBy => `<select ${describedBy} name="roleId" required><option value="">Choose a role</option>${roles.map(role => `<option value="${escape(role.id)}"${role.id === roleId ? ' selected' : ''}>${escape(role.name)}</option>`).join('')}</select>`, 'Tool access comes from this role. Rules never grant administrator capability.')
         const rows = rules.map(rule => {
           const role = roles.find(role => role.id === rule.roleId)!
-          const tools = db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(role.id) as { tool: string }[]
+          const tools = db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(role.id) as { tool: keyof typeof toolProducts }[]
           const count = matchingUsers(rule).length
           const sentence = `<span class="mono">${escape(rule.claim)}</span> contains <span class="mono">${escape(rule.value)}</span>`
-          return `<li class="list-row" data-rule="${escape(rule.id)}"><div class="grow"><p class="sentence">${sentence} ${icon('arrow')}<span class="sr-only">grants</span> <a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a></p><p>${tools.map(tool => escape(toolName(tool.tool))).join(', ') || 'No tools granted'} · synced at each sign-in</p></div>
+          return `<li class="list-row" data-rule="${escape(rule.id)}"><div class="grow"><p class="sentence">${sentence} ${icon('arrow')}<span class="sr-only">grants</span> <a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a></p><p>${tools.map(tool => escape(toolProducts[tool.tool].name)).join(', ') || 'No tools granted'} · synced at each sign-in</p></div>
             <a class="btn btn-ghost btn-sm" href="${page}/matches/${escape(encodeURIComponent(rule.id))}" data-who-matches>${count} ${count === 1 ? 'match' : 'matches'}</a>
             <details class="menu"><summary class="btn btn-ghost btn-icon btn-sm" aria-label="Rule actions">${icon('more')}</summary><div class="popover"><a href="${page}?tab=rules&amp;rule=${escape(encodeURIComponent(rule.id))}">${icon('pen')}Edit rule</a><hr>` +
             apiForm(csrf, adminRoleRuleRoutes.list.path + '/' + rule.id, 'DELETE', 'Remove rule', revision(rule.revision), 'Remove this mapping and immediately remove its rule-origin grants? Direct grants and grants from other rules are retained. This cannot be undone.',
@@ -331,7 +331,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       }
       return browserPage(reply, provider.name, content, current, undefined, { helpTopic: 'Sign-in & SSO', parent: { href: '/admin/settings/sign-in', label: 'Sign-in & SSO' },
         lead: `<span class="tool-ico lg" aria-hidden="true">${escape(initials(provider.name))}</span>`,
-        meta: `<span>${kindLabel(provider.kind)} · <span class="mono">${escape(provider.issuer)}</span></span>${badge(provider.enabled ? 'provider-enabled' : 'provider-disabled')}`, actions })
+        meta: `<span>${kindLabel(provider.kind)} · <span class="mono">${escape(provider.issuer)}</span></span>${provider.enabled ? status('Enabled', 'ok') : status('Disabled', 'off')}`, actions: `<div class="actions">${actions}</div>` })
     }
   })
 }

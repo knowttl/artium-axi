@@ -137,12 +137,13 @@ if (savedTest) {
 }
 
 // Tier 2 names the action and its consequence; tier 3 (data-confirm-name) also needs the exact name typed.
-function confirmChange(form, action) {
+function confirmChange(form, fallbackAction) {
   const dialog = document.getElementById('confirmation');
+  const action = form.dataset.confirmAction || fallbackAction;
   const name = form.dataset.confirmName || '';
-  const typed = dialog.querySelector('[data-confirm-typed]');
-  const input = typed.querySelector('input');
-  const confirm = dialog.querySelector('[data-confirm-action]');
+  const field = dialog.querySelector('[data-confirm-name-field]');
+  const input = field.querySelector('input');
+  const confirm = dialog.querySelector('[data-confirm-button]');
   const mark = dialog.querySelector('[data-confirm-mark]');
   dialog.querySelector('[data-confirm-title]').textContent = action + '?';
   dialog.querySelector('[data-consequence]').textContent = form.dataset.confirm;
@@ -151,7 +152,7 @@ function confirmChange(form, action) {
   mark.querySelector('use').setAttribute('href', name ? '#i-trash' : '#i-alert');
   confirm.textContent = action;
   confirm.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
-  typed.hidden = !name;
+  field.hidden = !name;
   input.value = '';
   confirm.disabled = Boolean(name);
   input.oninput = () => { confirm.disabled = input.value !== name; };
@@ -161,6 +162,46 @@ function confirmChange(form, action) {
     dialog.showModal();
     if (name) input.focus();
   });
+}
+
+for (const form of document.querySelectorAll('form[data-track-changes]')) {
+  const save = form.querySelector('button:not([type])');
+  const discard = form.querySelector('[data-discard]');
+  const initial = new URLSearchParams(new FormData(form)).toString();
+  const update = () => {
+    const dirty = new URLSearchParams(new FormData(form)).toString() !== initial;
+    save.disabled = !dirty;
+    discard.hidden = !dirty;
+  };
+  form.addEventListener('change', update);
+  form.addEventListener('reset', () => setTimeout(update));
+  update();
+}
+for (const link of document.querySelectorAll('[data-open-dialog]')) {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    const dialog = document.getElementById(link.dataset.openDialog);
+    if (!dialog.open) dialog.showModal();
+  });
+}
+for (const link of document.querySelectorAll('[data-close-dialog]')) {
+  link.addEventListener('click', event => {
+    const dialog = link.closest('dialog');
+    if (!dialog.matches(':modal')) return;
+    event.preventDefault();
+    dialog.close();
+  });
+}
+// A dialog rendered open for readers without JavaScript becomes modal once the script runs.
+// Views with data-close-href are handled above, because closing them leaves the page.
+for (const dialog of document.querySelectorAll('dialog.modal[open]:not([data-close-href])')) {
+  dialog.close();
+  dialog.showModal();
+}
+for (const form of document.querySelectorAll('form[data-filters]')) {
+  for (const select of form.querySelectorAll('select')) select.addEventListener('change', () => form.requestSubmit());
+  const apply = form.querySelector('[data-filters-apply]');
+  if (apply) apply.hidden = true;
 }
 
 function showError(target, error) {
@@ -423,13 +464,13 @@ document.addEventListener('submit', async event => {
   }
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
-  const button = form.querySelector('button');
+  const button = form.querySelector('button:not([type=button]):not([type=reset])');
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
-  const message = form.hasAttribute('data-trust-certificate')
+  const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
-    : form.closest('dialog')?.querySelector('[data-form-error]') || document.getElementById('message');
+    : form.closest('dialog')?.querySelector('[data-form-error]') || document.getElementById('message'));
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
@@ -523,10 +564,12 @@ document.addEventListener('submit', async event => {
       showError(message, result.error);
       return;
     }
-    sessionStorage.setItem('artium-toast', 'Change saved.');
-    if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
+    sessionStorage.setItem('artium-toast', form.dataset.successMessage || 'Change saved.');
+    // {id} names the record the request created, such as a new role.
+    if (form.dataset.successUrl?.includes('{id}')) location.assign(form.dataset.successUrl.replace('{id}', encodeURIComponent((await response.json()).id)));
+    else if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
     else location.reload();
-  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; }
+  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; message.focus(); }
   finally { button.disabled = false; pendingAction = false; }
 });
 `
