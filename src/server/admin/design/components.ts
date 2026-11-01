@@ -134,7 +134,7 @@ a.chip:hover { background: var(--bg-active); }
 .tbl tr.link a:not(.row-link) { position: relative; z-index: 1; }
 .tbl .row-link:focus-visible { outline: 0; }
 .tbl tr.link:has(.row-link:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
-.tbl tr.dim > td { opacity: 0.6; }
+.tbl tr.dim { opacity: 0.6; }
 .tbl .muted { color: var(--text-muted); white-space: nowrap; }
 .tbl .faint { color: var(--text-faint); white-space: nowrap; }
 .tbl td.actions-cell { text-align: right; white-space: nowrap; }

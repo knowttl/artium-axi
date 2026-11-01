@@ -117,6 +117,37 @@ test('People role links and stretched person and tool rows keep independent poin
   `)
 })
 
+test('disabled People rows preserve person and role pointer targets', () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=true]');
+  `)
+  for (const width of [1280, 420]) {
+    chrome(['resize', String(width), '900'])
+    browser(`
+      await page.open(base + '/admin/users');
+      check(await page.eval(() => {
+        const row = document.querySelector('tr.dim');
+        const link = row.querySelector('.row-link');
+        return [...row.cells].every(cell => {
+          const box = cell.getBoundingClientRect();
+          return document.elementFromPoint(box.right - 2, box.y + box.height / 2)?.closest('a') === link;
+        });
+      }), 'Disabled person cells cover the person link');
+      check(await page.eval(() => {
+        const chip = document.querySelector('tr.dim a.chip');
+        const box = chip.getBoundingClientRect();
+        return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('a') === chip;
+      }), 'Disabled person overlay covers the role link');
+      await page.click('tr.dim a.chip');
+      await page.wait('form[action="/v1/admin/roles/synthetic-role"]');
+    `)
+  }
+})
+
 test('GitHub device connection shows the code, stores approval and cancels reconnect without replacement', () => {
   browser(`
     await page.open(base + '/admin/tools/gh-axi');
