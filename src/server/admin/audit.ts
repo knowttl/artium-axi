@@ -99,7 +99,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       const diagnostic = selected.event === 'run-terminal' ? audit.runDiagnostic(selected.request_id) : undefined
       const fields = Object.entries(selected)
       const facts = [['Actor', escape(actor(selected.user_id))], ['Tool', escape(selected.tool ?? 'None')], ['Outcome', badge(outcome.word, outcome.tone)],
-        ['Request ID', `<span class="copyfield"><input value="${escape(selected.request_id)}" readonly aria-label="Request ID"><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy request ID">${icon('copy')}</button><span class="sr-only" data-copy-status role="status"></span></span>`],
+        ['Request ID', `<span class="copyfield" data-copy-scope><input value="${escape(selected.request_id)}" readonly aria-label="Request ID"><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy request ID">${icon('copy')}</button><span class="sr-only" data-copy-status role="status"></span></span>`],
         ['Client address', escape(selected.client_address ?? 'Not recorded')], ['Sign-in method', escape(selected.authentication_method ?? 'Not recorded')],
         ...(selected.action ? [['Action', `<span class="mono">${escape(selected.action)}</span>`]] : []), ...(selected.error_code ? [['Error code', `<span class="mono">${escape(selected.error_code)}</span>`]] : [])]
       panel = `<aside class="sheet docked" id="record" aria-labelledby="record-title"><div class="sheet-head"><div><h2 id="record-title">${escape(selected.event)} · ${outcome.tone === 'err' ? 'failed' : outcome.tone === 'ok' ? 'succeeded' : escape(outcome.word)}</h2>

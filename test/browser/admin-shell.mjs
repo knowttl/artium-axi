@@ -360,6 +360,30 @@ test('sign-in settings can save a client secret and requires a replacement when 
   `)
 })
 
+test('audit request ID copies and offers manual selection when clipboard is unavailable', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
+  browser(`
+    await page.open(base + '/admin/audit?event=run-start&limit=1');
+    await page.click('tbody th a');
+    await page.wait('#record');
+    await page.eval(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+        writeText: async text => { window.copied = text; }
+      } });
+    });
+    await page.click('[aria-label="Copy request ID"]');
+    check(await page.eval(() => window.copied === 'synthetic-run-102' &&
+      document.querySelector('[data-copy-status]').textContent === 'Copied.'), 'Request ID copy failed');
+    await page.eval(() => {
+      navigator.clipboard.writeText = async () => { throw new Error('Clipboard unavailable'); };
+    });
+    await page.click('[aria-label="Copy request ID"]');
+    check(await page.eval(() => document.activeElement.value === 'synthetic-run-102' &&
+      document.activeElement.selectionStart === 0 && document.activeElement.selectionEnd === 'synthetic-run-102'.length &&
+      document.querySelector('[data-copy-status]').textContent === 'Copy unavailable. Copy the selected text manually.'), 'Request ID not selected for manual copying');
+  `)
+})
+
 test('audit event filter, pagination and expanded details retain the selected search', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
   chrome(['resize', '420', '900'])
