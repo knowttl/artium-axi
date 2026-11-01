@@ -157,6 +157,7 @@ a.chip:hover { background: var(--bg-active); }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
 .tbl .row-link::after { content: ""; position: absolute; inset: 0; }
+.tbl tr.link a:not(.row-link) { position: relative; z-index: 1; }
 .tbl .row-link:focus-visible { outline: 0; }
 .tbl tr.link:has(.row-link:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 .tbl tr.dim > td { opacity: 0.6; }

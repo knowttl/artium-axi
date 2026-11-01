@@ -82,6 +82,41 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('People role links and stretched person and tool rows keep independent pointer targets', () => {
+  browser(`
+    check(await page.eval(() => {
+      const chip = document.querySelector('tr.link:first-child a.chip');
+      const box = chip.getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === chip;
+    }), 'Person overlay covers role link');
+    await page.click('tr.link:first-child a.chip[href="/admin/roles/synthetic-role"]');
+    await page.wait('form[action="/v1/admin/roles/synthetic-role"]');
+    await page.open(base + '/admin/users');
+    check(await page.eval(() => {
+      const row = document.querySelector('tr.link');
+      const box = row.querySelector('td.num').getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === row.querySelector('.row-link');
+    }), 'Person row is not linked');
+    await page.click('tr.link:first-child .row-link');
+    await page.wait('form[action^="/v1/admin/users/"]');
+    check(await page.eval(() => location.pathname.startsWith('/admin/users/')), 'Row did not open person');
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    await page.open(base + '/admin');
+    const toolPath = await page.eval(() => document.querySelector('tr.link .row-link').getAttribute('href'));
+    check(await page.eval(() => {
+      const row = document.querySelector('tr.link');
+      const box = row.lastElementChild.getBoundingClientRect();
+      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === row.querySelector('.row-link');
+    }), 'Tool row is not linked');
+    await page.click('tr.link:first-child .row-link');
+    await page.wait('form[data-save-tool]');
+    check(await page.eval(() => location.pathname) === toolPath, 'Row did not open tool');
+  `)
+})
+
 test('GitHub device connection shows the code, stores approval and cancels reconnect without replacement', () => {
   browser(`
     await page.open(base + '/admin/tools/gh-axi');

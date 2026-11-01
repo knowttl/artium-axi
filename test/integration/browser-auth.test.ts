@@ -12,12 +12,15 @@ import { hashToken, issueLoginTokens, verifyAccessToken } from '../../src/server
 import { browserDefaults, authDefaults, tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import { openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 
 let directory: string
 let db: Database.Database
@@ -456,6 +459,11 @@ test('users-list bookmarks from before Overview still open the users list with t
 })
 
 test('overview names each broken access link with the action that fixes it', async () => {
+  await app.close()
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
+    adapters: [createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))],
+    credentialStore: store, resolver: new SharedIdentityResolver(store) })
   db.exec(`UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi';
     INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
     INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
@@ -465,6 +473,32 @@ test('overview names each broken access link with the action that fixes it', asy
   expect(body).toMatch(/Vectra is enabled without a credential<\/strong>.*?href="\/admin\/tools\/vectra-axi">Add credential</s)
   expect(body).toMatch(/Synthetic Invitee can’t claim their invitation yet<\/strong>.*?href="\/admin\/invitations">Review</s)
   expect(body).toContain('2 things need you.')
+})
+
+test.each([
+  { originOnly: true, cached: 'ok', state: 'Needs credential', passed: false },
+  { originOnly: false, cached: null, state: 'Not checked', passed: false },
+  { originOnly: false, cached: 'error', state: 'Failing', passed: false },
+  { originOnly: false, cached: 'ok', state: 'Healthy', passed: true },
+] as const)('overview reports AWX readiness for originOnly=$originOnly, cached=$cached', async ({ originOnly, cached, state, passed }) => {
+  await app.close()
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  store.replaceCredential('awx-axi', originOnly ? { origin: 'https://controller.example' }
+    : { origin: 'https://controller.example', token: 'CANARY-awx-token' }, 0, userId, now)
+  db.exec("UPDATE tools SET enabled = (name = 'awx-axi')")
+  if (cached) db.prepare('INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)')
+    .run('awx-axi', 1, now, cached, cached === 'error' ? 'UPSTREAM_NETWORK_FAILED' : null)
+  app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
+    adapters: [createAwxAdapter(new EmbeddedSecretSource(store))], credentialStore: store, resolver: new SharedIdentityResolver(store) })
+  await signIn()
+  const response = await request('GET', '/admin')
+  expect(response.statusCode).toBe(200)
+  const body = response.body
+  expect(body).toMatch(new RegExp(`href="/admin/tools/awx-axi".*?<td>.*?${state}`, 's'))
+  expect(body.includes('AWX is enabled without a credential')).toBe(originOnly)
+  expect(body.includes('Every enabled tool has a credential and its last check passed.')).toBe(passed)
+  expect(body.includes('1 enabled tool has passed its last check.')).toBe(passed)
+  expect(body).toMatch(new RegExp(`<li class="vstep ${passed ? 'done' : 'current'}">.*?<strong>Connect a tool</strong>`, 's'))
 })
 
 test.each([
