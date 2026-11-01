@@ -73,9 +73,8 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions | `role="status"` |
 | Steps and meter | `.vsteps`, `.vstep` (`.done`, `.current`); native `<progress class="meter">` | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
 | Key-value list | `.kv` | | `<dl>` |
-| Copy field | `.copy-group` with `.copyfield`, `[data-copy]` and `.copy-status` | copied, unavailable | Result announced in the status line |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico` | sm, lg | Initials are `aria-hidden`; the name is adjacent text |
+| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
 | Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from `?sheet=<name>` without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
@@ -84,10 +83,9 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
 | Tabs | `tabs()`: `.utabs` | current, with note | Links with `?tab=`; `aria-current="page"`; each tab is its own server-rendered view |
-| Code and copy | `copyBlock()`, `copyField()`, `copyValue()` | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
+| Code and copy | `copyBlock()`, `copyField()`, `copyValue()`: `[data-copy-scope]` with `[data-copy]` and `.copy-status`; existing `.copy-group` fields also supported | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
 | Segmented control | `.seg` with links (`.on` for current) or radio inputs | 2-4 options | Links navigate; labelled native radios select an option; works without JavaScript |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
-| Tool icon | `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | | `aria-hidden`; the product name is adjacent text |
 | Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
 | View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
 | Auth card | `.auth`, `.auth-card`, `.auth-head`, `.auth-actions`, `.divider`, `.bigcode`, `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action follows cancel or deny within `.auth-actions` |
@@ -117,7 +115,7 @@ API forms opened with `apiFormTag()` or `apiForm()` choose their tier:
 - Tier 1 has an empty `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` (default "Change saved.") is shown in the toast after the page reloads.
 - Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb (the button text when absent), which labels its confirm button and, by default, titles the dialog.
   `data-confirm-title` overrides the dialog title.
-- Tier 3 also sets `data-confirm-name`: the dialog turns red and its confirm button stays disabled until that exact name is typed.
+- Tier 3 also sets `data-confirm-name`: the dialog shows a red status mark and confirm button, which stays disabled until that exact name is typed.
 
 `data-success-url` sends the person to another page after success; `{id}` in it is replaced with the created record's id.
 Recent-auth confirmation and CSRF apply to every tier; revision-checked mutations also include `expectedRevision`.

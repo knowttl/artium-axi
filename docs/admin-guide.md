@@ -294,7 +294,7 @@ Linking preserves the existing user id, username, display name, administrator fl
 An existing identity or username is never automatically linked; expired, revoked, replaced or claimed links cannot grant access.
 Claim, link, role-sync and sign-in audit events commit with the account and session changes.
 For CLI SSO, set `ARTIUM_AXI_URL` to this server and run `artium-axi login --sso`.
-Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and UTC time before choosing **Approve**.
+Open the displayed `/device` URL in any browser, enter the terminal code, choose an enabled provider and complete a fresh sign-in, then review the requesting IP and time before choosing **Approve**.
 Approve only a request you started on a device you control, with a code that matches your terminal; never approve a code someone sends you.
 Choose **This wasn't me** to deny an unexpected request.
 Codes expire after 10 minutes and can grant access only once.
