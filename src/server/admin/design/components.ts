@@ -83,7 +83,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 
 /* Layout */
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.stack:not(table) { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) var(--aside-w); gap: 20px; align-items: start; }
 .page-head .grow { flex: 1; min-width: 0; }
 .page-head > .actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

@@ -1121,6 +1121,64 @@ test('a local user can be created from the table and its profile edited from det
   `)
 })
 
+test('role tables align desktop columns and retain narrow member labels', () => {
+  chrome(['resize', '1280', '900'])
+  browser(`
+    for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
+      await page.open(base + path);
+      check(await page.eval(() => {
+        const table = document.querySelector('table.row-links');
+        const headings = [...table.querySelectorAll('thead th')];
+        const cells = [...table.querySelector('tbody tr').children];
+        return getComputedStyle(table).display === 'table' && headings.every((heading, index) =>
+          Math.abs(heading.getBoundingClientRect().x - cells[index].getBoundingClientRect().x) < 1);
+      }), 'Role table columns do not align');
+    }
+  `)
+  chrome(['resize', '420', '900'])
+  browser(`
+    for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
+      await page.open(base + path);
+      check(await page.eval(() => {
+        const table = document.querySelector('table.row-links');
+        const row = table.querySelector('tbody tr');
+        return getComputedStyle(row).display === 'flex' &&
+          [...row.querySelectorAll('[data-label]')].every(cell =>
+            getComputedStyle(cell, '::before').content.includes(cell.dataset.label)) &&
+          document.documentElement.scrollWidth <= innerWidth;
+      }), 'Narrow role table layout is broken');
+    }
+  `)
+})
+
+test('disabled person status takes precedence over a retained lockout', async () => {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const response = await fetch(fixture.clock.replace('/test/clock', '/v1/auth/login'), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: 'synthetic-ordinary', password: 'CANARY-wrong-password' }),
+    })
+    assert.equal(response.status, 401)
+  }
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    check(await page.eval(() => document.querySelector('.page-head').innerText.includes('Locked')), 'Initial lockout is missing');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=true]');
+    check(await page.eval(() => document.querySelector('.page-head').innerText.includes('Disabled')), 'Lockout hides disabled status');
+    check(await page.eval(() => [...document.querySelectorAll('.kv dt')].find(term => term.textContent === 'Locked').nextElementSibling.textContent.startsWith('Until ')), 'Lockout details were lost');
+    await page.open(base + '/admin/users');
+    check(await page.eval(() => document.querySelector('a[href="/admin/users/synthetic-ordinary"]').closest('tr').innerText.includes('Disabled')), 'List status disagrees with detail');
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    check(await page.eval(() => document.querySelector('.page-head').innerText.includes('Locked')), 'Re-enabling hides the retained lockout');
+  `)
+})
+
 test('user detail can disable and re-enable sign-in', () => {
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');

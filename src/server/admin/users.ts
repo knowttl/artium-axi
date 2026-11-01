@@ -173,6 +173,6 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       submit: '<button class="btn btn-primary">Reset password</button>',
       wrap: inner => form(path + '/password-reset', 'POST', inner, { consequence: `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`, title: 'Reset password', action: 'Reset password' }) }) : ''
     const content = `<div class="grid2"><div class="stack">${rolesCard}${usable}${sessionTable(csrf, path + '/sessions', sessions.sessions)}${danger}</div><div class="stack">${profile}${facts}${meta}</div></div>${reset}`
-    return browserPage(reply, 'People', content, current, undefined, { ...header(stateBadge('person', isLocked ? 'locked' : user.enabled ? 'enabled' : 'disabled', true)), actions })
+    return browserPage(reply, 'People', content, current, undefined, { ...header(stateBadge('person', user.enabled ? isLocked ? 'locked' : 'enabled' : 'disabled', true)), actions })
   })
 }
