@@ -348,24 +348,28 @@ test('audit event filter, pagination and expanded details retain the selected se
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
   chrome(['resize', '420', '900'])
   browser(`
-    await page.open(base + '/admin/audit');
+    await page.open(base + '/admin/audit?limit=1');
     await page.eval(() => { const event = document.querySelector('[name=event]'); event.value = 'run-start'; event.dispatchEvent(new Event('change', { bubbles: true })); });
-    await page.fill('[name=limit]', '1');
-    await page.click('form[action="/admin/audit"] button');
-    await page.wait('tbody tr');
+    await page.wait('.filter.set [name=event]');
     check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').textContent.includes('run-start')), 'Event filter failed');
-    check(await page.eval(() => [...document.querySelectorAll('thead th')].slice(3).every(cell => cell.getBoundingClientRect().width >= 100)), 'Tool and Outcome columns are too narrow to read');
-    await page.click('tbody summary');
-    check(await page.eval(() => document.querySelector('tbody details').open && document.querySelector('tbody dd').textContent), 'Record details did not open');
-    check(await page.eval(() => document.querySelector('tbody dl').textContent.includes('synthetic-run-102') && document.querySelector('tbody dl').textContent.includes('[redacted]')), 'Safe details missing');
-    check(await page.eval(() => document.querySelector('tbody dl').getBoundingClientRect().width >= 320), 'Expanded audit fields are too narrow to read');
+    check(await page.eval(() => [...document.querySelectorAll('thead th')].slice(3).every(cell => cell.getBoundingClientRect().width >= 80)), 'Tool and Outcome columns are too narrow to read');
+    await page.click('tbody th a');
+    await page.wait('#record');
+    await page.click('#record .all-fields summary');
+    check(await page.eval(() => document.querySelector('#record .all-fields').open && document.querySelector('#record dd').textContent), 'Record details did not open');
+    check(await page.eval(() => document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-102') && document.querySelector('#record .all-fields dl').textContent.includes('[redacted]')), 'Safe details missing');
+    check(await page.eval(() => document.querySelector('#record .all-fields dl').getBoundingClientRect().width >= 320), 'Expanded audit fields are too narrow to read');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Expanded audit record overflows the narrow screen');
-    await page.click('a[href*="cursor="]');
-    await page.wait('tbody tr');
-    check(await page.eval(() => document.querySelector('[name=event]').value === 'run-start' && document.querySelector('tbody dl').textContent.includes('synthetic-run-101')), 'Next page lost the filter');
-    await page.click('a[href*="event=run-start"]:not([href*="cursor="]):not([download])');
-    await page.wait('tbody tr');
-    check(await page.eval(() => document.querySelector('tbody dl').textContent.includes('synthetic-run-102')), 'First page did not restart the search');
+    await page.click('.card-foot a[href*="cursor="]');
+    await page.wait('.card-foot a:not([href*="cursor="])');
+    await page.click('tbody th a');
+    await page.wait('#record');
+    check(await page.eval(() => document.querySelector('[name=event]').value === 'run-start' && document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-101')), 'Older page lost the filter');
+    await page.click('.card-foot a:not([href*="cursor="])');
+    await page.wait('.card-foot span[aria-disabled]');
+    await page.click('tbody th a');
+    await page.wait('#record');
+    check(await page.eval(() => document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-102')), 'Newest did not restart the search');
     await page.click('main a[href="/admin/audit"]');
     await page.wait('[name=event]');
     check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
@@ -896,7 +900,8 @@ test('changing Vectra authentication requires new secrets and saves only the sel
 test('expired confirmation resumes the populated action exactly once after a wrong password is corrected', async () => {
   await expireConfirmation()
   browser(`
-    await page.open(base + '/admin/roles');
+    await page.open(base + '/admin/roles?dialog=new-role');
+    await page.wait('#new-role[open]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
@@ -908,8 +913,8 @@ test('expired confirmation resumes the populated action exactly once after a wro
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Draft was lost');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('tbody a:not([href="/admin/roles/synthetic-role"])');
-    check(await page.eval(() => [...document.querySelectorAll('tbody a')].some(link => link.textContent === 'Synthetic resumed role')), 'Pending role was not created');
+    await page.wait('form[action$="/tools"]');
+    check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');
     check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
@@ -950,16 +955,15 @@ test('confirmation names the affected user and cancellation leaves the account e
   `)
 })
 
-test('confirmed changes use the same action and stale drafts offer a reload recovery', () => {
+test('role rename saves without a dialog and stale drafts offer a reload recovery', () => {
   browser(`
     await page.open(base + '/admin/roles/synthetic-role');
     const selector = 'form[action="/v1/admin/roles/synthetic-role"]';
-    await page.fill(selector + ' [name=name]', 'Synthetic confirmed role');
+    await page.click('.inline-edit summary');
+    await page.fill(selector + ' [name=name]', 'Synthetic renamed role');
     await page.click(selector + ' button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
-    await page.wait('input[name=name][value="Synthetic confirmed role"]');
-    check(await page.eval(() => [...document.querySelectorAll('section h2')].some(title => title.textContent === 'Synthetic confirmed role')), 'Confirmation did not rename role');
+    await page.wait('input[name=name][value="Synthetic renamed role"]');
+    check(await page.eval(() => document.querySelector('h1').textContent === 'Synthetic renamed role'), 'Rename did not save');
     await page.eval(async () => {
       const form = document.querySelector('form[action="/v1/admin/roles/synthetic-role"]');
       const fields = new FormData(form);
@@ -967,15 +971,14 @@ test('confirmed changes use the same action and stale drafts offer a reload reco
         _csrf: fields.get('_csrf'), name: 'Synthetic newer role', expectedRevision: Number(fields.get('expectedRevision')),
       }) });
     });
+    await page.click('.inline-edit summary');
     await page.fill(selector + ' [name=name]', 'Synthetic stale role');
     await page.click(selector + ' button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
     await page.wait('#message button');
     check(await page.eval(() => document.getElementById('message').innerText.includes('REVISION_CONFLICT')), 'Missing stale-edit error');
     await page.click('#message button');
     await page.wait('input[name=name][value="Synthetic newer role"]');
-    check(await page.eval(() => [...document.querySelectorAll('section h2')].some(title => title.textContent === 'Synthetic newer role')), 'Reload did not recover current values');
+    check(await page.eval(() => document.querySelector('h1').textContent === 'Synthetic newer role'), 'Reload did not recover current values');
   `)
 })
 
@@ -1112,7 +1115,7 @@ test('SSO user direct-role edits preserve rule access and offer no password rese
     check(await page.eval(() => document.querySelector('[name=roleIds][type=checkbox]').checked), 'Direct role was not saved alongside rule grant');
     check(await page.eval(() => document.querySelector('table caption').closest('table').innerText.includes('(Direct, Rule)')), 'Effective tools lost an overlapping grant origin');
     await page.open(base + '/admin/roles/synthetic-role');
-    check(await page.eval(() => document.querySelector('a[href="/admin/users/synthetic-sso"]').closest('tr').innerText.includes('Direct, Rule')), 'Role membership lost an overlapping grant origin');
+    check(await page.eval(() => document.querySelector('a[href="/admin/users/synthetic-sso"]').closest('tr').innerText.match(/Direct|SSO rule/g).join() === 'Direct,SSO rule'), 'Role membership lost an overlapping grant origin');
     await page.open(base + '/admin/users/synthetic-sso');
     await page.click('[name=roleIds][type=checkbox]');
     await page.click('form[action$="/roles"] button');
@@ -1154,12 +1157,12 @@ test('user detail resets a password and the person must change it at sign-in', (
 test('role tool grants and membership explain effective tools and an empty role can be deleted', () => {
   browser(`
     await page.open(base + '/admin/roles');
+    await page.click('.page-head [data-open-dialog=new-role]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic readers');
     await page.click('form[action="/v1/admin/roles"] button');
-    await page.wait('tbody a:not([href="/admin/roles/synthetic-role"])');
-    const roleHref = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'Synthetic readers').getAttribute('href'));
-    await page.click('a[href="' + roleHref + '"]');
     await page.wait('[name=tools]');
+    check(await page.eval(() => document.querySelector('h1').textContent === 'Synthetic readers'), 'New role did not open its page');
+    const roleHref = await page.eval(() => location.pathname);
     await page.click('[name=tools][value="falcon-axi"]');
     await page.click('form:has([name=tools]) button');
     await page.wait('#confirmation[open]');
@@ -1186,6 +1189,8 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.open(base + roleHref);
     await page.click('form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
+    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').disabled), 'Delete is enabled before the name is typed');
+    await page.fill('[data-confirm-name-input]', 'Synthetic readers');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action="/v1/admin/roles"]');
     check(await page.eval(() => !document.querySelector('main').innerText.includes('Synthetic readers')), 'Deleted role remains in table');
