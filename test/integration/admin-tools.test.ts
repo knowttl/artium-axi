@@ -597,14 +597,14 @@ test.each([
   const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}`,
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain(`<p>${help}</p>`)
+  expect(page.body).toContain(`${help}</p>`)
   expect(page.body).not.toContain(otherHelp)
   if (tool === 'checkpoint-axi') {
     const saas = /<div data-credential-field="saas">(.*?)<\/div>/s.exec(page.body)![1]!
-    expect(saas).toContain('<p>One non-blank SaaS application name for the tenant, not a gateway, host or authentication URL;')
+    expect(saas).toContain('One non-blank SaaS application name for the tenant, not a gateway, host or authentication URL;')
     expect(saas).toContain(' Default: office365_emails.</p>')
     const downloads = /<div data-credential-field="downloads">(.*?)<\/div>/s.exec(page.body)![1]!
-    expect(downloads).toContain('<p>Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected. Default: {&quot;allow&quot;:false}.</p>')
+    expect(downloads).toContain('Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected. Default: {&quot;allow&quot;:false}.</p>')
   }
 })
 

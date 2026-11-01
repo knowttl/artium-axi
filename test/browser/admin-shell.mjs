@@ -849,7 +849,6 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' operation picker matc
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('#message:not(:empty)');
     check(await page.eval(() => document.querySelector('#message').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
-    await page.click('[data-ops-group] summary');
     await page.click('[name=operations]');
     await page.click('form[action$="/write-access"] button:not([form])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
