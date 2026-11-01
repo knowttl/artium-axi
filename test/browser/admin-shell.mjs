@@ -505,6 +505,35 @@ test('credential diagnostics show the admission failure before saving', () => {
   `)
 })
 
+test('disabled tool retains a failed credential test after switching tabs', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Tool must start disabled');
+    await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
+    await page.fill('[data-profile-field="clientSecret"]', 'CANARY-invalid');
+    await page.fill('[data-profile-field="region"]', 'us-1');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
+    const error = await page.eval(() => document.querySelector('[data-check-error]').textContent);
+    const diagnostic = await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.trim());
+    check(diagnostic.length > 0, 'Failure must explain the error');
+    await page.click('nav.utabs a[href="?tab=access"]');
+    await page.wait('nav.utabs a[href="?tab=access"][aria-current=page]');
+    check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Cached failure callout hidden after navigation');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.trim()) === diagnostic, 'Cached diagnostic changed');
+    check(await page.eval(() => document.querySelector('[data-check-summary]').textContent.trim().length > 0), 'Cached failure explanation missing');
+    check(await page.eval(() => document.querySelector('[data-check-error]').textContent) === error, 'Cached failure category changed');
+    check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Failing')), 'Detail badge lost the failure');
+    check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.includes('Failing:')), 'Setup lost the failed outcome');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Testing enabled the tool');
+    await page.open(base + '/admin/tools?show=attention');
+    await page.wait('tbody a[href="/admin/tools/falcon-axi"]');
+    check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/falcon-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Failing')), 'Needs attention lost the failed disabled tool');
+  `)
+})
+
 for (const action of ['save', 'test']) {
   test('credential diagnostics retain the current ' + action + ' response over cached health', () => {
     browser(`

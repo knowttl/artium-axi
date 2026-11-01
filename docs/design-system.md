@@ -72,7 +72,6 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; part of a form, never auto-saves |
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; labels and tags come from `tools/inventories/write-operations.json` |
-| Key-value list and large code | `.kv`, `.bigcode` | | `<dl>` for key-value pairs |
 | Tool icon | `toolIcon()`: `.tool-ico`, `.tool-ico.lg` | sm, lg | Initials are `aria-hidden`; the product name is adjacent text |
 | Credential editor | `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Each input sits inside its label with a one-sentence hint |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |

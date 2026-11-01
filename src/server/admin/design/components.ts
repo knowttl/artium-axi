@@ -285,18 +285,6 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .filters .search { flex: 1; min-width: 200px; }
 .filters .search.narrow { flex: 0 1 240px; margin-left: auto; }
 
-/* Fields: label, control, one-sentence hint */
-.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
-.form-grid > * { min-width: 0; }
-.form-grid .full, .form-grid > :not([data-credential-field]) { grid-column: 1 / -1; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-:where(.content) .field label { margin: 0; }
-:where(.content) .field input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), :where(.content) .field select, :where(.content) .field textarea { max-width: none; }
-.field .hint { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
-.opt { color: var(--text-faint); font-weight: 400; }
-.secret { display: flex; align-items: center; gap: 10px; min-height: var(--ctl-h); margin-top: 6px; padding: 0 6px 0 10px; border: 1px dashed var(--border-strong); border-radius: var(--r-sm); background: var(--bg-subtle); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 400; }
-.secret .btn { margin-left: auto; }
-
 /* Credential editor (credentialFields): a two-column field grid */
 [data-credential-editor] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
 [data-credential-editor] > * { grid-column: 1 / -1; min-width: 0; }
@@ -342,10 +330,6 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
 .card .note[data-valid="true"] { color: var(--ok); }
 .card .note[data-valid="false"] { color: var(--err); }
 
-/* Key-value list and large code */
-.kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 14px; margin: 0; font-size: var(--fs-sm); }
-.kv dt { color: var(--text-muted); }
-.kv dd { margin: 0; overflow-wrap: anywhere; }
 .bigcode { padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-subtle); font-family: var(--mono); font-size: 28px; font-weight: 600; letter-spacing: 0.18em; text-align: center; }
 .bigcode:empty { display: none; }
 
@@ -369,13 +353,11 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .steps { grid-template-columns: minmax(0, 1fr); }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
   .step:last-child { border-bottom: 0; }
-  .form-grid, .ops-body, [data-credential-editor] { grid-template-columns: minmax(0, 1fr); }
+  .ops-body, [data-credential-editor] { grid-template-columns: minmax(0, 1fr); }
   .ops-body { padding-left: 12px; }
   .page-head .actions { margin-left: 0; width: 100%; }
   .filters .search.narrow { flex: 1 1 100%; margin-left: 0; }
   .callout { flex-wrap: wrap; }
-  .kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .kv dd { margin-bottom: 8px; }
   /* Tables become stacked rows */
   .tbl.stack-sm thead { display: none; }
   .tbl.stack-sm tr { display: block; padding: 10px 14px; border-bottom: 1px solid var(--border); }

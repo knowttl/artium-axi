@@ -20,7 +20,8 @@ test.each([
   const form = credentialFields('beyondtrust-axi', profile, {}, false)
   const field = form.split(`data-credential-field="${name}"`)[1].split('</div>')[0]
   expect(field).toContain(`<label>${title}`)
-  expect(field).toContain(`<p>${description}`)
+  expect(field).toContain(`aria-describedby="profile-beyondtrust-axi-${name}-hint"`)
+  expect(field).toContain(`<p id="profile-beyondtrust-axi-${name}-hint">${description}`)
   expect(profile.inputSchema.properties[name].description).toContain(description)
 })
 

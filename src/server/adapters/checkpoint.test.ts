@@ -34,7 +34,8 @@ test.each([
   const html = credentialFields('checkpoint-axi', checkpointProfile, {}, false)
   const rendered = html.match(new RegExp(`<div data-credential-field="${name}">(.+?)</div>`))![1]!
   expect(rendered).toContain(`<label>${title}<input`)
-  expect(rendered).toContain(`<p>${field.schema.description}${defaultHelp}</p>`)
+  expect(rendered).toContain(`aria-describedby="profile-checkpoint-axi-${name}-hint"`)
+  expect(rendered).toContain(`<p id="profile-checkpoint-axi-${name}-hint">${field.schema.description}${defaultHelp}</p>`)
   expect(rendered).not.toContain('Optional profile value.')
 })
 
@@ -43,7 +44,8 @@ test.each([false, true])('managed credential guidance describes hosted inputs wh
   const clientSecret = html.match(/<div data-credential-field="clientSecret" data-secret>(.+?)<\/div>/)![1]!
   const scope = html.match(/<div data-credential-field="scope">(.+?)<\/div>/)![1]!
   expect(clientSecret).toContain('<label>Client secret<textarea')
-  expect(clientSecret).toContain('<p>Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.</p>')
+  expect(clientSecret).toContain('aria-describedby="profile-checkpoint-axi-clientSecret-hint"')
+  expect(clientSecret).toContain('<p id="profile-checkpoint-axi-clientSecret-hint">Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.</p>')
   expect(scope).toContain('Email downloads require this value as the scopes header.')
   expect(scope).toContain('Attachment downloads use it as the scope query when set, and omit that query when unset.')
   expect(scope).toContain('Artium uses this stored value for hosted transfers; there is no per-download scope override.')
