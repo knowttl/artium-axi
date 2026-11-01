@@ -104,10 +104,10 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 
 | Screen | Purpose |
 | --- | --- |
-| `/admin` | Overview: the order to set up access, with a link to each step. Older `/admin?…` users-list links redirect to `/admin/users`. |
-| `/admin/users` | Search and filter the users table by source, status or role; create local users. |
-| `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
-| `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for usage and claim availability. |
+| `/admin` | Overview: enabled tools, health, people with access and write state; items that need attention, each with the action that fixes it; the setup checklist; enabled tools and recent administration changes. Older `/admin?…` users-list links redirect to `/admin/users`. |
+| `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` opens it without JavaScript; submission requires JavaScript). |
+| `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
+| `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
@@ -127,18 +127,20 @@ Choose **New role**, enter a name and select **Create role** to open the new rol
 The roles list marks disabled tools with a grey dot; role detail shows each tool's current state beside its grant checkbox.
 Use the pencil beside the role name to rename it inline.
 User detail combines grants from every assigned role and links each tool to its granting roles.
-User detail and role membership pages distinguish Direct assignments made by an administrator from rule grants, labelled **Rule** on user detail and **SSO rule** on role detail.
+User detail and role membership pages distinguish **Direct** assignments made by an administrator from rule grants, labelled **SSO rule**.
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
 The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for the available provider editor and current SSO limits.
 SSO accounts cannot be given a local password.
+Enter temporary passwords manually in Add user and Reset password; the fields keep them masked.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
-Archived user detail allows retained direct assignments to be removed without restoring sign-in; the UI and API refuse new direct assignments, including reassigning a removed direct grant.
+Archived user detail is read-only and displays retained roles, grant provenance and change history.
+The API still allows retained direct assignments to be removed without restoring sign-in and refuses new direct assignments, including reassigning a removed direct grant.
 See [Sign-in settings](admin-guide.md#sign-in-settings) for removing rule-origin grants.
 Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
 Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
 Deletion removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
-The users and role members tables show matching totals; Next page retains the current filters.
+The People and role members tables show matching totals; pagination retains the current filters.
 See the [shared API contracts](../src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
 The last enabled administrator cannot be disabled, demoted or archived.
 Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
@@ -160,6 +162,8 @@ SSO sign-out optionally also visits the provider's discovered end-session endpoi
 After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
+Confirmation dialogs explain consequences before changes.
+Archiving a person requires typing their exact username before the **Archive** confirmation button becomes available.
 Role creation and rename save without an additional action confirmation dialog; saving tool grants requires confirmation, and deleting an eligible role requires typing its exact name.
 The role's deletion control is disabled while blockers remain and lists their counts.
 Recent identity confirmation still applies to these actions; each screen also has expandable help.
@@ -264,13 +268,14 @@ The target role supplies tool access; rules never grant administrator capability
 Create roles and grant their tools on **Roles** first.
 Every rule change requires the [confirmation described under browser administration](admin-guide.md#browser-administration) and is audited atomically; stale edits require reloading the page.
 At each SSO sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
-User details label Direct and Rule grants and identify the provider rule that supplied each rule grant.
+User details identify the provider rule that supplied each rule grant; see [browser administration](#browser-administration) for grant labels and assignment behavior.
 Deleting a rule or changing its provider, claim name, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
-Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected `preferred_username` (Entra sign-in username for Microsoft), direct roles and an expiry of 1 to 30 days (default 7).
+Choose **New invitation** on Invitations, or **Invite with SSO** on People, to prepare an invitation with an Entra ID or OpenID Connect provider, display name, exact expected `preferred_username` (the Entra ID sign-in name or the OpenID Connect username), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
-Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
+Creation and **Resend invitation** display a bearer link once; use **Copy** or copy the field manually before closing the dialog, then send it securely yourself.
 Artium does not send email and stores only the link token's hash.
+Invitations display their status and recorded expiry, including after claim or revocation.
 Resend replaces the old link and starts a new expiry period, including for expired invitations.
 **Revoke invitation** prevents claiming; claimed or revoked invitations cannot be resent.
 Every mutation requires administrator capability and the [confirmation described under browser administration](admin-guide.md#browser-administration), checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.

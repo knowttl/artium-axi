@@ -6,8 +6,9 @@ export const adminStyle = tokens + components
 export const adminScript = `
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
-    const input = button.parentElement.querySelector('input, textarea');
-    const status = button.parentElement.querySelector('[data-copy-status]');
+    const scope = button.closest('.copy-group') || button.parentElement;
+    const input = scope.querySelector('input, textarea');
+    const status = scope.querySelector('[data-copy-status]');
     try {
       await navigator.clipboard.writeText(input.value);
       status.textContent = 'Copied.';
@@ -113,6 +114,38 @@ if (savedTest) {
   }
 }
 
+// Sheets open as modals; without JavaScript their links load the ?sheet= view instead.
+function openSheet(dialog) {
+  if (dialog.open) dialog.close();
+  dialog.showModal();
+  dialog.querySelector('input:not([type=hidden]), select, textarea, button')?.focus();
+}
+for (const link of document.querySelectorAll('[data-sheet]')) {
+  link.addEventListener('click', event => {
+    const dialog = document.getElementById(link.dataset.sheet);
+    if (!dialog) return;
+    event.preventDefault();
+    link.closest('details')?.removeAttribute('open');
+    openSheet(dialog);
+  });
+}
+for (const dialog of document.querySelectorAll('dialog.sheet')) {
+  dialog.addEventListener('close', () => {
+    if (dialog.open) return;
+    const trigger = [...document.querySelectorAll('[data-sheet]')].find(link => link.dataset.sheet === dialog.id);
+    // A sheet opened from a disclosure returns to its summary because the menu is now closed.
+    (trigger?.closest('details')?.querySelector('summary') || trigger)?.focus();
+  });
+  for (const close of dialog.querySelectorAll('[data-sheet-close]')) close.addEventListener('click', event => { event.preventDefault(); dialog.close(); });
+  if (!dialog.open) continue;
+  // A reload after saving must not reopen the sheet.
+  document.querySelector('[data-sheet-scrim]')?.remove();
+  const url = new URL(location.href);
+  url.searchParams.delete('sheet');
+  history.replaceState(null, '', url);
+  openSheet(dialog);
+}
+
 // Tier 2 names the action in the title and confirm button; tier 3 also requires typing the exact name.
 function confirmChange(form) {
   const dialog = document.getElementById('confirmation');
@@ -121,7 +154,7 @@ function confirmChange(form) {
   const confirm = dialog.querySelector('[data-confirm-button]');
   const field = dialog.querySelector('[data-confirm-name-field]');
   const typed = field.querySelector('input');
-  dialog.querySelector('h2').textContent = action;
+  dialog.querySelector('h2').textContent = form.dataset.confirmTitle || action;
   dialog.querySelector('[data-consequence]').textContent = form.dataset.confirm;
   confirm.textContent = action;
   confirm.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
@@ -446,12 +479,13 @@ document.addEventListener('submit', async event => {
   }
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
-  const button = form.querySelector('button:not([type=button]):not([type=reset])');
+  const button = event.submitter || form.querySelector('button:not([type=button]):not([type=reset])');
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
   const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate')
-    ? form.closest('dialog').querySelector('[data-certificate-error]') : document.getElementById('message'));
+    ? form.closest('dialog').querySelector('[data-certificate-error]')
+    : form.closest('dialog.sheet')?.querySelector('[data-sheet-message]') || document.getElementById('message'));
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
@@ -502,6 +536,7 @@ document.addEventListener('submit', async event => {
     }
     if (response.ok && form.hasAttribute('data-invitation-link')) {
       const result = await response.json();
+      form.closest('dialog.sheet')?.close();
       const dialog = document.getElementById('invitation-link');
       const link = dialog.querySelector('[data-claim-link]');
       link.value = new URL(result.claimPath, location.origin).href;

@@ -12,12 +12,15 @@ import { hashToken, issueLoginTokens, verifyAccessToken } from '../../src/server
 import { browserDefaults, authDefaults, tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import { openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 
 let directory: string
 let db: Database.Database
@@ -467,9 +470,8 @@ test('Users screen paginates accounts and retains role choices from later API pa
   await signIn()
   const response = await request('GET', '/admin/users?limit=1')
   expect(response.body).toContain('Role 100')
-  expect(response.body).toContain('Next page')
-  const next = /href="(\/admin\/users\?[^"]*cursor=[^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&')
-  expect((await request('GET', next)).body).not.toContain('Next page')
+  const next = /href="(\/admin\/users\?[^"]*cursor=[^"]+)">Next</.exec(response.body)![1]!.replaceAll('&amp;', '&')
+  expect((await request('GET', next)).body).not.toMatch(/cursor=[^"]+">Next</)
   expect((await request('GET', '/admin/users?limit=101')).statusCode).toBe(400)
 })
 
@@ -479,6 +481,93 @@ test('users-list bookmarks from before Overview still open the users list with t
   expect(response.statusCode).toBe(301)
   expect(response.headers.location).toBe('/admin/users?source=local&limit=1')
   expect((await request('GET', '/admin')).body).toContain('<h1>Overview</h1>')
+})
+
+test('overview names each broken access link with the action that fixes it', async () => {
+  await app.close()
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
+    adapters: [createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))],
+    credentialStore: store, resolver: new SharedIdentityResolver(store) })
+  db.exec(`UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi';
+    INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
+    INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
+      VALUES ('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', 'Synthetic Invitee', ${now}, '${userId}', ${now + 86_400_000})`)
+  await signIn()
+  const body = (await request('GET', '/admin')).body
+  expect(body).toMatch(/Vectra is enabled without a credential<\/strong>.*?href="\/admin\/tools\/vectra-axi">Add credential</s)
+  expect(body).toMatch(/Synthetic Invitee can’t claim their invitation yet<\/strong>.*?href="\/admin\/invitations">Review</s)
+  expect(body).toContain('2 things need you.')
+})
+
+test.each([
+  { originOnly: true, cached: 'ok', state: 'Needs credential', passed: false },
+  { originOnly: false, cached: null, state: 'Not checked', passed: false },
+  { originOnly: false, cached: 'error', state: 'Failing', passed: false },
+  { originOnly: false, cached: 'ok', state: 'Healthy', passed: true },
+] as const)('overview reports AWX readiness for originOnly=$originOnly, cached=$cached', async ({ originOnly, cached, state, passed }) => {
+  await app.close()
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  store.replaceCredential('awx-axi', originOnly ? { origin: 'https://controller.example' }
+    : { origin: 'https://controller.example', token: 'CANARY-awx-token' }, 0, userId, now)
+  db.exec("UPDATE tools SET enabled = (name = 'awx-axi')")
+  if (cached) db.prepare('INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)')
+    .run('awx-axi', 1, now, cached, cached === 'error' ? 'UPSTREAM_NETWORK_FAILED' : null)
+  app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
+    adapters: [createAwxAdapter(new EmbeddedSecretSource(store))], credentialStore: store, resolver: new SharedIdentityResolver(store) })
+  await signIn()
+  const response = await request('GET', '/admin')
+  expect(response.statusCode).toBe(200)
+  const body = response.body
+  expect(body).toMatch(new RegExp(`href="/admin/tools/awx-axi".*?<td>.*?${state}`, 's'))
+  expect(body.includes('AWX is enabled without a credential')).toBe(originOnly)
+  expect(body.includes('Every enabled tool has a credential and its last check passed.')).toBe(passed)
+  expect(body.includes('1 enabled tool has passed its last check.')).toBe(passed)
+  expect(body).toMatch(new RegExp(`<li class="vstep ${passed ? 'done' : 'current'}">.*?<strong>Connect a tool</strong>`, 's'))
+})
+
+test.each([
+  ['/admin/users', 'sheet-add-user'],
+  [`/admin/users/${userId}`, 'sheet-reset-password'],
+])('%s renders its sheet open from the sheet query without JavaScript', async (path, id) => {
+  await signIn()
+  expect((await request('GET', `${path}?sheet=${id.slice('sheet-'.length)}`)).body).toContain(`id="${id}" aria-labelledby="${id}-title" open>`)
+  expect((await request('GET', path)).body).toContain(`id="${id}" aria-labelledby="${id}-title">`)
+})
+
+test('invitation navigation opens the creation sheet without JavaScript', async () => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES
+    ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://entra.example'),
+    ('synthetic-oidc', 'Synthetic OIDC', 'oidc', 'https://oidc.example')`)
+  await signIn()
+  const page = await request('GET', '/admin/invitations')
+  expect(page.body).toContain('href="/admin/invitations?limit=50&amp;sheet=new-invitation"')
+  const open = await request('GET', '/admin/invitations?sheet=new-invitation')
+  expect(open.body).toContain('id="sheet-new-invitation" aria-labelledby="sheet-new-invitation-title" open>')
+  expect(open.body).toContain('Synthetic Entra (not enabled yet)')
+  expect(open.body).toContain('Synthetic OIDC (not enabled yet)')
+})
+
+test.each([
+  { status: 'Pending', lifetime: 86_400_000, claimed: false, revoked: false, actionable: true },
+  { status: 'Expired', lifetime: -86_400_000, claimed: false, revoked: false, actionable: true },
+  { status: 'Claimed', lifetime: 86_400_000, claimed: true, revoked: false, actionable: false },
+  { status: 'Revoked', lifetime: 86_400_000, claimed: false, revoked: true, actionable: false },
+])('invitations display recorded expiry when $status', async ({ status, lifetime, claimed, revoked, actionable }) => {
+  const expiry = now + lifetime
+  db.exec("INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example')")
+  db.prepare(`INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, user_id,
+    created_at, created_by, expires_at, claimed_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', 'Synthetic Invitee',
+      claimed ? 'synthetic-second' : null, now - 2 * 86_400_000, userId, expiry, claimed ? now - 1 : null, revoked ? now - 1 : null)
+  await signIn()
+  const response = await request('GET', '/admin/invitations')
+  expect(response.statusCode).toBe(200)
+  const row = /<tr data-invitation="synthetic-invitation">.*?<\/tr>/s.exec(response.body)![0]
+  expect(row).toContain(`>${status}</span>`)
+  expect(row).toContain(`<time datetime="${new Date(expiry).toISOString()}"`)
+  expect(row.includes('Resend')).toBe(actionable)
+  expect(row.includes('Revoke</button>')).toBe(actionable)
 })
 
 test.each([

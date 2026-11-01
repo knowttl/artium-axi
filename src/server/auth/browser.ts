@@ -12,7 +12,7 @@ import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
 import { pageHelp } from '../admin/forms.js'
-import { appShell } from '../admin/design/ui.js'
+import { appShell, type PageHeader } from '../admin/design/ui.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
@@ -23,7 +23,7 @@ export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite
 const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
-  header: { heading?: string, actions?: string } = {}) {
+  header: Omit<PageHeader, 'description'> = {}) {
   const viewer = current && {
     name: current.display_name,
     method: current.source === 'sso' ? 'SSO' : current.break_glass ? 'Break-glass' : 'Password',
