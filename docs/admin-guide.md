@@ -112,9 +112,9 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/tools` | Review installed tools in a table with state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
 | `/admin/tools/:tool` | Header with state, write badges, **Test connection** and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. |
 | `/admin/credentials` | Redirect to the merged tools index. |
-| `/admin/roles` | List roles and create a role. |
-| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete eligible roles. |
-| `/admin/audit` | Filter and page through authentication, administration and tool-call records. |
+| `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
+| `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
+| `/admin/audit` | Filter, page through and export authentication, administration and tool-call records, and open one in a detail panel. |
 | `/admin/settings/sign-in` | Configure providers and role rules; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 
 Tool State reflects the latest cached check for the current credential even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
@@ -126,8 +126,11 @@ See the [capability boundary](safety.md) for current availability.
 
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
+Choose **New role**, enter a name and select **Create role** to open the new role's detail page and choose its tools.
+The roles list marks disabled tools with a grey dot; role detail shows each tool's current state beside its grant checkbox.
+Use the pencil beside the role name to rename it inline.
 User detail combines grants from every assigned role and links each tool to its granting roles.
-User detail and role membership pages distinguish Direct assignments made by an administrator from Rule grants.
+User detail and role membership pages distinguish Direct assignments made by an administrator from rule grants, labelled **Rule** on user detail and **SSO rule** on role detail.
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
 The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for the available provider editor and current SSO limits.
 SSO accounts cannot be given a local password.
@@ -160,7 +163,9 @@ SSO sign-out optionally also visits the provider's discovered end-session endpoi
 After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
-Confirmation dialogs explain consequences before changes; each screen also has expandable help.
+Role creation and rename save without an additional action confirmation dialog; saving tool grants requires confirmation, and deleting an eligible role requires typing its exact name.
+The role's deletion control is disabled while blockers remain and lists their counts.
+Recent identity confirmation still applies to these actions; each screen also has expandable help.
 Timestamps display in the browser's local time, with their UTC value available on hover.
 
 User detail and Account list active browser sessions and CLI token families.
@@ -296,6 +301,8 @@ Denial, expiry or revocation prevents ticket issuance; approval codes are single
 ### Audit screen and API
 
 Audit supports exact request ID, user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
+The screen provides request ID, User, Tool, Event, Outcome and failed-run filters in one row; set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
+Its **24 h** and **7 days** time ranges set From to that long before each page request and clear To; **Custom** shows the inclusive UTC From and To fields, and **Any time** removes the time bounds.
 Use `requestId=<id>` to correlate a call's records.
 Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.
 This filter does not change stored outcomes: a non-zero tool exit can still have outcome `completed`.
@@ -305,13 +312,14 @@ Records contain actor, UTC time, event, outcome, request ID, redacted arguments 
 Each upload accepted by command input validation emits an `upload` event before credential preparation and tool execution.
 Its `arguments` contains the redacted command and file metadata: uploaded leaf name, decoded byte size and server-computed SHA-256, never the original local path or file contents.
 An upload event's `success` outcome records input acceptance, not successful tool execution or a completed upstream write.
-Open an event in the table to inspect every persisted field.
-Terminal row details can also show a separately retained failure diagnostic; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions).
+Select a record in the table to open its detail panel, which shows its key fields and every persisted field.
+The `/admin/audit?record=<id>` link opens a retained record without JavaScript, even if it is outside the current list filters; an absent or expired record shows **Record not found**.
+A terminal record's panel can also show a separately retained failure diagnostic; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions).
 Pagination retains filters; starting a new search includes records inserted after the previous search began.
 
 `GET /v1/admin/audit` exposes the same records; [the API contract](../src/shared/api.ts) owns the accepted filters (`auditFiltersSchema`) and pagination parameters (`adminAuditQuerySchema`).
 Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
-Apply filters, then use **Download CSV** or **Download JSON lines** to export every matching retained record, across all pages.
+Apply filters, then choose **CSV** or **JSON lines** from **Export** to export every matching retained record, across all pages.
 `GET /v1/admin/audit/export?format=csv` (or `format=jsonl`) accepts the same filters, excluding `limit` and `cursor`.
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.

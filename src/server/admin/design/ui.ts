@@ -49,8 +49,9 @@ export function icon(name: IconName): string {
   return `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`
 }
 
-export function pageHeader(title: string, description?: string): string {
-  return `<div class="page-head"><div><h1>${escape(title)}</h1>${description ? `<p>${escape(description)}</p>` : ''}</div></div>`
+// `actions` is trusted markup placed beside the title, such as buttons or an inline editor.
+export function pageHeader(title: string, description?: string, actions = ''): string {
+  return `<div class="page-head"><div><h1>${escape(title)}</h1>${description ? `<p>${escape(description)}</p>` : ''}</div>${actions}</div>`
 }
 
 export function card(title: string, description: string, body: string, options: { actions?: string } = {}): string {
@@ -82,20 +83,11 @@ export function steps(items: { title: string, detail: string, state: StepState, 
   return `<ol class="steps">${items.map((item, index) => `<li class="step ${item.state}${index === current ? ' current' : ''}"${item.attributes ? ' ' + item.attributes : ''}><span class="mark" aria-hidden="true">${item.state === 'done' ? icon('check') : item.state === 'fail' ? icon('x') : index + 1}</span><div><b><span class="sr-only" data-step-state>${stepWords[item.state]}: </span>${escape(item.title)}</b><span>${item.detail}</span></div></li>`).join('')}</ol>`
 }
 
-const tools = {
-  'falcon-axi': ['CrowdStrike Falcon', 'FA'], 'vectra-axi': ['Vectra', 'VE'], 'mg-axi': ['Microsoft Graph', 'MG'], 'ldap-axi': ['LDAP', 'LD'],
-  'az-axi': ['Azure', 'AZ'], 'ado-axi': ['Azure DevOps', 'AD'], 'awx-axi': ['AWX', 'AW'], 'gh-axi': ['GitHub', 'GH'], 'tenable-axi': ['Tenable One', 'TE'],
-  'hybrid-axi': ['Hybrid Analysis', 'HA'], 'checkpoint-axi': ['Check Point Email', 'CP'], 'beyondtrust-axi': ['BeyondTrust PM Cloud', 'BT'],
-} as const
-export type ToolPackage = keyof typeof tools
-
-// Product display names: the one place a package name becomes a product name.
-export function productName(tool: ToolPackage): string {
-  return tools[tool][0]
-}
-
-export function toolIcon(tool: ToolPackage, size: 'sm' | 'lg' = 'sm'): string {
-  return `<span class="tool-ico${size === 'lg' ? ' lg' : ''}" aria-hidden="true">${tools[tool][1]}</span>`
+// A list footer: a summary on the left and cursor links on the right; a null href is the current end.
+export function pager(summary: string, links: { label: string, href: string | null }[]): string {
+  return `<div class="card-foot"><span>${escape(summary)}</span><nav class="actions" aria-label="Pages">${links.map(link => link.href === null
+    ? `<span class="btn btn-secondary btn-sm" aria-disabled="true">${escape(link.label)}</span>`
+    : `<a class="btn btn-secondary btn-sm" href="${escape(link.href)}">${escape(link.label)}</a>`).join('')}</nav></div>`
 }
 
 export interface Viewer {
@@ -113,6 +105,9 @@ export interface Viewer {
 
 export interface Page {
   title: string
+  // A detail page names its record in the h1 and crumbs while `title` keeps naming the screen.
+  heading?: string
+  actions?: string
   description?: string
   // Replaces the default page header, for identity headers that still hold the page's only h1.
   header?: string
@@ -134,15 +129,17 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
 
 const brand = (href: string) => `<a class="brand" href="${href}"><span class="logo" aria-hidden="true">A</span>Artium</a>`
 
-function initials(name: string): string {
+// Initials are decorative; the name is always adjacent text.
+export function avatar(name: string): string {
   const words = name.trim().split(/\s+/)
-  return (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
+  const initials = (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
+  return `<span class="avatar" aria-hidden="true">${escape(initials)}</span>`
 }
 
 function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down'): string {
   const role = viewer.administrator && !viewer.mustChange ? ' · Admin' : ''
   const links = viewer.mustChange ? '' : `<a href="/account"${path === '/account' ? ' aria-current="page"' : ''}>${icon('user')}Your account</a>${viewer.local ? `<a href="/password"${path === '/password' ? ' aria-current="page"' : ''}>${icon('key')}Change password</a>` : ''}<hr>`
-  return `<details class="account-menu ${placement}"><summary><span class="avatar" aria-hidden="true">${escape(initials(viewer.name))}</span><span class="who"><span class="sr-only">Signed in as </span><strong>${escape(viewer.name)}</strong><span>${escape(viewer.method + role)}</span></span>${icon('chevd')}</summary>
+  return `<details class="account-menu ${placement}"><summary>${avatar(viewer.name)}<span class="who"><span class="sr-only">Signed in as </span><strong>${escape(viewer.name)}</strong><span>${escape(viewer.method + role)}</span></span>${icon('chevd')}</summary>
     <div class="popover">${links}<form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button class="btn btn-ghost btn-sm">${icon('logout')}Sign out</button></form></div></details>`
 }
 
@@ -162,16 +159,18 @@ function reauthPill(viewer: Viewer): string {
 }
 
 function dialogs(viewer: Viewer): string {
-  const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p></div><div class="modal-foot"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed">Confirm change</button></div></form></dialog>`
+  const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><label data-confirm-name-field hidden>Type <strong data-confirm-name></strong> to confirm<input data-confirm-name-input autocomplete="off" spellcheck="false"></label></div><div class="modal-foot"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed" data-confirm-button>Confirm change</button></div></form></dialog>`
   if (!viewer.administrator || viewer.mustChange) return confirmation
   return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title">${viewer.sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${viewer.sso ? 'Confirm your identity with your provider in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><label>Password <input name="password" type="password" autocomplete="current-password" required></label></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-secondary" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
 }
 
 const message = '<p id="message" class="message" role="alert" tabindex="-1"></p>'
+// Tier-1 results: confirm.js shows the saved action's message here after the page reloads.
+const toast = '<p class="toast" role="status" data-toast></p>'
 
 export function appShell(page: Page): string {
   const { viewer } = page
-  const head = page.header ?? pageHeader(page.title, page.description)
+  const head = page.header ?? pageHeader(page.heading ?? page.title, page.description, page.actions)
   if (!viewer) {
     return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${brand('/login')}${head}${message}${page.content}</div>
       <details class="page-help auth-help"><summary>Help with ${escape(page.title.toLowerCase())}</summary>${page.help}</details></div></main>`
@@ -187,10 +186,11 @@ export function appShell(page: Page): string {
     group = item.group
     return `${label}<a class="nav-item" href="${item.href}"${item === active ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}</a>`
   }).join('')
-  const crumbs = `<p class="crumbs">${active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span><span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.title)}</strong></p>`
+  const parent = page.heading && active ? `<a href="${active.href}">${escape(active.label)}</a>` : active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span>` : ''
+  const crumbs = `<p class="crumbs">${parent ? `${parent}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.heading ?? page.title)}</strong></p>`
   return `<a class="skip" href="#main">Skip to content</a><div class="app">
     <div class="side" id="nav"><div class="side-head">${brand('/admin')}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
       <nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up')}</div></div>
     <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${reauthPill(viewer)}${learn(page.title, page.help)}</div></header>
-      <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
+      <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${toast}${dialogs(viewer)}${sprite}`
 }

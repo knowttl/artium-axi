@@ -10,8 +10,8 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
 import { adminRead, changed, timestamp } from './forms.js'
 import { credentialFields, editorProfile } from './credential-form.js'
-import { badge, toolState, writes as writesState } from './design/status.js'
-import { callout, card, icon, noteCard, productName, steps, tabs, toolIcon } from './design/ui.js'
+import { setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
+import { callout, card, icon, noteCard, steps, tabs } from './design/ui.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
@@ -92,16 +92,16 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const query = request.query as { show?: string, q?: string }
     const show = query.show === 'enabled' || query.show === 'attention' ? query.show : 'all'
     const search = typeof query.q === 'string' ? query.q.trim() : ''
-    const rows = tools.map((tool, index) => ({ tool, state: toolState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health }) }))
+    const rows = tools.map((tool, index) => ({ tool, state: toolSetupState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health }) }))
     const attention = (row: typeof rows[number]) => row.state === 'failing' || row.state === 'needsCredential'
     const counts = { all: rows.length, enabled: rows.filter(row => row.tool.enabled).length, attention: rows.filter(attention).length }
     const visible = rows.filter(row => (show === 'all' || (show === 'enabled' ? row.tool.enabled : attention(row)))
-      && (!search || `${productName(row.tool.name)} ${row.tool.name}`.toLowerCase().includes(search.toLowerCase())))
+      && (!search || `${toolProducts[row.tool.name].name} ${row.tool.name}`.toLowerCase().includes(search.toLowerCase())))
     const link = (value: string) => '/admin/tools' + (value === 'all' ? '' : '?show=' + value) + (search ? `${value === 'all' ? '?' : '&'}q=${encodeURIComponent(search)}` : '')
     const filters = `<form class="filters" method="get" action="/admin/tools" data-filters><div class="seg" role="group" aria-label="Show">${(['all', 'enabled', 'attention'] as const).map(value =>
       `<a href="${escape(link(value))}"${show === value ? ' aria-current="page"' : ''}>${{ all: 'All', enabled: 'Enabled', attention: 'Needs attention' }[value]} ${counts[value]}</a>`).join('')}</div>${show === 'all' ? '' : `<input type="hidden" name="show" value="${show}">`}<label class="search narrow"><span class="sr-only">Filter tools</span>${icon('search')}<input type="search" name="q" value="${escape(search)}" placeholder="Filter tools"></label></form>`
-    const body = visible.map(({ tool, state }) => `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><a href="/admin/tools/${tool.name}">${escape(productName(tool.name))}</a><span>${escape(tool.name)} · ${escape(tool.version)}</span></div></div></td>
-      <td data-label="State">${badge(state)}</td><td data-label="Enabled" class="muted"><span class="row"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>${tool.enabled ? 'On' : 'Off'}</span></td>
+    const body = visible.map(({ tool, state }) => `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><a href="/admin/tools/${tool.name}">${escape(toolProducts[tool.name].name)}</a><span>${escape(tool.name)} · ${escape(tool.version)}</span></div></div></td>
+      <td data-label="State">${setupBadge(state)}</td><td data-label="Enabled" class="muted"><span class="row"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>${tool.enabled ? 'On' : 'Off'}</span></td>
       <td data-label="Writes">${writesState({ capable: tool.writeAccess.capable, enabled: !tool.readOnly, operations: tool.writeAccess.supportedOperations ? tool.writeAccess.allowedOperations.length : null }, 'status')}</td>
       <td data-label="Roles" class="muted">${roles.get(tool.name) ?? 0}</td><td data-label="Last checked" class="num faint">${timestamp(tool.health.checkedAt, 'Never')}</td></tr>`).join('')
     const table = `<section class="card"><table class="tbl stack-sm"><caption class="sr-only">Tools</caption><thead><tr><th scope="col">Tool</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col">Writes</th><th scope="col">Roles</th><th scope="col" class="num">Last checked</th></tr></thead><tbody>${body}</tbody></table>${visible.length ? '' : '<p class="empty">No tools match these filters. <a href="/admin/tools">Show all tools</a>.</p>'}</section>`
@@ -122,14 +122,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const tool = await adminRead(app, request, api, adminToolRoutes.get.response)
     const credential = await adminRead(app, request, api + '/credential', adminToolRoutes.credential.response)
     const csrf = reply.generateCsrf()
-    const product = productName(tool.name)
+    const product = toolProducts[tool.name].name
     // Forms keep today's API, CSRF token, revision and confirmation; buttons sit wherever the card needs them.
     const formStart = (action: string, method: string, confirmation: string, attributes = '', className = '') =>
       `<form${className ? ` class="${className}"` : ''} data-api data-method="${method}" data-confirm="${escape(confirmation)}"${attributes ? ' ' + attributes : ''} action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">`
     const revisionInputs = (credentialRevision: number) => `<input type="hidden" name="expectedRevision" data-type="number" value="${credentialRevision}"><input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
     const roles = db.prepare(`SELECT roles.id, roles.name, (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
       FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, members: number }[]
-    const state = toolState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
+    const state = toolSetupState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
     const tested = state === 'healthy'
     const failing = state === 'failing'
     const writes = tool.writeAccess
@@ -139,8 +139,8 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const test = formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
     const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +
       `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}"><button class="toggle" role="switch" aria-checked="${tool.enabled}"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>Enabled</button></form>`
-    const header = `<div class="page-head identity">${toolIcon(tool.name, 'lg')}<div class="grow"><h1>${escape(product)}</h1><div class="row meta"><span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span data-tool-state>${badge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked <span data-check-time>${timestamp(tool.health.checkedAt, 'never')}</span></span></div></div><div class="actions">${test}${enable}</div></div>
-      <template data-state="ok">${badge('healthy')}</template><template data-state="error">${badge('failing')}</template>`
+    const header = `<div class="page-head identity">${toolIcon(tool.name, 'lg')}<div class="grow"><h1>${escape(product)}</h1><div class="row meta"><span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span data-tool-state>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked <span data-check-time>${timestamp(tool.health.checkedAt, 'never')}</span></span></div></div><div class="actions">${test}${enable}</div></div>
+      <template data-state="ok">${setupBadge('healthy')}</template><template data-state="error">${setupBadge('failing')}</template>`
 
     const definition = tool.health.errorCode && tool.health.errorCode in errors ? errors[tool.health.errorCode as keyof typeof errors] : undefined
     const failure = callout('err', 'Last test failed', `<p data-check-summary>${escape(tool.health.diagnostic?.message ?? definition?.message ?? '')} ${escape(tool.health.diagnostic?.hint ?? definition?.next ?? '')}</p><p>Agents calling this tool get <code data-check-error>${escape(tool.health.errorCode ?? '')}</code>.${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ` Review the endpoint on <a href="?tab=certificates">Certificates</a>.` : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(tool.health.diagnostic))}</pre></details>`,
@@ -173,7 +173,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           ${device ? `<p>Connected account: <strong>${escape(credential.metadata.login)}</strong>. ${credential.metadata.accessTokenExpiresAt ? 'Provider expiry: ' + timestamp(Number(credential.metadata.accessTokenExpiresAt)) : 'No scheduled expiry.'}</p>` : ''}
           ${tool.health.errorCode === 'CREDENTIAL_EXPIRED' ? callout('err', 'The credential expired or was revoked', '<p>Reconnect below.</p>', { role: 'alert' }) : ''}
           ${formStart(githubDeviceRoutes.start.path, 'POST', 'Connect a shared GitHub account with repo, read:org, gist, workflow and project scopes? This replaces the deployment credential after authorization.', 'data-connect-github')}${revisionInputs(credential.revision)}<label>GitHub HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? 'https://github.com')}"></label><button class="btn btn-secondary">${icon('link')}${device ? 'Reconnect with GitHub' : 'Connect with GitHub'}</button></form>
-          <div class="stack" data-github-authorization hidden><p>Open <a data-github-link target="_blank" rel="noopener noreferrer"></a> and enter:</p><div class="bigcode" data-github-code></div><p data-github-status role="status"></p><div><button type="button" class="btn btn-ghost btn-sm" data-cancel-github>Cancel connection</button></div></div>
+          <div class="column" data-github-authorization hidden><p>Open <a data-github-link target="_blank" rel="noopener noreferrer"></a> and enter:</p><div class="bigcode" data-github-code></div><p data-github-status role="status"></p><div><button type="button" class="btn btn-ghost btn-sm" data-cancel-github>Cancel connection</button></div></div>
           <p>Alternatively, choose token or github-app below to replace the credential using another method.</p></div></section>`
       }
       if (awx) {
@@ -185,7 +185,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         <div class="card-foot"><label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label><div class="actions"><button class="btn btn-primary btn-sm">Save connection</button></div></div></form>`
       const aside = noteCard('What the test does', `<p>Runs one harmless read: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
         noteCard('Keeping secrets', '<p>Leave a stored secret blank to keep it. Changing authentication, mode, kind, tenant, client or URL needs new secrets.</p>') + (credential.configured ? changed(db, credential) : '')
-      panel = `<div class="grid2"><div class="stack">${main}</div><div class="stack">${aside}</div></div>`
+      panel = `<div class="split has-aside"><div class="column">${main}</div><div class="column">${aside}</div></div>`
     } else if (tab === 'writes') {
       panel = writesPanel()
     } else if (tab === 'certificates') {
@@ -209,7 +209,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     function writesPanel(): string {
       const blocked = noteCard('Always blocked', `<p>${escape(writes.blocked)}</p>`)
       if (!writes.capable) {
-        return `<div class="grid2" data-write-access><div class="stack">${card('Always read-only', `${product} cannot change data through Artium.`, `<div class="card-body"><p>${escape(writes.reason ?? 'No write actions.')}</p><p>No write actions are currently granted.</p></div>`)}</div><div class="stack">${blocked}</div></div>`
+        return `<div class="split has-aside" data-write-access><div class="column">${card('Always read-only', `${product} cannot change data through Artium.`, `<div class="card-body"><p>${escape(writes.reason ?? 'No write actions.')}</p><p>No write actions are currently granted.</p></div>`)}</div><div class="column">${blocked}</div></div>`
       }
       const deletes = (tool.nativeSettings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes === true
       let switches = `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="enabled" data-type="boolean"${writes.enabled ? ' checked' : ''}><div><b>${awx ? 'Operational actions' : 'Allow writes'}</b><span>${writes.enabled ? 'On.' : 'Off.'} ${awx ? 'Launch, relaunch, cancel, sync, approvals and notification tests.' : `Agents can only read from ${escape(product)} while this is off.${writes.supportedOperations ? ' Turning it on allows only the operations you select below.' : ''}`}</span></div></label>`
@@ -222,14 +222,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const save = '<div class="actions"><button class="btn btn-primary btn-sm">Save write permissions</button></div>'
       let form: string
       if (writes.supportedOperations) {
-        form = formStart(api + '/write-access', 'PATCH', confirmation, '', 'stack') + `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}">` +
+        form = formStart(api + '/write-access', 'PATCH', confirmation, '', 'column') + `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}">` +
           `<section class="card"><div class="card-body">${switches}</div></section>` + operationsCard(writes.supportedOperations, save) + '</form>'
       } else {
         form = formStart(api + '/write-access', 'PATCH', confirmation, '', 'card') + `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}">` +
           `<div class="card-body">${switches}</div><div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span>${save}</div></form>`
       }
       const warning = callout('warn', 'Read before enabling', `<p>${escape(writes.unlocks)}</p>`)
-      return `<div class="grid2" data-write-access><div class="stack">${unsupported}${form}${grant}</div><div class="stack">${blocked}${warning}</div></div>`
+      return `<div class="split has-aside" data-write-access><div class="column">${unsupported}${form}${grant}</div><div class="column">${blocked}${warning}</div></div>`
     }
 
     function operationsCard(supported: readonly string[], save: string): string {
@@ -256,7 +256,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           <div class="ops-body">${group.operations.map(operation => `<label class="op" data-op="${escape(`${operation.label} ${operation.name}`.toLowerCase())}"${operation.risk.includes('delete') ? ' data-delete' : ''}${matches(operation) ? '' : ' hidden'}><input type="checkbox" name="operations" data-type="array" value="${escape(operation.name)}"${selected.has(operation.name) ? ' checked' : ''}><span>${escape(operation.label)}</span>${operation.label === operation.name ? '' : `<code>${escape(operation.name)}</code>`}${operation.risk.includes('delete') ? '<span class="badge err">Delete</span>' : ''}${operation.risk.includes('bulk') ? '<span class="badge warn">Bulk</span>' : ''}</label>`).join('')}</div></details>`
       }).join('')
       return `<section class="card"><div class="card-head"><div><h2>Allowed operations</h2><p>${selected.size} of ${supported.length} selected. Unselected operations stay blocked. At least one is required to turn writes on.${familyNote}</p></div></div>
-        <div class="card-body stack">${filters}<div class="ops">${body}</div><p class="ops-empty" data-ops-empty${groups.some(group => group.operations.some(matches)) ? ' hidden' : ''}>No operations match this filter.</p></div>
+        <div class="card-body column">${filters}<div class="ops">${body}</div><p class="ops-empty" data-ops-empty${groups.some(group => group.operations.some(matches)) ? ' hidden' : ''}>No operations match this filter.</p></div>
         <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span>${save}</div></section>`
     }
 

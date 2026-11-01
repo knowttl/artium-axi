@@ -382,7 +382,7 @@ The browser temporarily holds the save-and-test result in session storage to dis
 After upgrading, cached categories removed from the error catalogue are ignored; rerun Test connection for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
 Failed tool runs, including credential-test and background health-check runs, separately retain the available exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
-The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal audit row's details at `/admin/audit`; it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
+The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal record's [audit detail panel](admin-guide.md#audit-screen-and-api); it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
 Diagnostics containing a known secret are discarded in full; exact-value scanning cannot identify unknown upstream-minted tokens or all sensitive data.
 Expired diagnostics are hidden immediately and removed by startup and daily retention; protect database backups separately because retention does not rewrite existing backups.
 Ordinary users receive catalogue categories without this administrator detail.
