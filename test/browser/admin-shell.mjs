@@ -505,18 +505,21 @@ test('credential diagnostics show the admission failure before saving', () => {
   `)
 })
 
-test('disabled tool retains a failed credential test after switching tabs', () => {
+test('disabled tool retains cached test outcomes after switching tabs', () => {
   browser(`
-    await page.open(base + '/admin/tools/falcon-axi');
+    await page.open(base + '/admin/tools/vectra-axi');
     check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Tool must start disabled');
-    await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
-    await page.fill('[data-profile-field="clientSecret"]', 'CANARY-invalid');
-    await page.fill('[data-profile-field="region"]', 'us-1');
+    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
+      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    }
+    await page.fill('[data-profile-field=origin]', base);
+    await page.fill('[data-profile-field=token]', 'CANARY-cached-test');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
     const error = await page.eval(() => document.querySelector('[data-check-error]').textContent);
+    check(error === 'UPSTREAM_TLS_FAILED', 'Loopback fixture must fail on its untrusted certificate');
     const diagnostic = await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.trim());
     check(diagnostic.length > 0, 'Failure must explain the error');
     await page.click('nav.utabs a[href="?tab=access"]');
@@ -528,9 +531,29 @@ test('disabled tool retains a failed credential test after switching tabs', () =
     check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Failing')), 'Detail badge lost the failure');
     check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.includes('Failing:')), 'Setup lost the failed outcome');
     check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Testing enabled the tool');
+    await page.open(base + '/admin/tools');
+    await page.wait('tbody a[href="/admin/tools/vectra-axi"]');
+    check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/vectra-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Failing')), 'List lost the failed outcome');
     await page.open(base + '/admin/tools?show=attention');
-    await page.wait('tbody a[href="/admin/tools/falcon-axi"]');
-    check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/falcon-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Failing')), 'Needs attention lost the failed disabled tool');
+    await page.wait('tbody a[href="/admin/tools/vectra-axi"]');
+    check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/vectra-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Failing')), 'Needs attention lost the failed disabled tool');
+    await page.eval(async () => {
+      const response = await fetch('/test/trust-ca', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not install the fixture CA');
+    });
+    await page.open(base + '/admin/tools/vectra-axi');
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Loopback test did not pass after trust');
+    await page.click('nav.utabs a[href="?tab=access"]');
+    await page.wait('nav.utabs a[href="?tab=access"][aria-current=page]');
+    check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Healthy')), 'Detail lost the successful outcome');
+    check(await page.eval(() => document.querySelector('[data-check-failure]').hidden), 'Successful test retained the failure callout');
+    check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.includes('Passed')), 'Setup lost the successful outcome');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Successful test enabled the tool');
+    await page.open(base + '/admin/tools');
+    await page.wait('tbody a[href="/admin/tools/vectra-axi"]');
+    check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/vectra-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Healthy')), 'List lost the successful outcome');
   `)
 })
 

@@ -92,7 +92,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const query = request.query as { show?: string, q?: string }
     const show = query.show === 'enabled' || query.show === 'attention' ? query.show : 'all'
     const search = typeof query.q === 'string' ? query.q.trim() : ''
-    const rows = tools.map((tool, index) => ({ tool, state: toolState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health.errorCode ? 'error' : tool.health.status }) }))
+    const rows = tools.map((tool, index) => ({ tool, state: toolState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health }) }))
     const attention = (row: typeof rows[number]) => row.state === 'failing' || row.state === 'needsCredential'
     const counts = { all: rows.length, enabled: rows.filter(row => row.tool.enabled).length, attention: rows.filter(attention).length }
     const visible = rows.filter(row => (show === 'all' || (show === 'enabled' ? row.tool.enabled : attention(row)))
@@ -129,12 +129,12 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const revisionInputs = (credentialRevision: number) => `<input type="hidden" name="expectedRevision" data-type="number" value="${credentialRevision}"><input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
     const roles = db.prepare(`SELECT roles.id, roles.name, (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
       FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, members: number }[]
-    const tested = Boolean(db.prepare(`SELECT 1 FROM tool_health WHERE tool = ? AND credential_revision = ? AND status = 'ok'`).get(tool.name, credential.revision))
-    const failing = Boolean(tool.health.errorCode)
+    const state = toolState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
+    const tested = state === 'healthy'
+    const failing = state === 'failing'
     const writes = tool.writeAccess
     const awx = tool.name === 'awx-axi'
     const configurationWrites = awx && tool.nativeSettings.allowConfigurationWrites === true
-    const state = toolState({ enabled: tool.enabled, configured: credential.configured, health: failing ? 'error' : tool.health.status })
 
     const test = formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
     const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +

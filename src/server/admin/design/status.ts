@@ -36,10 +36,10 @@ function operationsOn(count: number, form: 'badge' | 'status'): string {
 }
 
 // The next missing link of a tool's setup, then its health.
-export function toolState(tool: { enabled: boolean, configured: boolean, health: string }): StatusName {
+export function toolState(tool: { enabled: boolean, configured: boolean, health: { errorCode: string | null, checkedAt: number | null } }): StatusName {
   if (!tool.configured) return tool.enabled ? 'needsCredential' : 'notSetUp'
-  if (tool.health === 'error') return 'failing'
-  if (tool.health === 'ok') return 'healthy'
+  if (tool.health.errorCode) return 'failing'
+  if (tool.health.checkedAt !== null) return 'healthy'
   return 'readyToTest'
 }
 

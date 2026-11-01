@@ -242,7 +242,6 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .callout b { display: block; margin-bottom: 2px; font-weight: 600; }
 .callout p { margin: 0; color: var(--text-muted); }
 .callout p + p { margin-top: 6px; }
-.callout .actions { margin-left: auto; display: flex; flex: none; align-items: flex-start; gap: 8px; }
 .callout details { margin: 8px 0 0; padding: 0; border: 0; }
 .callout pre { margin: 8px 0 0; background: var(--bg); }
 .callout.info { background: var(--info-soft); border-color: var(--info-border); }

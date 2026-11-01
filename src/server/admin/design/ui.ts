@@ -53,8 +53,8 @@ export function pageHeader(title: string, description?: string): string {
   return `<div class="page-head"><div><h1>${escape(title)}</h1>${description ? `<p>${escape(description)}</p>` : ''}</div></div>`
 }
 
-export function card(title: string, description: string, body: string, options: { actions?: string, foot?: string } = {}): string {
-  return `<section class="card"><div class="card-head"><div><h2>${escape(title)}</h2><p>${escape(description)}</p></div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}${options.foot ? `<div class="card-foot">${options.foot}</div>` : ''}</section>`
+export function card(title: string, description: string, body: string, options: { actions?: string } = {}): string {
+  return `<section class="card"><div class="card-head"><div><h2>${escape(title)}</h2><p>${escape(description)}</p></div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}</section>`
 }
 
 // A compact card for side guidance: a small heading and short text, no header bar.
@@ -65,9 +65,9 @@ export function noteCard(title: string, body: string): string {
 export type Tone = 'ok' | 'warn' | 'err' | 'info'
 
 // Results use role="status"; blocking errors pass role "alert".
-export function callout(tone: Tone, title: string, body: string, options: { actions?: string, role?: 'status' | 'alert', attributes?: string } = {}): string {
+export function callout(tone: Tone, title: string, body: string, options: { role?: 'status' | 'alert', attributes?: string } = {}): string {
   const glyph: IconName = tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert'
-  return `<div class="callout ${tone}"${options.role ? ` role="${options.role}"` : ''}${options.attributes ? ' ' + options.attributes : ''}>${icon(glyph)}<div class="grow"><b>${escape(title)}</b>${body}</div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>`
+  return `<div class="callout ${tone}"${options.role ? ` role="${options.role}"` : ''}${options.attributes ? ' ' + options.attributes : ''}>${icon(glyph)}<div class="grow"><b>${escape(title)}</b>${body}</div></div>`
 }
 
 // Tabs are links, so each tab is its own server-rendered view.

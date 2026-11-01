@@ -63,9 +63,9 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Page header | `pageHeader()`: `.page-head` | title, optional one-line description | The page's only `h1` |
 | Button | `.btn` with `.btn-primary`, `.btn-secondary` or `.btn-ghost`; `.btn-sm`, `.btn-icon` | default, hover, focus, disabled | Icon-only buttons need `aria-label` |
 | Identity page header | `Page.header` with `.page-head.identity`, `toolIcon(tool, 'lg')`, `.meta` | icon, title, badges, actions | Still the page's only `h1` |
-| Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`; `noteCard()` for compact side guidance | plain, head actions, footer actions; a `form.card` saves on its own | `h2` per card, `h3` in a note card |
+| Card | `card()`: `.card`, `.card-head`, `.card-body`; `noteCard()` for compact side guidance | plain, head actions; a `form.card` saves on its own with `.card-foot` for footer actions | `h2` per card, `h3` in a note card |
 | Badge and status | `badge()` and `status()` from `status.ts`: `.badge`, `.status`, `.dot` | ok, warn, err, info, neutral | The word is always present; the dot or icon is decorative |
-| Callout | `callout()`: `.callout` with `.ok`, `.warn`, `.err`, `.info` | with optional actions | `role="status"` for results, `role="alert"` only for blocking errors |
+| Callout | `callout()`: `.callout` with `.ok`, `.warn`, `.err`, `.info` | | `role="status"` for results, `role="alert"` only for blocking errors |
 | Tabs | `tabs()`: `nav.utabs` | current, with a note or count | Links with `?tab=`, `aria-current="page"`; each tab is its own server-rendered view |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Table | `.tbl`, `.cell-main`, `.num`; add `.stack-sm` for stacked rows on narrow screens | row link in the first cell | Real `<table>` with `th scope`; stacked cells label themselves from `data-label` |
