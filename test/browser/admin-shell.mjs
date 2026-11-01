@@ -373,6 +373,13 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.click('main a[href="/admin/audit"]');
     await page.wait('[name=event]');
     check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
+    await page.open(base + '/admin/audit?failed=1&range=7d');
+    await page.eval(() => { const tool = document.querySelector('[name=tool]'); tool.value = 'falcon-axi'; tool.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.wait('.filter.set [name=tool]');
+    check(await page.eval(() => {
+      const query = new URLSearchParams(location.search);
+      return query.get('tool') === 'falcon-axi' && query.get('failed') === '1' && query.get('range') === '7d';
+    }), 'Changing a dropdown lost the failed-run filter or time preset');
   `)
 })
 
@@ -927,6 +934,7 @@ test('cancelled reauth preserves the draft and does not create a role', async ()
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles');
+    await page.click('.page-head [data-open-dialog=new-role]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic cancelled role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');

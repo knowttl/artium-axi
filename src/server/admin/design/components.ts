@@ -327,7 +327,7 @@ dialog.danger h2 { color: var(--err); }
   .topbar { padding: 0 var(--gutter); }
   .page-head { flex-wrap: wrap; }
   .account-menu.down .who { display: none; }
-  .crumbs span, .learn .label { display: none; }
+  .crumbs span, .crumbs > a, .learn .label { display: none; }
   .list-row { flex-wrap: wrap; }
   .list-row .btn { margin-left: 36px; }
   .card.danger .list-row .btn { margin-left: 0; }

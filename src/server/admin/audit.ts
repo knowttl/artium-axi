@@ -78,7 +78,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       ${chip('tool', 'Tool', toolSchema.options.map(tool => ({ value: tool, text: tool })))}
       ${chip('event', 'Event', distinct('event', query.data.event).map(event => ({ value: event, text: event })))}
       ${chip('outcome', 'Outcome', distinct('outcome', query.data.outcome).map(outcome => ({ value: outcome, text: outcome })))}
-      ${errorCode}${range === 'custom' ? '<input type="hidden" name="range" value="custom">' : ''}${query.data.limit !== 50 ? `<input type="hidden" name="limit" value="${query.data.limit}">` : ''}
+      ${errorCode}${range ? `<input type="hidden" name="range" value="${range}">` : ''}${query.data.failed ? `<input type="hidden" name="failed" value="${query.data.failed}">` : ''}${query.data.limit !== 50 ? `<input type="hidden" name="limit" value="${query.data.limit}">` : ''}
       ${custom ? `<span class="range-fields"><label for="audit-from">From (UTC)</label><input id="audit-from" name="from" value="${escape(query.data.from ?? '')}" placeholder="2026-01-01T00:00:00Z">
         <label for="audit-to">To (UTC)</label><input id="audit-to" name="to" value="${escape(query.data.to ?? '')}" placeholder="2026-01-31T23:59:59Z"></span>` : ''}
       <button class="btn btn-secondary btn-sm"${custom ? '' : ' data-filters-apply'}>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/audit">Clear filters</a>' : ''}</form>`
