@@ -1,4 +1,4 @@
-// Component classes from docs/design-system.md. Values come only from tokens.ts.
+// Component classes from docs/design-system.md. Colours and shared design values come from tokens.ts.
 export const components = `
 *, *::before, *::after { box-sizing: border-box; }
 html, body { background: var(--bg); }

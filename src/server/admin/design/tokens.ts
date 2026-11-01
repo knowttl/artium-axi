@@ -1,4 +1,4 @@
-// The only place a colour, size, radius, shadow or font value may appear. See docs/design-system.md.
+// Colour values and shared design tokens. See docs/design-system.md for UI rules.
 export const tokens = `
 :root {
   color-scheme: light;

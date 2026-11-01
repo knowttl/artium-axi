@@ -8,8 +8,8 @@ This document is the reference for every current and future screen.
 
 | File | Owns |
 | --- | --- |
-| `src/server/admin/design/tokens.ts` | Every colour, size, radius, shadow and font, for light and dark. The only place these values appear. |
-| `src/server/admin/design/components.ts` | Component classes, using tokens only, plus base element styles for content that has no component yet. |
+| [tokens.ts](../src/server/admin/design/tokens.ts) | All colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
+| `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
 | `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the app shell and the icon sprite. |
 
 `adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
@@ -43,10 +43,10 @@ Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and statu
 - Actions: `--primary`, `--primary-hover`, `--primary-fg`, `--danger-solid`, `--focus`.
 - Status: `--ok`, `--warn`, `--err`, `--info`, each with `-soft` and `-border`.
 - Elevation, used only by floating layers: `--shadow-pop`, `--overlay`.
-- Type: `--font`, `--mono`, and sizes `--fs-xs` 12, `--fs-sm` 13, `--fs-base` 14, `--fs-md` 16, `--fs-lg` 20, `--fs-xl` 24.
+- Type: `--font`, `--mono`, and sizes `--fs-xs`, `--fs-sm`, `--fs-base`, `--fs-md`, `--fs-lg`, `--fs-xl`; values are defined in `tokens.ts`.
 - Shape and layout: `--r-sm`, `--r-md`, `--r-lg`, `--r-full`, `--ctl-h`, `--ctl-h-sm`, `--side-w`, `--content-max`, `--content-narrow`, `--aside-w`, `--topbar-h`, `--gutter`.
 
-Spacing uses a 4px grid.
+Use a 4px spacing grid for new components.
 Motion is limited to 120ms colour and background transitions, and none under `prefers-reduced-motion`.
 Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16px.
 
@@ -74,7 +74,7 @@ Elements that no component covers yet (sections, tables, forms, fieldsets and pl
 
 The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Audit log).
 The current section is derived from the request path.
-Below 760px the sidebar collapses behind a menu button in the top bar and opens full screen.
+At 760px and narrower the sidebar collapses behind a menu button in the top bar and opens full screen.
 
 ## Changing the UI
 
