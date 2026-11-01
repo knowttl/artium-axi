@@ -1,6 +1,6 @@
 import { escape } from '../escape.js'
 
-// The status vocabulary from docs/design-system.md: one word per state, rendered only here.
+// Authoritative status labels and tones; render through badge() or status().
 type Dot = 'ok' | 'warn' | 'err' | 'info' | 'off'
 const states = {
   'provider-enabled': { word: 'Enabled', dot: 'ok' },

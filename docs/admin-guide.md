@@ -120,7 +120,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
 | `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
-For users granted Hybrid Analysis, Check Point or Microsoft Graph, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving) and [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving), and metadata for their latest 20 transfers, including delivery and client-save receipts.
+For users granted Hybrid Analysis, Check Point, Microsoft Graph or BeyondTrust, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving), [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving) and [BeyondTrust endpoint content](client-reference.md#beyondtrust-pm-cloud), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
 See the [capability boundary](safety.md) for current availability.
 
@@ -146,7 +146,8 @@ Session revocation and administration changes commit with their audit records.
 After 15 minutes without identity confirmation, administration mutations require reauthentication.
 See [credential certificate trust](runbook.md#trusting-one-tool-from-the-administration-ui) for the administration UI's inspection, trust modes, rotation and network-path warning.
 Administration screens share a sidebar; ordinary users get a top bar only.
-Signed-in screens have an account menu showing identity and sign-in source, with links to your account and sign-out.
+Signed-in dashboard screens have an account menu showing identity and sign-in source, with links to your account and sign-out.
+Signed-in authentication cards instead show your identity and a sign-out control below the card.
 On administration screens, the top bar also shows the remaining confirmation window: "Changes unlocked" with the minutes left, or "Changes locked".
 Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
 SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
@@ -157,6 +158,7 @@ Keep the original window open; drafts, including credential fields, remain there
 Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.
 SSO sign-out optionally also visits the provider's discovered end-session endpoint, when supported.
+Select **Also sign out of your identity provider** in the account menu or below a signed-in authentication card to request it; the checkbox starts unchecked.
 After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
