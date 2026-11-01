@@ -339,10 +339,10 @@ test('Falcon discovery and health expose the enabled execution switch', async ()
     cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
-  const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi',
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?tab=writes',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain('Writes enabled')
+  expect(page.body).toContain('1 operation on')
   expect(page.body).toContain('RTR read-only command execution')
 })
 
@@ -604,7 +604,7 @@ test.each([
     expect(saas).toContain('<p>One non-blank SaaS application name for the tenant, not a gateway, host or authentication URL;')
     expect(saas).toContain(' Default: office365_emails.</p>')
     const downloads = /<div data-credential-field="downloads">(.*?)<\/div>/s.exec(page.body)![1]!
-    expect(downloads).toContain('<p>Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected. Default: {&quot;allow&quot;:false}.</p>')
+    expect(downloads).toContain('<p>Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected. Default: {&quot;allow&quot;:false}.</p>')
   }
 })
 
@@ -621,7 +621,7 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
   const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/vectra-axi', '/admin/roles']) {
+  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/vectra-axi', '/admin/tools/vectra-axi?tab=writes', '/admin/roles']) {
     const page = await app.inject({ method: 'GET', url: path, headers: { cookie } })
     expect(page.statusCode).toBe(200)
     expect(page.headers['cache-control']).toBe('no-store')
@@ -629,7 +629,7 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
     expect(page.body).not.toContain(values['falcon-axi'].clientSecret)
     expect(page.body).not.toContain(values['vectra-axi'].token)
     expect(page.body).not.toContain(values['az-axi'].clientSecret)
-    if (path === '/admin/tools/vectra-axi') {
+    if (path === '/admin/tools/vectra-axi?tab=writes') {
       expect(page.body).toContain('host/account close closes all active detections with no single inverse')
       expect(page.body).toContain('group delete orphans triage rule references')
       expect(page.body).toContain('syslog/Kafka redirects detection export (data egress)')
@@ -644,12 +644,12 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
     if (path === '/admin/tools/az-axi') {
       const forms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/az-axi"[^>]*>[\s\S]*?<\/form>/g)!
       expect(forms).toEqual(expect.arrayContaining([expect.stringContaining(
-        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
+        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button class="toggle" role="switch" aria-checked="${enabled}">`)]))
     }
     if (path === '/admin/tools/mg-axi') {
       const graphForms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/mg-axi"[^>]*>[\s\S]*?<\/form>/g)!
       expect(graphForms).toEqual(expect.arrayContaining([expect.stringContaining(
-        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button>${enabled ? 'Disable tool' : 'Enable tool'}</button>`)]))
+        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button class="toggle" role="switch" aria-checked="${enabled}">`)]))
     }
   }
 })

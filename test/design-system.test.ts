@@ -140,7 +140,9 @@ test.each(['currentColor', 'none', 'inherit', 'var(--text)', 'url(#i-red)'])(
 
 test.each([
   ['/admin', 'admin'], ['/admin/users', 'admin'], ['/admin/users/synthetic-ordinary', 'admin'], ['/admin/roles', 'admin'],
-  ['/admin/roles/synthetic-role', 'admin'], ['/admin/invitations', 'admin'], ['/admin/tools', 'admin'], ['/admin/audit', 'admin'],
+  ['/admin/roles/synthetic-role', 'admin'], ['/admin/invitations', 'admin'], ['/admin/tools', 'admin'],
+  ...['connection', 'writes', 'certificates', 'access', 'advanced'].map(tab => [`/admin/tools/vectra-axi?tab=${tab}`, 'admin']),
+  ['/admin/tools/awx-axi?tab=writes', 'admin'], ['/admin/tools/ldap-axi?tab=writes', 'admin'], ['/admin/audit', 'admin'],
   ['/admin/settings/sign-in', 'admin'], ['/account', 'admin'], ['/account', 'ordinary'], ['/login', 'signed out'],
 ])('%s for a %s viewer has no inline styles, colour literals or ad hoc icons', async (url, viewer) => {
   const session = viewer === 'admin' ? admin : viewer === 'ordinary' ? ordinary : undefined

@@ -80,7 +80,7 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
     await signIn()
     const response = await request('GET', '/admin/tools')
     expect(response.statusCode).toBe(200)
-    expect(response.body).toContain('Read-only startup configuration')
+    expect(response.body).toContain('An operator sets ARTIUM_AXI_EXTRA_CA_FILE and restarts the server')
     expect(response.body).toContain(bundle.certificates[0].subject)
     expect(response.body).toContain(bundle.certificates[0].issuer)
     expect(response.body).toContain(bundle.certificates[0].expiresAt)

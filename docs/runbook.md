@@ -248,7 +248,7 @@ Do not disable verification; a temporary network-policy exemption is an alternat
 
 ### Trusting one tool from the administration UI
 
-After a credential test reports a TLS verification failure, select the affected **Saved TLS endpoint** on the tool page and choose **Inspect certificate**.
+After a credential test reports a TLS verification failure, open the **Certificates** tab (`?tab=certificates`) on the tool page, select the affected saved endpoint if there is more than one and choose **Inspect certificate**.
 AWX also allows inspection before a credential test or token save; first save the controller address as described in [the password sign-in flow](#roles-credentials-and-health).
 This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
@@ -350,7 +350,7 @@ An uncertain network outcome is never retried automatically; inspect audit and p
 There is no dedicated administrator CLI.
 Scripts use the JSON API over the same trusted HTTPS origin; see the [shared contracts](../src/shared/api.ts) for route bodies and revision fields.
 
-Test credential performs credential validation followed by DNS, TCP and verified TLS preflight for every endpoint in the [tool inventory](../src/server/tool-endpoints.ts) before running the tool.
+Test connection performs credential validation followed by DNS, TCP and verified TLS preflight for every endpoint in the [tool inventory](../src/server/tool-endpoints.ts) before running the tool.
 This includes Azure destinations derived from saved `tlsDestinations`; see [credential certificate trust](#trusting-one-tool-from-the-administration-ui) for configuration.
 A preflight failure at any inventory endpoint stops the test, even if the health read would use another endpoint.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
@@ -377,9 +377,9 @@ These details appear in managed command output and credential-test diagnostics; 
 Inspect the message and hint, then check the service endpoint and API compatibility.
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
-The current credential-test and health-check diagnostic cache is held only in server memory; after a restart, rerun Test credential for current detail or inspect retained failure diagnostics in Audit as described below.
+The current credential-test and health-check diagnostic cache is held only in server memory; after a restart, rerun Test connection for current detail or inspect retained failure diagnostics in Audit as described below.
 The browser temporarily holds the save-and-test result in session storage to display it after reloading the tool page.
-After upgrading, cached categories removed from the error catalogue are ignored; rerun Test credential for a current result.
+After upgrading, cached categories removed from the error catalogue are ignored; rerun Test connection for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
 Failed tool runs, including credential-test and background health-check runs, separately retain the available exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
 The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal audit row's details at `/admin/audit`; it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
@@ -412,7 +412,7 @@ Review actor, change time and revision before saving; reload stale forms instead
 See [browser administration](admin-guide.md#browser-administration) for timestamp display and inline identity confirmation.
 
 Write access ships with each write-capable tool but defaults to off independently of whether the tool is enabled.
-Follow [browser administration](admin-guide.md#browser-administration) to use the Write access switch or preserve write policy when replacing Native settings.
+Follow [browser administration](admin-guide.md#browser-administration) to use the **Write permissions** tab or preserve write policy when replacing settings on the Advanced tab.
 For scripted administration, read `GET /v1/admin/tools` or `GET /v1/admin/tools/:tool` to review normalized `writeAccess` capability, current state, fixed read-only reasons, supported and allowed operations, and the actions a grant unlocks or leaves blocked.
 Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while preserving other native settings and credential values.
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
@@ -427,12 +427,12 @@ The owner commissions live authentication, permissions, scopes and hash availabi
 For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
 Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.
-Then choose password sign-in, enter the username and password and choose **Save credential**.
+Then choose password sign-in, enter the username and password and choose **Save connection**.
 Until a token is saved, the credential remains unconfigured and ordinary calls cannot use the address-only record.
 The same sequence applies when switching controllers; the paste-a-token path remains available.
 See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for the one-time token exchange and password handling.
 Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
-Write-policy changes, including changes through Native settings or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
+Write-policy changes, including changes through the Advanced tab or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
 Stale revisions never mutate settings, and an audit failure rolls back the change.
 Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.
 GitHub writes require exact administrator-selected operations and Artium-owned preview/confirmation; see [GitHub setup](tool-credentials.md#github) for the tiers and interrupted-write recovery.
@@ -442,7 +442,7 @@ See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
-Use “Test credential” or select “Test after saving” on the tool page to test the replacement with the fixed harmless read before enabling it.
+Use “Test connection” on the tool page, or keep “Test after saving” selected (the default) on the Connection tab, to test the replacement with the fixed harmless read before enabling it.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 AWX username-and-password sign-in mints a personal access token during credential save.
 Other upstream credential issuance, and revocation for every tool including AWX, remain live-only owner steps and are not exercised here.
@@ -483,7 +483,7 @@ Results superseded by a later configuration change cannot change the schedule or
 At most two background checks run at once, including replacement checks; work deferred by this cap stays due for a later tick.
 Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
-Use “Test credential” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+Use “Test connection” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
 ### Troubleshoot a failed tool call
 
@@ -499,7 +499,7 @@ Administrators can open `/admin/audit?requestId=<id>` to inspect run-start and r
 Expand the terminal row for any retained failure diagnostic; see [diagnostic storage and retention](#scripted-administrator-sessions).
 Use `/admin/audit?failed=1&tool=<tool>` to find recent failed runs.
 See [Audit screen and API](admin-guide.md#audit-screen-and-api) for filter semantics, recorded fields, API queries, pagination and exports.
-For a credential, TLS, DNS or network problem, use **Test credential** on the tool page for a current secret-scanned diagnostic.
+For a credential, TLS, DNS or network problem, use **Test connection** on the tool page for a current secret-scanned diagnostic.
 
 Search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID to find the `run` event and any related `error` event.
 Operational logs are JSON lines on stderr with `ts` (UTC), `level`, `event` and `requestId` (`null` for events without request context, including lifecycle events).
@@ -517,10 +517,10 @@ These diagnostics leave response error codes unchanged and are separate from aud
 
 ### Falcon RTR execution
 
-Enable Falcon's audited **Write access** switch and select `rtr run` with recent identity confirmation, then separately save Native settings with profile opt-in, for example `{"writes": {"allowWrites": true, "operations": ["rtr run"]}, "rtr": {"enabled": true, "commands": ["ps"]}}`.
-Native settings replace the whole object, so preserve the `writes` selection when saving the profile opt-in.
+Turn on Falcon's audited **Allow writes** switch on the **Write permissions** tab and select `rtr run` with recent identity confirmation, then separately replace settings on the Advanced tab with profile opt-in, for example `{"writes": {"allowWrites": true, "operations": ["rtr run"]}, "rtr": {"enabled": true, "commands": ["ps"]}}`.
+Replacing native settings on the Advanced tab replaces the whole object, so preserve the `writes` selection when saving the profile opt-in.
 Existing `allowWrites: true` settings retain RTR permission only; saving the write switch converts them to the explicit operation selection.
-Select `malquery search` separately in **Write access** to enable it; existing RTR grants do not select it.
+Select `malquery search` separately on the **Write permissions** tab to enable it; existing RTR grants do not select it.
 See [supported Falcon capabilities](safety.md), [upstream permissions and licensing](tool-credentials.md#falcon) and [audit classification](admin-guide.md#audit-screen-and-api) before enabling it.
 Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
 The switch never supplies profile opt-in or execution confirmation for the caller.

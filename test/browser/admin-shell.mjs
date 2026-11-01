@@ -439,8 +439,8 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
     await page.click('form[data-test-tool] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-test-result]:not(:empty)');
+    await page.open(base + '/admin/tools/vectra-axi?tab=certificates');
     await page.wait('[data-inspect-certificate]:not([hidden])');
     await page.click('[data-inspect-certificate] button');
     await page.wait('#certificate-inspection[open]');
@@ -474,8 +474,6 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
       return result.certificates.length === 1 && result.certificates[0].mode === 'ca' && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
     }), 'Trust or fingerprint audit missing');
     await page.click('form[data-test-tool] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Credential test did not pass after trust');
     await page.eval(async () => {
@@ -499,8 +497,6 @@ test('credential diagnostics show the admission failure before saving', () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi');
     await page.click('form[data-test-tool] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-check-diagnostic]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('configuration')), 'Missing admission stage');
     check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('No credential is configured for the tool.')), 'Missing admission diagnostic');
@@ -526,18 +522,18 @@ for (const action of ['save', 'test']) {
         await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
         await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
         await page.fill('[data-profile-field="region"]', 'us-1');
-        await page.click('[data-save-and-test]');
         await page.click('form[data-save-tool] button');
+        await page.wait('#confirmation[open]');
+        await page.click('#confirmation button[value=confirmed]');
       } else {
         await page.click('form[data-test-tool] button');
       }
-      await page.wait('#confirmation[open]');
-      await page.click('#confirmation button[value=confirmed]');
       await page.wait('[data-check-diagnostic]:not(:empty)');
       check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration\\nThis credential check was not admitted.'), 'Current test diagnostic was replaced');
       check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
       check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
-      check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.startsWith('To do:')), 'Failed test marked the checklist complete');
+      check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
+      check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Failure callout hidden');
     `)
   })
 }
@@ -572,21 +568,18 @@ for (const action of ['save', 'test']) {
           await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
           await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
           await page.fill('[data-profile-field="region"]', 'us-1');
-          await page.click('[data-save-and-test]');
           await page.click('form[data-save-tool] button');
           await page.wait('#confirmation[open]');
           await page.click('#confirmation button[value=confirmed]');
         } else {
           await page.click('form[data-test-tool] button');
-          await page.wait('#confirmation[open]');
-          await page.click('#confirmation button[value=confirmed]');
         }
         if (${JSON.stringify(outcome)} === 'redirect') {
           await page.wait('form[action="/login"]');
           check(await page.eval(() => sessionStorage.getItem('credential-test:/admin/tools/falcon-axi') === null), 'Redirect retained a success result');
         } else if (${JSON.stringify(action)} === 'save') {
           await page.wait('[data-test-result]:not(:empty)');
-          const expected = ${JSON.stringify(outcome === 'ok' ? 'Saved. Test passed.' : 'Saved. Test could not complete. Run Test credential again.')};
+          const expected = ${JSON.stringify(outcome === 'ok' ? 'Saved. Test passed.' : 'Saved. Test could not complete. Run Test connection again.')};
           check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === expected, 'Incorrect save-and-test result');
         } else if (${JSON.stringify(outcome)} === 'ok') {
           await page.wait('[data-test-result]:not(:empty)');
@@ -625,16 +618,19 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.open(base + '/admin/tools');
     await page.click('tbody a[href="/admin/tools/${entry.tool}"]');
     await page.wait('[data-credential-editor]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Native settings') && document.querySelector('main').innerText.includes('Access')), 'Merged tool sections missing');
+    check(await page.eval(() => ['Write permissions', 'Certificates', 'Access', 'Advanced'].every(tab => [...document.querySelectorAll('nav.utabs a')].some(link => link.textContent.includes(tab)))), 'Tool tabs missing');
+    await page.open(base + '/admin/tools/${entry.tool}?tab=advanced');
     await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="2"]');
+    await page.open(base + '/admin/tools/${entry.tool}');
     await page.wait('form[data-save-tool] [name=expectedToolRevision][value="2"]');
     const fields = ${JSON.stringify(entry.fields)};
     for (const [name, value] of Object.entries(fields)) {
       await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = input.tagName === "SELECT" ? ' + JSON.stringify(JSON.stringify(value)) + ' : ' + JSON.stringify(value) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
     }
-    await page.click('[data-save-and-test]');
+    check(await page.eval(() => document.querySelector('[data-save-and-test]').checked), 'Test after saving is not on by default');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
@@ -644,10 +640,11 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Retained secret was displayed');
+    await page.open(base + '/admin/tools/${entry.tool}?tab=advanced');
     await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedToolRevision][value="5"]');
+    await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="5"]');
   `)
   const response = await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + entry.tool))
   const { stored } = await response.json()
@@ -673,7 +670,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     }
     await page.fill('[data-profile-field=origin]', 'https://Appliance.Example:443/');
     await page.fill('[data-profile-field=token]', ' CANARY-normalized-token ');
-    if (${saveAndTest}) await page.click('[data-save-and-test]');
+    if (!${saveAndTest}) await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
@@ -698,7 +695,7 @@ test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stor
     await page.fill('[data-profile-field=bindDn]', 'cn=reader,dc=example');
     await page.fill('textarea[data-profile-field=bindPassword]', ${JSON.stringify(password)});
     await page.fill('textarea[data-profile-field=caFile]', ${JSON.stringify(pem)});
-    await page.click('[data-save-and-test]'); await page.click('form[data-save-tool] button');
+    await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'LDAP test failed: ' + await page.eval(() => document.querySelector('[data-test-result]').textContent));
@@ -758,6 +755,8 @@ test('tool detail enablement and granting roles lead to the role access editor',
     await page.click('form:has([name=enabled]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=true]');
+    check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Switch does not show the disabled state');
+    await page.click('nav.utabs a[href="?tab=access"]');
     await page.click('a[href="/admin/roles/synthetic-role"]');
     await page.wait('[name=tools][value="falcon-axi"]');
     check(await page.eval(() => document.querySelector('[name=tools][value="falcon-axi"]').checked), 'Role did not grant the tool');
@@ -770,14 +769,12 @@ test('tools show capability and current write state including fixed read-only re
     const tools = await page.eval(async () => (await (await fetch('/v1/admin/tools')).json()).tools);
     for (const tool of tools) {
       const row = await page.eval('document.querySelector(' + JSON.stringify('a[href="/admin/tools/' + tool.name + '"]') + ').closest("tr").innerText');
-      check(row.includes(tool.writeAccess.capable ? 'Read and write capable' : 'Fixed read-only'), tool.name + ' capability missing');
-      check(row.includes(tool.writeAccess.enabled ? 'Writes enabled' : 'Writes off'), tool.name + ' state missing');
-      if (tool.writeAccess.reason) check(row.includes(tool.writeAccess.reason), tool.name + ' reason missing');
-      await page.open(base + '/admin/tools/' + tool.name);
+      check(row.includes(tool.writeAccess.capable ? 'Read-only' : 'Always read-only'), tool.name + ' write state missing');
+      await page.open(base + '/admin/tools/' + tool.name + '?tab=writes');
       await page.wait('[data-write-access]');
       const state = await page.eval(() => document.querySelector('[data-write-access]').innerText);
       check(state.includes(tool.writeAccess.blocked), tool.name + ' blocked actions missing');
-      check(state.includes('No write actions are currently granted.'), tool.name + ' current grant missing');
+      check(state.includes('currently granted.'), tool.name + ' current grant missing');
       check(await page.eval(() => Boolean(document.querySelector('form[action$="/write-access"]'))) === tool.writeAccess.capable, tool.name + ' incorrect switch availability');
       if (tool.writeAccess.reason) check(state.includes(tool.writeAccess.reason), tool.name + ' detail reason missing');
       await page.open(base + '/admin/tools');
@@ -787,7 +784,7 @@ test('tools show capability and current write state including fixed read-only re
 
 test('Falcon write switch offers separate RTR and MalQuery capabilities off by default', () => {
   browser(`
-    await page.open(base + '/admin/tools/falcon-axi');
+    await page.open(base + '/admin/tools/falcon-axi?tab=writes');
     await page.wait('[data-write-access]');
     check(await page.eval(() => Boolean(document.querySelector('[name=operations][value="rtr run"]'))), 'RTR capability missing');
     check(await page.eval(() => Boolean(document.querySelector('[name=operations][value="malquery search"]'))), 'MalQuery capability missing');
@@ -798,17 +795,19 @@ test('Falcon write switch offers separate RTR and MalQuery capabilities off by d
 
 test('write switch confirms identity, preserves native settings, refreshes JSON and audits on and off', async () => {
   browser(`
-    await page.open(base + '/admin/tools/az-axi');
+    await page.open(base + '/admin/tools/az-axi?tab=advanced');
+    check(await page.eval(() => document.body.innerText.includes('Omitting write settings turns writes off.')), 'JSON replacement warning missing');
     await page.fill('[name=nativeSettings]', JSON.stringify({ description: 'Synthetic scope', subscriptions: ['11111111-1111-4111-8111-111111111111'] }));
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="2"]');
+    await page.open(base + '/admin/tools/az-axi?tab=writes');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
-    check(await page.eval(() => !document.querySelector('[role=switch]').checked), 'Writes did not default off');
-    check(await page.eval(() => document.body.innerText.includes('Omitting write settings turns writes off.')), 'JSON replacement warning missing');
+    check(await page.eval(() => !document.querySelector('[data-write-access] [role=switch]').checked), 'Writes did not default off');
   `)
   await expireConfirmation()
   browser(`
-    await page.click('[role=switch]');
+    await page.click('[data-write-access] [role=switch]');
     await page.click('form[action$="/write-access"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=cancel]');
@@ -820,10 +819,12 @@ test('write switch confirms identity, preserves native settings, refreshes JSON 
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="3"]');
-    check(await page.eval(() => document.querySelector('[role=switch]').checked), 'Switch not on');
+    check(await page.eval(() => document.querySelector('[data-write-access] [role=switch]').checked), 'Switch not on');
     check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('Reviewed Azure writes')), 'Grant summary missing');
+    await page.open(base + '/admin/tools/az-axi?tab=advanced');
     check(await page.eval(() => JSON.parse(document.querySelector('[name=nativeSettings]').value).allowWrites), 'JSON state stale');
-    await page.click('[role=switch]');
+    await page.open(base + '/admin/tools/az-axi?tab=writes');
+    await page.click('[data-write-access] [role=switch]');
     await page.click('form[action$="/write-access"] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="4"]');
@@ -838,26 +839,28 @@ test('write switch confirms identity, preserves native settings, refreshes JSON 
 
 for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
   browser(`
-    await page.open(base + '/admin/tools/${tool}');
+    await page.open(base + '/admin/tools/${tool}?tab=writes');
     const initial = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
     const choices = await page.eval(() => [...document.querySelectorAll('[name=operations]')].map(input => input.value));
-    check(JSON.stringify(choices) === JSON.stringify(initial.writeAccess.supportedOperations), 'Picker differs from pinned catalogue');
+    check(JSON.stringify([...choices].sort()) === JSON.stringify([...initial.writeAccess.supportedOperations].sort()), 'Picker differs from pinned catalogue');
     check(await page.eval(() => [...document.querySelectorAll('[name=operations]')].every(input => !input.checked)), 'Unexpected initial selection');
-    await page.click('[role=switch]');
-    await page.click('form[action$="/write-access"] button');
+    await page.click('[data-write-access] [role=switch]');
+    await page.click('form[action$="/write-access"] button:not([form])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('#message:not(:empty)');
     check(await page.eval(() => document.querySelector('#message').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
+    await page.click('[data-ops-group] summary');
     await page.click('[name=operations]');
-    await page.click('form[action$="/write-access"] button');
+    await page.click('form[action$="/write-access"] button:not([form])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
     const saved = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
     check(saved.writeAccess.enabled && JSON.stringify(saved.writeAccess.allowedOperations) === JSON.stringify([choices[0]]), 'Selection not saved');
     check(await page.eval(() => document.querySelector('[name=operations]').checked), 'Selection not reflected');
-    await page.click('[role=switch]');
+    check(await page.eval(() => document.querySelector('[data-ops-group]').open), 'Group with a selection is collapsed');
+    await page.click('[data-write-access] [role=switch]');
     await page.click('[name=operations]');
-    await page.click('form[action$="/write-access"] button');
+    await page.click('form[action$="/write-access"] button:not([form])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="3"]');
     const cleared = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));

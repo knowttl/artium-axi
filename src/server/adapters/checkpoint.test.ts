@@ -42,7 +42,7 @@ test.each([false, true])('managed credential guidance describes hosted inputs wh
   const html = credentialFields('checkpoint-axi', checkpointProfile, {}, configured)
   const clientSecret = html.match(/<div data-credential-field="clientSecret" data-secret>(.+?)<\/div>/)![1]!
   const scope = html.match(/<div data-credential-field="scope">(.+?)<\/div>/)![1]!
-  expect(clientSecret).toContain('<label>Client secret (secret)<textarea')
+  expect(clientSecret).toContain('<label>Client secret<textarea')
   expect(clientSecret).toContain('<p>Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.</p>')
   expect(scope).toContain('Email downloads require this value as the scopes header.')
   expect(scope).toContain('Attachment downloads use it as the scope query when set, and omit that query when unset.')

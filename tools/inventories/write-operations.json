@@ -1,0 +1,435 @@
+{
+  "vectra-axi": {
+    "groups": [
+      { "title": "Detections", "family": "qux", "operations": {
+        "qux.detection.note.add": { "label": "Add note" },
+        "qux.detection.note.edit": { "label": "Edit note" },
+        "qux.detection.note.delete": { "label": "Delete note", "risk": ["delete"] },
+        "qux.detection.tag.set": { "label": "Set tags" },
+        "qux.detection.tag.bulk-set": { "label": "Set tags on many", "risk": ["bulk"] },
+        "qux.detection.tag.bulk-delete": { "label": "Delete tags from many", "risk": ["delete", "bulk"] },
+        "qux.detection.triage.set": { "label": "Set triage" },
+        "qux.detection.triage.clear": { "label": "Clear triage" },
+        "qux.detection.fixed.set": { "label": "Mark fixed" },
+        "qux.detection.close": { "label": "Close" },
+        "qux.detection.close-bulk": { "label": "Close many", "risk": ["bulk"] },
+        "qux.detection.open": { "label": "Reopen" },
+        "qux.detection.open-bulk": { "label": "Reopen many", "risk": ["bulk"] }
+      } },
+      { "title": "Hosts", "family": "qux", "operations": {
+        "qux.host.note.add": { "label": "Add note" },
+        "qux.host.note.edit": { "label": "Edit note" },
+        "qux.host.note.delete": { "label": "Delete note", "risk": ["delete"] },
+        "qux.host.tag.set": { "label": "Set tags" },
+        "qux.host.tag.bulk-set": { "label": "Set tags on many", "risk": ["bulk"] },
+        "qux.host.tag.bulk-delete": { "label": "Delete tags from many", "risk": ["delete", "bulk"] },
+        "qux.host.key-asset.set": { "label": "Set key asset" },
+        "qux.host.assignment.create": { "label": "Assign" },
+        "qux.host.assignment.reassign": { "label": "Reassign" },
+        "qux.host.assignment.resolve": { "label": "Resolve assignment" },
+        "qux.host.assignment.unassign": { "label": "Unassign" },
+        "qux.host.close": { "label": "Close" }
+      } },
+      { "title": "Accounts", "family": "qux", "operations": {
+        "qux.account.note.add": { "label": "Add note" },
+        "qux.account.note.edit": { "label": "Edit note" },
+        "qux.account.note.delete": { "label": "Delete note", "risk": ["delete"] },
+        "qux.account.tag.set": { "label": "Set tags" },
+        "qux.account.tag.bulk-set": { "label": "Set tags on many", "risk": ["bulk"] },
+        "qux.account.tag.bulk-delete": { "label": "Delete tags from many", "risk": ["delete", "bulk"] },
+        "qux.account.assignment.create": { "label": "Assign" },
+        "qux.account.assignment.reassign": { "label": "Reassign" },
+        "qux.account.assignment.resolve": { "label": "Resolve assignment" },
+        "qux.account.assignment.unassign": { "label": "Unassign" },
+        "qux.account.close": { "label": "Close" }
+      } },
+      { "title": "Groups", "family": "qux", "operations": {
+        "qux.group.create": { "label": "Create" },
+        "qux.group.edit": { "label": "Edit" },
+        "qux.group.member.set": { "label": "Set members", "risk": ["bulk"] },
+        "qux.group.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Assignment outcomes", "family": "qux", "operations": {
+        "qux.assignment-outcome.create": { "label": "Create" },
+        "qux.assignment-outcome.edit": { "label": "Edit" },
+        "qux.assignment-outcome.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Matches", "family": "qux", "operations": {
+        "qux.match.enablement.set": { "label": "Enable or disable" },
+        "qux.match.assignment.set": { "label": "Set assignment" },
+        "qux.match.assignment.delete": { "label": "Delete assignment", "risk": ["delete"] },
+        "qux.match.ruleset.upload": { "label": "Upload ruleset" },
+        "qux.match.ruleset.delete": { "label": "Delete ruleset", "risk": ["delete"] }
+      } },
+      { "title": "Settings", "family": "qux", "operations": {
+        "qux.setting.internal-network.set": { "label": "Set internal network" },
+        "qux.setting.kafka.set": { "label": "Set Kafka" },
+        "qux.setting.syslog.set": { "label": "Set syslog" }
+      } },
+      { "title": "Threat feeds", "family": "qux", "operations": {
+        "qux.threat-feed.create": { "label": "Create" },
+        "qux.threat-feed.edit": { "label": "Edit" },
+        "qux.threat-feed.file.set": { "label": "Upload feed file" },
+        "qux.threat-feed.file.delete": { "label": "Delete feed file", "risk": ["delete"] },
+        "qux.threat-feed.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Triage rules", "family": "qux", "operations": {
+        "qux.triage-rule.create": { "label": "Create" },
+        "qux.triage-rule.edit": { "label": "Edit" },
+        "qux.triage-rule.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Proxies", "family": "qux", "operations": {
+        "qux.proxy.create": { "label": "Create" },
+        "qux.proxy.edit": { "label": "Edit" }
+      } },
+      { "title": "Detections", "family": "rux", "operations": {
+        "rux.detection.note.add": { "label": "Add note" },
+        "rux.detection.note.bulk-add": { "label": "Add note to many", "risk": ["bulk"] },
+        "rux.detection.note.edit": { "label": "Edit note" },
+        "rux.detection.note.delete": { "label": "Delete note", "risk": ["delete"] },
+        "rux.detection.tag.set": { "label": "Set tags" },
+        "rux.detection.tag.bulk-set": { "label": "Set tags on many", "risk": ["bulk"] },
+        "rux.detection.tag.bulk-delete": { "label": "Delete tags from many", "risk": ["delete", "bulk"] },
+        "rux.detection.triage.set": { "label": "Set triage" },
+        "rux.detection.triage.clear": { "label": "Clear triage" },
+        "rux.detection.fixed.set": { "label": "Mark fixed" },
+        "rux.detection.close": { "label": "Close" },
+        "rux.detection.close-bulk": { "label": "Close many", "risk": ["bulk"] },
+        "rux.detection.open": { "label": "Reopen" },
+        "rux.detection.open-bulk": { "label": "Reopen many", "risk": ["bulk"] }
+      } },
+      { "title": "Hosts", "family": "rux", "operations": {
+        "rux.host.note.add": { "label": "Add note" },
+        "rux.host.note.bulk-add": { "label": "Add note to many", "risk": ["bulk"] },
+        "rux.host.note.edit": { "label": "Edit note" },
+        "rux.host.note.delete": { "label": "Delete note", "risk": ["delete"] },
+        "rux.host.tag.set": { "label": "Set tags" },
+        "rux.host.tag.bulk-set": { "label": "Set tags on many", "risk": ["bulk"] },
+        "rux.host.tag.bulk-delete": { "label": "Delete tags from many", "risk": ["delete", "bulk"] },
+        "rux.host.key-asset.set": { "label": "Set key asset" },
+        "rux.host.assignment.create": { "label": "Assign" },
+        "rux.host.assignment.reassign": { "label": "Reassign" },
+        "rux.host.assignment.resolve": { "label": "Resolve assignment" },
+        "rux.host.assignment.unassign": { "label": "Unassign" },
+        "rux.host.close": { "label": "Close" }
+      } },
+      { "title": "Accounts", "family": "rux", "operations": {
+        "rux.account.note.add": { "label": "Add note" },
+        "rux.account.note.bulk-add": { "label": "Add note to many", "risk": ["bulk"] },
+        "rux.account.note.edit": { "label": "Edit note" },
+        "rux.account.note.delete": { "label": "Delete note", "risk": ["delete"] },
+        "rux.account.tag.set": { "label": "Set tags" },
+        "rux.account.tag.bulk-set": { "label": "Set tags on many", "risk": ["bulk"] },
+        "rux.account.tag.bulk-delete": { "label": "Delete tags from many", "risk": ["delete", "bulk"] },
+        "rux.account.assignment.create": { "label": "Assign" },
+        "rux.account.assignment.reassign": { "label": "Reassign" },
+        "rux.account.assignment.resolve": { "label": "Resolve assignment" },
+        "rux.account.assignment.unassign": { "label": "Unassign" },
+        "rux.account.close": { "label": "Close" }
+      } },
+      { "title": "Groups", "family": "rux", "operations": {
+        "rux.group.create": { "label": "Create" },
+        "rux.group.edit": { "label": "Edit" },
+        "rux.group.member.set": { "label": "Set members", "risk": ["bulk"] },
+        "rux.group.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Assignment outcomes", "family": "rux", "operations": {
+        "rux.assignment-outcome.create": { "label": "Create" },
+        "rux.assignment-outcome.edit": { "label": "Edit" },
+        "rux.assignment-outcome.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Matches", "family": "rux", "operations": {
+        "rux.match.enablement.set": { "label": "Enable or disable" },
+        "rux.match.assignment.set": { "label": "Set assignment" },
+        "rux.match.assignment.delete": { "label": "Delete assignment", "risk": ["delete"] },
+        "rux.match.ruleset.upload": { "label": "Upload ruleset" },
+        "rux.match.ruleset.delete": { "label": "Delete ruleset", "risk": ["delete"] }
+      } },
+      { "title": "Threat feeds", "family": "rux", "operations": {
+        "rux.threat-feed.create": { "label": "Create" },
+        "rux.threat-feed.edit": { "label": "Edit" },
+        "rux.threat-feed.file.set": { "label": "Upload feed file" },
+        "rux.threat-feed.file.delete": { "label": "Delete feed file", "risk": ["delete"] },
+        "rux.threat-feed.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Triage rules", "family": "rux", "operations": {
+        "rux.triage-rule.create": { "label": "Create" },
+        "rux.triage-rule.edit": { "label": "Edit" },
+        "rux.triage-rule.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Notification destinations", "family": "rux", "operations": {
+        "rux.notification-destination.create": { "label": "Create" },
+        "rux.notification-destination.edit": { "label": "Edit" },
+        "rux.notification-destination.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Proxies", "family": "rux", "operations": {
+        "rux.proxy.create": { "label": "Create" },
+        "rux.proxy.edit": { "label": "Edit" },
+        "rux.proxy.delete": { "label": "Delete", "risk": ["delete"] }
+      } }
+    ]
+  },
+  "beyondtrust-axi": {
+    "groups": [
+      { "title": "Computers", "operations": {
+        "computer.authorise": { "label": "Authorise", "risk": ["bulk"] },
+        "computer.reject": { "label": "Reject" },
+        "computer.archive": { "label": "Archive" },
+        "computer.unarchive": { "label": "Unarchive" },
+        "computer.deactivate": { "label": "Deactivate", "risk": ["delete", "bulk"] },
+        "computer.delete": { "label": "Delete", "risk": ["delete", "bulk"] },
+        "computer.details.request": { "label": "Request details" },
+        "computer.logs.request": { "label": "Request logs" },
+        "computer.log.download": { "label": "Download logs" }
+      } },
+      { "title": "Computer groups", "operations": {
+        "group.create": { "label": "Create" },
+        "group.update": { "label": "Update" },
+        "group.set-default": { "label": "Set as default" },
+        "group.add-computers": { "label": "Add computers", "risk": ["bulk"] },
+        "group.import-computers": { "label": "Import computers", "risk": ["bulk"] },
+        "group.remove-computers": { "label": "Remove computers", "risk": ["delete", "bulk"] },
+        "group.assign-policy": { "label": "Assign policy" },
+        "group.clear-policy": { "label": "Clear policy" },
+        "group.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Policies", "operations": {
+        "policy.create": { "label": "Create" },
+        "policy.update": { "label": "Update" },
+        "policy.upload": { "label": "Upload" },
+        "policy.auto-assign": { "label": "Auto-assign" },
+        "policy.app.add": { "label": "Add applications" },
+        "policy.app.remove": { "label": "Remove applications", "risk": ["delete", "bulk"] },
+        "policy.discard-draft": { "label": "Discard draft", "risk": ["delete"] },
+        "policy.download": { "label": "Download" },
+        "policy.revision.download": { "label": "Download revision" },
+        "policy.delete": { "label": "Delete", "risk": ["delete"] },
+        "policy.delete.force": { "label": "Force delete", "risk": ["delete"] }
+      } },
+      { "title": "Users", "operations": {
+        "user.create": { "label": "Create" },
+        "user.update": { "label": "Update" },
+        "user.preferences": { "label": "Change preferences" },
+        "user.assign-roles": { "label": "Assign roles" },
+        "user.enable": { "label": "Enable" },
+        "user.disable": { "label": "Disable" },
+        "user.resend-invite": { "label": "Resend invitation" }
+      } },
+      { "title": "SCIM users", "operations": {
+        "scim.user.create": { "label": "Create" },
+        "scim.user.patch": { "label": "Patch" },
+        "scim.user.replace": { "label": "Replace" }
+      } },
+      { "title": "Admin and authentication requests", "operations": {
+        "admin-request.create": { "label": "Create admin request" },
+        "admin-request.decide": { "label": "Decide admin request" },
+        "auth-request.notify": { "label": "Send authentication notification" }
+      } },
+      { "title": "Domains", "operations": {
+        "domain.create": { "label": "Create" },
+        "domain.update": { "label": "Update" },
+        "domain.delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Integration", "operations": {
+        "app-switcher.connect": { "label": "Connect app switcher" },
+        "api-definition.download": { "label": "Download API definition" }
+      } }
+    ]
+  },
+  "checkpoint-axi": {
+    "groups": [
+      { "title": "Emails and attachments", "operations": {
+        "email.quarantine": { "label": "Quarantine", "risk": ["bulk"] },
+        "email.restore": { "label": "Restore", "risk": ["bulk"] },
+        "email.download": { "label": "Download email" },
+        "attachment.download": { "label": "Download attachment" },
+        "attachment.download-all": { "label": "Download all attachments" }
+      } },
+      { "title": "Click-time protection exceptions", "operations": {
+        "exception.click-time.create": { "label": "Create" },
+        "exception.click-time.update": { "label": "Update" },
+        "exception.click-time.remove": { "label": "Remove", "risk": ["delete"] },
+        "exception.click-time.remove-items": { "label": "Remove items", "risk": ["delete", "bulk"] }
+      } },
+      { "title": "Phishing allow exceptions", "operations": {
+        "exception.phishing-allow.create": { "label": "Create" },
+        "exception.phishing-allow.update": { "label": "Update" },
+        "exception.phishing-allow.remove": { "label": "Remove", "risk": ["delete"] }
+      } },
+      { "title": "Phishing block exceptions", "operations": {
+        "exception.phishing-block.create": { "label": "Create" },
+        "exception.phishing-block.update": { "label": "Update" },
+        "exception.phishing-block.remove": { "label": "Remove", "risk": ["delete"] }
+      } },
+      { "title": "Spam allow exceptions", "operations": {
+        "exception.spam-allow.create": { "label": "Create" },
+        "exception.spam-allow.update": { "label": "Update" },
+        "exception.spam-allow.remove": { "label": "Remove", "risk": ["delete"] }
+      } },
+      { "title": "Anomaly exceptions", "operations": {
+        "exception.anomaly.create": { "label": "Create" },
+        "exception.anomaly.remove": { "label": "Remove", "risk": ["delete"] }
+      } },
+      { "title": "Malware, DLP and URL exceptions", "operations": {
+        "exception.malware.create": { "label": "Create malware exception" },
+        "exception.malware.update": { "label": "Update malware exception" },
+        "exception.dlp.create": { "label": "Create DLP exception" },
+        "exception.dlp.update": { "label": "Update DLP exception" },
+        "exception.url.create": { "label": "Create URL exception" },
+        "exception.url.update": { "label": "Update URL exception" }
+      } }
+    ]
+  },
+  "hybrid-axi": {
+    "groups": [
+      { "title": "Submissions", "operations": {
+        "submitFile": { "label": "Submit file" },
+        "submitUrl": { "label": "Submit URL" },
+        "submitDroppedFile": { "label": "Submit dropped file" },
+        "convertQuickScan": { "label": "Convert quick scan to full analysis" }
+      } },
+      { "title": "Downloads", "operations": {
+        "hash-download-bin": { "label": "Download sample by hash" },
+        "report-download-bin": { "label": "Download report sample" },
+        "report-download-dropped-files": { "label": "Download dropped files" },
+        "report-download-memory": { "label": "Download memory dump" }
+      } },
+      { "title": "Hunting", "operations": {
+        "huntingMatches": { "label": "Fetch matches" },
+        "yaraCreate": { "label": "Create YARA rule" },
+        "yaraUpdate": { "label": "Update YARA rule" },
+        "yaraDelete": { "label": "Delete YARA rule", "risk": ["delete"] }
+      } }
+    ]
+  },
+  "tenable-axi": {
+    "groups": [
+      { "title": "Tags", "operations": {
+        "tags-create-tag-category": { "label": "Create category" },
+        "tags-edit-tag-category": { "label": "Edit category" },
+        "tags-delete-tag-category": { "label": "Delete category", "risk": ["delete"] },
+        "tags-create-tag-value": { "label": "Create value" },
+        "tags-update-tag-value": { "label": "Update value" },
+        "tags-delete-tag-value": { "label": "Delete value", "risk": ["delete"] },
+        "tags-delete-tag-values-bulk": { "label": "Delete many values", "risk": ["delete", "bulk"] },
+        "tags-assign-asset-tags": { "label": "Assign to assets", "risk": ["bulk"] }
+      } },
+      { "title": "Exports", "operations": {
+        "inventory-export-assets": { "label": "Export assets" },
+        "inventory-export-findings": { "label": "Export findings" },
+        "apa-export-attack-path": { "label": "Export attack paths" },
+        "apa-export-attack-technique": { "label": "Export attack techniques" },
+        "apa-export-mitre-heatmap": { "label": "Export MITRE heatmap" }
+      } },
+      { "title": "Combinations", "operations": {
+        "combinations-create": { "label": "Create" },
+        "combinations-update": { "label": "Update" },
+        "combinations-delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Initiatives", "operations": {
+        "initiatives-create": { "label": "Create" },
+        "initiatives-update": { "label": "Update" },
+        "initiatives-delete": { "label": "Delete", "risk": ["delete"] }
+      } }
+    ]
+  },
+  "mg-axi": {
+    "groups": [
+      { "title": "Entra ID", "operations": {
+        "entra.user.update": { "label": "Update user" },
+        "entra.user.revokeSessions": { "label": "Revoke user sessions" },
+        "entra.risky-user.dismiss": { "label": "Dismiss risky user" },
+        "entra.conditional-access.policy.update": { "label": "Update conditional access policy" }
+      } },
+      { "title": "Mail", "operations": {
+        "mail.message.mark": { "label": "Mark read or unread", "risk": ["bulk"] },
+        "mail.message.flag": { "label": "Flag", "risk": ["bulk"] },
+        "mail.message.tag": { "label": "Tag", "risk": ["bulk"] },
+        "mail.message.move": { "label": "Move", "risk": ["bulk"] },
+        "mail.message.copy": { "label": "Copy", "risk": ["bulk"] },
+        "mail.message.trash": { "label": "Move to trash", "risk": ["delete", "bulk"] },
+        "mail.message.export": { "label": "Export message" },
+        "mail.attachment.save": { "label": "Save attachment" },
+        "mail.folder.create": { "label": "Create folder" },
+        "mail.folder.delete": { "label": "Delete folder", "risk": ["delete", "bulk"] },
+        "mail.category.create": { "label": "Create category" },
+        "mail.rule.create": { "label": "Create rule" },
+        "mail.rule.update": { "label": "Update rule", "risk": ["bulk"] },
+        "mail.rule.delete": { "label": "Delete rule", "risk": ["delete", "bulk"] }
+      } },
+      { "title": "Groups", "operations": {
+        "mg.entra.group.member.add": { "label": "Add member" }
+      } }
+    ]
+  },
+  "gh-axi": {
+    "groups": [
+      { "title": "Issues", "operations": {
+        "issue create": { "label": "Create" },
+        "issue edit": { "label": "Edit" },
+        "issue comment": { "label": "Comment" },
+        "issue close": { "label": "Close" },
+        "issue reopen": { "label": "Reopen" },
+        "issue pin": { "label": "Pin" },
+        "issue transfer": { "label": "Transfer" }
+      } },
+      { "title": "Pull requests", "operations": {
+        "pr create": { "label": "Create" },
+        "pr edit": { "label": "Edit" },
+        "pr comment": { "label": "Comment" },
+        "pr review": { "label": "Review" },
+        "pr ready": { "label": "Mark ready" },
+        "pr update-branch": { "label": "Update branch" },
+        "pr merge": { "label": "Merge" },
+        "pr revert": { "label": "Revert" }
+      } },
+      { "title": "Discussions", "operations": {
+        "discussion comment": { "label": "Comment" }
+      } },
+      { "title": "Labels", "operations": {
+        "label create": { "label": "Create" },
+        "label edit": { "label": "Edit" }
+      } },
+      { "title": "Projects", "operations": {
+        "project item-add": { "label": "Add item" },
+        "project item-create": { "label": "Create item" },
+        "project item-edit": { "label": "Edit item" },
+        "project item-archive": { "label": "Archive item" }
+      } },
+      { "title": "Releases", "operations": {
+        "release create": { "label": "Create" },
+        "release edit": { "label": "Edit" }
+      } },
+      { "title": "Workflows and runs", "operations": {
+        "workflow run": { "label": "Run workflow" },
+        "workflow enable": { "label": "Enable workflow" },
+        "workflow disable": { "label": "Disable workflow" },
+        "run rerun": { "label": "Rerun" },
+        "run cancel": { "label": "Cancel run" }
+      } },
+      { "title": "Repositories", "operations": {
+        "repo create": { "label": "Create" },
+        "repo edit": { "label": "Edit" },
+        "repo fork": { "label": "Fork" }
+      } },
+      { "title": "Gists", "operations": {
+        "gist create": { "label": "Create" },
+        "gist edit": { "label": "Edit" },
+        "gist rename": { "label": "Rename" }
+      } },
+      { "title": "Variables", "operations": {
+        "variable set": { "label": "Set" }
+      } }
+    ]
+  },
+  "falcon-axi": {
+    "groups": [
+      { "title": "Remote response", "operations": {
+        "rtr run": { "label": "Run command" }
+      } },
+      { "title": "Malware search", "operations": {
+        "malquery search": { "label": "Search samples" }
+      } }
+    ]
+  }
+}

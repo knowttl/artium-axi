@@ -65,13 +65,13 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | CREDENTIAL_INVALID | artium-axi | 503 | 1 | The stored credential is invalid. | Ask an administrator to check the named field, matching master key and credential JSON, then save and test again. |
 | CREDENTIAL_EXPIRED | artium-axi | 503 | 1 | The GitHub credential expired or was revoked. | Ask an administrator to reconnect at /admin/tools/gh-axi. Tokens are never refreshed automatically. |
 | FLAG_BLOCKED | artium-axi | 400 | 2 | The arguments override the managed tool boundary. | Remove destination, tenant, credential or local configuration overrides. |
-| CREDENTIAL_NOT_CONFIGURED | artium-axi | 503 | 1 | No credential is configured for the tool. | Ask an administrator to save a credential and run Test credential. |
+| CREDENTIAL_NOT_CONFIGURED | artium-axi | 503 | 1 | No credential is configured for the tool. | Ask an administrator to save a credential and run Test connection. |
 | UPSTREAM_AUTH_FAILED | artium-axi | 503 | 1 | The upstream service rejected the credential. | Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again. |
 | UPSTREAM_NETWORK_FAILED | artium-axi | 503 | 1 | The upstream service could not be reached. | Ask an administrator to check DNS, routing, firewall rules and the diagnostic host and stage. |
 | UPSTREAM_TLS_FAILED | artium-axi | 503 | 1 | The upstream certificate could not be verified. | Ask an administrator to check the host, certificate chain and trusted CA configuration. |
 | UPSTREAM_RESPONSE_INVALID | artium-axi | 503 | 1 | The upstream service returned a response the tool could not accept. | Ask an administrator to inspect the diagnostic message and hint, check the service endpoint and API compatibility, then test again. |
 | TOOL_REJECTED_INPUT | artium-axi | 503 | 1 | The tool rejected its configuration or arguments. | Ask an administrator to correct the field or combination named by the tool and test again. |
-| TOOL_FAILED | artium-axi | 503 | 1 | The tool exited unsuccessfully. | Ask an administrator to inspect the diagnostic message and hint from Test credential. |
+| TOOL_FAILED | artium-axi | 503 | 1 | The tool exited unsuccessfully. | Ask an administrator to inspect the diagnostic message and hint from Test connection. |
 | INVALID_INPUT | artium-axi | 400 | 2 | The request input is invalid. | Check the request fields and content type. |
 | UNSUPPORTED_INPUT | artium-axi | 400 | 2 | The input file is not a matching upload. | Upload the file using a reviewed input-file flag. |
 | SECRET_IN_OUTPUT | artium-axi | 500 | 1 | A known secret was detected in tool output. | Check upstream output redaction before retrying. |

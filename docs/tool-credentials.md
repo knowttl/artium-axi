@@ -11,7 +11,7 @@ The credential test runs doctor with a bounded About read.
 For a token 404, the upstream tool reports `AUTH_ENDPOINT_NOT_FOUND` and hints at the documented -services host form; the tool never switches hosts automatically.
 See [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) for the hosted test's category and stage.
 
-Enable exact writes.operations through Write access and review the [supported capability boundary](safety.md#beyondtrust-endpoint-privilege-management) before enabling writes or deletes.
+Enable exact writes.operations through the Write permissions tab and review the [supported capability boundary](safety.md#beyondtrust-endpoint-privilege-management) before enabling writes or deletes.
 The advanced settings editor accepts the same writes object; downloads.allow is host-owned and cannot enable ordinary downloads.
 See [BeyondTrust client usage](client-reference.md#beyondtrust-pm-cloud) for authenticated downloads.
 Live authentication, permissions and every API operation remain subject to owner commissioning after offline build.
@@ -33,7 +33,7 @@ Contents:
 - [Hybrid Analysis](#hybrid-analysis)
 
 Configure only the tools you intend to use.
-At `/admin/tools`, open the tool, save its credential, then use **Test credential** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
 
 | Tool | Information to obtain | Fixed Artium credential test |
@@ -60,7 +60,7 @@ Obtain the exact application name and any download `scope` from your tenant admi
 Scope accepts printable ASCII with no spaces (characters `!` through `~`); comma-separated values are sent verbatim, and omitting it leaves it unset.
 Hosted email downloads require the stored `scope` as the `scopes` header; attachment downloads send it as the `scope` query when set and omit that query when unset.
 Hosted transfers have no per-download scope override.
-The `downloads` profile field defaults to `{"allow":false}`; Artium manages download permissions through Allow write access and exact operation selection, so this field does not enable hosted downloads.
+The `downloads` profile field defaults to `{"allow":false}`; Artium manages download permissions through the **Allow writes** switch and exact operation selection, so this field does not enable hosted downloads.
 Tenant scope authorization and the relationship between these selectors remain unverified; do not guess a value.
 Each hosted invocation exchanges a token again because its private XDG directory is removed after execution.
 
@@ -127,8 +127,8 @@ Tokens inherit their user's rights and clients inherit their assigned role; gran
 See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.14#configuration) for deployment-specific requirements.
 For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
 For shared trust across tools, follow the [private CA runbook](runbook.md#tls-inspection-and-private-upstream-cas).
-Keep Native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
-Save, run **Test credential**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
+Keep the Advanced tab native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
+Save, run **Test connection**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
 
 #### Entra application registration for Azure and Graph
 
@@ -161,7 +161,7 @@ On ABAC-enabled registries, ARM `Reader` and `Contributor` grant control-plane a
 Access-policy-mode vaults require corresponding vault access policies instead of the RBAC-mode role.
 
 At `/admin/tools/az-axi`, choose authentication and enter the source identity in the guided credential fields.
-Save subscriptions and write settings separately in Native settings.
+Save subscriptions and write settings separately in the Advanced tab.
 The equivalent complete replacement API input has this shape, replacing every placeholder:
 
 ```json
@@ -178,7 +178,7 @@ The equivalent complete replacement API input has this shape, replacing every pl
 For certificate authentication, set `auth` to `certificate` and replace `clientSecret` with `privateKey` and `thumbprintSha256`.
 Optionally add `workspaces` as a JSON object mapping friendly names to Log Analytics workspace customer-ID UUIDs, obtained from the workspace Overview page; these are not ARM resource IDs.
 Artium mints and injects resource-specific tokens, so supply the source identity rather than an access token or upstream token-profile JSON.
-Save, run **Test credential**, enable and grant the tool, then run `artium-axi az-axi account list`.
+Save, run **Test connection**, enable and grant the tool, then run `artium-axi az-axi account list`.
 Test each needed data-plane read separately using the enabled tool's help; a successful subscription list proves no blob, vault or registry access.
 For registry catalogue access, run `artium-axi az-axi acr repository list --name <registry>`; test any needed image, tag or metadata reads separately because catalogue listing does not grant repository reads on ABAC-enabled registries.
 Keep `allowWrites` false unless writes are wanted and the corresponding Azure roles are approved.
@@ -241,7 +241,7 @@ Profiles without `entra` are refused so existing Entra reads and credential test
 The app registration used by Artium requires `ThreatHunting.Read.All` with administrator consent; tenant acceptance remains unverified.
 For a certificate, choose `auth=certificate`, enter the PEM in `privateKey` and its SHA-256 thumbprint in `thumbprintSha256`, leaving `clientSecret` blank.
 Leave `allowDeviceCode`, `preview`, `sensitiveAreas` and `writes` at their defaults for the initial read-only setup.
-Save, run **Test credential**, follow the [activation requirements](admin-guide.md#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
+Save, run **Test connection**, follow the [activation requirements](admin-guide.md#browser-administration), enable and grant the tool, then run `artium-axi mg-axi entra user list --limit 1`.
 Credential setup does not establish acceptance for every upstream operation.
 Hosted application mode acquires tokens silently; do not run upstream `auth login` or supply `--scopes` through Artium.
 
@@ -266,8 +266,8 @@ Optional `base` limits the search context; otherwise the pinned tool discovers t
 Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
 
 Enter the password itself in the form, never a SecretRef or password-file path.
-Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
-**Test credential** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
+Save, run **Test connection**, enable the tool, grant it to a role, then run `artium-axi ldap-axi user list --limit 1` to check directory read permissions.
+**Test connection** runs `auth status`, which performs one bind; failed credentials can count toward directory account lockout limits.
 LDAP is read-only by design and has no editable native write settings.
 LDAP 0.2.0 adds `computer list`, `computer show <identifier-or-dn>` and `server` reads through the same managed identity.
 Computer reads use AD machine accounts or the upstream's stated LDAPv3 device fallback; `server` reports advertised rootDSE capabilities and limits.
@@ -288,7 +288,7 @@ For service principal authentication, choose `auth=client-secret` and enter `ten
 Add the service principal as a user in the Azure DevOps organization, in the organization's Entra tenant, and grant the required project permissions before testing.
 Artium acquires and caches an Azure DevOps access token with client credentials and supplies it through a restricted per-call `az` stand-in.
 The stand-in answers only the pinned tool's Azure DevOps token request; no Azure CLI sign-in or device flow is used.
-Save, run **Test credential**, enable the tool, grant it to a role, then run `artium-axi ado-axi project list --limit 1`.
+Save, run **Test connection**, enable the tool, grant it to a role, then run `artium-axi ado-axi project list --limit 1`.
 
 Writes are off by default; follow [write-access administration](runbook.md#roles-credentials-and-health) to enable them.
 Artium classifies every command using the reviewed [ADO inventory](../tools/inventories/ado-axi.json), which binds the routing review to upstream source digests.
@@ -333,14 +333,14 @@ Those commands fail rather than falling back to a PAT.
 To rotate, save a newly generated private key for the same App, test the credential, then revoke the old key in the App settings.
 Changing the App or installation ID requires entering its key again.
 
-Save, run **Test credential**, enable the tool and grant it to a role.
+Save, run **Test connection**, enable the tool and grant it to a role.
 Try `artium-axi gh-axi repo list --limit 1`, then `artium-axi gh-axi issue list -R OWNER/NAME --limit 10`.
 See the [supported GitHub boundary](safety.md) for repository selection, dashboard limitations and blocked operations.
 The [reviewed inventory](../tools/inventories/gh-axi.json) owns the command allow-list, write tiers and upstream source digests.
 `api` accepts `[GET] <relative-path>` with optional output shaping; GraphQL, other methods, request fields, headers and input bodies are refused.
 
 GitHub writes default off.
-An administrator enables exact operations under **Write access**, persisted as `{"writes":{"allowWrites":true,"operations":["issue comment"]}}` in native settings.
+An administrator enables exact operations on the **Write permissions** tab, persisted as `{"writes":{"allowWrites":true,"operations":["issue comment"]}}` in native settings.
 The collaboration and repository tiers describe capabilities; selecting one operation never enables its siblings.
 For exact operation names and tier membership, use the `effect: "write"` command entries and their `tier` fields in the [reviewed inventory](../tools/inventories/gh-axi.json).
 
@@ -409,8 +409,8 @@ Follow the [runbook password sign-in flow](runbook.md#roles-credentials-and-heal
 See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for token exchange, password handling and authentication failure guidance.
 Enter the token itself, never a SecretRef, environment-variable name or file path.
 Artium encrypts the token and injects a SecretRef through its private per-call profile.
-Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi awx-axi job list --limit 1`.
-**Test credential** reads one job using the managed token and reports structured authentication, network and TLS diagnostics.
+Save, run **Test connection**, enable the tool and grant it to a role, then run `artium-axi awx-axi job list --limit 1`.
+**Test connection** reads one job using the managed token and reports structured authentication, network and TLS diagnostics.
 For private certificates and rotation, follow the [credential trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui).
 HTTP and TLS-verification bypasses are refused.
 
@@ -428,7 +428,7 @@ Artium bundles `@knowttl/hybrid-axi` at the [reviewed package pin](../tools/pack
 At `/admin/tools/hybrid-axi`, enter the API key itself into `apiKey`, never a SecretRef or file path.
 The origin is fixed to `https://hybrid-analysis.com`; the published CLI sends the secret only in its `api-key` header.
 Artium encrypts the key and supplies an environment SecretRef through its private per-call profile.
-Save, run **Test credential**, enable the tool and grant it to a role, then run `artium-axi hybrid-axi quota`.
+Save, run **Test connection**, enable the tool and grant it to a role, then run `artium-axi hybrid-axi quota`.
 The credential test reads key level and submission quota; it does not prove permission for other resources.
 Structured 403 failures preserve upstream key-level guidance and never become empty results.
 

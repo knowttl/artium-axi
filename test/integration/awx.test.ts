@@ -172,8 +172,9 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(page.body).toContain('data-credential-field="password" data-secret data-ephemeral')
       expect(page.body).toContain('stores only that token')
       expect(page.body).toContain('data-profile-field="token"')
-      expect(page.body).toContain('Separate allowConfigurationWrites')
-      expect(page.body).toContain('name="allowConfigurationWrites" data-type="boolean"')
+      const writes = await app.inject({ url: '/admin/tools/awx-axi?tab=writes', headers: {
+        cookie: browserLogin.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+      expect(writes.body).toContain('name="allowConfigurationWrites" data-type="boolean"')
       expect(page.body).not.toContain('data-profile-field="verifySsl"')
       expect(page.body).not.toContain('CANARY-awx-token')
       const checked = () => app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/test', headers, payload: {} })

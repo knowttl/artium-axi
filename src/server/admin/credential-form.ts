@@ -56,7 +56,7 @@ const providerHelp: Record<string, string> = {
   ...applicationHelp,
   thumbprintSha256: 'SHA-256 certificate fingerprint (64 hexadecimal characters). A combined PEM upload calculates it.',
 }
-const downloadHelp = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow write access enabled and the exact download operation selected.'
+const downloadHelp = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected.'
 const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
   'ado-axi': {
     ...applicationHelp,
@@ -111,6 +111,19 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
   },
 }
 
+// Plain labels for schema properties that carry no title of their own.
+const fieldLabels: Record<string, string> = {
+  accessKey: 'Access key', apiKey: 'API key', apiVersion: 'API version', appId: 'App ID', applianceRelease: 'Release label',
+  auth: 'Authentication', base: 'Search base', bindDn: 'Bind DN', bindPassword: 'Bind password', caBundle: 'CA certificate',
+  caFile: 'CA certificate', clientId: 'Client ID', clientSecret: 'Client secret', host: 'API host', installationId: 'Installation ID',
+  kind: 'Appliance type', memberCid: 'Member CID', mode: 'Mode', org: 'Organization', origin: 'URL', pageSize: 'Page size',
+  password: 'Password', permissions: 'Permissions', privateKey: 'Private key', project: 'Project', region: 'Region',
+  repositories: 'Repositories', saas: 'SaaS application name', scope: 'Scope', secretKey: 'Secret key', signIn: 'Sign-in',
+  startTls: 'Start TLS', tenantId: 'Tenant ID', thumbprint: 'Certificate thumbprint (SHA-1)',
+  thumbprintSha256: 'Certificate thumbprint (SHA-256)', tlsMaxVersion: 'Maximum TLS version', token: 'API token', url: 'Directory URL',
+  username: 'Username',
+}
+
 export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
   const excluded = new Set([...(tool ? Object.keys(nativeSettingsSchemas[tool].shape) : []), 'tokenEnv', 'secretEnv'])
   if (tool === 'gh-axi') for (const name of ['accessToken', 'accessTokenExpiresAt', 'login']) excluded.add(name)
@@ -121,7 +134,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     const ephemeral = schema['x-ephemeral'] === true
     const value = secret ? undefined : metadata[name]
     const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}"${required && !secret ? ' required' : ''} autocomplete="off"`
-    const label = escape(schema.title ?? name) + (secret ? ' (secret)' : schema.type === 'object' ? ' (advanced JSON)' : '')
+    const label = escape(schema.title ?? fieldLabels[name] ?? name) + (schema.type === 'object' && !secret ? ' (advanced JSON)' : '')
     const help = schema.description ?? (tool ? fieldHelp[tool]?.[name] : providerHelp[name])
       ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.')
     const defaultHelp = Object.hasOwn(schema, 'default')

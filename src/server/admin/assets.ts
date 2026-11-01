@@ -109,8 +109,50 @@ if (savedTest) {
   if (result) {
     const saved = JSON.parse(savedTest);
     result.textContent = saved.message;
-    if (saved.health) renderTestHealth(result.closest('section'), saved.health);
+    if (saved.health) renderTestHealth(saved.health);
   }
+}
+const operationFilter = document.getElementById('ops-filter');
+if (operationFilter) {
+  // Filters apply live with JavaScript; without it the GET form reloads the filtered view.
+  document.querySelector('[data-ops-apply]').hidden = true;
+  const filterOperations = () => {
+    const text = operationFilter.elements.q.value.trim().toLowerCase();
+    const show = operationFilter.elements.show.value;
+    const filtered = text !== '' || show !== 'all';
+    let any = false;
+    for (const group of document.querySelectorAll('[data-ops-group]')) {
+      let visible = 0;
+      for (const operation of group.querySelectorAll('[data-op]')) {
+        const match = operation.dataset.op.includes(text) && (show === 'all' ||
+          (show === 'selected' ? operation.querySelector('input').checked : operation.hasAttribute('data-delete')));
+        operation.hidden = !match;
+        if (match) visible++;
+      }
+      group.hidden = filtered && !visible;
+      if (filtered && visible) group.open = true;
+      any ||= visible > 0;
+    }
+    document.querySelector('[data-ops-empty]').hidden = any;
+  };
+  document.querySelector('[data-ops-filter]').addEventListener('input', filterOperations);
+  operationFilter.addEventListener('submit', event => { event.preventDefault(); filterOperations(); });
+}
+for (const settings of document.querySelectorAll('[data-json-check]')) {
+  const status = settings.closest('form').querySelector('[data-json-status]');
+  const check = () => {
+    try {
+      const value = JSON.parse(settings.value);
+      const valid = value !== null && typeof value === 'object' && !Array.isArray(value);
+      status.textContent = valid ? 'Valid JSON object.' : 'Enter a JSON object, such as {}.';
+      status.dataset.valid = String(valid);
+    } catch (error) {
+      status.textContent = 'Not valid JSON: ' + error.message;
+      status.dataset.valid = 'false';
+    }
+  };
+  settings.addEventListener('input', check);
+  check();
 }
 
 function confirmChange(consequence) {
@@ -233,18 +275,30 @@ async function readTestResponse(response) {
   return { health };
 }
 
-function renderTestHealth(section, health) {
-  section.querySelector('[id^=status-]').textContent = health.status;
-  section.querySelector('[data-test-checklist]').textContent =
-    (health.status === 'ok' ? 'Done' : 'To do') + ': Pass Test credential below';
-  const checked = section.querySelector('[data-check-time]');
-  checked.textContent = health.checkedAt === null ? 'Not checked' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+function renderTestHealth(health) {
+  const passed = health.status === 'ok';
+  // The server renders both state badges from the status vocabulary; this only swaps them.
+  document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('template[data-state=' + (passed ? 'ok' : 'error') + ']').content.cloneNode(true));
+  const step = document.querySelector('[data-test-checklist]');
+  step.classList.remove('todo', 'done', 'fail');
+  step.classList.add(passed ? 'done' : 'fail');
+  step.querySelector('[data-step-state]').textContent = (passed ? 'Done' : 'Failed') + ': ';
+  step.querySelector('b + span').textContent = passed ? 'Passed' : 'Failing: ' + (health.errorCode || 'error');
+  const mark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  mark.setAttribute('class', 'i');
+  mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
+  mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
+  step.querySelector('.mark').replaceChildren(mark);
+  const checked = document.querySelector('[data-check-time]');
+  checked.textContent = health.checkedAt === null ? 'never' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   checked.title = health.checkedAt === null ? '' : new Date(health.checkedAt).toISOString();
-  section.querySelector('[data-check-error]').textContent = health.errorCode || '';
+  const detail = health.diagnostic;
+  document.querySelector('[data-check-failure]').hidden = !health.errorCode;
+  document.querySelector('[data-check-summary]').textContent = detail ? [detail.message, detail.hint].filter(Boolean).join(' ') : '';
+  document.querySelector('[data-check-error]').textContent = health.errorCode || '';
   const inspect = document.querySelector('[data-inspect-certificate]');
   if (inspect && health.errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
-  const detail = health.diagnostic;
-  section.querySelector('[data-check-diagnostic]').textContent = detail
+  document.querySelector('[data-check-diagnostic]').textContent = detail
     ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\\n') : '';
 }
 
@@ -382,14 +436,15 @@ document.addEventListener('submit', async event => {
   }
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
-  const button = form.querySelector('button');
+  // A filter control placed inside this form can belong to another form.
+  const button = form.querySelector('button:not([form])');
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
   const message = form.hasAttribute('data-trust-certificate')
     ? form.closest('dialog').querySelector('[data-certificate-error]') : document.getElementById('message');
   message.textContent = '';
-  const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
+  const testResult = form.dataset.testTool ? document.querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
@@ -454,7 +509,7 @@ document.addEventListener('submit', async event => {
         sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: 'Saved.' + (normalized ? ' ' + normalized : '') }));
         location.reload(); return;
       }
-      let result = 'Saved. Test could not complete. Run Test credential again.';
+      let result = 'Saved. Test could not complete. Run Test connection again.';
       let health;
       try {
         const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/test', { method: 'POST',
@@ -472,7 +527,7 @@ document.addEventListener('submit', async event => {
     if (testResult) {
       const current = await readTestResponse(response);
       testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
-      renderTestHealth(form.closest('section'), current.health);
+      renderTestHealth(current.health);
       if (current.error) showError(message, current.error);
       return;
     }

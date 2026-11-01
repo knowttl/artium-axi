@@ -53,8 +53,49 @@ export function pageHeader(title: string, description?: string): string {
   return `<div class="page-head"><div><h1>${escape(title)}</h1>${description ? `<p>${escape(description)}</p>` : ''}</div></div>`
 }
 
-export function card(title: string, description: string, body: string): string {
-  return `<section class="card"><div class="card-head"><div><h2>${escape(title)}</h2><p>${escape(description)}</p></div></div>${body}</section>`
+export function card(title: string, description: string, body: string, options: { actions?: string, foot?: string } = {}): string {
+  return `<section class="card"><div class="card-head"><div><h2>${escape(title)}</h2><p>${escape(description)}</p></div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}${options.foot ? `<div class="card-foot">${options.foot}</div>` : ''}</section>`
+}
+
+// A compact card for side guidance: a small heading and short text, no header bar.
+export function noteCard(title: string, body: string): string {
+  return `<section class="card"><div class="card-body"><h3>${escape(title)}</h3>${body}</div></section>`
+}
+
+export type Tone = 'ok' | 'warn' | 'err' | 'info'
+
+// Results use role="status"; blocking errors pass role "alert".
+export function callout(tone: Tone, title: string, body: string, options: { actions?: string, role?: 'status' | 'alert', attributes?: string } = {}): string {
+  const glyph: IconName = tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert'
+  return `<div class="callout ${tone}"${options.role ? ` role="${options.role}"` : ''}${options.attributes ? ' ' + options.attributes : ''}>${icon(glyph)}<div class="grow"><b>${escape(title)}</b>${body}</div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>`
+}
+
+// Tabs are links, so each tab is its own server-rendered view.
+export function tabs(label: string, items: { href: string, label: string, icon: IconName, note?: string, current: boolean }[]): string {
+  return `<nav class="utabs" aria-label="${escape(label)}">${items.map(item => `<a href="${escape(item.href)}"${item.current ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}${item.note ? ` <span class="n">${escape(item.note)}</span>` : ''}</a>`).join('')}</nav>`
+}
+
+export type StepState = 'done' | 'fail' | 'todo'
+const stepWords = { done: 'Done', fail: 'Failed', todo: 'To do' }
+export function steps(items: { title: string, detail: string, state: StepState, attributes?: string }[]): string {
+  const current = items.findIndex(item => item.state !== 'done')
+  return `<ol class="steps">${items.map((item, index) => `<li class="step ${item.state}${index === current ? ' current' : ''}"${item.attributes ? ' ' + item.attributes : ''}><span class="mark" aria-hidden="true">${item.state === 'done' ? icon('check') : item.state === 'fail' ? icon('x') : index + 1}</span><div><b><span class="sr-only" data-step-state>${stepWords[item.state]}: </span>${escape(item.title)}</b><span>${item.detail}</span></div></li>`).join('')}</ol>`
+}
+
+const tools = {
+  'falcon-axi': ['CrowdStrike Falcon', 'FA'], 'vectra-axi': ['Vectra', 'VE'], 'mg-axi': ['Microsoft Graph', 'MG'], 'ldap-axi': ['LDAP', 'LD'],
+  'az-axi': ['Azure', 'AZ'], 'ado-axi': ['Azure DevOps', 'AD'], 'awx-axi': ['AWX', 'AW'], 'gh-axi': ['GitHub', 'GH'], 'tenable-axi': ['Tenable One', 'TE'],
+  'hybrid-axi': ['Hybrid Analysis', 'HA'], 'checkpoint-axi': ['Check Point Email', 'CP'], 'beyondtrust-axi': ['BeyondTrust PM Cloud', 'BT'],
+} as const
+export type ToolPackage = keyof typeof tools
+
+// Product display names: the one place a package name becomes a product name.
+export function productName(tool: ToolPackage): string {
+  return tools[tool][0]
+}
+
+export function toolIcon(tool: ToolPackage, size: 'sm' | 'lg' = 'sm'): string {
+  return `<span class="tool-ico${size === 'lg' ? ' lg' : ''}" aria-hidden="true">${tools[tool][1]}</span>`
 }
 
 export interface Viewer {
@@ -73,6 +114,8 @@ export interface Viewer {
 export interface Page {
   title: string
   description?: string
+  // Replaces the default page header, for identity headers that still hold the page's only h1.
+  header?: string
   content: string
   help: string
   path: string
@@ -128,7 +171,7 @@ const message = '<p id="message" class="message" role="alert" tabindex="-1"></p>
 
 export function appShell(page: Page): string {
   const { viewer } = page
-  const head = pageHeader(page.title, page.description)
+  const head = page.header ?? pageHeader(page.title, page.description)
   if (!viewer) {
     return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${brand('/login')}${head}${message}${page.content}</div>
       <details class="page-help auth-help"><summary>Help with ${escape(page.title.toLowerCase())}</summary>${page.help}</details></div></main>`
