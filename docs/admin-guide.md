@@ -104,10 +104,10 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 
 | Screen | Purpose |
 | --- | --- |
-| `/admin` | Overview: the order to set up access, with a link to each step. Older `/admin?…` users-list links redirect to `/admin/users`. |
-| `/admin/users` | Search and filter the users table by source, status or role; create local users. |
-| `/admin/users/:id` | Edit profile and roles, review effective tools and sessions, revoke sessions, enable or disable, unlock, reset local passwords and archive. |
-| `/admin/invitations` | Prepare, resend and revoke SSO invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for usage and claim availability. |
+| `/admin` | Overview: enabled tools, health, people with access and write state; items that need attention, each with the action that fixes it; the setup checklist; enabled tools and recent administration changes. Older `/admin?…` users-list links redirect to `/admin/users`. |
+| `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` without JavaScript). |
+| `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
+| `/admin/invitations` | Prepare, resend and revoke SSO invitations from sheets (`?sheet=new-invitation` without JavaScript); a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
@@ -124,7 +124,7 @@ See the [capability boundary](safety.md) for current availability.
 Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 User detail combines grants from every assigned role and links each tool to its granting roles.
-User detail and role membership pages distinguish Direct assignments made by an administrator from Rule grants.
+User detail and role membership pages distinguish Direct assignments made by an administrator from Rule grants; person pages label rule grants **SSO rule**.
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
 The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for the available provider editor and current SSO limits.
 SSO accounts cannot be given a local password.
@@ -261,7 +261,7 @@ Every rule change requires the [confirmation described under browser administrat
 At each SSO sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
 User details label Direct and Rule grants and identify the provider rule that supplied each rule grant.
 Deleting a rule or changing its provider, claim name, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
-Open **Invite SSO user and manage invitations** from Users to prepare an invitation with a provider, display name, exact expected `preferred_username` (Entra sign-in username for Microsoft), direct roles and an expiry of 1 to 30 days (default 7).
+Choose **New invitation** on Invitations, or **Invite with SSO** on People, to prepare an invitation with an Entra ID or OpenID Connect provider, display name, exact expected `preferred_username` (the Entra ID sign-in name or the OpenID Connect username), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
 Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.

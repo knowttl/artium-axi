@@ -49,12 +49,72 @@ export function icon(name: IconName): string {
   return `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`
 }
 
-export function pageHeader(title: string, description?: string): string {
-  return `<div class="page-head"><div><h1>${escape(title)}</h1>${description ? `<p>${escape(description)}</p>` : ''}</div></div>`
+export interface PageHeader {
+  description?: string
+  // Markup for at most one primary action plus secondary actions.
+  actions?: string
+  // Identity variant: an avatar or tool icon before the title, and badges under it.
+  lead?: string
+  meta?: string
+  // A detail page names its list page in the breadcrumb and uses its help.
+  parent?: { label: string, href: string, help: string }
 }
 
-export function card(title: string, description: string, body: string): string {
-  return `<section class="card"><div class="card-head"><div><h2>${escape(title)}</h2><p>${escape(description)}</p></div></div>${body}</section>`
+export function pageHeader(title: string, header: PageHeader = {}): string {
+  const text = `<div class="grow"><h1>${escape(title)}</h1>${header.meta ? `<div class="row meta">${header.meta}</div>` : ''}${header.description ? `<p>${escape(header.description)}</p>` : ''}</div>`
+  return `<div class="page-head${header.lead ? ' identity' : ''}">${header.lead ?? ''}${text}${header.actions ? `<div class="actions">${header.actions}</div>` : ''}</div>`
+}
+
+export function card(title: string, description: string, body: string, options: { actions?: string, foot?: string, danger?: boolean } = {}): string {
+  return `<section class="card${options.danger ? ' danger' : ''}"><div class="card-head"><div><h2>${escape(title)}</h2>${description ? `<p>${escape(description)}</p>` : ''}</div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}${options.foot ? `<div class="card-foot">${options.foot}</div>` : ''}</section>`
+}
+
+export function avatar(name: string, large = false): string {
+  return `<span class="avatar${large ? ' lg' : ''}" aria-hidden="true">${escape(initials(name))}</span>`
+}
+
+export function callout(tone: 'info' | 'ok' | 'warn' | 'err', title: string, text: string, actions = ''): string {
+  return `<div class="callout ${tone}" role="status">${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow"><strong>${escape(title)}</strong><p>${text}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
+}
+
+export interface Sheet {
+  name: string
+  // True when the page was requested with ?sheet=<name>.
+  open: boolean
+  // The page without the sheet; Close and Cancel link here.
+  closeHref: string
+  title: string
+  description: string
+  body: string
+  submit: string
+  // Wraps the body and footer, usually in the form that the submit button sends.
+  wrap: (inner: string) => string
+}
+
+// A side sheet on a native dialog. Without JavaScript the page renders it open from ?sheet=<name>,
+// with a scrim and Cancel linking back to the page; confirm.js reopens it as a modal.
+export function sheet(sheet: Sheet): string {
+  const id = `sheet-${escape(sheet.name)}`
+  const close = escape(sheet.closeHref)
+  return `${sheet.open ? `<a class="scrim" href="${close}" tabindex="-1" aria-hidden="true" data-sheet-scrim></a>` : ''}<dialog class="sheet" id="${id}" aria-labelledby="${id}-title"${sheet.open ? ' open' : ''}>
+    <div class="sheet-head"><div class="grow"><h2 id="${id}-title">${escape(sheet.title)}</h2><p>${escape(sheet.description)}</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${close}" data-sheet-close aria-label="Close">${icon('x')}</a></div>
+    ${sheet.wrap(`<div class="sheet-body"><p class="message" data-sheet-message role="alert" tabindex="-1"></p>${sheet.body}</div><div class="sheet-foot"><a class="btn btn-ghost" href="${close}" data-sheet-close>Cancel</a>${sheet.submit}</div>`)}</dialog>`
+}
+
+// A labelled field; the control receives its id and the hint's aria-describedby.
+export function field(id: string, label: string, control: (attributes: string) => string, hint = ''): string {
+  const attributes = `id="${escape(id)}"${hint ? ` aria-describedby="${escape(id)}-hint"` : ''}`
+  return `<div class="field"><label for="${escape(id)}">${escape(label)}</label>${control(attributes)}${hint ? `<p class="hint" id="${escape(id)}-hint">${escape(hint)}</p>` : ''}</div>`
+}
+
+// A checkbox with a bold title and a one-line description.
+export function checkOption(input: string, title: string, description = ''): string {
+  return `<label class="check">${input}<span><strong>${escape(title)}</strong>${description ? `<span>${escape(description)}</span>` : ''}</span></label>`
+}
+
+// A link that opens a sheet: a modal with JavaScript, otherwise the ?sheet= view of the page.
+export function sheetLink(name: string, href: string, label: string, className: string, iconName?: IconName): string {
+  return `<a class="${className}" href="${escape(href)}" data-sheet="sheet-${escape(name)}">${iconName ? icon(iconName) : ''}${escape(label)}</a>`
 }
 
 export interface Viewer {
@@ -72,7 +132,7 @@ export interface Viewer {
 
 export interface Page {
   title: string
-  description?: string
+  header?: PageHeader
   content: string
   help: string
   path: string
@@ -91,7 +151,7 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
 
 const brand = (href: string) => `<a class="brand" href="${href}"><span class="logo" aria-hidden="true">A</span>Artium</a>`
 
-function initials(name: string): string {
+export function initials(name: string): string {
   const words = name.trim().split(/\s+/)
   return (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
 }
@@ -119,7 +179,8 @@ function reauthPill(viewer: Viewer): string {
 }
 
 function dialogs(viewer: Viewer): string {
-  const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p></div><div class="modal-foot"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed">Confirm change</button></div></form></dialog>`
+  // Tier 2 names the action in the title and the confirm button; tier 3 also needs the exact name typed.
+  const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title">Confirm change</h2><p data-consequence></p><div class="field" data-confirm-typed hidden><label for="confirmation-name"></label><input class="input mono" id="confirmation-name" autocomplete="off" spellcheck="false"></div></div><div class="modal-foot"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed" data-confirm-button>Confirm change</button></div></form></dialog>`
   if (!viewer.administrator || viewer.mustChange) return confirmation
   return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title">${viewer.sso ? 'Confirm identity' : 'Confirm password'}</h2><p>${viewer.sso ? 'Confirm your identity with your provider in a new window' : 'Confirm your password'} to continue the pending action. Changes are allowed for 15 minutes. Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><label>Password <input name="password" type="password" autocomplete="current-password" required></label></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-secondary" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
 }
@@ -128,7 +189,7 @@ const message = '<p id="message" class="message" role="alert" tabindex="-1"></p>
 
 export function appShell(page: Page): string {
   const { viewer } = page
-  const head = pageHeader(page.title, page.description)
+  const head = pageHeader(page.title, page.header)
   if (!viewer) {
     return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${brand('/login')}${head}${message}${page.content}</div>
       <details class="page-help auth-help"><summary>Help with ${escape(page.title.toLowerCase())}</summary>${page.help}</details></div></main>`
@@ -144,10 +205,12 @@ export function appShell(page: Page): string {
     group = item.group
     return `${label}<a class="nav-item" href="${item.href}"${item === active ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}</a>`
   }).join('')
-  const crumbs = `<p class="crumbs">${active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span><span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.title)}</strong></p>`
+  const parent = page.header?.parent
+  const trail = parent ? `<a href="${escape(parent.href)}">${escape(parent.label)}</a>` : active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span>` : ''
+  const crumbs = `<p class="crumbs">${trail ? `${trail}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.title)}</strong></p>`
   return `<a class="skip" href="#main">Skip to content</a><div class="app">
     <div class="side" id="nav"><div class="side-head">${brand('/admin')}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
       <nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up')}</div></div>
-    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${reauthPill(viewer)}${learn(page.title, page.help)}</div></header>
+    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${reauthPill(viewer)}${learn(parent?.help ?? page.title, page.help)}</div></header>
       <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
 }

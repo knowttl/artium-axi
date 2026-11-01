@@ -18,6 +18,7 @@ export const tokens = `
   --primary-hover: #27272a;
   --primary-fg: #fafafa;
   --danger-solid: #b91c1c;
+  --danger-fg: #ffffff;
   --focus: #2563eb;
   --ok: #15803d;   --ok-soft: #f0fdf4;   --ok-border: #bbf7d0;
   --warn: #b45309; --warn-soft: #fffbeb; --warn-border: #fde68a;

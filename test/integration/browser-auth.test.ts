@@ -442,9 +442,8 @@ test('Users screen paginates accounts and retains role choices from later API pa
   await signIn()
   const response = await request('GET', '/admin/users?limit=1')
   expect(response.body).toContain('Role 100')
-  expect(response.body).toContain('Next page')
-  const next = /href="(\/admin\/users\?[^"]*cursor=[^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&')
-  expect((await request('GET', next)).body).not.toContain('Next page')
+  const next = /href="(\/admin\/users\?[^"]*cursor=[^"]+)">Next</.exec(response.body)![1]!.replaceAll('&amp;', '&')
+  expect((await request('GET', next)).body).not.toMatch(/cursor=[^"]+">Next</)
   expect((await request('GET', '/admin/users?limit=101')).statusCode).toBe(400)
 })
 
@@ -454,6 +453,27 @@ test('users-list bookmarks from before Overview still open the users list with t
   expect(response.statusCode).toBe(301)
   expect(response.headers.location).toBe('/admin/users?source=local&limit=1')
   expect((await request('GET', '/admin')).body).toContain('<h1>Overview</h1>')
+})
+
+test('overview names each broken access link with the action that fixes it', async () => {
+  db.exec(`UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi';
+    INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
+    INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
+      VALUES ('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', 'Synthetic Invitee', ${now}, '${userId}', ${now + 86_400_000})`)
+  await signIn()
+  const body = (await request('GET', '/admin')).body
+  expect(body).toMatch(/Vectra is enabled without a credential<\/strong>.*?href="\/admin\/tools\/vectra-axi">Add credential</s)
+  expect(body).toMatch(/Synthetic Invitee can’t claim their invitation yet<\/strong>.*?href="\/admin\/invitations">Review</s)
+  expect(body).toContain('2 things need you.')
+})
+
+test.each([
+  ['/admin/users', 'sheet-add-user'],
+  [`/admin/users/${userId}`, 'sheet-reset-password'],
+])('%s renders its sheet open from the sheet query without JavaScript', async (path, id) => {
+  await signIn()
+  expect((await request('GET', `${path}?sheet=${id.slice('sheet-'.length)}`)).body).toContain(`id="${id}" aria-labelledby="${id}-title" open>`)
+  expect((await request('GET', path)).body).toContain(`id="${id}" aria-labelledby="${id}-title">`)
 })
 
 test.each([
