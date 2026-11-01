@@ -1221,6 +1221,30 @@ test('R2: role creation errors stay accessible in the dialog and preserve the dr
   `)
 })
 
+test('role and member tables align columns on desktop and stack readable rows on narrow screens', () => {
+  for (const width of [1280, 420]) {
+    chrome(['resize', String(width), '900'])
+    browser(`
+      for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
+        await page.open(base + path);
+        check(await page.eval(() => {
+          const table = document.querySelector('table');
+          const headings = [...table.tHead.rows[0].cells];
+          const rows = [...table.tBodies[0].rows];
+          return rows.every(row => [...row.cells].every((cell, index) => {
+            const bounds = cell.getBoundingClientRect();
+            if (innerWidth > 760) {
+              const heading = headings[index].getBoundingClientRect();
+              return Math.abs(bounds.left - heading.left) < 1 && Math.abs(bounds.right - heading.right) < 1;
+            }
+            return index === 0 || bounds.width === 0 || bounds.top >= row.cells[0].getBoundingClientRect().bottom;
+          })) && document.documentElement.scrollWidth <= innerWidth;
+        }), 'Table layout broke on ' + path + ' at width ' + ${width});
+      }
+    `)
+  }
+})
+
 test('role tool grants and membership explain effective tools and an empty role can be deleted', () => {
   browser(`
     await page.open(base + '/admin/roles');

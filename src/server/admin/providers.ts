@@ -283,7 +283,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           : ready ? callout('info', 'info', 'Ready to enable', '<p>Credential configuration and a usable break-glass administrator are present.</p>')
             : callout('warn', 'lock', 'Not ready to enable', `<ul>${problems.map(problem => `<li>${escape(problem)}</li>`).join('')}</ul>`)
         content += `<div class="grid2">${card('Set up this provider', 'Work top to bottom. Artium ticks the steps it can check.', `<div class="card-body">${checklist}</div>`)}
-          <div class="stack">${readiness}<p class="hint">These checks validate local configuration only. They cannot verify the provider’s app registration, credential acceptance or access policies.</p>
+          <div class="provider-sidebar">${readiness}<p class="hint">These checks validate local configuration only. They cannot verify the provider’s app registration, credential acceptance or access policies.</p>
           <section class="card"><div class="card-body"><h3>What enabling does</h3><p class="hint">People sign in with this provider. Local passwords then work only for designated break-glass administrators, and every such use is flagged in the audit log. Disabling every provider restores passwords for everyone.</p></div></section>
           <section class="card"><div class="card-body"><h3>Optional sign-out</h3><p class="hint">If the provider supports end-session, register this post-logout URI. Artium sign-out always ends its own session first.</p>${copyField('Post-logout URI', origin + '/login')}</div></section></div></div>`
       } else if (tab === 'credential') {
