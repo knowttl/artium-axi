@@ -236,7 +236,7 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .page-head.identity { align-items: center; }
 
 /* Callout */
-.callout { display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-subtle); font-size: var(--fs-sm); }
+.callout { display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-subtle); color: var(--text); font-size: var(--fs-sm); }
 .callout > svg.i { margin-top: 2px; }
 .callout .grow { flex: 1; min-width: 0; }
 .callout b { display: block; margin-bottom: 2px; font-weight: 600; }
