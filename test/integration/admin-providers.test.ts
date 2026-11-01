@@ -109,7 +109,7 @@ test('setup checklist People link opens the users page', async () => {
   const usersLink = setupGuide.match(/<a href="([^"]+)">Open People<\/a>/)![1]!.replaceAll('&amp;', '&')
   const users = await app.inject({ url: usersLink, headers: browserHeaders })
   expect(users.statusCode).toBe(200)
-  expect(users.body).toContain('<h1>Users</h1>')
+  expect(users.body).toContain('<h1>People</h1>')
 })
 
 async function activation(id: string, enabled = true, expectedRevision = 2, authorization = headers) {

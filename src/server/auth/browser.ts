@@ -147,7 +147,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
         if (destination) return browserPage(reply, 'You’re signed out', `<a class="btn btn-secondary" data-provider-signout href="${escape(destination)}">Continue to provider sign-out</a><a class="btn btn-primary" href="/login">Sign in again</a>`,
           undefined, 'Your Artium session has ended. Your identity provider session may still be active until you sign out there too.', signedOut)
       } catch { /* Local revocation succeeds even when discovery is unavailable. */ }
-      return browserPage(reply, 'You’re signed out', callout('warn', 'alert', '', '<p>Provider sign-out could not be started; your provider session may still be active.</p>', 'status') + '<a class="btn btn-primary" href="/login">Sign in again</a>',
+      return browserPage(reply, 'You’re signed out', callout('warn', '', 'Provider sign-out could not be started; your provider session may still be active.') + '<a class="btn btn-primary" href="/login">Sign in again</a>',
         undefined, 'Your Artium session has ended.', signedOut)
     }
     return reply.redirect('/login', 303)

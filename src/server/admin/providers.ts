@@ -233,7 +233,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           `<tr><th scope="row"><span class="cell-main"><span class="avatar" aria-hidden="true">${escape(initials(user.username))}</span><a href="/admin/users/${escape(user.id)}">${escape(user.username)}</a></span></th><td class="muted">${timestamp(user.claims_at)}</td></tr>`).join('')}</tbody></table></div>`
           : '<div class="card-body"><p>No one matches this rule in the saved sign-in claims.</p></div>'
         return browserPage(reply, `Who matches “${rule.claim} contains ${rule.value}”`, `<section class="card" aria-label="Matching people">${table}</section>` +
-          callout('info', 'info', '', '<p>Matches come from the last successful sign-in of enabled, unarchived people. People who have never signed in with this provider can’t be counted yet. Grants synchronize on their next sign-in.</p>'),
+          callout('info', '', 'Matches come from the last successful sign-in of enabled, unarchived people. People who have never signed in with this provider can’t be counted yet. Grants synchronize on their next sign-in.'),
         current, 'From each enabled person’s last successful sign-in. Not a live directory lookup.', { helpTopic: 'Sign-in & SSO', parent: { href: `/admin/settings/sign-in/${id}?tab=rules`, label: provider.name } })
       }
       const api = adminProviderRoutes.list.path + '/' + id
@@ -279,9 +279,9 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         ]
         const next = steps.findIndex(([done]) => !done)
         const checklist = `<ol class="vsteps">${steps.map(([done, title, detail], index) => step(index + 1, done ? 'done' : index === next ? 'current' : 'todo', title, detail)).join('')}</ol>`
-        const readiness = provider.enabled ? callout('ok', 'check', 'Sign-in is enabled', '<p>Saving provider settings or the credential disables this provider until you enable it again.</p>')
-          : ready ? callout('info', 'info', 'Ready to enable', '<p>Credential configuration and a usable break-glass administrator are present.</p>')
-            : callout('warn', 'lock', 'Not ready to enable', `<ul>${problems.map(problem => `<li>${escape(problem)}</li>`).join('')}</ul>`)
+        const readiness = provider.enabled ? callout('ok', 'Sign-in is enabled', 'Saving provider settings or the credential disables this provider until you enable it again.')
+          : ready ? callout('info', 'Ready to enable', 'Credential configuration and a usable break-glass administrator are present.')
+            : callout('warn', 'Not ready to enable', problems.map(escape).join(' '))
         content += `<div class="grid2">${card('Set up this provider', 'Work top to bottom. Artium ticks the steps it can check.', `<div class="card-body">${checklist}</div>`)}
           <div class="provider-sidebar">${readiness}<p class="hint">These checks validate local configuration only. They cannot verify the provider’s app registration, credential acceptance or access policies.</p>
           <section class="card"><div class="card-body"><h3>What enabling does</h3><p class="hint">People sign in with this provider. Local passwords then work only for designated break-glass administrators, and every such use is flagged in the audit log. Disabling every provider restores passwords for everyone.</p></div></section>
@@ -291,7 +291,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           <p class="hint">Certificate authentication is preferred. Upload one PEM containing the certificate and matching unencrypted private key; the SHA-256 fingerprint is calculated automatically. Client secrets are accepted but are less secure than certificates.</p>` +
           apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
             `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile(provider.kind), credential.metadata, credential.configured),
-          'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', credential.configured ? badge('Saved', 'ok') : badge('Needs credential', 'warn'))
+          'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', { actions: credential.configured ? badge('Saved', 'ok') : badge('Needs credential', 'warn') })
       } else if (tab === 'rules') {
         const fields = (value = '', roleId = '', claim = 'groups') => `<input type="hidden" name="providerId" value="${escape(id)}">${provider.kind === 'entra'
           ? '<input type="hidden" name="claim" value="roles"><p class="hint">Claim: <code>roles</code> (Entra app roles)</p>'
@@ -312,7 +312,7 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         content += card('Role rules', provider.kind === 'entra' ? 'Map an exact, case-sensitive value in the Entra roles claim to an Artium role.' : 'Map an exact, case-sensitive value in any named claim to an Artium role.',
           (rules.length ? `<ul class="rows">${rows}</ul>` : `<div class="card-body"><p>No role rules yet. ${roles.length ? 'Add a mapping after granting the role its tools.' : '<a href="/admin/roles">Create an Artium role</a> before adding rules.'}</p></div>`) +
           '<div class="card-foot"><p>Rules synchronize at sign-in. Removing or retargeting a rule immediately removes its grants; direct and other-rule grants remain. Match counts use enabled people’s last successful sign-in claims, not a live directory.</p></div>',
-          roles.length ? `<a class="btn btn-secondary btn-sm" href="${page}?tab=rules&amp;rule=new">${icon('plus')}Add rule</a>` : '')
+          { actions: roles.length ? `<a class="btn btn-secondary btn-sm" href="${page}?tab=rules&amp;rule=new">${icon('plus')}Add rule</a>` : '' })
         const editing = query.data.rule
         if (editing && roles.length) {
           const rule = editing === 'new' ? undefined : rules.find(rule => rule.id === editing)

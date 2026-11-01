@@ -11,7 +11,7 @@ This document is the reference for every current and future screen.
 | [tokens.ts](../src/server/admin/design/tokens.ts) | All colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
 | `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the app shell and the icon sprite. |
-| `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per server state, and the product display name and mark of each tool; rendered only through `badge()` and `status()`. |
+| `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 `adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
 
@@ -60,31 +60,34 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Recent-auth pill | `.unlock.on`, `.unlock.off` | unlocked with minutes left, locked | Text carries the state; refreshed every 30 seconds |
 | Account menu | `.account-menu` with `.popover` | closed, open | Native disclosure; "Signed in as" is announced |
 | Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
-| Page header | `pageHeader()`: `.page-head`, `.actions`, `.meta` | title, optional one-line description, optional actions (at most one primary), identity variant with a lead icon and meta badges; a detail page names its record in the `h1` and links its section or parent page in the crumbs | The page's only `h1` |
 | Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
-| Button | `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon` | default, hover, focus, disabled (`aria-disabled` on link buttons) | Icon-only buttons need `aria-label` |
-| Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.warn`, `.card.danger`, `.card.empty` | plain, with footer actions, warning, danger zone, empty state | `h2` per card |
 | Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
-| Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the vocabulary only | The word carries the state; the dot is `aria-hidden` |
-| Chip | `.chips`, `.chip` | plain, with a grey dot for a disabled tool | Disabled state also in text |
-| Table | `.tbl`, `.num`, `.cell-main`, `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, numeric column, empty state in the card body; `.row-links.stack` rows stack at 760px and narrower | Real `<table>` with `<th scope>`; `.row-links` makes the first-cell link cover the row |
+| Page header | `pageHeader()`: `.page-head`, `.actions` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or tool icon and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
+| Button | `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus, disabled | Icon-only buttons need `aria-label`; verbs name the result |
+| Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
+| Chip | `.chip`, `.chips` | plain, link | Role chips name the grant origin (Direct, SSO rule) where it matters |
+| Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.danger`, `.card.empty` | plain, with header actions, with footer actions, danger zone, empty state | `h2` per card |
+| Stats | `.stats`, `.stat` | value, label, note with tone | Summary cards carry a visually hidden `h2` |
+| Table | `.tbl` in `.table-wrap`; `.cell-main`, `.row-link`, `.num`, `.actions-cell`, `.stacked`; `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, dimmed row, numeric column, stacked rows below 760px | Real `<table>`; the row link is the first-cell anchor, stretched over the row, not a JavaScript click |
+| Field | `field()`: `.field`, `.hint`; `.input`, `.select`, `.input.mono`, `.input.narrow`; `checkOption()`: `.check`; `.options` fieldset | default, focus, invalid, disabled | `label for`; hints linked by `aria-describedby` |
+| Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions | `role="status"` |
+| Steps and meter | `.vsteps`, `.vstep` (`.done`, `.current`); native `<progress class="meter">` | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
+| Key-value list | `.kv` | | `<dl>` |
+| Copy field | `.copy-group` with `.copyfield`, `[data-copy]` and `.copy-status` | copied, unavailable | Result announced in the status line |
+| List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
+| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico` | sm, lg | Initials are `aria-hidden`; the name is adjacent text |
+| Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
+| Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from `?sheet=<name>` without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
 | Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
-| List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Field | `field()`: `.field`, `label`, `.hint` | default, focus, disabled | `label for`; the hint is linked with `aria-describedby` |
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
 | Tabs | `tabs()`: `.utabs` | current, with note | Links with `?tab=`; `aria-current="page"`; each tab is its own server-rendered view |
-| Steps | `step()` in `ol.vsteps` | done, current, to do | Ordered list; done is also stated in text |
-| Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with title, with list | `role="status"` for results, `role="alert"` only for blocking errors |
 | Code and copy | `copyBlock()`, `copyField()`, `copyValue()` | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
-| Key-value list | `.kv` | | `<dl>` |
 | Segmented control | `.seg` with links (`.on` for current) or radio inputs | 2-4 options | Links navigate; labelled native radios select an option; works without JavaScript |
-| Overflow menu | `.menu` with `.popover`; `.danger` item | closed, open | Native disclosure with a labelled summary |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Tool icon | `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | | `aria-hidden`; the product name is adjacent text |
-| Avatar | `.avatar` | | Initials are `aria-hidden`; the name is adjacent text |
 | Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
 | View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
 | Auth card | `.auth`, `.auth-card`, `.auth-head`, `.auth-actions`, `.divider`, `.bigcode`, `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action follows cancel or deny within `.auth-actions` |
@@ -95,13 +98,25 @@ Elements that no component covers yet (sections, tables, forms, fieldsets and pl
 ## Patterns
 
 **Status vocabulary.**
-Each state's label and tone are owned by `status.ts`; colour is never the only signal.
+[`status.ts`](../src/server/admin/design/status.ts) owns the words and tones for each state and write-access summary.
+Use its helpers instead of defining page-specific status labels.
+
+**Sheets.**
+Create and edit flows that need several fields open in a side sheet.
+Every sheet has a query-parameter view (`?sheet=<name>`) that renders it open on the server for navigation without JavaScript.
+Submitting its API form requires JavaScript; with JavaScript the sheet opens as a modal and errors show inside it.
+
+**Destructive placement.**
+Destructive actions live in a danger zone card at the bottom of detail pages, or in an overflow menu, never next to Save.
+
+## Confirmations
 
 **Confirmation tiers.**
 API forms opened with `apiFormTag()` or `apiForm()` choose their tier:
 
 - Tier 1 has an empty `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` (default "Change saved.") is shown in the toast after the page reloads.
-- Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb, or uses the button text; it titles the dialog and labels its confirm button.
+- Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb (the button text when absent), which labels its confirm button and, by default, titles the dialog.
+  `data-confirm-title` overrides the dialog title.
 - Tier 3 also sets `data-confirm-name`: the dialog turns red and its confirm button stays disabled until that exact name is typed.
 
 `data-success-url` sends the person to another page after success; `{id}` in it is replaced with the created record's id.

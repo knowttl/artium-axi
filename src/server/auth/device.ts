@@ -111,7 +111,7 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
       <p class="hint">Never approve a code someone sent you.</p>`
     const proved = current && row.proof === hashToken(request.cookies[browserCookie]!)
     const csrf = reply.generateCsrf()
-    let actions = callout('ok', 'check', '', '<p>This request is already approved. Return to your terminal.</p>', 'status')
+    let actions = callout('ok', '', 'This request is already approved. Return to your terminal.')
     if (!row.approved && proved) {
       actions = `<form method="post" action="/device">
         <input type="hidden" name="_csrf" value="${escape(csrf)}"><input type="hidden" name="code" value="${escape(code)}">
