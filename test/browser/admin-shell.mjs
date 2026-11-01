@@ -1162,6 +1162,24 @@ test('user detail resets a password and the person must change it at sign-in', (
   `)
 })
 
+test('R2: role creation errors stay accessible in the dialog and preserve the draft', () => {
+  browser(`
+    await page.open(base + '/admin/roles');
+    const name = await page.eval(() => document.querySelector('tbody th a').textContent);
+    await page.click('.page-head [data-open-dialog=new-role]');
+    await page.fill('#new-role-name', name);
+    await page.click('#new-role button');
+    await page.wait('#new-role [data-form-error]:focus');
+    check(await page.eval(() => document.querySelector('#new-role').matches(':modal') && document.activeElement.textContent.includes('INVALID_INPUT') && document.activeElement.getAttribute('role') === 'alert'), 'Duplicate-name error is inaccessible');
+    check(await page.eval(() => document.querySelector('#new-role-name').value) === name, 'Duplicate-name error lost the draft');
+    await page.eval(() => { window.fetch = async () => { throw new TypeError('Synthetic network failure'); }; });
+    await page.click('#new-role button');
+    await page.wait('#new-role [data-form-error]:focus');
+    check(await page.eval(() => document.activeElement.textContent.includes('Request could not complete.')), 'Network error is inaccessible');
+    check(await page.eval(() => document.querySelector('#new-role-name').value) === name, 'Network error lost the draft');
+  `)
+})
+
 test('role tool grants and membership explain effective tools and an empty role can be deleted', () => {
   browser(`
     await page.open(base + '/admin/roles');

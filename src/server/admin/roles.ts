@@ -50,7 +50,7 @@ export function registerRolesPages(app: FastifyInstance, db: Database.Database):
     const newRole = `<dialog id="new-role" class="modal" aria-labelledby="new-role-title"${dialog ? ' open' : ''}>
       ${apiFormTag(csrf, '/v1/admin/roles', 'POST', '', 'data-success-url="/admin/roles/{id}" data-success-message="Role created. Choose the tools it grants."')}
       <div class="modal-body"><h2 id="new-role-title">New role</h2><p>Name it for the people who need it, such as Read-only analysts. You choose its tools next.</p>
-      <label for="new-role-name">Role name</label><input id="new-role-name" name="name" required autocomplete="off"></div>
+      <label for="new-role-name">Role name</label><input id="new-role-name" name="name" required autocomplete="off"><p data-form-error role="alert" tabindex="-1"></p></div>
       <div class="modal-foot"><a class="btn btn-secondary" href="/admin/roles" data-close-dialog>Cancel</a><button class="btn btn-primary">Create role</button></div></form></dialog>`
     const list = page.roles.length ? `<section class="card"><table class="tbl row-links stack"><caption class="sr-only">Roles and tool grants</caption>
       <thead><tr><th scope="col">Role</th><th scope="col">Tools</th><th scope="col" class="num">Members</th><th scope="col" class="num">SSO rules</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>

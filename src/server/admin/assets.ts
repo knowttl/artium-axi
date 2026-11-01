@@ -450,8 +450,8 @@ document.addEventListener('submit', async event => {
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
-  const message = form.hasAttribute('data-trust-certificate')
-    ? form.closest('dialog').querySelector('[data-certificate-error]') : document.getElementById('message');
+  const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate')
+    ? form.closest('dialog').querySelector('[data-certificate-error]') : document.getElementById('message'));
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
@@ -550,7 +550,7 @@ document.addEventListener('submit', async event => {
     if (form.dataset.successUrl?.includes('{id}')) location.assign(form.dataset.successUrl.replace('{id}', encodeURIComponent((await response.json()).id)));
     else if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
     else location.reload();
-  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; }
+  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; message.focus(); }
   finally { button.disabled = false; pendingAction = false; }
 });
 `

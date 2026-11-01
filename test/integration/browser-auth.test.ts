@@ -350,6 +350,24 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
   expect(second.headers['cache-control']).toBe('no-store')
 })
 
+test('R3: a displayed audit record opens after newer activity pushes it off the page', async () => {
+  await signIn()
+  const audit = new Audit(db)
+  const context = { event: 'admin-change' as const, userId, tool: null, outcome: 'success' as const,
+    targetId: 'synthetic-role', clientAddress: null }
+  const selected = audit.record({ ...context, action: 'selected-change', requestId: 'selected-change' })
+  const first = await request('GET', '/admin/audit?event=admin-change&limit=1')
+  const href = '/admin/audit?event=admin-change&limit=1&record=' + selected.id
+  expect(first.body).toContain(href.replaceAll('&', '&amp;'))
+  audit.record({ ...context, action: 'newer-change', requestId: 'newer-change' })
+  const opened = await request('GET', href)
+  expect(opened.statusCode).toBe(200)
+  expect(opened.body).toContain('<dt>action</dt><dd>selected-change</dd>')
+  expect(opened.body).toContain('<h2 id="record-title">admin-change · succeeded</h2>')
+  const current = await request('GET', '/admin/audit?event=admin-change&limit=1&record=' + (selected.id + 1))
+  expect(current.body).toContain(`<tr class="sel"><th scope="row"><a href="/admin/audit?event=admin-change&amp;limit=1&amp;record=${selected.id + 1}" aria-current="true">`)
+})
+
 test('Audit filters handle empty form fields and show a useful empty state', async () => {
   await signIn()
   expect((await request('GET', '/admin/audit?user=&tool=&outcome=&from=&to=&limit=50')).statusCode).toBe(200)

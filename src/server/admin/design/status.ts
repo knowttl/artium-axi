@@ -34,7 +34,8 @@ export const toolProducts: Record<ToolName, { name: string, mark: string }> = {
 
 // A disabled tool blocks every call first, so it outranks health.
 export function toolState(tool: Pick<z.infer<typeof adminToolSchema>, 'enabled' | 'health'>): { word: string, tone: Tone } {
-  if (!tool.enabled) return { word: 'Disabled', tone: 'off' }
+  if (!tool.enabled || tool.health.status === 'disabled') return { word: 'Disabled', tone: 'off' }
+  if (tool.health.status === 'checking') return { word: 'Checking', tone: 'info' }
   if (tool.health.status === 'ok') return { word: 'Healthy', tone: 'ok' }
   if (tool.health.status === 'error') return { word: 'Failing', tone: 'err' }
   if (tool.health.status === 'unconfigured') return { word: 'Needs credential', tone: 'warn' }
@@ -50,14 +51,19 @@ export function grantOrigin(origin: string): string {
   return origin === 'direct' ? badge('Direct') : badge('SSO rule', 'info')
 }
 
-// Matches the audit query's failed-run rule; other non-success outcomes are error codes.
 // Outcomes stay exact codes; only their tone is derived.
 export function auditOutcome(record: { event: string, outcome: string, exit_code: number | null }): { word: string, tone: Tone } {
   if (record.event === 'run-terminal') {
     return record.outcome === 'completed' && record.exit_code === 0 ? { word: 'completed', tone: 'ok' }
       : { word: record.outcome === 'completed' ? `completed · exit ${record.exit_code ?? 'unknown'}` : record.outcome, tone: 'err' }
   }
-  if (record.outcome === 'success' || record.outcome === 'completed') return { word: record.outcome, tone: 'ok' }
-  if (record.outcome === 'started') return { word: record.outcome, tone: 'neutral' }
+  if (record.event === 'ado-api') return { word: record.outcome, tone: record.outcome === 'allowed' ? 'ok' : 'err' }
+  if (record.event === 'transfer') {
+    const tone = record.outcome === 'ready' || record.outcome === 'delivery-completed' ? 'ok'
+      : ['preview', 'deleted', 'expired'].includes(record.outcome) ? 'neutral' : 'err'
+    return { word: record.outcome, tone }
+  }
+  if (record.outcome === 'success') return { word: record.outcome, tone: 'ok' }
+  if (record.event === 'run-start') return { word: record.outcome, tone: 'neutral' }
   return { word: record.outcome, tone: 'err' }
 }

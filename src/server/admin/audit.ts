@@ -8,7 +8,7 @@ import { auditOutcome, badge } from './design/status.js'
 import { icon, pager } from './design/ui.js'
 import { escape } from './escape.js'
 import { timestamp } from './forms.js'
-import type { Audit } from '../audit/audit.js'
+import type { Audit, AuditRecord } from '../audit/audit.js'
 
 // Rolling presets resolve to an inclusive UTC start when the page is requested.
 const ranges = { '24h': { label: '24 h', ms: 24 * 3600_000 }, '7d': { label: '7 days', ms: 7 * 24 * 3600_000 } } as const
@@ -83,10 +83,10 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
         <label for="audit-to">To (UTC)</label><input id="audit-to" name="to" value="${escape(query.data.to ?? '')}" placeholder="2026-01-31T23:59:59Z"></span>` : ''}
       <button class="btn btn-secondary btn-sm"${custom ? '' : ' data-filters-apply'}>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/audit">Clear filters</a>' : ''}</form>`
 
-    const selected = selectedId === undefined ? undefined : page.records.find(record => String(record.id) === selectedId)
+    const selected = selectedId === undefined ? undefined : db.prepare('SELECT * FROM audit WHERE id = ?').get(selectedId) as AuditRecord | undefined
     const rows = page.records.map(record => {
       const outcome = auditOutcome(record)
-      const open = record === selected
+      const open = record.id === selected?.id
       return `<tr${open ? ' class="sel"' : ''}><th scope="row"><a href="${escape(link({ record: String(record.id), cursor: query.data.cursor }))}"${open ? ' aria-current="true"' : ''}>${timestamp(record.occurred_at)}</a></th>
         <td><span class="mono">${escape(record.event)}</span>${record.authentication_method === 'break-glass' ? ' ' + badge('Break-glass', 'warn') : ''}</td>
         <td${record.user_id === null ? ' class="faint"' : ''}>${escape(actor(record.user_id))}</td><td${record.tool ? '' : ' class="faint"'}>${escape(record.tool ?? '-')}</td><td>${badge(outcome.word, outcome.tone)}</td></tr>`
@@ -109,8 +109,8 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
         <details class="all-fields"><summary class="btn btn-secondary btn-sm">Show all ${fields.length} stored fields</summary><dl class="kv">${fields.map(([key, value]) =>
           `<dt>${escape(key)}</dt><dd>${value === null ? 'Not recorded' : timeFields.includes(key) ? timestamp(Number(value)) : escape(value)}</dd>`).join('')}</dl></details></div></aside>`
     } else if (selectedId !== undefined) {
-      panel = `<aside class="sheet docked" id="record" aria-labelledby="record-title"><div class="sheet-head"><div><h2 id="record-title">Record not in these results</h2>
-        <p>Record #${escape(selectedId)} is on another page or outside these filters.</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${escape(close)}" aria-label="Close details">${icon('x')}</a></div></aside>`
+      panel = `<aside class="sheet docked" id="record" aria-labelledby="record-title"><div class="sheet-head"><div><h2 id="record-title">Record not found</h2>
+        <p>Record #${escape(selectedId)} is no longer retained or does not exist.</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${escape(close)}" aria-label="Close details">${icon('x')}</a></div></aside>`
     }
 
     const exports = new URLSearchParams(params)
