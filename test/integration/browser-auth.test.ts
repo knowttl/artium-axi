@@ -524,6 +524,28 @@ test('invitation navigation opens the creation sheet without JavaScript', async 
 })
 
 test.each([
+  { status: 'Pending', lifetime: 86_400_000, claimed: false, revoked: false, actionable: true },
+  { status: 'Expired', lifetime: -86_400_000, claimed: false, revoked: false, actionable: true },
+  { status: 'Claimed', lifetime: 86_400_000, claimed: true, revoked: false, actionable: false },
+  { status: 'Revoked', lifetime: 86_400_000, claimed: false, revoked: true, actionable: false },
+])('invitations display recorded expiry when $status', async ({ status, lifetime, claimed, revoked, actionable }) => {
+  const expiry = now + lifetime
+  db.exec("INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example')")
+  db.prepare(`INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, user_id,
+    created_at, created_by, expires_at, claimed_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', 'Synthetic Invitee',
+      claimed ? 'synthetic-second' : null, now - 2 * 86_400_000, userId, expiry, claimed ? now - 1 : null, revoked ? now - 1 : null)
+  await signIn()
+  const response = await request('GET', '/admin/invitations')
+  expect(response.statusCode).toBe(200)
+  const row = /<tr data-invitation="synthetic-invitation">.*?<\/tr>/s.exec(response.body)![0]
+  expect(row).toContain(`>${status}</span>`)
+  expect(row).toContain(`<time datetime="${new Date(expiry).toISOString()}"`)
+  expect(row.includes('Resend')).toBe(actionable)
+  expect(row.includes('Revoke</button>')).toBe(actionable)
+})
+
+test.each([
   { name: 'idle', elapsed: browserDefaults.idleMs, lastSeenAgo: browserDefaults.idleMs },
   { name: 'absolute', elapsed: browserDefaults.absoluteMs, lastSeenAgo: 1 },
 ])('$name expiry rejects browser requests at the deadline', async ({ elapsed, lastSeenAgo }) => {

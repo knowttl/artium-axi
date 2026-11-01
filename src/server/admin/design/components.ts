@@ -201,7 +201,7 @@ a.chip:hover { background: var(--bg-active); }
 .check input { flex: none; }
 .options { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; border: 0; }
 .options legend { margin-bottom: 10px; padding: 0; font-size: var(--fs-sm); font-weight: 500; }
-.copyfield, .input-row { display: flex; gap: 6px; }
+.copyfield { display: flex; gap: 6px; }
 .copyfield .input { font-family: var(--mono); font-size: var(--fs-xs); background: var(--bg-subtle); }
 .copy-status { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
 .copy-status:empty { display: none; }

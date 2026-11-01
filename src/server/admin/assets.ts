@@ -145,17 +145,6 @@ for (const dialog of document.querySelectorAll('dialog.sheet')) {
   history.replaceState(null, '', url);
   openSheet(dialog);
 }
-for (const button of document.querySelectorAll('[data-generate-password]')) {
-  button.hidden = false;
-  button.addEventListener('click', () => {
-    const input = button.parentElement.querySelector('input');
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-    input.value = [...crypto.getRandomValues(new Uint8Array(20))].map(value => alphabet[value % alphabet.length]).join('');
-    input.type = 'text';
-    input.focus();
-    input.select();
-  });
-}
 for (const form of document.querySelectorAll('[data-filters]')) {
   form.querySelector('[data-filter-apply]')?.setAttribute('hidden', '');
   for (const select of form.querySelectorAll('select')) select.addEventListener('change', () => form.requestSubmit());

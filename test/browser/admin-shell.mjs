@@ -216,11 +216,13 @@ test('invitations show each new link once and allow resend and revoke through th
     check(second !== first, 'Resend reused the old link');
     await page.click('#invitation-link form button');
     await page.wait('tr[data-invitation]');
+    const expiry = await page.eval(() => document.querySelector('tr[data-invitation] time').dateTime);
     await page.click('form[action$="/revoke"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('tr[data-invitation]:not(:has(form))');
     check(await page.eval(() => document.querySelector('tr[data-invitation]').innerText.includes('Revoked')), 'Invitation was not revoked');
+    check(await page.eval(() => document.querySelector('tr[data-invitation] time').dateTime) === expiry, 'Revocation hid or changed expiry');
     check(await page.eval(async () => (await (await fetch('/v1/admin/sso/providers')).json()).providers.every(provider => !provider.enabled)), 'Invitations enabled SSO');
   `)
 })
@@ -1085,6 +1087,8 @@ test('a local user can be created from the table and its profile edited from det
     await page.fill(create + ' [name=username]', 'synthetic-new');
     await page.fill(create + ' [name=displayName]', 'New analyst');
     await page.fill(create + ' [name=temporaryPassword]', 'CANARY-temporary-password');
+    check(await page.eval(() => document.querySelector('#sheet-add-user [name=temporaryPassword]').type === 'password'
+      && !document.querySelector('#sheet-add-user [data-generate-password]')), 'Add user must keep manual passwords masked');
     await page.click(create + ' button:not([type=button])');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -1179,7 +1183,9 @@ test('SSO user direct-role edits preserve rule access and offer no password rese
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action="/v1/admin/users"]');
     await page.open(base + '/admin/users/synthetic-sso');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic Role · SSO rule') &&document.querySelector('main').innerText.includes('No direct roles remain.') && !document.querySelector('main').innerText.includes('No retained roles remain.')), 'Archived user lost retained rule provenance');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic Role · SSO rule')
+      && document.querySelector('main').innerText.includes('From Entra ID rule')
+      && !document.querySelector('main form, main input')), 'Archived user lost read-only rule provenance');
   `)
 })
 
@@ -1190,6 +1196,8 @@ test('user detail resets a password and the person must change it at sign-in', (
     await page.click('a[data-sheet="sheet-reset-password"]');
     await page.wait('#sheet-reset-password[open]');
     await page.fill('[name=temporaryPassword]', 'CANARY-reset-password');
+    check(await page.eval(() => document.querySelector('#sheet-reset-password [name=temporaryPassword]').type === 'password'
+      && !document.querySelector('#sheet-reset-password [data-generate-password]')), 'Reset password must keep manual passwords masked');
     await page.click('form[action$="/password-reset"] button:not([type=button])');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -1293,12 +1301,6 @@ test('sign out everywhere on user detail ends the current browser and CLI sessio
 test('archiving from detail hides the user and shows retained history when reopened', () => {
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
-    check(await page.eval(async () => {
-      const _csrf = document.querySelector('form[action$="/archive"] [name=_csrf]').value;
-      const response = await fetch('/v1/admin/roles', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ _csrf, name: 'Synthetic unassigned role' }) });
-      return response.ok;
-    }), 'Could not create unassigned role');
     await page.click('form[action$="/archive"] button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').disabled), 'Archive did not require the typed username');
@@ -1314,27 +1316,13 @@ test('archiving from detail hides the user and shows retained history when reope
     check(await page.eval(() => !document.querySelector('tbody a[href="/admin/users/synthetic-ordinary"]')), 'Archived user remains in table');
     await page.open(base + '/admin/users/synthetic-ordinary');
     check(await page.eval(() => document.querySelector('main').innerText.includes('history is retained')), 'Archived state is missing');
-    check(await page.eval(() => !document.querySelector('form:has([name=enabled])')), 'Archived detail offers enable');
-    check(await page.eval(() => [...document.querySelectorAll('[name=roleIds][type=checkbox]')].every(input => input.value === 'synthetic-role')), 'Archived detail offers a new role');
-    check(await page.eval(async () => {
-      const { roles } = await (await fetch('/v1/admin/roles')).json();
-      const id = roles.find(role => role.name === 'Synthetic unassigned role').id;
-      const form = document.querySelector('form[action$="/roles"]');
-      const fields = new FormData(form);
-      const response = await fetch(form.action, { method: 'PUT', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ _csrf: fields.get('_csrf'), roleIds: [id], expectedRevision: Number(fields.get('expectedRevision')) }) });
-      return response.status === 400 && (await response.json()).error.code === 'INVALID_INPUT';
-    }), 'Archived role API accepted a new membership');
-    await page.click('[name=roleIds][value="synthetic-role"]');
-    await page.click('form[action$="/roles"] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
-    await page.wait('[name=expectedRevision][value="3"]');
-    check(await page.eval(() => !document.querySelector('[name=roleIds][value="synthetic-role"]')), 'Removed membership is still offered');
+    check(await page.eval(() => !document.querySelector('main form, main input')), 'Archived detail offers editing controls');
+    check(await page.eval(() => document.querySelector('main a.chip').textContent === 'Synthetic Role · Direct'
+      && document.querySelector('.card-meta').innerText.includes('Revision 2.')), 'Archived detail lost roles or change history');
     check(await page.eval(async () => {
       const response = await fetch('/v1/admin/users/synthetic-ordinary');
-      return (await response.json()).roleIds.length === 0;
-    }), 'Retained membership could not be removed');
+      return (await response.json()).roleIds.join(',') === 'synthetic-role';
+    }), 'Archived detail changed retained membership');
   `)
 })
 

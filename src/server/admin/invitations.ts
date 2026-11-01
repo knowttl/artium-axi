@@ -131,7 +131,7 @@ export function registerInvitationAdmin(app: FastifyInstance, db: Database.Datab
       return `<tr data-invitation="${escape(invitation.id)}"><td><div class="cell-main">${avatar(invitation.displayName)}<div><strong>${escape(invitation.displayName)}</strong><span>${invitation.claimedAt !== null ? 'Account claimed' : invitation.userId ? 'Links a local account' : 'New account'}</span></div></div></td>
         <td><code>${escape(invitation.expectedUsername)}</code></td><td class="muted">${escape(provider.name)}</td>
         <td>${chips ? `<div class="chips">${chips}</div>` : '<span class="none">None</span>'}</td><td>${badge('invitation', invitation.status)}</td>
-        <td class="muted">${open ? timestamp(invitation.expiresAt) : '-'}</td>
+        <td class="muted">${timestamp(invitation.expiresAt)}</td>
         <td class="actions-cell">${open ? sheetLink('resend-' + invitation.id, withSheet('resend-' + invitation.id), 'Resend', 'btn btn-ghost btn-sm') +
           actionForm(csrf, action + '/revoke', 'POST', revision(invitation.revision) + '<button class="btn btn-ghost btn-sm danger">Revoke</button>',
             { consequence: 'Revoke this invitation? The link can no longer be claimed. Existing accounts and access are unchanged.', title: 'Revoke invitation', action: 'Revoke' }) : ''}</td></tr>`

@@ -128,8 +128,10 @@ User detail and role membership pages distinguish Direct assignments made by an 
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.
 The identity schema supports SSO users, providers, rules and invitations; see [Sign-in settings](admin-guide.md#sign-in-settings) for the available provider editor and current SSO limits.
 SSO accounts cannot be given a local password.
+Enter temporary passwords manually in Add user and Reset password; the fields keep them masked.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
-Archived user detail allows retained direct assignments to be removed without restoring sign-in; the UI and API refuse new direct assignments, including reassigning a removed direct grant.
+Archived user detail is read-only and displays retained roles, grant provenance and change history.
+The API still allows retained direct assignments to be removed without restoring sign-in and refuses new direct assignments, including reassigning a removed direct grant.
 See [Sign-in settings](admin-guide.md#sign-in-settings) for removing rule-origin grants.
 Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
 Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
@@ -266,6 +268,7 @@ To prepare a link for an existing enabled local account, open that user's detail
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
 Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
 Artium does not send email and stores only the link token's hash.
+Invitations display their status and recorded expiry, including after claim or revocation.
 Resend replaces the old link and starts a new expiry period, including for expired invitations.
 **Revoke invitation** prevents claiming; claimed or revoked invitations cannot be resent.
 Every mutation requires administrator capability and the [confirmation described under browser administration](admin-guide.md#browser-administration), checks revisions where applicable, and commits with an `invite-create`, `invite-resend` or `invite-revoke` audit event identifying the invitation.
