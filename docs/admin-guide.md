@@ -137,7 +137,7 @@ SSO accounts cannot be given a local password.
 Disabled and archived users remain listed as role members and must have that role removed before it can be deleted.
 Archived user detail allows retained direct assignments to be removed without restoring sign-in; the UI and API refuse new direct assignments, including reassigning a removed direct grant.
 See [Sign-in settings](admin-guide.md#sign-in-settings) for removing rule-origin grants.
-Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in settings** first.
+Deleting a role requires no members and no references from SSO rules; remove or retarget its mappings in **Sign-in & SSO** first.
 Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
 Deletion removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
@@ -156,7 +156,7 @@ Local admin forms open a password dialog when confirmation expires, then resume 
 SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
 For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
 Confirmation is refused if that claim is absent or stale.
-After confirming with the same identity, use **Continue to artium** to resume the pending action in the original window.
+After confirming with the same identity, use **Continue to Artium** to resume the pending action in the original window.
 Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
 Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.

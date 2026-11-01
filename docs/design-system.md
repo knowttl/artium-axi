@@ -67,13 +67,12 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the vocabulary only | The word carries the state; the dot is `aria-hidden` |
 | Chip | `.chips`, `.chip` | plain, with a grey dot for a disabled tool | Disabled state also in text |
-| Table | `.tbl`, `.num`, `.cell-main`, `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, numeric column, stacked rows below 760px | Real `<table>` with `<th scope>`; the first-cell link covers the row |
+| Table | `.tbl`, `.num`, `.cell-main`, `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, numeric column, empty state in the card body; `.row-links.stack` rows stack at 760px and narrower | Real `<table>` with `<th scope>`; `.row-links` makes the first-cell link cover the row |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
 | Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Table | `.tbl`, `.cell-main`, `.num` | rows, empty state in the card body | Real `<table>` with `scope` |
 | Field | `field()`: `.field`, `label`, `.hint` | default, focus, disabled | `label for`; the hint is linked with `aria-describedby` |
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
 | Tabs | `tabs()`: `.utabs` | current, with note | Links with `?tab=`; `aria-current="page"`; each tab is its own server-rendered view |
@@ -81,7 +80,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with title, with list | `role="status"` for results, `role="alert"` only for blocking errors |
 | Code and copy | `copyBlock()`, `copyField()`, `copyValue()` | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
 | Key-value list | `.kv` | | `<dl>` |
-| Segmented control | `.seg` with radio inputs | 2-4 options | Radio group; works without JavaScript |
+| Segmented control | `.seg` with links (`.on` for current) or radio inputs | 2-4 options | Links navigate; labelled native radios select an option; works without JavaScript |
 | Overflow menu | `.menu` with `.popover`; `.danger` item | closed, open | Native disclosure with a labelled summary |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Tool icon | `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | | `aria-hidden`; the product name is adjacent text |
