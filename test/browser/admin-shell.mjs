@@ -1315,7 +1315,7 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
         && text.includes('Missing verified-save receipt remains unconfirmed.')
         && !document.querySelector('a[href^="/v1/transfers/"]');
     }), 'Archive guidance lost its warning, limits, receipt distinction or CLI-only save boundary');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('falcon-axi')), 'Granted tools are missing');
+    check(await page.eval(() => document.querySelector('.tool-grid').innerText.includes('CrowdStrike Falcon')), 'Granted tools are missing');
     check(await page.eval(() => document.querySelector('pre').textContent.includes(location.origin)), 'CLI uses wrong server');
     check(await page.eval(() => document.querySelector('main').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');
     check(await page.eval(() => {

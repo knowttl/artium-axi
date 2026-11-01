@@ -428,7 +428,8 @@ document.addEventListener('submit', async event => {
   pendingAction = true;
   button.disabled = true;
   const message = form.hasAttribute('data-trust-certificate')
-    ? form.closest('dialog').querySelector('[data-certificate-error]') : document.getElementById('message');
+    ? form.closest('dialog').querySelector('[data-certificate-error]')
+    : form.closest('dialog')?.querySelector('[data-form-error]') || document.getElementById('message');
   message.textContent = '';
   const testResult = form.dataset.testTool ? form.closest('section').querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
@@ -522,7 +523,7 @@ document.addEventListener('submit', async event => {
       showError(message, result.error);
       return;
     }
-    sessionStorage.setItem('artium-toast', form.dataset.done || 'Change saved.');
+    sessionStorage.setItem('artium-toast', 'Change saved.');
     if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
     else location.reload();
   } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; }

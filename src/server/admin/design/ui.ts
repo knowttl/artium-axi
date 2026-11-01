@@ -96,7 +96,7 @@ export function field(id: string, label: string, control: (attributes: string) =
 
 // A dialog view rendered open by the server: the page's no-JavaScript fallback. confirm.js makes it modal; closing returns to closeHref.
 export function viewDialog(title: string, description: string, body: string, closeHref: string): string {
-  return `<dialog open class="modal" data-close-href="${escape(closeHref)}" aria-labelledby="view-dialog-title"><div class="modal-body"><div class="modal-head"><h2 id="view-dialog-title">${escape(title)}</h2><a class="btn btn-ghost btn-icon btn-sm" href="${escape(closeHref)}" aria-label="Close">${icon('x')}</a></div>${description ? `<p>${escape(description)}</p>` : ''}${body}</div></dialog>`
+  return `<dialog open class="modal" data-close-href="${escape(closeHref)}" aria-labelledby="view-dialog-title"><div class="modal-body"><div class="modal-head"><h2 id="view-dialog-title">${escape(title)}</h2><a class="btn btn-ghost btn-icon btn-sm" href="${escape(closeHref)}" aria-label="Close">${icon('x')}</a></div>${description ? `<p>${escape(description)}</p>` : ''}<p class="modal-error" data-form-error role="alert" tabindex="-1"></p>${body}</div></dialog>`
 }
 
 export function initials(name: string): string {
@@ -194,7 +194,7 @@ function authCard(page: Page): string {
   const head = page.mark
     ? `<div class="auth-head"><span class="ico-circle ${page.mark.tone === 'neutral' ? '' : page.mark.tone}">${icon(page.mark.icon)}</span><h1>${escape(page.title)}</h1></div>${page.description ? `<p>${escape(page.description)}</p>` : ''}`
     : brand(home) + pageHeader(page.title, page.description)
-  const signedIn = viewer ? `<form class="auth-foot" method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">Signed in as ${escape(viewer.name)} · <button class="link">Sign out</button></form>` : ''
+  const signedIn = viewer ? `<form class="auth-foot" method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">Signed in as ${escape(viewer.name)} · <button class="link">Sign out</button>${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}</form>` : ''
   return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}
       <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
 }

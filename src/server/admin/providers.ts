@@ -19,7 +19,7 @@ import { adminRead, apiForm, changed, revision, timestamp } from './forms.js'
 import { callout, card, copyField, field, icon, initials, step, tabs, viewDialog } from './design/ui.js'
 import { badge, toolName } from './design/status.js'
 
-const signInQuery = z.strictObject({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
+const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
   tab: z.enum(['setup', 'credential', 'rules', 'settings']).optional(), rule: z.string().min(1).max(256).optional() })
 const kindLabel = (kind: string) => kind === 'entra' ? 'Entra ID' : 'OpenID Connect'
 

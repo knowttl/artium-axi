@@ -310,6 +310,7 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .modal-foot, .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .modal-foot { padding: 14px 22px 18px; }
 .modal-error { margin: 0 22px; color: var(--err); font-size: var(--fs-sm); }
+.modal-body .modal-error { margin: 0 0 12px; color: var(--err); }
 .modal-error:empty { display: none; }
 #certificate-inspection, [data-trusted-certificates] { overflow-wrap: anywhere; }
 
@@ -323,6 +324,7 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .auth-card form { display: flex; flex-direction: column; gap: 14px; margin: 0; }
 .auth-card form > p { margin: 0; }
 .auth-card .btn { width: 100%; }
+.auth-card .copyvalue .btn { width: var(--ctl-h-sm); flex: none; }
 .auth-card code { font-size: 0.88em; white-space: nowrap; }
 .auth-card .kv { grid-template-columns: 110px minmax(0, 1fr); }
 .auth-head { display: flex; align-items: center; gap: 10px; }
@@ -334,6 +336,8 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
 .bigcode { padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-subtle); font-family: var(--mono); font-size: 28px; font-weight: 600; letter-spacing: 0.18em; text-align: center; }
 .auth-foot { margin: 14px 0 0; color: var(--text-faint); font-size: var(--fs-xs); text-align: center; }
+.auth-foot .link { min-height: var(--ctl-h-sm); }
+.auth-foot .check { justify-content: center; align-items: center; min-height: var(--ctl-h-sm); }
 .auth-help { margin-top: 14px; color: var(--text-faint); font-size: var(--fs-xs); text-align: center; border: 0; padding: 0; }
 .auth-help p { text-align: left; }
 

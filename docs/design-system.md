@@ -100,10 +100,12 @@ Confirmation does not change the request, CSRF token, revision check or recent-a
 
 **Interstitials.**
 Sign-in, password, identity confirmation, CLI approval, results and error pages use the auth card, including for signed-in people, who also get a sign-out link under the card.
+SSO viewers retain the optional provider sign-out checkbox, unchecked by default.
 Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
 
 **Dialog views without JavaScript.**
 Add and edit forms that open as dialogs have a query-parameter view rendered open by the server, so they work without scripts.
+Form errors appear inside the open dialog so they remain visible and can receive focus.
 
 ## Navigation
 

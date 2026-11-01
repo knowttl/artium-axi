@@ -132,19 +132,21 @@ test('generic provider settings and credential are editable and activation is ex
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
     await page.wait('nav[aria-label=Administration]');
-    await page.open(base + '/admin/settings/sign-in');
+    await page.open(base + '/admin/settings/sign-in?add=oidc');
     await page.wait('form[action="/v1/admin/sso/providers"] [name=issuer]');
     await page.fill('form:has([name=issuer]) [name=name]', 'Synthetic created OIDC');
     await page.fill('form:has([name=issuer]) [name=issuer]', 'https://generic.example');
     await page.click('form:has([name=issuer]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('tbody tr:nth-child(3)');
-    const href = await page.eval(() => [...document.querySelectorAll('tbody a')].find(link => link.textContent === 'Synthetic created OIDC')?.getAttribute('href'));
+    await page.wait('body:not(:has(dialog[data-close-href])) .list-row strong a');
+    const href = await page.eval(() => [...document.querySelectorAll('.list-row strong a')].find(link => link.textContent === 'Synthetic created OIDC')?.getAttribute('href'));
     check(href, 'Created provider missing');
     await page.open(base + href);
+    await page.wait('.vsteps');
+    check(await page.eval(() => document.body.innerText.includes('Save the issuer') && !document.querySelector('[name=tenantId]')), 'Generic settings show Entra requirements');
+    await page.open(base + href + '?tab=credential');
     await page.wait('[data-credential-editor]');
-    check(await page.eval(() => document.body.innerText.includes('OpenID Connect setup guide') && !document.querySelector('[name=tenantId]')), 'Generic settings show Entra requirements');
     await page.eval(() => {
       const select = document.querySelector('[name="profile.auth"]');
       select.value = JSON.stringify('secret'); select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -154,7 +156,7 @@ test('generic provider settings and credential are editable and activation is ex
     await page.click('form[action$="/credential"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[action$="/activation"]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[name="profile.clientSecret"]').value === ''), 'Stored secret redisplayed');
     check(await page.eval(() => document.querySelector('form[action$="/activation"] [name=enabled]').value === 'true'), 'Credential save enabled provider');
     await page.click('form[action$="/activation"] button');
@@ -305,7 +307,7 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       await page.wait('a[href^="/device?code="]');
       await page.click('a[href^="/device?code="]');
       await page.wait('button[value=approve]');
-      check(await page.eval(() => document.body.textContent.includes('Requesting IP: 127.0.0.1') && document.body.textContent.includes('Requested:') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
+      check(await page.eval(() => document.querySelector('.kv').textContent.includes('127.0.0.1') && document.querySelector('.kv time[datetime]') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
       check(await page.eval(() => document.querySelector('button[value=deny]').textContent === "This wasn't me"), 'denial action missing');
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'device page overflows');
       await page.click('button[value=${decision}]');
@@ -399,8 +401,12 @@ test('optional Microsoft sign-out revokes artium before visiting the fake provid
   browser(`${signIn}
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
+    await page.open(base + '/reauth');
     await page.wait('form[action="/logout"]');
-    await page.click('.account-menu summary');
+    check(await page.eval(() => {
+      const option = document.querySelector('form[action="/logout"] [name=providerLogout]');
+      return option?.type === 'checkbox' && option.value === 'true' && !option.checked;
+    }), 'Auth card must offer optional provider sign-out unchecked by default');
     await page.click('[name=providerLogout]');
     await page.click('form[action="/logout"] button');
     await page.wait('[data-provider-signout]');
