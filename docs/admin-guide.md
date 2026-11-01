@@ -107,7 +107,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin` | Overview: enabled tools, health, people with access and write state; items that need attention, each with the action that fixes it; the setup checklist; enabled tools and recent administration changes. Older `/admin?…` users-list links redirect to `/admin/users`. |
 | `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` without JavaScript). |
 | `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
-| `/admin/invitations` | Prepare, resend and revoke SSO invitations from sheets (`?sheet=new-invitation` without JavaScript); a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
+| `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
@@ -137,7 +137,7 @@ Deleting a role requires no members and no references from SSO rules; remove or 
 Any invitation referencing the role prevents deletion, including expired, revoked or claimed invitations, preserving invitation history.
 Deletion removes its tool grants and records an audit event.
 User search matches literal text anywhere in a username or display name, ignoring case.
-The users and role members tables show matching totals; Next page retains the current filters.
+The People and role members tables show matching totals; pagination retains the current filters.
 See the [shared API contracts](../src/shared/api.ts) for user filters, detail responses, role membership pagination and role deletion inputs.
 The last enabled administrator cannot be disabled, demoted or archived.
 Profile, role and archive changes use revision checks; reload stale forms rather than overwriting newer changes.
@@ -160,6 +160,7 @@ After signing out of artium, choose **Continue to provider sign-out** to finish 
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
 Confirmation dialogs explain consequences before changes; each screen also has expandable help.
+Archiving also requires typing the person's exact username before the **Archive** confirmation button becomes available.
 Timestamps display in the browser's local time, with their UTC value available on hover.
 
 User detail and Account list active browser sessions and CLI token families.
@@ -266,7 +267,7 @@ Deleting a rule or changing its provider, claim name, claim value or target role
 Choose **New invitation** on Invitations, or **Invite with SSO** on People, to prepare an invitation with an Entra ID or OpenID Connect provider, display name, exact expected `preferred_username` (the Entra ID sign-in name or the OpenID Connect username), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
-Creation and **Resend invitation** display a bearer link once; copy it before closing the dialog and send it securely yourself.
+Creation and **Resend invitation** display a bearer link once; use **Copy** or copy the field manually before closing the dialog, then send it securely yourself.
 Artium does not send email and stores only the link token's hash.
 Invitations display their status and recorded expiry, including after claim or revocation.
 Resend replaces the old link and starts a new expiry period, including for expired invitations.

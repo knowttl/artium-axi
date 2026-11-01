@@ -5,7 +5,7 @@ import { icon } from './ui.js'
 
 type Tone = 'neutral' | 'ok' | 'warn' | 'err' | 'info' | 'solid' | 'off'
 
-// The status vocabulary from docs/design-system.md: one word and tone per state, rendered only here.
+// The authoritative status vocabulary: one word and tone per state, rendered only here.
 const vocabulary = {
   health: { healthy: ['Healthy', 'ok'], failing: ['Failing', 'err'], unchecked: ['Not checked', 'neutral'] },
   setup: { 'needs-credential': ['Needs credential', 'warn'] },

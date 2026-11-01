@@ -86,8 +86,8 @@ Elements that no component covers yet (sections, tables, forms, fieldsets and pl
 ## Patterns
 
 **Status vocabulary.**
-`status.ts` owns one word and tone per state: tool health (Healthy, Failing, Not checked), setup (Needs credential), person (Enabled, Disabled, Archived, Locked), invitation (Pending, Expired, Claimed, Revoked), grant origin (Direct, SSO rule), sign-in (Password, SSO, Break-glass, Admin) and tool access (Yes, No, tool disabled, No, person disabled).
-Writes read Read-only, Always read-only, or how many operations are on.
+[`status.ts`](../src/server/admin/design/status.ts) owns the words and tones for each state and write-access summary.
+Use its helpers instead of defining page-specific status labels.
 
 **Confirmations.**
 `actionForm()` takes the consequence text, a title naming the action and a confirm button verb.
@@ -97,7 +97,8 @@ Forms without a title keep the generic "Confirm change" dialog.
 
 **Sheets.**
 Create and edit flows that need several fields open in a side sheet.
-Every sheet has a query-parameter view (`?sheet=<name>`) that renders it open on the server, so the flow works without JavaScript; with JavaScript the sheet opens as a modal and errors show inside it.
+Every sheet has a query-parameter view (`?sheet=<name>`) that renders it open on the server for navigation without JavaScript.
+Submitting its API form requires JavaScript; with JavaScript the sheet opens as a modal and errors show inside it.
 
 **Destructive placement.**
 Destructive actions live in a danger zone card at the bottom of detail pages, or in an overflow menu, never next to Save.
