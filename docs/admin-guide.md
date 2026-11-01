@@ -105,9 +105,9 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | Screen | Purpose |
 | --- | --- |
 | `/admin` | Overview: enabled tools, health, people with access and write state; items that need attention, each with the action that fixes it; the setup checklist; enabled tools and recent administration changes. Older `/admin?…` users-list links redirect to `/admin/users`. |
-| `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` without JavaScript). |
+| `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` opens it without JavaScript; submission requires JavaScript). |
 | `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
-| `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
+| `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, download and set up the CLI, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
 | `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
@@ -268,7 +268,7 @@ The target role supplies tool access; rules never grant administrator capability
 Create roles and grant their tools on **Roles** first.
 Every rule change requires the [confirmation described under browser administration](admin-guide.md#browser-administration) and is audited atomically; stale edits require reloading the page.
 At each SSO sign-in, matching rules add role grants and unmatched rules remove their grants for that provider; direct grants and other-provider grants stay unchanged.
-User details label Direct and Rule grants and identify the provider rule that supplied each rule grant.
+User details identify the provider rule that supplied each rule grant; see [browser administration](#browser-administration) for grant labels and assignment behavior.
 Deleting a rule or changing its provider, claim name, claim value or target role immediately removes that rule's grants, including those retained by archived users; direct grants and grants from other rules remain unchanged.
 Choose **New invitation** on Invitations, or **Invite with SSO** on People, to prepare an invitation with an Entra ID or OpenID Connect provider, display name, exact expected `preferred_username` (the Entra ID sign-in name or the OpenID Connect username), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.

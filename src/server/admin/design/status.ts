@@ -3,7 +3,7 @@ import type { adminToolSchema, toolSchema } from '../../../shared/api.js'
 import { escape } from '../escape.js'
 import { icon } from './ui.js'
 
-// The status vocabulary from docs/design-system.md: one word and tone per server state.
+// The authoritative status vocabulary: one word and tone per server state.
 export type Tone = 'ok' | 'warn' | 'err' | 'info' | 'off' | 'neutral' | 'solid'
 
 const vocabulary = {

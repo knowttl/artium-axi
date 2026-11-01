@@ -106,7 +106,8 @@ Destructive actions live in a danger zone card at the bottom of detail pages, or
 API forms opened with `apiFormTag()` choose their tier:
 
 - Tier 1 has an empty `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` is shown in the toast after the page reloads.
-- Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb, which titles the dialog and labels its confirm button.
+- Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb, which labels its confirm button and, by default, titles the dialog.
+  `data-confirm-title` overrides the dialog title.
 - Tier 3 also sets `data-confirm-name`: the dialog turns red and its confirm button stays disabled until that exact name is typed.
 
 `data-success-url` sends the person to another page after success; `{id}` in it is replaced with the created record's id.
