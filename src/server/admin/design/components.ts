@@ -624,6 +624,7 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
   .tbl.stacked tbody tr:last-child { border-bottom: 0; }
   .tbl.stacked td { display: block; padding: 3px 14px; border: 0; }
   .tbl.stacked td.num, .tbl.stacked td.actions-cell { text-align: left; }
+  .tbl.stacked td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
   .filters .input-wrap { width: 100%; }
   .page-head > .actions { flex-basis: 100%; margin-left: 0; }
   .callout { flex-wrap: wrap; }
