@@ -48,7 +48,7 @@ Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and statu
 - Shape and layout: `--r-sm`, `--r-md`, `--r-lg`, `--r-full`, `--ctl-h`, `--ctl-h-sm`, `--side-w`, `--content-max`, `--content-narrow`, `--aside-w`, `--topbar-h`, `--gutter`.
 
 Use a 4px spacing grid for new components.
-Motion is limited to 120ms colour and background transitions, and none under `prefers-reduced-motion`.
+Colour, background, switch-thumb and disclosure-icon transitions last 120ms, with no transitions under `prefers-reduced-motion`.
 Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16px.
 
 ## Components
@@ -62,7 +62,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
 | Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
 | Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
-| Page header | `pageHeader()`: `.page-head`, `.actions` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or tool icon and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
+| Page header | `pageHeader()`: `.page-head`, `.actions`; identity variant `.page-head.identity`, `.meta` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or `toolIcon(tool, 'lg')` and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
 | Button | `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus, disabled | Icon-only buttons need `aria-label`; verbs name the result |
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
 | Chip | `.chip`, `.chips` | plain, link | Role chips name the grant origin (Direct, SSO rule) where it matters |
@@ -70,7 +70,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Stats | `.stats`, `.stat` | value, label, note with tone | Summary cards carry a visually hidden `h2` |
 | Table | `.tbl` in `.table-wrap`; `.cell-main`, `.row-link`, `.num`, `.actions-cell`, `.stacked`; `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, dimmed row, numeric column, stacked rows below 760px | Real `<table>`; the row link is the first-cell anchor, stretched over the row, not a JavaScript click |
 | Field | `field()`: `.field`, `.hint`; `.input`, `.select`, `.input.mono`, `.input.narrow`; `checkOption()`: `.check`; `.options` fieldset | default, focus, invalid, disabled | `label for`; hints linked by `aria-describedby` |
-| Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions | `role="status"` |
+| Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions and additional detail | `role="status"` by default; blocking errors use `role="alert"` |
 | Steps and meter | `.vsteps`, `.vstep` (`.done`, `.current`); native `<progress class="meter">` | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
 | Key-value list | `.kv` | | `<dl>` |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
@@ -82,14 +82,18 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
 | Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
-| Tabs | `tabs()`: `.utabs` | current, with note | Links with `?tab=`; `aria-current="page"`; each tab is its own server-rendered view |
 | Code and copy | `copyBlock()`, `copyField()`, `copyValue()`: `[data-copy-scope]` with `[data-copy]` and `.copy-status`; existing `.copy-group` fields also supported | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
-| Segmented control | `.seg` with links (`.on` for current) or radio inputs | 2-4 options | Links navigate; labelled native radios select an option; works without JavaScript |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
 | View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
 | Auth card | `.auth`, `.auth-card`, `.auth-head`, `.auth-actions`, `.divider`, `.bigcode`, `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action follows cancel or deny within `.auth-actions` |
 | Toasts | `.toasts` with `#toast.toast.ok` and `#message.toast.err` | empty (hidden), success, error, conflict with **Reload latest** | `#toast` is a polite `status` region that shows a tier-1 or tier-2 result after the page reloads; `#message` is an `alert` |
+| Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
+| Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
+| Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
+| Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
+| Credential editor | `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Each input sits inside its label; `aria-describedby` links its hint |
+| Tabs | `tabs()`: `nav.utabs` | current, with a note or count | Links with `?tab=`, `aria-current="page"`; each tab is its own server-rendered view |
 
 Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
 
@@ -106,6 +110,13 @@ Submitting its API form requires JavaScript; with JavaScript the sheet opens as 
 
 **Destructive placement.**
 Destructive actions live in a danger zone card at the bottom of detail pages, or in an overflow menu, never next to Save.
+
+## Write operation labels and risk
+
+Write permission pages show each operation's plain label, then its exact code.
+Reviewed operations take their labels, resource groups and Delete and Bulk tags from `tools/inventories/write-operations.json`, never inferred from the operation name.
+Administrator-added Check Point event actions appear by exact code under Other operations, without inferred risk tags.
+`test/write-operations.test.ts` fails when an adapter's pinned catalogue gains or loses an operation the map does not list, so each new operation is reviewed before it ships.
 
 ## Confirmations
 

@@ -71,36 +71,27 @@ export function card(title: string, description: string, body: string, options: 
 
 export type Tone = 'ok' | 'warn' | 'err' | 'info'
 
-// Text is trusted HTML inside a paragraph; the title is optional. role="status" for results.
-export function callout(tone: Tone, title: string, text: string, actions = ''): string {
-  return `<div class="callout ${tone}" role="status">${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow">${title ? `<strong>${escape(title)}</strong>` : ''}<p>${text}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
+// Text is trusted HTML inside a paragraph; the title is optional. role="status" for results, "alert" for blocking errors.
+// `more` is trusted markup after the paragraph.
+export function callout(tone: Tone, title: string, text: string, actions = '', options: { role?: 'status' | 'alert', attributes?: string, more?: string } = {}): string {
+  return `<div class="callout ${tone}" role="${options.role ?? 'status'}"${options.attributes ? ' ' + options.attributes : ''}>${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow">${title ? `<strong>${escape(title)}</strong>` : ''}<p>${text}</p>${options.more ?? ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
 }
 
-export function tabs(base: string, current: string, items: { id: string, label: string, note?: string }[]): string {
-  return `<nav class="utabs" aria-label="Sections">${items.map(item => `<a href="${escape(base)}?tab=${escape(item.id)}"${item.id === current ? ' aria-current="page"' : ''}>${escape(item.label)}${item.note ? `<span class="n">${escape(item.note)}</span>` : ''}</a>`).join('')}</nav>`
+export function tabs(base: string, current: string, items: { id: string, label: string, note?: string, icon?: IconName }[], label = 'Sections'): string {
+  return `<nav class="utabs" aria-label="${escape(label)}">${items.map(item => `<a href="${escape(base)}?tab=${escape(item.id)}"${item.id === current ? ' aria-current="page"' : ''}>${item.icon ? icon(item.icon) : ''}${escape(item.label)}${item.note ? ` <span class="n">${escape(item.note)}</span>` : ''}</a>`).join('')}</nav>`
 }
 
-// One step of an ordered checklist. Detail is trusted HTML.
-export function step(number: number, state: 'done' | 'current' | 'todo', title: string, detail: string): string {
-  return `<li class="vstep ${state === 'todo' ? '' : state}"><span class="mark">${state === 'done' ? `${icon('check')}<span class="sr-only">Done:</span>` : number}</span><div><strong>${escape(title)}</strong>${detail}</div></li>`
+// A compact card for side guidance: a small heading and short text, no header bar.
+export function noteCard(title: string, body: string): string {
+  return `<section class="card"><div class="card-body"><h3>${escape(title)}</h3>${body}</div></section>`
 }
 
-// Copy controls: confirm.js copies the input, pre or [data-copy-text] inside [data-copy-scope] and reports in its status.
-export function copyField(label: string, value: string): string {
-  return `<div data-copy-scope><div class="copyfield"><input readonly aria-label="${escape(label)}" value="${escape(value)}"><button type="button" class="btn btn-secondary" data-copy>${icon('copy')}Copy</button></div><p class="copy-status" role="status" data-copy-status></p></div>`
-}
-
-export function copyBlock(label: string, text: string): string {
-  return `<div class="copyblock" data-copy-scope><pre class="code" aria-label="${escape(label)}">${escape(text)}</pre><button type="button" class="btn btn-secondary btn-sm" data-copy aria-label="Copy: ${escape(label)}">${icon('copy')}Copy</button><p class="copy-status" role="status" data-copy-status></p></div>`
-}
-
-export function copyValue(label: string, value: string): string {
-  return `<span class="copyvalue" data-copy-scope><span data-copy-text>${escape(value)}</span><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy ${escape(label)}">${icon('copy')}</button><span class="copy-status" role="status" data-copy-status></span></span>`
-}
-
-// A dialog view rendered open by the server: the page's no-JavaScript fallback. confirm.js makes it modal; closing returns to closeHref.
-export function viewDialog(title: string, description: string, body: string, closeHref: string): string {
-  return `<dialog open class="modal" data-close-href="${escape(closeHref)}" aria-labelledby="view-dialog-title"><div class="modal-body"><div class="modal-head"><h2 id="view-dialog-title">${escape(title)}</h2><a class="btn btn-ghost btn-icon btn-sm" href="${escape(closeHref)}" aria-label="Close">${icon('x')}</a></div>${description ? `<p>${escape(description)}</p>` : ''}<p class="modal-error" data-form-error role="alert" tabindex="-1"></p>${body}</div></dialog>`
+// Tabs are links, so each tab is its own server-rendered view.
+export type StepState = 'done' | 'fail' | 'todo'
+const stepWords = { done: 'Done', fail: 'Failed', todo: 'To do' }
+export function steps(items: { title: string, detail: string, state: StepState, attributes?: string }[]): string {
+  const current = items.findIndex(item => item.state !== 'done')
+  return `<ol class="steps">${items.map((item, index) => `<li class="step ${item.state}${index === current ? ' current' : ''}"${item.attributes ? ' ' + item.attributes : ''}><span class="mark" aria-hidden="true">${item.state === 'done' ? icon('check') : item.state === 'fail' ? icon('x') : index + 1}</span><div><b><span class="sr-only" data-step-state>${stepWords[item.state]}: </span>${escape(item.title)}</b><span>${item.detail}</span></div></li>`).join('')}</ol>`
 }
 
 export interface Sheet {
@@ -141,6 +132,29 @@ export function checkOption(input: string, title: string, description = ''): str
 // A link that opens a sheet: a modal with JavaScript, otherwise the ?sheet= view of the page.
 export function sheetLink(name: string, href: string, label: string, className: string, iconName?: IconName): string {
   return `<a class="${className}" href="${escape(href)}" data-sheet="sheet-${escape(name)}">${iconName ? icon(iconName) : ''}${escape(label)}</a>`
+}
+
+// One step of an ordered checklist. Detail is trusted HTML.
+export function step(number: number, state: 'done' | 'current' | 'todo', title: string, detail: string): string {
+  return `<li class="vstep ${state === 'todo' ? '' : state}"><span class="mark">${state === 'done' ? `${icon('check')}<span class="sr-only">Done:</span>` : number}</span><div><strong>${escape(title)}</strong>${detail}</div></li>`
+}
+
+// Copy controls: confirm.js copies the input, pre or [data-copy-text] inside [data-copy-scope] and reports in its status.
+export function copyField(label: string, value: string): string {
+  return `<div data-copy-scope><div class="copyfield"><input readonly aria-label="${escape(label)}" value="${escape(value)}"><button type="button" class="btn btn-secondary" data-copy>${icon('copy')}Copy</button></div><p class="copy-status" role="status" data-copy-status></p></div>`
+}
+
+export function copyBlock(label: string, text: string): string {
+  return `<div class="copyblock" data-copy-scope><pre class="code" aria-label="${escape(label)}">${escape(text)}</pre><button type="button" class="btn btn-secondary btn-sm" data-copy aria-label="Copy: ${escape(label)}">${icon('copy')}Copy</button><p class="copy-status" role="status" data-copy-status></p></div>`
+}
+
+export function copyValue(label: string, value: string): string {
+  return `<span class="copyvalue" data-copy-scope><span data-copy-text>${escape(value)}</span><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy ${escape(label)}">${icon('copy')}</button><span class="copy-status" role="status" data-copy-status></span></span>`
+}
+
+// A dialog view rendered open by the server: the page's no-JavaScript fallback. confirm.js makes it modal; closing returns to closeHref.
+export function viewDialog(title: string, description: string, body: string, closeHref: string): string {
+  return `<dialog open class="modal" data-close-href="${escape(closeHref)}" aria-labelledby="view-dialog-title"><div class="modal-body"><div class="modal-head"><h2 id="view-dialog-title">${escape(title)}</h2><a class="btn btn-ghost btn-icon btn-sm" href="${escape(closeHref)}" aria-label="Close">${icon('x')}</a></div>${description ? `<p>${escape(description)}</p>` : ''}<p class="modal-error" data-form-error role="alert" tabindex="-1"></p>${body}</div></dialog>`
 }
 
 // A list footer: a summary on the left and cursor links on the right; a null href is the current end.

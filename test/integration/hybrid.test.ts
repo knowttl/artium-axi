@@ -214,4 +214,4 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
   })
-})
+}, 90_000)

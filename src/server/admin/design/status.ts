@@ -49,9 +49,9 @@ export function stateStatus<D extends StatusDomain>(domain: D, state: keyof Voca
 
 // Writes: Read-only, Always read-only, or how many operations are on.
 export function writesStatus(tool: { readOnly: boolean, writeAccess: { capable: boolean, enabled: boolean, allowedOperations: string[] } }): string {
-  if (tool.readOnly) return `<span class="status">${tool.writeAccess.capable ? 'Read-only' : `${icon('lock')}Always read-only`}</span>`
   const count = tool.writeAccess.enabled ? tool.writeAccess.allowedOperations.length : 0
-  return `<span class="status"><span class="dot warn" aria-hidden="true"></span>${count ? `${count} operation${count === 1 ? '' : 's'} on` : 'Writes on'}</span>`
+  const { word, tone, mark } = describeWrites(tool.readOnly, tool.writeAccess.capable, count || null)
+  return `<span class="status">${tone === 'warn' ? '<span class="dot warn" aria-hidden="true"></span>' : mark === 'lock' ? icon('lock') : ''}${word}</span>`
 }
 
 type ToolName = z.infer<typeof toolSchema>
@@ -95,8 +95,8 @@ export function grantOrigin(origin: string): string {
   return stateBadge('grant', origin === 'direct' ? 'direct' : 'rule')
 }
 
-export function toolIcon(tool: ToolName): string {
-  return `<span class="tool-ico" aria-hidden="true">${toolProducts[tool].mark}</span>`
+export function toolIcon(tool: ToolName, size: 'sm' | 'lg' = 'sm'): string {
+  return `<span class="tool-ico${size === 'lg' ? ' lg' : ''}" aria-hidden="true">${toolProducts[tool].mark}</span>`
 }
 
 // Outcomes stay exact codes; only their tone is derived.
@@ -114,4 +114,37 @@ export function auditOutcome(record: { event: string, outcome: string, exit_code
   if (record.outcome === 'success') return { word: record.outcome, tone: 'ok' }
   if (record.event === 'run-start') return { word: record.outcome, tone: 'neutral' }
   return { word: record.outcome, tone: 'err' }
+}
+
+const setupStates = {
+  healthy: { word: 'Healthy', tone: 'ok' },
+  failing: { word: 'Failing', tone: 'err' },
+  notSetUp: { word: 'Not set up', tone: 'neutral' },
+  needsCredential: { word: 'Needs credential', tone: 'warn' },
+  readyToTest: { word: 'Ready to test', tone: 'neutral' },
+} as const satisfies Record<string, { word: string, tone: Tone }>
+export type SetupState = keyof typeof setupStates
+
+// The next missing link of a tool's setup, then its cached test outcome; that outcome applies whether or not the tool is enabled.
+export function toolSetupState(tool: { enabled: boolean, configured: boolean, health: { errorCode: string | null, checkedAt: number | null } }): SetupState {
+  if (!tool.configured) return tool.enabled ? 'needsCredential' : 'notSetUp'
+  if (tool.health.errorCode) return 'failing'
+  if (tool.health.checkedAt !== null) return 'healthy'
+  return 'readyToTest'
+}
+
+export function setupBadge(name: SetupState): string {
+  const state = setupStates[name]
+  return `<span class="badge ${state.tone}"><span class="dot ${state.tone}" aria-hidden="true"></span>${state.word}</span>`
+}
+
+// Write capability as an icon and word; `operations` is the selected count, or null when the tool has no operation list.
+export function writes(tool: { capable: boolean, enabled: boolean, operations: number | null }, form: 'badge' | 'status'): string {
+  const { word, tone, mark } = describeWrites(!tool.capable || !tool.enabled, tool.capable, tool.operations)
+  return `<span class="${form} ${tone}">${icon(mark)}${word}</span>`
+}
+
+function describeWrites(readOnly: boolean, capable: boolean, operations: number | null): { word: string, tone: 'neutral' | 'warn', mark: 'eye' | 'lock' | 'zap' } {
+  if (readOnly) return capable ? { word: 'Read-only', tone: 'neutral', mark: 'eye' } : { word: 'Always read-only', tone: 'neutral', mark: 'lock' }
+  return { word: operations === null ? 'Writes on' : `${operations} operation${operations === 1 ? '' : 's'} on`, tone: 'warn', mark: 'zap' }
 }

@@ -24,7 +24,7 @@ test('schema titles and descriptions take precedence over tool help', () => {
     region: { type: 'string', title: 'Regional gateway', description: 'Schema-owned region guidance.' },
   } })
   expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain('<label>Regional gateway<input')
-  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain('<p>Schema-owned region guidance.</p>')
+  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain('Schema-owned region guidance.</p>')
 })
 
 test.each([
@@ -36,7 +36,7 @@ test.each([
   const profile = new CredentialProfile({ type: 'object', properties: {
     [name]: { default: value, description: 'Field guidance.' },
   } })
-  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain(`<p>Field guidance. ${help}</p>`)
+  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain(`Field guidance. ${help}</p>`)
 })
 
 test.each([

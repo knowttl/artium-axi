@@ -73,6 +73,19 @@ async function signIn(secret = password) {
   return response
 }
 
+test.each([
+  { grants: "('synthetic-development-user', 'synthetic-role', 'synthetic-rule')", members: '1 person' },
+  { grants: "('synthetic-development-user', 'synthetic-role', 'synthetic-rule'), ('synthetic-second', 'synthetic-role', 'direct')", members: '2 people' },
+])('R2: tool Access counts distinct people across grant origins: $members', async ({ grants, members }) => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('synthetic-rule', 'synthetic-provider', 'groups', 'synthetic-group', 'synthetic-role');
+    INSERT INTO user_roles (user_id, role_id, origin) VALUES ${grants}`)
+  await signIn()
+  const response = await request('GET', '/admin/tools/falcon-axi?tab=access')
+  expect(response.statusCode).toBe(200)
+  expect(response.body).toContain(`<a href="/admin/roles/synthetic-role">Synthetic Role</a><p>${members}</p>`)
+})
+
 test('administrators can inspect the loaded trusted CA metadata on Tools', async () => {
   await withFakeService(async ({ directory: certs }) => {
     await app.close()
@@ -83,7 +96,7 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
     await signIn()
     const response = await request('GET', '/admin/tools')
     expect(response.statusCode).toBe(200)
-    expect(response.body).toContain('Read-only startup configuration')
+    expect(response.body).toContain('An operator sets ARTIUM_AXI_EXTRA_CA_FILE and restarts the server')
     expect(response.body).toContain(bundle.certificates[0].subject)
     expect(response.body).toContain(bundle.certificates[0].issuer)
     expect(response.body).toContain(bundle.certificates[0].expiresAt)

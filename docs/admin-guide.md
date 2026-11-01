@@ -109,8 +109,8 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, follow the three-step CLI setup, change your local-account password and revoke your sessions. |
-| `/admin/tools` | Review installed tools, pinned versions, read/write capability, current write state and cached health. |
-| `/admin/tools/:tool` | Configure credentials, native settings, write access and enablement; test health and review granting roles. |
+| `/admin/tools` | Review installed tools in a table with state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
+| `/admin/tools/:tool` | Header with state, write badges, **Test connection** and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
@@ -119,6 +119,9 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/settings/sign-in/:id` | Provider Setup checklist, Credential, Role rules and Settings tabs, and the Enable sign-in control. |
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
 | `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
+
+Tool State reflects the latest cached check for the current credential even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
+The Needs attention filter includes Failing and Needs credential states.
 
 For users granted Hybrid Analysis, Check Point, Microsoft Graph or BeyondTrust, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving), [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving) and [BeyondTrust endpoint content](client-reference.md#beyondtrust-pm-cloud), and metadata for their latest 20 transfers, including delivery and client-save receipts.
 The browser receives no artifact bytes and never saves, renders, opens or executes an artifact.
@@ -184,7 +187,7 @@ Archiving disables sign-in, revokes all sessions and hides the user from the use
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
 Credential editors pre-fill non-secret values and never return stored secrets.
-Field labels use schema titles when available; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
+Field labels use schema titles when available, then plain labels for known fields, falling back to the property name; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
@@ -202,25 +205,26 @@ See the [hosted contract](credential-standard.md#9-hosted-contract-artium-axi) f
 Falcon has guided fields; see its [current credential handling](credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
-Select **Test after saving** to save and report a harmless credential check inline.
+**Test after saving** is on by default on the Connection tab and reports a harmless credential check inline; clear it to save without testing.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
-Use **Write access** on a tool page to change writes without replacing other native settings.
-Writes default to off; fixed read-only tools show the reason and have no switch.
+Use the **Write permissions** tab (`?tab=writes`) on a tool page to change writes without replacing other native settings.
+Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
-For AWX, **Allow operational writes** and **Allow ordinary configuration writes** are independent switches; review the [AWX write boundary](safety.md#write-gates-by-tool) before enabling either.
-For Falcon, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue; turning writes on requires at least one selection.
+For AWX, **Operational actions** and **Configuration changes** are independent switches; review the [AWX write boundary](safety.md#write-gates-by-tool) before enabling either.
+For Falcon, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
 Check Point email/attachment downloads are separately selected and use [host-owned CLI confirmation](client-reference.md#check-point-email-and-attachment-saving), while mutations retain their native gates.
 See the [Vectra supported boundary and native write gates](safety.md) before selecting operations.
 Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
-Choose **Save write access** and confirm the change, completing identity confirmation if requested.
+Choose **Save write permissions** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
-The advanced JSON editor shows the saved write state, but saving it replaces the whole object and omitting write settings turns writes off.
+The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
+With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
-Use **Test credential** for a current fixed read before enabling a configured tool.
+Use **Test connection** for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](tool-credentials.md#microsoft-graph), verify the required permissions against your intended operations and obtain maintainer approval before enabling Graph on a running installation.
@@ -338,7 +342,7 @@ For hosted download availability, see the [supported capability boundaries](safe
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
 There is no audit mutation or deletion route.
-Filter by event `tool-write-access` to review changes to effective write enablement, AWX configuration permission, BeyondTrust delete permission or an operations allow-list, including changes made through Native settings or complete credential replacement.
+Filter by event `tool-write-access` to review changes to effective write enablement, AWX configuration permission, BeyondTrust delete permission or an operations allow-list, including changes made through the Advanced tab or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
 Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
