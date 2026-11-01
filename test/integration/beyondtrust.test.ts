@@ -48,7 +48,8 @@ async function withBeyondtrust(check: (fixture: {
     const wrap = (call: PreparedCall): PreparedCall => ({ ...call, executable: process.execPath,
           args: ['--import', join(process.cwd(), 'test/fake-service/beyondtrust-transport.mjs'),
             join(process.cwd(), 'tools/node_modules/@knowttl/beyondtrust-axi/bin/beyondtrust-axi.js'), ...call.args],
-          limits: options.interruption && call.write ? { ...call.limits, timeoutMs: options.interruption === 'native-deadline' ? 5000 : 2000 } : call.limits,
+          limits: call.write && ['native-deadline', 'timeout'].includes(options.interruption ?? '')
+            ? { ...call.limits, timeoutMs: options.interruption === 'native-deadline' ? 5000 : 2000 } : call.limits,
           environment: { ...call.environment, ARTIUM_TEST_BEYONDTRUST_ORIGIN: `https://localhost:${port}`,
             ...(options.invalidResponse ? { ARTIUM_TEST_BEYONDTRUST_INVALID_RESPONSE: '1' } : {}),
             ...(options.interruption && call.write ? { ARTIUM_TEST_BEYONDTRUST_INTERRUPTION: options.interruption,
