@@ -113,10 +113,6 @@ S1's shared write path admits organization configuration and associations, team 
 See the [command reference](commands.md) for operations, privilege flags and private password-file/stdin handling.
 Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) uses the public run API and pinned CLI against the fake controller to verify preview, confirmation, disabled writes, AWX permission denials, tenant isolation, exact configuration and association payloads, private password handling and audit.
 Stateful journeys verify membership and role grant/revoke readback with writes disabled, privilege removal and interrupted username recovery, and authentication failure after PAT revocation.
-Organization association requests are verified against the fake controller; the pinned organization read surface does not enumerate those memberships.
-The pinned upstream has no token-list command.
-Confirmed token creation uses the existing protected-result mechanism: a one-time authenticated download scoped to the requesting caller, operation and current managed credential revision, expiring after five minutes and served with no-store caching.
-Routine responses and audit contain metadata and a result reference, never PAT bytes.
-Acceptance verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
-The managed logout equivalent is explicit `user token-revoke <numeric-token-id>` because managed accounts do not retain a verified current PAT ID.
-Raw `auth logout` directs callers to that preview/confirm flow without removing their managed account; account removal is not PAT revocation.
+Organization association requests are verified against the fake controller; see the [command reference](commands.md) for readback limitations.
+The [token integration suite](../test/integration/awx-tokens.test.ts) verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
+See the [AWX security boundary](safety.md#write-gates-by-tool) for protected token delivery and managed logout, and [recovery guidance](runbook.md#retention-and-export) for lost results and token lookup limitations.

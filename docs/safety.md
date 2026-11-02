@@ -245,7 +245,7 @@ AWX protocol metadata preservation has a known upstream exception: awx-axi subst
 This can prevent unknown-outcome recovery guidance after an interrupted write; inspect the affected resource before retrying.
 The accepted limitation is tracked in [awx-axi #75](https://github.com/knowttl/awx-axi/issues/75).
 
-AWX token creation retains newly minted PAT bytes through the existing protected-result channel, with only metadata and a result reference in routine output and audit.
+AWX token creation retains newly minted PAT bytes through the existing protected-result channel, with only metadata and a result reference in routine output and audit; token bytes never enter routine logs or journals.
 The authenticated download requires the requesting user, current tool access, the same selected credential ID/revision and the token-create operation; it expires after five minutes, is consumed once and uses `Cache-Control: no-store`.
 Failed, denied, malformed and uncertain creation return no result reference.
 The new PAT does not replace the managed credential.

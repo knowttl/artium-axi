@@ -157,19 +157,16 @@ Grant or revoke a role with `role grant|revoke <role-id|name> --user <id|usernam
 All these writes require the tenant writes switch and the same `--dry-run` / `--confirm` flow, including membership removals and privilege changes.
 Inspect current state with organization, user and team list/show commands, `team users`, `role users` and `role teams`; these reads remain available with writes disabled.
 The pinned upstream organization read output does not enumerate association membership.
-After an interrupted user rename, reconcile using `user list` and `user show <new-username>` before retrying.
+After an interrupted user rename, follow [AWX recovery guidance](runbook.md#retention-and-export).
 
 Revoke an upstream PAT with `artium-axi awx-axi user token-revoke <numeric-token-id> --dry-run`, then replace `--dry-run` with `--confirm`.
-Revocation requires the tenant writes switch and AWX permission; removing a managed Artium account does not revoke its PAT.
-The pinned upstream does not provide a token-list command.
-This explicit revoke flow is the managed logout equivalent: Artium accounts do not retain a verified current PAT ID, so raw `auth logout` directs callers to it and preserves the managed account.
+This explicit revoke flow is the managed logout equivalent; raw `auth logout` directs callers to it.
+See the [AWX security boundary](safety.md#write-gates-by-tool) for authorization and managed-account behavior, and [recovery guidance](runbook.md#retention-and-export) for token lookup limitations.
 
 Create a PAT with `artium-axi awx-axi user token-create <user-id|username> --scope read|write --dry-run`, then replace `--dry-run` with `--confirm`.
-Confirmed creation returns token metadata and a protected `result.path`, with token bytes withheld from routine output, logs and audit.
-Save the result bytes through an authenticated GET to that path using the requesting caller's Artium session within five minutes.
-The result is consumed once, requires current tool access and the same selected credential revision, and is served with `Cache-Control: no-store`.
-Failed, denied, malformed or uncertain creation returns no result reference; inspect controller token state before retrying.
-The new PAT does not replace the selected managed account's credential.
+Confirmed creation returns token metadata and a protected `result.path` in the decoded tool stdout.
+Save the result bytes through an authenticated GET to that path using the requesting caller's Artium bearer session, keeping authentication headers in protected input rather than process arguments.
+Follow the [AWX security boundary](safety.md#write-gates-by-tool) for retrieval scope, expiry and one-time consumption, and [AWX recovery guidance](runbook.md#retention-and-export) if delivery fails.
 
 ## Technitium DNS
 
