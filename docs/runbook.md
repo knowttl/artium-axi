@@ -268,9 +268,10 @@ The confirmation window and inspection API report the leaf and trust anchor expi
 For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
 Expiry warnings do not block confirmation or change hostname and date verification.
 **Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
-GitHub is an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused because GitHub CLI cannot enforce it.
-For self-signed GitHub endpoints or a missing issuing CA, configure the server-wide bundle above.
+GitHub and Kubernetes are exceptions: their editors accept only an issuing CA, and strict leaf pinning is refused because these tools do not implement it.
+For self-signed endpoints or a missing issuing CA with either tool, configure the server-wide bundle above.
 The GitHub CLI child receives system roots, the server bundle and credential CAs together through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections rather than restricted to the inspected endpoint.
+For Kubernetes, system roots, the server bundle and confirmed CAs for the saved cluster origin are appended to the profile's `certificateAuthority` in a private per-call profile for bundled kubectl.
 No certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.

@@ -6,6 +6,7 @@ Contents:
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
 - [Gitea reads](#gitea-reads)
+- [Kubernetes reads](#kubernetes-reads)
 - [Network appliance reads](#network-appliance-reads)
 - [Technitium DNS](#technitium-dns)
 - [Write gates by tool](#write-gates-by-tool)
@@ -140,8 +141,7 @@ Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native rea
 
 The [reviewed Kubernetes inventory](../tools/inventories/kubernetes-axi.json) owns admitted compact/native reads, the exact package pin and bundled kubectl digests.
 Artium supplies the saved HTTPS origin, cluster CA, namespace and token or client-certificate SecretRef identity.
-Issuing CA trust is supported; certificate administration and execution explicitly refuse saved strict leaf pins.
-Native chain, hostname and validity checks remain enabled.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for Kubernetes trust requirements and projection; native chain, hostname and validity checks remain enabled.
 Exact leaf-pin support for Go transports is tracked in [the follow-up issue](https://github.com/knowttl/artium-axi/issues/276).
 Use `artium-axi kubernetes-axi get pods` for compact metadata or `artium-axi kubernetes-axi native -- get deployments -o json` for reviewed upstream formats.
 Compact lists retain at most 100 rows and report completeness, resource version and opaque continuation; repeat the same selectors with `--continue` to resume.
@@ -182,6 +182,7 @@ Local fake-service checks do not establish live server acceptance.
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [read-only capability boundary](#gitea-reads). |
+| Kubernetes | See the [read-only capability boundary](#kubernetes-reads). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
