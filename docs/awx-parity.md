@@ -105,7 +105,7 @@ S1's shared write path already admits execution-environment create/edit and supp
 The [command reference](commands.md) describes image settings and attachment of an existing registry credential by ID or name.
 Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies ordinary image configuration and credential attachment, preview without mutation, confirmation, disabled writes, AWX permission denials and audit through the public run API against a fake controller.
 It also verifies persisted image changes and read-only recovery after an interrupted rename.
-Copy/delete acceptance remains in S13.
+See [S13](#copy-and-delete-s13) for copy/delete acceptance coverage.
 
 ## Organizations, users, teams and roles (S10)
 
@@ -121,3 +121,11 @@ See the [AWX security boundary](safety.md#write-gates-by-tool) for protected tok
 
 See the [command reference](commands.md) for bulk host commands and file formats, the [AWX write boundary](safety.md#write-gates-by-tool) for permissions and private inputs, and [recovery guidance](runbook.md#retention-and-export) for partial or interrupted outcomes.
 Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, redacted previews without mutation, AWX permission denial, exact create payloads, rejected duplicate batches, mixed delete results, malformed host files, interrupted deletes reported as `UNKNOWN_OUTCOME`, and recovery through full and limited host reads against a fake controller.
+
+## Copy and delete (S13)
+
+The [copy/delete integration suite](../test/integration/awx-copy-delete.test.ts) exercises create/delete state transitions for organizations, inventories, hosts, groups, inventory sources, templates, workflows, workflow nodes, schedules, projects, execution environments, notification templates, users, teams and credentials through the public run API and pinned CLI against the fake controller.
+For templates, workflows, projects, execution environments, notification templates and credentials, these journeys also copy a resource and delete the copy.
+The suite covers preview, confirmation, disabled-write refusals, controller-denied deletions, audit, private input cleanup and canary redaction.
+Interrupted project deletion and execution-environment copying cover `UNKNOWN_OUTCOME` and list-based reconciliation with writes disabled.
+These synthetic scenarios do not establish live controller acceptance.

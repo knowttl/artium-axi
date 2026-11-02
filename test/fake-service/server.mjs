@@ -11,6 +11,7 @@ const requests = []
 const resources = new Map()
 const awxAssociations = new Map()
 const awxTokens = new Map([[7, 'CANARY-awx-minted-token']])
+const awxDeleted = new Set()
 let mutations = 0
 let basicAuthEnabled = true
 let awxConfigurationAllowed = true
@@ -298,6 +299,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   if (url.pathname === '/__ado/reset' && req.method === 'POST') {
     resources.clear()
     awxAssociations.clear()
+    awxDeleted.clear()
     awxTokens.set(7, 'CANARY-awx-minted-token')
     requests.length = 0
     mutations = 0
@@ -428,15 +430,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/43/launch/') {
       res.end(JSON.stringify({ passwords_needed_to_start: ['ssh_password'] })); return
     }
-    if (req.method === 'DELETE' && url.pathname === '/api/v2/job_templates/42/') {
-      mutations++
-      resources.delete(url.pathname)
-      res.writeHead(204); res.end(); return
-    }
-    if (req.method === 'DELETE' && /^\/api\/v2\/(inventories|inventory_sources|tokens)\/\d+\/$/.test(url.pathname)) {
+    if (req.method === 'DELETE' && /^\/api\/v2\/(inventories|inventory_sources|tokens|hosts|groups|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|execution_environments|credentials|users|teams|organizations|notification_templates)\/\d+\/$/.test(url.pathname)) {
       if (!awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
       mutations++
       resources.delete(url.pathname)
+      awxDeleted.add(url.pathname)
+      if (awxDropWrite) { req.socket.destroy(); return }
       if (url.pathname.startsWith('/api/v2/tokens/')) awxTokens.delete(Number(url.pathname.split('/')[4]))
       res.writeHead(204); res.end(); return
     }
@@ -538,14 +537,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           } } })
           res.writeHead(201); res.end(JSON.stringify({ id: 70, ...payload })); return
         }
-        const credentialCopy = /^\/api\/v2\/credentials\/(\d+)\/copy\/$/.exec(url.pathname)
+        const resourceCopy = /^\/api\/v2\/(credentials|job_templates|workflow_job_templates|projects|execution_environments|notification_templates)\/(\d+)\/copy\/$/.exec(url.pathname)
         const teamCredential = /^\/api\/v2\/teams\/(\d+)\/credentials\/$/.exec(url.pathname)
         const collection = groupInventory ? '/api/v2/groups/' : workflowNode ? '/api/v2/workflow_job_template_nodes/'
-          : credentialCopy || teamCredential ? '/api/v2/credentials/' : url.pathname
+          : resourceCopy ? `/api/v2/${resourceCopy[1]}/` : teamCredential ? '/api/v2/credentials/' : url.pathname
         let id = 42
         if (req.method === 'POST') while (resources.has(`${collection}${id}/`)) id++
         const path = req.method === 'PATCH' ? url.pathname : `${collection}${id}/`
-        const original = credentialCopy ? resources.get(`/api/v2/credentials/${credentialCopy[1]}/`) : undefined
+        const original = resourceCopy ? resources.get(`/api/v2/${resourceCopy[1]}/${resourceCopy[2]}/`) : undefined
         const resource = { ...original, id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}),
           // Fixed controller timing fixture; the fake never runs a scheduler or jobs.
           ...(req.method === 'POST' && collection === '/api/v2/schedules/' ? {
@@ -561,6 +560,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
             changes: req.method === 'PATCH' ? changes : JSON.stringify(changes) })
         }
         resources.set(path, resource)
+        awxDeleted.delete(path)
         if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
         res.end(JSON.stringify(resource))
@@ -624,6 +624,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         res.end(JSON.stringify({ count: rows.length, next: null, results: rows })); return
       }
       if (/^\/api\/v2\/hosts\/\d+\/ansible_facts\/$/.test(url.pathname)) { res.end('{}'); return }
+      if (awxDeleted.has(url.pathname)) { res.writeHead(404); res.end(JSON.stringify({ detail: 'Not found.' })); return }
       if (/\/\d+\/$/.test(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname) ?? { id: 42, name: 'Synthetic resource' }))
       else {
         const rows = [...resources.entries()].filter(([path]) => path.startsWith(url.pathname) && /^\d+\/$/.test(path.slice(url.pathname.length)))
