@@ -20,10 +20,9 @@ const compactFlags: Record<string, string[]> = {
 const compactCommands = ['logs', 'describe', 'explain', 'rollout history', 'rollout status']
 const reads = metadata.commands.filter(command => ['read', 'authorization'].includes(command.effect)
   && !['events', 'wait', 'top', 'auth', 'options'].includes(command.path) && !command.compatibilityLimit)
+const mutations = metadata.commands.filter(command => command.effect === 'clusterWrite' && !command.compatibilityLimit)
 const safe = (command: Command, flag: Flag) => ['argument', 'presentation', 'stream'].includes(flag.effect)
   || command.path === 'get' && flag.name === 'raw'
-const unsafeOverrides = [...new Set(['config', 'profile', 'native-config', 'trust-exec', 'credential-fd',
-  ...metadata.commands.flatMap(command => command.flags.filter(flag => ['identity', 'secret', 'tls', 'impersonation', 'fileRead', 'localWrite', 'execution'].includes(flag.effect)).map(flag => flag.name))])].sort()
 function route(command: Command, native: boolean) {
   const selected = command.flags.filter(flag => safe(command, flag)
     && (native || !Object.hasOwn(compactFlags, command.path) || compactFlags[command.path].includes(flag.name) || flag.name === 'help'))
@@ -37,6 +36,16 @@ const commands = [route(home, false), ...reads.flatMap(command => [
   ...(Object.hasOwn(compactFlags, command.path) || compactCommands.includes(command.path) || command.effect === 'authorization' ? [route(command, false)] : []),
   route(command, true),
 ]), ...['auth status', 'doctor'].map(command => ({ command, effect: 'read', flags: { help: 'boolean' }, shortFlags: {} }))]
+const writeCommands = mutations.map(command => ({ command: command.path, effect: 'write',
+  flags: Object.fromEntries(command.flags.filter(flag => ['argument', 'presentation', 'stream', 'clusterWrite'].includes(flag.effect))
+    .map(flag => [flag.name, flag.type === 'bool' ? 'boolean' : 'value'])) }))
+const unsafeOverrides = [...new Set(['config', 'profile', 'native-config', 'trust-exec', 'credential-fd',
+  ...metadata.commands.flatMap(command => command.flags.filter(flag => ['identity', 'secret', 'tls', 'impersonation', 'fileRead', 'localWrite', 'execution'].includes(flag.effect))
+    .map(flag => flag.name)).filter(name => ![...commands, ...writeCommands].some(route => Object.hasOwn(route.flags, name)))])].sort()
+const workflows = [
+  ['prepare', 'prepare -- <mutation>', 'write'], ['preview', 'preview <request-key>', 'read'],
+  ['confirm', 'confirm <request-key> --digest <exact-digest>', 'write'], ['server-dry-run', 'server-dry-run -- <mutation>', 'write'],
+].map(([command, usage, effect]) => ({ command, usage, effect, flags: { help: 'boolean', ...(command === 'confirm' ? { digest: 'value' } : {}) } }))
 function files(path: string): string[] {
   return readdirSync(new URL(path, base), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))
     .flatMap(entry => entry.isDirectory() ? files(`${path}/${entry.name}`) : [`${path}/${entry.name}`])
@@ -49,11 +58,12 @@ for (const binary of Object.values(kubectl.binaries)) {
 }
 const data = { generatedBy: 'scripts/kubernetes-inventory.ts', tool: 'kubernetes-axi', package: pkg.name, ...pins[pkg.name],
   sources, credentialSchema: JSON.parse(read('axi-credential.schema.json')) as Record<string, unknown>, kubectl,
-  adapterBoundary: { unsafeOverrides, blockedCommands: ['prepare', 'preview', 'confirm', 'server-dry-run', 'profile', 'config', 'setup', 'update'],
-    nativeWrites: 'not admitted', streams: 'false only; authenticated sessions are a separate capability' },
-  commands, healthRead: ['get', 'pods'], requirements: { timeoutMs: 65_000, runtime: 'node' },
-  discovery: { commands: commands.filter(route => route.command !== 'home').map(route => route.command), example: ['get', 'pods'],
-    help: 'Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nWrites, local configuration, impersonation, file input and streaming sessions are unavailable.\n' } }
+  adapterBoundary: { unsafeOverrides, blockedCommands: ['profile', 'config', 'setup', 'update'],
+    nativeWrites: 'administrator-enabled prepare/preview/confirm and server-dry-run; direct mutations refused', streams: 'false only; authenticated sessions are a separate capability' },
+  commands, writeCommands, workflows, healthRead: ['get', 'pods'], requirements: { timeoutMs: 65_000, runtime: 'node' },
+  discovery: { commands: [...commands.filter(route => route.command !== 'home').map(route => route.command),
+    ...workflows.map(workflow => workflow.usage)], example: ['get', 'pods'],
+    help: 'Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nLocal configuration, impersonation, file input, execution, credential issuance and streaming sessions are unavailable.\n' } }
 const output = JSON.stringify(data, null, 2) + '\n'
 const target = new URL('inventories/kubernetes-axi.json', root)
 if (process.argv.includes('--write')) writeFileSync(target, output)

@@ -78,7 +78,7 @@ Write capabilities below require administrator opt-in.
 | BeyondTrust PM Cloud | Endpoint Privilege Management reads, selected writes, deletes and four downloads | Managed credentials; exact operation grants; separate delete toggle | [Credentials](docs/tool-credentials.md#beyondtrust-pm-cloud) |
 | Discovery and sessions | Identity, login, tools, doctor, update and setup | Client/session operations | [Commands](docs/commands.md) |
 | Falcon | Endpoint investigations, search lifecycle, MalQuery and restricted RTR | Exact administrator grants; native RTR profile opt-in and confirmation | [Capabilities](docs/safety.md#write-gates-by-tool) |
-| Kubernetes | Cluster resources, logs and passive authorization reviews | Bounded reads with managed token or client-certificate identity | [Capabilities](docs/safety.md#kubernetes-reads) |
+| Kubernetes | Cluster resources, logs and passive authorization reviews | Bounded reads and administrator-enabled native prepare/preview/confirm mutations | [Capabilities](docs/safety.md#kubernetes-reads) |
 | SSH | Granted host discovery and authentication checks | Dedicated ordinary bindings; no remote execution | [Capabilities](docs/safety.md#ssh-reads) |
 | Vectra | Hosts, detections and response workflows | Reads; selected writes | [Credentials](docs/tool-credentials.md#vectra) |
 | Azure | Subscriptions, resources and queries | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure) |

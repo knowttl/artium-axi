@@ -1238,7 +1238,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'proxmox-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
       { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
-      { name: 'kubernetes-axi', capable: false, enabled: false, reason: 'This adapter admits bounded Kubernetes reads and passive authorization reviews.' },
+      { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
       { name: 'ssh-axi', capable: false, enabled: false, reason: 'SSH discovery and authentication use dedicated host grants and encrypted ordinary bindings.' },
     ])
   for (const tool of tools) {
@@ -1598,7 +1598,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
-    { name: 'kubernetes-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'kubernetes-axi', version: '0.1.2', health: { status: 'disabled' } },
     { name: 'ssh-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()

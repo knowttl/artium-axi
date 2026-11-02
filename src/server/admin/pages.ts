@@ -21,8 +21,8 @@ import { toolEndpoints } from '../tool-endpoints.js'
 const settingsGuide = {
   'ssh-axi': 'Discovery and authentication only. Dedicated SSH host bindings and credentials are required; tenant credentials cannot enable SSH execution.',
   'technitium-axi': 'The pinned Technitium package is read-only. Use {}. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
-  'gitea-axi': 'Writes default off. Use Allow writes and select exact native operation IDs, then require caller preview and confirmation. Protected values, attachments and local workflows remain unavailable.',
-  'kubernetes-axi': 'Bounded Kubernetes reads and passive authorization reviews are admitted. Writes and streaming sessions are unavailable. Use {}.',
+  'gitea-axi': 'Writes default off. Use Allow writes and select exact native operation IDs, then require caller preview and confirmation. Secret values use protected --input; opaque attachments use --file or --attach and managed download grants. Local workflows remain unavailable.',
+  'kubernetes-axi': 'Writes default off. Use {"allowWrites": true} for native prepare, offline preview, exact-digest confirmation and explicit server-dry-run. Bulk deletion additionally requires {"collectionDelete": true}. Saving write settings invalidates earlier prepared requests. File inputs, execution, credential issuance and streaming sessions remain unavailable.',
   'unifi-axi': 'Only implemented reads are admitted. No editable native settings. Use {}.',
   'proxmox-axi': 'Ordinary API-token reads are admitted. Writes, session authentication and byte transports are unavailable. Use {}.',
   'gh-axi': 'Writes default off. Select exact collaboration or repository operations with writes: { allowWrites: true, operations: ["issue comment"] }. Preview each write, then repeat with the returned --confirm. Deletes, secret set, merge --admin and API non-GET stay blocked.',
@@ -34,7 +34,7 @@ const settingsGuide = {
   'ado-axi': 'Optional allowWrites (boolean), off by default. Permits reviewed work-item delete/destroy, link removal, pipeline, repository, policy, PR and ref writes. Release creation may deploy. Raw API writes require server-listed paths. Artium classifies and journals every command. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional enabledPacks: ["entra", "security"] enables read-only hunting; default ["entra"]. Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
-  'falcon-axi': 'Select rtr run and/or malquery search in the audited write switch; both are off by default. MalQuery search requires MalQuery:write and supports exact/fuzzy patterns only. RTR also requires rtr: {"enabled": true, "commands": ["ps"]} for profile opt-in and optional command narrowing. Native preview, --execute and exact --confirm still apply. History reads remain available while execution is off.',
+  'falcon-axi': 'Select exact search start/stop, host usb, identity activity, malquery search or rtr run operations in the audited write switch, all off by default. Search and MalQuery dispatch immediately. RTR also requires rtr: {"enabled": true, "commands": ["ps"]}, native preview, --execute and exact --confirm. History reads remain available while execution is off.',
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }

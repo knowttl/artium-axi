@@ -92,7 +92,8 @@ See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-admini
 Test, enable and grant the tool, then run `artium-axi kubernetes-axi get pods`.
 The connection test performs that authenticated pod read; `doctor` and `auth status` only describe local profile resolution.
 The [reviewed inventory](../tools/inventories/kubernetes-axi.json) owns the supported kubectl/server version matrix and command boundary.
-See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for supported operations and restrictions.
+The saved identity needs Kubernetes RBAC permission for each intended operation and for reading its exact targets; Artium does not bypass cluster authorization.
+See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for administrator write settings, supported operations and restrictions.
 
 #### Gitea
 

@@ -3,7 +3,7 @@ import type { Serializable, ChildProcessWithoutNullStreams } from 'node:child_pr
 import { constants } from 'node:fs'
 import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, isAbsolute, join } from 'node:path'
+import { basename, dirname, isAbsolute, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { isIP } from 'node:net'
 import { connect, getCACertificates } from 'node:tls'
@@ -21,8 +21,10 @@ import { certificateEndpoint } from '../certificate-endpoint.js'
 import { classifyCertificateFailure, observeCertificate } from '../credential-tls.js'
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
+import { kubernetesRequestProfile } from './kubernetes-requests.js'
 
 export interface RunnerLimits {
+  kubernetesRequests?: { root: string, scope: string }
   falconRtrDevice?: string
   trustedIpc?: Serializable
   outputBytesPerStream?: number
@@ -208,10 +210,13 @@ async function execute(
     XDG_DATA_HOME: join(directory, 'data'), XDG_STATE_HOME: join(directory, 'state'),
     XDG_RUNTIME_DIR: join(directory, 'runtime'),
   }
+  let kubernetesProfile: string | undefined
   try {
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     try {
       await Promise.all(Object.values(directories).map(path => mkdir(path, { mode: 0o700 })))
+      if (limits.kubernetesRequests) kubernetesProfile = await kubernetesRequestProfile(
+        limits.kubernetesRequests.root, limits.kubernetesRequests.scope, basename(directory))
       const names = new Set<string>()
       const trustFile = 'artium-trusted-ca.pem'
       const materialized: readonly TemporaryFile[] = [...files,
@@ -226,10 +231,10 @@ async function execute(
           throw new Error('Invalid adapter file name')
         }
         names.add(file.name)
-        const target = join(directories.XDG_CONFIG_HOME, file.name)
+        const target = kubernetesProfile && file.name === 'kubernetes-axi/config.json' ? kubernetesProfile : join(directories.XDG_CONFIG_HOME, file.name)
         await mkdir(dirname(target), { recursive: true, mode: 0o700 })
         await chmod(dirname(target), 0o700)
-        const temporary = join(directories.TMPDIR, 'adapter-file')
+        const temporary = target === kubernetesProfile ? `${target}.tmp` : join(directories.TMPDIR, 'adapter-file')
         const handle = await open(temporary, 'wx', 0o600)
         try {
           let content = file.content
@@ -290,6 +295,7 @@ async function execute(
           ...directories,
           ...(environment.BEYONDTRUST_AXI_WRITE_LOG ? { XDG_STATE_HOME: dirname(environment.BEYONDTRUST_AXI_WRITE_LOG) } : {}),
           ...(limits.falconRtrDevice ? { XDG_STATE_HOME: join(root, 'falcon-rtr-state') } : {}),
+          ...(kubernetesProfile ? { KUBERNETES_AXI_CONFIG: kubernetesProfile } : {}),
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
         stdio: limits.trustedIpc === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],
@@ -434,6 +440,10 @@ async function execute(
     result.durationMs = performance.now() - started
     return result
   } finally {
+    if (kubernetesProfile) {
+      await rm(kubernetesProfile, { force: true })
+      await rm(`${kubernetesProfile}.tmp`, { force: true })
+    }
     await rm(directory, { recursive: true, force: true })
   }
 }

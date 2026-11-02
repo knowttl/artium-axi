@@ -29,6 +29,10 @@ export function verifyAccessToken(db: Database.Database, token: string, now = Da
   return verifyToken(db, token, ['access'], now).user_id
 }
 
+export function verifyAccessFamily(db: Database.Database, token: string): string {
+  return verifyToken(db, token, ['access'], Date.now()).family_id
+}
+
 export function verifyPasswordToken(db: Database.Database, token: string, now = Date.now()) {
   return verifyToken(db, token, ['access', 'password-change'], now)
 }

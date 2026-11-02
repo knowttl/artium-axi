@@ -321,7 +321,7 @@ export const nativeSettingsSchemas = {
   'ssh-axi': z.strictObject({}),
   'gitea-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.enum(giteaWriteOperations)).min(1).max(giteaWriteOperations.length) }).optional() }),
-  'kubernetes-axi': z.strictObject({}),
+  'kubernetes-axi': z.strictObject({ allowWrites: z.boolean().optional(), collectionDelete: z.boolean().optional() }),
   'unifi-axi': z.strictObject({}),
   'proxmox-axi': z.strictObject({}),
   'gh-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
@@ -359,7 +359,7 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'gitea-axi') return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   if (tool === 'ssh-axi') return false
-  if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'kubernetes-axi') return false
+  if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi') return false
   if (tool === 'falcon-axi') return settings.writes === undefined ? settings.allowWrites === true
     : (settings.writes as { allowWrites?: unknown }).allowWrites === true
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {

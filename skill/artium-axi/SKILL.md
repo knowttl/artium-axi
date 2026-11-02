@@ -107,7 +107,7 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi proxmox-axi [<args>]` | Read ordinary Proxmox routes with a managed API token; writes and byte transports are unavailable. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
-| `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources, logs and passive authorization reviews with managed credentials and pinned kubectl. |
+| `artium-axi kubernetes-axi [<args>]` | See the [managed Kubernetes command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md). |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts and check authentication through dedicated ordinary bindings without remote execution. |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |

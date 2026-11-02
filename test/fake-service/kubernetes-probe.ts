@@ -105,7 +105,7 @@ await withFakeService(async ({ directory, port, send }) => {
     const writes = db.prepare("SELECT count(*) AS count FROM audit WHERE tool = 'kubernetes-axi' AND action = 'write'").get() as { count: number }
     assert.equal(writes.count, 0)
     assert.deepEqual(readdirSync(join(directory, 'calls')), [])
-    console.log(JSON.stringify({ kubernetes: '0.1.1', transport: 'isolated loopback', savedCa: 'projected into kubectl profile',
+    console.log(JSON.stringify({ kubernetes: '0.1.2', transport: 'isolated loopback', savedCa: 'projected into kubectl profile',
       leafPins: 'refused before requests', identity: 'token and client certificate', nativeReads: 'verified', authorizationReviews: 'verified', deny: 'verified' }))
   } finally { await app.close(); db.close(); await runner.shutdown() }
 })

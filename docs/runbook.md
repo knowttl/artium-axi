@@ -563,6 +563,13 @@ Keep their shared journals and adjacent lock files intact, including across rest
 Check Point's shared journal uses audit IDs rather than the legacy Vectra intent-key format and remains outside automatic retention.
 Successful reads for these tools report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
+
+Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
+Each call removes its temporary SecretRef profile after process settlement; the native request plan, signing key, atomic claim and outcome remain together without copying claims between call directories.
+These plans can contain original resource payloads, including Secret data; protect the directory with the database and inspect only through the caller's saved preview.
+Startup and daily maintenance remove scopes inactive for more than 90 days, after their sign-in families have expired.
+After an uncertain confirmation, inspect the native result and current resource state; repeated confirmation never resends a claimed mutation, and unfinished work needs a fresh preparation and digest.
+
 Gitea keeps its shared dispatch journal at `<database directory>/tool-logs/gitea-axi/writes.log` and native receipts and attempt guards in the adjacent `write-receipts/` directory.
 These files survive calls and restarts and are not automatically pruned; preserve them together when backing up or recovering write state so replay protection remains intact.
 After an uncertain Gitea result, including native `WRITE_OUTCOME_UNKNOWN`, use `artium-axi gitea-axi write reconcile UUID` with the preview's confirmation UUID to inspect the receipt and current remote observations.

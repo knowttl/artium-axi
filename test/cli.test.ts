@@ -910,9 +910,10 @@ test.each([
   expect(document.command).toBe(`artium-axi kubernetes-axi${command ? ` ${native}${command}` : ''}`)
   expect(document.flags).not.toHaveProperty('config')
   expect(document.flags).not.toHaveProperty('profile')
-  expect(document.commands.join('\n')).not.toMatch(/prepare|confirm|config path/)
+  expect(document.commands.join('\n')).not.toMatch(/config path/)
   expect(document.help.join('\n')).toContain('managed')
-  expect(result.stdout).not.toMatch(/--native-config|--trust-exec|prepare --/)
+  expect(document.help.join('\n')).toContain('confirm <request-key> --digest <exact-digest>')
+  expect(result.stdout).not.toMatch(/--native-config|--trust-exec/)
   expect(result.stderr).toBe(result.stdout)
 })
 
