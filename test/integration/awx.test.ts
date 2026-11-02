@@ -47,7 +47,7 @@ test.each(['module-args', 'args'].flatMap(flag => ['inline', 'upload'].map(chann
         const preview = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
           payload: { args: [...args, '--dry-run'], ...input } })
         expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
-        expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { module_args: '[module args redacted, 65 bytes]' } })
+        expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { module_args: '[structured input redacted, 65 bytes]' } })
         expect(preview.body).not.toContain('CANARY-')
         expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
         const written = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
@@ -165,11 +165,20 @@ test.each([
   }, 60_000,
 )
 
-const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown>, preview?: unknown }[] = [
+const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown>, preview?: unknown, privateValue?: string }[] = [
+  ...[
+    { content: '{"ansible_password":12345678}', bytes: 29, privateValue: '12345678' },
+    { content: 'common: &pw CANARY-alias\nansible_password: *pw\n', bytes: 47, privateValue: 'CANARY-alias' },
+  ].flatMap(({ content, bytes, privateValue }) => ['inline', 'upload'].map(channel => ({
+    args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', channel === 'inline' ? content : 'variables.yml'],
+    path: 'hosts/', body: { name: 'synthetic', inventory: 7, variables: content }, privateValue,
+    input: channel === 'upload' ? { files: [upload('variables.yml', content)] } : {},
+    preview: { dry_run: { payload: `[structured input redacted, ${bytes} bytes]` }, input: { variables: `[structured input redacted, ${bytes} bytes]` } },
+  }))),
   ...['run', 'a', 'A', 'pending', 'create', 'CONTROLLER_UNREACHABLE', '[redacted]', 'dry_run'].map(value => ({
     args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', JSON.stringify({ mode: value })],
     path: 'hosts/', body: { name: 'synthetic', inventory: 7, variables: JSON.stringify({ mode: value }) },
-    preview: { dry_run: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: { variables: JSON.stringify({ mode: value }) } },
+    preview: { dry_run: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: `[structured input redacted, ${Buffer.byteLength(JSON.stringify({ mode: value }))} bytes]` },
       help: ['Re-run with --confirm to create'] },
   })),
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', 'variables.json'], path: 'hosts/',
@@ -279,7 +288,7 @@ test('AWX enabling writes in one tenant does not grant another tenant write acce
   }
 })
 
-test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body, input = {}, unconfirmed = { error: { code: 'FLAG_BLOCKED' } }, preview: expectedPreview }) => {
+test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body, input = {}, unconfirmed = { error: { code: 'FLAG_BLOCKED' } }, preview: expectedPreview, privateValue = 'CANARY-' }) => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -336,7 +345,7 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       const preview = await run([...args, '--dry-run'])
       expect(preview.json(), preview.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('dry_run') })
       if (expectedPreview) expect(decode(preview.json().stdout)).toMatchObject(expectedPreview)
-      expect(preview.body).not.toContain('CANARY-')
+      expect(preview.body).not.toContain(privateValue)
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       await send('/__awx/configuration-permission?enabled=false', 'POST')
       const denied = await run([...args, '--confirm'])
@@ -353,7 +362,7 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       expect(audit).toContainEqual(expect.objectContaining({ event: 'run-terminal', action: 'write' }))
       expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
       expect(JSON.stringify(audit)).not.toContain('CANARY-')
-      expect(written.body).not.toContain('CANARY-')
+      expect(written.body).not.toContain(privateValue)
       expect(written.body).not.toContain('CANARY-awx-token')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }

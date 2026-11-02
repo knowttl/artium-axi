@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { expect, test } from 'vitest'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
-import { SecretScanner } from './scan.js'
+import { privateOutput, SecretScanner } from './scan.js'
 
 const streams = ['stdout', 'stderr'] as const
 const canary = 'CANARY-☃ÿ?/+='
@@ -58,39 +58,39 @@ test('scan with no injected secrets accepts output', () => {
   expect(new SecretScanner([]).scan('stdout', Buffer.from('ordinary output'))).toBe(false)
 })
 
-test.each(streams)('secret-input scanning preserves protocol metadata and null masks in %s (R1, R3)', stream => {
-  const scanner = new SecretScanner([], ['run', 'a', 'A', 'pending', 'create', 'host', 'FORBIDDEN'])
-  scanner.scan(stream, Buffer.from('code: FORBIDDEN\ndry_run:\n  action: create\n  type: host\n  status: pending\n  would_send: POST hosts/\n  payload: null\nhelp[1]: Re-run with --confirm to create a host\n'))
+test.each(streams)('private-input scanning preserves protocol metadata and opaque masks in %s (R1, R3)', stream => {
+  const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }]))
+  scanner.scan(stream, Buffer.from('code: FORBIDDEN\ndry_run:\n  action: create\n  type: host\n  status: pending\n  would_send: POST hosts/\n  payload: "[structured input redacted, 1 bytes]"\nhelp[1]: Re-run with --confirm to create a host\n'))
   expect(scanner.finish()).toBe(false)
 })
 
 test.each(streams)('secret-input scanning accepts substrings inside ordinary values in %s', stream => {
-  const scanner = new SecretScanner([], ['a', 'run'])
+  const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }, { field: 'extra_vars', content: 'run' }]))
   scanner.scan(stream, Buffer.from('name: database\ndescription: runtime\n'))
   expect(scanner.finish()).toBe(false)
 })
 
-test.each(streams)('secret-input scanning accepts module argument placeholders in %s (R6)', stream => {
-  const scanner = new SecretScanner([], ['args', 'redacted'])
-  scanner.scan(stream, Buffer.from('dry_run:\n  module_args: "[module args redacted, 8 bytes]"\n'))
+test.each(streams)('private-input scanning accepts module argument placeholders in %s (R6)', stream => {
+  const scanner = new SecretScanner([], privateOutput([{ field: 'module_args', content: 'redacted' }]))
+  scanner.scan(stream, Buffer.from('dry_run:\n  module_args: "[structured input redacted, 8 bytes]"\n'))
   expect(scanner.finish()).toBe(false)
 })
 
-test.each(streams)('secret-input scanning detects unregistered values in known secret fields in %s', stream => {
-  const scanner = new SecretScanner([], ['CANARY-original'])
-  scanner.scan(stream, Buffer.from('resource:\n  password: CANARY-new\n'))
+test.each(streams)('private-input scanning rejects exposed structured objects in %s', stream => {
+  const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: '{"password":12345678}' }]))
+  scanner.scan(stream, Buffer.from('resource:\n  variables:\n    password: 12345678\n'))
   expect(scanner.finish()).toBe(true)
 })
 
 test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {
-  const scanner = new SecretScanner([], ['a'])
+  const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }]))
   scanner.scan(stream, Buffer.from('dry_run:\n  payload:\n    env: '))
   scanner.scan(stream, Buffer.from('a\n'))
   expect(scanner.finish()).toBe(true)
 })
 
 test.each(streams)('private-input scanning rejects malformed responses in %s', stream => {
-  const scanner = new SecretScanner([], ['CANARY-private'])
+  const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'CANARY-private' }]))
   scanner.scan(stream, Buffer.from('payload[2]:\n  - invalid\n'))
   expect(scanner.finish()).toBe(true)
 })

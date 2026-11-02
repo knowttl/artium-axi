@@ -4,6 +4,7 @@ import type { SensitiveArguments } from '../audit/redact.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { CredentialProfile } from './credential-profile.js'
 import type { TransferScope } from '../../shared/api.js'
+import type { PrivateOutput } from '../runner/scan.js'
 
 // The runner materializes adapter-owned relative paths privately, including XDG profiles.
 export interface TemporaryFile {
@@ -25,7 +26,7 @@ export interface PreparedCall {
   protectedResult?: { operation: string } & ({ source: 'projection' } | { source: 'file', name: string, flag: string })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   preview?: { operation: string, target: string, confirm: string }
-  limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean, valueSecrets?: readonly string[] }
+  limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean, privateOutput?: PrivateOutput }
 }
 
 export interface Adapter<Credential> {

@@ -2,10 +2,14 @@ import { decode } from '@toon-format/toon'
 
 type OutputStream = 'stdout' | 'stderr'
 
-export const secretFieldPattern = /(?:passwords?|passphrase|token|secret|(?:api|access|private|ssh)[-_]?key(?:[-_]?data)?|ssh_key_unlock|authorization|key)$/i
 export const protocolOutputFields = ['code', 'action', 'type', 'status', 'would_send', 'help', 'label']
 
-export function secretForms(secrets: readonly string[]): string[] {
+export interface PrivateOutput {
+  fields: Record<string, string>
+  patterns: [string, string][]
+}
+
+function secretForms(secrets: readonly string[]): string[] {
   const forms = new Set<string>()
   for (const secret of secrets) {
     if (secret.length === 0) throw new Error('Secret values must be nonempty')
@@ -19,8 +23,23 @@ export function secretForms(secrets: readonly string[]): string[] {
   return [...forms]
 }
 
-export function secretTokenPatterns(secrets: readonly string[]): string[] {
+function secretTokenPatterns(secrets: readonly string[]): string[] {
   return secretForms(secrets).map(form => `(?<![\\p{L}\\p{N}_])${form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`)
+}
+
+export function privateOutput(inputs: readonly { field: string, content: string }[]): PrivateOutput {
+  const fields: Record<string, string> = {}
+  const patterns: [string, string][] = []
+  let totalBytes = 0
+  for (const { field, content } of inputs) {
+    const bytes = Buffer.byteLength(content, 'utf8')
+    const mask = `[structured input redacted, ${bytes} bytes]`
+    fields[field] ??= mask
+    totalBytes += bytes
+    if (content.length) patterns.push(...secretTokenPatterns([content]).map(pattern => [pattern, mask] as [string, string]))
+  }
+  if (inputs.length) fields.payload = `[structured input redacted, ${totalBytes} bytes]`
+  return { fields, patterns }
 }
 
 // Prefix lengths let a mismatch reuse a partial match without retaining output bytes.
@@ -46,8 +65,8 @@ export class SecretScanner {
   readonly #valuePatterns: readonly RegExp[]
   readonly #chunks: Record<OutputStream, Buffer[]> = { stdout: [], stderr: [] }
 
-  constructor(secrets: readonly string[], valueSecrets: readonly string[] = []) {
-    this.#valuePatterns = secretTokenPatterns(valueSecrets).map(pattern => new RegExp(pattern, 'u'))
+  constructor(secrets: readonly string[], private readonly output?: PrivateOutput) {
+    this.#valuePatterns = (output?.patterns ?? []).map(([pattern]) => new RegExp(pattern, 'u'))
     this.#patterns = secretForms(secrets).map(form => {
       const bytes = Buffer.from(form, 'utf8')
       return { bytes, prefixes: prefixLengths(bytes) }
@@ -60,7 +79,7 @@ export class SecretScanner {
 
   scan(stream: OutputStream, chunk: Uint8Array): boolean {
     if (this.#matched) return true
-    if (this.#valuePatterns.length) this.#chunks[stream].push(Buffer.from(chunk))
+    if (this.output) this.#chunks[stream].push(Buffer.from(chunk))
     const positions = this.#positions[stream]
     for (let index = 0; index < this.#patterns.length; index++) {
       const { bytes, prefixes } = this.#patterns[index]
@@ -79,12 +98,14 @@ export class SecretScanner {
   }
 
   finish(): boolean {
-    const containsSecret = (value: unknown, key = ''): boolean => {
+    const fields = this.output?.fields ?? {}
+    const masks = new Set([...Object.values(fields), ...(this.output?.patterns ?? []).map(([, mask]) => mask)])
+    const containsSecret = (value: unknown, key = '', depth = 0): boolean => {
+      if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return value !== fields[key]
       if (protocolOutputFields.includes(key)) return false
-      if (secretFieldPattern.test(key) && value !== null && typeof value !== 'boolean' && typeof value !== 'number') return true
-      if (typeof value === 'string') return !/^\[module args redacted, \d+ bytes\]$/.test(value) && this.#valuePatterns.some(pattern => pattern.test(value))
-      if (Array.isArray(value)) return value.some(child => containsSecret(child))
-      return value !== null && typeof value === 'object' && Object.entries(value).some(([name, child]) => containsSecret(child, name))
+      if (typeof value === 'string') return !masks.has(value) && this.#valuePatterns.some(pattern => pattern.test(value))
+      if (Array.isArray(value)) return value.some(child => containsSecret(child, '', depth + 1))
+      return value !== null && typeof value === 'object' && Object.entries(value).some(([name, child]) => containsSecret(child, name, depth + 1))
     }
     for (const stream of ['stdout', 'stderr'] as const) {
       const chunks = this.#chunks[stream]

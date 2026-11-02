@@ -162,9 +162,9 @@ See [upload audit metadata](admin-guide.md#audit-screen-and-api) for what is rec
 AWX file flags upload local bytes through this channel, including credential inputs/passwords, launch credential passwords, bulk hosts and notification configuration/messages.
 AWX structured flags (`--extra-vars`, `--variables`, `--source-vars`, `--module-args`, `--args`) accept inline text or `@local-file`; use a protected local file for secrets so they never enter the local CLI's process arguments.
 The server loads those structured values privately into upstream memory, preserving JSON/YAML text and keeping hosted process arguments free of secrets.
-Ordinary structured values remain visible in returned payloads.
-Free-form Ansible `--module-args` and `--args` values, including uploaded files, are sensitive as a whole; previews and responses show a redacted placeholder with the original UTF-8 byte length.
-Credential-file contents and values in known password, token, secret or key fields receive whole-token output scanning and secret-field masking; protocol metadata remains intact.
+All caller-supplied structured inputs remain opaque in previews and responses, including variables, survey and launch inputs, Ansible arguments, notification configuration/messages and uploaded structured files.
+Artium shows redacted placeholders with the original UTF-8 byte lengths; a hidden preview payload reports the combined input byte length.
+Credential secrets continue to use the controlled file channel, and protocol metadata remains intact.
 Upstream validates the command-specific format; for example, schedule extra variables require a JSON object.
 Server paths, nested `@path` references and stdin for other AWX flags are refused.
 Authentication, role checks, write confirmations, redaction and call limits apply as usual.

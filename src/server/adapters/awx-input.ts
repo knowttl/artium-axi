@@ -1,8 +1,12 @@
-import { isNode, isScalar, parseDocument, visit } from 'yaml'
 import type { RunnerInput } from '../runner/input.js'
-import { protocolOutputFields, secretFieldPattern } from '../runner/scan.js'
+import { privateOutput, protocolOutputFields } from '../runner/scan.js'
 
-const moduleArgumentFlags = ['--module-args', '--args']
+const inputFields = {
+  variables: 'variables', 'extra-vars': 'extra_vars', 'source-vars': 'source_vars',
+  'module-args': 'module_args', args: 'module_args', 'inputs-file': 'inputs', 'password-file': 'password',
+  'credential-passwords-file': 'credential_passwords', 'hosts-file': 'hosts',
+  'configuration-file': 'notification_configuration', 'config-file': 'notification_configuration', 'messages-file': 'messages',
+}
 
 // Upstream's public main accepts argv in memory. Load private structured values
 // there, so even tools which require inline JSON/YAML never receive it via exec.
@@ -14,56 +18,41 @@ const executable = process.argv[1];
 const argv = process.argv.slice(2);
 const require = createRequire(executable);
 const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
-const { values, patterns } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
-const moduleArgs = ${JSON.stringify(moduleArgumentFlags)}.flatMap(flag => values.filter(([index]) => argv[index].startsWith(flag + '=')).map(([, value]) => value));
+const { values, output: { fields, patterns } } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
 for (const [index, value] of values) argv[index] = argv[index].split('=', 1)[0] + '=' + value;
-const tokens = patterns.map(pattern => new RegExp(pattern, 'u'));
-const secretField = ${secretFieldPattern};
+const tokens = patterns.map(([pattern, mask]) => [new RegExp(pattern, 'u'), mask]);
+const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => mask)]);
 const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
-const redact = (value, key = '') => {
+const redact = (value, key = '', depth = 0) => {
+  if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
   if (protocolFields.has(key)) return value;
-  if (typeof value === 'string') {
-    const args = ['module_args', 'args'].includes(key) ? moduleArgs[0] : moduleArgs.find(args => args.length && value.includes(args));
-    if (args !== undefined) return '[module args redacted, ' + Buffer.byteLength(args, 'utf8') + ' bytes]';
+  if (typeof value === 'string' && !masks.has(value)) {
+    const match = tokens.find(([pattern]) => pattern.test(value));
+    if (match) return match[1];
   }
-  if (secretField.test(key) && value !== null && typeof value !== 'boolean' && typeof value !== 'number') return null;
-  if (typeof value === 'string') return tokens.some(pattern => pattern.test(value)) ? null : value;
-  if (Array.isArray(value)) return value.map(child => redact(child));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name)]));
+  if (Array.isArray(value)) return value.map(child => redact(child, '', depth + 1));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1)]));
   return value;
 };
 const output = stream => ({ write(chunk) {
-  stream.write(encode(redact(decode(String(chunk)))) + '\\n');
+  stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
 const { main } = await import(pathToFileURL(require.resolve('awx-axi')).href);
 await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr) });
 `
 
-export function awxInputSecrets(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]): string[] {
-  const secrets = new Set<string>()
-  const moduleArgs = new Set(structured.filter(([index]) => moduleArgumentFlags.some(flag => args[index].startsWith(flag + '='))).map(([, content]) => content))
-  const credentialFile = (name: string) => args.some((arg, index) =>
-    ['--password-file', '--inputs-file', '--credential-passwords-file'].includes(arg) && args[index + 1] === name)
-  const contents = [...structured.map(([, content]) => ({ content, credential: false })),
-    ...(input.stdin === undefined ? [] : [{ content: input.stdin, credential: true }]),
-    ...(input.files ?? []).map(file => ({ content: Buffer.from(file.contentBase64, 'base64').toString('utf8'), credential: credentialFile(file.name) }))]
-  const collect = (node: Parameters<typeof visit>[0]) => visit(node, { Scalar: (key, scalar) => {
-    if (key !== 'key' && typeof scalar.value === 'string' && scalar.value.length) secrets.add(scalar.value)
-  } })
-  for (const { content, credential } of contents) {
-    if (moduleArgs.has(content)) {
-      if (content.length) secrets.add(content)
-      continue
+export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {
+  const inline = new Map(structured.map(([index, content]) => [args[index].slice(2).split('=', 1)[0], content]))
+  return privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
+    const field = flag === 'extra-vars' && args[0] === 'schedule' ? 'extra_data' : defaultField
+    let content = inline.get(flag)
+    if (content === undefined) {
+      const index = args.indexOf(`--${flag}`)
+      if (index === -1) return []
+      const name = args[index + 1]
+      const file = input.files?.find(file => file.name === name)
+      content = name === '-' ? input.stdin : file && Buffer.from(file.contentBase64, 'base64').toString('utf8')
     }
-    if (credential && content.length) secrets.add(content)
-    if (credential && content.trim().length) secrets.add(content.trim())
-    const document = parseDocument(content, { uniqueKeys: false })
-    if (!document.errors.length) {
-      if (credential) collect(document)
-      else visit(document, { Pair: (_, pair) => {
-        if (isScalar(pair.key) && typeof pair.key.value === 'string' && secretFieldPattern.test(pair.key.value) && isNode(pair.value)) collect(pair.value)
-      } })
-    }
-  }
-  return [...secrets]
+    return content === undefined ? [] : [{ field, content }]
+  }))
 }
