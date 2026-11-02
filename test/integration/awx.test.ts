@@ -621,6 +621,56 @@ test.each([
   }, 60_000,
 )
 
+test.each([
+  { view: 'default', flags: [], range: '0-4 of 4', body: "Fetching repository\nfatal: unable to access '[SCM URL redacted]'\nDocumentation: https://scm.example/help\nFetch failed\n" },
+  { view: 'tail', flags: ['--tail', '3'], range: '1-4 of 4', body: "fatal: unable to access '[SCM URL redacted]'\nDocumentation: https://scm.example/help\nFetch failed\n" },
+  { view: 'lines', flags: ['--lines', '0-3'], range: '0-3 of 4', body: "Fetching repository\nfatal: unable to access '[SCM URL redacted]'\nDocumentation: https://scm.example/help\n" },
+].flatMap(view => [
+  { ...view, reader: 'inferred', command: ['job', 'stdout', '42'], label: 'job_stdout' },
+  { ...view, reader: 'explicit', command: ['job', 'stdout', '42', '--type', 'project-update'], label: 'job_stdout' },
+  { ...view, reader: 'ad-hoc', command: ['ad-hoc', 'stdout', '42'], label: 'ad_hoc_stdout' },
+]))('AWX $reader raw $view logs hide stored SCM tokens with writes disabled (R2)', async ({ command, flags, range, body, label }) => {
+  await withFakeService(async ({ directory, port }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = true
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return call
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const lines: string[] = []
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+    try {
+      const created = await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', 'https://scm.example/repo?token=CANARY-raw-scm', '--confirm'])
+      expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+      const synced = await run(['project', 'sync', '42', '--confirm', '--wait'])
+      expect(synced.json(), synced.body).toMatchObject({ exitCode: 0 })
+      allowWrites = false
+      const response = await run([...command, ...flags])
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0, stderr: '' })
+      expect(response.body).not.toContain('CANARY-')
+      const stdout = response.json().stdout as string
+      expect(decode(stdout.split('\nstdout:\n')[0])).toEqual({ [label]: { id: 42, lines: range } })
+      expect(stdout).toContain(`\nstdout:\n${body}help[`)
+      expect(stdout).toContain(`Run \`awx-axi ${command[0]} stdout 42 --lines 1-200\` to read from the start`)
+      expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
 test('AWX project SCM URLs remain private on later project and activity reads (S8, R1)', async () => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })

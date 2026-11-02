@@ -22,6 +22,7 @@ const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-for
 const { parse } = await import(pathToFileURL(createRequire(awxModule).resolve('yaml')).href);
 const { redactValue } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);
 const { values, output: { fields, patterns } } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
+const rawOutput = ['job', 'ad-hoc'].includes(argv[0]) && argv[1] === 'stdout';
 for (const [index, value] of values) {
   const flag = argv[index].split('=', 1)[0];
   let content = value;
@@ -55,6 +56,10 @@ const redact = (value, key = '', depth = 0) => {
   return value;
 };
 const output = stream => ({ write(chunk) {
+  if (rawOutput) {
+    stream.write(String(chunk).replace(/[a-z][a-z0-9+.-]*:[/][/][^\\s"'<>]+/giu, url => /[?@#]/u.test(url) ? '[SCM URL redacted]' : url));
+    return;
+  }
   stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
 const { main } = await import(pathToFileURL(awxModule).href);

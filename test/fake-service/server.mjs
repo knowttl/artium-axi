@@ -347,7 +347,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         if (sync) {
           const updates = sync[1] === 'projects' ? 'project_updates' : 'inventory_updates'
           const history = `/api/v2/${sync[1]}/${sync[2]}/${updates}/`
-          const update = { id: 42, name: sync[1] === 'projects' ? 'Synthetic project update' : 'Synthetic inventory update', status: 'successful', failed: false }
+          const update = { id: 42, name: sync[1] === 'projects' ? 'Synthetic project update' : 'Synthetic inventory update',
+            type: sync[1] === 'projects' ? 'project_update' : 'inventory_update', status: 'successful', failed: false }
           resources.set(`${history}42/`, update)
           resources.set(`/api/v2/${updates}/42/`, update)
           if (awxDropWrite) { req.socket.destroy(); return }
@@ -403,7 +404,19 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       res.end(JSON.stringify({ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' })); return
     }
     if (url.pathname === '/api/v2/unified_jobs/' || url.pathname === '/api/v2/jobs/') {
+      if (url.pathname === '/api/v2/unified_jobs/' && url.searchParams.has('id') && resources.has(`/api/v2/project_updates/${url.searchParams.get('id')}/`)) {
+        res.end(JSON.stringify({ count: 1, next: null, results: [resources.get(`/api/v2/project_updates/${url.searchParams.get('id')}/`)] })); return
+      }
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
+    }
+    if (/^\/api\/v2\/(project_updates|ad_hoc_commands)\/42\/stdout\/$/.test(url.pathname)) {
+      const project = resources.get('/api/v2/projects/42/')
+      const lines = ['Fetching repository', `fatal: unable to access '${project?.scm_url}'`,
+        'Documentation: https://scm.example/help', 'Fetch failed']
+      const start = url.searchParams.has('tail') ? Math.max(0, lines.length - Number(url.searchParams.get('tail')))
+        : Number(url.searchParams.get('start_line') ?? 0)
+      const end = Math.min(lines.length, Number(url.searchParams.get('end_line') ?? lines.length))
+      res.end(JSON.stringify({ content: lines.slice(start, end).join('\n') + '\n', range: { start, end, absolute_end: lines.length } })); return
     }
     if ((configurationPath || url.pathname.startsWith('/api/v2/activity_stream/')) && req.method === 'GET') {
       const workflowNodes = /^\/api\/v2\/workflow_job_templates\/(\d+)\/workflow_nodes\/$/.exec(url.pathname)
