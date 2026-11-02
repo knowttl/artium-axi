@@ -16,6 +16,7 @@ import { escape } from './escape.js'
 
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
+  if (tool === 'ssh-axi') return new CredentialProfile({ type: 'object', additionalProperties: false, properties: {} })
   if (tool === 'kubernetes-axi') return kubernetesProfile
   if (tool === 'technitium-axi') return technitiumProfile
   if (tool === 'gitea-axi') return giteaProfile

@@ -17,6 +17,8 @@ import { createTechnitiumAdapter } from './adapters/technitium.js'
 import { createNetworkReadAdapter } from './adapters/network-reads.js'
 import { createGiteaAdapter } from './adapters/gitea.js'
 import { createKubernetesAdapter } from './adapters/kubernetes.js'
+import { createSshAdapter } from './adapters/ssh.js'
+import { SshHosts } from './store/ssh-hosts.js'
 import { AzureTokenCache } from './adapters/azure-token-cache.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { retainRunJournals } from './adapters/run-journal.js'
@@ -63,7 +65,8 @@ async function main() {
     try { initializeNativeWriteLog(writeLog) }
     catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'vectra-axi-initialize' }) }
     const app = createApp({ db, audit, runner, credentialStore: store, providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
-      adapters: [createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
+      adapters: [createSshAdapter(new SshHosts(db, provider), join(dirname(database), 'tool-logs', 'ssh-axi', 'writes.log')),
+        createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'), azureTokens),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),

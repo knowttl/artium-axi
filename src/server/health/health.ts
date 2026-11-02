@@ -152,6 +152,7 @@ export class ToolHealth {
     const context = { userId: background ? null : actor, tool, requestId, clientAddress }
     let reference: CredentialReference | undefined
     try {
+      if (tool === 'ssh-axi') throw new ArtiumError('INVALID_INPUT', 'SSH authentication is checked per host.', 'Run artium-axi ssh-axi doctor <host> as a caller with a shell grant.')
       reference = store?.findCredential(tool)
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
       if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')

@@ -1,4 +1,5 @@
 export const toolPaths = {
+  'ssh-axi': '/opt/tools/node_modules/@knowttl/ssh-axi/dist/hosted.js',
   'kubernetes-axi': '/opt/tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js',
   'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js',
   'gitea-axi': '/opt/tools/node_modules/@knowttl/gitea-axi/dist/cli.js',
@@ -18,6 +19,7 @@ export const toolPaths = {
   'ado-axi': '/opt/tools/node_modules/.bin/ado-axi',
 } as const
 export const toolSkillPaths = {
+  'ssh-axi': '/opt/tools/node_modules/@knowttl/ssh-axi/README.md',
   'kubernetes-axi': '/opt/tools/node_modules/@knowttl/kubernetes-axi/skills/kubernetes-axi/SKILL.md',
   'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/README.md',
   'gitea-axi': '/opt/tools/node_modules/@knowttl/gitea-axi/generated/SKILL.md',
@@ -37,6 +39,7 @@ export const toolSkillPaths = {
   'ado-axi': '/opt/tools/node_modules/@knowttl/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
+  'ssh-axi': undefined,
   'kubernetes-axi': '/opt/tools/node_modules/@knowttl/kubernetes-axi/axi-credential.schema.json',
   'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/axi-credential.schema.json',
   'gitea-axi': '/opt/tools/node_modules/@knowttl/gitea-axi/axi-credential.schema.json',

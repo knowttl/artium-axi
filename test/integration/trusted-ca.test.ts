@@ -31,7 +31,7 @@ const identity = { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222
 const profile = (tool: 'mg-axi' | 'vectra-axi') => loadCredentialProfile(tool,
   join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
 
-test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const).map(source => ({ tool, source }))))('$tool inherits $source child trust and retains credential-specific CAs', async ({ tool, source: trustSource }) => {
+test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi').flatMap(tool => (['server', 'credential'] as const).map(source => ({ tool, source }))))('$tool inherits $source child trust and retains credential-specific CAs', async ({ tool, source: trustSource }) => {
   await withFakeService(async ({ directory }) => {
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {

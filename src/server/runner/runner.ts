@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import type { Serializable, ChildProcessWithoutNullStreams } from 'node:child_process'
 import { constants } from 'node:fs'
 import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -21,6 +22,7 @@ import { classifyCertificateFailure, observeCertificate } from '../credential-tl
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 
 export interface RunnerLimits {
+  trustedIpc?: Serializable
   outputBytesPerStream?: number
   timeoutMs?: number
   terminationGraceMs?: number
@@ -282,7 +284,10 @@ async function execute(
           ...(environment.BEYONDTRUST_AXI_WRITE_LOG ? { XDG_STATE_HOME: dirname(environment.BEYONDTRUST_AXI_WRITE_LOG) } : {}),
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: limits.trustedIpc === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],
+      }) as ChildProcessWithoutNullStreams
+      if (limits.trustedIpc !== undefined) child.once('spawn', () => {
+        child.send!(limits.trustedIpc!, error => { if (error) child.kill('SIGTERM') })
       })
       // An upstream tool can finish without consuming stdin. Its exit status still owns the result.
       child.stdin.on('error', () => {})

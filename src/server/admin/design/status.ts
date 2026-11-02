@@ -58,6 +58,7 @@ type ToolName = z.infer<typeof toolSchema>
 
 // Product display names and their two-letter marks, the one place tools are named for people.
 export const toolProducts: Record<ToolName, { name: string, mark: string }> = {
+  'ssh-axi': { name: 'SSH', mark: 'SH' },
   'technitium-axi': { name: 'Technitium DNS', mark: 'TD' },
   'gitea-axi': { name: 'Gitea', mark: 'GT' },
   'kubernetes-axi': { name: 'Kubernetes', mark: 'K8' },
@@ -127,6 +128,7 @@ const setupStates = {
   notSetUp: { word: 'Not set up', tone: 'neutral' },
   needsCredential: { word: 'Needs credential', tone: 'warn' },
   readyToTest: { word: 'Ready to test', tone: 'neutral' },
+  hostChecks: { word: 'Check per host', tone: 'neutral' },
 } as const satisfies Record<string, { word: string, tone: Tone }>
 export type SetupState = keyof typeof setupStates
 

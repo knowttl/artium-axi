@@ -36,9 +36,11 @@ Contents:
 - [Technitium DNS](#technitium-dns)
 - [Gitea](#gitea)
 - [Kubernetes](#kubernetes)
+- [SSH](#ssh)
 
 Configure only the tools you intend to use.
-At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+For tools with a shared credential, at `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+SSH uses [dedicated host bindings](#ssh).
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
 
 | Tool | Information to obtain | Fixed Artium credential test |
@@ -58,6 +60,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |
 | Gitea (`gitea-axi`) | See [Gitea setup](#gitea). | `doctor`. |
 | Kubernetes (`kubernetes-axi`) | See [Kubernetes setup](#kubernetes). | `get pods`. |
+| SSH (`ssh-axi`) | See [SSH setup](#ssh). | No shared credential test; check each granted host through the signed-in CLI. |
 
 #### UniFi
 
@@ -70,6 +73,14 @@ Its optional `connectAddress` selects the connection IP while certificate identi
 Certificate chain, validity, identity and fingerprint verification remain required.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi info` for the first managed read.
+
+#### SSH
+
+SSH uses a dedicated encrypted credential store and per-host ordinary account bindings, with caller-specific shell grants.
+The generic tenant credential editor cannot configure SSH.
+This read-only slice does not yet expose dedicated host and credential administration.
+After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
+See [SSH read boundaries](safety.md#ssh-reads).
 
 #### Kubernetes
 

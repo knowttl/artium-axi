@@ -5,6 +5,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { CredentialProfile } from './credential-profile.js'
 import type { TransferScope } from '../../shared/api.js'
 import type { PrivateOutput } from '../runner/scan.js'
+import type { Serializable } from 'node:child_process'
 
 // The runner materializes adapter-owned relative paths privately, including XDG profiles.
 export interface TemporaryFile {
@@ -20,6 +21,7 @@ export interface PreparedCall {
   invocation?: { command: string, help: boolean, credentialAuth?: 'device', nativeGh?: boolean, checkArgs?: string[] }
   environment: Record<string, string>
   pathPrefix?: string
+  trustedIpc?: Serializable
   files: TemporaryFile[]
   secrets: string[]
   fileArguments?: readonly number[]
@@ -41,6 +43,7 @@ export interface Adapter<Credential> {
   sensitiveArguments(args: readonly string[]): SensitiveArguments
   validateArgs(args: readonly string[], input?: RunnerInput): void
   prepare(args: readonly string[], reference: CredentialReference, input?: RunnerInput): Promise<PreparedCall>
+  prepareForCaller?(args: readonly string[], userId: string, input?: RunnerInput): Promise<PreparedCall>
   prepareArtifact?(args: string[], reference: CredentialReference, scope: TransferScope): Promise<PreparedCall>
   invalidateCredential?(reference: CredentialReference): void
 }

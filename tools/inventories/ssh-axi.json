@@ -1,0 +1,378 @@
+{
+  "generatedBy": "scripts/ssh-inventory.ts",
+  "tool": "ssh-axi",
+  "package": "@knowttl/ssh-axi",
+  "version": "0.1.1",
+  "integrity": "sha512-4MZdMEJOgTmzAcjJXKcZd1TkrsH5TCL/QxupmhPNLojDjxlecAIucNMbwNJUQ0UTl3JRnHFnIUczGtTfS5GFdw==",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "594933b4de6ef34164389e839dea25b84da5f4717d673e473272445a700bed01"
+    },
+    {
+      "path": "axi-credential.schema.json",
+      "sha256": "6a09c8f21fc6db3de2bddf13b97a99a939e6c431f833c0fc1eb01e8a1a94809f"
+    },
+    {
+      "path": "artium-invocations.json",
+      "sha256": "6581cefe86af63336eb2424d816105e56cb93b76c4d71d72cb150a950e0adfd0"
+    },
+    {
+      "path": "README.md",
+      "sha256": "f8b1c5d5c81b61b76c6943f3df656d247f42e4427b244c77dd4e8dac4cc1743a"
+    },
+    {
+      "path": "dist/arguments.d.ts",
+      "sha256": "acf2027b1040ea1c5c5473bb3006a34e8afe0ccb66e2119ef119f3aa6246466c"
+    },
+    {
+      "path": "dist/arguments.js",
+      "sha256": "b1ac6fa4e2aa8109dec0ed40a4f2d1f3eb42f80fceff6a6ae2d975f09c43f549"
+    },
+    {
+      "path": "dist/authenticate.d.ts",
+      "sha256": "e205dcf2d3bed6183892c10fe5d32517d2c3912bb54622bac113111eff94c694"
+    },
+    {
+      "path": "dist/authenticate.js",
+      "sha256": "a48d5e33aa1091f6143aa9f4ea2eb2eb97986fd9affc28a905158b71e1787e02"
+    },
+    {
+      "path": "dist/cli.d.ts",
+      "sha256": "4c11cbe1a0c1019f821db6b44edebf05e7cabc477a35bc77ec9b0231d1fe1905"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "81b4def5f3fe5fead8b1145fadf18d9c8879f79ca5d839e3bf814c77595fb040"
+    },
+    {
+      "path": "dist/connection-worker.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/connection-worker.js",
+      "sha256": "15288558c103b2f6bc19241d0ff0a8ba954990495d534b5c7be5f95bc7a047e4"
+    },
+    {
+      "path": "dist/doctor.d.ts",
+      "sha256": "40e632ca318987a698bd4e9e0d2c9e6f7430ba15f21aadb4cce2d638491d59f2"
+    },
+    {
+      "path": "dist/doctor.js",
+      "sha256": "b2c2dd250faa47ea9d6ea5d7290e5da40dd34b07fc2ff89c3e5c70c02605ac9a"
+    },
+    {
+      "path": "dist/errors.d.ts",
+      "sha256": "7c714449a0f0aaede576542a6228d2a61fa5dd3405e12e7495f188591ee11720"
+    },
+    {
+      "path": "dist/errors.js",
+      "sha256": "415b46a25268f6164c42bef458518f8dea59764f8f4753bc0ce5cc2d047655e2"
+    },
+    {
+      "path": "dist/hosted.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/hosted.js",
+      "sha256": "66863ad2fc265e2a371719988616e7aa31a2568b46943e430090337024d4ea21"
+    },
+    {
+      "path": "dist/main.d.ts",
+      "sha256": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012"
+    },
+    {
+      "path": "dist/main.js",
+      "sha256": "708a5e9f6e5de45fb26d71e35a9954d5cfc85aab1f9ce8e3f6871672feee22bd"
+    },
+    {
+      "path": "dist/native-execution.d.ts",
+      "sha256": "616dae96e34460ac8a48d6305073794df072a7c580ea1c596f27e15c74c8cb38"
+    },
+    {
+      "path": "dist/native-execution.js",
+      "sha256": "17c6a49e87a894915f058e90cd18aa1de2ba112609bea697af4e53972f862c3c"
+    },
+    {
+      "path": "dist/output.d.ts",
+      "sha256": "360f7b095bcf0447716edacbec94eb73be8bb0a24598b849c86863e5823411ea"
+    },
+    {
+      "path": "dist/output.js",
+      "sha256": "8fc09199093ea353aee7ac981e7a68271365da07f8c83e0ca97fa24682e9d114"
+    },
+    {
+      "path": "dist/profile.d.ts",
+      "sha256": "bcdd40f1b330e65a9bb941640e238157f3c53f5d5f11086be8d8665bc3133e48"
+    },
+    {
+      "path": "dist/profile.js",
+      "sha256": "0e0c97f142986d17e8eb3e30ee20bb7bf2dc161a9cd653d72dabc150d84a10a7"
+    },
+    {
+      "path": "dist/version.d.ts",
+      "sha256": "e80689d9cf55c30ee8caec09b9e5c3c9a2bd9d6635d9ad0e7875b785e06fd6f9"
+    },
+    {
+      "path": "dist/version.js",
+      "sha256": "96bf96d334317fde2e57b3673f96971012305c839c5cd218cc8a08077f5865c9"
+    },
+    {
+      "path": "dist/worker.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/worker.js",
+      "sha256": "60dfbcf39f6cfc124fc5479006a044f4ece89262800ef6ca2014cb163dedeab2"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "SSH profile",
+    "x-protocol-revision": 1,
+    "x-connection-protocol-revision": 2,
+    "x-commands": {
+      "": {
+        "arguments": 0,
+        "description": "Discover configured SSH hosts"
+      },
+      "host list": {
+        "arguments": 0,
+        "description": "List approved hosts without opening a transport"
+      },
+      "host show": {
+        "arguments": 1,
+        "description": "Show one approved host without opening a transport"
+      },
+      "doctor": {
+        "arguments": 1,
+        "description": "Authenticate to one host without executing a remote command"
+      },
+      "auth status": {
+        "arguments": 0,
+        "description": "Inspect selected credential sources offline"
+      },
+      "profile list": {
+        "arguments": 0,
+        "description": "List configured profiles offline"
+      },
+      "config path": {
+        "arguments": 0,
+        "description": "Show the configuration path offline"
+      },
+      "exec": {
+        "arguments": 1,
+        "description": "Execute one confirmed arbitrary command",
+        "flags": {
+          "command": "string",
+          "confirm": "boolean",
+          "timeout": "string",
+          "output-limit": "string",
+          "detach": "boolean",
+          "request-key": "string",
+          "sudo": "boolean",
+          "connection": "string"
+        }
+      },
+      "connection open": {
+        "arguments": 1,
+        "description": "Open a private hosted connection",
+        "flags": {
+          "idle-timeout": "string",
+          "sudo": "boolean"
+        }
+      },
+      "connection list": {
+        "arguments": 0,
+        "description": "List caller-owned hosted connections"
+      },
+      "connection show": {
+        "arguments": 1,
+        "description": "Show a caller-owned hosted connection"
+      },
+      "connection set": {
+        "arguments": 1,
+        "description": "Change a hosted connection idle timeout",
+        "flags": {
+          "idle-timeout": "string"
+        }
+      },
+      "connection close": {
+        "arguments": 1,
+        "description": "Close a caller-owned hosted connection",
+        "flags": {
+          "confirm": "boolean"
+        }
+      },
+      "execution list": {
+        "arguments": 0,
+        "description": "List caller-owned executions"
+      },
+      "execution show": {
+        "arguments": 1,
+        "description": "Recover an execution without replay",
+        "flags": {
+          "request-key": "string",
+          "full": "boolean"
+        }
+      },
+      "execution cancel": {
+        "arguments": 1,
+        "description": "Cancel one caller-owned execution",
+        "flags": {
+          "confirm": "boolean"
+        }
+      }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "address",
+      "port",
+      "username",
+      "approvedHostKeys",
+      "allowedAddresses"
+    ],
+    "properties": {
+      "address": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 253,
+        "pattern": "^[A-Za-z0-9.:_-]+$",
+        "description": "Approved SSH hostname or IP address; every resolved address must be allowed."
+      },
+      "port": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 65535,
+        "description": "Approved SSH TCP port."
+      },
+      "username": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_.-]+$",
+        "description": "Ordinary SSH account selected by the host binding."
+      },
+      "approvedHostKeys": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 2,
+        "uniqueItems": true,
+        "description": "Independently verified server public keys, each as algorithm plus base64 key; at most two overlap during rotation.",
+        "items": {
+          "type": "string",
+          "pattern": "^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/]+={0,2}$"
+        }
+      },
+      "allowedAddresses": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "Approved literal IPv4 or IPv6 addresses; DNS cannot expand this set.",
+        "items": {
+          "type": "string",
+          "minLength": 2
+        }
+      },
+      "privateKey": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true
+      },
+      "passphrase": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true
+      }
+    },
+    "definitions": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": "home",
+      "arguments": 0,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "host list",
+      "arguments": 0,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "host show",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "doctor",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    }
+  ],
+  "adapterBoundary": {
+    "credentials": "Dedicated encrypted SSH credentials and caller-filtered ordinary host bindings only.",
+    "writes": "Execution, sudo, reusable connections and retained execution results are not admitted."
+  },
+  "requirements": {
+    "timeoutMs": 17000,
+    "runtime": "node"
+  },
+  "discovery": {
+    "commands": [
+      "host list",
+      "host show",
+      "doctor"
+    ],
+    "example": [
+      "host",
+      "list"
+    ],
+    "help": "Discover granted SSH hosts and authenticate without remote execution.\nUse host list, host show <host> or doctor <host>.\nHost keys and literal addresses are approved independently by administrators.\nCredentials are managed privately; configuration overrides, execution, sudo and reusable connections are unavailable.\n"
+  }
+}

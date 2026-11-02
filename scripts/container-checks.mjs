@@ -48,6 +48,11 @@ try {
     if (!flag) await command(process.execPath, ['scripts/mg-headless-check.mjs'], { ...env, ARTIUM_TEST_IMAGE: image })
     await command(process.execPath, ['scripts/fake-services.mjs', ...probe], { ...env, ARTIUM_TEST_IMAGE: image })
     if (flag === '--production') {
+      const ssh = `${builder}-ssh`
+      recoveryContainers.push(ssh)
+      await command('docker', ['run', '--name', ssh, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/ssh-probe.js'])
       const kubernetes = `${builder}-kubernetes`
       recoveryContainers.push(kubernetes)
       await command('docker', ['run', '--name', kubernetes, '--pull', 'never', '--init', '--network', 'none', '--read-only',

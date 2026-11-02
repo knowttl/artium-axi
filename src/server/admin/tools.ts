@@ -23,6 +23,7 @@ import { networkProfiles, networkReadPolicy } from '../adapters/network-reads.js
 import { technitiumProfile, technitiumWritePolicy } from '../adapters/technitium.js'
 import { giteaProfile, giteaReadPolicy } from '../adapters/gitea.js'
 import { kubernetesProfile, kubernetesReadPolicy } from '../adapters/kubernetes.js'
+import { sshReadPolicy } from '../adapters/ssh.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -34,6 +35,7 @@ import type { CredentialReference, MutableCredentialStore, ToolName } from '../s
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
+import { hasSshConfiguration } from '../store/ssh-hosts.js'
 
 export interface ToolAdminOptions {
   adapters: readonly Adapter<unknown>[]
@@ -43,10 +45,11 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const writePolicies = { 'kubernetes-axi': kubernetesReadPolicy, 'gitea-axi': giteaReadPolicy, 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+const credentialSchemas = { 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const writePolicies = { 'ssh-axi': sshReadPolicy, 'kubernetes-axi': kubernetesReadPolicy, 'gitea-axi': giteaReadPolicy, 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy }
 const publicFields = {
+  'ssh-axi': [],
   'kubernetes-axi': ['origin', 'auth', 'namespace', 'certificateAuthority', 'clientCertificate'],
   'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
   'gitea-axi': ['origin', 'tokenOrigin'],
@@ -66,6 +69,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'ssh-axi': [],
   'kubernetes-axi': ['token', 'privateKey'],
   'technitium-axi': ['token'],
   'gitea-axi': ['token'],
@@ -116,9 +120,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const stored = healthSchema.safeParse(db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
       error_code AS errorCode FROM tool_health WHERE tool = ? AND credential_revision = ?`).get(tool, credential?.revision ?? 0))
     // Cached categories from an older catalogue require a fresh test after upgrade.
-    const cached = stored.success ? stored.data : undefined
+    const cached = tool !== 'ssh-axi' && stored.success ? stored.data : undefined
     const reference = tool === 'awx-axi' ? store?.findCredential(tool) : undefined
-    const configured = Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
+    const configured = tool === 'ssh-axi' ? hasSshConfiguration(db)
+      : Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : options.health.checking(tool) ? 'checking' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
@@ -132,6 +137,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
     readTool(tool)
+    if (tool === 'ssh-axi') return adminCredentialSchema.parse({ tool, configured: hasSshConfiguration(db),
+      revision: 0, updatedAt: null, updatedBy: null, metadata: {} })
     const row = db.prepare('SELECT revision, updated_at AS updatedAt, updated_by AS updatedBy FROM credentials WHERE tool = ?').get(tool) as
       { revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     const reference = store?.findCredential(tool)
@@ -324,6 +331,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const actor = authorize(request)
     const tool = toolName(request)
     const input = parse(route.input, request.body)
+    if (tool === 'ssh-axi') throw new ArtiumError('INVALID_INPUT', 'SSH uses dedicated host bindings and credentials.')
     const saving = route === adminToolRoutes.save
     let value = parse(z.record(z.string(), z.unknown()), input.value)
     if (tool === 'gh-axi' && (value.auth === 'device' || ['accessToken', 'accessTokenExpiresAt', 'login'].some(key => Object.hasOwn(value, key)))) {

@@ -441,7 +441,8 @@ Existing explicit write opt-ins are preserved; omitted grants remain off.
 The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for its current read-only admission.
 
-For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
+For shared-credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
+See [SSH setup](tool-credentials.md#ssh) for the dedicated host administration limitation.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
 Use “Test connection” on the tool page to test the replacement with the fixed harmless read before enabling it; see [Connection tab save-and-test behavior](admin-guide.md#browser-administration) for testing during a save.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
@@ -469,7 +470,8 @@ curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
 These checks do not test remote services or reload the key.
 Use doctor for the [CLI diagnostics](client-reference.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
-Background checks for enabled configured tools become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
+The following shared-credential health schedule does not apply to SSH; use [per-host authentication checks](safety.md#ssh-reads).
+Background checks for enabled configured tools with shared credentials become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
 Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
 Success resets the retry backoff; authentication, TLS and configuration failures use the normal interval.
 Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.

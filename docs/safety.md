@@ -6,6 +6,7 @@ Contents:
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
 - [Gitea reads](#gitea-reads)
+- [SSH reads](#ssh-reads)
 - [Kubernetes reads](#kubernetes-reads)
 - [Network appliance reads](#network-appliance-reads)
 - [Technitium DNS](#technitium-dns)
@@ -137,6 +138,21 @@ Code search, pending workflow commands, local git workflows, file inputs, writes
 For `pr checks --watch`, any explicit `--timeout` must stay within the bound shown by `artium-axi gitea-axi pr checks --help`; larger values return `INVALID_INPUT` before forwarding.
 Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native read selectors and `artium-axi tools show gitea-axi` for the admitted commands.
 
+## SSH reads
+
+SSH admits caller-filtered `host list`, `host show <host>` and `doctor <host>` through the published hosted entry point.
+Doctor authenticates without opening a remote command channel.
+Hosts must be enabled, have an ordinary binding and grant the signed-in caller shell access in addition to the normal Artium tool grant.
+Unknown and unauthorized host handles both return `NOT_FOUND`.
+Private keys and optional passphrases remain in the dedicated encrypted SSH credential store and become SecretRefs in a private per-call profile.
+Generic tenant credentials cannot configure or override SSH bindings.
+Ordinary accounts and credentials never fall back to sudo bindings.
+Every server public key must be independently verified and every resolved address must belong to the administrator-approved literal address set.
+Ambient SSH agents, local profiles, host paths, caller-selected identities and trust overrides are unavailable.
+Execution, sudo, reusable connections and retained execution results are not admitted in this read-only slice.
+See [SSH credential setup](tool-credentials.md#ssh) for administration availability.
+Use the signed-in CLI's `doctor <host>` for a granted host, rather than the generic shared-credential health test.
+
 ## Kubernetes reads
 
 The [reviewed Kubernetes inventory](../tools/inventories/kubernetes-axi.json) owns admitted compact/native reads, the exact package pin and bundled kubectl digests.
@@ -183,6 +199,7 @@ Local fake-service checks do not establish live server acceptance.
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [read-only capability boundary](#gitea-reads). |
 | Kubernetes | See the [read-only capability boundary](#kubernetes-reads). |
+| SSH | See the [discovery and authentication boundary](#ssh-reads). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
@@ -245,7 +262,8 @@ The data volume also holds the plaintext master key beside SQLite: protect the e
 Linux client sessions use a mode-0700 directory and mode-0600 file under `${XDG_CONFIG_HOME:-~/.config}/artium-axi`.
 Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; password changes revoke sessions.
 
-Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
+Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream services using server-held identities.
+See [SSH reads](#ssh-reads) for host-specific identity and access requirements.
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for retained file metadata.
 Technitium authenticated reads store only the package's redacted projection for JSON reads; native text, CSV and ZIP downloads keep their bytes in private per-call files and bounded process memory.
 Their one-time result references require the same user, operation and current credential revision, with current access checked again at retrieval.

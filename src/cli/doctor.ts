@@ -52,6 +52,10 @@ export async function doctor(createClient = (deadline: number) => new Client(pro
       const parsed = toolsResponseSchema.safeParse(await client.authenticated('/v1/tools', 'GET'))
       if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
       for (const tool of parsed.data.tools) {
+        if (tool.name === 'ssh-axi' && tool.status === 'unknown') {
+          write('pass: ssh-axi configuration (authentication not checked; run artium-axi ssh-axi doctor <host> per host)\n')
+          continue
+        }
         // A re-check is already scheduled after a configuration change; it is pending, not a failure.
         if (tool.status === 'checking') { write(`pass: ${tool.name} (checking)\n`); continue }
         line(tool.name, tool.status === 'ok', tool.status === 'error' && tool.errorCode ? `${tool.status}: ${tool.errorCode}` : tool.status,

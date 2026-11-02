@@ -110,7 +110,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, follow the three-step CLI setup, change your local-account password and revoke your sessions. |
 | `/admin/tools` | Review installed tools in a table with state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
-| `/admin/tools/:tool` | Header with state, write badges, **Test connection** and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. |
+| `/admin/tools/:tool` | Header with state, write badges, **Test connection** for shared credentials and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
@@ -186,7 +186,8 @@ Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
-Credential editors pre-fill non-secret values and never return stored secrets.
+Shared-credential editors pre-fill non-secret values and never return stored secrets.
+For SSH, follow [dedicated host setup](tool-credentials.md#ssh) instead of the editor and connection-test flow below.
 Field labels use schema titles when available, then plain labels for known fields, falling back to the property name; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
@@ -425,7 +426,8 @@ Browser sessions use Secure, HttpOnly, SameSite=Strict cookies and expire after 
 Browser mutations require same-origin requests and CSRF tokens.
 
 Credentials are encrypted with AES-256-GCM and retrieved only after authorization and audited admission.
-The server uses one shared service credential per tool; external secret sources and per-user credentials are unsupported.
+Tools with shared credentials use one service identity per tool; external secret sources and per-user credentials are unsupported.
+SSH uses [dedicated host bindings and caller grants](safety.md#ssh-reads).
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
 Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.
 Startup recovery records interrupted calls without replay.

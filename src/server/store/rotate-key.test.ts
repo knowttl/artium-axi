@@ -10,6 +10,7 @@ import { createCredentialStore, openStore } from './db.js'
 import { EnvironmentKeyProvider } from './key-provider.js'
 import { acquireMaintenanceLock } from './maintenance-lock.js'
 import { rotateKey } from './rotate-key.js'
+import { SshHosts } from './ssh-hosts.js'
 
 let directory: string
 let file: string
@@ -46,6 +47,30 @@ test('rotation preserves credential identities and revisions and durably records
   } finally { db.close() }
   expect(() => openStore(file, oldProvider)).toThrow(expect.objectContaining({ code: 'MASTER_KEY_INVALID',
     next: `Restart with the master key whose SHA-256 ID is ${newProvider.getKey().id}.` }))
+})
+
+test('rotation preserves dedicated SSH identities and encrypted key custody', () => {
+  const db = openStore(file, oldProvider)
+  const plaintext = Buffer.from(JSON.stringify({ privateKey: 'CANARY-ssh-private-key', passphrase: 'CANARY-ssh-passphrase' }))
+  const encrypted = encryptCredential('ordinary-key', 'ssh-axi', plaintext, oldProvider.getKey())
+  plaintext.fill(0)
+  db.prepare(`INSERT INTO ssh_credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, updated_at)
+    VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, 1)`).run(encrypted)
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('reader', 'reader', 'Reader', 'unusable');
+    INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled)
+      VALUES ('host', '127.0.0.1', 22, '["ssh-ed25519 YWJj"]', '["127.0.0.1"]', 1);
+    INSERT INTO ssh_bindings (host_id, username, credential_id) VALUES ('host', 'ordinary', 'ordinary-key');
+    INSERT INTO ssh_grants (host_id, user_id, shell) VALUES ('host', 'reader', 1)`)
+  db.close()
+  rotateKey(file, oldProvider, newProvider)
+  const reopened = openStore(file, newProvider)
+  try {
+    expect(new SshHosts(reopened, newProvider).profile('reader', 'host')).toMatchObject({
+      username: 'ordinary', privateKey: 'CANARY-ssh-private-key', passphrase: 'CANARY-ssh-passphrase' })
+    expect(createCredentialStore(reopened, newProvider).findCredential('ssh-axi')).toBeUndefined()
+    expect(reopened.prepare('SELECT id, revision, key_id FROM ssh_credentials').get()).toEqual({
+      id: 'ordinary-key', revision: 1, key_id: newProvider.getKey().id })
+  } finally { reopened.close() }
 })
 
 test.each(['credential-update', 'metadata', 'receipt', 'audit'])('failure at %s rolls back all rows and the receipt', boundary => {
