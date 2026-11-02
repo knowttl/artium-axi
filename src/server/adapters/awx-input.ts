@@ -5,7 +5,7 @@ const inputFields = {
   variables: 'variables', 'extra-vars': 'extra_vars', 'source-vars': 'source_vars',
   'module-args': 'module_args', args: 'module_args', 'inputs-file': 'inputs', 'password-file': 'password',
   'credential-passwords-file': 'credential_passwords', 'hosts-file': 'hosts',
-  'configuration-file': 'notification_configuration', 'config-file': 'notification_configuration', 'messages-file': 'messages',
+  'configuration-file': 'notification_configuration', 'config-file': 'notification_configuration', 'messages-file': 'messages', 'scm-url': 'scm_url',
 }
 
 // Upstream's public main accepts argv in memory. Load private structured values
@@ -39,6 +39,9 @@ const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => m
 const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
 const redact = (value, key = '', depth = 0) => {
   if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
+  if (depth > 1 && key === 'changes' && typeof value === 'string') {
+    try { return JSON.stringify(redact(JSON.parse(value), '', depth + 1)); } catch { return '[activity changes redacted]'; }
+  }
   if (depth > 1 && ['variables', 'source_vars'].includes(key) && typeof value === 'string') {
     try { return redactValue(parse(value)); } catch { return '***'; }
   }
@@ -60,7 +63,7 @@ await main({ argv, env: process.env, stdout: output(process.stdout), stderr: out
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {
   const inline = new Map(structured.map(([index, content]) => [args[index].slice(2).split('=', 1)[0], content]))
-  return privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
+  const output = privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
     const field = flag === 'extra-vars' && (args[0] === 'schedule' || args[0] === 'workflow' && ['node-create', 'node-edit'].includes(args[1]))
       ? 'extra_data' : defaultField
     let content = inline.get(flag)
@@ -73,4 +76,7 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
     }
     return content === undefined ? [] : [{ field, content }]
   }))
+  output.fields.scm_url = '[SCM URL redacted]'
+  if (inline.has('scm-url')) delete output.fields.payload
+  return output
 }

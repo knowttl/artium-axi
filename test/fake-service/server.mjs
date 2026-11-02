@@ -280,7 +280,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|project_updates|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
     if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/7/' && !resources.has(url.pathname)) {
       res.end(JSON.stringify({ id: 7, name: 'Synthetic promptable template', ask_inventory_on_launch: true,
         ask_limit_on_launch: true, ask_variables_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true })); return
@@ -332,7 +332,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(400); res.end(JSON.stringify({ credential_type: ['Invalid pk - object does not exist.'] })); return
         }
         mutations++
-        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
+        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:projects|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
         if (association) {
           const members = awxAssociations.get(url.pathname) ?? new Set()
           if (payload.disassociate) members.delete(payload.id)
@@ -343,12 +343,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           if (awxDropWrite) { req.socket.destroy(); return }
           res.writeHead(204); res.end(); return
         }
-        const sync = /^\/api\/v2\/inventory_sources\/(\d+)\/update\/$/.exec(url.pathname)
+        const sync = /^\/api\/v2\/(inventory_sources|projects)\/(\d+)\/update\/$/.exec(url.pathname)
         if (sync) {
-          const history = `/api/v2/inventory_sources/${sync[1]}/inventory_updates/`
-          const update = { id: 42, name: 'Synthetic inventory update', status: 'successful', failed: false }
+          const updates = sync[1] === 'projects' ? 'project_updates' : 'inventory_updates'
+          const history = `/api/v2/${sync[1]}/${sync[2]}/${updates}/`
+          const update = { id: 42, name: sync[1] === 'projects' ? 'Synthetic project update' : 'Synthetic inventory update',
+            type: sync[1] === 'projects' ? 'project_update' : 'inventory_update', status: 'successful', failed: false }
           resources.set(`${history}42/`, update)
-          resources.set('/api/v2/inventory_updates/42/', update)
+          resources.set(`/api/v2/${updates}/42/`, update)
           if (awxDropWrite) { req.socket.destroy(); return }
           res.writeHead(202); res.end(JSON.stringify(update)); return
         }
@@ -377,6 +379,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           } : {}),
           ...(workflowNode ? { workflow_job_template: Number(workflowNode[1]), success_nodes: [], failure_nodes: [], always_nodes: [] } : {}),
           ...resources.get(path), ...payload }
+        if (path.startsWith('/api/v2/projects/') && payload.scm_url !== undefined) {
+          const eventId = [...resources.keys()].filter(key => key.startsWith('/api/v2/activity_stream/')).length + 1
+          const changes = { scm_url: [resources.get(path)?.scm_url ?? '', payload.scm_url], name: resource.name }
+          resources.set(`/api/v2/activity_stream/${eventId}/`, { id: eventId,
+            operation: req.method === 'PATCH' ? 'update' : 'create', object_type: 'project', object1: String(resource.id),
+            changes: req.method === 'PATCH' ? changes : JSON.stringify(changes) })
+        }
         resources.set(path, resource)
         if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
@@ -395,9 +404,21 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       res.end(JSON.stringify({ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' })); return
     }
     if (url.pathname === '/api/v2/unified_jobs/' || url.pathname === '/api/v2/jobs/') {
+      if (url.pathname === '/api/v2/unified_jobs/' && url.searchParams.has('id') && resources.has(`/api/v2/project_updates/${url.searchParams.get('id')}/`)) {
+        res.end(JSON.stringify({ count: 1, next: null, results: [resources.get(`/api/v2/project_updates/${url.searchParams.get('id')}/`)] })); return
+      }
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
     }
-    if (configurationPath && req.method === 'GET') {
+    if (/^\/api\/v2\/(project_updates|ad_hoc_commands)\/42\/stdout\/$/.test(url.pathname)) {
+      const project = resources.get('/api/v2/projects/42/')
+      const lines = ['Fetching repository', `fatal: unable to access '${project?.scm_url}'`,
+        'Documentation: https://docs.example/help?section=git#retry', 'Fetch failed']
+      const start = url.searchParams.has('tail') ? Math.max(0, lines.length - Number(url.searchParams.get('tail')))
+        : Number(url.searchParams.get('start_line') ?? 0)
+      const end = Math.min(lines.length, Number(url.searchParams.get('end_line') ?? lines.length))
+      res.end(JSON.stringify({ content: lines.slice(start, end).join('\n') + '\n', range: { start, end, absolute_end: lines.length } })); return
+    }
+    if ((configurationPath || url.pathname.startsWith('/api/v2/activity_stream/')) && req.method === 'GET') {
       const workflowNodes = /^\/api\/v2\/workflow_job_templates\/(\d+)\/workflow_nodes\/$/.exec(url.pathname)
       const nodeMembers = /^\/api\/v2\/workflow_job_template_nodes\/\d+\/(credentials|(?:success|failure|always)_nodes)\/$/.exec(url.pathname)
       if (workflowNodes || nodeMembers) {

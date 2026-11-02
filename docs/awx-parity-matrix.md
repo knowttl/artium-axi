@@ -1519,9 +1519,9 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --organization | value | supported | b | write | none |
 | --scm-type | value | supported | b | write | none |
-| --scm-url | value | blocked | c | write | potential secret |
+| --scm-url | value | supported | c | write | potential secret, file |
 | --scm-branch | value | supported | b | write | none |
-| --credential | value | supported | b | write | none |
+| --credential | value | supported | e | write | none |
 | --description | value | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
@@ -1536,9 +1536,9 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --organization | value | supported | b | write | none |
 | --scm-type | value | supported | b | write | none |
-| --scm-url | value | blocked | c | write | potential secret |
+| --scm-url | value | supported | c | write | potential secret, file |
 | --scm-branch | value | supported | b | write | none |
-| --credential | value | supported | b | write | none |
+| --credential | value | supported | e | write | none |
 | --description | value | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |

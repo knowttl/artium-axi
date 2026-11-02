@@ -38,7 +38,7 @@ Their JSON entries explicitly record this upstream limitation for slice f.
 `supported` means the reviewed route or flag passes Artium validation, subject to upstream validation, managed account permissions and execution limits.
 It does not claim live acceptance or complete upstream behavior for every value.
 `blocked` includes unsupported routes and inputs; it does not imply that route help is refused.
-Flags listed in the inventory's `secureInputFlags` require the [controlled input channel](client-reference.md#command-surface-and-subcommands); see the [current input boundary](safety.md#write-gates-by-tool) for supported inputs and remaining restrictions.
+Sensitive inputs use the [controlled input channel](client-reference.md#command-surface-and-subcommands); see the [current input boundary](safety.md#write-gates-by-tool) for supported inputs and remaining restrictions.
 `managed equivalent` identifies an Artium-owned workflow rather than permission to execute the upstream command or override.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
 Target slices group delivery work; already supported rows, including those assigned to slice f, mean retain and verify behavior, not postpone existing support.
@@ -52,9 +52,9 @@ The managed account form already supports PAT entry or username/password token a
 
 Every file flag, `--extra-vars @file`, and upstream stdin form is marked in the matrix.
 Private keys, passwords, tokens and other credential fields belong inside credential `--inputs-file` JSON, `--password-file`, launch `--credential-passwords-file` JSON, or managed account credentials, never secret argv flags.
-Notification configuration/messages, variables, module arguments and SCM URLs are marked as potentially secret-bearing structured input.
+Notification configuration/messages, variables, module arguments and SCM URLs use the private structured input channel.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for S2's TD-066 file channel, structured flag syntax, supported stdin forms and response placeholders.
-The [AWX write boundary](safety.md#write-gates-by-tool) owns supported input classes, private delivery guarantees and blocked paths or overrides.
+The [AWX write boundary](safety.md#write-gates-by-tool) owns supported input classes, SCM URL restrictions and retained-log limitations, private delivery guarantees and blocked paths or overrides.
 Managed account PAT/password entry stays in Artium's existing credential storage workflow, rather than becoming command input.
 Global `--config` refers to managed runner configuration and has no caller file-upload equivalent.
 `auth login --allow-http` has no equivalent because managed AWX accounts require HTTPS.

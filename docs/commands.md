@@ -92,6 +92,14 @@ Inspect state with `inventory show`, `inventory sources`, `inventory-source list
 `inventory-source show` includes redacted configuration and update history.
 `inventory sync <source-id|name>` targets a source, supports preview and confirmation, and accepts `--wait` to wait for completion.
 
+Create a project with `artium-axi awx-axi project create synthetic-project --organization 7 --scm-type git --scm-url https://scm.example/repo --scm-branch main --credential 9 --dry-run`, then replace `--dry-run` with `--confirm`.
+Use `project edit <id|name>` with the same SCM flags to update it; see [client input handling](client-reference.md#command-surface-and-subcommands) for URL file input and the [AWX safety boundary](safety.md#write-gates-by-tool) for URL restrictions and credential guidance.
+`project sync <id|name> --confirm` starts an update; add `--wait` to wait for completion.
+Inspect it with `project updates <id|name>` and `job stdout <update-id> --type project-update`, optionally using `--tail` or `--lines`.
+Project notification associations use `project notification-add|notification-remove <id|name> --notification-template <id|name> --event started|success|error` with the preview and confirmation flow.
+`project copy <id|name> --name synthetic-copy` and `project delete <id|name>` use that flow too.
+Project list/show and updates remain available with writes disabled; after an unknown write outcome, follow [AWX recovery guidance](runbook.md#retention-and-export) and reconcile list/show before retrying, including the new name after a rename.
+
 Credential creation accepts a private JSON object of credential inputs: `artium-axi awx-axi credential create synthetic-machine --credential-type Machine --organization 7 --inputs-file machine.json --dry-run`.
 Replace `--dry-run` with `--confirm` to create it; AWX validates the credential type and permissions.
 Use `credential edit <id|name> --inputs-file machine.json --dry-run` to preview an input update, or `--inputs-file -` on credential create/edit to read bounded stdin.

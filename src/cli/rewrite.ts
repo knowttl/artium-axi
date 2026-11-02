@@ -373,7 +373,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     const command = /^(?:artium-axi )?awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(help)?.[1]
     const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
     if (route) {
-      const allowed = (name: string) => Object.hasOwn(route.flags, name) && !awx.adapterBoundary.secureInputFlags.includes(name)
+      const allowed = (name: string) => Object.hasOwn(route.flags, name)
       help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => allowed(name) ? option : '')
         .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !allowed(name))).join('\n')
       const descriptions = awxParity.commands.find(entry => entry.command === route.command)!.flags
@@ -382,6 +382,9 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       if (!help.includes(descriptions)) help = help.trimEnd() + '\n' + descriptions + '\n'
       const permission = `AWX must authorize ${route.command} and access to each referenced resource.`
       if (!help.includes(permission)) help = help.trimEnd() + '\n' + permission + '\n'
+    }
+    if (['project create', 'project edit', 'job stdout', 'ad-hoc stdout'].includes(command ?? '')) {
+      help = help.trimEnd() + '\nSCM URLs must have no userinfo, credential query parameters or fragments. Use --credential with SCM secrets supplied through credential create/edit --inputs-file. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection.\n'
     }
     const guidance = awx.discovery.help.split('\n')[1] + ' Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))

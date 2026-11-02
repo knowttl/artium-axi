@@ -23,6 +23,36 @@ const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system
   'notification-template', 'activity-stream', 'team', 'role']
 
 test.each([
+  'https://CANARY-user@scm.example/repo',
+  'https://git:CANARY-password@scm.example/repo',
+  'https://git:%43ANARY-password@scm.example/repo',
+  'https://scm.example/repo?token=CANARY-secret',
+  'https://scm.example/repo?token=%43ANARY-secret',
+  "https://scm.example/repo?token='CANARY-secret",
+  'https://scm.example/repo?%74oken=CANARY-secret',
+  'https://scm.example/repo?api_key=CANARY-secret',
+  'https://scm.example/repo#access_token=CANARY-secret',
+  'https://scm.example/repo#CANARY-secret',
+  'https://scm.example/repo#100%',
+].flatMap(url => ['create', 'edit'].flatMap(verb => ['--dry-run', '--confirm'].flatMap(action => [
+  { url, args: ['project', verb, '42', '--scm-url', url, action], input: {} },
+  { url, args: ['project', verb, '42', `--scm-url=${url}`, action], input: {} },
+  { url, args: ['project', verb, '42', '--scm-url', 'scm.txt', action], input: {
+    files: [{ name: 'scm.txt', contentBase64: Buffer.from(url).toString('base64') }] } },
+]))))('rejects secret-bearing SCM input before execution: $args', async ({ args, input }) => {
+  await expect(adapter(true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT',
+    next: expect.stringContaining('credential create/edit --inputs-file') })
+})
+
+test.each(['project create', 'project edit', 'job stdout', 'ad-hoc stdout'])('%s help explains SCM credentials and retained-log scope', command => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('credential create/edit --inputs-file')
+  expect(help).toContain('Already-retained AWX logs from URLs set outside Artium are AWX-held data')
+})
+
+test.each([
   { args: ['schedule', 'edit', '42', '--extra-vars', '@/etc/hosts', '--dry-run'], input: {} },
   { args: ['schedule', 'edit', '42', '--extra-vars', 'vars.json', '--dry-run'], input: {
     files: [{ name: 'vars.json', contentBase64: Buffer.from('@/etc/hosts').toString('base64') }] } },
@@ -39,7 +69,7 @@ test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$comm
 })
 
 test.each(inventory.commands.flatMap(route => Object.keys(route.flags)
-  .filter(name => inventory.adapterBoundary.secureInputFlags.includes(name) || name.endsWith('-file'))
+  .filter(name => name.endsWith('-file'))
   .map(flag => ({ command: route.command, flag, required: route.positionals.required }))))('$command --$flag requires secure input', async ({ command, flag, required }) => {
   await expect(adapter(true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
     .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
@@ -94,7 +124,6 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain(`artium-axi awx-axi ${command}`)
   expect(help).toContain('--confirm')
   expect(help).toContain('--dry-run')
-  expect(help).not.toMatch(/--scm-url\b/)
   expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
 })
@@ -104,6 +133,8 @@ test.each([
   { command: 'template notification-add', requirement: 'started, success, or error' },
   { command: 'workflow notification-add', requirement: 'started, success, error, or approval' },
   { command: 'project notification-add', requirement: 'started, success, or error' },
+  { command: 'project create', requirement: '--scm-url' },
+  { command: 'project edit', requirement: '--scm-url' },
   { command: 'inventory source-notification-add', requirement: 'started, success, or error' },
   ...['schedule create', 'schedule edit'].flatMap(command => [
     { command, requirement: 'ask_inventory_on_launch' }, { command, requirement: 'ask_limit_on_launch' },
