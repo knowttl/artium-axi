@@ -93,9 +93,8 @@ It verifies the controller request flow without executing a real playbook or con
 
 ## Schedules (S7)
 
-Schedule create/edit supports private JSON/YAML extra variables, inventory, host limits, job tags and skip tags under the template's prompt permissions.
-Credential attachment/removal and label/instance-group removals use the same per-tenant writes switch, preview, confirmation and audit as other configuration writes.
+See the [command reference](commands.md) for schedule inputs, associations and readback limitations, [structured input handling](client-reference.md#command-surface-and-subcommands) for private variables, and the [AWX safety boundary](safety.md#write-gates-by-tool) for write controls.
 Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, denied AWX permissions, structured request payloads and association requests through the public run API.
-Schedule show/list remain available with writes disabled and reconcile an interrupted rename.
+It also verifies schedule show/list with writes disabled after an interrupted rename.
 Fixed synthetic controller timing verifies that previews and edits which omit the recurrence rule preserve timing values; no scheduler waits or real jobs are used.
-The pinned upstream schedule show/list output does not expose extra variables or association membership, so those writes are verified against fake controller requests.
+Extra-variable and association writes are verified against fake controller requests.

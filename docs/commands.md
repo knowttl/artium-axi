@@ -116,6 +116,15 @@ Use `node-credential-add|remove`, `node-label-add|remove` and `node-instance-gro
 Inspect editable graph state with `workflow template-nodes <workflow-id|name>` and `workflow template-node <node-id>`, including after an unknown write outcome; these reads remain available with writes disabled.
 `workflow nodes` inspects nodes of an executed workflow run.
 
+Create a schedule with `artium-axi awx-axi schedule create synthetic-daily --template 7 --rrule 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' --extra-vars @schedule.yml --dry-run`, then replace `--dry-run` with `--confirm`.
+Schedule create/edit accept private JSON/YAML extra variables, `--inventory`, `--limit`, `--job-tags` and `--skip-tags` when the template permits the corresponding launch prompts.
+See [structured input handling](client-reference.md#command-surface-and-subcommands) for protected local files and response redaction.
+Use `schedule edit <id|name> --enabled|--disabled` with the same preview and confirmation flow to change its enabled state; omitting `--rrule` preserves the recurrence rule.
+Schedules support `credential-add|remove`, `label-add|remove` and `instance-group-add|remove`, using `--credential <id|name>`, `--label <id>` and `--instance-group <id>` respectively.
+Inspect timing and enabled state with `schedule show <id|name>` and `schedule list`; these reads remain available with writes disabled.
+The pinned upstream show/list output does not expose extra variables or association membership.
+After an unknown write outcome, follow [AWX recovery guidance](runbook.md#retention-and-export) and reconcile the schedule through list/show before another mutation.
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
