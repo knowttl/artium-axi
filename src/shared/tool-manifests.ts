@@ -12,6 +12,7 @@ import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { ty
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
+import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 import technitium from '../../tools/inventories/technitium-axi.json' with { type: 'json' }
 
-export const toolManifests = { 'gh-axi': gh, 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg, 'ldap-axi': ldap, 'ado-axi': ado, 'awx-axi': awx, 'tenable-axi': tenable, 'hybrid-axi': hybrid, 'checkpoint-axi': checkpoint, 'beyondtrust-axi': beyondtrust, 'unifi-axi': unifi, 'proxmox-axi': proxmox, 'technitium-axi': technitium }
+export const toolManifests = { 'gh-axi': gh, 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg, 'ldap-axi': ldap, 'ado-axi': ado, 'awx-axi': awx, 'tenable-axi': tenable, 'hybrid-axi': hybrid, 'checkpoint-axi': checkpoint, 'beyondtrust-axi': beyondtrust, 'unifi-axi': unifi, 'proxmox-axi': proxmox, 'technitium-axi': technitium, 'gitea-axi': gitea }

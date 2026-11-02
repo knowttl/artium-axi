@@ -70,7 +70,7 @@ Ordinary discovery and tool calls never install or repair agent settings.
 
 ## What it covers
 
-All fifteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+All sixteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
 Write capabilities below require administrator opt-in.
 
 | Group | Purpose | Access | Reference |
@@ -91,6 +91,7 @@ Write capabilities below require administrator opt-in.
 | UniFi | Network application, inventory and policy investigation | Implemented reads with managed API key and trust | [Capabilities](docs/safety.md#network-appliance-reads) |
 | Proxmox | Cluster and virtual machine investigation | Ordinary reads with a managed API token | [Capabilities](docs/safety.md#network-appliance-reads) |
 | Technitium DNS | DNS investigation and exports | Managed authenticated reads with protected result retrieval | [Capabilities](docs/safety.md#technitium-dns) |
+| Gitea | Repository, issue and pull request investigation | Classified reads with a managed token | [Capabilities](docs/safety.md#gitea-reads) |
 
 [Reviewed inventories](tools/inventories) own the pinned command boundary.
 The [client reference](docs/client-reference.md#command-surface-and-subcommands) covers forwarding and inputs; [commands](docs/commands.md) lists client operations.

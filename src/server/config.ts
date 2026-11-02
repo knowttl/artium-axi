@@ -1,5 +1,6 @@
 export const toolPaths = {
   'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js',
+  'gitea-axi': '/opt/tools/node_modules/@knowttl/gitea-axi/dist/cli.js',
   'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/bin.js',
   'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/bin/proxmox-axi.mjs',
   'gh-axi': '/opt/tools/node_modules/.bin/gh-axi',
@@ -17,6 +18,7 @@ export const toolPaths = {
 } as const
 export const toolSkillPaths = {
   'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/README.md',
+  'gitea-axi': '/opt/tools/node_modules/@knowttl/gitea-axi/generated/SKILL.md',
   'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/SKILL.md',
   'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/README.md',
   'gh-axi': '/opt/tools/node_modules/gh-axi/skills/gh-axi/SKILL.md',
@@ -34,6 +36,7 @@ export const toolSkillPaths = {
 } as const
 export const toolCredentialSchemaPaths = {
   'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/axi-credential.schema.json',
+  'gitea-axi': '/opt/tools/node_modules/@knowttl/gitea-axi/axi-credential.schema.json',
   'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/axi-credential.schema.json',
   'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/axi-credential.schema.json',
   'gh-axi': undefined,

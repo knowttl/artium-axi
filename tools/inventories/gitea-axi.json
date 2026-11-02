@@ -1,0 +1,3147 @@
+{
+  "generatedBy": "scripts/gitea-inventory.ts",
+  "tool": "gitea-axi",
+  "package": "@knowttl/gitea-axi",
+  "version": "0.1.1",
+  "integrity": "sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ==",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "fb618d1f2a6eeffa0657866cfac20a0cddcd961b380a512df6abd6c4c6a652f8"
+    },
+    {
+      "path": "axi-credential.schema.json",
+      "sha256": "cdbedfd3d40ec3d6e0b6e7b8bca915c1872409eb49da090db3c3fee80351a96a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "16a110a40e09803b1810e1c3f22948858521493ed6d65e3626ccd80be8c13c75"
+    },
+    {
+      "path": "generated/SKILL.md",
+      "sha256": "f9abcf78adef38914050d42bdf2c8b7446edf67a8325b3a7f84ad4cf903aabf1"
+    },
+    {
+      "path": "generated/host-inventory.json",
+      "sha256": "1066a4a55a46dd51682f4aef8c2e1d8c7e496d0f5e8aba3c47ef24681d67082f"
+    },
+    {
+      "path": "generated/routes.json",
+      "sha256": "003e4f5252ef4699a9b8986ad404874a3f95ca71b857e46bc5fdfa316a1d5756"
+    },
+    {
+      "path": "generated/capabilities.json",
+      "sha256": "3d5ca1d1e517bd159417944f6a7979b5c9876c59ee683e2b4f65849c7e37ac47"
+    },
+    {
+      "path": "schemas/vendor.json",
+      "sha256": "a0c460447365f44486e6c094794b22b8b2d5bdc7a8252fc1df734b808b5adcb2"
+    },
+    {
+      "path": "schemas/responses.json",
+      "sha256": "267880d14c1987daba24736ef49ac77ff1461f554b72e348679089becb3c55d4"
+    },
+    {
+      "path": "schemas/catalogue.json",
+      "sha256": "0aa7a7a41c37e7bf5430f35c8a22132681a06a84dfb4946078820a8277787859"
+    },
+    {
+      "path": "dist/action-values.js",
+      "sha256": "f7bb599dc44d450fbb5c603da4c75da388fe83676e0cfc27286aaa90813bf620"
+    },
+    {
+      "path": "dist/api.js",
+      "sha256": "d10dafaeed59c106b74d35afeda41215a7281a43749f61adc2abdef46e1f77fd"
+    },
+    {
+      "path": "dist/attachments.js",
+      "sha256": "62deb78aae7821c02b8caaaefff1868873f2681e8c6c5b36a0c6be688fe5c7f3"
+    },
+    {
+      "path": "dist/catalogue.js",
+      "sha256": "42f956a05236d6a0dcfd68a0257ee3ad33c2a59b3a77c76d46d85f7bcc2cc431"
+    },
+    {
+      "path": "dist/ci.js",
+      "sha256": "05411930555ac55096bf75f87cb5dd3c582debb68e9ca1e2a71afbfa904366c0"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "fd872b5009d2ee5a800028cf4c8197009011525aad54744de8d388e3e9a5573d"
+    },
+    {
+      "path": "dist/credentials.js",
+      "sha256": "cecbcf9ec15a9b33d91b7108f3759764ba6611a2f6a4b21f2cfe90f4d3757219"
+    },
+    {
+      "path": "dist/error.js",
+      "sha256": "e7f8282ce0799bcd124d4e238941202a886a2928a5d0d5f0add55f955930f209"
+    },
+    {
+      "path": "dist/git.js",
+      "sha256": "1aa6ef4cfc92376f9b577ec4efbbff07af24d1fdc93ecc80ed72a564e9c95986"
+    },
+    {
+      "path": "dist/local-workflows.js",
+      "sha256": "0db07ba35072df638da235933b99fd32223728efc61f6b934542e32b0e6fccd0"
+    },
+    {
+      "path": "dist/main.js",
+      "sha256": "0cdfeb0a83e6ff1c31928c750be4a4497e2e6e30055fb384453ad1367a3883ed"
+    },
+    {
+      "path": "dist/private-file.js",
+      "sha256": "11e7f7961893b7e2686ec746e5c82d937fb82562ad8157919541d42352164afd"
+    },
+    {
+      "path": "dist/pulls.js",
+      "sha256": "a1e55f35b3fe0b47cbf05f7a05bf6acda01107c2b83e9fc7364c2420b648e440"
+    },
+    {
+      "path": "dist/reads.js",
+      "sha256": "ea1e8dfb10c2d3fc2dc5170102afeee44456d1a9b18b843883c6822c6b8cc5dc"
+    },
+    {
+      "path": "dist/registry.js",
+      "sha256": "124f14d193acd059384125b563e418a1843912b901d89e80eeac8e233c2e6686"
+    },
+    {
+      "path": "dist/releases.js",
+      "sha256": "8032b64a6f01e4ca448738720a95de1b94558bed15e5413bfcd455790b404f1a"
+    },
+    {
+      "path": "dist/repo-workflows.js",
+      "sha256": "c46106597e7df2f45b74bc07cf1309334bf4e07c563a325842d259cd0a50320b"
+    },
+    {
+      "path": "dist/repository.js",
+      "sha256": "078f4230e5ab39596a9968760d7c06cbbc68c9db84e36ea0aded4e9ac0bf4615"
+    },
+    {
+      "path": "dist/search.js",
+      "sha256": "480e03b50f8ba51dc58946bf2b3314149c25d4aece6d370a758ddcb9222ee0c1"
+    },
+    {
+      "path": "dist/stacks.js",
+      "sha256": "52f0cadb4d155350b0a942bfb6e9b4e987e9431f7018996f1a3ec4f745c86797"
+    },
+    {
+      "path": "dist/transport.js",
+      "sha256": "2458a2665c9d358ff08fb5f95f8634fd7a09b550bd2b4a8224693414e1bc8d34"
+    },
+    {
+      "path": "dist/vendor.generated.js",
+      "sha256": "b923980aa2943dca9e7f0055cb1e7129ab78963f51823352397c0a06a9cf5bf8"
+    },
+    {
+      "path": "dist/writes.js",
+      "sha256": "b5bbc9e1597ed12593d21bd1ea1d7d0e2f71431829582f450a25a48e8a0458ca"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Gitea profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "origin",
+      "tokenOrigin",
+      "token"
+    ],
+    "properties": {
+      "origin": {
+        "type": "string",
+        "pattern": "^https?://[^/@?#\\s]+$"
+      },
+      "tokenOrigin": {
+        "type": "string",
+        "pattern": "^https?://[^/@?#\\s]+$"
+      },
+      "token": {
+        "x-secret": true,
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
+              }
+            }
+          }
+        ]
+      },
+      "allowInsecureHttp": {
+        "type": "boolean",
+        "default": false
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "if": {
+      "properties": {
+        "origin": {
+          "pattern": "^http:"
+        }
+      }
+    },
+    "then": {
+      "required": [
+        "allowInsecureHttp"
+      ],
+      "properties": {
+        "allowInsecureHttp": {
+          "const": true
+        }
+      }
+    }
+  },
+  "apiRoutes": [
+    {
+      "path": "/api/v1/activitypub/user-id/{user-id}",
+      "method": "GET",
+      "operation": "activitypubPerson",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/activitypub/user-id/{user-id}/inbox",
+      "method": "POST",
+      "operation": "activitypubPersonInbox",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/admin/cron",
+      "method": "GET",
+      "operation": "adminCronList",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/cron/{task}",
+      "method": "POST",
+      "operation": "adminCronRun",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/emails",
+      "method": "GET",
+      "operation": "adminGetAllEmails",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/emails/search",
+      "method": "GET",
+      "operation": "adminSearchEmails",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/hooks",
+      "method": "GET",
+      "operation": "adminListHooks",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/hooks",
+      "method": "POST",
+      "operation": "adminCreateHook",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/hooks/{id}",
+      "method": "GET",
+      "operation": "adminGetHook",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/hooks/{id}",
+      "method": "DELETE",
+      "operation": "adminDeleteHook",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/hooks/{id}",
+      "method": "PATCH",
+      "operation": "adminEditHook",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/orgs",
+      "method": "GET",
+      "operation": "adminGetAllOrgs",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/runners/registration-token",
+      "method": "GET",
+      "operation": "adminGetRunnerRegistrationToken",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/unadopted",
+      "method": "GET",
+      "operation": "adminUnadoptedList",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/unadopted/{owner}/{repo}",
+      "method": "POST",
+      "operation": "adminAdoptRepository",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/unadopted/{owner}/{repo}",
+      "method": "DELETE",
+      "operation": "adminDeleteUnadoptedRepository",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users",
+      "method": "GET",
+      "operation": "adminSearchUsers",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users",
+      "method": "POST",
+      "operation": "adminCreateUser",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}",
+      "method": "DELETE",
+      "operation": "adminDeleteUser",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}",
+      "method": "PATCH",
+      "operation": "adminEditUser",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/badges",
+      "method": "GET",
+      "operation": "adminListUserBadges",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/badges",
+      "method": "POST",
+      "operation": "adminAddUserBadges",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/badges",
+      "method": "DELETE",
+      "operation": "adminDeleteUserBadges",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/keys",
+      "method": "POST",
+      "operation": "adminCreatePublicKey",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/keys/{id}",
+      "method": "DELETE",
+      "operation": "adminDeleteUserPublicKey",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/orgs",
+      "method": "POST",
+      "operation": "adminCreateOrg",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/rename",
+      "method": "POST",
+      "operation": "adminRenameUser",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/admin/users/{username}/repos",
+      "method": "POST",
+      "operation": "adminCreateRepo",
+      "effect": "admin"
+    },
+    {
+      "path": "/api/v1/gitignore/templates",
+      "method": "GET",
+      "operation": "listGitignoresTemplates",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/gitignore/templates/{name}",
+      "method": "GET",
+      "operation": "getGitignoreTemplateInfo",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/label/templates",
+      "method": "GET",
+      "operation": "listLabelTemplates",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/label/templates/{name}",
+      "method": "GET",
+      "operation": "getLabelTemplateInfo",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/licenses",
+      "method": "GET",
+      "operation": "listLicenseTemplates",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/licenses/{name}",
+      "method": "GET",
+      "operation": "getLicenseTemplateInfo",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/markdown",
+      "method": "POST",
+      "operation": "renderMarkdown",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/markdown/raw",
+      "method": "POST",
+      "operation": "renderMarkdownRaw",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/markup",
+      "method": "POST",
+      "operation": "renderMarkup",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/nodeinfo",
+      "method": "GET",
+      "operation": "getNodeInfo",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/notifications",
+      "method": "GET",
+      "operation": "notifyGetList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/notifications",
+      "method": "PUT",
+      "operation": "notifyReadList",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/notifications/new",
+      "method": "GET",
+      "operation": "notifyNewAvailable",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/notifications/threads/{id}",
+      "method": "GET",
+      "operation": "notifyGetThread",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/notifications/threads/{id}",
+      "method": "PATCH",
+      "operation": "notifyReadThread",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/org/{org}/repos",
+      "method": "POST",
+      "operation": "createOrgRepoDeprecated",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs",
+      "method": "GET",
+      "operation": "orgGetAll",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs",
+      "method": "POST",
+      "operation": "orgCreate",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}",
+      "method": "GET",
+      "operation": "orgGet",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}",
+      "method": "DELETE",
+      "operation": "orgDelete",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}",
+      "method": "PATCH",
+      "operation": "orgEdit",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/runners/registration-token",
+      "method": "GET",
+      "operation": "orgGetRunnerRegistrationToken",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/secrets",
+      "method": "GET",
+      "operation": "orgListActionsSecrets",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/secrets/{secretname}",
+      "method": "PUT",
+      "operation": "updateOrgSecret",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/secrets/{secretname}",
+      "method": "DELETE",
+      "operation": "deleteOrgSecret",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/variables",
+      "method": "GET",
+      "operation": "getOrgVariablesList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/variables/{variablename}",
+      "method": "GET",
+      "operation": "getOrgVariable",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/variables/{variablename}",
+      "method": "PUT",
+      "operation": "updateOrgVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/variables/{variablename}",
+      "method": "POST",
+      "operation": "createOrgVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/actions/variables/{variablename}",
+      "method": "DELETE",
+      "operation": "deleteOrgVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/activities/feeds",
+      "method": "GET",
+      "operation": "orgListActivityFeeds",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/avatar",
+      "method": "POST",
+      "operation": "orgUpdateAvatar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/avatar",
+      "method": "DELETE",
+      "operation": "orgDeleteAvatar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/blocks",
+      "method": "GET",
+      "operation": "organizationListBlocks",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/blocks/{username}",
+      "method": "GET",
+      "operation": "organizationCheckUserBlock",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/blocks/{username}",
+      "method": "PUT",
+      "operation": "organizationBlockUser",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/blocks/{username}",
+      "method": "DELETE",
+      "operation": "organizationUnblockUser",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/hooks",
+      "method": "GET",
+      "operation": "orgListHooks",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/hooks",
+      "method": "POST",
+      "operation": "orgCreateHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/hooks/{id}",
+      "method": "GET",
+      "operation": "orgGetHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/hooks/{id}",
+      "method": "DELETE",
+      "operation": "orgDeleteHook",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/hooks/{id}",
+      "method": "PATCH",
+      "operation": "orgEditHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/labels",
+      "method": "GET",
+      "operation": "orgListLabels",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/labels",
+      "method": "POST",
+      "operation": "orgCreateLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/labels/{id}",
+      "method": "GET",
+      "operation": "orgGetLabel",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/labels/{id}",
+      "method": "DELETE",
+      "operation": "orgDeleteLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/labels/{id}",
+      "method": "PATCH",
+      "operation": "orgEditLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/members",
+      "method": "GET",
+      "operation": "orgListMembers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/members/{username}",
+      "method": "GET",
+      "operation": "orgIsMember",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/members/{username}",
+      "method": "DELETE",
+      "operation": "orgDeleteMember",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/public_members",
+      "method": "GET",
+      "operation": "orgListPublicMembers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/public_members/{username}",
+      "method": "GET",
+      "operation": "orgIsPublicMember",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/public_members/{username}",
+      "method": "PUT",
+      "operation": "orgPublicizeMember",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/public_members/{username}",
+      "method": "DELETE",
+      "operation": "orgConcealMember",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/repos",
+      "method": "GET",
+      "operation": "orgListRepos",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/repos",
+      "method": "POST",
+      "operation": "createOrgRepo",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/teams",
+      "method": "GET",
+      "operation": "orgListTeams",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/teams",
+      "method": "POST",
+      "operation": "orgCreateTeam",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/orgs/{org}/teams/search",
+      "method": "GET",
+      "operation": "teamSearch",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/packages/{owner}",
+      "method": "GET",
+      "operation": "listPackages",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/packages/{owner}/{type}/{name}/{version}",
+      "method": "GET",
+      "operation": "getPackage",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/packages/{owner}/{type}/{name}/{version}",
+      "method": "DELETE",
+      "operation": "deletePackage",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/packages/{owner}/{type}/{name}/{version}/files",
+      "method": "GET",
+      "operation": "listPackageFiles",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/issues/search",
+      "method": "GET",
+      "operation": "issueSearchIssues",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/migrate",
+      "method": "POST",
+      "operation": "repoMigrate",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/search",
+      "method": "GET",
+      "operation": "repoSearch",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}",
+      "method": "GET",
+      "operation": "repoGet",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}",
+      "method": "DELETE",
+      "operation": "repoDelete",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}",
+      "method": "PATCH",
+      "operation": "repoEdit",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/runners/registration-token",
+      "method": "GET",
+      "operation": "repoGetRunnerRegistrationToken",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/secrets",
+      "method": "GET",
+      "operation": "repoListActionsSecrets",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/secrets/{secretname}",
+      "method": "PUT",
+      "operation": "updateRepoSecret",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/secrets/{secretname}",
+      "method": "DELETE",
+      "operation": "deleteRepoSecret",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/tasks",
+      "method": "GET",
+      "operation": "ListActionTasks",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/variables",
+      "method": "GET",
+      "operation": "getRepoVariablesList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/variables/{variablename}",
+      "method": "GET",
+      "operation": "getRepoVariable",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/variables/{variablename}",
+      "method": "PUT",
+      "operation": "updateRepoVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/variables/{variablename}",
+      "method": "POST",
+      "operation": "createRepoVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/actions/variables/{variablename}",
+      "method": "DELETE",
+      "operation": "deleteRepoVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/activities/feeds",
+      "method": "GET",
+      "operation": "repoListActivityFeeds",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/archive/{archive}",
+      "method": "GET",
+      "operation": "repoGetArchive",
+      "effect": "download"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/assignees",
+      "method": "GET",
+      "operation": "repoGetAssignees",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/avatar",
+      "method": "POST",
+      "operation": "repoUpdateAvatar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/avatar",
+      "method": "DELETE",
+      "operation": "repoDeleteAvatar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branch_protections",
+      "method": "GET",
+      "operation": "repoListBranchProtection",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branch_protections",
+      "method": "POST",
+      "operation": "repoCreateBranchProtection",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branch_protections/priority",
+      "method": "POST",
+      "operation": "repoUpdateBranchProtectionPriories",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branch_protections/{name}",
+      "method": "GET",
+      "operation": "repoGetBranchProtection",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branch_protections/{name}",
+      "method": "DELETE",
+      "operation": "repoDeleteBranchProtection",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branch_protections/{name}",
+      "method": "PATCH",
+      "operation": "repoEditBranchProtection",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branches",
+      "method": "GET",
+      "operation": "repoListBranches",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branches",
+      "method": "POST",
+      "operation": "repoCreateBranch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branches/{branch}",
+      "method": "GET",
+      "operation": "repoGetBranch",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branches/{branch}",
+      "method": "DELETE",
+      "operation": "repoDeleteBranch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/branches/{branch}",
+      "method": "PATCH",
+      "operation": "repoUpdateBranch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/collaborators",
+      "method": "GET",
+      "operation": "repoListCollaborators",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/collaborators/{collaborator}",
+      "method": "GET",
+      "operation": "repoCheckCollaborator",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/collaborators/{collaborator}",
+      "method": "PUT",
+      "operation": "repoAddCollaborator",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/collaborators/{collaborator}",
+      "method": "DELETE",
+      "operation": "repoDeleteCollaborator",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/collaborators/{collaborator}/permission",
+      "method": "GET",
+      "operation": "repoGetRepoPermissions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/commits",
+      "method": "GET",
+      "operation": "repoGetAllCommits",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/commits/{ref}/status",
+      "method": "GET",
+      "operation": "repoGetCombinedStatusByRef",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/commits/{ref}/statuses",
+      "method": "GET",
+      "operation": "repoListStatusesByRef",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/commits/{sha}/pull",
+      "method": "GET",
+      "operation": "repoGetCommitPullRequest",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/compare/{basehead}",
+      "method": "GET",
+      "operation": "repoCompareDiff",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/contents",
+      "method": "GET",
+      "operation": "repoGetContentsList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/contents",
+      "method": "POST",
+      "operation": "repoChangeFiles",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/contents/{filepath}",
+      "method": "GET",
+      "operation": "repoGetContents",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/contents/{filepath}",
+      "method": "PUT",
+      "operation": "repoUpdateFile",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/contents/{filepath}",
+      "method": "POST",
+      "operation": "repoCreateFile",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/contents/{filepath}",
+      "method": "DELETE",
+      "operation": "repoDeleteFile",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/diffpatch",
+      "method": "POST",
+      "operation": "repoApplyDiffPatch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/editorconfig/{filepath}",
+      "method": "GET",
+      "operation": "repoGetEditorConfig",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/forks",
+      "method": "GET",
+      "operation": "listForks",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/forks",
+      "method": "POST",
+      "operation": "createFork",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/blobs/{sha}",
+      "method": "GET",
+      "operation": "GetBlob",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/commits/{sha}",
+      "method": "GET",
+      "operation": "repoGetSingleCommit",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/commits/{sha}.{diffType}",
+      "method": "GET",
+      "operation": "repoDownloadCommitDiffOrPatch",
+      "effect": "download"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/notes/{sha}",
+      "method": "GET",
+      "operation": "repoGetNote",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/refs",
+      "method": "GET",
+      "operation": "repoListAllGitRefs",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/refs/{ref}",
+      "method": "GET",
+      "operation": "repoListGitRefs",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/tags/{sha}",
+      "method": "GET",
+      "operation": "GetAnnotatedTag",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/git/trees/{sha}",
+      "method": "GET",
+      "operation": "GetTree",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks",
+      "method": "GET",
+      "operation": "repoListHooks",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks",
+      "method": "POST",
+      "operation": "repoCreateHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/git",
+      "method": "GET",
+      "operation": "repoListGitHooks",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/git/{id}",
+      "method": "GET",
+      "operation": "repoGetGitHook",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/git/{id}",
+      "method": "DELETE",
+      "operation": "repoDeleteGitHook",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/git/{id}",
+      "method": "PATCH",
+      "operation": "repoEditGitHook",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/{id}",
+      "method": "GET",
+      "operation": "repoGetHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/{id}",
+      "method": "DELETE",
+      "operation": "repoDeleteHook",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/{id}",
+      "method": "PATCH",
+      "operation": "repoEditHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/hooks/{id}/tests",
+      "method": "POST",
+      "operation": "repoTestHook",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issue_config",
+      "method": "GET",
+      "operation": "repoGetIssueConfig",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issue_config/validate",
+      "method": "GET",
+      "operation": "repoValidateIssueConfig",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issue_templates",
+      "method": "GET",
+      "operation": "repoGetIssueTemplates",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues",
+      "method": "GET",
+      "operation": "issueListIssues",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues",
+      "method": "POST",
+      "operation": "issueCreateIssue",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments",
+      "method": "GET",
+      "operation": "issueGetRepoComments",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}",
+      "method": "GET",
+      "operation": "issueGetComment",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}",
+      "method": "DELETE",
+      "operation": "issueDeleteComment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}",
+      "method": "PATCH",
+      "operation": "issueEditComment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/assets",
+      "method": "GET",
+      "operation": "issueListIssueCommentAttachments",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/assets",
+      "method": "POST",
+      "operation": "issueCreateIssueCommentAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/assets/{attachment_id}",
+      "method": "GET",
+      "operation": "issueGetIssueCommentAttachment",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/assets/{attachment_id}",
+      "method": "DELETE",
+      "operation": "issueDeleteIssueCommentAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/assets/{attachment_id}",
+      "method": "PATCH",
+      "operation": "issueEditIssueCommentAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/reactions",
+      "method": "GET",
+      "operation": "issueGetCommentReactions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/reactions",
+      "method": "POST",
+      "operation": "issuePostCommentReaction",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/comments/{id}/reactions",
+      "method": "DELETE",
+      "operation": "issueDeleteCommentReaction",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/pinned",
+      "method": "GET",
+      "operation": "repoListPinnedIssues",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}",
+      "method": "GET",
+      "operation": "issueGetIssue",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}",
+      "method": "DELETE",
+      "operation": "issueDelete",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}",
+      "method": "PATCH",
+      "operation": "issueEditIssue",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/assets",
+      "method": "GET",
+      "operation": "issueListIssueAttachments",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/assets",
+      "method": "POST",
+      "operation": "issueCreateIssueAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/assets/{attachment_id}",
+      "method": "GET",
+      "operation": "issueGetIssueAttachment",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/assets/{attachment_id}",
+      "method": "DELETE",
+      "operation": "issueDeleteIssueAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/assets/{attachment_id}",
+      "method": "PATCH",
+      "operation": "issueEditIssueAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/blocks",
+      "method": "GET",
+      "operation": "issueListBlocks",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/blocks",
+      "method": "POST",
+      "operation": "issueCreateIssueBlocking",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/blocks",
+      "method": "DELETE",
+      "operation": "issueRemoveIssueBlocking",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/comments",
+      "method": "GET",
+      "operation": "issueGetComments",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/comments",
+      "method": "POST",
+      "operation": "issueCreateComment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/comments/{id}",
+      "method": "DELETE",
+      "operation": "issueDeleteCommentDeprecated",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/comments/{id}",
+      "method": "PATCH",
+      "operation": "issueEditCommentDeprecated",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/deadline",
+      "method": "POST",
+      "operation": "issueEditIssueDeadline",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/dependencies",
+      "method": "GET",
+      "operation": "issueListIssueDependencies",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/dependencies",
+      "method": "POST",
+      "operation": "issueCreateIssueDependencies",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/dependencies",
+      "method": "DELETE",
+      "operation": "issueRemoveIssueDependencies",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/labels",
+      "method": "GET",
+      "operation": "issueGetLabels",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/labels",
+      "method": "PUT",
+      "operation": "issueReplaceLabels",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/labels",
+      "method": "POST",
+      "operation": "issueAddLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/labels",
+      "method": "DELETE",
+      "operation": "issueClearLabels",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/labels/{id}",
+      "method": "DELETE",
+      "operation": "issueRemoveLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/pin",
+      "method": "POST",
+      "operation": "pinIssue",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/pin",
+      "method": "DELETE",
+      "operation": "unpinIssue",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/pin/{position}",
+      "method": "PATCH",
+      "operation": "moveIssuePin",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/reactions",
+      "method": "GET",
+      "operation": "issueGetIssueReactions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/reactions",
+      "method": "POST",
+      "operation": "issuePostIssueReaction",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/reactions",
+      "method": "DELETE",
+      "operation": "issueDeleteIssueReaction",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/stopwatch/delete",
+      "method": "DELETE",
+      "operation": "issueDeleteStopWatch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/stopwatch/start",
+      "method": "POST",
+      "operation": "issueStartStopWatch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/stopwatch/stop",
+      "method": "POST",
+      "operation": "issueStopStopWatch",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/subscriptions",
+      "method": "GET",
+      "operation": "issueSubscriptions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/subscriptions/check",
+      "method": "GET",
+      "operation": "issueCheckSubscription",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/subscriptions/{user}",
+      "method": "PUT",
+      "operation": "issueAddSubscription",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/subscriptions/{user}",
+      "method": "DELETE",
+      "operation": "issueDeleteSubscription",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/timeline",
+      "method": "GET",
+      "operation": "issueGetCommentsAndTimeline",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/times",
+      "method": "GET",
+      "operation": "issueTrackedTimes",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/times",
+      "method": "POST",
+      "operation": "issueAddTime",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/times",
+      "method": "DELETE",
+      "operation": "issueResetTime",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/issues/{index}/times/{id}",
+      "method": "DELETE",
+      "operation": "issueDeleteTime",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/keys",
+      "method": "GET",
+      "operation": "repoListKeys",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/keys",
+      "method": "POST",
+      "operation": "repoCreateKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/keys/{id}",
+      "method": "GET",
+      "operation": "repoGetKey",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/keys/{id}",
+      "method": "DELETE",
+      "operation": "repoDeleteKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/labels",
+      "method": "GET",
+      "operation": "issueListLabels",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/labels",
+      "method": "POST",
+      "operation": "issueCreateLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/labels/{id}",
+      "method": "GET",
+      "operation": "issueGetLabel",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/labels/{id}",
+      "method": "DELETE",
+      "operation": "issueDeleteLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/labels/{id}",
+      "method": "PATCH",
+      "operation": "issueEditLabel",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/languages",
+      "method": "GET",
+      "operation": "repoGetLanguages",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/licenses",
+      "method": "GET",
+      "operation": "repoGetLicenses",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/media/{filepath}",
+      "method": "GET",
+      "operation": "repoGetRawFileOrLFS",
+      "effect": "download"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/merge-upstream",
+      "method": "POST",
+      "operation": "repoMergeUpstream",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/milestones",
+      "method": "GET",
+      "operation": "issueGetMilestonesList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/milestones",
+      "method": "POST",
+      "operation": "issueCreateMilestone",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/milestones/{id}",
+      "method": "GET",
+      "operation": "issueGetMilestone",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/milestones/{id}",
+      "method": "DELETE",
+      "operation": "issueDeleteMilestone",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/milestones/{id}",
+      "method": "PATCH",
+      "operation": "issueEditMilestone",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/mirror-sync",
+      "method": "POST",
+      "operation": "repoMirrorSync",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/new_pin_allowed",
+      "method": "GET",
+      "operation": "repoNewPinAllowed",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/notifications",
+      "method": "GET",
+      "operation": "notifyGetRepoList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/notifications",
+      "method": "PUT",
+      "operation": "notifyReadRepoList",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls",
+      "method": "GET",
+      "operation": "repoListPullRequests",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls",
+      "method": "POST",
+      "operation": "repoCreatePullRequest",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/pinned",
+      "method": "GET",
+      "operation": "repoListPinnedPullRequests",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{base}/{head}",
+      "method": "GET",
+      "operation": "repoGetPullRequestByBaseHead",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}",
+      "method": "GET",
+      "operation": "repoGetPullRequest",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}",
+      "method": "PATCH",
+      "operation": "repoEditPullRequest",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}.{diffType}",
+      "method": "GET",
+      "operation": "repoDownloadPullDiffOrPatch",
+      "effect": "download"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/commits",
+      "method": "GET",
+      "operation": "repoGetPullRequestCommits",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/files",
+      "method": "GET",
+      "operation": "repoGetPullRequestFiles",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/merge",
+      "method": "GET",
+      "operation": "repoPullRequestIsMerged",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/merge",
+      "method": "POST",
+      "operation": "repoMergePullRequest",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/merge",
+      "method": "DELETE",
+      "operation": "repoCancelScheduledAutoMerge",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/requested_reviewers",
+      "method": "POST",
+      "operation": "repoCreatePullReviewRequests",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/requested_reviewers",
+      "method": "DELETE",
+      "operation": "repoDeletePullReviewRequests",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews",
+      "method": "GET",
+      "operation": "repoListPullReviews",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews",
+      "method": "POST",
+      "operation": "repoCreatePullReview",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews/{id}",
+      "method": "GET",
+      "operation": "repoGetPullReview",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews/{id}",
+      "method": "POST",
+      "operation": "repoSubmitPullReview",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews/{id}",
+      "method": "DELETE",
+      "operation": "repoDeletePullReview",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews/{id}/comments",
+      "method": "GET",
+      "operation": "repoGetPullReviewComments",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews/{id}/dismissals",
+      "method": "POST",
+      "operation": "repoDismissPullReview",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/reviews/{id}/undismissals",
+      "method": "POST",
+      "operation": "repoUnDismissPullReview",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/pulls/{index}/update",
+      "method": "POST",
+      "operation": "repoUpdatePullRequest",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/push_mirrors",
+      "method": "GET",
+      "operation": "repoListPushMirrors",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/push_mirrors",
+      "method": "POST",
+      "operation": "repoAddPushMirror",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/push_mirrors-sync",
+      "method": "POST",
+      "operation": "repoPushMirrorSync",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/push_mirrors/{name}",
+      "method": "GET",
+      "operation": "repoGetPushMirrorByRemoteName",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/push_mirrors/{name}",
+      "method": "DELETE",
+      "operation": "repoDeletePushMirror",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/raw/{filepath}",
+      "method": "GET",
+      "operation": "repoGetRawFile",
+      "effect": "download"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases",
+      "method": "GET",
+      "operation": "repoListReleases",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases",
+      "method": "POST",
+      "operation": "repoCreateRelease",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/latest",
+      "method": "GET",
+      "operation": "repoGetLatestRelease",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/tags/{tag}",
+      "method": "GET",
+      "operation": "repoGetReleaseByTag",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/tags/{tag}",
+      "method": "DELETE",
+      "operation": "repoDeleteReleaseByTag",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}",
+      "method": "GET",
+      "operation": "repoGetRelease",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}",
+      "method": "DELETE",
+      "operation": "repoDeleteRelease",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}",
+      "method": "PATCH",
+      "operation": "repoEditRelease",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}/assets",
+      "method": "GET",
+      "operation": "repoListReleaseAttachments",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}/assets",
+      "method": "POST",
+      "operation": "repoCreateReleaseAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}/assets/{attachment_id}",
+      "method": "GET",
+      "operation": "repoGetReleaseAttachment",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}/assets/{attachment_id}",
+      "method": "DELETE",
+      "operation": "repoDeleteReleaseAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/releases/{id}/assets/{attachment_id}",
+      "method": "PATCH",
+      "operation": "repoEditReleaseAttachment",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/reviewers",
+      "method": "GET",
+      "operation": "repoGetReviewers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/signing-key.gpg",
+      "method": "GET",
+      "operation": "repoSigningKey",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/stargazers",
+      "method": "GET",
+      "operation": "repoListStargazers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/statuses/{sha}",
+      "method": "GET",
+      "operation": "repoListStatuses",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/statuses/{sha}",
+      "method": "POST",
+      "operation": "repoCreateStatus",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/subscribers",
+      "method": "GET",
+      "operation": "repoListSubscribers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/subscription",
+      "method": "GET",
+      "operation": "userCurrentCheckSubscription",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/subscription",
+      "method": "PUT",
+      "operation": "userCurrentPutSubscription",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/subscription",
+      "method": "DELETE",
+      "operation": "userCurrentDeleteSubscription",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tag_protections",
+      "method": "GET",
+      "operation": "repoListTagProtection",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tag_protections",
+      "method": "POST",
+      "operation": "repoCreateTagProtection",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tag_protections/{id}",
+      "method": "GET",
+      "operation": "repoGetTagProtection",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tag_protections/{id}",
+      "method": "DELETE",
+      "operation": "repoDeleteTagProtection",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tag_protections/{id}",
+      "method": "PATCH",
+      "operation": "repoEditTagProtection",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tags",
+      "method": "GET",
+      "operation": "repoListTags",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tags",
+      "method": "POST",
+      "operation": "repoCreateTag",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tags/{tag}",
+      "method": "GET",
+      "operation": "repoGetTag",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/tags/{tag}",
+      "method": "DELETE",
+      "operation": "repoDeleteTag",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/teams",
+      "method": "GET",
+      "operation": "repoListTeams",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/teams/{team}",
+      "method": "GET",
+      "operation": "repoCheckTeam",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/teams/{team}",
+      "method": "PUT",
+      "operation": "repoAddTeam",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/teams/{team}",
+      "method": "DELETE",
+      "operation": "repoDeleteTeam",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/times",
+      "method": "GET",
+      "operation": "repoTrackedTimes",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/times/{user}",
+      "method": "GET",
+      "operation": "userTrackedTimes",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/topics",
+      "method": "GET",
+      "operation": "repoListTopics",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/topics",
+      "method": "PUT",
+      "operation": "repoUpdateTopics",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/topics/{topic}",
+      "method": "PUT",
+      "operation": "repoAddTopic",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/topics/{topic}",
+      "method": "DELETE",
+      "operation": "repoDeleteTopic",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/transfer",
+      "method": "POST",
+      "operation": "repoTransfer",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/transfer/accept",
+      "method": "POST",
+      "operation": "acceptRepoTransfer",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/transfer/reject",
+      "method": "POST",
+      "operation": "rejectRepoTransfer",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/wiki/new",
+      "method": "POST",
+      "operation": "repoCreateWikiPage",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/wiki/page/{pageName}",
+      "method": "GET",
+      "operation": "repoGetWikiPage",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/wiki/page/{pageName}",
+      "method": "DELETE",
+      "operation": "repoDeleteWikiPage",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/wiki/page/{pageName}",
+      "method": "PATCH",
+      "operation": "repoEditWikiPage",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/wiki/pages",
+      "method": "GET",
+      "operation": "repoGetWikiPages",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{owner}/{repo}/wiki/revisions/{pageName}",
+      "method": "GET",
+      "operation": "repoGetWikiPageRevisions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/repos/{template_owner}/{template_repo}/generate",
+      "method": "POST",
+      "operation": "generateRepo",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/repositories/{id}",
+      "method": "GET",
+      "operation": "repoGetByID",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/settings/api",
+      "method": "GET",
+      "operation": "getGeneralAPISettings",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/settings/attachment",
+      "method": "GET",
+      "operation": "getGeneralAttachmentSettings",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/settings/repository",
+      "method": "GET",
+      "operation": "getGeneralRepositorySettings",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/settings/ui",
+      "method": "GET",
+      "operation": "getGeneralUISettings",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/signing-key.gpg",
+      "method": "GET",
+      "operation": "getSigningKey",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/teams/{id}",
+      "method": "GET",
+      "operation": "orgGetTeam",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/teams/{id}",
+      "method": "DELETE",
+      "operation": "orgDeleteTeam",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/teams/{id}",
+      "method": "PATCH",
+      "operation": "orgEditTeam",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/teams/{id}/activities/feeds",
+      "method": "GET",
+      "operation": "orgListTeamActivityFeeds",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/teams/{id}/members",
+      "method": "GET",
+      "operation": "orgListTeamMembers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/teams/{id}/members/{username}",
+      "method": "GET",
+      "operation": "orgListTeamMember",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/teams/{id}/members/{username}",
+      "method": "PUT",
+      "operation": "orgAddTeamMember",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/teams/{id}/members/{username}",
+      "method": "DELETE",
+      "operation": "orgRemoveTeamMember",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/teams/{id}/repos",
+      "method": "GET",
+      "operation": "orgListTeamRepos",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/teams/{id}/repos/{org}/{repo}",
+      "method": "GET",
+      "operation": "orgListTeamRepo",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/teams/{id}/repos/{org}/{repo}",
+      "method": "PUT",
+      "operation": "orgAddTeamRepository",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/teams/{id}/repos/{org}/{repo}",
+      "method": "DELETE",
+      "operation": "orgRemoveTeamRepository",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/topics/search",
+      "method": "GET",
+      "operation": "topicSearch",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user",
+      "method": "GET",
+      "operation": "userGetCurrent",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/actions/runners/registration-token",
+      "method": "GET",
+      "operation": "userGetRunnerRegistrationToken",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/actions/secrets/{secretname}",
+      "method": "PUT",
+      "operation": "updateUserSecret",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/actions/secrets/{secretname}",
+      "method": "DELETE",
+      "operation": "deleteUserSecret",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/actions/variables",
+      "method": "GET",
+      "operation": "getUserVariablesList",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/actions/variables/{variablename}",
+      "method": "GET",
+      "operation": "getUserVariable",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/actions/variables/{variablename}",
+      "method": "PUT",
+      "operation": "updateUserVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/actions/variables/{variablename}",
+      "method": "POST",
+      "operation": "createUserVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/actions/variables/{variablename}",
+      "method": "DELETE",
+      "operation": "deleteUserVariable",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/applications/oauth2",
+      "method": "GET",
+      "operation": "userGetOauth2Application",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/applications/oauth2",
+      "method": "POST",
+      "operation": "userCreateOAuth2Application",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/applications/oauth2/{id}",
+      "method": "GET",
+      "operation": "userGetOAuth2Application",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/applications/oauth2/{id}",
+      "method": "DELETE",
+      "operation": "userDeleteOAuth2Application",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/applications/oauth2/{id}",
+      "method": "PATCH",
+      "operation": "userUpdateOAuth2Application",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/avatar",
+      "method": "POST",
+      "operation": "userUpdateAvatar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/avatar",
+      "method": "DELETE",
+      "operation": "userDeleteAvatar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/blocks",
+      "method": "GET",
+      "operation": "userListBlocks",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/blocks/{username}",
+      "method": "GET",
+      "operation": "userCheckUserBlock",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/blocks/{username}",
+      "method": "PUT",
+      "operation": "userBlockUser",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/blocks/{username}",
+      "method": "DELETE",
+      "operation": "userUnblockUser",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/emails",
+      "method": "GET",
+      "operation": "userListEmails",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/emails",
+      "method": "POST",
+      "operation": "userAddEmail",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/emails",
+      "method": "DELETE",
+      "operation": "userDeleteEmail",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/followers",
+      "method": "GET",
+      "operation": "userCurrentListFollowers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/following",
+      "method": "GET",
+      "operation": "userCurrentListFollowing",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/following/{username}",
+      "method": "GET",
+      "operation": "userCurrentCheckFollowing",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/following/{username}",
+      "method": "PUT",
+      "operation": "userCurrentPutFollow",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/following/{username}",
+      "method": "DELETE",
+      "operation": "userCurrentDeleteFollow",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/gpg_key_token",
+      "method": "GET",
+      "operation": "getVerificationToken",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/gpg_key_verify",
+      "method": "POST",
+      "operation": "userVerifyGPGKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/gpg_keys",
+      "method": "GET",
+      "operation": "userCurrentListGPGKeys",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/gpg_keys",
+      "method": "POST",
+      "operation": "userCurrentPostGPGKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/gpg_keys/{id}",
+      "method": "GET",
+      "operation": "userCurrentGetGPGKey",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/gpg_keys/{id}",
+      "method": "DELETE",
+      "operation": "userCurrentDeleteGPGKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/hooks",
+      "method": "GET",
+      "operation": "userListHooks",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/hooks",
+      "method": "POST",
+      "operation": "userCreateHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/hooks/{id}",
+      "method": "GET",
+      "operation": "userGetHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/hooks/{id}",
+      "method": "DELETE",
+      "operation": "userDeleteHook",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/hooks/{id}",
+      "method": "PATCH",
+      "operation": "userEditHook",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/user/keys",
+      "method": "GET",
+      "operation": "userCurrentListKeys",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/keys",
+      "method": "POST",
+      "operation": "userCurrentPostKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/keys/{id}",
+      "method": "GET",
+      "operation": "userCurrentGetKey",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/keys/{id}",
+      "method": "DELETE",
+      "operation": "userCurrentDeleteKey",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/orgs",
+      "method": "GET",
+      "operation": "orgListCurrentUserOrgs",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/repos",
+      "method": "GET",
+      "operation": "userCurrentListRepos",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/repos",
+      "method": "POST",
+      "operation": "createCurrentUserRepo",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/settings",
+      "method": "GET",
+      "operation": "getUserSettings",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/settings",
+      "method": "PATCH",
+      "operation": "updateUserSettings",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/starred",
+      "method": "GET",
+      "operation": "userCurrentListStarred",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/starred/{owner}/{repo}",
+      "method": "GET",
+      "operation": "userCurrentCheckStarring",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/starred/{owner}/{repo}",
+      "method": "PUT",
+      "operation": "userCurrentPutStar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/starred/{owner}/{repo}",
+      "method": "DELETE",
+      "operation": "userCurrentDeleteStar",
+      "effect": "write"
+    },
+    {
+      "path": "/api/v1/user/stopwatches",
+      "method": "GET",
+      "operation": "userGetStopWatches",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/subscriptions",
+      "method": "GET",
+      "operation": "userCurrentListSubscriptions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/teams",
+      "method": "GET",
+      "operation": "userListTeams",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/user/times",
+      "method": "GET",
+      "operation": "userCurrentTrackedTimes",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/search",
+      "method": "GET",
+      "operation": "userSearch",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}",
+      "method": "GET",
+      "operation": "userGet",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/activities/feeds",
+      "method": "GET",
+      "operation": "userListActivityFeeds",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/followers",
+      "method": "GET",
+      "operation": "userListFollowers",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/following",
+      "method": "GET",
+      "operation": "userListFollowing",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/following/{target}",
+      "method": "GET",
+      "operation": "userCheckFollowing",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/gpg_keys",
+      "method": "GET",
+      "operation": "userListGPGKeys",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/heatmap",
+      "method": "GET",
+      "operation": "userGetHeatmapData",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/keys",
+      "method": "GET",
+      "operation": "userListKeys",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/orgs",
+      "method": "GET",
+      "operation": "orgListUserOrgs",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/orgs/{org}/permissions",
+      "method": "GET",
+      "operation": "orgGetUserPermissions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/repos",
+      "method": "GET",
+      "operation": "userListRepos",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/starred",
+      "method": "GET",
+      "operation": "userListStarred",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/subscriptions",
+      "method": "GET",
+      "operation": "userListSubscriptions",
+      "effect": "read"
+    },
+    {
+      "path": "/api/v1/users/{username}/tokens",
+      "method": "GET",
+      "operation": "userGetTokens",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/users/{username}/tokens",
+      "method": "POST",
+      "operation": "userCreateToken",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/users/{username}/tokens/{token}",
+      "method": "DELETE",
+      "operation": "userDeleteAccessToken",
+      "effect": "credential"
+    },
+    {
+      "path": "/api/v1/version",
+      "method": "GET",
+      "operation": "getVersion",
+      "effect": "read"
+    }
+  ],
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "hostname",
+      "origin",
+      "token",
+      "api-key",
+      "password",
+      "authorization",
+      "allow-insecure-http",
+      "allow-write",
+      "preview",
+      "confirm",
+      "field",
+      "raw-field",
+      "input",
+      "header"
+    ],
+    "nativeWrites": "not admitted",
+    "blockedCommands": [
+      "auth",
+      "profile",
+      "config",
+      "write",
+      "setup",
+      "update"
+    ]
+  },
+  "commands": [
+    {
+      "command": "",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "repo view",
+      "effect": "read",
+      "flags": {
+        "repo": "value",
+        "help": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "secret list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "org": "value",
+        "limit": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "variable list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "org": "value",
+        "limit": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "dashboard",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {}
+    },
+    {
+      "command": "repo list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "limit": "value",
+        "org": "value"
+      },
+      "shortFlags": {}
+    },
+    {
+      "command": "org view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {}
+    },
+    {
+      "command": "issue list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value",
+        "state": "value",
+        "sort": "value",
+        "order": "value",
+        "fields": "value",
+        "assignee": "value",
+        "author": "value",
+        "label": "value",
+        "milestone": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "issue view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "fields": "value",
+        "full": "boolean",
+        "comments": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "label list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "pr list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value",
+        "state": "value",
+        "sort": "value",
+        "order": "value",
+        "fields": "value",
+        "assignee": "value",
+        "author": "value",
+        "label": "value",
+        "milestone": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "pr view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "fields": "value",
+        "full": "boolean",
+        "comments": "boolean",
+        "reviews": "boolean",
+        "checks": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "pr checks",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "watch": "boolean",
+        "timeout": "value",
+        "interval": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "pr diff",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "full": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "release list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "limit": "value",
+        "exclude-drafts": "boolean",
+        "exclude-pre-releases": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "release view",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "full": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "api",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "method": "value"
+      },
+      "shortFlags": {
+        "X": "method"
+      }
+    },
+    {
+      "command": "run list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "workflow": "value",
+        "branch": "value",
+        "status": "value",
+        "event": "value",
+        "commit": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "search issues",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "sort": "value",
+        "order": "value",
+        "limit": "value",
+        "fields": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "search prs",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "sort": "value",
+        "order": "value",
+        "limit": "value",
+        "fields": "value",
+        "draft": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "search repos",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "sort": "value",
+        "order": "value",
+        "limit": "value",
+        "fields": "value",
+        "language": "value",
+        "stars": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "search commits",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "author": "value",
+        "sort": "value",
+        "order": "value",
+        "limit": "value",
+        "fields": "value",
+        "revision": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    },
+    {
+      "command": "search code",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "owner": "value",
+        "state": "value",
+        "label": "value",
+        "assignee": "value",
+        "author": "value",
+        "sort": "value",
+        "order": "value",
+        "limit": "value",
+        "fields": "value",
+        "review": "value",
+        "language": "value",
+        "stars": "value",
+        "revision": "value",
+        "draft": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      }
+    }
+  ],
+  "discovery": {
+    "commands": [
+      "repo view",
+      "secret list",
+      "variable list",
+      "dashboard",
+      "doctor",
+      "repo list",
+      "org view",
+      "issue list",
+      "issue view",
+      "label list",
+      "pr list",
+      "pr view",
+      "pr checks",
+      "pr diff",
+      "release list",
+      "release view",
+      "api",
+      "run list",
+      "search issues",
+      "search prs",
+      "search repos",
+      "search commits",
+      "search code"
+    ],
+    "example": [
+      "repo",
+      "view",
+      "--repo",
+      "<owner/name>"
+    ],
+    "help": "Gitea managed reads. Repository reads require --repo OWNER/NAME.\nRaw api accepts GET and classified metadata paths only.\nWrites, local workflows, configuration overrides and attachment transfers are unavailable.\n"
+  }
+}

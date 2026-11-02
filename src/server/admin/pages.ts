@@ -20,6 +20,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
   'technitium-axi': 'The pinned Technitium package is read-only. Use {}. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
+  'gitea-axi': 'Classified metadata reads are admitted. Writes and attachment transfers are unavailable. Use {}.',
   'unifi-axi': 'Only implemented reads are admitted. No editable native settings. Use {}.',
   'proxmox-axi': 'Ordinary API-token reads are admitted. Writes, session authentication and byte transports are unavailable. Use {}.',
   'gh-axi': 'Writes default off. Select exact collaboration or repository operations with writes: { allowWrites: true, operations: ["issue comment"] }. Preview each write, then repeat with the returned --confirm. Deletes, secret set, merge --admin and API non-GET stay blocked.',
@@ -37,6 +38,7 @@ const settingsGuide = {
 }
 const testGuide = {
   'technitium-axi': 'Technitium user session get (authenticated read)',
+  'gitea-axi': 'Gitea doctor',
   'unifi-axi': 'UniFi info',
   'proxmox-axi': 'Proxmox get /version',
   'gh-axi': 'GitHub api /rate_limit',

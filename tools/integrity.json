@@ -1,4 +1,8 @@
 {
+  "@knowttl/gitea-axi": {
+    "version": "0.1.1",
+    "integrity": "sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ=="
+  },
   "@knowttl/unifi-axi": {
     "version": "0.1.0",
     "integrity": "sha512-I16b8FozbmDxl+acJAH6My1JWicYCCfmi4wbsz35OQvgfupuZIRh0INmXxoRPddaqFOXYFFCZUF4J/H8xYfg6Q=="

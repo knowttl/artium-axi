@@ -11,5 +11,5 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/network-read-inventory.ts", "scripts/technitium-inventory.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/network-read-inventory.ts", "scripts/technitium-inventory.ts", "scripts/gitea-inventory.ts", "vitest.config.ts"]
 }

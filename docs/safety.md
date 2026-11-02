@@ -123,6 +123,16 @@ User, role, API-client and credential administration remains blocked.
 Review the [Vectra grant warnings](admin-guide.md#browser-administration) before enabling operations.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for Vectra file inputs.
 
+## Gitea reads
+
+Gitea 0.1.1 admits implemented named reads and GET-only API routes classified as metadata reads by its pinned route inventory.
+Repository reads require `--repo OWNER/NAME`; item reads retain the native number or tag selector.
+Artium supplies the HTTPS origin, origin-bound token SecretRef, and TLS trust.
+Profile, host, credential, header and endpoint overrides are refused before forwarding.
+Credential-bearing, administrative, download and unclassified raw routes are refused.
+Pending workflow commands, local git workflows, file inputs, writes and attachment transfers are unavailable through this adapter.
+Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native read selectors and `artium-axi tools show gitea-axi` for the admitted commands.
+
 ## Network appliance reads
 
 UniFi admits the pinned package's implemented read commands, including application information, sites, inventory and policies.
