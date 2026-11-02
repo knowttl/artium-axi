@@ -260,9 +260,17 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
     body: { name: 'Synthetic copied credential' } },
   { args: ['user', 'create', 'synthetic-person', '--password-file', '-'], path: 'users/', body: { username: 'synthetic-person', password: 'CANARY-user-password' },
     input: { stdin: 'CANARY-user-password\n' } },
-  { args: ['notification-template', 'create', 'Synthetic notification', '--organization', '7', '--notification-type', 'webhook', '--configuration-file', 'configuration.json', '--messages-file', 'messages.json'], path: 'notification_templates/',
-    body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', notification_configuration: { token: 'CANARY-notification-token' }, messages: { success: { body: 'Synthetic completion' } } },
-    input: { files: [upload('configuration.json', '{"token":"CANARY-notification-token"}'), upload('messages.json', '{"success":{"body":"Synthetic completion"}}')] } },
+  ...['create', 'edit'].flatMap(operation => ['configuration-file', 'config-file'].map(flag => ({
+    args: ['notification-template', operation, operation === 'create' ? 'Synthetic notification' : '42',
+      ...(operation === 'edit' ? ['--name', 'Synthetic notification'] : []), '--organization', '7', '--notification-type', 'webhook',
+      '--description', 'Synthetic webhook', `--${flag}`, 'configuration.json', '--messages-file', 'messages.json'],
+    path: operation === 'create' ? 'notification_templates/' : 'notification_templates/42/',
+    body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', description: 'Synthetic webhook',
+      notification_configuration: { token: 'CANARY-notification-token' }, messages: { success: { body: 'CANARY-notification-message' } } },
+    input: { files: [upload('configuration.json', '{"token":"CANARY-notification-token"}'),
+      upload('messages.json', '{"success":{"body":"CANARY-notification-message"}}')] },
+    preview: { input: { notification_configuration: '[structured input redacted, 37 bytes]', messages: '[structured input redacted, 50 bytes]' } },
+  }))),
   { args: ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json'], path: 'bulk/host_create/',
     body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: { password: 'CANARY-bulk-secret' } }] },
     input: { files: [upload('hosts.json', '[{"name":"synthetic-bulk-host","variables":{"password":"CANARY-bulk-secret"}}]')] } },
@@ -534,6 +542,7 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       await send('/__awx/configuration-permission?enabled=false', 'POST')
       const denied = await run([...args, '--confirm'])
       expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
+      expect(denied.body).not.toContain(privateValue)
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       await send('/__ado/reset', 'POST')
       const written = await run([...args, '--confirm'])

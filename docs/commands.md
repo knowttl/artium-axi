@@ -148,6 +148,14 @@ Admin associations use `--user`; Galaxy credential associations use `--credentia
 Use `organization notification-add|remove` with `--notification-template` and `--event started|success|error` for event-specific notifications.
 For example, preview `artium-axi awx-axi organization admin-add 42 --user 7 --dry-run`, then replace `--dry-run` with `--confirm`.
 
+Create a notification template with `artium-axi awx-axi notification-template create synthetic-webhook --organization 7 --notification-type webhook --configuration-file configuration.json --messages-file messages.json --dry-run`, then replace `--dry-run` with `--confirm`.
+Update it with `notification-template edit <id|name>` and the same configuration flags; `--config-file` is a synonym for `--configuration-file`.
+Configuration and messages files must contain JSON objects and are uploaded privately; keep tokens, passwords and message secrets in protected local files, never command arguments.
+Both preview and execution require the tenant writes switch; execution also requires AWX permission, confirmation and audit.
+Use `notification-template test <id|name> --dry-run`, then `--confirm`, to send a test notification under the same switch.
+Inspect templates and deliveries with `notification-template list|show` and `notification list|show`; reads remain available with writes disabled, and list commands retain `--limit`, `--all` and `--max-rows` pagination.
+After an unknown create or rename outcome, follow [AWX recovery guidance](runbook.md#retention-and-export) and inspect all relevant list pages before retrying.
+
 Create or edit teams with `team create|edit --name synthetic-team --organization <id|name> --description <text>`, supplying the existing team ID or name after `edit`.
 Use `team user-add|remove <team-id|name> --user <id|name>` for membership.
 Create users with `user create synthetic-person`, or edit them with `user edit <id|username>`.
