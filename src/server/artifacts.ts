@@ -11,6 +11,7 @@ import { checkTransferCapacity, transferAuditSelector } from './transfer.js'
 import type { Audit } from './audit/audit.js'
 import type { RunContext } from './runner/run.js'
 import { log } from './log.js'
+import { giteaTransferBytes } from '../shared/gitea-writes.js'
 
 export const artifactDefaults = {
   directory: '/tmp/artium-artifacts',
@@ -216,7 +217,7 @@ async function artifactBytes(directory: string): Promise<number> {
   const inodes = new Set<number>()
   let bytes = 0
   for (const name of await readdir(directory)) {
-    if (name !== 'archive' && !/^\.hybrid-artifact-[a-f0-9-]+\.tmp$/.test(name)) unavailable()
+    if (name !== 'archive' && !/^\.(?:hybrid-artifact|gitea-attachment)-[a-f0-9-]+\.tmp$/.test(name)) unavailable()
     let info
     try { info = await lstat(join(directory, name)) }
     catch (error) {
@@ -291,7 +292,8 @@ export class ArtifactReservation {
       this.alive()
       if (await artifactBytes(this.directory) !== 0) unavailable()
       const evidence = await native(this.outputPath, this.controller.signal)
-      const checkpoint = ['checkpoint-axi', 'beyondtrust-axi'].includes(transferTool(this.scope.selection.operation))
+      const tool = transferTool(this.scope.selection.operation)
+      const checkpoint = ['checkpoint-axi', 'beyondtrust-axi', 'gitea-axi'].includes(tool)
       const boundedMail = transferTool(this.scope.selection.operation) !== 'hybrid-axi'
       if (checkpoint ? evidence.nativeAuditId !== null || evidence.nativeJournalResult !== null || !/^[a-f0-9]{64}$/.test(evidence.verifiedSha256 ?? '')
         : evidence.nativeJournalResult !== 'SUCCESS') unavailable()
@@ -302,7 +304,7 @@ export class ArtifactReservation {
       const file = await open(this.outputPath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
       try {
         const info = await file.stat()
-        if (!info.isFile() || info.size > (boundedMail ? 50 * 1024 * 1024 : transferLimits.artifactBytes) || info.size !== evidence.archiveBytes) unavailable()
+        if (!info.isFile() || info.size > (tool === 'gitea-axi' ? giteaTransferBytes : boundedMail ? 50 * 1024 * 1024 : transferLimits.artifactBytes) || info.size !== evidence.archiveBytes) unavailable()
         const hash = createHash('sha256')
         const buffer = Buffer.alloc(64 * 1024)
         let size = 0

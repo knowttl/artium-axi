@@ -1,5 +1,6 @@
 import inventory from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 
-// Protected values and attachment custody are admitted separately.
-export const giteaWriteOperations = inventory.apiRoutes.filter(route => route.effect === 'write'
-  && !/Secret|Variable|Attachment/.test(route.operation)).map(route => route.operation)
+export const giteaTransferOperations = ['gitea.issue.download', 'gitea.pr.download', 'gitea.release.download'] as const
+export const giteaTransferBytes = 10_000_000
+export const giteaWriteOperations = [...inventory.apiRoutes.filter(route => route.effect === 'write').map(route => route.operation),
+  ...giteaTransferOperations]

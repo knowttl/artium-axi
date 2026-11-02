@@ -133,15 +133,22 @@ Gitea admits named reads and classified API routes in its [reviewed inventory](.
 Repository reads require `--repo OWNER/NAME`; item reads retain the native number or tag selector.
 Artium supplies the HTTPS origin, origin-bound token SecretRef, and TLS trust.
 Profile, host, credential, header and endpoint overrides are refused before forwarding.
-Credential-bearing, protected-value, attachment and unclassified raw routes are refused.
+Credential-bearing and unclassified raw routes are refused.
 Code search, pending workflow commands and local git workflows are unavailable through this adapter.
 Writes default off and require an administrator to enable Allow writes and select exact native operation IDs.
 The caller must also pass the matching `--allow-write` operation IDs and first use `--preview`.
 Inspect the returned plan, then replace `--preview` with `--confirm UUID` on the identical command to execute it.
 Gitea binds confirmation to the managed identity, credential revision, policy, target, payload and observed preconditions.
-Named repository, issue, pull request, label and release mutations and classified raw API mutations retain the native write model and readback verification.
+Named repository, issue, pull request, label, release, secret, variable and attachment mutations and classified raw API mutations retain the native write model and readback verification.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for text uploads and explicit caller stdin.
-Server paths, protected values and attachment transfers remain unavailable.
+Secret set accepts protected `--input` file or explicit stdin; raw secret PUT requests require JSON through `--input`.
+Secret values are excluded from arguments, public output and audit; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for protected input exclusions.
+Secret readback verifies name identity; variables are non-secret and retain native value readback, including empty values.
+Attachment uploads accept opaque caller files through `--file` or `--attach`, within Artium's 1 MiB per-file, 4 MiB total and eight-file input limits.
+Use `artium-axi download` for separately selected `gitea.issue.download`, `gitea.pr.download` or `gitea.release.download`, type `attachment` and selector `OWNER/REPO/ITEM-OR-TAG/ASSET-ID`.
+Downloads require recent authentication, host-owned exact confirmation and independent byte and SHA-256 verification, with a 10000000-byte limit.
+Release tags may contain slashes; asset IDs select exactly one attachment.
+Ordinary tool-run downloads and server-controlled paths are unavailable.
 See [journal custody and recovery](runbook.md#retention-and-export) before handling an uncertain mutation.
 For `pr checks --watch`, any explicit `--timeout` must stay within the bound shown by `artium-axi gitea-axi pr checks --help`; larger values return `INVALID_INPUT` before forwarding.
 Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native read selectors and `artium-axi tools show gitea-axi` for the admitted commands.

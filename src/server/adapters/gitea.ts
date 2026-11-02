@@ -11,11 +11,12 @@ import { invalidCommand } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
 import { giteaWriteOperations } from '../../shared/gitea-writes.js'
 import { normalizeGiteaFileArguments } from '../../shared/file-input.js'
+import { transferTool } from '../../shared/api.js'
 
 export const giteaProfile = new CredentialProfile(inventory.credentialSchema, 'gitea-axi')
 export const giteaWritePolicy = writePolicy({ supportedOperations: giteaWriteOperations,
   unlocks: 'Exact native operations with preview, revision-bound confirmation and durable reconciliation receipts.',
-  blocked: 'Protected values, attachments, local workflows and credential overrides remain unavailable.' })
+  blocked: 'Ordinary downloads, server paths, local workflows and credential overrides remain unavailable. Use managed transfers for one exact attachment.' })
 
 function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))) {
@@ -55,13 +56,20 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   const positions = parsed.positionals
   const command = route.command || 'dashboard'
   let rawMutation = false
+  let rawSecret = false
   if (!help) {
+    if (route.effect === 'download') throw new ArtiumError('FLAG_BLOCKED', 'Use artium-axi download for an authenticated attachment transfer.')
     if (command === 'pr checks' && parsed.values.timeout !== undefined
       && (!/^\d+$/.test(String(parsed.values.timeout)) || Number(parsed.values.timeout) < 1
         || Number(parsed.values.timeout) > inventory.adapterBoundary.checksWatchTimeoutSeconds)) {
       throw new ArtiumError('INVALID_INPUT', `Checks watch timeout must be from 1 to ${inventory.adapterBoundary.checksWatchTimeoutSeconds} seconds.`)
     }
-    if (command === 'write reconcile') {
+    if (/^(secret|variable) /.test(command)) {
+      if (parsed.values.repo && parsed.values.org || (command.endsWith(' list') ? positions.length !== 0
+        : positions.length !== 1 || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(positions[0]))) throw new ArtiumError('INVALID_INPUT')
+      if (command === 'secret set' && parsed.values.input === undefined
+        || command === 'variable set' && (parsed.values.input !== undefined) === (parsed.values.body !== undefined)) throw new ArtiumError('INVALID_INPUT')
+    } else if (command === 'write reconcile') {
       if (positions.length !== 1 || !/^[a-f0-9-]{36}$/.test(positions[0])) throw new ArtiumError('INVALID_INPUT')
     } else if (['issue view', 'pr view', 'pr checks', 'pr diff'].includes(command)
       || /^(issue|pr) /.test(command) && route.effect === 'write' && !command.endsWith(' create')) {
@@ -86,6 +94,9 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
         || /%(?:2f|5c)/i.test(pathname) || decoded.split('/').some(part => part === '.' || part === '..')) throw new ArtiumError('INVALID_INPUT')
       if ([...new URLSearchParams(query).keys()].some(key => /token|secret|password|authorization|api.?key/i.test(key))) throw new ArtiumError('FLAG_BLOCKED')
       const path = pathname.startsWith('/api/v1/') || pathname === '/swagger.v1.json' ? pathname : '/api/v1/' + pathname.replace(/^\//, '')
+      rawSecret = /\/actions\/secrets(?:\/|$)/.test(path)
+      if (!rawMutation && ['input', 'field', 'raw-field'].some(name => parsed.values[name] !== undefined)
+        || rawSecret && rawMutation && method !== 'DELETE' && parsed.values.input === undefined) throw new ArtiumError('INVALID_INPUT')
       const routes = [...inventory.apiRoutes].sort((a, b) => b.path.replace(/\{[^}]+\}/g, '').length - a.path.replace(/\{[^}]+\}/g, '').length)
       const match = routes.find(entry => entry.method === method && new RegExp('^' + entry.path.split(/(\{[^}]+\})/)
         .map(part => /^\{[^}]+\}$/.test(part) ? '[^/]+' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('') + '$').test(path))
@@ -96,8 +107,10 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   const fileFlags = inventory.adapterBoundary.inputFileFlags
   const fileTokens = help ? [] : parsed.tokens.filter(token => token.kind === 'option' && fileFlags.includes(token.name))
-  if (input.stdin !== undefined && !fileTokens.some(token => token.kind === 'option' && token.value === '-')
-    || fileTokens.some(token => token.kind === 'option' && (token.value === '-' ? input.stdin === undefined
+  const stdinToken = (token: typeof fileTokens[number]) => token.kind === 'option' && token.value === '-'
+    && ['input', 'body-file', 'notes-file'].includes(token.name)
+  if (input.stdin !== undefined && !fileTokens.some(stdinToken)
+    || fileTokens.some(token => token.kind === 'option' && (token.value === '-' ? !stdinToken(token) || input.stdin === undefined
       : !input.files?.some(file => file.name === token.value)))
     || input.files?.some(file => !fileTokens.some(token => token.kind === 'option' && token.value === file.name))) throw new ArtiumError('UNSUPPORTED_INPUT')
   const mutation = !help && (route.effect === 'write' || rawMutation)
@@ -106,7 +119,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   if (operations.some(operation => !giteaWriteOperations.includes(operation))) throw new ArtiumError('FLAG_BLOCKED')
   for (const token of parsed.tokens) {
     if (token.kind === 'option' && ['field', 'raw-field'].includes(token.name)
-      && /secret|token|password|authorization|api.?key/i.test(String(token.value).split('=')[0])) throw new ArtiumError('FLAG_BLOCKED')
+      && (rawSecret || /secret|token|password|authorization|api.?key/i.test(String(token.value).split('=')[0]))) throw new ArtiumError('FLAG_BLOCKED')
   }
   const forwarded = [...args]
   const fileArguments: number[] = []
@@ -119,7 +132,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
     fileArguments.push(index + 1)
   }
   if (!route.command && forwarded[0]?.startsWith('-R')) forwarded[0] = '--repo' + (forwarded[0].length > 2 ? '=' + forwarded[0].slice(2) : '')
-  return { args: forwarded, fileArguments, mutation, operations, confirmation: String(parsed.values.confirm ?? ''),
+  return { args: forwarded, fileArguments, mutation, operations, secretInput: !help && (command === 'secret set' || rawSecret && rawMutation), confirmation: String(parsed.values.confirm ?? ''),
     effect: mutation && parsed.values.confirm ? 'write' as const : 'read' as const,
     invocation: { command: command === 'dashboard' ? 'home' : command, help } }
 }
@@ -130,7 +143,19 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
     blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
+    sensitiveInput: (args, input) => {
+      const call = giteaArguments(args, input)
+      return 'secretInput' in call && Boolean(call.secretInput)
+    },
     validateArgs: (args, input) => { giteaArguments(args, input) },
+    async prepareArtifact(args, reference, scope) {
+      if (reference.tool !== 'gitea-axi' || transferTool(scope.selection.operation) !== 'gitea-axi'
+        || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const state = giteaWritePolicy.read(source.getSettings?.(reference) ?? {})
+      if (!state.enabled || !state.allowedOperations.includes(scope.selection.operation)) throw new ArtiumError('FLAG_BLOCKED')
+      return { executable: process.execPath, args: [toolPaths['gitea-axi'], ...args],
+        ...giteaProfile.prepare('gitea-axi', await source.getCredential(reference), writeLog, true), limits: { timeoutMs: runnerLimits.timeoutMs } }
+    },
     async prepare(args, reference, input) {
       const call = giteaArguments(args, input)
       if (reference.tool !== 'gitea-axi') throw new ArtiumError('CREDENTIAL_INVALID')
@@ -139,9 +164,16 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       if ('mutation' in call && call.mutation && (!state.enabled || call.operations.some(operation => !state.allowedOperations.includes(operation)))) throw new ArtiumError('FLAG_BLOCKED')
       if (state.enabled && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Gitea writes require an absolute server-owned journal path')
       const profile = giteaProfile.prepare('gitea-axi', await source.getCredential(reference), writeLog, !state.enabled)
+      const protectedInputs = 'secretInput' in call && call.secretInput
+        ? [input?.stdin, ...(input?.files ?? []).map(file => Buffer.from(file.contentBase64, 'base64').toString('utf8'))]
+          .filter((value): value is string => value !== undefined && value !== '') : []
+      const secretValues = protectedInputs.flatMap(value => {
+        try { const body: unknown = JSON.parse(value); return body && typeof body === 'object' && 'data' in body && typeof body.data === 'string' && body.data ? [body.data] : [] }
+        catch { return [] }
+      })
       return { ...call, executable: process.execPath, args: [toolPaths['gitea-axi'], ...call.args],
         fileArguments: call.fileArguments?.map(index => index + 1) ?? [], effect: 'effect' in call ? call.effect : 'read',
-        ...profile, environment: { ...profile.environment,
+        ...profile, secrets: [...profile.secrets, ...protectedInputs, ...secretValues], environment: { ...profile.environment,
           GITEA_AXI_HOST_WRITE_OPERATIONS: state.enabled ? state.allowedOperations.join(',') : '',
           GITEA_AXI_CREDENTIAL_REVISION: JSON.stringify({ reference, settings }) },
         ...('effect' in call && call.effect === 'write' ? { write: { operation: call.operations.join(','), target: 'explicit Gitea target', checkArgs: ['write', 'reconcile', call.confirmation] } } : {}),

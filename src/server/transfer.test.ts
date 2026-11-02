@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 import { transferExecuteSchema, transferLimits, transferPrepareSchema } from '../shared/api.js'
 import { migrate } from './store/db.js'
 import { checkTransferAccess, checkTransferCapacity, checkTransferScope, createTransferScope, transferTargetDigest } from './transfer.js'
+import { giteaTransferOperations } from '../shared/gitea-writes.js'
 
 const now = Date.UTC(2026, 0, 1)
 const owner = { userId: 'person', sessionFamilyId: 'family', reauthenticatedAt: now }
@@ -21,6 +22,28 @@ beforeEach(() => {
     INSERT INTO role_tools (role_id, tool) VALUES ('reader', 'hybrid-axi');`)
 })
 afterEach(() => db.close())
+
+test.each(giteaTransferOperations)('Gitea download %s requires an exact grant rather than an upload grant', operation => {
+  db.exec(`INSERT INTO tools (name, enabled, pinned_version) VALUES ('gitea-axi', 1, 'synthetic');
+    INSERT INTO role_tools (role_id, tool) VALUES ('reader', 'gitea-axi');`)
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'gitea-axi'").run(JSON.stringify({ writes: { allowWrites: true, operations: ['issueCreateIssueAttachment'] } }))
+  expect(() => checkTransferAccess(db, owner, operation, now)).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'gitea-axi'").run(JSON.stringify({ writes: { allowWrites: true, operations: [operation] } }))
+  expect(() => checkTransferAccess(db, owner, operation, now)).not.toThrow()
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'gitea-axi'").run(JSON.stringify({ writes: { allowWrites: false, operations: [operation] } }))
+  expect(() => checkTransferAccess(db, owner, operation, now)).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+})
+test.each([
+  { operation: 'gitea.issue.download', selector: 'example/project/42/77', valid: true },
+  { operation: 'gitea.pr.download', selector: 'example/project/42/77', valid: true },
+  { operation: 'gitea.release.download', selector: 'example/project/releases/v1+build/77', valid: true },
+  { operation: 'gitea.issue.download', selector: 'example/project/v1/77', valid: false },
+  { operation: 'gitea.issue.download', selector: '../project/42/77', valid: false },
+  { operation: 'gitea.release.download', selector: 'example/project/v1/0', valid: false },
+  { operation: 'gitea.release.download', selector: 'example/project/../77', valid: false },
+])('Gitea asset selection validates operation-specific target and ID: $selector', ({ operation, selector, valid }) => {
+  expect(transferPrepareSchema.safeParse({ ...request, selection: { operation, selector, type: 'attachment' } }).success).toBe(valid)
+})
 
 test.each(['hash-download-bin', 'report-download-bin', 'report-download-dropped-files', 'report-download-memory'])(
   'only the independently selected %s passes current transfer access', selected => {

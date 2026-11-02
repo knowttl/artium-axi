@@ -11,6 +11,22 @@ const directory = mkdtempSync(join(tmpdir(), 'artium-input-'))
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
+test('Gitea uploads opaque attachment bytes with a managed leaf', async () => {
+  const path = join(directory, 'asset.bin')
+  const bytes = Buffer.from([0, 255, 13, 10])
+  writeFileSync(path, bytes)
+  expect(await toolInput('gitea-axi', ['issue', 'upload', '42', '--file=' + path])).toEqual({ args: ['issue', 'upload', '42', '--file=asset.bin'],
+    files: [{ name: 'asset.bin', size: bytes.length, contentBase64: bytes.toString('base64') }] })
+})
+test('Gitea secret stdin remains a separate payload', async () => {
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['CANARY-protected-value']) as typeof process.stdin)
+  const args = ['secret', 'set', 'SYNTHETIC', '--input', '-']
+  expect(await toolInput('gitea-axi', args)).toEqual({ args, stdin: 'CANARY-protected-value' })
+})
+test('Gitea binary upload flags refuse unsupported stdin', async () => {
+  await expect(toolInput('gitea-axi', ['issue', 'upload', '42', '--file', '-'])).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+})
+
 test.each(['--notes-file', '-F'])('Gitea uploads a release file selected by %s', async flag => {
   const path = join(directory, 'notes.md')
   writeFileSync(path, 'Synthetic release notes')

@@ -41,6 +41,7 @@ export interface Adapter<Credential> {
   blockedFlags: readonly string[]
   allowedFlagValues: Readonly<Record<string, readonly string[]>>
   sensitiveArguments(args: readonly string[]): SensitiveArguments
+  sensitiveInput?(args: readonly string[], input?: RunnerInput): boolean
   validateArgs(args: readonly string[], input?: RunnerInput): void
   prepare(args: readonly string[], reference: CredentialReference, input?: RunnerInput): Promise<PreparedCall>
   prepareForCaller?(args: readonly string[], userId: string, input?: RunnerInput): Promise<PreparedCall>

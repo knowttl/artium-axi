@@ -188,10 +188,14 @@ Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared i
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
 Check Point stdin and server paths are unavailable.
-Gitea uploads local text or JSON through the file flags declared for each command in its [reviewed inventory](../tools/inventories/gitea-axi.json), including their short aliases.
+Gitea uploads local text, JSON or opaque attachment bytes through the file flags declared for each command in its [reviewed inventory](../tools/inventories/gitea-axi.json), including their short aliases.
 Explicit `--body-file -`, `--notes-file -` or `--input -` reads bounded caller stdin instead; other Gitea calls leave stdin unread.
-Repeat identical file or stdin bytes when confirming a preview; server paths, protected values and attachment transfers are unavailable.
-See the [Gitea capability boundary](safety.md#gitea-reads) for native preview and confirmation, and [recovery guidance](runbook.md#retention-and-export) for uncertain outcomes.
+Repeat identical file or stdin bytes when confirming a preview.
+Secret set requires protected `--input`; variable values are non-secret.
+Attachment `--file` and `--attach` accept local files, never stdin or server paths, within the existing upload limits.
+Save exact issue, pull request or release assets through `artium-axi download --help` after completing the [shared artifact-mount and controlled-client prerequisites](runbook.md#scope-and-prerequisites).
+For example, preview `artium-axi download --operation gitea.issue.download --selector OWNER/REPO/42/77 --type attachment --destination /controlled/artifacts/new-attachment.bin --sso`, then repeat the selection and destination with the returned `--transfer <transferId> --execute --confirm <exact-confirm>` and fresh identity confirmation.
+See the [Gitea capability boundary](safety.md#gitea-reads) for download grants, selectors, limits and native write confirmation, and [recovery guidance](runbook.md#retention-and-export) for uncertain outcomes.
 For Graph hunting and mail rule create/update, `--file <local-path>` and `--file=<local-path>` upload the local file and rewrite the argument to the fixed name `query.kql` for hunting or `rule.json` for rules.
 Local paths containing a `..` component are refused.
 The run API requires the corresponding fixed upload name; the [reviewed Graph inventory](../tools/inventories/mg-axi.json)'s `adapterBoundary.inputs` owns upload constraints.
