@@ -214,7 +214,7 @@ Use the **Write permissions** tab (`?tab=writes`) on a tool page to change write
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes** and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
-For Gitea, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+For Gitea, GitHub, Graph, Falcon, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and the independent RTR profile opt-in and command restriction.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.

@@ -303,8 +303,9 @@ An opting-in integration MUST additionally verify those behaviors, including own
 The Falcon adapter uses the pinned TypeScript credential schema and Artium's private profile writer.
 Client ID, client-secret SecretRef, region and optional member CID come from the stored profile.
 The shared profile writer removes host-owned `allowWrites` and `writes` from the upstream profile while preserving `rtr` settings.
-The host sets `FALCON_AXI_READ_ONLY=true` for every call in the passive read admission and refuses effectful commands before retrieving credentials.
-See the [Falcon capability boundary](safety.md#write-gates-by-tool) for retained administrator write choices.
+The host sets `FALCON_AXI_READ_ONLY=true` for reads and RTR previews, and `false` for administrator-authorized write calls.
+Unauthorized write calls are refused before retrieving credentials.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for administrator grants and native execution gates.
 The [Falcon inventory](../tools/inventories/falcon-axi.json) owns the blocked local configuration commands and credential overrides.
 
 mg-axi keeps the `mode` field.

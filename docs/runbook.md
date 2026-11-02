@@ -553,7 +553,8 @@ Azure, ordinary Graph runs and Vectra use isolated native journals at `<configur
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Graph mail downloads instead retain native intent/outcome journals at `<configured write-log path>.<transferId>`; run-journal retention does not prune these files.
-Legacy Falcon execution journals expire with their run directory after 90 days; admitted passive reads create no isolated run journals.
+Falcon write calls use isolated run directories at `<configured write-log path>.runs/run-*/`, with native RTR evidence in `writes.log` when emitted.
+These directories expire under the same 90-day retention; passive reads and RTR previews create no isolated run journals.
 Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
 Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.
 These journals are not pruned by run-journal retention.
