@@ -5,6 +5,7 @@ COPY package.json ./
 COPY dist/src/server ./dist/src/server
 COPY dist/src/shared ./dist/src/shared
 COPY dist/tools/inventories/gh-axi.json ./dist/tools/inventories/gh-axi.json
+COPY dist/tools/inventories/gitea-axi.json ./dist/tools/inventories/gitea-axi.json
 COPY node_modules/.pnpm/zod@*/node_modules/zod ./node_modules/zod
 COPY node_modules/.pnpm/@toon-format+toon@*/node_modules/@toon-format/toon ./node_modules/@toon-format/toon
 COPY test/fake-tool ./test/fake-tool
