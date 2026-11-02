@@ -2,20 +2,20 @@
   "generatedBy": "scripts/network-read-inventory.ts",
   "tool": "unifi-axi",
   "package": "@knowttl/unifi-axi",
-  "version": "0.1.0",
-  "integrity": "sha512-I16b8FozbmDxl+acJAH6My1JWicYCCfmi4wbsz35OQvgfupuZIRh0INmXxoRPddaqFOXYFFCZUF4J/H8xYfg6Q==",
+  "version": "0.1.1",
+  "integrity": "sha512-GbxXzfDGDK1aGLuDJvy1t6KPTmaI6vhMm1rUHL2ce1SJKVgUA8/bQO325pw8jYgR5NbkV+zEo9uw2J3AtAiDCw==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "82b00df16ce04400d2d995ee2225283a849b5fa9cfee4eb88150570c2443fb0c"
+      "sha256": "7c68c8ed8bc1b2c85c85fba6c9a61b1c6282db7cedc1e122eaedcf7df6f9fa36"
     },
     {
       "path": "dist/application.js",
-      "sha256": "e00d9be22f40833fe010eea38ccf2376a159a9afa2ea67c788df01aaec07a6bd"
+      "sha256": "20a33f9354d4fa0a23e2fabab6eaca7cf0531ee8fd43f5ca9885bf4108da0a11"
     },
     {
       "path": "dist/axi-credential.schema.json",
-      "sha256": "37050b43b787e7c0d891f2689ecde89f655370a3cb4d56249f31fc4322df98ed"
+      "sha256": "9749138d64ad25ee96873fc351b7a5cb013f632c401e472c49a620f2aa821552"
     },
     {
       "path": "dist/bin.js",
@@ -23,15 +23,15 @@
     },
     {
       "path": "dist/capabilities.json",
-      "sha256": "e853346f5760d404e7e79b085dd84ff5e3c784f35b87e8af84aa0235e12bb28a"
+      "sha256": "6f2c3292f4e75fe2bec0810af49e30cc621e12e3596a11c056b8def3fc1e6aab"
     },
     {
       "path": "dist/catalogue.js",
-      "sha256": "7887f59668e157524f61e80b0d06f1ca7bcf34c65a942c2023ac8a9aaa108e48"
+      "sha256": "1a8ed5feaf964ee6e5c10e41fda9a6baee02f6c49b167c301f53d841968d6aed"
     },
     {
       "path": "dist/cli.js",
-      "sha256": "a8b0d359da35e34e558e9fe44204e263b548e0fa72162760364d8e1a44918d5f"
+      "sha256": "e4b37525b8fecfb27a2985c96a9f6a662509f10e9f145e18b0284a7505835c6f"
     },
     {
       "path": "dist/commands.json",
@@ -39,27 +39,39 @@
     },
     {
       "path": "dist/contract-conflicts.json",
-      "sha256": "6c987222bb58753dc81e177c0384273bf00904603dd3289a59c91588c06b7507"
+      "sha256": "0de0c327aa9b15ee437e50a9859ced7c04f40d196c73f861671cd188e87f71bb"
+    },
+    {
+      "path": "dist/effects.js",
+      "sha256": "a03e30e43734166ebc351aaacf1b2ba2b4f0ffc5f40e2ba5172fca777f93cd0a"
+    },
+    {
+      "path": "dist/integrations.js",
+      "sha256": "39d52ef54c8673690210a8891ac0b942b0662a5dd1595ed46d23ac635f2698a7"
     },
     {
       "path": "dist/normalization-ledger.json",
-      "sha256": "f3150ed9a175f3e4f75fda306339da390ed648bccfd9692fe6e9374f5eaa932a"
+      "sha256": "d390270db8c099d884d0511fa51ddd21c41eb221a49cd020ffbaddeccd42e2cb"
     },
     {
       "path": "dist/paging.js",
-      "sha256": "ed740216119adca867c8fd73e5d77431c92823a9e0c70212f3b2b9d4e1625d72"
+      "sha256": "0a15de6d4fc11e53b4c9dfb40013ea6eb6ce4a42d1996aa1045e743b7c3d4e8e"
     },
     {
       "path": "dist/private-file.js",
-      "sha256": "741d25092b41ee4a98a163043b40cfb6cc78bdd362b29449ddf01d9144da1b64"
+      "sha256": "716409c252fbe51e7bfdde27c0a7d25732108c5e2534da342f0e565a3a46d985"
     },
     {
       "path": "dist/profiles.js",
-      "sha256": "3690a6f2bed3f8bf469275cf32d088e71aa6ffca2702e89ce7307f8fbe3fa7f5"
+      "sha256": "81ffb60bd1989933d37a085d4074cfefe05d5b956495b7c14442380ed2e79891"
     },
     {
       "path": "dist/reads.js",
-      "sha256": "7da2c531d76f4f3748ffe2c8e2920586ccf3d58b93f44b1766a1ba3694b9d8a5"
+      "sha256": "d41ed6d426bfbb4e1bb05b78c3f320ec207dda80ff668380a12cd97bfc0c3d55"
+    },
+    {
+      "path": "dist/secret-output.js",
+      "sha256": "bda5d2066a0de8cdd21d009c5a128cd6b11c8012b176c8d4f7390099812388a7"
     },
     {
       "path": "dist/security.js",
@@ -67,19 +79,27 @@
     },
     {
       "path": "dist/transport.js",
-      "sha256": "1c84920dbb6c8c31008fa979ffff8cec482a23c745578da9f83884263544111e"
+      "sha256": "1083ac5e38e94a01779bf64f6717976b72566e741d6809f57f4334ff86983be0"
     },
     {
       "path": "dist/validation.js",
-      "sha256": "f479f1f9df4d0d3df60a7eb26cf06ad6d1781b7f39a89eb86636ec9ac09218dd"
+      "sha256": "274942346bfc8e86e966ca0f9283b6184dbaa836d2647761dfeefffee03ae6bd"
     },
     {
       "path": "dist/version.js",
       "sha256": "06d4eab00217ec7cdb262461b78cbf4ea47890b99c45f23fa3f67643a0353038"
     },
     {
+      "path": "dist/write-journal.js",
+      "sha256": "83436bd0321f7d000beafa5fcb885decc3c1a60583dfdddb20d64c68776698cc"
+    },
+    {
+      "path": "dist/writes.js",
+      "sha256": "690317365bd2288874c8b87c9953b75176982cdde34cc4610d55d1fa39be50bf"
+    },
+    {
       "path": "dist/SKILL.md",
-      "sha256": "bbbf9cc34d4207eeabbc560f584b29cd513de8668f9c4a1dd3d313839df61529"
+      "sha256": "5392275d301bc300b068534dc60bbc61e2bb1bf4f464db4fa1fe0fb55d136a1f"
     },
     {
       "path": "evidence/sources/network-10.6.109-openapi.json",
@@ -91,7 +111,7 @@
     },
     {
       "path": "dist/axi-credential.schema.json",
-      "sha256": "37050b43b787e7c0d891f2689ecde89f655370a3cb4d56249f31fc4322df98ed"
+      "sha256": "9749138d64ad25ee96873fc351b7a5cb013f632c401e472c49a620f2aa821552"
     }
   ],
   "credentialSchema": {
@@ -152,6 +172,10 @@
           "11.0.97"
         ]
       },
+      "allowSecretExport": {
+        "type": "boolean",
+        "default": false
+      },
       "tls": {
         "type": "object",
         "additionalProperties": false,
@@ -197,7 +221,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "pattern": "^OP-[0-9]{3}$"
+              "pattern": "^(?:OP-[0-9]{3}|[A-Za-z][A-Za-z0-9]*(?::[A-Z][A-Z0-9_]*)?)$"
             }
           }
         }

@@ -1594,7 +1594,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'checkpoint-axi', version: '0.1.5', health: { status: 'disabled' } },
     { name: 'beyondtrust-axi', version: '0.1.6', health: { status: 'disabled' } },
     { name: 'gh-axi', version: '0.1.45', health: { status: 'disabled' } },
-    { name: 'unifi-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'unifi-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
