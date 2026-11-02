@@ -1,12 +1,14 @@
 import { createReadStream } from 'node:fs'
+import { parseArgs } from 'node:util'
 import { basename } from 'node:path'
 import type { Readable } from 'node:stream'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
 import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
+import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
-import { inputFileFlags, validateFileInput } from '../shared/file-input.js'
+import { inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
 
 async function readBounded(stream: Readable, limit: number, stdinAlternative?: string): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -32,7 +34,7 @@ async function readBounded(stream: Readable, limit: number, stdinAlternative?: s
 // Only reviewed file flags upload local contents; other paths remain arguments.
 export async function toolInput(tool: string, original: string[]) {
   if (!runRequestSchema.safeParse({ args: original }).success) throw new ArtiumError('INVALID_INPUT')
-  const args = [...original]
+  const args = tool === 'gitea-axi' ? normalizeGiteaFileArguments(original) : [...original]
   const input: RunInput = {}
   let totalFileBytes = 0
   if (tool === 'gh-axi' && ['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))
@@ -45,18 +47,41 @@ export async function toolInput(tool: string, original: string[]) {
   const rule = tool === 'mg-axi' && ['mail rule create', 'mail rule update'].includes(args.slice(0, 3).join(' '))
   const mgUpload = hunting || rule
   const fileFlags = inputFileFlags(tool, original)
+  let giteaFiles: Map<number, { name: string, value: string, inline: boolean }> | undefined
+  if (tool === 'gitea-axi' && fileFlags.length) {
+    const route = gitea.commands.find(route => route.command && route.command.split(' ').every((word, index) => args[index] === word))!
+    const length = route.command.split(' ').length
+    try {
+      const flags: Record<string, string | undefined> = route.flags
+      const shorts: Record<string, string | undefined> = route.shortFlags
+      const repeatable: readonly string[] = route.repeatableFlags
+      const parsed = parseArgs({ args: args.slice(length).map(arg => {
+        const match = /^--([^=]+)=(true|false)$/.exec(arg)
+        return match && flags[match[1]] === 'boolean' ? '--' + match[1] : arg
+      }), allowPositionals: true, strict: true, tokens: true, options: Object.fromEntries(Object.entries(flags).map(([name, type]) => {
+        const short = Object.entries(shorts).find(([, target]) => target === name)?.[0]
+        return [name, { type: type === 'boolean' ? 'boolean' : 'string', multiple: repeatable.includes(name), ...(short ? { short } : {}) }]
+      })) })
+      giteaFiles = new Map(parsed.tokens.flatMap(token => token.kind === 'option' && fileFlags.includes(token.name)
+        && !(parsed.values.help && !args.includes('--help=false')) ? [[length + token.index, { name: token.name, value: token.value!, inline: token.inlineValue === true }]] : []))
+    } catch { throw new ArtiumError('INVALID_INPUT') }
+  }
   if ((fileFlags.length || tool === 'az-axi') && !args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
     for (let index = 0; index < args.length; index++) {
       if (args[index] === '--') break
-      const [flag] = args[index].split('=')
+      const selected = giteaFiles?.get(index)
+      if (giteaFiles && !selected) continue
+      const flag = selected ? '--' + selected.name : args[index].split('=')[0]
       if (!fileFlags.some(name => flag === `--${name}`)) continue
-      const equals = args[index].indexOf('=')
-      let path = equals < 0 ? args[++index] : args[index].slice(equals + 1)
+      const equals = selected ? selected.inline ? 0 : -1 : args[index].indexOf('=')
+      let path = selected?.value ?? (equals < 0 ? args[index + 1] : args[index].slice(equals + 1))
+      if (equals < 0) index++
+      if (selected && !selected.inline) args[index - 1] = flag
       if (tool === 'awx-axi' && awx.adapterBoundary.structuredInputFlags.includes(flag.slice(2))) {
         if (!path?.startsWith('@')) continue
         path = path.slice(1)
       }
-      if (path === '-' && (tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file'
+      if (path === '-' && (tool === 'gitea-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file'
         || tool === 'awx-axi' && (flag === '--password-file' || flag === '--inputs-file' && args[0] === 'credential'))) {
         if (input.stdin !== undefined) throw new ArtiumError('INVALID_INPUT')
         input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes, flag)).toString('utf8')

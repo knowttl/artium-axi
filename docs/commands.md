@@ -24,7 +24,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi unifi-axi [<args>]` | Read implemented UniFi application, inventory and policy commands with managed credentials. |
 | `artium-axi proxmox-axi [<args>]` | Read ordinary Proxmox routes with a managed API token; writes and byte transports are unavailable. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
-| `artium-axi gitea-axi [<args>]` | Read Gitea repositories, issues, pull requests and classified API metadata with managed credentials. |
+| `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources, logs and passive authorization reviews with managed credentials and pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts and check authentication through dedicated ordinary bindings without remote execution. |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |

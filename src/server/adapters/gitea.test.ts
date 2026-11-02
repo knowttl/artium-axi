@@ -15,7 +15,7 @@ test.each([
   { origin: 'http://forge.example', tokenOrigin: 'http://forge.example' },
   { origin: 'https://forge.example/path', tokenOrigin: 'https://forge.example/path' },
   { origin: 'https://forge.example', tokenOrigin: 'https://other.example' },
-  { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', writes: { allowWrites: true, operations: ['issue.create'] } },
+  { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', allowInsecureHttp: true },
 ])('Gitea credential input refuses unsafe binding or policy: %j', identity => {
   expect(giteaProfile.credentialSchema.safeParse({ ...identity, token: 'CANARY-gitea-token' }).success).toBe(false)
 })
@@ -57,15 +57,16 @@ test.each([
 })
 
 test.each([
-  { group: 'repo', children: ['repo view', 'repo list'] },
+  { group: 'repo', children: ['repo view', 'repo list', 'repo create', 'repo edit', 'repo fork'] },
   { group: 'org', children: ['org view'] },
-  { group: 'issue', children: ['issue list', 'issue view'] },
-  { group: 'pr', children: ['pr list', 'pr view', 'pr checks', 'pr diff'] },
-  { group: 'release', children: ['release list', 'release view'] },
+  { group: 'issue', children: ['issue list', 'issue view', 'issue create', 'issue edit', 'issue close', 'issue reopen', 'issue comment', 'issue delete', 'issue pin', 'issue unpin'] },
+  { group: 'pr', children: ['pr list', 'pr view', 'pr checks', 'pr diff', 'pr create', 'pr edit', 'pr close', 'pr reopen', 'pr comment', 'pr update-branch', 'pr merge', 'pr review'] },
+  { group: 'release', children: ['release list', 'release view', 'release create', 'release edit', 'release delete'] },
   { group: 'run', children: ['run list'] },
   { group: 'secret', children: ['secret list'] },
   { group: 'variable', children: ['variable list'] },
-  { group: 'label', children: ['label list'] },
+  { group: 'label', children: ['label list', 'label create', 'label edit', 'label delete'] },
+  { group: 'write', children: ['write reconcile'] },
   { group: 'search', children: ['search issues', 'search prs', 'search repos', 'search commits'] },
 ])('Gitea $group help retains its group and only admitted children', async ({ group, children }) => {
   const args = [group, '--help']

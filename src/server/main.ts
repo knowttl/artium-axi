@@ -75,7 +75,8 @@ async function main() {
         createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
         createBeyondtrustAdapter(source, join(dirname(database), 'tool-logs', 'beyondtrust-axi', 'writes.log')),
         createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log')),
-        createNetworkReadAdapter('unifi-axi', source), createNetworkReadAdapter('proxmox-axi', source), createGiteaAdapter(source), await createKubernetesAdapter(source)] })
+        createNetworkReadAdapter('unifi-axi', source), createNetworkReadAdapter('proxmox-axi', source),
+        createGiteaAdapter(source, join(dirname(database), 'tool-logs', 'gitea-axi', 'writes.log')), await createKubernetesAdapter(source)] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'audit' }) }

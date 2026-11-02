@@ -551,6 +551,11 @@ Keep their shared journals and adjacent lock files intact, including across rest
 Check Point's shared journal uses audit IDs rather than the legacy Vectra intent-key format and remains outside automatic retention.
 Successful reads for these tools report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
+Gitea keeps its shared dispatch journal at `<database directory>/tool-logs/gitea-axi/writes.log` and native receipts and attempt guards in the adjacent `write-receipts/` directory.
+These files survive calls and restarts and are not automatically pruned; preserve them together when backing up or recovering write state so replay protection remains intact.
+After an uncertain Gitea result, including native `WRITE_OUTCOME_UNKNOWN`, use `artium-axi gitea-axi write reconcile UUID` with the preview's confirmation UUID to inspect the receipt and current remote observations.
+Reconciliation remains available when writes are disabled, subject to the current tool grant and managed credential.
+Do not retry the mutation or delete its receipt or attempt guards; native guards refuse redispatch.
 BeyondTrust executed mutations persist a redacted host `intent.json` before starting the child at `<database directory>/tool-logs/beyondtrust-axi/writes.log.runs/run-*/`.
 Native intents live under that run directory's `beyondtrust-axi/writes/`; these directories survive runner cleanup and expire at startup and daily when the run directory's modification time is strictly older than 90 days.
 Retention validates the host intent and any native intents before removing the whole directory.

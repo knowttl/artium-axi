@@ -31,7 +31,8 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
   if (tool === 'gitea-axi') {
     expect(skill).toContain('issue view 42 --repo OWNER/NAME --help')
     expect(skill).toContain('api GET repos/OWNER/NAME')
-    expect(skill).toContain('attachment transfers are unavailable.')
+    expect(skill).toContain('Writes default off and require administrator Allow writes plus exact native operation IDs.')
+    expect(skill).toContain('Protected values, attachments, pending workflow commands, local workflows and credential routes are unavailable.')
     return
   }
   if (tool === 'unifi-axi' || tool === 'proxmox-axi') {

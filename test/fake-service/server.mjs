@@ -16,6 +16,9 @@ let awxConfigurationAllowed = true
 let awxDropWrite = false
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
+const giteaIssue = { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
+  user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }
+let giteaDropWrite = false
 const certs = process.argv[2] ?? '/certs'
 const githubAppPublicKey = new X509Certificate(readFileSync(join(certs, 'server.crt'))).publicKey
 
@@ -100,13 +103,22 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     })
     return
   }
-  if (url.pathname === '/api/v1/version' || url.pathname === '/api/v1/repos/example/project/issues/42') {
+  if (url.pathname === '/__gitea/drop-write') { giteaDropWrite = true; res.end('{}'); return }
+  if (['/api/v1/version', '/api/v1/user', '/api/v1/repos/example/project/issues/42'].includes(url.pathname)) {
     const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
     requests.push({ method: req.method, path: url.pathname, canaryReceived })
-    if (req.method !== 'GET' || !canaryReceived) { res.writeHead(401); res.end('{}'); return }
-    res.end(JSON.stringify(url.pathname === '/api/v1/version' ? { version: '1.23.4' }
-      : { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
-        user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }))
+    if (!canaryReceived) { res.writeHead(401); res.end('{}'); return }
+    if (req.method === 'PATCH' && url.pathname.endsWith('/issues/42')) {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        Object.assign(giteaIssue, JSON.parse(body)); mutations++
+        if (giteaDropWrite) { giteaDropWrite = false; req.socket.destroy(); return }
+        res.end(JSON.stringify(giteaIssue))
+      })
+    } else if (req.method === 'GET') res.end(JSON.stringify(url.pathname === '/api/v1/version' ? { version: '1.23.4' }
+      : url.pathname === '/api/v1/user' ? { id: 1, login: 'synthetic-reader' } : giteaIssue))
+    else { res.writeHead(405); res.end('{}') }
     return
   }
   if (url.pathname === '/proxy/network/integration/v1/info' || url.pathname === '/api2/json/version') {

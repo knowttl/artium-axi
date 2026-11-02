@@ -51,8 +51,8 @@ importers:
         specifier: 0.1.6
         version: 0.1.6
       '@knowttl/unifi-axi':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
       '@knowttl/vectra-axi':
         specifier: 0.1.14
         version: 0.1.14
@@ -78,6 +78,10 @@ packages:
   '@azure/msal-node@7.0.1':
     resolution: {integrity: sha512-mrHLCwXird58rdk7LjvlUn5YybvVb3qXwlw3tvSWqHllmatFeQYuFhX/cJ7CoGgpdAOmNzm6Un4KDu+v/O3Tcw==}
     engines: {node: '>=20'}
+
+  '@decimalturn/toml-patch@3.3.2':
+    resolution: {integrity: sha512-UUsjKkIJWC4JwhAK7IUMZeN4TjjtCWapAkdIuvllT3/fYcNooDQ0HtwgGDV77ew+arh/15hazN9M9/oSNV+PDg==}
+    engines: {node: '>=16'}
 
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
@@ -153,8 +157,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/unifi-axi@0.1.0':
-    resolution: {integrity: sha512-I16b8FozbmDxl+acJAH6My1JWicYCCfmi4wbsz35OQvgfupuZIRh0INmXxoRPddaqFOXYFFCZUF4J/H8xYfg6Q==}
+  '@knowttl/unifi-axi@0.1.1':
+    resolution: {integrity: sha512-GbxXzfDGDK1aGLuDJvy1t6KPTmaI6vhMm1rUHL2ce1SJKVgUA8/bQO325pw8jYgR5NbkV+zEo9uw2J3AtAiDCw==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
@@ -523,6 +527,8 @@ snapshots:
       '@azure/msal-common': 16.14.2
       jsonwebtoken: 9.0.3
 
+  '@decimalturn/toml-patch@3.3.2': {}
+
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
       minipass: 7.1.3
@@ -621,8 +627,9 @@ snapshots:
       smol-toml: 1.9.1
       zod: 4.3.6
 
-  '@knowttl/unifi-axi@0.1.0':
+  '@knowttl/unifi-axi@0.1.1':
     dependencies:
+      '@decimalturn/toml-patch': 3.3.2
       '@toon-format/toon': 2.3.1
 
   '@knowttl/vectra-axi@0.1.14':

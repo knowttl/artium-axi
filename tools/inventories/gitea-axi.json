@@ -2741,20 +2741,26 @@
       "password",
       "authorization",
       "allow-insecure-http",
-      "allow-write",
-      "preview",
-      "confirm",
-      "field",
-      "raw-field",
-      "input",
-      "header"
+      "header",
+      "source",
+      "push",
+      "remote",
+      "clone",
+      "workspace",
+      "attach",
+      "file",
+      "content-type"
     ],
-    "nativeWrites": "not admitted",
+    "nativeWrites": "exact administrator-selected native operations with preview/confirmation and durable receipts",
+    "inputFileFlags": [
+      "input",
+      "body-file",
+      "notes-file"
+    ],
     "blockedCommands": [
       "auth",
       "profile",
       "config",
-      "write",
       "setup",
       "update"
     ],
@@ -2770,7 +2776,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "repo view",
@@ -2781,7 +2788,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "secret list",
@@ -2794,7 +2802,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "variable list",
@@ -2807,7 +2816,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "dashboard",
@@ -2818,7 +2828,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "doctor",
@@ -2826,7 +2837,8 @@
       "flags": {
         "help": "boolean"
       },
-      "shortFlags": {}
+      "shortFlags": {},
+      "repeatableFlags": []
     },
     {
       "command": "repo list",
@@ -2836,7 +2848,8 @@
         "limit": "value",
         "org": "value"
       },
-      "shortFlags": {}
+      "shortFlags": {},
+      "repeatableFlags": []
     },
     {
       "command": "org view",
@@ -2844,7 +2857,8 @@
       "flags": {
         "help": "boolean"
       },
-      "shortFlags": {}
+      "shortFlags": {},
+      "repeatableFlags": []
     },
     {
       "command": "issue list",
@@ -2864,7 +2878,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "issue view",
@@ -2878,7 +2893,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "label list",
@@ -2890,7 +2906,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "pr list",
@@ -2910,7 +2927,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "pr view",
@@ -2926,7 +2944,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "pr checks",
@@ -2940,7 +2959,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "pr diff",
@@ -2952,7 +2972,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "release list",
@@ -2966,7 +2987,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "release view",
@@ -2978,18 +3000,535 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "api",
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "method": "value"
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "method": "value",
+        "field": "value",
+        "raw-field": "value",
+        "input": "value"
       },
       "shortFlags": {
         "X": "method"
-      }
+      },
+      "repeatableFlags": [
+        "field",
+        "raw-field"
+      ]
+    },
+    {
+      "command": "write reconcile",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {},
+      "repeatableFlags": []
+    },
+    {
+      "command": "repo create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "public": "boolean",
+        "private": "boolean",
+        "description": "value",
+        "template": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "repo edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "description": "value",
+        "visibility": "value",
+        "default-branch": "value",
+        "enable-issues": "boolean",
+        "enable-wiki": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "repo fork",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "org": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "release create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "title": "value",
+        "notes": "value",
+        "notes-file": "value",
+        "body": "value",
+        "body-file": "value",
+        "draft": "boolean",
+        "prerelease": "boolean",
+        "target": "value",
+        "generate-notes": "boolean",
+        "notes-start-tag": "value",
+        "notes-from-tag": "boolean",
+        "verify-tag": "boolean",
+        "fail-on-no-commits": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo",
+        "t": "title",
+        "n": "notes",
+        "F": "notes-file",
+        "d": "draft",
+        "p": "prerelease"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "release edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "title": "value",
+        "notes": "value",
+        "notes-file": "value",
+        "body": "value",
+        "body-file": "value",
+        "draft": "boolean",
+        "prerelease": "boolean"
+      },
+      "shortFlags": {
+        "R": "repo",
+        "n": "notes",
+        "F": "notes-file"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "release delete",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "pr create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "title": "value",
+        "body": "value",
+        "body-file": "value",
+        "milestone": "value",
+        "base": "value",
+        "head": "value",
+        "assignee": "value",
+        "label": "value",
+        "reviewer": "value",
+        "team-reviewer": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "assignee",
+        "label",
+        "reviewer",
+        "team-reviewer"
+      ]
+    },
+    {
+      "command": "pr edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "title": "value",
+        "body": "value",
+        "body-file": "value",
+        "milestone": "value",
+        "base": "value",
+        "add-label": "value",
+        "remove-label": "value",
+        "add-assignee": "value",
+        "remove-assignee": "value",
+        "add-reviewer": "value",
+        "remove-reviewer": "value",
+        "add-team-reviewer": "value",
+        "remove-team-reviewer": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "add-label",
+        "remove-label",
+        "add-assignee",
+        "remove-assignee",
+        "add-reviewer",
+        "remove-reviewer",
+        "add-team-reviewer",
+        "remove-team-reviewer"
+      ]
+    },
+    {
+      "command": "pr close",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "comment": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "pr reopen",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "pr comment",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "body": "value",
+        "body-file": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "pr update-branch",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "pr merge",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "method": "value",
+        "merge": "boolean",
+        "squash": "boolean",
+        "rebase": "boolean",
+        "match-head-commit": "value",
+        "subject": "value",
+        "body": "value",
+        "body-file": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "pr review",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "approve": "boolean",
+        "request-changes": "boolean",
+        "comment": "boolean",
+        "match-head-commit": "value",
+        "body": "value",
+        "body-file": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "issue create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "title": "value",
+        "body": "value",
+        "body-file": "value",
+        "milestone": "value",
+        "assignee": "value",
+        "label": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "assignee",
+        "label"
+      ]
+    },
+    {
+      "command": "issue edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "title": "value",
+        "body": "value",
+        "body-file": "value",
+        "milestone": "value",
+        "add-label": "value",
+        "remove-label": "value",
+        "add-assignee": "value",
+        "remove-assignee": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "add-label",
+        "remove-label",
+        "add-assignee",
+        "remove-assignee"
+      ]
+    },
+    {
+      "command": "issue close",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "comment": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "issue reopen",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "issue comment",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "body": "value",
+        "body-file": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "issue delete",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "issue pin",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "issue unpin",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "label create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "name": "value",
+        "color": "value",
+        "description": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "label edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "name": "value",
+        "color": "value",
+        "description": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "label delete",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
     },
     {
       "command": "run list",
@@ -3007,7 +3546,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "search issues",
@@ -3027,7 +3567,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "search prs",
@@ -3048,7 +3589,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "search repos",
@@ -3066,7 +3608,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     },
     {
       "command": "search commits",
@@ -3083,7 +3626,8 @@
       },
       "shortFlags": {
         "R": "repo"
-      }
+      },
+      "repeatableFlags": []
     }
   ],
   "discovery": {
@@ -3105,6 +3649,32 @@
       "release list",
       "release view",
       "api",
+      "write reconcile",
+      "repo create",
+      "repo edit",
+      "repo fork",
+      "release create",
+      "release edit",
+      "release delete",
+      "pr create",
+      "pr edit",
+      "pr close",
+      "pr reopen",
+      "pr comment",
+      "pr update-branch",
+      "pr merge",
+      "pr review",
+      "issue create",
+      "issue edit",
+      "issue close",
+      "issue reopen",
+      "issue comment",
+      "issue delete",
+      "issue pin",
+      "issue unpin",
+      "label create",
+      "label edit",
+      "label delete",
       "run list",
       "search issues",
       "search prs",
@@ -3117,6 +3687,6 @@
       "--repo",
       "<owner/name>"
     ],
-    "help": "Gitea managed reads. Repository reads require --repo OWNER/NAME.\nRaw api accepts GET and classified metadata paths only.\nUse pr checks --watch with --timeout from 1 to 50 seconds.\nWrites, local workflows, configuration overrides and attachment transfers are unavailable.\n"
+    "help": "Gitea managed reads and administrator-selected writes. Repository commands require --repo OWNER/NAME.\nWrites are off by default; select exact native operation IDs with --allow-write and use --preview, then repeat the same request with --confirm <confirmation>.\nUse write reconcile <confirmation> after an uncertain outcome; never replay it.\nUse pr checks --watch with --timeout from 1 to 50 seconds.\nText/JSON input accepts managed uploads or explicit stdin. Protected values, attachment transfers, local workflows and identity overrides are unavailable.\n"
   }
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { giteaWriteOperations } from './gitea-writes.js'
 import { errors } from './errors.js'
 import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 
@@ -304,7 +305,8 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
 export const ghWriteOperations = ghInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
 export const nativeSettingsSchemas = {
   'ssh-axi': z.strictObject({}),
-  'gitea-axi': z.strictObject({}),
+  'gitea-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
+    operations: z.array(z.enum(giteaWriteOperations)).min(1).max(giteaWriteOperations.length) }).optional() }),
   'kubernetes-axi': z.strictObject({}),
   'unifi-axi': z.strictObject({}),
   'proxmox-axi': z.strictObject({}),
@@ -341,8 +343,9 @@ export const nativeSettingsSchemas = {
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
+  if (tool === 'gitea-axi') return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   if (tool === 'ssh-axi') return false
-  if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'gitea-axi' || tool === 'kubernetes-axi') return false
+  if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'kubernetes-axi') return false
   if (tool === 'falcon-axi') return false
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
@@ -366,7 +369,7 @@ export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabl
 // tool-write-access audit arguments contain enabled, optional allowDeletes, catalogue operation identities and
 // unsupportedOperationCount. Arbitrary legacy allow-list strings are counted, never logged.
 export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean().optional(), enabled: z.boolean(),
-  operations: z.array(z.string().min(1).max(256)).max(126).refine(operations => new Set(operations).size === operations.length).optional(),
+  operations: z.array(z.string().min(1).max(256)).max(Math.max(126, giteaWriteOperations.length)).refine(operations => new Set(operations).size === operations.length).optional(),
   expectedRevision: z.number().int().positive() })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.

@@ -214,7 +214,7 @@ Use the **Write permissions** tab (`?tab=writes`) on a tool page to change write
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes** and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
-For GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+For Gitea, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for its fixed read-only policy and retained write selections.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
@@ -356,7 +356,8 @@ For Azure, Graph and Vectra, each `run-terminal` record uses `action` to report 
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 LDAP runs report `read` from its inventory's read-only declaration.
 Admitted Falcon calls report `read`.
-ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+ADO, AWX and Gitea use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
 Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.
 The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal.
 The record identifies the authenticated user when available; execution outcome remains in the normal run-terminal record.
