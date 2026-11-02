@@ -53,7 +53,11 @@ The managed account form already supports PAT entry or username/password token a
 Every file flag, `--extra-vars @file`, and upstream stdin form is marked in the matrix.
 Private keys, passwords, tokens and other credential fields belong inside credential `--inputs-file` JSON, `--password-file`, launch `--credential-passwords-file` JSON, or managed account credentials, never secret argv flags.
 Notification configuration/messages, variables, module arguments and SCM URLs are marked as potentially secret-bearing structured input.
-Slice c must deliver caller-owned file or secret bytes through the **TD-066 file channel**, materializing only bounded private runner leaves, with scanning, redaction and cleanup.
+S2 delivers caller-owned file or secret bytes through the **TD-066 file channel**, materializing only bounded private runner leaves, with scanning, redaction and cleanup.
+File flags take local paths in the CLI and declared uploaded leaf names in the API.
+Structured flags accept inline JSON/YAML or `@local-file` in the CLI; their values are materialized privately and loaded into upstream argv in memory, never into process arguments.
+The upstream command retains its format validation, such as JSON-only schedule extra variables.
+SCM URLs remain blocked pending their separate managed input contract.
 No flag may read an arbitrary server file path.
 This includes stdin values represented upstream by `-`: credential inputs and user passwords must use the same controlled channel.
 Managed account PAT/password entry stays in Artium's existing credential storage workflow, rather than becoming command input.
@@ -65,7 +69,8 @@ Global `--config` refers to managed runner configuration and has no caller file-
 ## Delivery slices
 
 These work packages retain the earlier b-f labels; their target controls follow the [target authorization policy](awx-parity-matrix.md#target-authorization-policy).
-S1 has enabled the mutation routes in b-e except inputs awaiting the S2 secure input channel; these rows retain the remaining acceptance work and original grouping.
+S1 enabled the mutation routes in b-e; S2 adds secure structured, credential, notification and bulk file inputs.
+These rows retain the remaining acceptance work and original grouping.
 
 | Slice | Work and acceptance boundary | Required controls |
 | --- | --- | --- |

@@ -1,5 +1,19 @@
 type OutputStream = 'stdout' | 'stderr'
 
+export function secretForms(secrets: readonly string[]): string[] {
+  const forms = new Set<string>()
+  for (const secret of secrets) {
+    if (secret.length === 0) throw new Error('Secret values must be nonempty')
+    const bytes = Buffer.from(secret, 'utf8')
+    forms.add(secret)
+    forms.add(bytes.toString('base64'))
+    forms.add(bytes.toString('base64url'))
+    forms.add(encodeURIComponent(secret))
+    forms.add(JSON.stringify(secret).slice(1, -1))
+  }
+  return [...forms]
+}
+
 // Prefix lengths let a mismatch reuse a partial match without retaining output bytes.
 function prefixLengths(bytes: Uint8Array): Uint32Array {
   const lengths = new Uint32Array(bytes.length)
@@ -22,17 +36,7 @@ export class SecretScanner {
   #matched = false
 
   constructor(secrets: readonly string[]) {
-    const forms = new Set<string>()
-    for (const secret of secrets) {
-      if (secret.length === 0) throw new Error('Secret values must be nonempty')
-      const bytes = Buffer.from(secret, 'utf8')
-      forms.add(secret)
-      forms.add(bytes.toString('base64'))
-      forms.add(bytes.toString('base64url'))
-      forms.add(encodeURIComponent(secret))
-      forms.add(JSON.stringify(secret).slice(1, -1))
-    }
-    this.#patterns = [...forms].map(form => {
+    this.#patterns = secretForms(secrets).map(form => {
       const bytes = Buffer.from(form, 'utf8')
       return { bytes, prefixes: prefixLengths(bytes) }
     })

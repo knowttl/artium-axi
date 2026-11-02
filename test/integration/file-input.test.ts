@@ -3,12 +3,13 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, watch, writ
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { Client } from '../../src/cli/http.js'
 import { toolInput } from '../../src/cli/input.js'
 import { inputLimits, runSuccessSchema } from '../../src/shared/api.js'
 import { createApp } from '../../src/server/app.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -18,6 +19,7 @@ import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 
+describe.each(['vectra-axi', 'awx-axi'] as const)('%s private file channel', tool => {
 let directory: string
 let db: Database.Database
 let app: ReturnType<typeof createApp>
@@ -26,23 +28,24 @@ let client: Client
 let token: string
 let outcome: string
 let terminal: Promise<string>
-const content = Buffer.from([0, 255, 1, 2, 195, 169])
-const route = '/v1/tools/vectra-axi/run'
+const content = tool === 'awx-axi' ? Buffer.from('{"password":"CANARY-file-secret","key":"é"}\r\n') : Buffer.from([0, 255, 1, 2, 195, 169])
+const route = `/v1/tools/${tool}/run`
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-file-input-'))
   db = openStore(join(directory, 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
   await seedToolUser(db)
-  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   token = issueTestAccessToken(db, 'synthetic-development-user')
   runner = await Runner.create(join(directory, 'calls'))
-  const adapter = createVectraAdapter({ getCredential: async () => ({ kind: 'qux', apiVersion: '2.5', auth: 'token',
+  const adapter = tool === 'awx-axi' ? createAwxAdapter({ getCredential: async () => ({ origin: 'https://synthetic.invalid', token: 'CANARY-awx-token', allowWrites: true }) })
+    : createVectraAdapter({ getCredential: async () => ({ kind: 'qux', apiVersion: '2.5', auth: 'token',
     token: 'CANARY-vectra-token', origin: 'https://synthetic.invalid' }) }, join(directory, 'writes.log'))
   const prepare = adapter.prepare.bind(adapter)
   // Replace only the external executable with the existing offline probe.
   const execution = { ...adapter, prepare: async (...args: Parameters<typeof prepare>) => {
     const call = await prepare(...args)
-    return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, 'input-file', ...call.args],
+    return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, outcome === 'args' ? 'print' : tool === 'awx-axi' ? 'awx-input' : 'input-file', ...call.args],
       fileArguments: call.fileArguments?.map(index => index + fakeTool.args.length + 1),
       environment: { ...call.environment, ARTIUM_TEST_READY_FILE: join(directory, 'ready.json'), ARTIUM_TEST_INPUT_OUTCOME: outcome } }
   } }
@@ -53,7 +56,7 @@ beforeEach(async () => {
     if (record.event === 'run-terminal') completed(record.outcome)
   })
   app = createApp({ db, runner, audit, environment: {}, adapters: [execution],
-    resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool: 'vectra-axi' }, value: {} }])) })
+    resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool }, value: {} }])) })
   const url = await app.listen({ host: '127.0.0.1', port: 0 })
   client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory })
   writeFileSync(join(directory, 'report.txt'), content)
@@ -67,7 +70,9 @@ afterEach(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-const upload = () => toolInput('vectra-axi', ['detection', 'note', 'add', '--id', '123', '--note-file', join(directory, 'report.txt')])
+const upload = () => toolInput(tool, tool === 'awx-axi'
+  ? ['credential', 'edit', '42', '--inputs-file', join(directory, 'report.txt'), '--dry-run']
+  : ['detection', 'note', 'add', '--id', '123', '--note-file', join(directory, 'report.txt')])
 
 test.each([{ result: 'success', exitCode: 0 }, { result: 'error', exitCode: 7 }])('TD-066 transports file bytes privately and removes them after $result', async ({ result, exitCode }) => {
   outcome = result
@@ -77,12 +82,14 @@ test.each([{ result: 'success', exitCode: 0 }, { result: 'error', exitCode: 7 }]
   expect(response.exitCode).toBe(exitCode)
   const received = JSON.parse(response.stdout)
   expect(received).toEqual({ path: expect.stringMatching(/\/artium-call-[^/]+\/tmp\/inputs\/report.txt$/),
-    contentBase64: content.toString('base64'), mode: 0o600, directoryMode: 0o700 })
+    ...(tool === 'awx-axi' ? { argv: expect.any(Array), sha256: createHash('sha256').update(content).digest('hex') }
+      : { contentBase64: content.toString('base64') }), mode: 0o600, directoryMode: 0o700 })
+  expect(response.stdout).not.toContain('CANARY-')
   expect(existsSync(received.path)).toBe(false)
   expect(readdirSync(join(directory, 'calls'))).toEqual([])
   const record = db.prepare("SELECT user_id, tool, arguments FROM audit WHERE event = 'upload'").get() as { arguments: string }
-  expect(record).toEqual({ user_id: 'synthetic-development-user', tool: 'vectra-axi', arguments: expect.any(String) })
-  expect(JSON.parse(record.arguments)).toEqual({ command: request.args,
+  expect(record).toEqual({ user_id: 'synthetic-development-user', tool, arguments: expect.any(String) })
+  expect(JSON.parse(record.arguments)).toEqual({ command: tool === 'awx-axi' ? ['credential', 'edit', '[redacted]', '[redacted]', '[redacted]', '[redacted]'] : request.args,
     file: { name: 'report.txt', size: content.length, sha256: createHash('sha256').update(content).digest('hex') } })
   expect(record.arguments).not.toContain(content.toString('base64'))
 })
@@ -134,4 +141,24 @@ test.each([
   await expect(client.request(route, 'POST', { ...request, args }, token)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
   expect(existsSync(join(directory, 'ready.json'))).toBe(false)
   expect(readdirSync(join(directory, 'calls'))).toEqual([])
+})
+
+if (tool === 'awx-axi') test('scanner rejects an individual credential field leaked by the child', async () => {
+  outcome = 'leak'
+  await expect(client.request(route, 'POST', await upload(), token)).rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
+  expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-file-secret')
+})
+
+if (tool === 'awx-axi') test('structured values stay out of the child process arguments', async () => {
+  outcome = 'args'
+  const result = runSuccessSchema.parse(await client.request(route, 'POST', {
+    args: ['inventory', 'host-create', 'synthetic-host', '--variables', '{"password":"CANARY-inline-secret"}', '--dry-run'],
+  }, token))
+  expect(result.exitCode).toBe(0)
+  expect(result.stdout).toContain('--variables private-input')
+  expect(result.stdout).not.toContain('CANARY-inline-secret')
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-inline-secret')
+  expect(readdirSync(join(directory, 'calls'))).toEqual([])
+})
 })

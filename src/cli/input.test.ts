@@ -11,6 +11,28 @@ const directory = mkdtempSync(join(tmpdir(), 'artium-input-'))
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
+test.each([
+  ['credential', 'create', 'Synthetic', '--inputs-file'],
+  ['inventory', 'host-create', 'synthetic-host', '--variables'],
+  ['notification-template', 'edit', '42', '--configuration-file'],
+])('AWX uploads exact caller bytes through %j', async (...prefix) => {
+  const path = join(directory, 'awx-input.yml')
+  const content = 'password: CANARY-upload\r\nkey: é\n'
+  writeFileSync(path, content)
+  const structured = prefix.at(-1) === '--variables'
+  const result = await toolInput('awx-axi', [...prefix, `${structured ? '@' : ''}${path}`])
+  expect(result).toEqual({ args: [...prefix, 'awx-input.yml'],
+    files: [{ name: 'awx-input.yml', size: Buffer.byteLength(content), contentBase64: Buffer.from(content).toString('base64') }] })
+})
+
+test.each([
+  ['credential', 'edit', '42', '--inputs-file', '-'],
+  ['user', 'edit', '42', '--password-file', '-'],
+])('AWX preserves explicit stdin for %j', async (...args) => {
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['CANARY-stdin\r\né\n']) as typeof process.stdin)
+  expect(await toolInput('awx-axi', args)).toEqual({ args, stdin: 'CANARY-stdin\r\né\n' })
+})
+
 test.each(['create', 'update'])('mail rule %s uploads a local file as the fixed rule.json leaf', async action => {
   const path = join(directory, 'local-rule.json')
   const text = '{"isEnabled":true}'

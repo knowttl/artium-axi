@@ -13,8 +13,36 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+import type { RunInput } from '../../src/shared/api.js'
 
-const configurationCases = [
+const upload = (name: string, content: string) => ({ name, size: Buffer.byteLength(content), contentBase64: Buffer.from(content).toString('base64') })
+
+const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown> }[] = [
+  { args: ['team', 'credential-create', '7', '--name', 'Synthetic team credential', '--credential-type', '7', '--inputs-file', 'team.json'], path: 'teams/7/credentials/',
+    body: { name: 'Synthetic team credential', credential_type: 7, inputs: { password: 'CANARY-team-password' } },
+    input: { files: [upload('team.json', '{"password":"CANARY-team-password"}')] } },
+  { args: ['job', 'launch', '43', '--credential-passwords-file', 'passwords.json'], path: 'job_templates/43/launch/',
+    unconfirmed: { exitCode: 0 },
+    body: { credential_passwords: { ssh_password: 'CANARY-launch-password' } },
+    input: { files: [upload('passwords.json', '{"ssh_password":"CANARY-launch-password"}')] } },
+  { args: ['credential', 'create', 'Synthetic credential', '--credential-type', '7', '--inputs-file', 'credential.json'], path: 'credentials/',
+    body: { name: 'Synthetic credential', credential_type: 7, inputs: { ssh_key_data: 'CANARY-private-key\nsecond-line' } },
+    input: { files: [upload('credential.json', '{"ssh_key_data":"CANARY-private-key\\nsecond-line"}')] } },
+  { args: ['credential', 'edit', '42', '--inputs-file', '-'], path: 'credentials/42/', body: { inputs: { password: 'CANARY-credential-stdin' } },
+    input: { stdin: '{"password":"CANARY-credential-stdin"}' } },
+  { args: ['user', 'create', 'synthetic-person', '--password-file', '-'], path: 'users/', body: { username: 'synthetic-person', password: 'CANARY-user-password' },
+    input: { stdin: 'CANARY-user-password\n' } },
+  { args: ['notification-template', 'create', 'Synthetic notification', '--organization', '7', '--notification-type', 'webhook', '--configuration-file', 'configuration.json', '--messages-file', 'messages.json'], path: 'notification_templates/',
+    body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', notification_configuration: { token: 'CANARY-notification-token' }, messages: { success: { body: 'CANARY-notification-message' } } },
+    input: { files: [upload('configuration.json', '{"token":"CANARY-notification-token"}'), upload('messages.json', '{"success":{"body":"CANARY-notification-message"}}')] } },
+  { args: ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json'], path: 'bulk/host_create/',
+    body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: { password: 'CANARY-bulk-secret' } }] },
+    input: { files: [upload('hosts.json', '[{"name":"synthetic-bulk-host","variables":{"password":"CANARY-bulk-secret"}}]')] } },
+  { args: ['inventory', 'host-create', 'synthetic-json-host', '--inventory', '7', '--variables', '{"password":"CANARY-json-variable"}'], path: 'hosts/',
+    body: { name: 'synthetic-json-host', inventory: 7, variables: '{"password":"CANARY-json-variable"}' } },
+  { args: ['inventory', 'host-create', 'synthetic-yaml-host', '--inventory', '7', '--variables', 'variables.yml'], path: 'hosts/',
+    body: { name: 'synthetic-yaml-host', inventory: 7, variables: 'password: CANARY-yaml-variable\n' },
+    input: { files: [upload('variables.yml', 'password: CANARY-yaml-variable\n')] } },
   { args: ['inventory', 'create', 'Synthetic inventory', '--organization', '7'], path: 'inventories/', body: { name: 'Synthetic inventory', organization: 7 } },
   { args: ['inventory', 'edit', '42', '--name', 'Updated inventory'], path: 'inventories/42/', body: { name: 'Updated inventory' } },
   { args: ['inventory', 'host-create', 'synthetic-host', '--inventory', '7'], path: 'hosts/', body: { name: 'synthetic-host', inventory: 7 } },
@@ -90,7 +118,7 @@ test('AWX enabling writes in one tenant does not grant another tenant write acce
   }
 })
 
-test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body }) => {
+test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body, input = {}, unconfirmed = { error: { code: 'FLAG_BLOCKED' } } }) => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -99,8 +127,14 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
+      if (call.executable === process.execPath) {
+        const args = [...call.args]
+        args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+        return { ...call, args }
+      }
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args],
+        fileArguments: call.fileArguments?.map(index => index + 1) }
     }
     const runner = await Runner.create(join(directory, 'calls'))
     const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
@@ -128,7 +162,7 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
           payload: { enabled: true, nativeSettings, expectedRevision: revision } })
         expect(response.statusCode, response.body).toBe(200)
       }
-      const run = (input: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args: input } })
+      const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
       await settings({})
       await send('/__ado/reset', 'POST')
       expect((await run([...args, '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
@@ -136,10 +170,11 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
       await settings({ allowWrites: true })
       await send('/__ado/reset', 'POST')
-      expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
-      expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+      expect((await run(args)).json()).toMatchObject(unconfirmed)
+      expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       const preview = await run([...args, '--dry-run'])
       expect(preview.json(), preview.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('dry_run') })
+      expect(preview.body).not.toContain('CANARY-')
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       await send('/__awx/configuration-permission?enabled=false', 'POST')
       const denied = await run([...args, '--confirm'])
@@ -155,6 +190,8 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       const audit = db.prepare("SELECT event, action, arguments FROM audit WHERE tool = 'awx-axi'").all()
       expect(audit).toContainEqual(expect.objectContaining({ event: 'run-terminal', action: 'write' }))
       expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
+      expect(JSON.stringify(audit)).not.toContain('CANARY-')
+      expect(written.body).not.toContain('CANARY-')
       expect(written.body).not.toContain('CANARY-awx-token')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
@@ -270,11 +307,11 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
         ['credential', 'create', 'Synthetic credential', '--inputs-file', 'synthetic.json'],
         ['user', 'create', 'synthetic-user', '--password-file', 'synthetic.txt'],
         ['project', 'create', 'Synthetic', '--scm-url', 'https://scm.example/synthetic'],
-        ['inventory', 'create', 'Synthetic', '--variables', '{"canary":"CANARY-input"}'],
-        ['template', 'create', 'Synthetic', '--extra-vars', '{"canary":"CANARY-input"}'],
+        ['inventory', 'create', 'Synthetic', '--variables', '@synthetic.json'],
+        ['template', 'create', 'Synthetic', '--extra-vars', '@synthetic.json'],
       ]) {
         const refused = await run([...blocked, '--confirm'])
-        expect(refused.json(), refused.body).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT', message: 'Not yet supported: requires secure input.' } })
+        expect(refused.json(), refused.body).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT' } })
       }
       expect(JSON.parse(await send('/__evidence'))).toEqual(beforeBlocked)
       expect(JSON.stringify(db.prepare("SELECT arguments FROM audit WHERE tool = 'awx-axi'").all())).not.toContain('CANARY-input')

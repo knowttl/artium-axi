@@ -362,7 +362,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     const command = /^(?:artium-axi )?awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(help)?.[1]
     const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
     if (route) {
-      const allowed = (name: string) => Object.hasOwn(route.flags, name) && !awx.adapterBoundary.secureInputFlags.includes(name) && !name.endsWith('-file')
+      const allowed = (name: string) => Object.hasOwn(route.flags, name) && !awx.adapterBoundary.secureInputFlags.includes(name)
       help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => allowed(name) ? option : '')
         .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !allowed(name))).join('\n')
       const descriptions = awxParity.commands.find(entry => entry.command === route.command)!.flags

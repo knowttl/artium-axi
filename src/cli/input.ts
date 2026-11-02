@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import { basename } from 'node:path'
 import type { Readable } from 'node:stream'
 import az from '../../tools/inventories/az-axi.json' with { type: 'json' }
+import awx from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
@@ -50,8 +51,14 @@ export async function toolInput(tool: string, original: string[]) {
       const [flag] = args[index].split('=')
       if (!fileFlags.some(name => flag === `--${name}`)) continue
       const equals = args[index].indexOf('=')
-      const path = equals < 0 ? args[++index] : args[index].slice(equals + 1)
-      if (path === '-' && (tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file')) {
+      let path = equals < 0 ? args[++index] : args[index].slice(equals + 1)
+      if (tool === 'awx-axi' && awx.adapterBoundary.structuredInputFlags.includes(flag.slice(2))) {
+        if (!path?.startsWith('@')) continue
+        path = path.slice(1)
+      }
+      if (path === '-' && (tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file'
+        || tool === 'awx-axi' && (flag === '--password-file' || flag === '--inputs-file' && args[0] === 'credential'))) {
+        if (input.stdin !== undefined) throw new ArtiumError('INVALID_INPUT')
         input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes, flag)).toString('utf8')
         continue
       }

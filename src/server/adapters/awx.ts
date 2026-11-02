@@ -7,17 +7,21 @@ import type { SecretSource } from '../store/secret-source.js'
 import { CredentialProfile } from './credential-profile.js'
 import type { Adapter } from './types.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
+import { validateFileInput } from '../../shared/file-input.js'
+import { awxInputBridge, awxInputSecrets } from './awx-input.js'
+import { secretForms } from '../runner/scan.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
-  blocked: 'Secret and structured inputs, SCM URLs, files/stdin and bulk host operations are not yet supported: requires secure input. Credential references are supported. Server file paths and unsafe overrides remain blocked.' })
+  blocked: 'SCM URLs and unsafe overrides remain blocked. File flags upload local bytes privately; structured flags accept inline JSON/YAML or @local-file. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
 function awxArguments(args: readonly string[], input: RunnerInput = {}) {
-  if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
+  validateFileInput('awx-axi', args, input)
+  if (input.stdin !== undefined && args.some(arg => ['--help', '--version', '-v', '-V'].includes(arg))) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--version', '-v', '-V', '--help'].includes(args[0])) return {
-    args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' }, effect: 'read' as const, configuration: false, mutation: false }
+    args: [...args], fileArguments: [], structured: [] as [number, string][], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' }, effect: 'read' as const, configuration: false, mutation: false }
   const flags = new Map<string, string | true>()
   const positionals: string[] = []
   const knownFlags = Object.assign({}, ...inventory.commands.map(route => route.flags)) as Record<string, string>
@@ -37,22 +41,26 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     const value = boolean ? true : inline ?? args[++index]
     if (value === undefined) throw new ArtiumError('INVALID_INPUT')
     // File inputs need explicit runner materialization; never read server paths.
-    if (awxManifest.secureInputFlags.includes(name) || name.endsWith('-file') || typeof value === 'string' && value.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
+    if (awxManifest.secureInputFlags.includes(name) || typeof value === 'string' && value.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
+    if (name.endsWith('-file') && !(value === '-' && (name === 'password-file' || name === 'inputs-file' && positionals[0] === 'credential')
+      && input.stdin !== undefined) && !input.files?.some(file => file.name === value)) throw new ArtiumError('UNSUPPORTED_INPUT')
     flags.set(name, value)
   }
   if (!positionals.length) positionals.push('home')
   if (positionals.length === 1 && flags.size === 1 && flags.has('help') && inventory.discovery.commands.includes(positionals[0])) {
-    return { args: [positionals[0], '--help'], invocation: { command: positionals[0], help: true }, effect: 'read' as const, configuration: false, mutation: false }
+    return { args: [positionals[0], '--help'], fileArguments: [], structured: [] as [number, string][], invocation: { command: positionals[0], help: true }, effect: 'read' as const, configuration: false, mutation: false }
   }
   const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('awx-axi', positionals, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
   if (route.effect === 'blocked' && !flags.has('help')) throw new ArtiumError('INVALID_INPUT', `Command ${route.command} is not yet supported through Artium.`)
-  if (route.effect === 'secure-input' && !flags.has('help')) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
   const schema: Record<string, string | undefined> = route.flags
   for (const name of flags.keys()) if (!Object.hasOwn(schema, name)) throw new ArtiumError('INVALID_INPUT',
     `Unknown flag --${name} for awx-axi ${route.command}.`,
     `Valid flags: ${Object.keys(schema).filter(name => !name.endsWith('-file')).map(name => `--${name}`).join(', ')}.`)
   const rest = positionals.slice(route.command.split(' ').length)
+  const stdinFlags = [...flags].filter(([, value]) => value === '-').map(([name]) => name)
+  if (input.stdin !== undefined && (stdinFlags.length !== 1 || !(stdinFlags[0] === 'password-file'
+    || stdinFlags[0] === 'inputs-file' && positionals[0] === 'credential'))) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (rest.length > route.positionals.names.length || !flags.has('help') && rest.length < route.positionals.required) throw new ArtiumError('INVALID_INPUT')
   const configuration = route.effect === 'configuration-write'
   if (configuration && !flags.has('help') && !flags.has('dry-run') && !flags.has('confirm')) {
@@ -71,7 +79,22 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     checkArgs = [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
   }
   if (route.command === 'user token-revoke') checkArgs = ['user', 'list', '--limit', '100']
-  return { args: [...(route.command === 'home' ? [] : positionals), ...[...flags].map(([name, value]) => value === true ? `--${name}` : `--${name}=${value}`)], effect, configuration,
+  const normalized = [...(route.command === 'home' ? [] : positionals)]
+  const fileArguments: number[] = []
+  const structured: [number, string][] = []
+  for (const [name, value] of flags) {
+    if (typeof value === 'string' && awxManifest.structuredInputFlags.includes(name)) {
+      const file = input.files?.find(file => file.name === value)
+      const content = file ? Buffer.from(file.contentBase64, 'base64').toString('utf8') : value
+      if (content.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
+      normalized.push(`--${name}`, 'private-input')
+      structured.push([normalized.length - 1, content])
+    } else if (name.endsWith('-file')) {
+      normalized.push(`--${name}`, String(value))
+      if (value !== '-') fileArguments.push(normalized.length - 1)
+    } else normalized.push(value === true ? `--${name}` : `--${name}=${value}`)
+  }
+  return { args: normalized, fileArguments, structured, effect, configuration,
     mutation: ['write', 'configuration-write'].includes(route.effect),
     invocation: { command: route.command, help: flags.has('help') },
     ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource', checkArgs,
@@ -97,10 +120,17 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
+      profile.secrets.push(...awxInputSecrets(input ?? {}, normalized.structured.map(([, value]) => value)))
       if (normalized.mutation && !readOnly) Object.assign(profile.environment, {
         AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1',
+        AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS: '1',
       })
-      return { executable: toolPaths['awx-axi'], ...normalized,
+      const { structured, ...call } = normalized
+      const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
+      const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
+      if (privateInput) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, patterns: secretForms(profile.secrets) }) })
+      return { executable: privateInput ? process.execPath : toolPaths['awx-axi'], ...call,
+        ...(privateInput ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
         ...profile, limits: { timeoutMs: runnerLimits.timeoutMs } }
     },
   }

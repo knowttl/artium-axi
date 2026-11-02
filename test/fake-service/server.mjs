@@ -220,7 +220,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/43/launch/') {
+      res.end(JSON.stringify({ passwords_needed_to_start: ['ssh_password'] })); return
+    }
     if (req.method === 'DELETE' && url.pathname === '/api/v2/job_templates/42/') {
       mutations++
       resources.delete(url.pathname)
