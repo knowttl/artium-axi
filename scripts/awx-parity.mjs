@@ -77,6 +77,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
     ...(effect === 'destructive' && security(domain.name, route.name) ? { note: 'Upstream delete tag checks only the native delete gate; this is not a separate target permission' } : {}),
     ...(command === 'user token-revoke' ? { note: 'Upstream DELETE tagged security, so the native security gate applies rather than the delete gate; target authorization is write', dependentSlices: ['d'] } : {}),
     ...(command === 'user token-create' ? { note: 'Confirmed creation delivers the PAT through an authenticated one-time protected result, scoped to the caller and current managed credential revision, expiring after five minutes; no token bytes in routine output or audit' } : {}),
+    ...(command === 'inventory host-bulk-delete' ? { note: 'The pinned CLI reports any 2xx as deleted; Artium returns PARTIAL_OUTCOME with unconfirmed_hosts unless the controller confirms every requested host' } : {}),
     ...(command === 'job watch' ? { note: 'Artium runner has a bounded lifetime; use --timeout 50 or less' } : {}),
     flags: flagsFor(command, [{ name: 'help', takesValue: false, description: 'Command help' }, ...route.flags], effect, targetSlice, status) }
 }))

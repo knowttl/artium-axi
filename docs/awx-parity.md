@@ -116,3 +116,8 @@ Stateful journeys verify membership and role grant/revoke readback with writes d
 Organization association requests are verified against the fake controller; see the [command reference](commands.md) for readback limitations.
 The [token integration suite](../test/integration/awx-tokens.test.ts) verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
 See the [AWX security boundary](safety.md#write-gates-by-tool) for protected token delivery and managed logout, and [recovery guidance](runbook.md#retention-and-export) for lost results and token lookup limitations.
+
+## Bulk hosts (S12)
+
+See the [command reference](commands.md) for bulk host commands and file formats, the [AWX write boundary](safety.md#write-gates-by-tool) for permissions and private inputs, and [recovery guidance](runbook.md#retention-and-export) for partial or interrupted outcomes.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, redacted previews without mutation, AWX permission denial, exact create payloads, rejected duplicate batches, mixed delete results, malformed host files, interrupted deletes reported as `UNKNOWN_OUTCOME`, and recovery through full and limited host reads against a fake controller.

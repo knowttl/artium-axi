@@ -9668,6 +9668,7 @@
         "required": 0
       },
       "help": "awx-axi inventory host-bulk-delete --hosts-file <path> [--confirm] [--dry-run]",
+      "note": "The pinned CLI reports any 2xx as deleted; Artium returns PARTIAL_OUTCOME with unconfirmed_hosts unless the controller confirms every requested host",
       "flags": [
         {
           "name": "help",

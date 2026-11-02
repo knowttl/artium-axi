@@ -15,6 +15,7 @@ let mutations = 0
 let basicAuthEnabled = true
 let awxConfigurationAllowed = true
 let awxDropWrite = false
+let awxBulkDeleteResponse = 'valid'
 let awxTokenResponse = 'valid'
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
@@ -252,6 +253,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     basicAuthEnabled = true
     awxConfigurationAllowed = true
     awxDropWrite = false
+    awxBulkDeleteResponse = 'valid'
     awxTokenResponse = 'valid'
     res.end('{}')
     return
@@ -273,6 +275,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__awx/token-response' && req.method === 'POST') {
     awxTokenResponse = url.searchParams.get('mode') ?? 'valid'
+    res.end('{}'); return
+  }
+  if (url.pathname === '/__awx/bulk-delete-response' && req.method === 'POST') {
+    awxBulkDeleteResponse = url.searchParams.get('mode') ?? 'valid'
     res.end('{}'); return
   }
   if (req.headers.host === 'hybrid-analysis.com') {
@@ -391,6 +397,49 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const payload = JSON.parse(body || '{}')
         recorded.body = payload
         if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        if (url.pathname === '/api/v2/bulk/host_create/') {
+          const names = (payload.hosts ?? []).map(host => host.name)
+          const existing = [...resources.entries()].filter(([path]) => /^\/api\/v2\/hosts\/\d+\/$/.test(path)).map(([, host]) => host)
+          if (!names.length || names.some(name => typeof name !== 'string' || !name) || new Set(names).size !== names.length
+            || existing.some(host => host.inventory === payload.inventory && names.includes(host.name))) {
+            res.writeHead(400); res.end(JSON.stringify({ hosts: ['Host names must be unique and present.'] })); return
+          }
+          if (payload.hosts.some(host => host.variables !== undefined && typeof host.variables !== 'string')) {
+            res.writeHead(400); res.end(JSON.stringify({ hosts: ['Variables must be text.'] })); return
+          }
+          mutations++
+          const created = names.map((name, index) => {
+            let id = 42
+            while (resources.has(`/api/v2/hosts/${id}/`)) id++
+            const host = { ...payload.hosts[index], id, inventory: payload.inventory }
+            resources.set(`/api/v2/hosts/${id}/`, host)
+            return host
+          })
+          if (awxDropWrite) { req.socket.destroy(); return }
+          res.writeHead(201); res.end(JSON.stringify({ inventory: payload.inventory, hosts: created })); return
+        }
+        if (url.pathname === '/api/v2/bulk/host_delete/') {
+          const ids = payload.hosts ?? []
+          const missing = ids.filter(id => !resources.has(`/api/v2/hosts/${id}/`))
+          if (!ids.length || missing.length || new Set(ids).size !== ids.length) {
+            res.writeHead(400); res.end(JSON.stringify({ hosts: Object.fromEntries(missing.map(id => [id, 'Hosts do not exist or you lack permission to delete it'])) })); return
+          }
+          mutations++
+          const hosts = Object.fromEntries(ids.map(id => {
+            const host = resources.get(`/api/v2/hosts/${id}/`)
+            resources.delete(`/api/v2/hosts/${id}/`)
+            return [id, `The host ${host.name} was deleted`]
+          }))
+          if (awxDropWrite) { req.socket.destroy(); return }
+          if (awxBulkDeleteResponse === 'no-content') { res.writeHead(204); res.end(); return }
+          if (awxBulkDeleteResponse === 'missing') { res.writeHead(201); res.end('{}'); return }
+          if (awxBulkDeleteResponse === 'null') { res.writeHead(201); res.end(JSON.stringify({ hosts: null })); return }
+          if (awxBulkDeleteResponse === 'array') { res.writeHead(201); res.end(JSON.stringify({ hosts: Object.values(hosts) })); return }
+          if (awxBulkDeleteResponse === 'empty') { res.writeHead(201); res.end(JSON.stringify({ hosts: {} })); return }
+          if (awxBulkDeleteResponse === 'mixed') hosts[ids.at(-1)] = 'Hosts do not exist or you lack permission to delete it'
+          if (awxBulkDeleteResponse === 'invalid-message') hosts[ids.at(-1)] = null
+          res.writeHead(201); res.end(JSON.stringify({ hosts })); return
+        }
         if (/^\/api\/v2\/users\/\d+\/personal_tokens\/$/.test(url.pathname)) {
           mutations++
           const id = Math.max(7, ...awxTokens.keys()) + 1

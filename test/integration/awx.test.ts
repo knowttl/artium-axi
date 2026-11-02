@@ -272,8 +272,8 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
     preview: { input: { notification_configuration: '[structured input redacted, 37 bytes]', messages: '[structured input redacted, 50 bytes]' } },
   }))),
   { args: ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json'], path: 'bulk/host_create/',
-    body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: { password: 'CANARY-bulk-secret' } }] },
-    input: { files: [upload('hosts.json', '[{"name":"synthetic-bulk-host","variables":{"password":"CANARY-bulk-secret"}}]')] } },
+    body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: '{"password":"CANARY-bulk-secret"}' }] },
+    input: { files: [upload('hosts.json', JSON.stringify([{ name: 'synthetic-bulk-host', variables: '{"password":"CANARY-bulk-secret"}' }]))] } },
   { args: ['inventory', 'host-create', 'synthetic-json-host', '--inventory', '7', '--variables', '{"password":"CANARY-json-variable"}'], path: 'hosts/',
     body: { name: 'synthetic-json-host', inventory: 7, variables: '{"password":"CANARY-json-variable"}' } },
   { args: ['inventory', 'host-create', 'synthetic-yaml-host', '--inventory', '7', '--variables', 'variables.yml'], path: 'hosts/',
@@ -1493,6 +1493,142 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(rejected.json()).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED', diagnostic: { stage: 'authentication', toolCode: 'AUTH_REQUIRED' } } })
       expect(rejected.body).not.toContain('CANARY-invalid-token')
     } finally { vi.unstubAllEnvs(); await app.close(); db.close() }
+  })
+}, 60_000)
+
+test('AWX bulk host create and delete report mixed and uncertain outcomes without trusting limited reads (S12)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = false
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) {
+        call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+        return call
+      }
+      return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = (args: string[], files: ReturnType<typeof upload>[] = []) =>
+      app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...(files.length ? { files } : {}) } })
+    const evidence = async () => JSON.parse(await send('/__evidence'))
+    const hostIds = async (...args: string[]) => {
+      const listed = decode((await run(['host', 'list', ...args])).json().stdout) as { count: string, hosts: string | { id: number }[] }
+      return { count: listed.count, ids: Array.isArray(listed.hosts) ? listed.hosts.map(host => host.id) : [] }
+    }
+    const create = ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json']
+    const remove = ['inventory', 'host-bulk-delete', '--hosts-file', 'ids.json']
+    const names = upload('hosts.json', JSON.stringify([
+      { name: 'not-ready', variables: '{"password":"CANARY-bulk-secret"}' }, { name: 'failed' }, { name: 'access-denied' }]))
+    try {
+      // Reads stay available and bulk previews and confirmations are refused while writes are off.
+      for (const [args, files] of [[create, [names]], [remove, [upload('ids.json', '[42]')]]] as const) {
+        for (const flag of ['--dry-run', '--confirm']) {
+          expect((await run([...args, flag], [...files])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+        }
+      }
+      expect((await hostIds()).ids).toEqual([])
+      expect((await evidence()).mutations).toBe(0)
+
+      allowWrites = true
+      const preview = await run([...create, '--dry-run'], [names])
+      expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
+      expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { action: 'create', type: 'hosts', would_send: 'POST bulk/host_create/' } })
+      expect(preview.body).not.toContain('CANARY-bulk-secret')
+      const idsPreview = await run([...remove, '--dry-run'], [upload('ids.json', '[42,43,99]')])
+      expect(decode(idsPreview.json().stdout)).toMatchObject({ dry_run: { action: 'delete', type: 'hosts', would_send: 'POST bulk/host_delete/' } })
+      expect((await evidence()).mutations).toBe(0)
+
+      await send('/__awx/configuration-permission?enabled=false', 'POST')
+      expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
+      expect((await evidence()).mutations).toBe(0)
+      await send('/__awx/configuration-permission?enabled=true', 'POST')
+
+      const created = await run([...create, '--confirm'], [names])
+      expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+      expect(created.body).not.toContain('CANARY-bulk-secret')
+      expect((await evidence()).requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/bulk/host_create/',
+        body: { inventory: 7, hosts: [{ name: 'not-ready', variables: '{"password":"CANARY-bulk-secret"}' },
+          { name: 'failed' }, { name: 'access-denied' }] } }))
+      // A one-row page proves nothing about the other hosts.
+      expect(await hostIds('--limit', '1')).toEqual({ count: '1 of 3 total', ids: [42] })
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      // A duplicate batch is rejected atomically by the controller.
+      const duplicate = await run([...create, '--confirm'], [names])
+      expect(duplicate.json(), duplicate.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      const freshDuplicate = await run([...create, '--confirm'], [upload('hosts.json', '[{"name":"fresh"},{"name":"fresh"}]')])
+      expect(freshDuplicate.json(), freshDuplicate.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      for (const variables of [{ password: 'CANARY-bulk-secret' }, ['CANARY-bulk-secret']]) {
+        const invalidVariables = await run([...create, '--confirm'], [upload('hosts.json', JSON.stringify([
+          { name: 'fresh-valid', variables: '{}' }, { name: 'fresh-invalid', variables },
+        ]))])
+        expect(invalidVariables.json(), invalidVariables.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+        expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+      }
+
+      const invalidBatch = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,99]')])
+      expect(invalidBatch.json(), invalidBatch.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      const deleted = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
+      expect(deleted.json(), deleted.body).toMatchObject({ exitCode: 0 })
+      expect((await hostIds('--limit', '100')).ids).toEqual([])
+
+      for (const { mode, unconfirmed } of [
+        { mode: 'missing', unconfirmed: [42, 43, 44] },
+        { mode: 'null', unconfirmed: [42, 43, 44] },
+        { mode: 'array', unconfirmed: [42, 43, 44] },
+        { mode: 'no-content', unconfirmed: [42, 43, 44] },
+        { mode: 'empty', unconfirmed: [42, 43, 44] },
+        { mode: 'mixed', unconfirmed: [44] },
+        { mode: 'invalid-message', unconfirmed: [44] },
+      ]) {
+        expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 0 })
+        await send(`/__awx/bulk-delete-response?mode=${mode}`, 'POST')
+        const result = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
+        expect(result.json(), result.body).toMatchObject({ exitCode: 1 })
+        expect(decode(result.json().stdout)).toMatchObject({ code: 'PARTIAL_OUTCOME', requested: 3, unconfirmed_hosts: unconfirmed })
+        expect(result.json().stdout).not.toContain('status: deleted')
+        expect((await hostIds('--limit', '100')).ids).toEqual([])
+      }
+      await send('/__awx/bulk-delete-response?mode=valid', 'POST')
+      expect(db.prepare("SELECT DISTINCT action, outcome, exit_code FROM audit WHERE tool = 'awx-axi' AND error_code = 'PARTIAL_OUTCOME'").all())
+        .toEqual([{ action: 'unknown', outcome: 'completed', exit_code: 1 }])
+
+      // Malformed host files are refused by the pinned CLI before any request.
+      const before = (await evidence()).mutations
+      for (const content of ['{"name":"x"}', '["not-an-id"]', '[0]']) {
+        expect((await run([...remove, '--confirm'], [upload('ids.json', content)])).json()).toMatchObject({ exitCode: 2 })
+      }
+      expect((await evidence()).mutations).toBe(before)
+
+      // A dropped connection leaves the outcome unknown; the recovery read is a limited page.
+      expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 0 })
+      await send('/__awx/write-outcome?drop=true', 'POST')
+      const interrupted = await run([...remove, '--confirm'], [upload('ids.json', '[44]')])
+      expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
+        next: expect.stringMatching(/awx-axi host list --limit 100.*absence from this limited read does not prove failure/) } })
+      await send('/__awx/write-outcome?drop=false', 'POST')
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43])
+      const everything = JSON.stringify(db.prepare("SELECT * FROM audit WHERE tool = 'awx-axi'").all())
+      expect(everything).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
   })
 }, 60_000)
 

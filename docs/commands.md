@@ -176,6 +176,12 @@ Confirmed creation returns token metadata and a protected `result.path` in the d
 Save the result bytes through an authenticated GET to that path using the requesting caller's Artium bearer session, keeping authentication headers in protected input rather than process arguments.
 Follow the [AWX security boundary](safety.md#write-gates-by-tool) for retrieval scope, expiry and one-time consumption, and [AWX recovery guidance](runbook.md#retention-and-export) if delivery fails.
 
+Create hosts in bulk with `artium-axi awx-axi inventory host-bulk-create --inventory <id|name> --hosts-file hosts.json --dry-run`, where the file is a JSON array of host objects, then replace `--dry-run` with `--confirm`.
+Each host requires a `name`; optional `variables` must be JSON/YAML text, not an object or array, for example `[{"name":"synthetic-host","variables":"{\"ansible_host\":\"192.0.2.10\"}"}]`.
+Delete hosts in bulk with `artium-axi awx-axi inventory host-bulk-delete --hosts-file ids.json --dry-run`, where the file is a JSON array of numeric host IDs, then replace `--dry-run` with `--confirm`.
+Both use the single tenant writes switch, and previews hide the file contents.
+See [bulk outcome recovery](runbook.md#retention-and-export) for partial or interrupted operations and readback before retrying.
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
