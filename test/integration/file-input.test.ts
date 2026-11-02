@@ -157,7 +157,7 @@ if (tool === 'awx-axi') test('structured values stay out of the child process ar
     args: ['inventory', 'host-create', 'synthetic-host', '--variables', '{"password":"CANARY-inline-secret"}', '--dry-run'],
   }, token))
   expect(result.exitCode).toBe(0)
-  expect(result.stdout).toContain('--variables private-input')
+  expect(result.stdout).toContain('--variables=private-input')
   expect(result.stdout).not.toContain('CANARY-inline-secret')
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-inline-secret')
   expect(readdirSync(join(directory, 'calls'))).toEqual([])

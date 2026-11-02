@@ -12,10 +12,69 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { withFakeService } from '../fake-service/fixture.js'
-import { seedToolUser } from '../fixtures/tokens.js'
+import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import type { RunInput } from '../../src/shared/api.js'
 
 const upload = (name: string, content: string) => ({ name, size: Buffer.byteLength(content), contentBase64: Buffer.from(content).toString('base64') })
+
+test.each([
+  { flag: 'variables', args: ['inventory', 'host-create', 'synthetic', '--inventory', '7'], trailing: ['--description', 'placeholder'],
+    path: '/api/v2/hosts/', field: 'variables', exitCode: 0 },
+  { flag: 'source-vars', args: ['inventory', 'source-create', 'synthetic', '--inventory', '7'], trailing: ['--source', 'scm'],
+    path: '/api/v2/inventory_sources/', field: 'source_vars', exitCode: 2 },
+  { flag: 'extra-vars', args: ['ad-hoc', 'launch', '7', '--module-name', 'command'], trailing: ['--verbosity', '0'],
+    path: '/api/v2/ad_hoc_commands/', field: 'extra_vars', exitCode: 0 },
+  { flag: 'module-args', args: ['ad-hoc', 'launch', '7', '--module-name', 'command'], trailing: ['--verbosity', '0'],
+    path: '/api/v2/ad_hoc_commands/', field: 'module_args', exitCode: 0 },
+  { flag: 'args', args: ['ad-hoc', 'launch', '7', '--module-name', 'command'], trailing: ['--verbosity', '0'],
+    path: '/api/v2/ad_hoc_commands/', field: 'module_args', exitCode: 0 },
+].flatMap(route => ['inline', 'separate', 'upload'].map(channel => ({ ...route, channel }))))(
+  'AWX structured --$flag $channel input cannot redirect the managed token (R2)',
+  async ({ flag, args, trailing, path, field, exitCode, channel }) => {
+    await withFakeService(async controller => {
+      await withFakeService(async receiver => {
+        const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+        const db = openStore(join(controller.directory, 'artium.db'), provider)
+        await seedToolUser(db)
+        db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+        const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+        const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${controller.port}`,
+          token: 'CANARY-awx-token', allowWrites: true }) })
+        const prepare = adapter.prepare.bind(adapter)
+        adapter.prepare = async (...input) => {
+          const call = await prepare(...input)
+          call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+          return call
+        }
+        const runner = await Runner.create(join(controller.directory, 'calls'), {
+          pem: [controller, receiver].map(service => readFileSync(join(service.directory, 'ca.crt'), 'utf8')).join('\n'), certificates: [],
+        })
+        const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+          resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+        try {
+          const value = `--origin=https://localhost:${receiver.port}`
+          const request = { args: [...args, ...(channel === 'separate' ? [`--${flag}`, value]
+            : [`--${flag}=${channel === 'upload' ? 'input.txt' : value}`]), ...trailing, '--confirm'],
+            ...(channel === 'upload' ? { files: [upload('input.txt', value)] } : {}) }
+          const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', payload: request,
+            headers: { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` } })
+          expect(JSON.parse(await receiver.send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+          expect(response.json(), response.body).toMatchObject({ exitCode })
+          const evidence = JSON.parse(await controller.send('/__evidence'))
+          expect(evidence.mutations).toBe(exitCode === 0 ? 1 : 0)
+          if (exitCode === 0) expect(evidence.requests).toContainEqual(expect.objectContaining({
+            method: 'POST', path, canaryReceived: true, body: expect.objectContaining({ [field]: value }),
+          }))
+          const call = await adapter.prepare(request.args, reference, request)
+          expect(call.args).toContain(`--${flag}=private-input`)
+          expect(call.args.join(' ')).not.toContain(value)
+          expect(response.body).not.toContain('CANARY-awx-token')
+        } finally { await app.close(); db.close() }
+      })
+    })
+  }, 60_000,
+)
 
 const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown> }[] = [
   ...['run', 'a', '[redacted]', 'dry_run'].map(value => ({
@@ -59,6 +118,8 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   { args: ['inventory', 'group-create', 'Synthetic group', '--inventory', '7'], path: 'inventories/7/groups/', body: { name: 'Synthetic group' } },
   { args: ['inventory', 'group-edit', '42', '--name', 'Updated group'], path: 'groups/42/', body: { name: 'Updated group' } },
   { args: ['inventory', 'source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm'], path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm' } },
+  { args: ['inventory', 'source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm', '--source-vars', '{"region":"synthetic-region"}'],
+    path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm', source_vars: '{"region":"synthetic-region"}' } },
   { args: ['inventory', 'source-edit', '42', '--name', 'Updated source'], path: 'inventory_sources/42/', body: { name: 'Updated source' } },
   { args: ['template', 'create', 'Synthetic template', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'], path: 'job_templates/', body: { name: 'Synthetic template', inventory: 7, project: 8, playbook: 'synthetic.yml' } },
   { args: ['template', 'edit', '42', '--name', 'Updated template'], path: 'job_templates/42/', body: { name: 'Updated template' } },

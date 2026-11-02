@@ -12,7 +12,7 @@ const argv = process.argv.slice(2);
 const require = createRequire(executable);
 const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
 const { values, patterns } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
-for (const [index, value] of values) argv[index] = value;
+for (const [index, value] of values) argv[index] = argv[index].split('=', 1)[0] + '=' + value;
 const redact = value => {
   if (typeof value === 'string') return patterns.some(pattern => value.includes(pattern)) ? null : value;
   if (Array.isArray(value)) return value.map(redact);

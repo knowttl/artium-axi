@@ -87,7 +87,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
       const file = input.files?.find(file => file.name === value)
       const content = file ? Buffer.from(file.contentBase64, 'base64').toString('utf8') : value
       if (content.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
-      normalized.push(`--${name}`, 'private-input')
+      normalized.push(`--${name}=private-input`)
       structured.push([normalized.length - 1, content])
     } else if (name.endsWith('-file')) {
       normalized.push(`--${name}`, String(value))

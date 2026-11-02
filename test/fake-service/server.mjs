@@ -240,14 +240,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       })
       return
     }
-    if (configurationPath && ['POST', 'PATCH'].includes(req.method)) {
+    if ((configurationPath || url.pathname === '/api/v2/ad_hoc_commands/') && ['POST', 'PATCH'].includes(req.method)) {
       let body = ''
       req.setEncoding('utf8')
       req.on('data', chunk => { body += chunk })
       req.on('end', () => {
         const payload = JSON.parse(body || '{}')
         recorded.body = payload
-        if (!awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
         mutations++
         const path = req.method === 'PATCH' ? url.pathname : `${url.pathname}42/`
         const resource = { id: 42, ...resources.get(path), ...payload }
