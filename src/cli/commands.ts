@@ -187,7 +187,7 @@ async function main(args: string[]) {
     const firstFlag = forwarded.findIndex(arg => arg.startsWith('-'))
     const invocation = command === 'unifi-axi' || command === 'proxmox-axi'
       ? { command: forwarded.slice(0, firstFlag < 0 ? forwarded.length : firstFlag).join(' ') || 'home', help: forwarded.includes('--help') }
-      : undefined
+      : command === 'kubernetes-axi' ? { command: forwarded.slice(0, 2).join(' '), help: forwarded.includes('--help') || forwarded.includes('-h') } : undefined
     output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout, invocation))
     output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr, invocation))
     if (exitCode !== 0 && client.requestId) output('stderr', `${stderr && !stderr.endsWith('\n') ? '\n' : ''}artium-axi: request_id ${client.requestId}\n`)

@@ -11,6 +11,12 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     : tool === 'proxmox-axi' || tool === 'technitium-axi' ? `tools/node_modules/@knowttl/${tool}/README.md` : tool === 'gitea-axi' ? 'tools/node_modules/@knowttl/gitea-axi/generated/SKILL.md' : source)
   expect(skill).toContain(`name: ${tool}`)
   expect(skill).toContain(`artium-axi ${tool}`)
+  if (tool === 'kubernetes-axi') {
+    expect(skill).toContain('native -- get deployments -o json')
+    expect(skill).toContain('saved strict leaf pins are unavailable')
+    expect(skill).toContain('Secret reads expose metadata only')
+    return
+  }
   if (tool === 'technitium-axi') {
     expect(skill).toContain('same user with current access and the same credential revision')
     expect(skill).toContain('five minutes')

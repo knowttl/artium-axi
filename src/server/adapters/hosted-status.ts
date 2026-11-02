@@ -14,7 +14,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
       stderr: rewriteGhSuggestions(output.stderr, invocation, output.truncated.stderr) }
   }
   if (!invocation || invocation.help || !(['home', 'auth status'].includes(invocation.command)
-    || tool === 'falcon-axi' && invocation.command === 'scopes')) return result
+    || tool === 'falcon-axi' && invocation.command === 'scopes' || tool === 'kubernetes-axi' && invocation.command === 'doctor')) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   if (result.stdout === '') return result
   try {
@@ -67,7 +67,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
     }
     if (Object.hasOwn(document, 'bin')) document.bin = replace(document.bin, `artium-axi ${tool}`)
     if (document.setup && typeof document.setup === 'object') document.setup = 'Managed by artium.'
-    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey', 'tokenSource']) {
+    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey', 'tokenSource', 'secretSource']) {
       if (Object.hasOwn(document, field)) document[field] = sourceKind(document[field])
     }
     if (document.secrets && typeof document.secrets === 'object') {

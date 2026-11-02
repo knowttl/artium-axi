@@ -17,8 +17,10 @@ import technitium from '../../tools/inventories/technitium-axi.json' with { type
 import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
+import kubernetes from '../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'kubernetes-axi': kubernetes.adapterBoundary.unsafeOverrides,
   'technitium-axi': technitium.adapterBoundary.unsafeOverrides,
   'gitea-axi': gitea.adapterBoundary.unsafeOverrides,
   'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
@@ -67,6 +69,22 @@ function encodeSuggestion(value: string, inline: boolean): string {
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
+  if (tool === 'kubernetes-axi') {
+    if (!invocation?.help) return output
+    try {
+      const json = output.trimStart().startsWith('{')
+      const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
+      if (typeof document.command === 'string' && Array.isArray(document.flags)) {
+        const path = document.command.replace(/^(?:artium-axi )?kubernetes-axi ?/, '') || 'home'
+        const route = kubernetes.commands.find(route => route.command === (invocation?.command === 'native --' ? `native -- ${path}` : path))
+        const command = `artium-axi kubernetes-axi${route && route.command !== 'home' ? ' ' + route.command : ''}`
+        return (json ? JSON.stringify : encode)({ command, usage: command + ' [flags]', effect: 'read',
+          flags: route?.flags ?? {}, commands: route?.command === 'home' ? kubernetes.discovery.commands : [],
+          examples: [command + ' --help'], help: [kubernetes.discovery.help] }) + '\n'
+      }
+    } catch { /* Invalid help retains the native diagnostic. */ }
+    return output
+  }
   if (tool === 'technitium-axi') {
     try {
       const json = output.trimStart().startsWith('{')

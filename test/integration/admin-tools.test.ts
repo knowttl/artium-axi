@@ -49,6 +49,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'kubernetes-axi': { origin: 'https://cluster.example', auth: 'token', certificateAuthority: 'CANARY-CA-PEM', token: 'CANARY-kubernetes-token' },
   'technitium-axi': { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' },
   'gitea-axi': { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', token: 'CANARY-gitea-token' },
   'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
@@ -679,6 +680,18 @@ test('Proxmox token identity changes require a replacement secret', async () => 
   expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(values['proxmox-axi'])
 })
 
+test('Kubernetes client certificate replacement requires a new private key', async () => {
+  const credential = { origin: 'https://cluster.example', auth: 'certificate', certificateAuthority: 'CANARY-CA-PEM',
+    clientCertificate: 'CANARY-original-certificate', privateKey: 'CANARY-original-key' }
+  const previous = await replace('kubernetes-axi', credential)
+  const response = await save('kubernetes-axi', { origin: credential.origin, auth: credential.auth,
+    certificateAuthority: credential.certificateAuthority, clientCertificate: 'CANARY-replacement-certificate' }, previous.revision)
+  expect(response.status).toBe(400)
+  expect(store.readCredential(store.findCredential('kubernetes-axi')!)).toEqual(credential)
+  const current = await request('GET', '/kubernetes-axi/credential')
+  expect(JSON.stringify(await current.json())).not.toContain(credential.privateKey)
+})
+
 test('Technitium token-kind changes require a replacement secret', async () => {
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
   await replace('technitium-axi')
@@ -1168,6 +1181,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'proxmox-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
       { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
       { name: 'gitea-axi', capable: false, enabled: false, reason: 'This adapter admits classified Gitea reads only.' },
+      { name: 'kubernetes-axi', capable: false, enabled: false, reason: 'This adapter admits bounded Kubernetes reads and passive authorization reviews.' },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1518,6 +1532,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'kubernetes-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

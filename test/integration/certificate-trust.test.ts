@@ -261,6 +261,28 @@ test('a private complete chain pins its issuing CA and retains the observed leaf
     certificate: { fingerprint: result.anchor.fingerprint }, leaf: { fingerprint: result.chain[0].fingerprint } })
 })
 
+test('Kubernetes certificate administration refuses leaf pins and accepts an issuing CA without sending credentials', async () => {
+  serve('leaf', true)
+  store.replaceCredential('kubernetes-axi', { origin: endpoint, auth: 'token', certificateAuthority: 'no native trust',
+    token: 'CANARY-never-sent' }, 0, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/kubernetes-axi/certificates'
+  const inspect = () => app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const first = await inspect()
+  expect(first.statusCode, first.body).toBe(200)
+  const refused = await app.inject({ method: 'POST', url: url + '/trust', headers,
+    payload: { inspectionId: first.json().inspectionId, mode: 'pin' } })
+  expect(refused.statusCode).toBe(400)
+  expect(refused.json().error.message).toContain('Strict leaf pinning is unavailable')
+  const second = await inspect()
+  const accepted = await app.inject({ method: 'POST', url: url + '/trust', headers,
+    payload: { inspectionId: second.json().inspectionId, mode: 'ca' } })
+  expect(accepted.statusCode, accepted.body).toBe(200)
+  expect(readCredentialTrust(db, store.findCredential('kubernetes-axi')!)).toEqual([
+    expect.objectContaining({ mode: 'ca', endpoint: endpoint + '/', pem: pem('intermediate') }),
+  ])
+  expect(bytes).toBe(0)
+})
+
 test.each([
   { chain: false, mode: 'pin' }, { chain: true, mode: 'ca' },
 ] as const)('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: $chain)', async ({ chain, mode }) => {

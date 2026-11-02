@@ -70,7 +70,7 @@ Ordinary discovery and tool calls never install or repair agent settings.
 
 ## What it covers
 
-All sixteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+All seventeen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
 Write capabilities below require administrator opt-in.
 
 | Group | Purpose | Access | Reference |
@@ -78,6 +78,7 @@ Write capabilities below require administrator opt-in.
 | BeyondTrust PM Cloud | Endpoint Privilege Management reads, selected writes, deletes and four downloads | Managed credentials; exact operation grants; separate delete toggle | [Credentials](docs/tool-credentials.md#beyondtrust-pm-cloud) |
 | Discovery and sessions | Identity, login, tools, doctor, update and setup | Client/session operations | [Commands](docs/commands.md) |
 | Falcon | Endpoint investigations and existing search, MalQuery and RTR history | Passive reads | [Capabilities](docs/safety.md#write-gates-by-tool) |
+| Kubernetes | Cluster resources, logs and passive authorization reviews | Bounded reads with managed token or client-certificate identity | [Capabilities](docs/safety.md#kubernetes-reads) |
 | Vectra | Hosts, detections and response workflows | Reads; selected writes | [Credentials](docs/tool-credentials.md#vectra) |
 | Azure | Subscriptions, resources and queries | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure) |
 | Microsoft Graph | Entra, optional mail and hunting packs | Reads; selected writes | [Capabilities](docs/safety.md#microsoft-graph) |

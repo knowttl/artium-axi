@@ -15,6 +15,7 @@ RUN --network=none /opt/tools/node_modules/.bin/checkpoint-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/beyondtrust-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/hybrid-axi --version
 RUN --network=none node /opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js --version
+RUN --network=none node /opt/tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js --version
 COPY tsconfig.json ./
 COPY src ./src
 COPY skill ./skill

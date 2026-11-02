@@ -18,6 +18,7 @@ import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js
 import { createNetworkReadAdapter } from '../../src/server/adapters/network-reads.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
+import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -34,6 +35,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
   await withFakeService(async ({ directory }) => {
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
+      'kubernetes-axi': { origin: 'https://cluster.example', auth: 'token', certificateAuthority: pem, token: 'CANARY-kubernetes-token' },
       'technitium-axi': { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token', caFile: pem },
       'gitea-axi': { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', token: 'CANARY-gitea-token' },
       'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
@@ -54,6 +56,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const source = { getCredential: async () => credentials[tool] }
     const log = join(directory, 'writes.log')
     const adapters = {
+      'kubernetes-axi': await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')),
       'technitium-axi': createTechnitiumAdapter(source),
       'gitea-axi': createGiteaAdapter(source),
       'unifi-axi': createNetworkReadAdapter('unifi-axi', source),
@@ -71,7 +74,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       'mg-axi': createMgAdapter(source, log, profile('mg-axi')),
       'ldap-axi': createLdapAdapter(source),
     }
-    const args = { 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
+    const args = { 'kubernetes-axi': ['get', 'pods'], 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
       'gitea-axi': ['doctor'], 'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'], 'technitium-axi': ['status'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)
@@ -85,14 +88,14 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       const result = await runner.run('synthetic-user', process.execPath, ['-e', node],
         { ...call.environment, ARTIUM_TEST_CA_FILES: JSON.stringify(call.files.filter(file => file.appendTrustedCa).map(file => file.name)) },
         call.secrets, { ...call.limits, ...(trustSource === 'credential' ? { credentialTrust: [{
-          endpoint: 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: tool === 'gh-axi' ? 'ca' as const : 'pin' as const,
+          endpoint: tool === 'kubernetes-axi' ? 'https://cluster.example/' : 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: ['gh-axi', 'kubernetes-axi'].includes(tool) ? 'ca' as const : 'pin' as const,
         }] } : {}) }, {}, call.files)
       expect(result.exitCode, result.stderr).toBe(0)
       const output = JSON.parse(result.stdout)
-      if (trustSource === 'server' || tool === 'gh-axi') expect(output.node).toContain(pem)
+      if (trustSource === 'server' || ['gh-axi', 'kubernetes-axi'].includes(tool)) expect(output.node).toContain(pem)
       else expect(output.node).not.toContain(pem)
       expect(output.python).toBe(output.node)
-      if (tool === 'gh-axi') expect(output.go).toBe(output.node)
+      if (['gh-axi', 'kubernetes-axi'].includes(tool)) expect(output.go).toBe(output.node)
       expect(output.node.match(/BEGIN CERTIFICATE/g).length).toBeGreaterThan(1)
       for (const content of output.files) expect(content).toBe(pem + '\n' + output.node)
       expect(readdirSync(join(directory, 'calls'))).toEqual([])

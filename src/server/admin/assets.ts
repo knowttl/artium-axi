@@ -102,7 +102,8 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
     const sameIdentity = editor.dataset.configured === 'true' && Object.entries(identity).every(([key, value]) =>
       (forbidden.has(key) ? null : current[key] ?? null) === value);
     const certificate = editor.querySelector('[data-certificate]');
-    certificate.hidden = forbidden.has('auth') || current.auth !== 'certificate';
+    certificate.hidden = forbidden.has('auth') || current.auth !== 'certificate' ||
+      !inputs.some(input => ['thumbprint', 'thumbprintSha256'].includes(input.dataset.profileField));
     const combined = !certificate.hidden && editor.querySelector('[data-certificate-pem]').value !== '';
     for (const input of inputs) {
       const key = input.dataset.profileField;

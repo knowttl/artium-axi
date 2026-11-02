@@ -167,7 +167,7 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
 export const meResponseSchema = z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'beyondtrust-axi', 'gh-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'beyondtrust-axi', 'gh-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi'])
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -304,6 +304,7 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
 export const ghWriteOperations = ghInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
 export const nativeSettingsSchemas = {
   'gitea-axi': z.strictObject({}),
+  'kubernetes-axi': z.strictObject({}),
   'unifi-axi': z.strictObject({}),
   'proxmox-axi': z.strictObject({}),
   'gh-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
@@ -339,7 +340,7 @@ export const nativeSettingsSchemas = {
 } as const
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
-  if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'gitea-axi') return false
+  if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'gitea-axi' || tool === 'kubernetes-axi') return false
   if (tool === 'falcon-axi') return false
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true

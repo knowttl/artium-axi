@@ -21,6 +21,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 const settingsGuide = {
   'technitium-axi': 'The pinned Technitium package is read-only. Use {}. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
   'gitea-axi': 'Classified metadata reads are admitted. Writes and attachment transfers are unavailable. Use {}.',
+  'kubernetes-axi': 'Bounded Kubernetes reads and passive authorization reviews are admitted. Writes and streaming sessions are unavailable. Use {}.',
   'unifi-axi': 'Only implemented reads are admitted. No editable native settings. Use {}.',
   'proxmox-axi': 'Ordinary API-token reads are admitted. Writes, session authentication and byte transports are unavailable. Use {}.',
   'gh-axi': 'Writes default off. Select exact collaboration or repository operations with writes: { allowWrites: true, operations: ["issue comment"] }. Preview each write, then repeat with the returned --confirm. Deletes, secret set, merge --admin and API non-GET stay blocked.',
@@ -39,6 +40,7 @@ const settingsGuide = {
 const testGuide = {
   'technitium-axi': 'Technitium user session get (authenticated read)',
   'gitea-axi': 'Gitea doctor',
+  'kubernetes-axi': 'Kubernetes pod read',
   'unifi-axi': 'UniFi info',
   'proxmox-axi': 'Proxmox get /version',
   'gh-axi': 'GitHub api /rate_limit',
@@ -288,8 +290,8 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const inspect = endpoints.length ? formStart(api + '/certificates/inspect', 'POST', '', `class="row" data-inspect-certificate${offered ? '' : ' hidden'}`) +
         `${endpoints.length > 1 ? `<label class="sr-only" for="endpoint-index">Saved TLS endpoint</label><select id="endpoint-index" name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select>` : `<input type="hidden" name="endpointIndex" data-type="number" value="0"><span class="mono">${escape(endpoints[0]!.host)}</span>`}<button class="btn btn-secondary btn-sm">${icon('cert')}Inspect certificate</button></form>` : ''
       const foot = `<span>${offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</span><div class="actions">${inspect}</div>`
-      const trustModes = tool.name === 'gh-axi'
-        ? '<option value="ca">Trust the issuing CA</option></select></label><p>GitHub CLI requires an issuing CA. Leaf pinning is unavailable. Use the server trusted CA bundle for self-signed endpoints.</p>'
+      const trustModes = ['gh-axi', 'kubernetes-axi'].includes(tool.name)
+        ? '<option value="ca">Trust the issuing CA</option></select></label><p>This tool requires an issuing CA. Leaf pinning is unavailable. Use the server trusted CA bundle for self-signed endpoints.</p>'
         : '<option value="ca">Trust the issuing CA (recommended, renewed certificates keep working)</option><option value="pin">Strict leaf pinning (re-trust after every rotation)</option></select></label><p>Self-signed endpoints keep a leaf pin. Hostname and date verification always apply.</p>'
       const dialog = `<dialog id="certificate-inspection" class="modal" aria-labelledby="certificate-inspection-title"><div class="modal-body"><h2 id="certificate-inspection-title">Trust this certificate for ${escape(product)}?</h2>
         ${callout('warn', 'Compare the fingerprint before trusting', 'Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.', '', { role: 'alert' })}

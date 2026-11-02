@@ -11,6 +11,7 @@ export interface TemporaryFile {
   name: string
   content: string | Uint8Array
   appendTrustedCa?: boolean
+  appendTrustedCaAt?: readonly string[]
 }
 
 export interface PreparedCall {
@@ -26,7 +27,7 @@ export interface PreparedCall {
   protectedResult?: { operation: string } & ({ source: 'projection' } | { source: 'file', name: string, flag: string })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   preview?: { operation: string, target: string, confirm: string }
-  limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean, privateOutput?: PrivateOutput }
+  limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean | { endpoint: string }, privateOutput?: PrivateOutput }
 }
 
 export interface Adapter<Credential> {

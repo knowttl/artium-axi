@@ -1,4 +1,8 @@
 {
+  "@knowttl/kubernetes-axi": {
+    "version": "0.1.1",
+    "integrity": "sha512-fq2+5ZKZKHXgM1KeQL+qT9bO9olMveBqGt6ga7SlwYRrOzGaOyIKq2A7p239C3h9/FLRW/8zbpfUgyjyW7Owhw=="
+  },
   "@knowttl/gitea-axi": {
     "version": "0.1.1",
     "integrity": "sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ=="

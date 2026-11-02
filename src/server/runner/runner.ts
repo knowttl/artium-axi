@@ -25,7 +25,7 @@ export interface RunnerLimits {
   timeoutMs?: number
   terminationGraceMs?: number
   runtime?: 'python'
-  systemCaBundle?: boolean
+  systemCaBundle?: boolean | { endpoint: string }
   nodeHeapMiB?: number
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
@@ -169,7 +169,8 @@ async function execute(
   trustedCa?: TrustedCaBundle,
   pathPrefix?: string,
 ): Promise<RunnerResult> {
-  const credentialTrust = limits.credentialTrust ?? []
+  const caEndpoint = typeof limits.systemCaBundle === 'object' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
+  const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
   if (limits.systemCaBundle && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
     throw new RunnerError('INVALID_INPUT', 'This tool requires an issuing CA; certificate pinning is unavailable.')
   }
@@ -222,8 +223,17 @@ async function execute(
         const temporary = join(directories.TMPDIR, 'adapter-file')
         const handle = await open(temporary, 'wx', 0o600)
         try {
+          let content = file.content
+          if (file.appendTrustedCaAt && trustPem) {
+            const profile = JSON.parse(Buffer.from(content).toString('utf8')) as Record<string, unknown>
+            let parent = profile
+            for (const key of file.appendTrustedCaAt.slice(0, -1)) parent = parent[key] as Record<string, unknown>
+            const key = file.appendTrustedCaAt.at(-1)!
+            parent[key] = String(parent[key]) + '\n' + trustPem
+            content = JSON.stringify(profile)
+          }
           await handle.writeFile(file.appendTrustedCa && trustPem
-            ? Buffer.concat([Buffer.from(file.content), Buffer.from('\n' + trustPem)]) : file.content)
+            ? Buffer.concat([Buffer.from(content), Buffer.from('\n' + trustPem)]) : content)
           await handle.sync()
         }
         finally { await handle.close() }

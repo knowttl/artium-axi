@@ -101,3 +101,9 @@ commonName = optional
   openssl(['x509', '-req', '-in', 'server.csr', '-CA', 'other-ca.crt', '-CAkey', 'other-ca.key', '-CAcreateserial',
     '-days', '3650', '-extfile', 'inspection.cnf', '-extensions', 'server', '-out', 'other-ca-leaf.crt'])
 }
+
+export function createTestClientCertificate(directory) {
+  const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+  openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-kubernetes-client', '-keyout', 'client.key', '-out', 'client.csr'])
+  openssl(['x509', '-req', '-in', 'client.csr', '-CA', 'ca.crt', '-CAkey', 'ca.key', '-set_serial', '99', '-days', '3650', '-out', 'client.crt'])
+}
