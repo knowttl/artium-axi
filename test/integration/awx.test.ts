@@ -267,6 +267,46 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   ]),
   { args: ['template', 'create', 'Synthetic template', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'], path: 'job_templates/', body: { name: 'Synthetic template', inventory: 7, project: 8, playbook: 'synthetic.yml' } },
   { args: ['template', 'edit', '42', '--name', 'Updated template'], path: 'job_templates/42/', body: { name: 'Updated template' } },
+  ...['template', 'workflow'].flatMap(noun => ['create', 'edit'].flatMap(verb => ['inline', 'upload'].map(channel => ({
+    args: [noun, verb, verb === 'create' ? 'Synthetic automation' : '42',
+      ...(verb === 'create' ? noun === 'template' ? ['--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'] : ['--organization', '7'] : []),
+      '--extra-vars', channel === 'inline' ? 'mode: synthetic\npassword: CANARY-template-variable\n' : 'template.yml'],
+    path: `${noun === 'template' ? 'job_templates' : 'workflow_job_templates'}/${verb === 'create' ? '' : '42/'}`,
+    body: { ...(verb === 'create' ? { name: 'Synthetic automation', ...(noun === 'template'
+      ? { inventory: 7, project: 8, playbook: 'synthetic.yml' } : { organization: 7 }) } : {}),
+      extra_vars: '{"mode":"synthetic","password":"CANARY-template-variable"}' },
+    input: channel === 'upload' ? { files: [upload('template.yml', 'mode: synthetic\npassword: CANARY-template-variable\n')] } : {},
+  })))),
+  ...['create', 'edit'].map(verb => ({
+    args: ['workflow', `node-${verb}`, '42', '--template', '8', '--inventory', '7', '--extra-vars', 'node.json',
+      '--limit', 'synthetic-host', '--scm-branch', 'synthetic', '--job-type', 'check', '--job-tags', 'connectivity', '--skip-tags', 'updates', '--verbosity', '2'],
+    path: verb === 'create' ? 'workflow_job_templates/42/workflow_nodes/' : 'workflow_job_template_nodes/42/',
+    body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic', password: 'CANARY-node-variable' },
+      limit: 'synthetic-host', scm_branch: 'synthetic', job_type: 'check', job_tags: 'connectivity', skip_tags: 'updates', verbosity: 2 },
+    input: { files: [upload('node.json', '{"mode":"synthetic","password":"CANARY-node-variable"}')] },
+    preview: { input: { extra_data: '[structured input redacted, 54 bytes]' } },
+  })),
+  ...['template', 'workflow'].flatMap(noun => ['add', 'remove'].flatMap(operation => [
+    ...['label', ...(noun === 'template' ? ['credential', 'instance-group'] : [])].map(kind => ({
+      args: [noun, `${kind}-${operation}`, '42', `--${kind}`, '7'],
+      path: `${noun === 'template' ? 'job_templates' : 'workflow_job_templates'}/42/${kind.replaceAll('-', '_')}s/`,
+      body: { id: 7, ...(operation === 'remove' ? { disassociate: true } : {}) },
+    })),
+    ...['started', 'success', 'error', ...(noun === 'workflow' ? ['approval'] : [])].map(event => ({
+      args: [noun, `notification-${operation}`, '42', '--event', event, '--notification-template', '7'],
+      path: `${noun === 'template' ? 'job_templates' : 'workflow_job_templates'}/42/notification_templates_${event === 'approval' ? 'approvals' : event}/`,
+      body: { id: 7, ...(operation === 'remove' ? { disassociate: true } : {}) },
+    })),
+  ])),
+  ...['add', 'remove'].flatMap(operation => ['credential', 'label', 'instance-group'].map(kind => ({
+    args: ['workflow', `node-${kind}-${operation}`, '42', `--${kind}`, '7'],
+    path: `workflow_job_template_nodes/42/${kind.replaceAll('-', '_')}s/`,
+    body: { id: 7, ...(operation === 'remove' ? { disassociate: true } : {}) },
+  }))),
+  ...['success', 'failure', 'always'].flatMap(on => ['link', 'unlink'].map(operation => ({
+    args: ['workflow', `node-${operation}`, '42', '--to', '43', '--on', on],
+    path: `workflow_job_template_nodes/42/${on}_nodes/`, body: { id: 43, ...(operation === 'unlink' ? { disassociate: true } : {}) },
+  }))),
   { args: ['project', 'create', 'Synthetic project', '--organization', '7'], path: 'projects/', body: { name: 'Synthetic project', organization: 7 } },
   { args: ['project', 'edit', '42', '--name', 'Updated project'], path: 'projects/42/', body: { name: 'Updated project' } },
   { args: ['schedule', 'create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY'], path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' } },
@@ -607,6 +647,124 @@ test('AWX inventory variables remain private on later reads with writes disabled
         method: 'POST', path: '/api/v2/inventory_sources/42/credentials/', body: { id: 11, disassociate: true },
       }))
       expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
+test('AWX server onboarding provisions a machine credential and launches synthetic connectivity (S6)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites: true }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return call
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const lines: string[] = []
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = async (args: string[], input: RunInput = {}) => {
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+      expect(response.body).not.toContain('CANARY-')
+      return decode(response.json().stdout)
+    }
+    try {
+      await run(['inventory', 'create', 'Synthetic servers', '--organization', '7', '--confirm'])
+      await run(['inventory', 'host-create', 'synthetic-host', '--inventory', '42', '--variables', '{"ansible_host":"synthetic.invalid"}', '--confirm'])
+      await run(['credential', 'create', 'Synthetic SSH', '--credential-type', 'Machine', '--inputs-file', 'machine.json', '--confirm'],
+        { files: [upload('machine.json', '{"username":"synthetic-user","ssh_key_data":"CANARY-onboarding-key"}')] })
+      await run(['template', 'create', 'Synthetic connectivity', '--inventory', '42', '--project', '8', '--playbook', 'connectivity.yml', '--confirm'])
+      await run(['template', 'credential-add', '42', '--credential', 'Synthetic SSH', '--confirm'])
+      expect(await run(['inventory', 'hosts', '42'])).toMatchObject({ hosts: [{ id: 42, name: 'synthetic-host' }] })
+      expect(await run(['template', 'launch', '42', '--dry-run'])).toMatchObject({ dry_run: { template: 42 } })
+      expect(await run(['template', 'launch', '42', '--confirm'])).toMatchObject({ job: { id: 42, status: 'pending' } })
+      const evidence = JSON.parse(await send('/__evidence'))
+      expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/credentials/',
+        body: { name: 'Synthetic SSH', credential_type: 7, inputs: { username: 'synthetic-user', ssh_key_data: 'CANARY-onboarding-key' } } }))
+      expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/job_templates/42/credentials/', body: { id: 42 } }))
+      expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/job_templates/42/launch/', body: {} }))
+      expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
+test('AWX workflow graph changes are visible with writes disabled and recover interrupted node creation (S6)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = true
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return call
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const lines: string[] = []
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const request = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+    const run = async (args: string[]) => {
+      const response = await request(args)
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+      expect(response.body).not.toContain('CANARY-')
+      return decode(response.json().stdout)
+    }
+    try {
+      await run(['workflow', 'create', 'Synthetic graph', '--organization', '7', '--confirm'])
+      await run(['workflow', 'node-create', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"password":"CANARY-graph"}', '--confirm'])
+      await run(['workflow', 'node-edit', '42', '--extra-vars', 'mode: updated\npassword: CANARY-graph-edit\n', '--limit', 'synthetic-host', '--confirm'])
+      await run(['workflow', 'node-create', '42', '--template', '8', '--confirm'])
+      await run(['workflow', 'node-add-approval', '43', '--name', 'Synthetic approval', '--description', 'Review synthetic targets', '--timeout', '300', '--confirm'])
+      await run(['credential', 'create', 'Synthetic node credential', '--credential-type', '7', '--confirm'])
+      await run(['workflow', 'node-credential-add', '42', '--credential', '42', '--confirm'])
+      for (const on of ['success', 'failure', 'always']) await run(['workflow', 'node-link', '42', '--to', '43', '--on', on, '--confirm'])
+      allowWrites = false
+      expect(await run(['workflow', 'template-nodes', '42'])).toMatchObject({ workflow_template_nodes: [
+        { id: 42, unified_job_template: '8', inventory: '7', success_nodes: '43', failure_nodes: '43', always_nodes: '43' },
+        { id: 43, approval: '70 (Synthetic approval)', approval_timeout: 300 },
+      ] })
+      expect(await run(['workflow', 'template-node', '42'])).toMatchObject({ workflow_template_node: {
+        workflow_template: '42', extra_data: { mode: 'updated', password: '***' }, limit: 'synthetic-host',
+        credentials: [{ id: 42, name: 'Synthetic node credential' }], credentials_total: 1,
+        success_nodes: [{ id: 43 }], failure_nodes: [{ id: 43 }], always_nodes: [{ id: 43 }],
+      } })
+      allowWrites = true
+      for (const on of ['success', 'failure', 'always']) await run(['workflow', 'node-unlink', '42', '--to', '43', '--on', on, '--confirm'])
+      await run(['workflow', 'node-credential-remove', '42', '--credential', '42', '--confirm'])
+      allowWrites = false
+      expect(await run(['workflow', 'template-node', '42'])).toMatchObject({ workflow_template_node: {
+        credentials: [], credentials_total: 0, success_nodes: [], failure_nodes: [], always_nodes: [],
+      } })
+      allowWrites = true
+      await send('/__awx/write-outcome?drop=true', 'POST')
+      const interrupted = await request(['workflow', 'node-create', '42', '--template', '8', '--confirm'])
+      expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
+        next: expect.stringContaining('artium-axi awx-axi workflow template-nodes 42') } })
+      allowWrites = false
+      expect(await run(['workflow', 'template-nodes', '42'])).toMatchObject({ workflow_template_nodes: [
+        { id: 42 }, { id: 43 }, { id: 44, unified_job_template: '8' },
+      ] })
+      expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
   })

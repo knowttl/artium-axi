@@ -60,6 +60,8 @@ test.each([
     expected: { payload: '[structured input redacted, 47 bytes]' } },
   { args: ['template', 'create', 'synthetic', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml', '--extra-vars', '{"ansible_password": 12345678}', '--dry-run'],
     input: {}, expected: { payload: '[structured input redacted, 30 bytes]' } },
+  { args: ['workflow', 'node-create', '42', '--template', '8', '--extra-vars', 'password: CANARY-node\n', '--dry-run'],
+    input: {}, expected: { payload: '[structured input redacted, 22 bytes]' } },
   { args: ['inventory', 'source-create', 'synthetic', '--inventory', '7', '--source', 'scm', '--source-vars', '{"ansible_password":12345678}', '--dry-run'],
     input: {}, expected: { payload: '[structured input redacted, 29 bytes]' } },
   { args: ['credential', 'edit', '42', '--inputs-file', '-', '--dry-run'],

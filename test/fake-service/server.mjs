@@ -287,12 +287,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(400); res.end(JSON.stringify({ credential_type: ['Invalid pk - object does not exist.'] })); return
         }
         mutations++
-        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|inventory_sources\/\d+\/(credentials|notification_templates_(?:started|success|error)))\/$/.exec(url.pathname)
+        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
         if (association) {
           const members = awxAssociations.get(url.pathname) ?? new Set()
           if (payload.disassociate) members.delete(payload.id)
           else members.add(payload.id)
           awxAssociations.set(url.pathname, members)
+          const edge = /^(.*\/workflow_job_template_nodes\/\d+\/)((?:success|failure|always)_nodes)\/$/.exec(url.pathname)
+          if (edge && resources.has(edge[1])) resources.get(edge[1])[edge[2]] = [...members]
           if (awxDropWrite) { req.socket.destroy(); return }
           res.writeHead(204); res.end(); return
         }
@@ -306,14 +308,26 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(202); res.end(JSON.stringify(update)); return
         }
         const groupInventory = /^\/api\/v2\/inventories\/(\d+)\/groups\/$/.exec(url.pathname)
+        const workflowNode = /^\/api\/v2\/workflow_job_templates\/(\d+)\/workflow_nodes\/$/.exec(url.pathname)
+        const approval = /^\/api\/v2\/workflow_job_template_nodes\/(\d+)\/create_approval_template\/$/.exec(url.pathname)
+        if (approval) {
+          const node = resources.get(`/api/v2/workflow_job_template_nodes/${approval[1]}/`)
+          if (node) Object.assign(node, { unified_job_template: 70, summary_fields: { unified_job_template: {
+            id: 70, unified_job_type: 'workflow_approval_template', ...payload,
+          } } })
+          res.writeHead(201); res.end(JSON.stringify({ id: 70, ...payload })); return
+        }
         const credentialCopy = /^\/api\/v2\/credentials\/(\d+)\/copy\/$/.exec(url.pathname)
         const teamCredential = /^\/api\/v2\/teams\/(\d+)\/credentials\/$/.exec(url.pathname)
-        const collection = groupInventory ? '/api/v2/groups/' : credentialCopy || teamCredential ? '/api/v2/credentials/' : url.pathname
+        const collection = groupInventory ? '/api/v2/groups/' : workflowNode ? '/api/v2/workflow_job_template_nodes/'
+          : credentialCopy || teamCredential ? '/api/v2/credentials/' : url.pathname
         let id = 42
         if (req.method === 'POST') while (resources.has(`${collection}${id}/`)) id++
         const path = req.method === 'PATCH' ? url.pathname : `${collection}${id}/`
         const original = credentialCopy ? resources.get(`/api/v2/credentials/${credentialCopy[1]}/`) : undefined
-        const resource = { ...original, id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}), ...resources.get(path), ...payload }
+        const resource = { ...original, id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}),
+          ...(workflowNode ? { workflow_job_template: Number(workflowNode[1]), success_nodes: [], failure_nodes: [], always_nodes: [] } : {}),
+          ...resources.get(path), ...payload }
         resources.set(path, resource)
         if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
@@ -335,6 +349,15 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
     }
     if (configurationPath && req.method === 'GET') {
+      const workflowNodes = /^\/api\/v2\/workflow_job_templates\/(\d+)\/workflow_nodes\/$/.exec(url.pathname)
+      const nodeMembers = /^\/api\/v2\/workflow_job_template_nodes\/\d+\/(credentials|(?:success|failure|always)_nodes)\/$/.exec(url.pathname)
+      if (workflowNodes || nodeMembers) {
+        const collection = nodeMembers?.[1] === 'credentials' ? 'credentials' : 'workflow_job_template_nodes'
+        const rows = [...resources.entries()].filter(([path, value]) => new RegExp(`^/api/v2/${collection}/\\d+/$`).test(path)
+          && (workflowNodes ? value.workflow_job_template === Number(workflowNodes[1]) : awxAssociations.get(url.pathname)?.has(value.id)))
+          .map(([, value]) => value)
+        res.end(JSON.stringify({ count: rows.length, next: null, results: rows })); return
+      }
       const variables = /^\/api\/v2\/(hosts|groups)\/(\d+)\/variable_data\/$/.exec(url.pathname)
       if (variables) {
         res.end(JSON.stringify(parse(resources.get(`/api/v2/${variables[1]}/${variables[2]}/`)?.variables ?? '{}') ?? {})); return
