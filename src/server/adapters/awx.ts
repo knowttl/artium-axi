@@ -9,15 +9,15 @@ import type { Adapter } from './types.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
-export const awxWritePolicy = writePolicy({ allowConfigurationWrites: true, unlocks: 'Operational launch, relaunch, cancel, sync, approval and notification tests with explicit confirmation.',
-  blocked: 'Credentials, secret input, deletion, removals, bulk and security administration, server file inputs and unsafe overrides remain blocked.' })
+export const awxWritePolicy = writePolicy({ unlocks: 'All implemented AWX writes for this tenant, including configuration, support preview and require explicit confirmation and AWX resource permission. Destructive and security administration use this same switch when supported.',
+  blocked: 'Credentials, secret input, deletion, removals, bulk and security administration are not yet supported. Server file paths and unsafe overrides remain blocked.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
 function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--version', '-v', '-V', '--help'].includes(args[0])) return {
-    args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' }, effect: 'read' as const, configuration: false }
+    args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' }, effect: 'read' as const, configuration: false, mutation: false }
   const flags = new Map<string, string | true>()
   const positionals: string[] = []
   const knownFlags = Object.assign({}, ...inventory.commands.map(route => route.flags)) as Record<string, string>
@@ -42,11 +42,11 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   if (!positionals.length) positionals.push('home')
   if (positionals.length === 1 && flags.size === 1 && flags.has('help') && inventory.discovery.commands.includes(positionals[0])) {
-    return { args: [positionals[0], '--help'], invocation: { command: positionals[0], help: true }, effect: 'read' as const, configuration: false }
+    return { args: [positionals[0], '--help'], invocation: { command: positionals[0], help: true }, effect: 'read' as const, configuration: false, mutation: false }
   }
   const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('awx-axi', positionals, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
-  if (route.effect === 'blocked') throw new ArtiumError('FLAG_BLOCKED', `Command ${route.command} is unavailable through artium.`)
+  if (route.effect === 'blocked' && !flags.has('help')) throw new ArtiumError('INVALID_INPUT', `Command ${route.command} is not yet supported through Artium.`)
   const schema: Record<string, string | undefined> = route.flags
   for (const name of flags.keys()) if (!Object.hasOwn(schema, name)) throw new ArtiumError('INVALID_INPUT',
     `Unknown flag --${name} for awx-axi ${route.command}.`,
@@ -70,6 +70,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     checkArgs = [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
   }
   return { args: [...(route.command === 'home' ? [] : positionals), ...[...flags].map(([name, value]) => value === true ? `--${name}` : `--${name}=${value}`)], effect, configuration,
+    mutation: ['write', 'configuration-write'].includes(route.effect),
     invocation: { command: route.command, help: flags.has('help') },
     ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource', checkArgs,
       afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' } } : {}) }
@@ -85,9 +86,8 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
     async prepare(args, reference, input) {
       const normalized = awxArguments(args, input)
       if (reference.tool !== 'awx-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      const allowed = (settings: Record<string, unknown>) => normalized.configuration
-        ? settings.allowConfigurationWrites === true : settings.allowWrites === true
-      const requiresWriteAccess = normalized.effect === 'write' || normalized.configuration && !normalized.invocation.help
+      const allowed = (settings: Record<string, unknown>) => settings.allowWrites === true
+      const requiresWriteAccess = normalized.mutation && !normalized.invocation.help
       if (requiresWriteAccess && source.getSettings && !allowed(source.getSettings(reference))) throw new ArtiumError('FLAG_BLOCKED')
       const value = await source.getCredential(reference)
       const parsed = awxCredentialSchema.safeParse(value)
@@ -95,7 +95,9 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
-      if (normalized.configuration && !readOnly) profile.environment.AWX_AXI_ALLOW_CONFIG_WRITES = '1'
+      if (normalized.mutation && !readOnly) Object.assign(profile.environment, {
+        AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1',
+      })
       return { executable: toolPaths['awx-axi'], ...normalized,
         ...profile, limits: { timeoutMs: runnerLimits.timeoutMs } }
     },

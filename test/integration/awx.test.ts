@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -51,6 +52,44 @@ const configurationCases = [
   { args: ['inventory', 'source-notification-add', '42', '--event', 'success', '--notification-template', '7'], path: 'inventory_sources/42/notification_templates_success/', body: { id: 7 } },
 ]
 
+test('AWX enabling writes in one tenant does not grant another tenant write access', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'artium-awx-tenants-'))
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+  const tenants = await Promise.all(['first', 'second'].map(async name => {
+    const db = openStore(join(directory, name, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec('UPDATE users SET administrator = 1')
+    const store = createCredentialStore(db, provider)
+    const reference = store.replaceCredential('awx-axi', { origin: 'https://controller.example', token: 'CANARY-awx-token' },
+      0, 'synthetic-development-user', Date.now())
+    const adapter = createAwxAdapter(new EmbeddedSecretSource(store))
+    const app = createApp({ db, audit: new Audit(db, Date.now, () => {}),
+      runner: await Runner.create(join(directory, name, 'calls')), adapters: [adapter],
+      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+    return { db, app, adapter, reference, store }
+  }))
+  try {
+    const [first, second] = tenants
+    const login = await first.app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
+      username: 'synthetic-user', password: 'CANARY-local-password' } })
+    const headers = { authorization: `Bearer ${login.json().accessToken}` }
+    const reauth = await first.app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const grant = await first.app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { enabled: true, expectedRevision: 1 } })
+    expect(grant.json(), grant.body).toMatchObject({ writeAccess: { enabled: true } })
+    first.reference = first.store.findCredential('awx-axi')!
+    for (const args of [['job', 'cancel', '42', '--confirm'], ['inventory', 'edit', '42', '--name', 'Synthetic', '--confirm']]) {
+      expect((await first.adapter.prepare(args, first.reference)).effect).toBe('write')
+      await expect(second.adapter.prepare(args, second.reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+    }
+    expect((await second.adapter.prepare(['job', 'list'], second.reference)).effect).toBe('read')
+    expect((await first.adapter.prepare(['job', 'list'], first.reference)).effect).toBe('read')
+  } finally {
+    for (const { app, db } of tenants) { await app.close(); db.close() }
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body }) => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
@@ -90,11 +129,12 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
         expect(response.statusCode, response.body).toBe(200)
       }
       const run = (input: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args: input } })
-      await settings({ allowWrites: true })
+      await settings({})
       await send('/__ado/reset', 'POST')
       expect((await run([...args, '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect((await run([...args, '--dry-run'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
-      await settings({ allowConfigurationWrites: true })
+      await settings({ allowWrites: true })
       await send('/__ado/reset', 'POST')
       expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
@@ -174,7 +214,8 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(page.body).toContain('data-profile-field="token"')
       const writes = await app.inject({ url: '/admin/tools/awx-axi?tab=writes', headers: {
         cookie: browserLogin.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
-      expect(writes.body).toContain('name="allowConfigurationWrites" data-type="boolean"')
+      expect(writes.body).toContain('name="enabled" data-type="boolean"')
+      expect(writes.body).not.toContain('name="allowConfigurationWrites"')
       expect(page.body).not.toContain('data-profile-field="verifySsl"')
       expect(page.body).not.toContain('CANARY-awx-token')
       const checked = () => app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/test', headers, payload: {} })
@@ -193,14 +234,16 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
       const read = await run(['job', 'list', '--limit', '1'])
       expect(read.json()).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('Synthetic AWX job') })
+      const help = await run(['template', 'delete', '--help'])
+      expect(help.json(), help.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('template delete') })
       expect((await run(['job', 'cancel', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect((await run(['job', 'cancel', '42', '--dry-run'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi', headers,
         payload: { nativeSettings: { allowWrites: true }, expectedRevision: 3 } })).statusCode).toBe(200)
       const written = await run(['job', 'cancel', '42', '--type', 'job', '--confirm'])
       expect(written.json(), written.body).toMatchObject({ exitCode: 0 })
-      expect((await run(['template', 'create', 'Synthetic', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
-      expect((await run(['template', 'delete', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
-      expect((await run(['role', 'grant', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect((await run(['template', 'delete', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') } })
+      expect((await run(['role', 'grant', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') } })
       const evidence = JSON.parse(await send('/__evidence'))
       expect(evidence.mutations).toBe(1)
       expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/jobs/42/cancel/', canaryReceived: true }))
@@ -209,8 +252,6 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(existsSync(join(directory, 'ambient-writes.log'))).toBe(false)
       expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
-      expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
-        payload: { enabled: true, allowConfigurationWrites: true, expectedRevision: 4 } })).statusCode).toBe(200)
       const beforeBlocked = JSON.parse(await send('/__evidence'))
       for (const blocked of [
         ['template', 'delete', '42'], ['workflow', 'node-unlink', '42', '--to', '7', '--on', 'success'],
@@ -228,17 +269,17 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(JSON.parse(await send('/__evidence'))).toEqual(beforeBlocked)
       expect(JSON.stringify(db.prepare("SELECT arguments FROM audit WHERE tool = 'awx-axi'").all())).not.toContain('CANARY-input')
       expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
-        payload: { enabled: false, expectedRevision: 5 } })).statusCode).toBe(200)
+        payload: { enabled: false, expectedRevision: 4 } })).statusCode).toBe(200)
       const tools = await app.inject({ url: '/v1/tools', headers })
-      expect(tools.json()).toMatchObject({ tools: [expect.objectContaining({ name: 'awx-axi', readOnly: false })] })
+      expect(tools.json()).toMatchObject({ tools: [expect.objectContaining({ name: 'awx-axi', readOnly: true })] })
       const beforeOperational = JSON.parse(await send('/__evidence'))
       expect((await run(['job', 'cancel', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect(JSON.parse(await send('/__evidence'))).toEqual(beforeOperational)
       const grants = db.prepare("SELECT arguments FROM audit WHERE tool = 'awx-axi' AND event = 'tool-write-access' ORDER BY id").all() as { arguments: string }[]
-      expect(grants.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({ enabled: false, allowConfigurationWrites: true }))
-      const disabledConfiguration = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
-        payload: { enabled: false, allowConfigurationWrites: false, expectedRevision: 6 } })
-      expect(disabledConfiguration.json(), disabledConfiguration.body).toMatchObject({ readOnly: true, nativeSettings: { allowWrites: false, allowConfigurationWrites: false } })
+      expect(grants.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({ enabled: false }))
+      const legacyUpdate = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access', headers,
+        payload: { enabled: false, allowConfigurationWrites: true, expectedRevision: 5 } })
+      expect(legacyUpdate.statusCode).toBe(400)
       const beforeDisabled = JSON.parse(await send('/__evidence'))
       expect((await run(['template', 'create', 'Synthetic', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect(JSON.parse(await send('/__evidence'))).toEqual(beforeDisabled)

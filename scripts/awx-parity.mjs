@@ -24,7 +24,7 @@ const targetPolicy = {
   write: 'One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
 }
 const authorizationFor = effect => ['read', 'client-local'].includes(effect) ? 'read' : 'write'
-const configurationControl = 'Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission'
+const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
 const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
 const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, upstream))).digest('hex') }))
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)

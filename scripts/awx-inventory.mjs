@@ -64,7 +64,7 @@ const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin
     nativeWrites: 'host-classified', inputs: { stdin: 'unsupported', files: 'unsupported' } },
   discovery: { commands: [...DOMAINS.map(domain => domain.name), 'auth status', 'doctor'],
     example: ['job', 'list', '--limit', '1'],
-    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm. Ordinary configuration create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes require separate allowConfigurationWrites and --confirm. AWX permissions still apply. Credentials, secret input, files/stdin, deletes, removals, bulk and security administration stay blocked. Use job watch --timeout 50 or less.\n' },
+    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every implemented write, including configuration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. Destructive and security administration use the same switch when supported. AWX permissions still apply. Credentials, secret input, files/stdin, deletes, removals, bulk and security administration are not yet supported. Use job watch --timeout 50 or less.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const outputs = [['inventories/awx-axi.json', JSON.stringify(data, null, 2) + '\n'], ['skills/awx-axi/SKILL.md', skill]]
 for (const [path, contents] of outputs) {

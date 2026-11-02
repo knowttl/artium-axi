@@ -1418,7 +1418,7 @@
         "required": 1
       },
       "help": "awx-axi template instance-group-add <id|name> --instance-group <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -1432,7 +1432,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "instance-group",
@@ -1446,7 +1446,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -1460,7 +1460,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -1474,7 +1474,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -1561,7 +1561,7 @@
         "required": 1
       },
       "help": "awx-axi template label-add <id|name> --label <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -1575,7 +1575,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "label",
@@ -1589,7 +1589,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -1603,7 +1603,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -1617,7 +1617,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -1704,7 +1704,7 @@
         "required": 1
       },
       "help": "awx-axi template notification-add <id|name> --event <event> --notification-template <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -1718,7 +1718,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "event",
@@ -1732,7 +1732,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "notification-template",
@@ -1746,7 +1746,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -1760,7 +1760,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -1774,7 +1774,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -1874,7 +1874,7 @@
         "required": 0
       },
       "help": "awx-axi template create [<name>] [--inventory <i|name>] [--project <p|name>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -1888,7 +1888,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -1902,7 +1902,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -1916,7 +1916,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "project",
@@ -1930,7 +1930,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "playbook",
@@ -1945,7 +1945,7 @@
           "file": false,
           "stdin": false,
           "note": "AWX project-relative playbook name, not a runner file upload",
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -1959,7 +1959,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "execution-environment",
@@ -1973,7 +1973,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -2003,7 +2003,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "verbosity",
@@ -2017,7 +2017,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-type",
@@ -2031,7 +2031,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -2045,7 +2045,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -2059,7 +2059,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -2077,7 +2077,7 @@
         "required": 1
       },
       "help": "awx-axi template edit <id|name> [--name <n>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -2091,7 +2091,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -2105,7 +2105,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -2119,7 +2119,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "project",
@@ -2133,7 +2133,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "playbook",
@@ -2148,7 +2148,7 @@
           "file": false,
           "stdin": false,
           "note": "AWX project-relative playbook name, not a runner file upload",
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -2162,7 +2162,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "execution-environment",
@@ -2176,7 +2176,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -2206,7 +2206,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "verbosity",
@@ -2220,7 +2220,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-type",
@@ -2234,7 +2234,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -2248,7 +2248,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -2262,7 +2262,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -2336,7 +2336,7 @@
         "required": 1
       },
       "help": "awx-axi template copy <id|name> [--name <n>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -2350,7 +2350,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -2364,7 +2364,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -2378,7 +2378,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -2392,7 +2392,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -2862,7 +2862,7 @@
         "required": 1
       },
       "help": "awx-axi workflow node-create <workflow> --template <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -2876,7 +2876,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "template",
@@ -2890,7 +2890,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -2904,7 +2904,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -2934,7 +2934,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-branch",
@@ -2948,7 +2948,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-type",
@@ -2962,7 +2962,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-tags",
@@ -2976,7 +2976,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "skip-tags",
@@ -2990,7 +2990,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "verbosity",
@@ -3004,7 +3004,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -3018,7 +3018,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -3032,7 +3032,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -3050,7 +3050,7 @@
         "required": 1
       },
       "help": "awx-axi workflow node-edit <id> [--template <id|name>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -3064,7 +3064,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "template",
@@ -3078,7 +3078,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -3092,7 +3092,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -3122,7 +3122,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-branch",
@@ -3136,7 +3136,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-type",
@@ -3150,7 +3150,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-tags",
@@ -3164,7 +3164,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "skip-tags",
@@ -3178,7 +3178,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "verbosity",
@@ -3192,7 +3192,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -3206,7 +3206,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -3220,7 +3220,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -3294,7 +3294,7 @@
         "required": 1
       },
       "help": "awx-axi workflow node-link <node-id> --on <success|failure|always> --to <node-id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -3308,7 +3308,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "on",
@@ -3322,7 +3322,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "to",
@@ -3336,7 +3336,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -3350,7 +3350,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -3364,7 +3364,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -3602,7 +3602,7 @@
         "required": 1
       },
       "help": "awx-axi workflow node-label-add <node-id> --label <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -3616,7 +3616,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "label",
@@ -3630,7 +3630,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -3644,7 +3644,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -3658,7 +3658,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -3745,7 +3745,7 @@
         "required": 1
       },
       "help": "awx-axi workflow node-instance-group-add <node-id> --instance-group <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -3759,7 +3759,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "instance-group",
@@ -3773,7 +3773,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -3787,7 +3787,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -3801,7 +3801,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -3888,7 +3888,7 @@
         "required": 1
       },
       "help": "awx-axi workflow node-add-approval <node-id> --name <name> [--timeout <seconds>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -3902,7 +3902,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -3916,7 +3916,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -3930,7 +3930,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "timeout",
@@ -3944,7 +3944,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -3958,7 +3958,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -3972,7 +3972,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -3990,7 +3990,7 @@
         "required": 1
       },
       "help": "awx-axi workflow notification-add <id|name> --event <event> --notification-template <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -4004,7 +4004,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "event",
@@ -4018,7 +4018,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "notification-template",
@@ -4032,7 +4032,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -4046,7 +4046,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -4060,7 +4060,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -4160,7 +4160,7 @@
         "required": 1
       },
       "help": "awx-axi workflow label-add <id|name> --label <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -4174,7 +4174,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "label",
@@ -4188,7 +4188,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -4202,7 +4202,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -4216,7 +4216,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -4303,7 +4303,7 @@
         "required": 1
       },
       "help": "awx-axi workflow copy <id|name> [--name <name>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -4317,7 +4317,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -4331,7 +4331,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -4345,7 +4345,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -4359,7 +4359,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -4377,7 +4377,7 @@
         "required": 0
       },
       "help": "awx-axi workflow create [<name>] [--organization <o>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -4391,7 +4391,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -4405,7 +4405,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "organization",
@@ -4419,7 +4419,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -4433,7 +4433,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -4463,7 +4463,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -4477,7 +4477,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -4495,7 +4495,7 @@
         "required": 1
       },
       "help": "awx-axi workflow edit <id|name> [--name <n>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -4509,7 +4509,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -4523,7 +4523,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "organization",
@@ -4537,7 +4537,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -4551,7 +4551,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -4581,7 +4581,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -4595,7 +4595,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -8565,7 +8565,7 @@
         "required": 1
       },
       "help": "awx-axi project notification-add <id|name> --event <event> --notification-template <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -8579,7 +8579,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "event",
@@ -8593,7 +8593,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "notification-template",
@@ -8607,7 +8607,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -8621,7 +8621,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -8635,7 +8635,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -8735,7 +8735,7 @@
         "required": 0
       },
       "help": "awx-axi project create [<name>] [--scm-type <t>] [--scm-url <u>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -8749,7 +8749,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -8763,7 +8763,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "organization",
@@ -8777,7 +8777,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-type",
@@ -8791,7 +8791,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-url",
@@ -8820,7 +8820,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "credential",
@@ -8848,7 +8848,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -8862,7 +8862,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -8876,7 +8876,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -8894,7 +8894,7 @@
         "required": 1
       },
       "help": "awx-axi project edit <id|name> [--name <n>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -8908,7 +8908,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -8922,7 +8922,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "organization",
@@ -8936,7 +8936,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-type",
@@ -8950,7 +8950,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-url",
@@ -8979,7 +8979,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "credential",
@@ -9007,7 +9007,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -9021,7 +9021,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -9035,7 +9035,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -9634,7 +9634,7 @@
         "required": 0
       },
       "help": "awx-axi inventory group-create [<name>] --inventory <i|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -9648,7 +9648,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -9662,7 +9662,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -9676,7 +9676,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -9690,7 +9690,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -9719,7 +9719,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -9733,7 +9733,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -9751,7 +9751,7 @@
         "required": 1
       },
       "help": "awx-axi inventory group-edit <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -9765,7 +9765,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -9779,7 +9779,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -9793,7 +9793,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -9822,7 +9822,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -9836,7 +9836,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -9910,7 +9910,7 @@
         "required": 1
       },
       "help": "awx-axi inventory group-add-host <group> --host <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -9924,7 +9924,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "host",
@@ -9938,7 +9938,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -9952,7 +9952,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -9966,7 +9966,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -10053,7 +10053,7 @@
         "required": 1
       },
       "help": "awx-axi inventory group-add-child <group> --child <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -10067,7 +10067,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "child",
@@ -10081,7 +10081,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -10095,7 +10095,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -10109,7 +10109,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -10196,7 +10196,7 @@
         "required": 0
       },
       "help": "awx-axi inventory source-create [<name>] --inventory <i|name> --source <type> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "conditionalEffect": "security administration when credential or notification configuration/messages input is supplied",
       "dependentSlices": [
         "c",
@@ -10215,7 +10215,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -10229,7 +10229,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -10243,7 +10243,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source",
@@ -10257,7 +10257,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source-project",
@@ -10271,7 +10271,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "credential",
@@ -10314,7 +10314,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -10328,7 +10328,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -10342,7 +10342,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -10360,7 +10360,7 @@
         "required": 1
       },
       "help": "awx-axi inventory source-edit <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "conditionalEffect": "security administration when credential or notification configuration/messages input is supplied",
       "dependentSlices": [
         "c",
@@ -10379,7 +10379,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -10393,7 +10393,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source",
@@ -10407,7 +10407,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source-project",
@@ -10421,7 +10421,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "credential",
@@ -10464,7 +10464,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "no-update-on-launch",
@@ -10478,7 +10478,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -10492,7 +10492,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -10506,7 +10506,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -10718,7 +10718,7 @@
         "required": 1
       },
       "help": "awx-axi inventory source-notification-add <id|name> --event <event> --notification-template <id|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -10732,7 +10732,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "event",
@@ -10746,7 +10746,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "notification-template",
@@ -10760,7 +10760,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -10774,7 +10774,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -10788,7 +10788,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -10888,7 +10888,7 @@
         "required": 0
       },
       "help": "awx-axi inventory create [<name>] [--organization <o>] [--kind <standard|smart>] [--host-filter <filter>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -10902,7 +10902,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -10916,7 +10916,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "organization",
@@ -10930,7 +10930,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "kind",
@@ -10944,7 +10944,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "host-filter",
@@ -10958,7 +10958,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -10972,7 +10972,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -11001,7 +11001,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -11015,7 +11015,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -11033,7 +11033,7 @@
         "required": 1
       },
       "help": "awx-axi inventory edit <id|name> [--name <n>] [--host-filter <filter>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -11047,7 +11047,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -11061,7 +11061,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "organization",
@@ -11075,7 +11075,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "host-filter",
@@ -11089,7 +11089,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -11103,7 +11103,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -11132,7 +11132,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -11146,7 +11146,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -11302,7 +11302,7 @@
         "required": 0
       },
       "help": "awx-axi inventory host-create [<name>] --inventory <i|name> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -11316,7 +11316,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -11330,7 +11330,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -11344,7 +11344,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -11358,7 +11358,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -11387,7 +11387,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "disabled",
@@ -11401,7 +11401,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -11415,7 +11415,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -11429,7 +11429,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -11447,7 +11447,7 @@
         "required": 1
       },
       "help": "awx-axi inventory host-edit <id|name> [--name <n>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -11461,7 +11461,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -11475,7 +11475,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -11489,7 +11489,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -11503,7 +11503,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -11532,7 +11532,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "disabled",
@@ -11546,7 +11546,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -11560,7 +11560,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -11574,7 +11574,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -12811,7 +12811,7 @@
         "required": 1
       },
       "help": "awx-axi schedule label-add <id|name> --label <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -12825,7 +12825,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "label",
@@ -12839,7 +12839,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -12853,7 +12853,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -12867,7 +12867,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -12954,7 +12954,7 @@
         "required": 1
       },
       "help": "awx-axi schedule instance-group-add <id|name> --instance-group <id> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -12968,7 +12968,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "instance-group",
@@ -12982,7 +12982,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -12996,7 +12996,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -13010,7 +13010,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -13097,7 +13097,7 @@
         "required": 0
       },
       "help": "awx-axi schedule create [<name>] [--template <id|name>] [--rrule <rrule>] [--inventory <id|name>] [--limit <value>] [--extra-vars <json|@file>] [--job-tags <tags>] [--skip-tags <tags>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -13111,7 +13111,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -13125,7 +13125,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "template",
@@ -13139,7 +13139,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "rrule",
@@ -13153,7 +13153,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -13167,7 +13167,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -13181,7 +13181,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "limit",
@@ -13195,7 +13195,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -13225,7 +13225,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "skip-tags",
@@ -13239,7 +13239,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "enabled",
@@ -13253,7 +13253,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "disabled",
@@ -13267,7 +13267,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -13281,7 +13281,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -13295,7 +13295,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -13313,7 +13313,7 @@
         "required": 1
       },
       "help": "awx-axi schedule edit <id|name> [--name <n>] [--inventory <id|name>] [--limit <value>] [--extra-vars <json|@file>] [--job-tags <tags>] [--skip-tags <tags>] [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -13327,7 +13327,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -13341,7 +13341,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "template",
@@ -13355,7 +13355,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "rrule",
@@ -13369,7 +13369,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -13383,7 +13383,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -13397,7 +13397,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "limit",
@@ -13411,7 +13411,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "extra-vars",
@@ -13441,7 +13441,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "skip-tags",
@@ -13455,7 +13455,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "enabled",
@@ -13469,7 +13469,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "disabled",
@@ -13483,7 +13483,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -13497,7 +13497,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -13511,7 +13511,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18089,7 +18089,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -18103,7 +18103,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -18117,7 +18117,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -18131,7 +18131,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -18160,7 +18160,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18174,7 +18174,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18200,7 +18200,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -18214,7 +18214,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -18228,7 +18228,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -18257,7 +18257,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18271,7 +18271,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18349,7 +18349,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "host",
@@ -18363,7 +18363,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18377,7 +18377,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18391,7 +18391,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18418,7 +18418,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "host",
@@ -18432,7 +18432,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18446,7 +18446,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18460,7 +18460,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18617,7 +18617,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "child",
@@ -18631,7 +18631,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18645,7 +18645,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18659,7 +18659,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18686,7 +18686,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "child",
@@ -18700,7 +18700,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18714,7 +18714,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18728,7 +18728,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18884,7 +18884,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -18898,7 +18898,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -18912,7 +18912,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source",
@@ -18926,7 +18926,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source-project",
@@ -18940,7 +18940,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "credential",
@@ -18983,7 +18983,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18997,7 +18997,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -19011,7 +19011,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -19037,7 +19037,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -19051,7 +19051,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source",
@@ -19065,7 +19065,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "source-project",
@@ -19079,7 +19079,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "credential",
@@ -19122,7 +19122,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "no-update-on-launch",
@@ -19136,7 +19136,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -19150,7 +19150,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -19164,7 +19164,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -19502,7 +19502,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "event",
@@ -19516,7 +19516,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "notification-template",
@@ -19530,7 +19530,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -19544,7 +19544,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -19558,7 +19558,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -19585,7 +19585,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "event",
@@ -19599,7 +19599,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "notification-template",
@@ -19613,7 +19613,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -19627,7 +19627,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -19641,7 +19641,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -19823,7 +19823,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -19837,7 +19837,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -19851,7 +19851,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -19865,7 +19865,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -19894,7 +19894,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "disabled",
@@ -19908,7 +19908,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -19922,7 +19922,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -19936,7 +19936,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -19962,7 +19962,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "name",
@@ -19976,7 +19976,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -19990,7 +19990,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "description",
@@ -20004,7 +20004,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "variables",
@@ -20033,7 +20033,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "disabled",
@@ -20047,7 +20047,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -20061,7 +20061,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -20075,7 +20075,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },

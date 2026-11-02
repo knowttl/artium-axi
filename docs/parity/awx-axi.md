@@ -50,7 +50,9 @@ Flags inherit the command's read/write authorization and upstream validation.
 `<value>` denotes a value-taking flag, while other flags are boolean.
 Positionals retain upstream names and required counts in the command table.
 
-Today ordinary configuration access uses separate `allowConfigurationWrites`, while operational writes use `allowWrites`; these describe the existing boundary only.
+All implemented writes now use the single tenant `allowWrites` setting, default off.
+Legacy `allowConfigurationWrites` is ignored and grants no access.
+Commands awaiting implementation report that they are not yet supported, regardless of the switch.
 S1 applies the target policy and replaces permanent mutation-route rejection with setting-gated access.
 Current configuration previews need configuration authorization; operational execution needs `--confirm` without `--dry-run`.
 

@@ -336,7 +336,6 @@ export const nativeSettingsSchemas = {
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'ldap-axi') return false
-  if (tool === 'awx-axi') return settings.allowWrites === true || settings.allowConfigurationWrites === true
   if (tool === 'falcon-axi') return settings.writes
     ? (settings.writes as { allowWrites?: unknown }).allowWrites === true : settings.allowWrites === true
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {
@@ -357,12 +356,10 @@ export const healthSchema = z.strictObject({ status: z.enum(['unconfigured', 'un
   checkedAt: z.number().int().nullable(), credentialRevision: z.number().int().nullable(), errorCode: z.enum(Object.keys(errors) as [keyof typeof errors, ...Array<keyof typeof errors>]).nullable() })
 export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabled: z.boolean(), reason: z.string().nullable(),
   supportedOperations: z.array(z.string()).nullable(), allowedOperations: z.array(z.string()), unlocks: z.string(), blocked: z.string() })
-// For AWX, writeAccess.enabled describes operational access only; nativeSettings.allowConfigurationWrites
-// is independent, and readOnly is false when either grant is enabled.
-// Write-access updates preserve an omitted allowConfigurationWrites grant; enabled: false alone does not revoke it.
-// tool-write-access audit arguments contain enabled, optional allowDeletes/allowConfigurationWrites, catalogue operation identities and
+// AWX uses allowWrites for every mutation. Legacy allowConfigurationWrites settings grant no access.
+// tool-write-access audit arguments contain enabled, optional allowDeletes, catalogue operation identities and
 // unsupportedOperationCount. Arbitrary legacy allow-list strings are counted, never logged.
-export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean().optional(), allowConfigurationWrites: z.boolean().optional(), enabled: z.boolean(),
+export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean().optional(), enabled: z.boolean(),
   operations: z.array(z.string().min(1).max(256)).max(126).refine(operations => new Set(operations).size === operations.length).optional(),
   expectedRevision: z.number().int().positive() })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,

@@ -22,28 +22,42 @@ const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']
 
-test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command is refused regardless of write access', async route => {
-  await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  await expect(adapter(true, true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command reports missing support regardless of write access', async route => {
+  await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
+  await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
 })
 
-test.each(inventory.commands.filter(route => route.effect === 'write'))('$command requires the operational write switch', async route => {
+test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command requires the single tenant write switch', async route => {
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   const call = await adapter(true).prepare(args, reference)
   expect(call.effect).toBe('write')
   expect(call.environment).toMatchObject({ AWX_AXI_READ_ONLY: 'false', ARTIUM_SECRET_0: credential.token })
-  expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_CONFIG_WRITES')
-  expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_DELETES')
-  expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_SECURITY_WRITES')
+  expect(call.environment).toMatchObject({ AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1' })
   expect(call.environment).not.toHaveProperty('AWX_AXI_WRITE_LOG')
   expect(call.write?.checkArgs).toBeDefined()
 })
 
-test('a dry-run remains a read even when confirm is present', async () => {
-  const call = await adapter().prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
+test('an authorized dry-run remains a read even when confirm is present', async () => {
+  const call = await adapter(true).prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
   expect(call.effect).toBe('read')
   expect(call.write).toBeUndefined()
+})
+
+test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command previews require write access and ignore the legacy configuration grant', async route => {
+  const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--dry-run']
+  await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  await expect(adapter(false, true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect((await adapter(true).prepare(args, reference)).effect).toBe('read')
+})
+
+test.each(inventory.commands.filter(route => route.effect === 'read'))('$command remains available without write access', async route => {
+  const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42')]
+  expect((await adapter().prepare(args, reference)).effect).toBe('read')
+})
+
+test.each(inventory.commands.filter(route => route.effect === 'blocked' && ['delete', 'grant', 'create'].some(action => route.command.endsWith(` ${action}`))))('$command help remains readable without write access', async route => {
+  expect((await adapter().prepare([...route.command.split(' '), '--help'], reference)).effect).toBe('read')
 })
 
 test('batch host inspection is admitted without write authority', async () => {
@@ -55,7 +69,7 @@ test('batch host inspection is admitted without write authority', async () => {
 })
 
 test.each(inventory.commands.filter(route => route.effect === 'configuration-write').map(route => route.command))('%s managed help describes configuration authority and excludes blocked input', async command => {
-  const call = await adapter(false, true).prepare([...command.split(' '), '--help'], reference)
+  const call = await adapter().prepare([...command.split(' '), '--help'], reference)
   const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
@@ -63,7 +77,7 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain('--confirm')
   expect(help).toContain('--dry-run')
   expect(help).not.toMatch(/--(?:credential|extra-vars|variables|source-vars|scm-url|[a-z-]+-file)\b/)
-  expect(help).toContain('allowConfigurationWrites and --confirm')
+  expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
 })
 
@@ -89,7 +103,7 @@ test.each([
   { command: 'inventory host-edit', group: 'host' }, { command: 'inventory group-edit', group: 'group' },
   { command: 'inventory source-edit', group: 'inventory-source' }, { command: 'schedule edit', group: 'schedule' },
 ])('$command recovery covers both rename outcomes', async ({ command, group }) => {
-  const call = await adapter(false, true).prepare([...command.split(' '), 'Old', '--name', 'New', '--confirm'], reference)
+  const call = await adapter(true).prepare([...command.split(' '), 'Old', '--name', 'New', '--confirm'], reference)
   expect(call.write?.checkArgs).toEqual([group, 'list', '--limit', '100'])
   const recovery = await adapter().prepare(call.write!.checkArgs, reference)
   expect(recovery.effect).toBe('read')

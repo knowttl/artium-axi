@@ -212,7 +212,10 @@ See [credential rotation](runbook.md#roles-credentials-and-health).
 Use the **Write permissions** tab (`?tab=writes`) on a tool page to change writes without replacing other native settings.
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
-For AWX, **Operational actions** and **Configuration changes** are independent switches; review the [AWX write boundary](safety.md#write-gates-by-tool) before enabling either.
+For AWX, **Allow writes** is the single tenant switch for all implemented mutations, including configuration, and defaults off.
+Reads and help remain available while it is off; previews require it and execution also requires confirmation and AWX resource permission.
+Legacy `allowConfigurationWrites` is ignored and grants no access.
+Review the [AWX write boundary](safety.md#write-gates-by-tool) for operations awaiting support.
 For Falcon, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
