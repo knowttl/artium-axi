@@ -2,6 +2,7 @@ import { createServer } from 'node:https'
 import { verify, X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { parse } from 'yaml'
 import { hybridResponse } from './hybrid.mjs'
 import { beyondtrustResponse } from './beyondtrust.mjs'
 import { checkpointResponse } from './checkpoint.mjs'
@@ -305,7 +306,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     if (configurationPath && req.method === 'GET') {
       const variables = /^\/api\/v2\/(hosts|groups)\/(\d+)\/variable_data\/$/.exec(url.pathname)
       if (variables) {
-        res.end(resources.get(`/api/v2/${variables[1]}/${variables[2]}/`)?.variables ?? '{}'); return
+        res.end(JSON.stringify(parse(resources.get(`/api/v2/${variables[1]}/${variables[2]}/`)?.variables ?? '{}') ?? {})); return
       }
       const members = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|hosts\/(\d+)\/groups|inventories\/(\d+)\/(hosts|groups))\/$/.exec(url.pathname)
       if (members) {

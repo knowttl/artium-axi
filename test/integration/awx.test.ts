@@ -382,7 +382,10 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
   })
 }, 60_000)
 
-test('AWX host and group changes persist through inventory and membership reads with writes disabled', async () => {
+test.each([
+  { format: 'json', initial: '{"mode":"initial","ansible_password":"CANARY-create"}', updated: '{"mode":"updated","ansible_password":"CANARY-edit"}' },
+  { format: 'yml', initial: 'mode: initial\nansible_password: CANARY-create\n', updated: 'mode: updated\nansible_password: CANARY-edit\n' },
+])('AWX host and group $format changes persist through inventory and membership reads with writes disabled', async ({ format, initial, updated }) => {
   await withFakeService(async ({ directory, port }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -410,9 +413,9 @@ test('AWX host and group changes persist through inventory and membership reads 
       return decode(response.json().stdout)
     }
     try {
-      await run(['inventory', 'host-create', 'synthetic-host', '--inventory', '7', '--enabled', '--variables', '{"mode":"initial","ansible_password":"CANARY-host-create"}', '--confirm'])
+      await run(['inventory', 'host-create', 'synthetic-host', '--inventory', '7', '--enabled', '--variables', initial, '--confirm'])
       await run(['inventory', 'host-create', 'synthetic-sibling', '--inventory', '7', '--confirm'])
-      await run(['inventory', 'group-create', 'synthetic-parent', '--inventory', '7', '--variables', '{"mode":"initial","ansible_password":"CANARY-group-create"}', '--confirm'])
+      await run(['inventory', 'group-create', 'synthetic-parent', '--inventory', '7', '--variables', initial, '--confirm'])
       await run(['inventory', 'group-create', 'synthetic-child', '--inventory', '7', '--confirm'])
       await run(['inventory', 'group-create', 'synthetic-other-child', '--inventory', '7', '--confirm'])
       allowWrites = false
@@ -423,10 +426,10 @@ test('AWX host and group changes persist through inventory and membership reads 
         id: 42, inventory: '7', variables: { mode: 'initial', ansible_password: '***' }, total_hosts: 0, total_children: 0,
       } })
       allowWrites = true
-      await run(['inventory', 'host-edit', 'synthetic-host', '--name', 'synthetic-updated', '--description', 'Updated host', '--disabled', '--variables', 'host.json', '--confirm'],
-        { files: [upload('host.json', '{"mode":"updated","ansible_password":"CANARY-host-edit"}')] })
-      await run(['inventory', 'group-edit', 'synthetic-parent', '--description', 'Updated group', '--variables', 'group.json', '--confirm'],
-        { files: [upload('group.json', '{"mode":"updated","ansible_password":"CANARY-group-edit"}')] })
+      await run(['inventory', 'host-edit', 'synthetic-host', '--name', 'synthetic-updated', '--description', 'Updated host', '--disabled', '--variables', `host.${format}`, '--confirm'],
+        { files: [upload(`host.${format}`, updated)] })
+      await run(['inventory', 'group-edit', 'synthetic-parent', '--description', 'Updated group', '--variables', `group.${format}`, '--confirm'],
+        { files: [upload(`group.${format}`, updated)] })
       await run(['inventory', 'group-add-host', 'synthetic-parent', '--host', 'synthetic-updated', '--confirm'])
       await run(['inventory', 'group-add-host', 'synthetic-parent', '--host', 'synthetic-sibling', '--confirm'])
       await run(['inventory', 'group-add-child', 'synthetic-parent', '--child', 'synthetic-child', '--confirm'])
