@@ -169,6 +169,10 @@ Labs hunting and search contracts are experimental.
 AWX `host inspect` reads a bounded batch of selected hosts, with optional inventory scoping and explicit per-host completeness, errors and previews.
 This read does not enable bulk host mutations; the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns its command and flag boundary.
 
+AWX protocol metadata preservation has a known upstream exception: awx-axi substring-redacts registered secrets in its encoded output, so a secret equal to a protocol token can mask an error code before Artium receives it.
+This can prevent unknown-outcome recovery guidance after an interrupted write; inspect the affected resource before retrying.
+The accepted limitation is tracked in [awx-axi #75](https://github.com/knowttl/awx-axi/issues/75).
+
 Tenable `asset investigate --query <text>` pivots to findings only after a complete, unique asset lookup.
 Export status `--wait` reads an existing job; export start `--wait` retains every creation gate and never creates a replacement while polling.
 An incomplete wait or failed status read preserves known job evidence; resume with its exact ID rather than creating another export.

@@ -98,8 +98,8 @@ Linux client and Linux amd64 container paths have local fake-service acceptance.
 Windows/macOS execution, token storage and actual agent-host loading remain unverified.
 Local tests do not establish live vendor permissions or production host acceptance.
 LDAP uses simple bind over verified TLS; ambient Kerberos, per-user upstream credentials and external secret stores are unsupported.
-Azure has reviewed bounded input/upload support; ADO and AWX reject stdin and file uploads.
-See [client input handling](client-reference.md#command-surface-and-subcommands) for Hybrid Analysis uploads and explicit JSON stdin, and [Safety](safety.md) for its capability boundaries.
+ADO rejects stdin and file uploads.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for reviewed Azure, AWX and Hybrid Analysis uploads and stdin forms, and [Safety](safety.md) for capability boundaries.
 See [adapter limits](tool-credentials.md) and [deployment requirements](runbook.md#scope-and-prerequisites).
 
 ## npm client releases

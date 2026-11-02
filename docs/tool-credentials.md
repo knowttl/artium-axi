@@ -445,7 +445,7 @@ HTTP and TLS-verification bypasses are refused.
 See the [AWX write boundary](safety.md#write-gates-by-tool) for the single tenant write switch, required permissions and operations awaiting support.
 Use [browser administration](admin-guide.md#browser-administration) to change the controls and the [command reference](commands.md) for preview and confirmation behavior.
 Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.
-Stdin, file uploads, server file paths and `@file` values are unsupported; use inline non-secret launch parameters.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for AWX structured values, protected local files and supported stdin forms.
 Use `job watch --timeout 50` or less to stay within the runner timeout.
 For an interrupted write, inspect current state using the returned read-back guidance before retrying.
 Local fake-service checks do not establish live controller acceptance.

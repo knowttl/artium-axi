@@ -164,7 +164,7 @@ AWX structured flags (`--extra-vars`, `--variables`, `--source-vars`, `--module-
 The server loads those structured values privately into upstream memory, preserving JSON/YAML text and keeping hosted process arguments free of secrets.
 All caller-supplied structured inputs remain opaque in previews and responses, including variables, survey and launch inputs, Ansible arguments, notification configuration/messages and uploaded structured files.
 Artium shows redacted placeholders with the original UTF-8 byte lengths; a hidden preview payload reports the combined input byte length.
-Credential secrets continue to use the controlled file channel, and protocol metadata remains intact.
+Credential secrets continue to use the controlled file channel; see the [AWX boundary](safety.md#write-gates-by-tool) for the upstream protocol-token collision limitation.
 Upstream validates the command-specific format; for example, schedule extra variables require a JSON object.
 Server paths, nested `@path` references and stdin for other AWX flags are refused.
 Authentication, role checks, write confirmations, redaction and call limits apply as usual.
