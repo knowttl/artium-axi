@@ -1288,6 +1288,19 @@ test('doctor shows the server category for every unhealthy tool without diagnost
   } finally { doctorResponses = undefined }
 })
 
+test('doctor accepts dedicated SSH configuration while directing authentication checks per host', async () => {
+  doctorResponses = {
+    '/health/live': { status: 200, body: { status: 'ok' } },
+    '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'ssh-axi', version: '0.1.1', status: 'unknown' }] } },
+  }
+  try {
+    expect(await cli(['doctor'])).toMatchObject({ code: 0, stderr: '',
+      stdout: expect.stringContaining('pass: ssh-axi configuration (authentication not checked; run artium-axi ssh-axi doctor <host> per host)\n') })
+  } finally { doctorResponses = undefined }
+})
+
 test('doctor reports checking health as pending, not a failure', async () => {
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },

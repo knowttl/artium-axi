@@ -128,6 +128,7 @@ const setupStates = {
   notSetUp: { word: 'Not set up', tone: 'neutral' },
   needsCredential: { word: 'Needs credential', tone: 'warn' },
   readyToTest: { word: 'Ready to test', tone: 'neutral' },
+  hostChecks: { word: 'Check per host', tone: 'neutral' },
 } as const satisfies Record<string, { word: string, tone: Tone }>
 export type SetupState = keyof typeof setupStates
 

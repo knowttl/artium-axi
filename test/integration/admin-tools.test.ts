@@ -35,6 +35,9 @@ import { fakeTool } from '../fake-tool/tool.js'
 import { CredentialProfile, loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { createTestCertificates } from '../fake-service/certificates.mjs'
 import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
+import { createSshAdapter } from '../../src/server/adapters/ssh.js'
+import { SshHosts } from '../../src/server/store/ssh-hosts.js'
+import { encryptCredential } from '../../src/server/store/crypto.js'
 
 let directory: string
 let db: Database.Database
@@ -670,6 +673,49 @@ async function save(tool: ToolName, value: Record<string, unknown>, expectedRevi
   return request('PATCH', `/${tool}/credential`, { value, expectedRevision,
     expectedToolRevision: tools.find(item => item.name === tool)!.revision })
 }
+
+test.each([
+  { name: 'ordinary binding and shell grant', enabled: 1, sudo: 0, shell: 1, configured: true, status: 'unknown' },
+  { name: 'disabled host', enabled: 0, sudo: 0, shell: 1, configured: false, status: 'unconfigured' },
+  { name: 'sudo-only binding', enabled: 1, sudo: 1, shell: 1, configured: false, status: 'unconfigured' },
+  { name: 'missing shell grant', enabled: 1, sudo: 0, shell: 0, configured: true, status: 'unconfigured' },
+])('SSH catalogue recognizes dedicated configuration for $name without claiming authentication', async ({ enabled, sudo, shell, configured, status }) => {
+  adapters.push(createSshAdapter(new SshHosts(db, provider), join(directory, 'ssh-writes.log')))
+  const plaintext = Buffer.from(JSON.stringify({ privateKey: 'CANARY-ssh-key' }))
+  const encrypted = encryptCredential('synthetic-ssh-key', 'ssh-axi', plaintext, provider.getKey())
+  plaintext.fill(0)
+  db.prepare(`INSERT INTO ssh_credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, updated_at)
+    VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, 1)`).run(encrypted)
+  db.prepare(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled)
+    VALUES ('synthetic-host', '127.0.0.1', 22, '["ssh-ed25519 YWJj"]', '["127.0.0.1"]', ?)`).run(enabled)
+  db.prepare(`INSERT INTO ssh_bindings (host_id, username, credential_id, sudo)
+    VALUES ('synthetic-host', 'ordinary', 'synthetic-ssh-key', ?)`).run(sudo)
+  db.prepare(`INSERT INTO ssh_grants (user_id, host_id, shell)
+    VALUES ('synthetic-development-user', 'synthetic-host', ?)`).run(shell)
+
+  const discovery = toolsResponseSchema.parse(await (await fetch(`${url}/v1/tools`, { headers })).json())
+  expect(discovery.tools.find(tool => tool.name === 'ssh-axi')).toEqual({ name: 'ssh-axi', version: '0.1.1', readOnly: true, status })
+  expect(adminCredentialSchema.parse(await (await request('GET', '/ssh-axi/credential')).json())).toEqual({
+    tool: 'ssh-axi', configured, revision: 0, updatedAt: null, updatedBy: null, metadata: {},
+  })
+  expect(adminToolSchema.parse(await (await request('GET', '/ssh-axi')).json()).health).toEqual({
+    status: configured ? 'unknown' : 'unconfigured', checkedAt: null, credentialRevision: null, errorCode: null, readOnly: true,
+  })
+  await failure(await request('POST', '/ssh-axi/test', {}), 'INVALID_INPUT')
+
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/ssh-axi', headers: { cookie } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain(configured ? 'Check per host' : 'Needs credential')
+  expect(page.body).toContain('Check authentication per host')
+  expect(page.body).not.toContain('Test passes')
+  expect(page.body).not.toContain('Credential saved')
+})
 
 test('generic credential administration cannot create SSH identities or enable its writes', async () => {
   for (const method of ['PUT', 'PATCH'] as const) {

@@ -6,6 +6,12 @@ import { ArtiumError } from '../../shared/errors.js'
 export interface SshHost { id: string, address: string, port: number, username: string }
 interface Binding extends SshHost { approved_host_keys: string, allowed_addresses: string, credential_id: string }
 
+export function hasSshConfiguration(db: Database.Database, userId: string | null = null): boolean {
+  return Boolean(db.prepare(`SELECT 1 FROM ssh_hosts h JOIN ssh_bindings b ON b.host_id = h.id
+    WHERE h.enabled = 1 AND b.sudo = 0 AND (? IS NULL OR EXISTS (
+      SELECT 1 FROM ssh_grants g WHERE g.host_id = h.id AND g.user_id = ? AND g.shell = 1)) LIMIT 1`).get(userId, userId))
+}
+
 // SSH credentials and host grants never fall back to generic tenant credentials or sudo bindings.
 export class SshHosts {
   constructor(private readonly db: Database.Database, private readonly provider: KeyProvider) {}

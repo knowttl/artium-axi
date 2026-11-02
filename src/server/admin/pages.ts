@@ -104,7 +104,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const query = request.query as { show?: string, q?: string }
     const show = query.show === 'enabled' || query.show === 'attention' ? query.show : 'all'
     const search = typeof query.q === 'string' ? query.q.trim() : ''
-    const rows = tools.map((tool, index) => ({ tool, state: toolSetupState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health }) }))
+    const rows = tools.map((tool, index) => ({ tool, state: tool.name === 'ssh-axi' && credentials[index]!.configured ? 'hostChecks' as const : toolSetupState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health }) }))
     const attention = (row: typeof rows[number]) => row.state === 'failing' || row.state === 'needsCredential'
     const counts = { all: rows.length, enabled: rows.filter(row => row.tool.enabled).length, attention: rows.filter(attention).length }
     const visible = rows.filter(row => (show === 'all' || (show === 'enabled' ? row.tool.enabled : attention(row)))
@@ -141,7 +141,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const revisionInputs = (credentialRevision: number) => `<input type="hidden" name="expectedRevision" data-type="number" value="${credentialRevision}"><input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
     const roles = db.prepare(`SELECT roles.id, roles.name, (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
       FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, members: number }[]
-    const state = toolSetupState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
+    const state = tool.name === 'ssh-axi' && credential.configured ? 'hostChecks' : toolSetupState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
     const tested = state === 'healthy'
     const failing = state === 'failing'
     const writes = tool.writeAccess
@@ -158,8 +158,8 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       { attributes: `data-check-failure${failing ? '' : ' hidden'}`, more: `<p>Agents calling this tool get <code data-check-error>${escape(tool.health.errorCode ?? '')}</code>.${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ` Review the endpoint on <a href="?tab=certificates">Certificates</a>.` : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(tool.health.diagnostic))}</pre></details>` })
     const grants = roles.map(role => role.name).join(', ')
     const setup = steps([
-      { title: 'Credential saved', detail: credential.configured ? timestamp(credential.updatedAt) : 'Not saved yet', state: credential.configured ? 'done' : 'todo' },
-      { title: 'Test passes', detail: tested ? 'Passed' : failing ? `Failing: ${escape(tool.health.errorCode ?? 'error')}` : 'Not run', state: tested ? 'done' : failing ? 'fail' : 'todo', attributes: 'data-test-checklist' },
+      { title: tool.name === 'ssh-axi' ? 'Ordinary host binding configured' : 'Credential saved', detail: tool.name === 'ssh-axi' ? credential.configured ? 'Enabled host with an ordinary account binding' : 'No enabled host with an ordinary account binding' : credential.configured ? timestamp(credential.updatedAt) : 'Not saved yet', state: credential.configured ? 'done' : 'todo' },
+      ...(tool.name === 'ssh-axi' ? [] : [{ title: 'Test passes', detail: tested ? 'Passed' : failing ? `Failing: ${escape(tool.health.errorCode ?? 'error')}` : 'Not run', state: tested ? 'done' as const : failing ? 'fail' as const : 'todo' as const, attributes: 'data-test-checklist' }]),
       { title: 'Enabled', detail: tool.enabled ? 'On' : 'Off', state: tool.enabled ? 'done' : 'todo' },
       { title: 'Granted to a role', detail: roles.length ? escape(grants) : 'No roles yet', state: roles.length ? 'done' : 'todo' },
     ])
@@ -194,7 +194,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       main += tool.name === 'ssh-axi' ? noteCard('Dedicated SSH identity', '<p>SSH requires separately managed host trust, caller grants and encrypted ordinary account bindings. Generic tenant credentials cannot configure SSH. Host administration is not available in this read-only slice.</p>') : formStart(api + '/credential', 'PATCH', 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?', `data-save-tool="${tool.name}"`, 'card') +
         `<div class="card-head"><div><h2>Connection</h2><p>How Artium signs in to ${escape(product)}. Secrets are encrypted and never shown again.</p></div></div><div class="card-body">${revisionInputs(credential.revision)}${credentialFields(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), credential.metadata, credential.configured)}</div>
         <div class="card-foot"><label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label><div class="actions"><button class="btn btn-primary btn-sm">Save connection</button></div></div></form>`
-      const aside = noteCard('What the test does', `<p>Runs one harmless read: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
+      const aside = tool.name === 'ssh-axi' ? noteCard('Check authentication per host', '<p>As a caller with a shell grant, run <code>artium-axi ssh-axi host list</code>, then <code>artium-axi ssh-axi doctor &lt;host&gt;</code>. This checks authentication only. There is no shared connection test or cached health result.</p>') : noteCard('What the test does', `<p>Runs one harmless read: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
         noteCard('Keeping secrets', '<p>Leave a stored secret blank to keep it. Changing authentication, mode, kind, tenant, client or URL needs new secrets.</p>') + (credential.configured ? changed(db, credential) : '')
       panel = `<div class="split has-aside"><div class="column">${main}</div><div class="column">${aside}</div></div>`
     } else if (tab === 'writes') {

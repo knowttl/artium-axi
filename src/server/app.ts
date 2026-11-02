@@ -46,6 +46,7 @@ import type { ArtifactStore } from './artifacts.js'
 import { errorDiagnostic } from './error-diagnostic.js'
 import { RunnerError } from './runner/runner.js'
 import { ProtectedResults } from './protected-results.js'
+import { hasSshConfiguration } from './store/ssh-hosts.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -143,8 +144,7 @@ export function createApp(options: {
     try { db.prepare('SELECT version FROM migrations').all(); return { status: 'ok' } }
     catch { return reply.code(503).send({ status: 'unavailable' }) }
   })
-  const grantedAdapters = (authorization: string | undefined) => {
-    const userId = authenticate(db, bearer(authorization))
+  const grantedAdapters = (userId: string) => {
     return adapters.filter(adapter => {
       try { checkToolPolicy(db, userId, adapter.name) }
       catch (error) {
@@ -155,17 +155,19 @@ export function createApp(options: {
     })
   }
   app.get('/v1/tools', async request => {
-    const tools = grantedAdapters(request.headers.authorization).map(adapter => {
+    const userId = authenticate(db, bearer(request.headers.authorization))
+    const tools = grantedAdapters(userId).map(adapter => {
       const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured,
         tool_health.status AS health, tool_health.error_code AS errorCode
         FROM tools LEFT JOIN credentials ON credentials.tool = tools.name
         LEFT JOIN tool_health ON tool_health.tool = tools.name AND tool_health.credential_revision = credentials.revision
         WHERE tools.name = ?`).get(adapter.name) as { nativeSettings: string, configured: number | null, health: 'ok' | 'error' | null, errorCode: string | null }
       const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
-      const configured = Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
+      const configured = adapter.name === 'ssh-axi' ? hasSshConfiguration(db, userId)
+        : Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
       return { name: adapter.name, version: toolManifests[adapter.name].version,
-        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
-        ...(configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
+        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
+        ...(adapter.name !== 'ssh-axi' && configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
     })
     return toolsResponseSchema.parse({ tools })
   })

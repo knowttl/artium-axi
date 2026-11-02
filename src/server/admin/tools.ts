@@ -35,6 +35,7 @@ import type { CredentialReference, MutableCredentialStore, ToolName } from '../s
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
+import { hasSshConfiguration } from '../store/ssh-hosts.js'
 
 export interface ToolAdminOptions {
   adapters: readonly Adapter<unknown>[]
@@ -119,9 +120,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const stored = healthSchema.safeParse(db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
       error_code AS errorCode FROM tool_health WHERE tool = ? AND credential_revision = ?`).get(tool, credential?.revision ?? 0))
     // Cached categories from an older catalogue require a fresh test after upgrade.
-    const cached = stored.success ? stored.data : undefined
+    const cached = tool !== 'ssh-axi' && stored.success ? stored.data : undefined
     const reference = tool === 'awx-axi' ? store?.findCredential(tool) : undefined
-    const configured = Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
+    const configured = tool === 'ssh-axi' ? hasSshConfiguration(db)
+      : Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : options.health.checking(tool) ? 'checking' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
@@ -135,6 +137,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
     readTool(tool)
+    if (tool === 'ssh-axi') return adminCredentialSchema.parse({ tool, configured: hasSshConfiguration(db),
+      revision: 0, updatedAt: null, updatedBy: null, metadata: {} })
     const row = db.prepare('SELECT revision, updated_at AS updatedAt, updated_by AS updatedBy FROM credentials WHERE tool = ?').get(tool) as
       { revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     const reference = store?.findCredential(tool)
