@@ -98,3 +98,11 @@ Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verif
 It also verifies schedule show/list with writes disabled after an interrupted rename.
 Fixed synthetic controller timing verifies that previews and edits which omit the recurrence rule preserve timing values; no scheduler waits or real jobs are used.
 Extra-variable and association writes are verified against fake controller requests.
+
+## Execution environments (S9)
+
+S1's shared write path already admits execution-environment create/edit and supplies the native configuration and security gates under the single tenant writes switch.
+The [command reference](commands.md) describes image settings and attachment of an existing registry credential by ID or name.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies ordinary image configuration and credential attachment, preview without mutation, confirmation, disabled writes, AWX permission denials and audit through the public run API against a fake controller.
+It also verifies persisted image changes and read-only recovery after an interrupted rename.
+Copy/delete acceptance remains in S13.

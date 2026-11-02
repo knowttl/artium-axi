@@ -324,6 +324,17 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
     args: ['project', 'notification-remove', '42', '--event', event, '--notification-template', '7'],
     path: `projects/42/notification_templates_${event}/`, body: { id: 7, disassociate: true },
   })),
+  ...['create', 'edit'].flatMap(operation => [false, true].map(attachCredential => ({
+    args: ['execution-environment', operation, operation === 'create' ? 'Synthetic environment' : '42',
+      '--image', 'registry.example/automation/runner:stable', '--organization', '7',
+      '--description', 'Synthetic runner image', '--pull', 'always', ...(attachCredential ? ['--credential', '9'] : [])],
+    path: operation === 'create' ? 'execution_environments/' : 'execution_environments/42/',
+    body: { ...(operation === 'create' ? { name: 'Synthetic environment' } : {}),
+      image: 'registry.example/automation/runner:stable', organization: 7, description: 'Synthetic runner image', pull: 'always',
+      ...(attachCredential ? { credential: 9 } : {}) },
+    preview: { dry_run: { payload: { image: 'registry.example/automation/runner:stable', organization: 7,
+      description: 'Synthetic runner image', pull: 'always', ...(attachCredential ? { credential: 9 } : {}) } } },
+  }))),
   { args: ['schedule', 'create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY'], path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' } },
   { args: ['schedule', 'edit', '42', '--name', 'Updated schedule'], path: 'schedules/42/', body: { name: 'Updated schedule' } },
   ...['create', 'edit'].flatMap(operation => ['inline', 'upload'].map(channel => ({
@@ -925,6 +936,65 @@ test('AWX workflow graph changes are visible with writes disabled and recover in
         { id: 42 }, { id: 43 }, { id: 44, unified_job_template: '8' },
       ] })
       expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
+test('AWX execution environment image edits and interrupted renames remain readable with writes disabled (S9)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = true
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      return { ...call, executable: process.execPath,
+        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const request = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+    const run = async (args: string[]) => {
+      const response = await request(args)
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+      expect(response.body).not.toContain('CANARY-')
+      return decode(response.json().stdout)
+    }
+    try {
+      await run(['execution-environment', 'create', '--name', 'Synthetic runner', '--image', 'registry.example/runner:v1', '--confirm'])
+      expect(await run(['execution-environment', 'edit', 'Synthetic runner', '--image', 'registry.example/runner:v2',
+        '--credential', '9', '--pull', 'missing', '--dry-run'])).toMatchObject({ dry_run: { payload: {
+        image: 'registry.example/runner:v2', credential: 9, pull: 'missing' } } })
+      expect(await run(['execution-environment', 'show', '42'])).toMatchObject({ execution_environment: { image: 'registry.example/runner:v1' } })
+      await run(['execution-environment', 'edit', 'Synthetic runner', '--image', 'registry.example/runner:v2',
+        '--credential', '9', '--pull', 'missing', '--confirm'])
+      await send('/__awx/write-outcome?drop=true', 'POST')
+      const interrupted = await request(['execution-environment', 'edit', '42', '--name', 'Synthetic renamed runner', '--confirm'])
+      expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
+        next: expect.stringContaining('artium-axi awx-axi execution-environment list --limit 100') } })
+      allowWrites = false
+      expect(await run(['execution-environment', 'list'])).toMatchObject({ execution_environments: [
+        { id: 42, name: 'Synthetic renamed runner', image: 'registry.example/runner:v2' },
+      ] })
+      expect(await run(['execution-environment', 'show', 'Synthetic renamed runner'])).toMatchObject({
+        execution_environment: { id: 42, name: 'Synthetic renamed runner', image: 'registry.example/runner:v2' },
+      })
+      const evidence = JSON.parse(await send('/__evidence'))
+      expect(evidence.requests.filter((entry: { method: string }) => entry.method !== 'GET')).toEqual([
+        expect.objectContaining({ method: 'POST', path: '/api/v2/execution_environments/',
+          body: { name: 'Synthetic runner', image: 'registry.example/runner:v1' } }),
+        expect.objectContaining({ method: 'PATCH', path: '/api/v2/execution_environments/42/',
+          body: { image: 'registry.example/runner:v2', credential: 9, pull: 'missing' } }),
+        expect.objectContaining({ method: 'PATCH', path: '/api/v2/execution_environments/42/', body: { name: 'Synthetic renamed runner' } }),
+      ])
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
   })
