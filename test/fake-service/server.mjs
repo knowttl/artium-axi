@@ -385,6 +385,33 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const payload = JSON.parse(body || '{}')
         recorded.body = payload
         if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        if (url.pathname === '/api/v2/bulk/host_create/') {
+          const names = (payload.hosts ?? []).map(host => host.name)
+          const existing = [...resources.entries()].filter(([path]) => /^\/api\/v2\/hosts\/\d+\/$/.test(path)).map(([, host]) => host)
+          if (!names.length || names.some(name => typeof name !== 'string' || !name)
+            || existing.some(host => host.inventory === payload.inventory && names.includes(host.name))) {
+            res.writeHead(400); res.end(JSON.stringify({ hosts: ['Host names must be unique and present.'] })); return
+          }
+          mutations++
+          const created = names.map((name, index) => {
+            let id = 42
+            while (resources.has(`/api/v2/hosts/${id}/`)) id++
+            const host = { ...payload.hosts[index], id, inventory: payload.inventory }
+            resources.set(`/api/v2/hosts/${id}/`, host)
+            return host
+          })
+          if (awxDropWrite) { req.socket.destroy(); return }
+          res.writeHead(201); res.end(JSON.stringify({ inventory: payload.inventory, hosts: created })); return
+        }
+        if (url.pathname === '/api/v2/bulk/host_delete/') {
+          mutations++
+          const hosts = Object.fromEntries((payload.hosts ?? []).map(id => {
+            const deleted = resources.delete(`/api/v2/hosts/${id}/`)
+            return [id, deleted ? 'The host was deleted' : 'The host does not exist or you lack permission to delete it']
+          }))
+          if (awxDropWrite) { req.socket.destroy(); return }
+          res.writeHead(201); res.end(JSON.stringify({ hosts })); return
+        }
         if (/^\/api\/v2\/users\/\d+\/personal_tokens\/$/.test(url.pathname)) {
           mutations++
           const id = Math.max(7, ...awxTokens.keys()) + 1

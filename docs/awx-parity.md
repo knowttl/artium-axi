@@ -116,3 +116,10 @@ Stateful journeys verify membership and role grant/revoke readback with writes d
 Organization association requests are verified against the fake controller; see the [command reference](commands.md) for readback limitations.
 The [token integration suite](../test/integration/awx-tokens.test.ts) verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
 See the [AWX security boundary](safety.md#write-gates-by-tool) for protected token delivery and managed logout, and [recovery guidance](runbook.md#retention-and-export) for lost results and token lookup limitations.
+
+## Bulk hosts (S12)
+
+Host bulk create and delete use S1's shared write path and the single tenant writes switch, with hosts supplied through the controlled file-input channel.
+The pinned CLI reports every 2xx bulk delete as deleted, so Artium checks the controller's per-host messages and returns `PARTIAL_OUTCOME` with `unconfirmed_hosts` unless every requested host is confirmed.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, redacted previews without mutation, AWX permission denial, exact create payloads, rejected duplicate batches, mixed delete results, malformed host files, interrupted deletes reported as `UNKNOWN_OUTCOME`, and recovery through full and limited host reads against a fake controller.
+A limited read page is never treated as proof that a bulk operation failed; see the [command reference](commands.md) and [recovery guidance](runbook.md#retention-and-export).

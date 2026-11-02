@@ -60,14 +60,31 @@ const output = stream => ({ write(chunk) {
   stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
 const { main } = await import(pathToFileURL(awxModule).href);
-let tokenTransport;
-if (tokenResult) {
+const bulkDelete = argv[0] === 'inventory' && argv[1] === 'host-bulk-delete';
+let guardedTransport;
+if (tokenResult || bulkDelete) {
   const { createTransport } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);
   const { AwxAxiError } = await import(new URL('./core/errors.js', pathToFileURL(awxModule)).href);
-  tokenTransport = (env, signal, diagnostics) => {
+  guardedTransport = (env, signal, diagnostics) => {
     const transport = createTransport(env, {}, undefined, signal, diagnostics);
     const post = transport.post.bind(transport);
     transport.post = async (route, payload, tag) => {
+      if (bulkDelete) {
+        if (route !== 'bulk/host_delete/') throw new AwxAxiError('Unexpected bulk route.', 'INVALID_RESPONSE');
+        const response = await post(route, payload, tag);
+        const outcomes = response.body?.hosts;
+        if (![200, 201].includes(response.status) || !outcomes || typeof outcomes !== 'object' || Array.isArray(outcomes)) return response;
+        // Upstream reports every 2xx as deleted; AWX answers mixed results per host.
+        const unconfirmed = payload.hosts.filter(id => {
+          const message = outcomes[id];
+          return typeof message !== 'string' || !/\\bdeleted\\b/i.test(message) || /\\b(?:not|fail(?:ed)?|unable|cannot|denied|lack)\\b/i.test(message);
+        });
+        if (unconfirmed.length) throw new AwxAxiError(
+          'Bulk host delete confirmed ' + (payload.hosts.length - unconfirmed.length) + ' of ' + payload.hosts.length + ' hosts.', 'PARTIAL_OUTCOME',
+          ['Hosts not listed as unconfirmed were deleted. Inspect current hosts, including additional pages, before retrying; do not replay the request unchanged.'],
+          { requested: payload.hosts.length, unconfirmed_hosts: unconfirmed });
+        return response;
+      }
       if (!/^users\\/\\d+\\/personal_tokens\\/$/.test(route)) throw new AwxAxiError('Unexpected token creation route.', 'INVALID_RESPONSE');
       const response = await post(route, payload, tag);
       if (![200, 201].includes(response.status)) return { ...response, body: { detail: 'Controller refused token creation.' } };
@@ -84,7 +101,7 @@ if (tokenResult) {
   };
 }
 await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr),
-  ...(tokenTransport ? { createTransport: tokenTransport } : {}) });
+  ...(guardedTransport ? { createTransport: guardedTransport } : {}) });
 `
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {

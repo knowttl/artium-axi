@@ -1630,7 +1630,7 @@ See command controls above.
 
 ### inventory host-bulk-delete
 
-See command controls above.
+The pinned CLI reports any 2xx as deleted; Artium returns PARTIAL_OUTCOME with unconfirmed_hosts unless the controller confirms every requested host
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
