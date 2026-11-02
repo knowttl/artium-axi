@@ -193,8 +193,9 @@ Explicit `--body-file -`, `--notes-file -` or `--input -` reads bounded caller s
 Repeat identical file or stdin bytes when confirming a preview.
 Secret set requires protected `--input`; variable values are non-secret.
 Attachment `--file` and `--attach` accept local files, never stdin or server paths, within the existing upload limits.
-Save exact issue, pull request or release assets through `artium-axi download --help`; downloads are bounded to 10000000 bytes and require separate administrator operation grants.
-See the [Gitea capability boundary](safety.md#gitea-reads) for native preview and confirmation, and [recovery guidance](runbook.md#retention-and-export) for uncertain outcomes.
+Save exact issue, pull request or release assets through `artium-axi download --help` after completing the [shared artifact-mount and controlled-client prerequisites](runbook.md#scope-and-prerequisites).
+For example, preview `artium-axi download --operation gitea.issue.download --selector OWNER/REPO/42/77 --type attachment --destination /controlled/artifacts/new-attachment.bin --sso`, then repeat the selection and destination with the returned `--transfer <transferId> --execute --confirm <exact-confirm>` and fresh identity confirmation.
+See the [Gitea capability boundary](safety.md#gitea-reads) for download grants, selectors, limits and native write confirmation, and [recovery guidance](runbook.md#retention-and-export) for uncertain outcomes.
 For Graph hunting and mail rule create/update, `--file <local-path>` and `--file=<local-path>` upload the local file and rewrite the argument to the fixed name `query.kql` for hunting or `rule.json` for rules.
 Local paths containing a `..` component are refused.
 The run API requires the corresponding fixed upload name; the [reviewed Graph inventory](../tools/inventories/mg-axi.json)'s `adapterBoundary.inputs` owns upload constraints.

@@ -1,6 +1,6 @@
 # Commands
 
-This table follows the [CLI help registry](../src/cli/help.ts) and is kept identical to the table in [SKILL.md](../skill/artium-axi/SKILL.md).
+This table follows the [CLI help registry](../src/cli/help.ts).
 Tool reference links describe upstream commands; Artium controls availability, credentials and permissions.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for local file uploads and stdin selection.
 
@@ -18,7 +18,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi tools show <tool>` | Show one available tool, vetted upstream help and a first call. |
 | `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health, including the server's category for each failed tool. |
 | `artium-axi update` | Download and verify the server client, replace this file and retain a .bak backup; npm installs use npm instead. |
-| `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled Hybrid Analysis archives, Check Point emails/attachments, Graph mail exports or BeyondTrust endpoint content; see `artium-axi download --help` for guards. |
+| `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled artifacts; see the [supported capability boundaries](safety.md) and `artium-axi download --help` for operations and guards. |
 | `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and optional ambient context for Claude Code, Codex or OpenCode on Linux. |
 | `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
 | `artium-axi unifi-axi [<args>]` | Read implemented UniFi application, inventory and policy commands with managed credentials. |

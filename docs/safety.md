@@ -139,10 +139,10 @@ Writes default off and require an administrator to enable Allow writes and selec
 The caller must also pass the matching `--allow-write` operation IDs and first use `--preview`.
 Inspect the returned plan, then replace `--preview` with `--confirm UUID` on the identical command to execute it.
 Gitea binds confirmation to the managed identity, credential revision, policy, target, payload and observed preconditions.
-Named repository, issue, pull request, label and release mutations and classified raw API mutations retain the native write model and readback verification.
+Named repository, issue, pull request, label, release, secret, variable and attachment mutations and classified raw API mutations retain the native write model and readback verification.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for text uploads and explicit caller stdin.
-Secret set accepts protected `--input` file or explicit stdin; raw secret writes require JSON through `--input`.
-Secret values are excluded from arguments, public output and audit, including secret upload names and digests.
+Secret set accepts protected `--input` file or explicit stdin; raw secret PUT requests require JSON through `--input`.
+Secret values are excluded from arguments, public output and audit; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for protected input exclusions.
 Secret readback verifies name identity; variables are non-secret and retain native value readback, including empty values.
 Attachment uploads accept opaque caller files through `--file` or `--attach`, within Artium's 1 MiB per-file, 4 MiB total and eight-file input limits.
 Use `artium-axi download` for separately selected `gitea.issue.download`, `gitea.pr.download` or `gitea.release.download`, type `attachment` and selector `OWNER/REPO/ITEM-OR-TAG/ASSET-ID`.
