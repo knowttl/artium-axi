@@ -26,6 +26,14 @@ test.each([
     input: {}, expected: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: { variables: '{"mode":"run"}' } } },
   { args: ['credential', 'edit', '42', '--inputs-file', '-', '--dry-run'],
     input: { stdin: '{"password":"a"}' }, expected: { action: 'edit', credential: 42, payload: { inputs: { password: null } } } },
+  { args: ['ad-hoc', 'launch', '7', '--module-name', 'uri', '--module-args', 'url=https://synthetic.invalid url_password=CANARY-module-password', '--dry-run'],
+    input: {}, expected: { module_args: '[module args redacted, 65 bytes]' } },
+  { args: ['ad-hoc', 'launch', '7', '--args', 'args', '--module-args', 'redacted', '--dry-run'],
+    input: {}, expected: { module_args: '[module args redacted, 8 bytes]' } },
+  { args: ['ad-hoc', 'launch', '7', '--args', 'echo héllo', '--dry-run'],
+    input: {}, expected: { module_args: '[module args redacted, 11 bytes]' } },
+  { args: ['ad-hoc', 'launch', '7', '--module-args=', '--dry-run'],
+    input: {}, expected: { module_args: '[module args redacted, 0 bytes]' } },
 ])('packaged AWX private input works with separate application and tools roots: $args', async ({ args, input, expected }) => {
   const adapter = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
     token: 'CANARY-awx-token', allowWrites: true }) })

@@ -70,6 +70,12 @@ test.each(streams)('secret-input scanning accepts substrings inside ordinary val
   expect(scanner.finish()).toBe(false)
 })
 
+test.each(streams)('secret-input scanning accepts module argument placeholders in %s (R6)', stream => {
+  const scanner = new SecretScanner([], ['args', 'redacted'])
+  scanner.scan(stream, Buffer.from('dry_run:\n  module_args: "[module args redacted, 8 bytes]"\n'))
+  expect(scanner.finish()).toBe(false)
+})
+
 test.each(streams)('secret-input scanning detects unregistered values in known secret fields in %s', stream => {
   const scanner = new SecretScanner([], ['CANARY-original'])
   scanner.scan(stream, Buffer.from('resource:\n  password: CANARY-new\n'))

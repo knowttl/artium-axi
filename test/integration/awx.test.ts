@@ -19,6 +19,53 @@ import type { RunInput } from '../../src/shared/api.js'
 
 const upload = (name: string, content: string) => ({ name, size: Buffer.byteLength(content), contentBase64: Buffer.from(content).toString('base64') })
 
+test.each(['module-args', 'args'].flatMap(flag => ['inline', 'upload'].map(channel => ({ flag, channel }))))(
+  'AWX --$flag $channel arguments stay private in previews and confirmed responses (R6)', async ({ flag, channel }) => {
+    await withFakeService(async ({ directory, port, send }) => {
+      const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+      const db = openStore(join(directory, 'artium.db'), provider)
+      await seedToolUser(db)
+      db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+      const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+      const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+        token: 'CANARY-awx-token', allowWrites: true }) })
+      const prepare = adapter.prepare.bind(adapter)
+      adapter.prepare = async (...input) => {
+        const call = await prepare(...input)
+        call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+        return call
+      }
+      const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+      const lines: string[] = []
+      const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
+        resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+      const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+      const content = 'url=https://synthetic.invalid url_password=CANARY-module-password'
+      const args = ['ad-hoc', 'launch', '7', '--module-name', 'uri', `--${flag}`, channel === 'inline' ? content : 'args.txt']
+      const input = channel === 'upload' ? { files: [upload('args.txt', content)] } : {}
+      try {
+        const preview = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+          payload: { args: [...args, '--dry-run'], ...input } })
+        expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
+        expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { module_args: '[module args redacted, 65 bytes]' } })
+        expect(preview.body).not.toContain('CANARY-')
+        expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+        const written = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+          payload: { args: [...args, '--confirm'], ...input } })
+        expect(written.json(), written.body).toMatchObject({ exitCode: 0 })
+        expect(written.body).not.toContain('CANARY-')
+        expect(JSON.parse(await send('/__evidence'))).toMatchObject({ mutations: 1, requests: [{
+          method: 'POST', path: '/api/v2/ad_hoc_commands/', canaryReceived: true, body: { module_args: content },
+        }] })
+        const call = await adapter.prepare([...args, '--confirm'], reference, input)
+        expect(call.args.join(' ')).not.toContain('CANARY-')
+        expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+        expect(readdirSync(join(directory, 'calls'))).toEqual([])
+      } finally { await app.close(); db.close() }
+    })
+  }, 60_000,
+)
+
 test('AWX protocol metadata survives structured values through completion and uncertain writes (R3)', async () => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })

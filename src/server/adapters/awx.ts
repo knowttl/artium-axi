@@ -120,7 +120,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
-      const valueSecrets = awxInputSecrets(input ?? {}, normalized.structured.map(([, value]) => value), normalized.args)
+      const valueSecrets = awxInputSecrets(input ?? {}, normalized.structured, normalized.args)
       if (normalized.mutation && !readOnly) Object.assign(profile.environment, {
         AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1',
         AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS: '1',

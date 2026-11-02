@@ -82,7 +82,7 @@ export class SecretScanner {
     const containsSecret = (value: unknown, key = ''): boolean => {
       if (protocolOutputFields.includes(key)) return false
       if (secretFieldPattern.test(key) && value !== null && typeof value !== 'boolean' && typeof value !== 'number') return true
-      if (typeof value === 'string') return this.#valuePatterns.some(pattern => pattern.test(value))
+      if (typeof value === 'string') return !/^\[module args redacted, \d+ bytes\]$/.test(value) && this.#valuePatterns.some(pattern => pattern.test(value))
       if (Array.isArray(value)) return value.some(child => containsSecret(child))
       return value !== null && typeof value === 'object' && Object.entries(value).some(([name, child]) => containsSecret(child, name))
     }
