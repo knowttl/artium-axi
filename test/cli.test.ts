@@ -874,6 +874,34 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
     stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
 })
 
+test.each([
+  ['--help'], ['-h'], ['--help=true'],
+  ['get', '--help=true'], ['get', '-h=true'], ['get', '-h=t'],
+  ['get', '--help=false', '--help=true'],
+  ['get', '--help=1', '-o', 'json'],
+  ['native', '--', 'get', '--help=T'],
+  ['native', '--', 'describe', '-h=True'],
+])('Kubernetes published help is managed through the bundle: %j', async (...args) => {
+  requests = []
+  const { stdout } = await execute(process.execPath, [
+    join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), ...args,
+  ])
+  response = { status: 200, body: { source: 'kubernetes-axi', stdout, stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: stdout.length, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+  const result = await cli(['kubernetes-axi', ...args])
+  expect(result.code).toBe(0)
+  const document = (result.stdout.trimStart().startsWith('{') ? JSON.parse(result.stdout) : decode(result.stdout)) as {
+    command: string, flags: Record<string, string>, commands: string[], help: string[] }
+  const command = args.includes('get') ? 'get' : args.includes('describe') ? 'describe' : ''
+  const native = args[0] === 'native' ? 'native -- ' : ''
+  expect(document.command).toBe(`artium-axi kubernetes-axi${command ? ` ${native}${command}` : ''}`)
+  expect(document.flags).not.toHaveProperty('config')
+  expect(document.flags).not.toHaveProperty('profile')
+  expect(document.commands.join('\n')).not.toMatch(/prepare|confirm|config path/)
+  expect(document.help.join('\n')).toContain('managed')
+  expect(result.stdout).not.toMatch(/--native-config|--trust-exec|prepare --/)
+})
+
 test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list'],
   ['logs', 'query', '--workspace', 'synthetic', 'Heartbeat | count'],
   ['rg', 'query', '--limit=1', 'Resources | count'],

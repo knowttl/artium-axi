@@ -185,9 +185,10 @@ async function main(args: string[]) {
     failureContext = 'rewriteSuggestions'
     const forwarded = args.slice(1)
     const firstFlag = forwarded.findIndex(arg => arg.startsWith('-'))
+    const kubernetesHelp = forwarded.findLast(arg => /^(?:--help|-h)(?:=|$)/.test(arg)) ?? ''
     const invocation = command === 'unifi-axi' || command === 'proxmox-axi'
       ? { command: forwarded.slice(0, firstFlag < 0 ? forwarded.length : firstFlag).join(' ') || 'home', help: forwarded.includes('--help') }
-      : command === 'kubernetes-axi' ? { command: forwarded.slice(0, 2).join(' '), help: forwarded.includes('--help') || forwarded.includes('-h') } : undefined
+      : command === 'kubernetes-axi' ? { command: forwarded.slice(0, 2).join(' '), help: /^(?:--help|-h)(?:=(?:true|1|t))?$/i.test(kubernetesHelp) } : undefined
     output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout, invocation))
     output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr, invocation))
     if (exitCode !== 0 && client.requestId) output('stderr', `${stderr && !stderr.endsWith('\n') ? '\n' : ''}artium-axi: request_id ${client.requestId}\n`)

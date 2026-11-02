@@ -74,8 +74,8 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
     try {
       const json = output.trimStart().startsWith('{')
       const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
-      if (typeof document.command === 'string' && Array.isArray(document.flags)) {
-        const path = document.command.replace(/^(?:artium-axi )?kubernetes-axi ?/, '') || 'home'
+      if (Array.isArray(document.flags) && (typeof document.command === 'string' || Array.isArray(document.commands))) {
+        const path = typeof document.command === 'string' ? document.command.replace(/^(?:artium-axi )?kubernetes-axi ?/, '') || 'home' : 'home'
         const route = kubernetes.commands.find(route => route.command === (invocation?.command === 'native --' ? `native -- ${path}` : path))
         const command = `artium-axi kubernetes-axi${route && route.command !== 'home' ? ' ' + route.command : ''}`
         return (json ? JSON.stringify : encode)({ command, usage: command + ' [flags]', effect: 'read',
