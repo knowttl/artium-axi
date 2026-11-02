@@ -75,7 +75,7 @@ See its [scope and managed equivalents](awx-parity.md) for client-local exceptio
 Host and group mutations use canonical inventory commands: `host-create`, `host-edit`, `group-create`, `group-edit`, `group-add-host`, `group-remove-host`, `group-add-child` and `group-remove-child`.
 Use these spellings in place of upstream nested aliases such as `inventory group add host`.
 Create a host with `artium-axi awx-axi inventory host-create synthetic-host --inventory 7 --variables @host.yml --dry-run`, then replace `--dry-run` with `--confirm`.
-Host and group create/edit commands accept inline JSON/YAML or `--variables @local-file`; the client uploads file bytes privately and variable input is redacted from previews and write responses.
+For inline JSON/YAML and `--variables @local-file` handling, see [AWX structured inputs](client-reference.md#command-surface-and-subcommands).
 Associate a host with `artium-axi awx-axi inventory group-add-host 42 --host 43 --confirm`, or a child group with `artium-axi awx-axi inventory group-add-child 42 --child 44 --confirm`; the matching `group-remove-host` and `group-remove-child` commands remove membership while preserving the resources.
 Inspect the resulting state with `host show`, `group show`, `inventory hosts` or `inventory groups`; these reads remain available when writes are disabled.
 
