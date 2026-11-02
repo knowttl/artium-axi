@@ -304,7 +304,11 @@ test.each(['wrong username', 'expired during exchange', 'revoked during exchange
   const invite = seedSsoInvitation(db)
   if (failure === 'wrong username') fake.token.claims!.preferred_username = 'Synthetic-Invited'
   const transaction = await start(invite.claimPath)
-  if (failure === 'expired during exchange') db.prepare('UPDATE invitations SET expires_at = ? WHERE id = ?').run(Date.now(), invite.id)
+  if (failure === 'expired during exchange') {
+    const expiredAt = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(expiredAt)
+    db.prepare('UPDATE invitations SET expires_at = ? WHERE id = ?').run(expiredAt, invite.id)
+  }
   if (failure === 'revoked during exchange') db.prepare('UPDATE invitations SET revoked_at = ? WHERE id = ?').run(Date.now(), invite.id)
   if (failure === 'resent during exchange') db.prepare('UPDATE invitations SET token_hash = ? WHERE id = ?').run('rotated', invite.id)
   if (failure === 'already claimed') expect((await finish(await start(invite.claimPath))).statusCode).toBe(200)

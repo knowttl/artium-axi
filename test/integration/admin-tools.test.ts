@@ -49,6 +49,8 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
+  'proxmox-axi': { origin: 'https://cluster.example', auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' },
   'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
   'hybrid-axi': { apiKey: 'CANARY-hybrid-key' },
   'beyondtrust-axi': { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' },
@@ -667,6 +669,15 @@ async function save(tool: ToolName, value: Record<string, unknown>, expectedRevi
     expectedToolRevision: tools.find(item => item.name === tool)!.revision })
 }
 
+test('Proxmox token identity changes require a replacement secret', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  await replace('proxmox-axi')
+  const { token: _token, ...identity } = values['proxmox-axi']
+  expect((await save('proxmox-axi', identity, 1)).status).toBe(200)
+  await failure(await save('proxmox-axi', { ...identity, tokenId: 'other@pve!automation' }, 2), 'INVALID_INPUT')
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(values['proxmox-axi'])
+})
+
 test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'] as const)('%s save retains omitted secrets and native settings', async tool => {
   await replace(tool)
   const current = store.readCredential(store.findCredential(tool)!) as Record<string, unknown>
@@ -1143,6 +1154,8 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'checkpoint-axi', capable: true, enabled: false, reason: null },
       { name: 'beyondtrust-axi', capable: true, enabled: false, reason: null },
       { name: 'gh-axi', capable: true, enabled: false, reason: null },
+      { name: 'unifi-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
+      { name: 'proxmox-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1494,6 +1507,8 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'checkpoint-axi', version: '0.1.5', health: { status: 'disabled' } },
     { name: 'beyondtrust-axi', version: '0.1.6', health: { status: 'disabled' } },
     { name: 'gh-axi', version: '0.1.45', health: { status: 'disabled' } },
+    { name: 'unifi-axi', version: '0.1.0', health: { status: 'disabled' } },
+    { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

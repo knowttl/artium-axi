@@ -61,7 +61,9 @@ it('opens an unconfigured store with every supported tool disabled', () => {
       { name: 'hybrid-axi', enabled: 0, pinned_version: '' },
       { name: 'ldap-axi', enabled: 0, pinned_version: '' },
       { name: 'mg-axi', enabled: 0, pinned_version: '' },
+      { name: 'proxmox-axi', enabled: 0, pinned_version: '' },
       { name: 'tenable-axi', enabled: 0, pinned_version: '' },
+      { name: 'unifi-axi', enabled: 0, pinned_version: '' },
       { name: 'vectra-axi', enabled: 0, pinned_version: '' },
     ])
   } finally { db.close() }

@@ -157,6 +157,26 @@ afterAll(async () => {
 })
 
 test.each([
+  { host: 'localhost', matchesHostname: true },
+  { host: 'unreachable.synthetic.invalid', matchesHostname: false },
+  { host: '127.0.0.2', matchesHostname: false },
+  { host: '[::2]', matchesHostname: false },
+])('UniFi inspection uses connectAddress while reporting the $host identity', async ({ host, matchesHostname }) => {
+  const origin = `https://${host}:${(tlsServer.address() as { port: number }).port}`
+  store.replaceCredential('unifi-axi', { origin, apiKey: 'CANARY-never-sent', tls: {
+    trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1',
+  } }, 0, 'synthetic-development-user', Date.now())
+  const response = await app.inject({ method: 'POST', url: '/v1/admin/tools/unifi-axi/certificates/inspect', headers, payload: {} })
+  expect(response.statusCode, response.body).toBe(200)
+  const result = certificateInspectionSchema.parse(response.json())
+  expect(result.hostname).toBe(host.replace(/^\[|\]$/g, ''))
+  expect(result.endpoint).toBe(`${origin}/`)
+  expect(result.chain[0]).toMatchObject({ matchesHostname, fingerprint: new X509Certificate(pem('self-signed')).fingerprint256 })
+  expect(bytes).toBe(0)
+})
+
+test.each([
   { certificate: 'self-signed', chain: false, reason: 'self-signed', count: 1, expired: false, matchesHostname: true },
   { certificate: 'leaf', chain: true, reason: 'CA this server does not trust', count: 3, expired: false, matchesHostname: true },
   { certificate: 'leaf', chain: false, reason: 'sent no intermediate', count: 2, expired: false, matchesHostname: true },

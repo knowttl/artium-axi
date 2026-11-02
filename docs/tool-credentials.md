@@ -31,6 +31,8 @@ Contents:
 - [GitHub](#github)
 - [AWX](#awx)
 - [Hybrid Analysis](#hybrid-analysis)
+- [UniFi](#unifi)
+- [Proxmox](#proxmox)
 
 Configure only the tools you intend to use.
 At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
@@ -48,6 +50,30 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
 | Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `card list --limit 1`; exposure-view read access is required. |
 | Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
+| UniFi (`unifi-axi`) | See [UniFi setup](#unifi). | `info`. |
+| Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
+
+#### UniFi
+
+At `/admin/tools/unifi-axi`, enter the Network application's HTTPS origin without a path and its API key.
+Use an identity authorized for the intended application, inventory and policy reads.
+The [reviewed UniFi inventory](../tools/inventories/unifi-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) require an explicit key and canonical HTTPS origin.
+Enter optional site, contract and TLS settings through the schema-backed editor, which shows their requirements.
+When supplying the advanced `tls` object, provide trusted certificate PEM and the peer SHA-256 fingerprint together.
+Its optional `connectAddress` selects the connection IP while certificate identity remains bound to the origin, including when the origin is an IP literal.
+Certificate chain, validity, identity and fingerprint verification remain required.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
+After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi info` for the first managed read.
+
+#### Proxmox
+
+At `/admin/tools/proxmox-axi`, enter the HTTPS origin without a path, select API-token authentication, and supply the full token identity and token secret.
+Use an identity authorized for the intended cluster and virtual machine reads.
+The [reviewed Proxmox inventory](../tools/inventories/proxmox-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) admit API tokens only, excluding password and ticket authentication.
+For a credential-specific CA bundle, paste PEM contents into `caBundle`, never a server file path; Artium materializes it privately for each call.
+Alternatively, the advanced `certificatePin` object binds a certificate fingerprint to the exact origin and cannot be combined with `caBundle`; follow the editor's schema requirements.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
+After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
 
 #### Check Point Email Security
 

@@ -7,9 +7,15 @@ import { toolSchema } from '../src/shared/api.js'
 
 test.each(toolSchema.options)('%s overlay preserves tool guidance with managed command examples', tool => {
   const source = tool === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : tool === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : tool === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : tool === 'ado-axi' ? 'tools/node_modules/@knowttl/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`
-  const skill = loadToolSkill(tool, source)
+  const skill = loadToolSkill(tool, tool === 'unifi-axi' ? 'tools/node_modules/@knowttl/unifi-axi/dist/SKILL.md'
+    : tool === 'proxmox-axi' ? 'tools/node_modules/@knowttl/proxmox-axi/README.md' : source)
   expect(skill).toContain(`name: ${tool}`)
   expect(skill).toContain(`artium-axi ${tool}`)
+  if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
+    expect(skill).toContain(tool === 'unifi-axi' ? 'info --help' : 'get /version --help')
+    expect(skill).toContain('Writes, local configuration, file input and byte transports are unavailable.')
+    return
+  }
   expect(skill).toContain('Artium supplies the managed credentials')
   expect(skill).not.toMatch(/uvx |npx |npm install|az login|--profile|--config|--tenant|FALCON_AXI_CLIENT_SECRET|LDAP_AXI_BIND_PASSWORD|AZ_AXI_READ_ONLY|VECTRA_AXI_READ_ONLY|\.\.\/\.\.\//)
   expect(skill).not.toMatch(new RegExp('`' + tool + '(?: |`)'))

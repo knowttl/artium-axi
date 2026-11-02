@@ -30,6 +30,14 @@ const overlays = {
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {
   try {
     const source = readFileSync(path, 'utf8')
+    if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
+      const manifest = toolManifests[tool]
+      const skillPath = tool === 'unifi-axi' ? 'dist/SKILL.md' : 'README.md'
+      if (createHash('sha256').update(source).digest('hex') !== manifest.sources.find(entry => entry.path === skillPath)?.sha256) {
+        throw new Error('Unreviewed skill')
+      }
+      return `---\nname: ${tool}\ndescription: Read ${tool === 'unifi-axi' ? 'UniFi' : 'Proxmox'} data through Artium with managed credentials.\n---\n\n# ${tool}\n\nRun commands through artium-axi ${tool} after signing in to Artium.\nArtium supplies credentials, trust and connection settings on the server.\nDo not install the upstream CLI or select local profiles, credentials or endpoints.\nUse \`artium-axi ${tool} ${manifest.discovery.example.join(' ')} --help\` for selectors and limits.\nRun \`artium-axi tools show ${tool}\` for the admitted read commands.\nWrites, local configuration, file input and byte transports are unavailable.\nAsk an administrator to reconnect the credential when authentication fails.\n`
+    }
     const overlay = overlays[tool]
     if (createHash('sha256').update(source).digest('hex') !== overlay.sha256) throw new Error('Unreviewed skill')
     let frontmatter = source.match(/^---\n[\s\S]*?\n---\n/)![0]

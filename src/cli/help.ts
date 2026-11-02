@@ -60,6 +60,10 @@ const commands = {
     flags: ['Arguments after mg-axi are forwarded upstream, including --help.'], example: 'artium-axi mg-axi entra user list' },
   'managed-session': { usage: 'artium-axi --managed-session <command> [<args>]', purpose: 'Let a caller supply and persist sessions through private pipes.',
     flags: [], example: 'artium-axi --managed-session whoami' },
+  'unifi-axi': { usage: 'artium-axi unifi-axi [<args>]', purpose: 'Read UniFi data with managed credentials.',
+    flags: ['Declared implemented reads accept --help. Writes, local configuration and file input are unavailable.'], example: 'artium-axi unifi-axi info' },
+  'proxmox-axi': { usage: 'artium-axi proxmox-axi [<args>]', purpose: 'Read Proxmox data with a managed API token.',
+    flags: ['Declared ordinary reads accept --help. Writes, byte transports, session authentication and file input are unavailable.'], example: 'artium-axi proxmox-axi get /version' },
 } as const
 
 export type HelpCommand = keyof typeof commands

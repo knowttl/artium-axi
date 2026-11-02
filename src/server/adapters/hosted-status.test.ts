@@ -1,6 +1,7 @@
 import { decode, encode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { hostedStatus } from './hosted-status.js'
+import { createNetworkReadAdapter } from './network-reads.js'
 import { createAzAdapter } from './az.js'
 import { createAdoAdapter } from './ado.js'
 import { createLdapAdapter } from './ldap.js'
@@ -9,6 +10,17 @@ import { FakeTokenTransport, azureTestTenant } from '../../../test/fixtures/azur
 
 const result = { stdout: '', stderr: '', exitCode: 0, durationMs: 1, outputBytes: { stdout: 100, stderr: 0 },
   timedOut: false, truncated: { stdout: false, stderr: false } }
+
+test.each([
+  ['--format', 'json'], ['--format=json'], ['home', '--format', 'json'], ['home', '--format=json'],
+])('Proxmox hosted status retains JSON for %j', async (...args) => {
+  const adapter = createNetworkReadAdapter('proxmox-axi', { getCredential: async () => ({ origin: 'https://synthetic.invalid',
+    auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' }) })
+  const call = await adapter.prepare(args, { id: 'synthetic', tool: 'proxmox-axi', revision: 1 })
+  const output = hostedStatus('proxmox-axi', call.invocation, { ...result,
+    stdout: JSON.stringify({ bin: '/synthetic/proxmox-axi', config: '/synthetic/config.json', configured: true }) })
+  expect(JSON.parse(output.stdout)).toEqual({ bin: 'artium-axi proxmox-axi', configured: true })
+})
 
 test.each(['hybrid-axi', 'tenable-axi'])('%s status exposes only secret source kinds', tool => {
   const output = hostedStatus(tool, { command: 'auth status', help: false }, { ...result, stdout: encode({ config: '/synthetic/config.json',

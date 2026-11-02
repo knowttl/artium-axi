@@ -32,6 +32,15 @@ function basicPassword(header) {
 const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/proxy/network/integration/v1/info' || url.pathname === '/api2/json/version') {
+    const canaryReceived = url.pathname === '/proxy/network/integration/v1/info' ? req.headers['x-api-key'] === 'CANARY-unifi-key'
+      : req.headers.authorization === 'PVEAPIToken=reader@pve!automation=CANARY-proxmox-token'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    if (req.method !== 'GET' || !canaryReceived) { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/proxy/network/integration/v1/info' ? { applicationVersion: '10.6.109' }
+      : { data: { version: '9.2.0', release: '1', repoid: 'synthetic-build' } }))
+    return
+  }
   if (url.pathname === '/__github/device') {
     githubDeviceScenario = url.searchParams.get('scenario') ?? 'success'
     githubDevicePolls = 0

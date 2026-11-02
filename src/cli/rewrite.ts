@@ -13,8 +13,12 @@ import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json'
 import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
 import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
+import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
+import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
+  'proxmox-axi': proxmox.adapterBoundary.unsafeOverrides,
   'beyondtrust-axi': beyondtrust.adapterBoundary.unsafeOverrides,
   'gh-axi': gh.adapterBoundary.unsafeOverrides,
   'checkpoint-axi': checkpoint.adapterBoundary.unsafeOverrides,
@@ -59,6 +63,31 @@ function encodeSuggestion(value: string, inline: boolean): string {
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
+  if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
+    try {
+      const json = output.trimStart().startsWith('{')
+      const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
+      const inventory = tool === 'unifi-axi' ? unifi : proxmox
+      if (document.flags || document.commands) {
+        const usage = String(invocation?.help ? invocation.command : document.usage ?? document.command ?? '')
+          .replace(new RegExp(`^(?:artium-axi )?${tool} ?`), '')
+        const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
+          .find(route => usage === route.command || usage.startsWith(route.command + ' '))
+        const command = `artium-axi ${tool}${route?.command && route.command !== 'home' ? ` ${route.command}` : ''}`
+        document.command = command
+        document.usage = `${command} [flags]`
+        document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
+        document.examples = [`${command} --help`]
+        if (document.commands) {
+          document.commands = inventory.discovery.commands
+          if (Object.hasOwn(document, 'count')) document.count = inventory.discovery.commands.length
+        }
+        if (document.bin) document.bin = `artium-axi ${tool}`
+        document.help = [rewriteDiscoveryHelp(inventory.discovery.help, tool)]
+        return (json ? JSON.stringify(document) : encode(document)) + (output.endsWith('\n') ? '\n' : '')
+      }
+    } catch {}
+  }
   if (tool === 'vectra-axi') {
     try {
       const json = output.trimStart().startsWith('{')
@@ -285,6 +314,10 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if ((tool === 'unifi-axi' || tool === 'proxmox-axi')
+    && (new RegExp(`\\b${tool} (?:auth|config|profile|setup|update)\\b`).test(help) || /\b(?:UNIFI|PROXMOX)_AXI_[A-Z_]+\b/.test(help))) {
+    return 'Ask an administrator to update the managed credential.'
+  }
   if (tool === 'beyondtrust-axi') {
     help = help.split('\n').filter(line => !/BEYONDTRUST_AXI_|SecretRef|beyondtrust-axi (?:config|profile)|Valid commands:/.test(line)).join('\n')
     if (!help.trim()) help = beyondtrust.discovery.help

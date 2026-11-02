@@ -29,9 +29,15 @@ importers:
       '@knowttl/mg-axi':
         specifier: 0.1.19
         version: 0.1.19
+      '@knowttl/proxmox-axi':
+        specifier: 0.1.1
+        version: 0.1.1
       '@knowttl/tenable-axi':
         specifier: 0.1.6
         version: 0.1.6
+      '@knowttl/unifi-axi':
+        specifier: 0.1.0
+        version: 0.1.0
       '@knowttl/vectra-axi':
         specifier: 0.1.14
         version: 0.1.14
@@ -94,9 +100,19 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
+  '@knowttl/proxmox-axi@0.1.1':
+    resolution: {integrity: sha512-HcKw/Rlos7F4UP9rk6YtCMEz1XNTqHHQo3vQeHHmBMCDN3Jri0x8aYl6aCt/MOp6eM9CY5sKbyTaPXvSCdx6nw==}
+    engines: {node: '>=24.11.0'}
+    hasBin: true
+
   '@knowttl/tenable-axi@0.1.6':
     resolution: {integrity: sha512-nE+1hpNUQ5uKydfD4Fe8wUq+f1BoaO25Sp2LfDf4sNl1OE54l15KiYC+86IREaI4kywnxqZcnnlSOyB7FIssvg==}
     engines: {node: '>=22.12.0'}
+    hasBin: true
+
+  '@knowttl/unifi-axi@0.1.0':
+    resolution: {integrity: sha512-I16b8FozbmDxl+acJAH6My1JWicYCCfmi4wbsz35OQvgfupuZIRh0INmXxoRPddaqFOXYFFCZUF4J/H8xYfg6Q==}
+    engines: {node: '>=24.11.0'}
     hasBin: true
 
   '@knowttl/vectra-axi@0.1.14':
@@ -116,6 +132,9 @@ packages:
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  ajv@8.20.0:
+    resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
 
   awx-axi@0.1.11:
     resolution: {integrity: sha512-lU2dJwxaspKkIyV58PGosCVa/0i9Jw2miuvI+45Vgkz4fZx0F1mbXGD6M2kryid/K6pnJs/RKKtCk5dXW8yLpA==}
@@ -171,6 +190,12 @@ packages:
   exponential-backoff@3.1.3:
     resolution: {integrity: sha512-ZgEeZXj30q+I0EN+CbSSpIyPaJ5HVQD18Z1m+u1FXbAeT94mr1zw50q4q6jiiC447Nl/YTcIYSAftiGqetwXCA==}
 
+  fast-deep-equal@3.1.3:
+    resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
+
+  fast-uri@3.1.9:
+    resolution: {integrity: sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==}
+
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
@@ -212,6 +237,9 @@ packages:
   isexe@4.0.0:
     resolution: {integrity: sha512-FFUtZMpoZ8RqHS3XeXEmHWLA4thH+ZxCv2lOiPIn1Xc7CxrqhWzNSDzD+/chS/zbYezmiwWLdQC09JdQKmthOw==}
     engines: {node: '>=20'}
+
+  json-schema-traverse@1.0.0:
+    resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
 
   jsonwebtoken@9.0.3:
     resolution: {integrity: sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==}
@@ -292,6 +320,10 @@ packages:
   proc-log@6.1.0:
     resolution: {integrity: sha512-iG+GYldRf2BQ0UDUAd6JQ/RwzaQy6mXmsk/IzlYyal4A4SNFw54MeH4/tLkF4I5WoWG9SQwuqWzS99jaFQHBuQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  require-from-string@2.0.2:
+    resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
+    engines: {node: '>=0.10.0'}
 
   run-applescript@7.1.0:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
@@ -430,12 +462,21 @@ snapshots:
       axi-sdk-js: 0.1.13
       open: 11.0.4
 
+  '@knowttl/proxmox-axi@0.1.1':
+    dependencies:
+      '@toon-format/toon': 2.3.1
+      ajv: 8.20.0
+
   '@knowttl/tenable-axi@0.1.6':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       smol-toml: 1.9.1
       zod: 4.3.6
+
+  '@knowttl/unifi-axi@0.1.0':
+    dependencies:
+      '@toon-format/toon': 2.3.1
 
   '@knowttl/vectra-axi@0.1.14':
     dependencies:
@@ -451,6 +492,13 @@ snapshots:
 
   abbrev@4.0.0:
     optional: true
+
+  ajv@8.20.0:
+    dependencies:
+      fast-deep-equal: 3.1.3
+      fast-uri: 3.1.9
+      json-schema-traverse: 1.0.0
+      require-from-string: 2.0.2
 
   awx-axi@0.1.11:
     dependencies:
@@ -503,6 +551,10 @@ snapshots:
   exponential-backoff@3.1.3:
     optional: true
 
+  fast-deep-equal@3.1.3: {}
+
+  fast-uri@3.1.9: {}
+
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
@@ -532,6 +584,8 @@ snapshots:
 
   isexe@4.0.0:
     optional: true
+
+  json-schema-traverse@1.0.0: {}
 
   jsonwebtoken@9.0.3:
     dependencies:
@@ -625,6 +679,8 @@ snapshots:
 
   proc-log@6.1.0:
     optional: true
+
+  require-from-string@2.0.2: {}
 
   run-applescript@7.1.0: {}
 
