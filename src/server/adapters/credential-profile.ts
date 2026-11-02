@@ -70,7 +70,6 @@ export class CredentialProfile {
       delete this.inputSchema.properties.writes
     }
     if (tool === 'gitea-axi') {
-      delete this.inputSchema.properties.writes
       delete this.inputSchema.properties.allowInsecureHttp
       delete this.inputSchema.if
       delete this.inputSchema.then

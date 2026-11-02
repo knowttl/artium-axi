@@ -26,11 +26,17 @@ export function inputFileFlags(tool: string, args: readonly string[]): string[] 
 export function validateFileInput(tool: string, args: readonly string[], input: RunInput): void {
   if (!input.files?.length) return
   const flags = inputFileFlags(tool, args)
+  const aliases: Record<string, string | undefined> = tool === 'gitea-axi'
+    ? toolManifests['gitea-axi'].commands.find(route => route.command && route.command.split(' ').every((word, index) => args[index] === word))?.shortFlags ?? {} : {}
   const names = new Set<string>()
   if (!args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
     for (let index = 0; index < args.length; index++) {
       const token = args[index]
       if (token === '--') break
+      if (token.startsWith('-') && !token.startsWith('--') && flags.includes(aliases[token[1]] ?? '')) {
+        names.add(token.length > 2 ? token.slice(2) : args[++index])
+        continue
+      }
       const equals = token.indexOf('=')
       if (!flags.includes(token.slice(2).split('=')[0]) || !token.startsWith('--')) continue
       names.add(equals < 0 ? args[++index] : token.slice(equals + 1))

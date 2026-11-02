@@ -1237,7 +1237,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'unifi-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
       { name: 'proxmox-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
       { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
-      { name: 'gitea-axi', capable: false, enabled: false, reason: 'This adapter admits classified Gitea reads only.' },
+      { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: false, enabled: false, reason: 'This adapter admits bounded Kubernetes reads and passive authorization reviews.' },
       { name: 'ssh-axi', capable: false, enabled: false, reason: 'SSH discovery and authentication use dedicated host grants and encrypted ordinary bindings.' },
     ])
@@ -1547,8 +1547,16 @@ test('write updates roll back when the dedicated audit record cannot be stored',
   expect(db.prepare('SELECT * FROM credentials').all()).toEqual(before)
 })
 
-test.each(['mg-axi', 'vectra-axi'] as const)('%s can clear the allow-list when disabling and audit a list-only edit', async tool => {
-  const operation = tool === 'mg-axi' ? 'entra.user.update' : 'qux.host.tag.set'
+test('Gitea administrator policy can select every admitted native write operation', async () => {
+  const current = await request('GET', '/gitea-axi')
+  const operations = (await current.json()).writeAccess.supportedOperations
+  const response = await request('PATCH', '/gitea-axi/write-access', { enabled: true, operations, expectedRevision: 1 })
+  expect(response.status).toBe(200)
+  expect((await response.json()).writeAccess).toMatchObject({ enabled: true, allowedOperations: operations })
+})
+
+test.each(['mg-axi', 'vectra-axi', 'gitea-axi'] as const)('%s can clear the allow-list when disabling and audit a list-only edit', async tool => {
+  const operation = tool === 'mg-axi' ? 'entra.user.update' : tool === 'gitea-axi' ? 'issueEditIssue' : 'qux.host.tag.set'
   const selected = await request('PATCH', `/${tool}/write-access`, { enabled: false, operations: [operation], expectedRevision: 1 })
   expect(selected.status).toBe(200)
   expect((await selected.json()).writeAccess).toMatchObject({ enabled: false, allowedOperations: [operation] })

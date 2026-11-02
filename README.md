@@ -93,7 +93,7 @@ Write capabilities below require administrator opt-in.
 | UniFi | Network application, inventory and policy investigation | Implemented reads with managed API key and trust | [Capabilities](docs/safety.md#network-appliance-reads) |
 | Proxmox | Cluster and virtual machine investigation | Ordinary reads with a managed API token | [Capabilities](docs/safety.md#network-appliance-reads) |
 | Technitium DNS | DNS investigation and exports | Managed authenticated reads with protected result retrieval | [Capabilities](docs/safety.md#technitium-dns) |
-| Gitea | Repository, issue and pull request investigation | Classified reads with a managed token | [Capabilities](docs/safety.md#gitea-reads) |
+| Gitea | Repository, issue and pull request investigation and updates | Managed token, exact write grants and native preview/confirmation | [Capabilities](docs/safety.md#gitea-reads) |
 
 [Reviewed inventories](tools/inventories) own the pinned command boundary.
 The [client reference](docs/client-reference.md#command-surface-and-subcommands) covers forwarding and inputs; [commands](docs/commands.md) lists client operations.

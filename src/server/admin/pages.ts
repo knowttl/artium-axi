@@ -21,7 +21,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 const settingsGuide = {
   'ssh-axi': 'Discovery and authentication only. Dedicated SSH host bindings and credentials are required; tenant credentials cannot enable SSH execution.',
   'technitium-axi': 'The pinned Technitium package is read-only. Use {}. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
-  'gitea-axi': 'Classified metadata reads are admitted. Writes and attachment transfers are unavailable. Use {}.',
+  'gitea-axi': 'Writes default off. Use Allow writes and select exact native operation IDs, then require caller preview and confirmation. Protected values, attachments and local workflows remain unavailable.',
   'kubernetes-axi': 'Bounded Kubernetes reads and passive authorization reviews are admitted. Writes and streaming sessions are unavailable. Use {}.',
   'unifi-axi': 'Only implemented reads are admitted. No editable native settings. Use {}.',
   'proxmox-axi': 'Ordinary API-token reads are admitted. Writes, session authentication and byte transports are unavailable. Use {}.',

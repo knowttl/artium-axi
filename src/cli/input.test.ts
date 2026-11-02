@@ -11,6 +11,34 @@ const directory = mkdtempSync(join(tmpdir(), 'artium-input-'))
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
+test.each(['--notes-file', '-F'])('Gitea uploads a release file selected by %s', async flag => {
+  const path = join(directory, 'notes.md')
+  writeFileSync(path, 'Synthetic release notes')
+  expect(await toolInput('gitea-axi', ['release', 'edit', 'v1', flag, path])).toEqual({
+    args: ['release', 'edit', 'v1', '--notes-file', 'notes.md'],
+    files: [{ name: 'notes.md', size: 23, contentBase64: Buffer.from('Synthetic release notes').toString('base64') }],
+  })
+})
+test('Gitea uploads inline short file selectors', async () => {
+  const path = join(directory, 'inline.md')
+  writeFileSync(path, 'Synthetic notes')
+  expect(await toolInput('gitea-axi', ['release', 'edit', 'v1', '-F' + path])).toEqual({
+    args: ['release', 'edit', 'v1', '--notes-file=inline.md'],
+    files: [{ name: 'inline.md', size: 15, contentBase64: Buffer.from('Synthetic notes').toString('base64') }],
+  })
+})
+test('Gitea explicit stdin works when help is false', async () => {
+  const args = ['issue', 'edit', '42', '--body-file=-', '--help=false']
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['Synthetic body']) as typeof process.stdin)
+  expect(await toolInput('gitea-axi', args)).toEqual({ args, stdin: 'Synthetic body' })
+})
+test.each([
+  ['issue', 'create', '--body=--input=missing.json', '--label', 'one', '--label', 'two'],
+  ['release', 'edit', 'v1', '-Fmissing.md', '--help'],
+])('Gitea consumes only file option tokens: %j', async (...args) => {
+  expect(await toolInput('gitea-axi', args)).toEqual({ args })
+})
+
 test.each([
   ['credential', 'create', 'Synthetic', '--inputs-file'],
   ['inventory', 'host-create', 'synthetic-host', '--variables'],
