@@ -121,12 +121,26 @@ User, role, API-client and credential administration remains blocked.
 Review the [Vectra grant warnings](admin-guide.md#browser-administration) before enabling operations.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for Vectra file inputs.
 
+## Network appliance reads
+
+UniFi admits the pinned package's implemented read commands, including application information, sites, inventory and policies.
+The package retains its version, schema and contract-conflict checks.
+Proxmox admits ordinary read routes and offline inventory discovery from the pinned invocation contract.
+Use `artium-axi unifi-axi info --help` or `artium-axi proxmox-axi get /version --help`, and `artium-axi tools show <tool>` for admitted commands.
+Both use Artium credential profiles and SecretRefs; administrators supply the HTTPS origin, API key or API token, and optional trust material.
+Proxmox CA bundle input is PEM content, materialized privately for each call.
+UniFi optional TLS settings retain its certificate and fingerprint checks.
+Credentials, endpoints, profiles, local configuration, file inputs, session authentication and byte transports cannot be selected by callers.
+These adapters admit reads only; administrator settings cannot enable writes in this admission slice.
+Local synthetic verification does not establish live appliance commissioning.
+
 ## Write gates by tool
 
 | Tool | Write capability and unlock |
 | --- | --- |
 | Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy literal search. RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](runbook.md#falcon-rtr-execution). |
 | LDAP | Fixed read-only. |
+| UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |

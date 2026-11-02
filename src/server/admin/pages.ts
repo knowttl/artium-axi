@@ -19,6 +19,8 @@ import { credentialCertificates } from '../store/trusted-certificates.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
+  'unifi-axi': 'Only implemented reads are admitted. No editable native settings. Use {}.',
+  'proxmox-axi': 'Ordinary API-token reads are admitted. Writes, session authentication and byte transports are unavailable. Use {}.',
   'gh-axi': 'Writes default off. Select exact collaboration or repository operations with writes: { allowWrites: true, operations: ["issue comment"] }. Preview each write, then repeat with the returned --confirm. Deletes, secret set, merge --admin and API non-GET stay blocked.',
   'hybrid-axi': 'Optional writes: {"allowWrites": true, "operations": ["submitUrl"]}. Submissions, YARA mutations, consuming matches and four reviewed archive downloads are off by default and selected independently; native preview, execute, exact confirmation and journal gates remain required. Use artium-axi download for CLI verified saving after artifact-mount and operator prerequisites pass. Use {} to turn writes off.',
   'tenable-axi': 'Optional writes: {"allowWrites": true, "operations": ["tags-create-tag-category"]}. Writes and export jobs require native preview, execute and exact confirmation. Use {} to turn writes off.',
@@ -33,6 +35,8 @@ const settingsGuide = {
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
 const testGuide = {
+  'unifi-axi': 'UniFi info',
+  'proxmox-axi': 'Proxmox get /version',
   'gh-axi': 'GitHub api /rate_limit',
   'hybrid-axi': 'Hybrid Analysis quota',
   'tenable-axi': 'Tenable card list --limit 1',

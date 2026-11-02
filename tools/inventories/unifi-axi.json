@@ -1,0 +1,711 @@
+{
+  "generatedBy": "scripts/network-read-inventory.ts",
+  "tool": "unifi-axi",
+  "package": "@knowttl/unifi-axi",
+  "version": "0.1.0",
+  "integrity": "sha512-I16b8FozbmDxl+acJAH6My1JWicYCCfmi4wbsz35OQvgfupuZIRh0INmXxoRPddaqFOXYFFCZUF4J/H8xYfg6Q==",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "82b00df16ce04400d2d995ee2225283a849b5fa9cfee4eb88150570c2443fb0c"
+    },
+    {
+      "path": "dist/application.js",
+      "sha256": "e00d9be22f40833fe010eea38ccf2376a159a9afa2ea67c788df01aaec07a6bd"
+    },
+    {
+      "path": "dist/axi-credential.schema.json",
+      "sha256": "37050b43b787e7c0d891f2689ecde89f655370a3cb4d56249f31fc4322df98ed"
+    },
+    {
+      "path": "dist/bin.js",
+      "sha256": "a181d19f03c7c7af3b944c32bddc46efd296553cfc225a82379c91045e047948"
+    },
+    {
+      "path": "dist/capabilities.json",
+      "sha256": "e853346f5760d404e7e79b085dd84ff5e3c784f35b87e8af84aa0235e12bb28a"
+    },
+    {
+      "path": "dist/catalogue.js",
+      "sha256": "7887f59668e157524f61e80b0d06f1ca7bcf34c65a942c2023ac8a9aaa108e48"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "a8b0d359da35e34e558e9fe44204e263b548e0fa72162760364d8e1a44918d5f"
+    },
+    {
+      "path": "dist/commands.json",
+      "sha256": "443beac85165fd96c66feef7eafa8bbe0d9b761d293ecac3ae141beac8f4e0d5"
+    },
+    {
+      "path": "dist/contract-conflicts.json",
+      "sha256": "6c987222bb58753dc81e177c0384273bf00904603dd3289a59c91588c06b7507"
+    },
+    {
+      "path": "dist/normalization-ledger.json",
+      "sha256": "f3150ed9a175f3e4f75fda306339da390ed648bccfd9692fe6e9374f5eaa932a"
+    },
+    {
+      "path": "dist/paging.js",
+      "sha256": "ed740216119adca867c8fd73e5d77431c92823a9e0c70212f3b2b9d4e1625d72"
+    },
+    {
+      "path": "dist/private-file.js",
+      "sha256": "741d25092b41ee4a98a163043b40cfb6cc78bdd362b29449ddf01d9144da1b64"
+    },
+    {
+      "path": "dist/profiles.js",
+      "sha256": "3690a6f2bed3f8bf469275cf32d088e71aa6ffca2702e89ce7307f8fbe3fa7f5"
+    },
+    {
+      "path": "dist/reads.js",
+      "sha256": "7da2c531d76f4f3748ffe2c8e2920586ccf3d58b93f44b1766a1ba3694b9d8a5"
+    },
+    {
+      "path": "dist/security.js",
+      "sha256": "74e24c0e52643df0e7536d21f96d7e6d662aabe4eb3db00c6779cc6d61714e8a"
+    },
+    {
+      "path": "dist/transport.js",
+      "sha256": "1c84920dbb6c8c31008fa979ffff8cec482a23c745578da9f83884263544111e"
+    },
+    {
+      "path": "dist/validation.js",
+      "sha256": "f479f1f9df4d0d3df60a7eb26cf06ad6d1781b7f39a89eb86636ec9ac09218dd"
+    },
+    {
+      "path": "dist/version.js",
+      "sha256": "06d4eab00217ec7cdb262461b78cbf4ea47890b99c45f23fa3f67643a0353038"
+    },
+    {
+      "path": "dist/SKILL.md",
+      "sha256": "bbbf9cc34d4207eeabbc560f584b29cd513de8668f9c4a1dd3d313839df61529"
+    },
+    {
+      "path": "evidence/sources/network-10.6.109-openapi.json",
+      "sha256": "2356b910f76c175db9a22ce18070c2c40af02d9843ca67628410a5afbfc5086c"
+    },
+    {
+      "path": "evidence/sources/network-11.0.97-openapi.json",
+      "sha256": "0828aa9f017cce92cd035429c7e19c933d0b3387c561aac17c468b4c2ca8be66"
+    },
+    {
+      "path": "dist/axi-credential.schema.json",
+      "sha256": "37050b43b787e7c0d891f2689ecde89f655370a3cb4d56249f31fc4322df98ed"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "UniFi AXI profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "origin"
+    ],
+    "properties": {
+      "origin": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://[^/?#@]+/?$"
+      },
+      "apiKey": {
+        "x-secret": true,
+        "default": {
+          "env": "UNIFI_AXI_API_KEY"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/])"
+              }
+            }
+          }
+        ]
+      },
+      "siteId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "apiContract": {
+        "enum": [
+          "10.6.109",
+          "11.0.97"
+        ]
+      },
+      "tls": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trustedCertificatePem",
+          "peerFingerprintSha256"
+        ],
+        "properties": {
+          "trustedCertificatePem": {
+            "type": "string",
+            "pattern": "^\\s*-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\\s]+-----END CERTIFICATE-----\\s*$"
+          },
+          "peerFingerprintSha256": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          },
+          "connectAddress": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "ipv4"
+              },
+              {
+                "type": "string",
+                "format": "ipv6"
+              }
+            ]
+          }
+        }
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^OP-[0-9]{3}$"
+            }
+          }
+        }
+      }
+    }
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "token",
+      "api-key",
+      "allow-insecure-http",
+      "session",
+      "body-file"
+    ],
+    "nativeWrites": "not admitted",
+    "blockedCommands": [
+      "setup",
+      "update",
+      "auth",
+      "config",
+      "profile"
+    ]
+  },
+  "commands": [
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "site": "value"
+      }
+    },
+    {
+      "command": "commands",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "info",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "site list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "country list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value"
+      }
+    },
+    {
+      "command": "dpi application list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value"
+      }
+    },
+    {
+      "command": "dpi category list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value"
+      }
+    },
+    {
+      "command": "device pending list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value"
+      }
+    },
+    {
+      "command": "acl-rule list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "acl-rule order show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "site": "value"
+      }
+    },
+    {
+      "command": "acl-rule show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "acl-rule-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "client list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "client show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "client-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "device-tag list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "device list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "device show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "device-id": "value"
+      }
+    },
+    {
+      "command": "device statistics latest",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "device-id": "value"
+      }
+    },
+    {
+      "command": "dns policy list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "dns policy show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "dns-policy-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "firewall policy list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "firewall policy order show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "source-firewall-zone-id": "value",
+        "destination-firewall-zone-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "firewall policy show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "firewall-policy-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "firewall zone list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "firewall zone show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "firewall-zone-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "hotspot voucher list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "hotspot voucher show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "voucher-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "network list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "network show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "network-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "network references",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "network-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "radius profile list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "switching lag list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "switching lag show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "lag-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "switching mc-lag-domain list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "switching mc-lag-domain show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "mc-lag-domain-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "switching switch-stack list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "switching switch-stack show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "switch-stack-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "traffic-list list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "traffic-list show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "traffic-matching-list-id": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "vpn server list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "vpn site-to-site-tunnel list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "wan list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "wifi broadcast list",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "offset": "value",
+        "limit": "value",
+        "filter": "value",
+        "site": "value"
+      }
+    },
+    {
+      "command": "wifi broadcast show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "wifi-broadcast-id": "value",
+        "site": "value"
+      }
+    }
+  ],
+  "discovery": {
+    "commands": [
+      "home",
+      "commands",
+      "doctor",
+      "info",
+      "site list",
+      "country list",
+      "dpi application list",
+      "dpi category list",
+      "device pending list",
+      "acl-rule list",
+      "acl-rule order show",
+      "acl-rule show",
+      "client list",
+      "client show",
+      "device-tag list",
+      "device list",
+      "device show",
+      "device statistics latest",
+      "dns policy list",
+      "dns policy show",
+      "firewall policy list",
+      "firewall policy order show",
+      "firewall policy show",
+      "firewall zone list",
+      "firewall zone show",
+      "hotspot voucher list",
+      "hotspot voucher show",
+      "network list",
+      "network show",
+      "network references",
+      "radius profile list",
+      "switching lag list",
+      "switching lag show",
+      "switching mc-lag-domain list",
+      "switching mc-lag-domain show",
+      "switching switch-stack list",
+      "switching switch-stack show",
+      "traffic-list list",
+      "traffic-list show",
+      "vpn server list",
+      "vpn site-to-site-tunnel list",
+      "wan list",
+      "wifi broadcast list",
+      "wifi broadcast show"
+    ],
+    "example": [
+      "info"
+    ],
+    "help": "unifi-axi managed reads. Run unifi-axi info --help for selectors and limits.\nWrites, local configuration, input files and byte transports are unavailable.\n"
+  }
+}

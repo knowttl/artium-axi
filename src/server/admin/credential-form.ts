@@ -6,12 +6,14 @@ import { tenableProfile } from '../adapters/tenable.js'
 import { hybridProfile } from '../adapters/hybrid.js'
 import { beyondtrustProfile } from '../adapters/beyondtrust.js'
 import { checkpointProfile } from '../adapters/checkpoint.js'
+import { networkProfiles } from '../adapters/network-reads.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
 
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
+  if (tool === 'unifi-axi' || tool === 'proxmox-axi') return networkProfiles[tool]
   if (tool === 'beyondtrust-axi') return beyondtrustProfile
   if (tool === 'checkpoint-axi') return checkpointProfile
   if (tool === 'ado-axi') return adoProfile
@@ -58,6 +60,18 @@ const providerHelp: Record<string, string> = {
 }
 const downloadHelp = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected.'
 const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
+  'unifi-axi': {
+    origin: 'UniFi Network HTTPS origin, without a path. Changing it requires a new API key.',
+    siteId: 'Optional default site ID. Caller site selectors must still identify an admitted read.',
+    apiContract: 'Optional read contract for an unverified application version: 10.6.109 or 11.0.97.',
+    tls: 'Optional trusted certificate PEM and its peer SHA-256 fingerprint; connectAddress can select the approved IP while retaining certificate identity verification.',
+  },
+  'proxmox-axi': {
+    origin: 'Proxmox HTTPS origin, without a path. Changing it requires a new API token.',
+    auth: 'Use API-token authentication for ordinary hosted reads.',
+    tokenId: 'Full API token identity, for example reader@pve!automation. Changing it requires a new token.',
+    certificatePin: 'Optional SHA-256 certificate pin bound to this exact origin. Cannot be combined with a CA bundle.',
+  },
   'ado-axi': {
     ...applicationHelp,
     org: 'Azure DevOps organization name or organization-root HTTPS URL. Changing it requires new secrets.',
@@ -157,7 +171,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     }
     return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p id="${escape(hint)}">${escape(help + defaultHelp)}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
-  return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID or installation ID requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
+  return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID, installation ID or token identity requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
     <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
     <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(profile.inputSchema, null, 2))}</pre></details></div>`
 }

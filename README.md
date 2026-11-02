@@ -70,7 +70,7 @@ Ordinary discovery and tool calls never install or repair agent settings.
 
 ## What it covers
 
-All twelve managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+All fourteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
 Write capabilities below require administrator opt-in.
 
 | Group | Purpose | Access | Reference |
@@ -88,6 +88,8 @@ Write capabilities below require administrator opt-in.
 | Tenable One | Exposure investigation and export jobs | Reads; selected writes | [Credentials](docs/tool-credentials.md#tenable-one) |
 | Hybrid Analysis | Sandbox investigations, YARA and archives | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#hybrid-analysis) |
 | Check Point Email Security | Email investigation and response | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#check-point-email-security) |
+| UniFi | Network application, inventory and policy investigation | Implemented reads with managed API key and trust | [Capabilities](docs/safety.md#network-appliance-reads) |
+| Proxmox | Cluster and virtual machine investigation | Ordinary reads with a managed API token | [Capabilities](docs/safety.md#network-appliance-reads) |
 
 [Reviewed inventories](tools/inventories) own the pinned command boundary.
 The [client reference](docs/client-reference.md#command-surface-and-subcommands) covers forwarding and inputs; [commands](docs/commands.md) lists client operations.

@@ -13,8 +13,12 @@ import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json'
 import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
 import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
+import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
+import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
+  'proxmox-axi': proxmox.adapterBoundary.unsafeOverrides,
   'beyondtrust-axi': beyondtrust.adapterBoundary.unsafeOverrides,
   'gh-axi': gh.adapterBoundary.unsafeOverrides,
   'checkpoint-axi': checkpoint.adapterBoundary.unsafeOverrides,

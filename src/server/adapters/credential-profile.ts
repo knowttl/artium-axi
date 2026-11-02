@@ -58,6 +58,18 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
+      delete this.inputSchema.properties.writes
+      this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin' }
+      if (tool === 'unifi-axi') this.inputSchema.required = ['origin', 'apiKey']
+      else {
+        this.inputSchema.properties.auth = { const: 'api-token' }
+        this.inputSchema.required = ['origin', 'auth', 'tokenId', 'token']
+        this.inputSchema.oneOf = [this.inputSchema.oneOf[0]]
+        for (const name of ['userId', 'ticket', 'csrfPreventionToken', 'password', 'otp']) delete this.inputSchema.properties[name]
+        this.inputSchema.properties.caBundle.description = 'Trusted CA certificate PEM contents, materialized privately for each call. Do not enter a server file path.'
+      }
+    }
     if (tool === 'gh-axi') {
       this.inputSchema.properties.token.not = { pattern: '^(gho_|ghu_|ghs_|ghr_)' }
     }
@@ -243,7 +255,7 @@ export class CredentialProfile {
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (tool !== 'ldap-axi' && tool !== 'awx-axi' && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
+    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
@@ -264,10 +276,14 @@ export class CredentialProfile {
     if (tool !== 'ldap-axi') {
       const prefix = tool.toUpperCase().replaceAll('-', '_')
       environment[`${prefix}_READ_ONLY`] = String(readOnly)
-      if (tool !== 'awx-axi') environment[`${prefix}_WRITE_LOG`] = writeLog!
+      if (writeLog) environment[`${prefix}_WRITE_LOG`] = writeLog
     }
     // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
     const files: PreparedCall['files'] = []
+    if (tool === 'proxmox-axi' && typeof parsed.value.caBundle === 'string') {
+      files.push({ name: 'proxmox-axi/ca.pem', content: parsed.value.caBundle, appendTrustedCa: true })
+      parsed.value.caBundle = '/proc/self/cwd/proxmox-axi/ca.pem'
+    }
     if (tool === 'vectra-axi' && typeof parsed.value.caBundle === 'string') {
       files.push({ name: 'vectra-axi/vectra-ca.pem', content: parsed.value.caBundle, appendTrustedCa: true })
       parsed.value.caBundle = 'vectra-ca.pem'

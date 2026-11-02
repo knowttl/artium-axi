@@ -1,4 +1,6 @@
 export const toolPaths = {
+  'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/bin.js',
+  'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/bin/proxmox-axi.mjs',
   'gh-axi': '/opt/tools/node_modules/.bin/gh-axi',
   'checkpoint-axi': '/opt/tools/node_modules/.bin/checkpoint-axi',
   'beyondtrust-axi': '/opt/tools/node_modules/.bin/beyondtrust-axi',
@@ -13,6 +15,8 @@ export const toolPaths = {
   'ado-axi': '/opt/tools/node_modules/.bin/ado-axi',
 } as const
 export const toolSkillPaths = {
+  'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/SKILL.md',
+  'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/README.md',
   'gh-axi': '/opt/tools/node_modules/gh-axi/skills/gh-axi/SKILL.md',
   'checkpoint-axi': '/opt/tools/skills/checkpoint-axi/SKILL.md',
   'beyondtrust-axi': '/opt/tools/skills/beyondtrust-axi/SKILL.md',
@@ -27,6 +31,8 @@ export const toolSkillPaths = {
   'ado-axi': '/opt/tools/node_modules/@knowttl/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
+  'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/axi-credential.schema.json',
+  'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/axi-credential.schema.json',
   'gh-axi': undefined,
   'checkpoint-axi': '/opt/tools/node_modules/@knowttl/checkpoint-axi/axi-credential.schema.json',
   'beyondtrust-axi': '/opt/tools/node_modules/@knowttl/beyondtrust-axi/axi-credential.schema.json',

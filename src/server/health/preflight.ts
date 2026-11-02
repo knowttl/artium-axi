@@ -106,6 +106,7 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
   const ca = credential.caBundle ?? credential.caFile
+    ?? (tool === 'unifi-axi' ? (credential.tls as { trustedCertificatePem?: string } | undefined)?.trustedCertificatePem : undefined)
   for (const endpoint of toolEndpoints(tool, credential)) {
     await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,
       tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
