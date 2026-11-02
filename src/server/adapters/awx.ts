@@ -9,13 +9,13 @@ import type { Adapter } from './types.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
-export const awxWritePolicy = writePolicy({ unlocks: 'All implemented AWX writes for this tenant, including configuration, support preview and require explicit confirmation and AWX resource permission. Destructive and security administration use this same switch when supported.',
-  blocked: 'Credentials, secret input, deletion, removals, bulk and security administration are not yet supported. Server file paths and unsafe overrides remain blocked.' })
+export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
+  blocked: 'Secret and structured inputs, SCM URLs, files/stdin and bulk host operations are not yet supported: requires secure input. Credential references are supported. Server file paths and unsafe overrides remain blocked.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
 function awxArguments(args: readonly string[], input: RunnerInput = {}) {
-  if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
+  if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
   if (args.length === 1 && ['--version', '-v', '-V', '--help'].includes(args[0])) return {
     args: [...args], invocation: { command: args[0] === '--help' ? 'home' : 'version', help: args[0] === '--help' }, effect: 'read' as const, configuration: false, mutation: false }
   const flags = new Map<string, string | true>()
@@ -37,7 +37,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     const value = boolean ? true : inline ?? args[++index]
     if (value === undefined) throw new ArtiumError('INVALID_INPUT')
     // File inputs need explicit runner materialization; never read server paths.
-    if (name.endsWith('-file') || typeof value === 'string' && value.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
+    if (awxManifest.secureInputFlags.includes(name) || name.endsWith('-file') || typeof value === 'string' && value.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
     flags.set(name, value)
   }
   if (!positionals.length) positionals.push('home')
@@ -47,6 +47,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('awx-axi', positionals, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
   if (route.effect === 'blocked' && !flags.has('help')) throw new ArtiumError('INVALID_INPUT', `Command ${route.command} is not yet supported through Artium.`)
+  if (route.effect === 'secure-input' && !flags.has('help')) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
   const schema: Record<string, string | undefined> = route.flags
   for (const name of flags.keys()) if (!Object.hasOwn(schema, name)) throw new ArtiumError('INVALID_INPUT',
     `Unknown flag --${name} for awx-axi ${route.command}.`,
@@ -66,9 +67,10 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   else if (configuration && route.command.startsWith('workflow node-')) {
     checkArgs = ['workflow', route.command === 'workflow node-create' ? 'template-nodes' : 'template-node', rest[0]]
   } else if (effect === 'write' && rest.length && !(configuration
-    && (/(?:create|copy)$/.test(route.command) || /edit$/.test(route.command) && flags.has('name')))) {
+    && (/(?:create|copy)$/.test(route.command) || /edit$/.test(route.command) && (flags.has('name') || flags.has('username'))))) {
     checkArgs = [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
   }
+  if (route.command === 'user token-revoke') checkArgs = ['user', 'list', '--limit', '100']
   return { args: [...(route.command === 'home' ? [] : positionals), ...[...flags].map(([name, value]) => value === true ? `--${name}` : `--${name}=${value}`)], effect, configuration,
     mutation: ['write', 'configuration-write'].includes(route.effect),
     invocation: { command: route.command, help: flags.has('help') },

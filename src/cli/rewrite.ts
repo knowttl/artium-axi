@@ -135,7 +135,7 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   const awxGroup = tool === 'awx-axi' && /^([a-z-]+): [^\n]+\n\nSubcommands:\n/.exec(output)?.[1]
   if (awxGroup && awx.discovery.commands.includes(awxGroup)) {
     return encode({ command: `artium-axi awx-axi ${awxGroup}`,
-      commands: awx.commands.filter(route => route.effect !== 'blocked' && route.command.startsWith(awxGroup + ' ')).map(route =>
+      commands: awx.commands.filter(route => !['blocked', 'secure-input'].includes(route.effect) && route.command.startsWith(awxGroup + ' ')).map(route =>
         `artium-axi awx-axi ${route.command}${route.positionals.names.map(name => ` ${name}`).join('')}`),
       help: ['Run a command with --help for its flags.', awx.discovery.help] }) + '\n'
   }
@@ -307,10 +307,11 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     const command = /^(?:artium-axi )?awx-axi ([a-z-]+ [a-z-]+)(?: |\n|$)/.exec(help)?.[1]
     const route = awx.commands.find(route => route.command === command && route.effect === 'configuration-write')
     if (route) {
-      help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => Object.hasOwn(route.flags, name) ? option : '')
-        .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !Object.hasOwn(route.flags, name))).join('\n')
+      const allowed = (name: string) => Object.hasOwn(route.flags, name) && !awx.adapterBoundary.secureInputFlags.includes(name) && !name.endsWith('-file')
+      help = help.replace(/ \[--([a-z-]+)(?: <[^>]+>)?\]/g, (option, name: string) => allowed(name) ? option : '')
+        .split('\n').filter(line => ![...line.matchAll(/--([a-z-]+)/g)].some(([, name]) => !allowed(name))).join('\n')
       const descriptions = awxParity.commands.find(entry => entry.command === route.command)!.flags
-        .filter(flag => Object.hasOwn(route.flags, flag.name))
+        .filter(flag => allowed(flag.name))
         .map(flag => `--${flag.name}: ${flag.description}`).join('\n')
       if (!help.includes(descriptions)) help = help.trimEnd() + '\n' + descriptions + '\n'
       const permission = `AWX must authorize ${route.command} and access to each referenced resource.`

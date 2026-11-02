@@ -22,9 +22,21 @@ const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']
 
-test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command reports missing support regardless of write access', async route => {
+test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command retains the managed client-local boundary', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
   await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
+})
+
+test.each(inventory.commands.filter(route => route.effect === 'secure-input').flatMap(route =>
+  [false, true].map(enabled => ({ ...route, enabled }))))('$command requires secure input with writes $enabled', async route => {
+  await expect(adapter(route.enabled).prepare([...route.command.split(' '), '--confirm'], reference)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT', message: 'Not yet supported: requires secure input.' })
+})
+
+test.each(inventory.commands.flatMap(route => Object.keys(route.flags)
+  .filter(name => inventory.adapterBoundary.secureInputFlags.includes(name) || name.endsWith('-file'))
+  .map(flag => ({ command: route.command, flag, required: route.positionals.required }))))('$command --$flag requires secure input', async ({ command, flag, required }) => {
+  await expect(adapter(true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
+    .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT', message: 'Not yet supported: requires secure input.' })
 })
 
 test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command requires the single tenant write switch', async route => {
@@ -56,7 +68,7 @@ test.each(inventory.commands.filter(route => route.effect === 'read'))('$command
   expect((await adapter().prepare(args, reference)).effect).toBe('read')
 })
 
-test.each(inventory.commands.filter(route => route.effect === 'blocked' && ['delete', 'grant', 'create'].some(action => route.command.endsWith(` ${action}`))))('$command help remains readable without write access', async route => {
+test.each(inventory.commands.filter(route => route.effect !== 'read'))('$command help remains readable without write access', async route => {
   expect((await adapter().prepare([...route.command.split(' '), '--help'], reference)).effect).toBe('read')
 })
 
@@ -76,7 +88,7 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain(`artium-axi awx-axi ${command}`)
   expect(help).toContain('--confirm')
   expect(help).toContain('--dry-run')
-  expect(help).not.toMatch(/--(?:credential|extra-vars|variables|source-vars|scm-url|[a-z-]+-file)\b/)
+  expect(help).not.toMatch(/--(?:extra-vars|variables|source-vars|scm-url|[a-z-]+-file)\b/)
   expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
 })
@@ -102,12 +114,27 @@ test.each([
   { command: 'project edit', group: 'project' }, { command: 'inventory edit', group: 'inventory' },
   { command: 'inventory host-edit', group: 'host' }, { command: 'inventory group-edit', group: 'group' },
   { command: 'inventory source-edit', group: 'inventory-source' }, { command: 'schedule edit', group: 'schedule' },
+  { command: 'organization edit', group: 'organization' }, { command: 'credential edit', group: 'credential' },
+  { command: 'execution-environment edit', group: 'execution-environment' }, { command: 'team edit', group: 'team' },
+  { command: 'notification-template edit', group: 'notification-template' },
 ])('$command recovery covers both rename outcomes', async ({ command, group }) => {
   const call = await adapter(true).prepare([...command.split(' '), 'Old', '--name', 'New', '--confirm'], reference)
   expect(call.write?.checkArgs).toEqual([group, 'list', '--limit', '100'])
   const recovery = await adapter().prepare(call.write!.checkArgs, reference)
   expect(recovery.effect).toBe('read')
   expect(recovery.args).toEqual([group, 'list', '--limit=100'])
+})
+
+test('user rename recovery covers both usernames', async () => {
+  const call = await adapter(true).prepare(['user', 'edit', 'old-user', '--username', 'new-user', '--confirm'], reference)
+  expect(call.write?.checkArgs).toEqual(['user', 'list', '--limit', '100'])
+  expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
+})
+
+test('token revocation recovery does not treat the token ID as a user ID', async () => {
+  const call = await adapter(true).prepare(['user', 'token-revoke', '42', '--confirm'], reference)
+  expect(call.write?.checkArgs).toEqual(['user', 'list', '--limit', '100'])
+  expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
 })
 
 test.each(fixedSchemaLists)('%s list refuses unsupported field projection', command => {
@@ -269,7 +296,7 @@ test.each(inventory.discovery.commands.filter(command => !['auth status', 'docto
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain(`artium-axi awx-axi ${command} list`)
-  expect(help).not.toMatch(/artium-axi awx-axi \S+ (?:delete|credential-add)\b/)
+  expect(help).not.toMatch(/artium-axi awx-axi inventory host-bulk-/)
 })
 
 test.each(['auth status', 'doctor'])('%s published help uses managed credential guidance', async command => {

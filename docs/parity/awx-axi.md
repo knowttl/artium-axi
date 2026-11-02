@@ -52,9 +52,11 @@ Positionals retain upstream names and required counts in the command table.
 
 All implemented writes now use the single tenant `allowWrites` setting, default off.
 Legacy `allowConfigurationWrites` is ignored and grants no access.
-Commands awaiting implementation report that they are not yet supported, regardless of the switch.
-S1 applies the target policy and replaces permanent mutation-route rejection with setting-gated access.
-Current configuration previews need configuration authorization; operational execution needs `--confirm` without `--dry-run`.
+S1 applies this policy to deletion, removals, credential associations and security administration as well as operational and configuration writes.
+Secret and structured inputs, SCM URLs, files/stdin and bulk host operations report "not yet supported: requires secure input" pending S2.
+Credential references and metadata-only credential changes are supported.
+All previews require the tenant writes switch; execution also needs `--confirm` without `--dry-run`.
+The counts and "today" tables in this S0 audit describe the baseline above; the regenerated matrix owns the current S1 boundary.
 
 ## Global and version flags
 

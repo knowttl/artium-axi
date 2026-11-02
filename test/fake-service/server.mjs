@@ -188,6 +188,22 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
     const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules)\//.test(url.pathname)
+    if (req.method === 'DELETE' && url.pathname === '/api/v2/job_templates/42/') {
+      mutations++
+      resources.delete(url.pathname)
+      res.writeHead(204); res.end(); return
+    }
+    if (req.method === 'POST' && url.pathname === '/api/v2/roles/42/users/') {
+      let body = ''
+      req.setEncoding('utf8')
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        recorded.body = JSON.parse(body)
+        mutations++
+        res.writeHead(204); res.end()
+      })
+      return
+    }
     if (configurationPath && ['POST', 'PATCH'].includes(req.method)) {
       let body = ''
       req.setEncoding('utf8')

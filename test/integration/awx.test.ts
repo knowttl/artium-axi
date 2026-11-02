@@ -238,33 +238,43 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(help.json(), help.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('template delete') })
       expect((await run(['job', 'cancel', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       expect((await run(['job', 'cancel', '42', '--dry-run'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      for (const args of [['template', 'delete', '42'], ['role', 'grant', '42', '--user', '7']]) {
+        expect((await run([...args, '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+        expect((await run([...args, '--dry-run'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      }
       expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi', headers,
         payload: { nativeSettings: { allowWrites: true }, expectedRevision: 3 } })).statusCode).toBe(200)
       const written = await run(['job', 'cancel', '42', '--type', 'job', '--confirm'])
       expect(written.json(), written.body).toMatchObject({ exitCode: 0 })
-      expect((await run(['template', 'delete', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') } })
-      expect((await run(['role', 'grant', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') } })
+      for (const args of [['template', 'delete', '42'], ['role', 'grant', '42', '--user', '7']]) {
+        const before = JSON.parse(await send('/__evidence')).mutations
+        const preview = await run([...args, '--dry-run'])
+        expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
+        expect(JSON.parse(await send('/__evidence')).mutations).toBe(before)
+        const executed = await run([...args, '--confirm'])
+        expect(executed.json(), executed.body).toMatchObject({ exitCode: 0 })
+      }
       const evidence = JSON.parse(await send('/__evidence'))
-      expect(evidence.mutations).toBe(1)
+      expect(evidence.mutations).toBe(3)
       expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/jobs/42/cancel/', canaryReceived: true }))
+      expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'DELETE', path: '/api/v2/job_templates/42/', canaryReceived: true }))
+      expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/roles/42/users/', body: { id: 7 }, canaryReceived: true }))
       const audit = db.prepare("SELECT action, arguments FROM audit WHERE tool = 'awx-axi'").all()
-      expect(audit).toContainEqual(expect.objectContaining({ action: 'write' }))
+      expect(audit.filter(row => (row as { action: string }).action === 'write')).toHaveLength(3)
       expect(existsSync(join(directory, 'ambient-writes.log'))).toBe(false)
       expect(JSON.stringify(audit)).not.toContain('CANARY-awx-token')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
       const beforeBlocked = JSON.parse(await send('/__evidence'))
       for (const blocked of [
-        ['template', 'delete', '42'], ['workflow', 'node-unlink', '42', '--to', '7', '--on', 'success'],
-        ['inventory', 'group-remove-host', '42', '--host', '7'], ['inventory', 'host-bulk-create', '--hosts-file', 'synthetic.json'],
-        ['credential', 'create', 'Synthetic credential'], ['template', 'credential-add', '42', '--credential', '7'],
-        ['organization', 'create', 'Synthetic organization'], ['user', 'create', 'synthetic-user'],
-        ['team', 'create', 'Synthetic team'], ['role', 'grant', '42', '--user', '7'], ['user', 'token-create', '42'],
-        ['project', 'create', 'Synthetic', '--credential', '7'], ['project', 'create', 'Synthetic', '--scm-url', 'https://scm.example/synthetic'],
+        ['inventory', 'host-bulk-create', '--hosts-file', 'synthetic.json'],
+        ['credential', 'create', 'Synthetic credential', '--inputs-file', 'synthetic.json'],
+        ['user', 'create', 'synthetic-user', '--password-file', 'synthetic.txt'],
+        ['project', 'create', 'Synthetic', '--scm-url', 'https://scm.example/synthetic'],
         ['inventory', 'create', 'Synthetic', '--variables', '{"canary":"CANARY-input"}'],
         ['template', 'create', 'Synthetic', '--extra-vars', '{"canary":"CANARY-input"}'],
       ]) {
         const refused = await run([...blocked, '--confirm'])
-        expect(refused.json(), refused.body).toMatchObject({ error: { code: expect.stringMatching(/FLAG_BLOCKED|INVALID_INPUT|UNSUPPORTED_INPUT/) } })
+        expect(refused.json(), refused.body).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT', message: 'Not yet supported: requires secure input.' } })
       }
       expect(JSON.parse(await send('/__evidence'))).toEqual(beforeBlocked)
       expect(JSON.stringify(db.prepare("SELECT arguments FROM audit WHERE tool = 'awx-axi'").all())).not.toContain('CANARY-input')

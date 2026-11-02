@@ -47,17 +47,17 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | job relaunch | operational write | supported | f | write |
 | job watch | read | supported | f | read |
 | template object-roles | read | supported | f | read |
-| template credential-add | security administration | blocked | e | write |
-| template credential-remove | security administration | blocked | e | write |
+| template credential-add | security administration | supported | e | write |
+| template credential-remove | security administration | supported | e | write |
 | template instance-group-add | configuration write | supported | b | write |
-| template instance-group-remove | configuration write | blocked | b | write |
+| template instance-group-remove | configuration write | supported | b | write |
 | template label-add | configuration write | supported | b | write |
-| template label-remove | configuration write | blocked | b | write |
+| template label-remove | configuration write | supported | b | write |
 | template notification-add | configuration write | supported | b | write |
-| template notification-remove | configuration write | blocked | b | write |
+| template notification-remove | configuration write | supported | b | write |
 | template create | configuration write | supported | b | write |
 | template edit | configuration write | supported | b | write |
-| template delete | destructive | blocked | d | write |
+| template delete | destructive | supported | d | write |
 | template copy | configuration write | supported | b | write |
 | template list | read | supported | f | read |
 | template show | read | supported | f | read |
@@ -66,24 +66,24 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | workflow object-roles | read | supported | f | read |
 | workflow node-create | configuration write | supported | b | write |
 | workflow node-edit | configuration write | supported | b | write |
-| workflow node-delete | destructive | blocked | d | write |
+| workflow node-delete | destructive | supported | d | write |
 | workflow node-link | configuration write | supported | b | write |
-| workflow node-unlink | configuration write | blocked | b | write |
-| workflow node-credential-add | security administration | blocked | e | write |
-| workflow node-credential-remove | security administration | blocked | e | write |
+| workflow node-unlink | configuration write | supported | b | write |
+| workflow node-credential-add | security administration | supported | e | write |
+| workflow node-credential-remove | security administration | supported | e | write |
 | workflow node-label-add | configuration write | supported | b | write |
-| workflow node-label-remove | configuration write | blocked | b | write |
+| workflow node-label-remove | configuration write | supported | b | write |
 | workflow node-instance-group-add | configuration write | supported | b | write |
-| workflow node-instance-group-remove | configuration write | blocked | b | write |
+| workflow node-instance-group-remove | configuration write | supported | b | write |
 | workflow node-add-approval | configuration write | supported | b | write |
 | workflow notification-add | configuration write | supported | b | write |
-| workflow notification-remove | configuration write | blocked | b | write |
+| workflow notification-remove | configuration write | supported | b | write |
 | workflow label-add | configuration write | supported | b | write |
-| workflow label-remove | configuration write | blocked | b | write |
+| workflow label-remove | configuration write | supported | b | write |
 | workflow copy | configuration write | supported | b | write |
 | workflow create | configuration write | supported | b | write |
 | workflow edit | configuration write | supported | b | write |
-| workflow delete | destructive | blocked | d | write |
+| workflow delete | destructive | supported | d | write |
 | workflow list | read | supported | f | read |
 | workflow show | read | supported | f | read |
 | workflow survey | read | supported | f | read |
@@ -91,25 +91,25 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | workflow nodes | read | supported | f | read |
 | workflow template-nodes | read | supported | f | read |
 | workflow template-node | read | supported | f | read |
-| organization create | configuration write | blocked | b | write |
-| organization edit | configuration write | blocked | b | write |
-| organization delete | destructive | blocked | d | write |
-| organization notification-add | configuration write | blocked | b | write |
-| organization notification-remove | configuration write | blocked | b | write |
-| organization user-add | security administration | blocked | e | write |
-| organization user-remove | security administration | blocked | e | write |
-| organization admin-add | security administration | blocked | e | write |
-| organization admin-remove | security administration | blocked | e | write |
-| organization team-add | security administration | blocked | e | write |
-| organization team-remove | security administration | blocked | e | write |
-| organization instance-group-add | configuration write | blocked | b | write |
-| organization instance-group-remove | configuration write | blocked | b | write |
-| organization execution-environment-add | configuration write | blocked | b | write |
-| organization execution-environment-remove | configuration write | blocked | b | write |
-| organization notification-template-add | configuration write | blocked | b | write |
-| organization notification-template-remove | configuration write | blocked | b | write |
-| organization galaxy-credential-add | security administration | blocked | e | write |
-| organization galaxy-credential-remove | security administration | blocked | e | write |
+| organization create | configuration write | supported | b | write |
+| organization edit | configuration write | supported | b | write |
+| organization delete | destructive | supported | d | write |
+| organization notification-add | configuration write | supported | b | write |
+| organization notification-remove | configuration write | supported | b | write |
+| organization user-add | security administration | supported | e | write |
+| organization user-remove | security administration | supported | e | write |
+| organization admin-add | security administration | supported | e | write |
+| organization admin-remove | security administration | supported | e | write |
+| organization team-add | security administration | supported | e | write |
+| organization team-remove | security administration | supported | e | write |
+| organization instance-group-add | configuration write | supported | b | write |
+| organization instance-group-remove | configuration write | supported | b | write |
+| organization execution-environment-add | configuration write | supported | b | write |
+| organization execution-environment-remove | configuration write | supported | b | write |
+| organization notification-template-add | configuration write | supported | b | write |
+| organization notification-template-remove | configuration write | supported | b | write |
+| organization galaxy-credential-add | security administration | supported | e | write |
+| organization galaxy-credential-remove | security administration | supported | e | write |
 | organization list | read | supported | f | read |
 | organization show | read | supported | f | read |
 | system-job-template launch | operational write | supported | f | write |
@@ -121,10 +121,10 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | system-job events | read | supported | f | read |
 | system-job notifications | read | supported | f | read |
 | credential object-roles | read | supported | f | read |
-| credential copy | security administration | blocked | c | write |
-| credential create | security administration | blocked | c | write |
-| credential edit | security administration | blocked | c | write |
-| credential delete | destructive | blocked | d | write |
+| credential copy | security administration | supported | c | write |
+| credential create | security administration | supported | c | write |
+| credential edit | security administration | supported | c | write |
+| credential delete | destructive | supported | d | write |
 | credential list | read | supported | f | read |
 | credential show | read | supported | f | read |
 | approval list | read | supported | f | read |
@@ -136,12 +136,12 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | ad-hoc show | read | supported | f | read |
 | ad-hoc events | read | supported | f | read |
 | ad-hoc stdout | read | supported | f | read |
-| project copy | security administration | blocked | e | write |
+| project copy | security administration | supported | e | write |
 | project notification-add | configuration write | supported | b | write |
-| project notification-remove | configuration write | blocked | b | write |
+| project notification-remove | configuration write | supported | b | write |
 | project create | configuration write | supported | b | write |
 | project edit | configuration write | supported | b | write |
-| project delete | destructive | blocked | d | write |
+| project delete | destructive | supported | d | write |
 | project list | read | supported | f | read |
 | project show | read | supported | f | read |
 | project playbooks | read | supported | f | read |
@@ -152,25 +152,25 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | inventory host-bulk-delete | destructive | blocked | d | write |
 | inventory group-create | configuration write | supported | b | write |
 | inventory group-edit | configuration write | supported | b | write |
-| inventory group-delete | destructive | blocked | d | write |
+| inventory group-delete | destructive | supported | d | write |
 | inventory group-add-host | configuration write | supported | b | write |
-| inventory group-remove-host | configuration write | blocked | b | write |
+| inventory group-remove-host | configuration write | supported | b | write |
 | inventory group-add-child | configuration write | supported | b | write |
-| inventory group-remove-child | configuration write | blocked | b | write |
+| inventory group-remove-child | configuration write | supported | b | write |
 | inventory source-create | configuration write | supported | b | write |
 | inventory source-edit | configuration write | supported | b | write |
-| inventory source-delete | destructive | blocked | d | write |
-| inventory source-credential-add | security administration | blocked | e | write |
-| inventory source-credential-remove | security administration | blocked | e | write |
+| inventory source-delete | destructive | supported | d | write |
+| inventory source-credential-add | security administration | supported | e | write |
+| inventory source-credential-remove | security administration | supported | e | write |
 | inventory source-notification-add | configuration write | supported | b | write |
-| inventory source-notification-remove | configuration write | blocked | b | write |
+| inventory source-notification-remove | configuration write | supported | b | write |
 | inventory create | configuration write | supported | b | write |
 | inventory edit | configuration write | supported | b | write |
-| inventory delete | destructive | blocked | d | write |
+| inventory delete | destructive | supported | d | write |
 | inventory sync | operational write | supported | f | write |
 | inventory host-create | configuration write | supported | b | write |
 | inventory host-edit | configuration write | supported | b | write |
-| inventory host-delete | destructive | blocked | d | write |
+| inventory host-delete | destructive | supported | d | write |
 | inventory list | read | supported | f | read |
 | inventory show | read | supported | f | read |
 | inventory groups | read | supported | f | read |
@@ -186,47 +186,47 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | group show | read | supported | f | read |
 | inventory-source list | read | supported | f | read |
 | inventory-source show | read | supported | f | read |
-| schedule credential-add | security administration | blocked | e | write |
-| schedule credential-remove | security administration | blocked | e | write |
+| schedule credential-add | security administration | supported | e | write |
+| schedule credential-remove | security administration | supported | e | write |
 | schedule label-add | configuration write | supported | b | write |
-| schedule label-remove | configuration write | blocked | b | write |
+| schedule label-remove | configuration write | supported | b | write |
 | schedule instance-group-add | configuration write | supported | b | write |
-| schedule instance-group-remove | configuration write | blocked | b | write |
+| schedule instance-group-remove | configuration write | supported | b | write |
 | schedule create | configuration write | supported | b | write |
 | schedule edit | configuration write | supported | b | write |
-| schedule delete | destructive | blocked | d | write |
+| schedule delete | destructive | supported | d | write |
 | schedule list | read | supported | f | read |
 | schedule show | read | supported | f | read |
-| execution-environment create | configuration write | blocked | b | write |
-| execution-environment edit | configuration write | blocked | b | write |
-| execution-environment delete | destructive | blocked | d | write |
-| execution-environment copy | security administration | blocked | e | write |
+| execution-environment create | configuration write | supported | b | write |
+| execution-environment edit | configuration write | supported | b | write |
+| execution-environment delete | destructive | supported | d | write |
+| execution-environment copy | security administration | supported | e | write |
 | execution-environment list | read | supported | f | read |
 | execution-environment show | read | supported | f | read |
-| user token-create | security administration | blocked | e | write |
-| user token-revoke | security administration | blocked | e | write |
-| user create | security administration | blocked | e | write |
-| user edit | security administration | blocked | e | write |
-| user delete | destructive | blocked | d | write |
+| user token-create | security administration | supported | e | write |
+| user token-revoke | security administration | supported | e | write |
+| user create | security administration | supported | e | write |
+| user edit | security administration | supported | e | write |
+| user delete | destructive | supported | d | write |
 | user list | read | supported | f | read |
 | user show | read | supported | f | read |
 | notification list | read | supported | f | read |
 | notification show | read | supported | f | read |
-| notification-template create | configuration write | blocked | b | write |
-| notification-template edit | configuration write | blocked | b | write |
-| notification-template delete | destructive | blocked | d | write |
+| notification-template create | configuration write | supported | b | write |
+| notification-template edit | configuration write | supported | b | write |
+| notification-template delete | destructive | supported | d | write |
 | notification-template test | operational write | supported | f | write |
-| notification-template copy | security administration | blocked | e | write |
+| notification-template copy | security administration | supported | e | write |
 | notification-template list | read | supported | f | read |
 | notification-template show | read | supported | f | read |
 | activity-stream list | read | supported | f | read |
 | activity-stream show | read | supported | f | read |
-| team user-add | security administration | blocked | e | write |
-| team user-remove | security administration | blocked | e | write |
-| team credential-create | security administration | blocked | c | write |
-| team create | security administration | blocked | e | write |
-| team edit | security administration | blocked | e | write |
-| team delete | destructive | blocked | d | write |
+| team user-add | security administration | supported | e | write |
+| team user-remove | security administration | supported | e | write |
+| team credential-create | security administration | supported | c | write |
+| team create | security administration | supported | e | write |
+| team edit | security administration | supported | e | write |
+| team delete | destructive | supported | d | write |
 | team list | read | supported | f | read |
 | team show | read | supported | f | read |
 | team users | read | supported | f | read |
@@ -235,8 +235,8 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | team roles | read | supported | f | read |
 | team object-roles | read | supported | f | read |
 | team access-list | read | supported | f | read |
-| role grant | security administration | blocked | e | write |
-| role revoke | security administration | blocked | e | write |
+| role grant | security administration | supported | e | write |
+| role revoke | security administration | supported | e | write |
 | role list | read | supported | f | read |
 | role show | read | supported | f | read |
 | role parents | read | supported | f | read |
@@ -367,7 +367,7 @@ See command controls above.
 | --limit | value | supported | f | write | none |
 | --tags | value | supported | f | write | none |
 | --skip-tags | value | supported | f | write | none |
-| --extra-vars | value | supported | c | write | potential secret, file |
+| --extra-vars | value | blocked | c | write | potential secret, file |
 | --inventory | value | supported | f | write | none |
 | --scm-branch | value | supported | f | write | none |
 | --verbosity | value | supported | f | write | none |
@@ -430,10 +430,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### template credential-remove
 
@@ -441,10 +441,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### template instance-group-add
 
@@ -463,10 +463,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --instance-group | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --instance-group | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### template label-add
 
@@ -485,10 +485,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --label | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --label | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### template notification-add
 
@@ -508,11 +508,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --event | value | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --event | value | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### template create
 
@@ -560,9 +560,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### template copy
 
@@ -615,7 +615,7 @@ See command controls above.
 | --limit | value | supported | f | write | none |
 | --tags | value | supported | f | write | none |
 | --skip-tags | value | supported | f | write | none |
-| --extra-vars | value | supported | c | write | potential secret, file |
+| --extra-vars | value | blocked | c | write | potential secret, file |
 | --inventory | value | supported | f | write | none |
 | --scm-branch | value | supported | f | write | none |
 | --verbosity | value | supported | f | write | none |
@@ -682,9 +682,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### workflow node-link
 
@@ -704,11 +704,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --on | value | blocked | b | write | none |
-| --to | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --on | value | supported | b | write | none |
+| --to | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### workflow node-credential-add
 
@@ -716,10 +716,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### workflow node-credential-remove
 
@@ -727,10 +727,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### workflow node-label-add
 
@@ -749,10 +749,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --label | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --label | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### workflow node-instance-group-add
 
@@ -771,10 +771,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --instance-group | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --instance-group | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### workflow node-add-approval
 
@@ -807,11 +807,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --event | value | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --event | value | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### workflow label-add
 
@@ -830,10 +830,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --label | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --label | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### workflow copy
 
@@ -880,9 +880,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### workflow list
 
@@ -920,7 +920,7 @@ See command controls above.
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
 | --help | boolean | supported | f | write | none |
-| --extra-vars | value | supported | c | write | potential secret, file |
+| --extra-vars | value | blocked | c | write | potential secret, file |
 | --limit | value | supported | f | write | none |
 | --scm-branch | value | supported | f | write | none |
 | --wait | boolean | supported | f | write | none |
@@ -964,13 +964,13 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --name | value | blocked | b | write | none |
-| --description | value | blocked | b | write | none |
-| --max-hosts | value | blocked | b | write | none |
-| --default-environment | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --name | value | supported | b | write | none |
+| --description | value | supported | b | write | none |
+| --max-hosts | value | supported | b | write | none |
+| --default-environment | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization edit
 
@@ -978,13 +978,13 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --name | value | blocked | b | write | none |
-| --description | value | blocked | b | write | none |
-| --max-hosts | value | blocked | b | write | none |
-| --default-environment | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --name | value | supported | b | write | none |
+| --description | value | supported | b | write | none |
+| --max-hosts | value | supported | b | write | none |
+| --default-environment | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization delete
 
@@ -992,9 +992,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### organization notification-add
 
@@ -1002,11 +1002,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --event | value | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --event | value | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization notification-remove
 
@@ -1014,11 +1014,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --event | value | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --event | value | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization user-add
 
@@ -1026,10 +1026,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization user-remove
 
@@ -1037,10 +1037,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization admin-add
 
@@ -1048,10 +1048,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization admin-remove
 
@@ -1059,10 +1059,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization team-add
 
@@ -1070,10 +1070,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --team | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --team | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization team-remove
 
@@ -1081,10 +1081,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --team | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --team | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization instance-group-add
 
@@ -1092,10 +1092,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --instance-group | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --instance-group | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization instance-group-remove
 
@@ -1103,10 +1103,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --instance-group | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --instance-group | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization execution-environment-add
 
@@ -1114,10 +1114,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --execution-environment | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --execution-environment | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization execution-environment-remove
 
@@ -1125,10 +1125,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --execution-environment | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --execution-environment | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization notification-template-add
 
@@ -1136,10 +1136,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization notification-template-remove
 
@@ -1147,10 +1147,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### organization galaxy-credential-add
 
@@ -1158,10 +1158,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization galaxy-credential-remove
 
@@ -1169,10 +1169,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### organization list
 
@@ -1202,7 +1202,7 @@ See command controls above.
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
 | --help | boolean | supported | f | write | none |
-| --extra-vars | value | supported | c | write | potential secret, file |
+| --extra-vars | value | blocked | c | write | potential secret, file |
 | --confirm | boolean | supported | f | write | none |
 | --dry-run | boolean | supported | f | write | none |
 
@@ -1302,10 +1302,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | c | write | none |
-| --name | value | blocked | c | write | none |
-| --confirm | boolean | blocked | c | write | none |
-| --dry-run | boolean | blocked | c | write | none |
+| --help | boolean | supported | c | write | none |
+| --name | value | supported | c | write | none |
+| --confirm | boolean | supported | c | write | none |
+| --dry-run | boolean | supported | c | write | none |
 
 ### credential create
 
@@ -1313,14 +1313,14 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | c | write | none |
-| --name | value | blocked | c | write | none |
-| --credential-type | value | blocked | c | write | none |
-| --organization | value | blocked | c | write | none |
-| --description | value | blocked | c | write | none |
+| --help | boolean | supported | c | write | none |
+| --name | value | supported | c | write | none |
+| --credential-type | value | supported | c | write | none |
+| --organization | value | supported | c | write | none |
+| --description | value | supported | c | write | none |
 | --inputs-file | value | blocked | c | write | potential secret, file, stdin |
-| --confirm | boolean | blocked | c | write | none |
-| --dry-run | boolean | blocked | c | write | none |
+| --confirm | boolean | supported | c | write | none |
+| --dry-run | boolean | supported | c | write | none |
 
 ### credential edit
 
@@ -1328,14 +1328,14 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | c | write | none |
-| --name | value | blocked | c | write | none |
-| --credential-type | value | blocked | c | write | none |
-| --organization | value | blocked | c | write | none |
-| --description | value | blocked | c | write | none |
+| --help | boolean | supported | c | write | none |
+| --name | value | supported | c | write | none |
+| --credential-type | value | supported | c | write | none |
+| --organization | value | supported | c | write | none |
+| --description | value | supported | c | write | none |
 | --inputs-file | value | blocked | c | write | potential secret, file, stdin |
-| --confirm | boolean | blocked | c | write | none |
-| --dry-run | boolean | blocked | c | write | none |
+| --confirm | boolean | supported | c | write | none |
+| --dry-run | boolean | supported | c | write | none |
 
 ### credential delete
 
@@ -1343,9 +1343,9 @@ Upstream delete tag checks only the native delete gate; this is not a separate t
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### credential list
 
@@ -1423,7 +1423,7 @@ See command controls above.
 | --args | value | supported | c | write | potential secret |
 | --credential | value | supported | f | write | none |
 | --limit | value | supported | f | write | none |
-| --extra-vars | value | supported | c | write | potential secret, file |
+| --extra-vars | value | blocked | c | write | potential secret, file |
 | --verbosity | value | supported | f | write | none |
 | --wait | boolean | supported | f | write | none |
 | --timeout | value | supported | f | write | none |
@@ -1480,10 +1480,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --name | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --name | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### project notification-add
 
@@ -1503,11 +1503,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --event | value | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --event | value | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### project create
 
@@ -1521,7 +1521,7 @@ See command controls above.
 | --scm-type | value | supported | b | write | none |
 | --scm-url | value | blocked | c | write | potential secret |
 | --scm-branch | value | supported | b | write | none |
-| --credential | value | blocked | b | write | none |
+| --credential | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
@@ -1538,7 +1538,7 @@ See command controls above.
 | --scm-type | value | supported | b | write | none |
 | --scm-url | value | blocked | c | write | potential secret |
 | --scm-branch | value | supported | b | write | none |
-| --credential | value | blocked | b | write | none |
+| --credential | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
@@ -1549,9 +1549,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### project list
 
@@ -1618,7 +1618,7 @@ See command controls above.
 
 ### inventory host-bulk-create
 
-See command controls above.
+Not yet supported: requires secure input
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -1630,7 +1630,7 @@ See command controls above.
 
 ### inventory host-bulk-delete
 
-See command controls above.
+Not yet supported: requires secure input
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -1672,9 +1672,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### inventory group-add-host
 
@@ -1693,10 +1693,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --host | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --host | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### inventory group-add-child
 
@@ -1715,10 +1715,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --child | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --child | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### inventory source-create
 
@@ -1731,7 +1731,7 @@ See command controls above.
 | --inventory | value | supported | b | write | none |
 | --source | value | supported | b | write | none |
 | --source-project | value | supported | b | write | none |
-| --credential | value | blocked | e | write | none |
+| --credential | value | supported | e | write | none |
 | --source-vars | value | blocked | c | write | potential secret |
 | --update-on-launch | boolean | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
@@ -1747,7 +1747,7 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --source | value | supported | b | write | none |
 | --source-project | value | supported | b | write | none |
-| --credential | value | blocked | e | write | none |
+| --credential | value | supported | e | write | none |
 | --source-vars | value | blocked | c | write | potential secret |
 | --update-on-launch | boolean | supported | b | write | none |
 | --no-update-on-launch | boolean | supported | b | write | none |
@@ -1760,9 +1760,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### inventory source-credential-add
 
@@ -1770,10 +1770,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### inventory source-credential-remove
 
@@ -1781,10 +1781,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### inventory source-notification-add
 
@@ -1804,11 +1804,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --event | value | blocked | b | write | none |
-| --notification-template | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --event | value | supported | b | write | none |
+| --notification-template | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### inventory create
 
@@ -1847,9 +1847,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### inventory sync
 
@@ -1901,9 +1901,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### inventory list
 
@@ -2076,10 +2076,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### schedule credential-remove
 
@@ -2087,10 +2087,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --credential | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --credential | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### schedule label-add
 
@@ -2109,10 +2109,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --label | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --label | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### schedule instance-group-add
 
@@ -2131,10 +2131,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --instance-group | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --instance-group | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### schedule create
 
@@ -2184,9 +2184,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### schedule list
 
@@ -2218,15 +2218,15 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --name | value | blocked | b | write | none |
-| --image | value | blocked | b | write | none |
-| --description | value | blocked | b | write | none |
-| --organization | value | blocked | b | write | none |
-| --credential | value | blocked | e | write | none |
-| --pull | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --name | value | supported | b | write | none |
+| --image | value | supported | b | write | none |
+| --description | value | supported | b | write | none |
+| --organization | value | supported | b | write | none |
+| --credential | value | supported | e | write | none |
+| --pull | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### execution-environment edit
 
@@ -2234,15 +2234,15 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --name | value | blocked | b | write | none |
-| --image | value | blocked | b | write | none |
-| --description | value | blocked | b | write | none |
-| --organization | value | blocked | b | write | none |
-| --credential | value | blocked | e | write | none |
-| --pull | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --name | value | supported | b | write | none |
+| --image | value | supported | b | write | none |
+| --description | value | supported | b | write | none |
+| --organization | value | supported | b | write | none |
+| --credential | value | supported | e | write | none |
+| --pull | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### execution-environment delete
 
@@ -2250,9 +2250,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### execution-environment copy
 
@@ -2260,10 +2260,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --name | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --name | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### execution-environment list
 
@@ -2294,10 +2294,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --scope | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --scope | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### user token-revoke
 
@@ -2305,9 +2305,9 @@ Upstream DELETE tagged security, so the native security gate applies rather than
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### user create
 
@@ -2315,16 +2315,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --username | value | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --username | value | supported | e | write | none |
 | --password-file | value | blocked | c | write | potential secret, file, stdin |
-| --first-name | value | blocked | e | write | none |
-| --last-name | value | blocked | e | write | none |
-| --email | value | blocked | e | write | none |
-| --is-superuser | boolean | blocked | e | write | none |
-| --is-system-auditor | boolean | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --first-name | value | supported | e | write | none |
+| --last-name | value | supported | e | write | none |
+| --email | value | supported | e | write | none |
+| --is-superuser | boolean | supported | e | write | none |
+| --is-system-auditor | boolean | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### user edit
 
@@ -2332,18 +2332,18 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --username | value | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --username | value | supported | e | write | none |
 | --password-file | value | blocked | c | write | potential secret, file, stdin |
-| --first-name | value | blocked | e | write | none |
-| --last-name | value | blocked | e | write | none |
-| --email | value | blocked | e | write | none |
-| --is-superuser | boolean | blocked | e | write | none |
-| --no-superuser | boolean | blocked | e | write | none |
-| --is-system-auditor | boolean | blocked | e | write | none |
-| --no-system-auditor | boolean | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --first-name | value | supported | e | write | none |
+| --last-name | value | supported | e | write | none |
+| --email | value | supported | e | write | none |
+| --is-superuser | boolean | supported | e | write | none |
+| --no-superuser | boolean | supported | e | write | none |
+| --is-system-auditor | boolean | supported | e | write | none |
+| --no-system-auditor | boolean | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### user delete
 
@@ -2351,9 +2351,9 @@ Upstream delete tag checks only the native delete gate; this is not a separate t
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### user list
 
@@ -2411,16 +2411,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --name | value | blocked | b | write | none |
-| --organization | value | blocked | b | write | none |
-| --notification-type | value | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --name | value | supported | b | write | none |
+| --organization | value | supported | b | write | none |
+| --notification-type | value | supported | b | write | none |
 | --configuration-file | value | blocked | c | write | potential secret, file |
 | --config-file | value | blocked | c | write | potential secret, file |
 | --messages-file | value | blocked | c | write | potential secret, file |
-| --description | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --description | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### notification-template edit
 
@@ -2428,16 +2428,16 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --name | value | blocked | b | write | none |
-| --organization | value | blocked | b | write | none |
-| --notification-type | value | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --name | value | supported | b | write | none |
+| --organization | value | supported | b | write | none |
+| --notification-type | value | supported | b | write | none |
 | --configuration-file | value | blocked | c | write | potential secret, file |
 | --config-file | value | blocked | c | write | potential secret, file |
 | --messages-file | value | blocked | c | write | potential secret, file |
-| --description | value | blocked | b | write | none |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --description | value | supported | b | write | none |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### notification-template delete
 
@@ -2445,9 +2445,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### notification-template test
 
@@ -2465,10 +2465,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --name | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --name | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### notification-template list
 
@@ -2531,10 +2531,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### team user-remove
 
@@ -2542,10 +2542,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### team credential-create
 
@@ -2553,12 +2553,12 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | c | write | none |
-| --name | value | blocked | c | write | none |
-| --credential-type | value | blocked | c | write | none |
+| --help | boolean | supported | c | write | none |
+| --name | value | supported | c | write | none |
+| --credential-type | value | supported | c | write | none |
 | --inputs-file | value | blocked | c | write | potential secret, file |
-| --confirm | boolean | blocked | c | write | none |
-| --dry-run | boolean | blocked | c | write | none |
+| --confirm | boolean | supported | c | write | none |
+| --dry-run | boolean | supported | c | write | none |
 
 ### team create
 
@@ -2566,12 +2566,12 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --name | value | blocked | e | write | none |
-| --organization | value | blocked | e | write | none |
-| --description | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --name | value | supported | e | write | none |
+| --organization | value | supported | e | write | none |
+| --description | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### team edit
 
@@ -2579,12 +2579,12 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --name | value | blocked | e | write | none |
-| --organization | value | blocked | e | write | none |
-| --description | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --name | value | supported | e | write | none |
+| --organization | value | supported | e | write | none |
+| --description | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### team delete
 
@@ -2592,9 +2592,9 @@ Upstream delete tag checks only the native delete gate; this is not a separate t
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### team list
 
@@ -2690,11 +2690,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --team | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --team | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### role revoke
 
@@ -2702,11 +2702,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | e | write | none |
-| --user | value | blocked | e | write | none |
-| --team | value | blocked | e | write | none |
-| --confirm | boolean | blocked | e | write | none |
-| --dry-run | boolean | blocked | e | write | none |
+| --help | boolean | supported | e | write | none |
+| --user | value | supported | e | write | none |
+| --team | value | supported | e | write | none |
+| --confirm | boolean | supported | e | write | none |
+| --dry-run | boolean | supported | e | write | none |
 
 ### role list
 

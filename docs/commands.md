@@ -62,7 +62,8 @@ The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accep
 
 For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned upstream commands and flags with the reviewed Artium boundary.
 With the tenant's administrator `allowWrites` switch enabled, use `--dry-run` to preview a configuration command, then `--confirm` to execute it.
-The switch defaults off and gates every implemented mutation and its preview; reads and help remain available.
+The switch defaults off and gates every mutation and its preview, including deletion, removals, credential associations and security administration; reads and help remain available.
+Secret and structured inputs, SCM URLs, files/stdin and bulk host operations report "not yet supported: requires secure input" until S2.
 Configuration commands without `--help`, `--dry-run` or `--confirm` are refused; operational commands without `--confirm` remain previews.
 Previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
 Run a command with `--help` for its reviewed flags and required AWX resource permissions.

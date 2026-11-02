@@ -44,7 +44,8 @@ Target slices group delivery work; already supported rows, including those assig
 
 See the [AWX write boundary](safety.md#write-gates-by-tool) for current write permissions and blocked operation classes.
 See the [client command reference](commands.md) for preview and confirmation behavior.
-The [target authorization policy](awx-parity-matrix.md#target-authorization-policy) governs every later write class, including deletion, credential association and token revocation.
+S1 applies the [target authorization policy](awx-parity-matrix.md#target-authorization-policy) to deletion, credential association and security administration, including token revocation.
+Secret and structured inputs, SCM URLs, files/stdin and bulk host operations await S2 and report "not yet supported: requires secure input".
 `auth login` and `auth logout` belong to client-local credential lifecycle, but also mint/revoke PATs upstream.
 The managed account form already supports PAT entry or username/password token acquisition; removing an Artium account is not equivalent to revoking a PAT.
 
