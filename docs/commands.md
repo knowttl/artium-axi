@@ -134,6 +134,14 @@ Inspect timing and enabled state with `schedule show <id|name>` and `schedule li
 The pinned upstream show/list output does not expose extra variables or association membership.
 After an unknown write outcome, follow [AWX recovery guidance](runbook.md#retention-and-export) and reconcile the schedule through list/show before another mutation.
 
+Create an execution environment with `artium-axi awx-axi execution-environment create synthetic-runner --image registry.example/automation/runner:stable --dry-run`, then replace `--dry-run` with `--confirm`.
+Create/edit accept `--name`, `--image`, `--description`, `--organization <id|name>`, `--pull <policy>` and `--credential <id|name>` for an existing AWX registry credential.
+Registry passwords and tokens belong in AWX credentials, never in image references or command arguments.
+Both ordinary image configuration and credential attachment follow the [AWX write boundary](safety.md#write-gates-by-tool).
+Inspect images and associated templates with `execution-environment list` and `execution-environment show <id|name>`; reads remain available with writes disabled.
+The pinned upstream read output does not expose the attached registry credential or pull policy.
+After an unknown create or rename outcome, follow [AWX recovery guidance](runbook.md#retention-and-export).
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.

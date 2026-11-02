@@ -292,7 +292,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|project_updates|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|project_updates|schedules|execution_environments|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
     if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/7/' && !resources.has(url.pathname)) {
       res.end(JSON.stringify({ id: 7, name: 'Synthetic promptable template', ask_inventory_on_launch: true,
         ask_limit_on_launch: true, ask_variables_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true })); return
