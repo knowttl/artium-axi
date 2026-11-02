@@ -281,6 +281,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
     const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/7/' && !resources.has(url.pathname)) {
+      res.end(JSON.stringify({ id: 7, name: 'Synthetic promptable template', ask_inventory_on_launch: true,
+        ask_limit_on_launch: true, ask_variables_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true })); return
+    }
     if (req.method === 'GET' && url.pathname === '/api/v2/credential_types/') {
       const rows = url.searchParams.has('name') && url.searchParams.get('name') !== 'Machine' ? [] : [{ id: 7, name: 'Machine', kind: 'ssh' }]
       res.end(JSON.stringify({ count: rows.length, next: null, results: rows })); return
@@ -328,7 +332,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(400); res.end(JSON.stringify({ credential_type: ['Invalid pk - object does not exist.'] })); return
         }
         mutations++
-        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
+        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
         if (association) {
           const members = awxAssociations.get(url.pathname) ?? new Set()
           if (payload.disassociate) members.delete(payload.id)
@@ -367,6 +371,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const path = req.method === 'PATCH' ? url.pathname : `${collection}${id}/`
         const original = credentialCopy ? resources.get(`/api/v2/credentials/${credentialCopy[1]}/`) : undefined
         const resource = { ...original, id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}),
+          // Fixed controller timing fixture; the fake never runs a scheduler or jobs.
+          ...(req.method === 'POST' && collection === '/api/v2/schedules/' ? {
+            timezone: 'UTC', dtstart: '2027-01-01T00:00:00Z', dtend: null, next_run: '2027-01-02T00:00:00Z',
+          } : {}),
           ...(workflowNode ? { workflow_job_template: Number(workflowNode[1]), success_nodes: [], failure_nodes: [], always_nodes: [] } : {}),
           ...resources.get(path), ...payload }
         resources.set(path, resource)

@@ -90,3 +90,12 @@ See [structured input handling](client-reference.md#command-surface-and-subcomma
 Acceptance uses the public run API and fake AWX controller to verify preview/confirmation, disabled-write and AWX permission denials, association additions/removals, all graph edge types, approval nodes, private variable handling and interrupted node creation recovery through `template-nodes` and `template-node`.
 The synthetic onboarding journey provisions inventory, a host and a canary SSH machine credential, attaches the credential to a template and submits a connectivity launch.
 It verifies the controller request flow without executing a real playbook or contacting a target server.
+
+## Schedules (S7)
+
+Schedule create/edit supports private JSON/YAML extra variables, inventory, host limits, job tags and skip tags under the template's prompt permissions.
+Credential attachment/removal and label/instance-group removals use the same per-tenant writes switch, preview, confirmation and audit as other configuration writes.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, denied AWX permissions, structured request payloads and association requests through the public run API.
+Schedule show/list remain available with writes disabled and reconcile an interrupted rename.
+Fixed synthetic controller timing verifies that previews and edits which omit the recurrence rule preserve timing values; no scheduler waits or real jobs are used.
+The pinned upstream schedule show/list output does not expose extra variables or association membership, so those writes are verified against fake controller requests.
