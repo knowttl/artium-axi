@@ -124,8 +124,10 @@ test.each(cases)('$tool refuses credential overrides and writes before forwardin
     const override = await app.inject({ method: 'POST', url: `/v1/tools/${item.tool}/run`, headers,
       payload: { args: [...item.args, '--profile=another'] } })
     expect(override.json().error.code).toBe('FLAG_BLOCKED')
-    const write = await app.inject({ method: 'POST', url: `/v1/tools/${item.tool}/run`, headers,
-      payload: { args: ['create', '/nodes', '--confirm', 'synthetic'] } })
+    const args = item.tool === 'gitea-axi'
+      ? ['issue', 'edit', '42', '--repo', 'example/project', '--title', 'Synthetic update', '--allow-write', 'issueEditIssue', '--preview']
+      : ['create', '/nodes', '--confirm', 'synthetic']
+    const write = await app.inject({ method: 'POST', url: `/v1/tools/${item.tool}/run`, headers, payload: { args } })
     expect(write.json().error.code).toBe(item.tool === 'gitea-axi' ? 'FLAG_BLOCKED' : 'INVALID_INPUT')
     expect((await evidence()).requests).toEqual([])
   })
