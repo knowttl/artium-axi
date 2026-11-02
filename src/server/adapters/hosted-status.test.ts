@@ -11,7 +11,7 @@ import { FakeTokenTransport, azureTestTenant } from '../../../test/fixtures/azur
 const result = { stdout: '', stderr: '', exitCode: 0, durationMs: 1, outputBytes: { stdout: 100, stderr: 0 },
   timedOut: false, truncated: { stdout: false, stderr: false } }
 
-test('Falcon scope discovery describes admitted reads and preserves the fixed GraphQL permission', () => {
+test('Falcon scope discovery describes admitted reads and native writes', () => {
   const output = hostedStatus('falcon-axi', { command: 'scopes', help: false }, { ...result, stdout: encode({
     scopes: [
       { scope: 'NGSIEM:write', access: 'write', commands: 'host usb, identity activity, search start, search stop', required: 'yes' },
@@ -21,11 +21,11 @@ test('Falcon scope discovery describes admitted reads and preserves the fixed Gr
     ],
   }) })
   expect((decode(output.stdout) as { scopes: unknown }).scopes).toEqual([
-    { scope: 'NGSIEM:read', access: 'read', commands: 'search status', required: 'yes' },
+    { scope: 'NGSIEM:write', access: 'write', commands: 'host usb, identity activity, search start, search stop', required: 'yes' },
+    { scope: 'NGSIEM:read', access: 'read', commands: 'search start, search status', required: 'yes' },
     { scope: 'Identity Protection GraphQL:write', access: 'write', commands: 'identity list, identity show, identity timeline, identity assessment', required: 'yes' },
-    { scope: 'Real time response:read', access: 'read', commands: 'rtr session list, rtr session show', required: 'yes' },
+    { scope: 'Real time response:read', access: 'read', commands: 'rtr session list, rtr session show, rtr run', required: 'yes' },
   ])
-  expect(output.stdout).not.toMatch(/search start|search stop|rtr run|host usb|identity activity/)
 })
 
 test.each([
