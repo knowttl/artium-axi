@@ -5,6 +5,7 @@ Contents:
 - [Agent session context](#agent-session-context)
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
+- [Network appliance reads](#network-appliance-reads)
 - [Write gates by tool](#write-gates-by-tool)
 - [Initial read permissions](#initial-read-permissions)
 - [Storage and execution boundaries](#storage-and-execution-boundaries)
@@ -127,9 +128,7 @@ UniFi admits the pinned package's implemented read commands, including applicati
 The package retains its version, schema and contract-conflict checks.
 Proxmox admits ordinary read routes and offline inventory discovery from the pinned invocation contract.
 Use `artium-axi unifi-axi info --help` or `artium-axi proxmox-axi get /version --help`, and `artium-axi tools show <tool>` for admitted commands.
-Both use Artium credential profiles and SecretRefs; administrators supply the HTTPS origin, API key or API token, and optional trust material.
-Proxmox CA bundle input is PEM content, materialized privately for each call.
-UniFi optional TLS settings retain its certificate and fingerprint checks.
+See credential setup for [UniFi](tool-credentials.md#unifi) and [Proxmox](tool-credentials.md#proxmox), including managed authentication and TLS settings.
 Credentials, endpoints, profiles, local configuration, file inputs, session authentication and byte transports cannot be selected by callers.
 These adapters admit reads only; administrator settings cannot enable writes in this admission slice.
 Local synthetic verification does not establish live appliance commissioning.
