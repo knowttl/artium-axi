@@ -43,6 +43,31 @@ test('Gitea file aliases retain their managed upload contract', async () => {
   expect(prepared.fileArguments?.map(index => prepared.args[index])).toEqual(['notes.md'])
   expect(() => validateFileInput('gitea-axi', args, input)).not.toThrow()
 })
+test.each([
+  { selectors: ['-dFnotes.md'], options: ['--draft'] },
+  { selectors: ['-pFnotes.md'], options: ['--prerelease'] },
+  { selectors: ['-dpF', 'notes.md'], options: ['--draft', '--prerelease'] },
+])('Gitea preserves release options for direct uploads with $selectors (R1)', async ({ selectors, options }) => {
+  const prefix = ['release', 'create', 'v1', '--repo', 'example/project']
+  const suffix = ['--allow-write', 'repoCreateRelease', '--confirm', confirmation]
+  const args = [...prefix, ...selectors, ...suffix]
+  const input = { files: [{ name: 'notes.md', contentBase64: Buffer.from('Synthetic notes').toString('base64') }] }
+  expect(() => validateFileInput('gitea-axi', args, input)).not.toThrow()
+  const prepared = await adapter(true, ['repoCreateRelease']).prepare(args, reference, input)
+  expect(prepared.args.slice(1)).toEqual([...prefix, ...options, '--notes-file', 'notes.md', ...suffix])
+  expect(prepared.fileArguments?.map(index => prepared.args[index])).toEqual(['notes.md'])
+  expect(prepared.effect).toBe('write')
+})
+test('Gitea preserves clustered release options for direct stdin (R1)', async () => {
+  const prepared = await adapter(true, ['repoCreateRelease']).prepare([
+    'release', 'create', 'v1', '--repo', 'example/project', '-dpF-', '--allow-write', 'repoCreateRelease', '--preview',
+  ], reference, { stdin: 'Synthetic notes' })
+  expect(prepared.args.slice(1)).toEqual([
+    'release', 'create', 'v1', '--repo', 'example/project', '--draft', '--prerelease', '--notes-file=-',
+    '--allow-write', 'repoCreateRelease', '--preview',
+  ])
+  expect(prepared.fileArguments).toEqual([])
+})
 test('Gitea reconciliation remains a read with administrator writes disabled', async () => {
   const prepared = await adapter(false).prepare(['write', 'reconcile', confirmation], reference)
   expect(prepared.effect).toBe('read')

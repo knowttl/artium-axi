@@ -10,6 +10,7 @@ import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
 import { giteaWriteOperations } from '../../shared/gitea-writes.js'
+import { normalizeGiteaFileArguments } from '../../shared/file-input.js'
 
 export const giteaProfile = new CredentialProfile(inventory.credentialSchema, 'gitea-axi')
 export const giteaWritePolicy = writePolicy({ supportedOperations: giteaWriteOperations,
@@ -20,6 +21,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))) {
     throw new ArtiumError('FLAG_BLOCKED')
   }
+  args = normalizeGiteaFileArguments(args)
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) return { args: [...args], invocation: { command: 'version', help: false } }
   if (args.length === 2 && args[1] === '--help' && inventory.commands.some(entry => entry.command.startsWith(args[0] + ' '))) {
     return { args: [...args], invocation: { command: args[0], help: true } }

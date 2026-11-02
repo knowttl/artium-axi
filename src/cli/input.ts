@@ -8,7 +8,7 @@ import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
-import { inputFileFlags, validateFileInput } from '../shared/file-input.js'
+import { inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
 
 async function readBounded(stream: Readable, limit: number, stdinAlternative?: string): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -34,7 +34,7 @@ async function readBounded(stream: Readable, limit: number, stdinAlternative?: s
 // Only reviewed file flags upload local contents; other paths remain arguments.
 export async function toolInput(tool: string, original: string[]) {
   if (!runRequestSchema.safeParse({ args: original }).success) throw new ArtiumError('INVALID_INPUT')
-  const args = [...original]
+  const args = tool === 'gitea-axi' ? normalizeGiteaFileArguments(original) : [...original]
   const input: RunInput = {}
   let totalFileBytes = 0
   if (tool === 'gh-axi' && ['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))

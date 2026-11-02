@@ -27,6 +27,26 @@ test('Gitea uploads inline short file selectors', async () => {
     files: [{ name: 'inline.md', size: 15, contentBase64: Buffer.from('Synthetic notes').toString('base64') }],
   })
 })
+test.each([
+  { cluster: '-dF', options: ['--draft'], inline: true },
+  { cluster: '-pF', options: ['--prerelease'], inline: true },
+  { cluster: '-dpF', options: ['--draft', '--prerelease'], inline: false },
+])('Gitea preserves release options when uploading $cluster (R1)', async ({ cluster, options, inline }) => {
+  const path = join(directory, 'cluster.md')
+  writeFileSync(path, 'Synthetic notes')
+  const prefix = ['release', 'create', 'v1', '--repo', 'example/project']
+  const suffix = ['--allow-write', 'repoCreateRelease', '--preview']
+  expect(await toolInput('gitea-axi', [...prefix, ...(inline ? [cluster + path] : [cluster, path]), ...suffix])).toEqual({
+    args: [...prefix, ...options, ...(inline ? ['--notes-file=cluster.md'] : ['--notes-file', 'cluster.md']), ...suffix],
+    files: [{ name: 'cluster.md', size: 15, contentBase64: Buffer.from('Synthetic notes').toString('base64') }],
+  })
+})
+test('Gitea preserves clustered release options with explicit stdin (R1)', async () => {
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['Synthetic notes']) as typeof process.stdin)
+  expect(await toolInput('gitea-axi', ['release', 'create', 'v1', '-dpF-'])).toEqual({
+    args: ['release', 'create', 'v1', '--draft', '--prerelease', '--notes-file=-'], stdin: 'Synthetic notes',
+  })
+})
 test('Gitea explicit stdin works when help is false', async () => {
   const args = ['issue', 'edit', '42', '--body-file=-', '--help=false']
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['Synthetic body']) as typeof process.stdin)
