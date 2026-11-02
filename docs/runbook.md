@@ -438,7 +438,7 @@ Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.
 GitHub writes require exact administrator-selected operations and Artium-owned preview/confirmation; see [GitHub setup](tool-credentials.md#github) for the tiers and interrupted-write recovery.
 Existing explicit write opt-ins are preserved; omitted grants remain off.
 The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
-See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and confirmation gates.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for its current read-only admission.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
@@ -517,8 +517,7 @@ These diagnostics leave response error codes unchanged and are separate from aud
 
 ### Falcon RTR execution
 
-The TypeScript Falcon admission currently permits passive reads only.
-RTR session and audit history remain available; RTR preview and execution are unavailable pending the write integration.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for available reads and deferred operations.
 Previously saved write choices and profile opt-in remain stored, including the narrow RTR meaning of legacy `allowWrites: true` settings, without granting execution.
 Keep existing Falcon journals intact for audit reconciliation and [retention and export](#retention-and-export).
 See [supported Falcon capabilities](safety.md) and [upstream permissions and licensing](tool-credentials.md#falcon).
@@ -536,11 +535,11 @@ See [Technitium result retrieval](commands.md#technitium-dns) and its [confident
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
-Azure, ordinary Graph runs, Vectra and Falcon use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
+Azure, ordinary Graph runs and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Graph mail downloads instead retain native intent/outcome journals at `<configured write-log path>.<transferId>`; run-journal retention does not prune these files.
-Falcon execution journals persist after calls and expire with their run directory after 90 days.
+Legacy Falcon execution journals expire with their run directory after 90 days; admitted passive reads create no isolated run journals.
 Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
 Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.
 These journals are not pruned by run-journal retention.

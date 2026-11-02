@@ -150,11 +150,8 @@ For example, account reads need `Assets:read`, while CVE reads need `Vulnerabili
 Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
 The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
-The TypeScript runtime currently admits passive reads only.
-Search creation and cancellation, host USB and identity activity searches, MalQuery submission and RTR execution are unavailable.
-Saved administrator write choices remain stored for the later write integration.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for admitted reads and deferred operations.
 MalQuery metadata, quota and request-status reads require `MalQuery:read`.
-RTR session and audit history remain passive reads.
 Falcon's `auth status` test authenticates the saved client against its selected cloud.
 Also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool to verify access to the intended data.
 

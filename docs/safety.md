@@ -160,7 +160,7 @@ Local fake-service checks do not establish live server acceptance.
 
 | Tool | Write capability and unlock |
 | --- | --- |
-| Falcon | Passive reads only in the TypeScript admission. Saved write choices remain stored; effectful search operations, MalQuery submission and RTR execution are unavailable. |
+| Falcon | See the [Falcon read boundary](#azure-falcon-and-vectra-reads) for admitted reads, deferred operations and retained write choices. |
 | LDAP | Fixed read-only. |
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
