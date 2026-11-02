@@ -32,7 +32,10 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     expect(skill).toContain('issue view 42 --repo OWNER/NAME --help')
     expect(skill).toContain('api GET repos/OWNER/NAME')
     expect(skill).toContain('Writes default off and require administrator Allow writes plus exact native operation IDs.')
-    expect(skill).toContain('Protected values, attachments, pending workflow commands, local workflows and credential routes are unavailable.')
+    expect(skill).toContain('Secret set requires protected --input; variables are non-secret and retain native value readback.')
+    expect(skill).toContain('Upload opaque attachments with --file or --attach, never stdin')
+    expect(skill).toContain('gitea.issue.download, gitea.pr.download or gitea.release.download')
+    expect(skill).toContain('Pending workflow commands, local workflows and credential routes are unavailable.')
     return
   }
   if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
