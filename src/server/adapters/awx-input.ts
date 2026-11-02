@@ -73,11 +73,10 @@ if (tokenResult || bulkDelete) {
         if (route !== 'bulk/host_delete/') throw new AwxAxiError('Unexpected bulk route.', 'INVALID_RESPONSE');
         const response = await post(route, payload, tag);
         const outcomes = response.body?.hosts;
-        if (![200, 201].includes(response.status) || !outcomes || typeof outcomes !== 'object' || Array.isArray(outcomes)) return response;
-        // Upstream reports every 2xx as deleted; AWX answers mixed results per host.
+        if (response.status < 200 || response.status >= 300) return response;
         const unconfirmed = payload.hosts.filter(id => {
-          const message = outcomes[id];
-          return typeof message !== 'string' || !/\\bdeleted\\b/i.test(message) || /\\b(?:not|fail(?:ed)?|unable|cannot|denied|lack)\\b/i.test(message);
+          const message = outcomes && typeof outcomes === 'object' && !Array.isArray(outcomes) ? outcomes[id] : undefined;
+          return typeof message !== 'string' || !/^The host [\\s\\S]+ was deleted$/.test(message);
         });
         if (unconfirmed.length) throw new AwxAxiError(
           'Bulk host delete confirmed ' + (payload.hosts.length - unconfirmed.length) + ' of ' + payload.hosts.length + ' hosts.', 'PARTIAL_OUTCOME',

@@ -1529,7 +1529,7 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
     const create = ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json']
     const remove = ['inventory', 'host-bulk-delete', '--hosts-file', 'ids.json']
     const names = upload('hosts.json', JSON.stringify([
-      { name: 'synthetic-bulk-a', variables: { password: 'CANARY-bulk-secret' } }, { name: 'synthetic-bulk-b' }, { name: 'synthetic-bulk-c' }]))
+      { name: 'not-ready', variables: { password: 'CANARY-bulk-secret' } }, { name: 'failed' }, { name: 'access-denied' }]))
     try {
       // Reads stay available and bulk previews and confirmations are refused while writes are off.
       for (const [args, files] of [[create, [names]], [remove, [upload('ids.json', '[42]')]]] as const) {
@@ -1558,8 +1558,8 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
       expect(created.body).not.toContain('CANARY-bulk-secret')
       expect((await evidence()).requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/bulk/host_create/',
-        body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-a', variables: { password: 'CANARY-bulk-secret' } },
-          { name: 'synthetic-bulk-b' }, { name: 'synthetic-bulk-c' }] } }))
+        body: { inventory: 7, hosts: [{ name: 'not-ready', variables: { password: 'CANARY-bulk-secret' } },
+          { name: 'failed' }, { name: 'access-denied' }] } }))
       // A one-row page proves nothing about the other hosts.
       expect(await hostIds('--limit', '1')).toEqual({ count: '1 of 3 total', ids: [42] })
       expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
@@ -1569,13 +1569,37 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect(duplicate.json(), duplicate.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
       expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
 
-      // A mixed result is not reported as a completed delete.
-      const mixed = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,99]')])
-      expect(mixed.json(), mixed.body).toMatchObject({ exitCode: 1 })
-      expect(decode(mixed.json().stdout)).toMatchObject({ code: 'PARTIAL_OUTCOME', requested: 3, unconfirmed_hosts: [99] })
-      expect(mixed.json().stdout).not.toContain('status: deleted')
-      expect((await hostIds('--limit', '100')).ids).toEqual([44])
-      expect(db.prepare("SELECT action, outcome, exit_code FROM audit WHERE tool = 'awx-axi' AND error_code = 'PARTIAL_OUTCOME'").all())
+      const freshDuplicate = await run([...create, '--confirm'], [upload('hosts.json', '[{"name":"fresh"},{"name":"fresh"}]')])
+      expect(freshDuplicate.json(), freshDuplicate.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      const invalidBatch = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,99]')])
+      expect(invalidBatch.json(), invalidBatch.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      const deleted = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
+      expect(deleted.json(), deleted.body).toMatchObject({ exitCode: 0 })
+      expect((await hostIds('--limit', '100')).ids).toEqual([])
+
+      for (const { mode, unconfirmed } of [
+        { mode: 'missing', unconfirmed: [42, 43, 44] },
+        { mode: 'null', unconfirmed: [42, 43, 44] },
+        { mode: 'array', unconfirmed: [42, 43, 44] },
+        { mode: 'no-content', unconfirmed: [42, 43, 44] },
+        { mode: 'empty', unconfirmed: [42, 43, 44] },
+        { mode: 'mixed', unconfirmed: [44] },
+        { mode: 'invalid-message', unconfirmed: [44] },
+      ]) {
+        expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 0 })
+        await send(`/__awx/bulk-delete-response?mode=${mode}`, 'POST')
+        const result = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
+        expect(result.json(), result.body).toMatchObject({ exitCode: 1 })
+        expect(decode(result.json().stdout)).toMatchObject({ code: 'PARTIAL_OUTCOME', requested: 3, unconfirmed_hosts: unconfirmed })
+        expect(result.json().stdout).not.toContain('status: deleted')
+        expect((await hostIds('--limit', '100')).ids).toEqual([])
+      }
+      await send('/__awx/bulk-delete-response?mode=valid', 'POST')
+      expect(db.prepare("SELECT DISTINCT action, outcome, exit_code FROM audit WHERE tool = 'awx-axi' AND error_code = 'PARTIAL_OUTCOME'").all())
         .toEqual([{ action: 'unknown', outcome: 'completed', exit_code: 1 }])
 
       // Malformed host files are refused by the pinned CLI before any request.
@@ -1586,12 +1610,13 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect((await evidence()).mutations).toBe(before)
 
       // A dropped connection leaves the outcome unknown; the recovery read is a limited page.
+      expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 0 })
       await send('/__awx/write-outcome?drop=true', 'POST')
       const interrupted = await run([...remove, '--confirm'], [upload('ids.json', '[44]')])
       expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
         next: expect.stringMatching(/awx-axi host list --limit 100.*absence from this limited read does not prove failure/) } })
       await send('/__awx/write-outcome?drop=false', 'POST')
-      expect((await hostIds('--limit', '100')).ids).toEqual([])
+      expect((await hostIds('--limit', '100')).ids).toEqual([42, 43])
       const everything = JSON.stringify(db.prepare("SELECT * FROM audit WHERE tool = 'awx-axi'").all())
       expect(everything).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
