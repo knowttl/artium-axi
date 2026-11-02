@@ -137,10 +137,10 @@ After an unknown write outcome, follow [AWX recovery guidance](runbook.md#retent
 Create an execution environment with `artium-axi awx-axi execution-environment create synthetic-runner --image registry.example/automation/runner:stable --dry-run`, then replace `--dry-run` with `--confirm`.
 Create/edit accept `--name`, `--image`, `--description`, `--organization <id|name>`, `--pull <policy>` and `--credential <id|name>` for an existing AWX registry credential.
 Registry passwords and tokens belong in AWX credentials, never in image references or command arguments.
-Both ordinary image configuration and credential attachment require the same administrator-controlled tenant writes switch, default off, plus confirmation and AWX resource permissions.
+Both ordinary image configuration and credential attachment follow the [AWX write boundary](safety.md#write-gates-by-tool).
 Inspect images and associated templates with `execution-environment list` and `execution-environment show <id|name>`; reads remain available with writes disabled.
 The pinned upstream read output does not expose the attached registry credential or pull policy.
-After an unknown create or rename outcome, reconcile through `execution-environment list --limit 100` and inspect the matching environment before retrying.
+After an unknown create or rename outcome, follow [AWX recovery guidance](runbook.md#retention-and-export).
 
 ## Technitium DNS
 
