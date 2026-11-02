@@ -154,7 +154,7 @@ Configuration and messages files must contain JSON objects and are uploaded priv
 Both preview and execution require the tenant writes switch; execution also requires AWX permission, confirmation and audit.
 Use `notification-template test <id|name> --dry-run`, then `--confirm`, to send a test notification under the same switch.
 Inspect templates and deliveries with `notification-template list|show` and `notification list|show`; reads remain available with writes disabled, and list commands retain `--limit`, `--all` and `--max-rows` pagination.
-After an unknown create or rename outcome, follow [AWX recovery guidance](runbook.md#retention-and-export) and inspect all relevant list pages before retrying.
+After an unknown create or rename outcome, follow [AWX recovery guidance](runbook.md#retention-and-export).
 
 Create or edit teams with `team create|edit --name synthetic-team --organization <id|name> --description <text>`, supplying the existing team ID or name after `edit`.
 Use `team user-add|remove <team-id|name> --user <id|name>` for membership.
