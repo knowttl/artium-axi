@@ -432,6 +432,21 @@ test('sign-in settings can save a client secret and requires a replacement when 
   `)
 })
 
+test('SSH administration explains dedicated identities without offering generic credential or trust overrides', () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/tools/ssh-axi');
+    await page.wait('main');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Dedicated SSH identity')), 'Missing SSH identity guidance');
+    check(await page.eval(() => !document.querySelector('form[action$="/credential"], [data-save-tool], [data-test-tool]')), 'Generic SSH credential or test form was offered');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH connection page overflows at 420px');
+    await page.click('.utabs a[href$="tab=certificates"]');
+    await page.wait('main');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('independently verified server public keys')), 'Missing SSH host-trust guidance');
+    check(await page.eval(() => !document.querySelector('form[action*="/certificates"]')), 'HTTPS trust controls were offered for SSH');
+  `)
+})
+
 test('Kubernetes certificate editor saves separate fields and requires a key when the certificate changes', () => {
   browser(`
     await page.open(base + '/admin/tools/kubernetes-axi?tab=credential');

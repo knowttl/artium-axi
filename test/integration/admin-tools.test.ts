@@ -657,7 +657,7 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
     }
   }
 })
-async function replace(tool: ToolName, value: unknown = values[tool], expectedRevision = 0) {
+async function replace(tool: Exclude<ToolName, 'ssh-axi'>, value: unknown = values[tool], expectedRevision = 0) {
   const listed = await request('GET', '')
   const { tools } = await listed.json() as { tools: unknown[] }
   const expectedToolRevision = tools.map(item => adminToolSchema.parse(item)).find(item => item.name === tool)!.revision
@@ -670,6 +670,17 @@ async function save(tool: ToolName, value: Record<string, unknown>, expectedRevi
   return request('PATCH', `/${tool}/credential`, { value, expectedRevision,
     expectedToolRevision: tools.find(item => item.name === tool)!.revision })
 }
+
+test('generic credential administration cannot create SSH identities or enable its writes', async () => {
+  for (const method of ['PUT', 'PATCH'] as const) {
+    await failure(await request(method, '/ssh-axi/credential', { expectedRevision: 0, expectedToolRevision: 1,
+      value: { privateKey: 'CANARY-not-a-tenant-credential' } }), 'INVALID_INPUT')
+  }
+  await failure(await request('PATCH', '/ssh-axi', { expectedRevision: 1, nativeSettings: { allowWrites: true } }), 'INVALID_INPUT')
+  expect(store.findCredential('ssh-axi')).toBeUndefined()
+  expect(db.prepare('SELECT * FROM ssh_credentials').all()).toEqual([])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-not-a-tenant-credential')
+})
 
 test('Proxmox token identity changes require a replacement secret', async () => {
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
@@ -1182,6 +1193,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
       { name: 'gitea-axi', capable: false, enabled: false, reason: 'This adapter admits classified Gitea reads only.' },
       { name: 'kubernetes-axi', capable: false, enabled: false, reason: 'This adapter admits bounded Kubernetes reads and passive authorization reviews.' },
+      { name: 'ssh-axi', capable: false, enabled: false, reason: 'SSH discovery and authentication use dedicated host grants and encrypted ordinary bindings.' },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1533,6 +1545,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'kubernetes-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'ssh-axi', version: '0.1.1', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

@@ -137,6 +137,21 @@ Code search, pending workflow commands, local git workflows, file inputs, writes
 For `pr checks --watch`, any explicit `--timeout` must stay within the bound shown by `artium-axi gitea-axi pr checks --help`; larger values return `INVALID_INPUT` before forwarding.
 Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native read selectors and `artium-axi tools show gitea-axi` for the admitted commands.
 
+## SSH reads
+
+SSH admits caller-filtered `host list`, `host show <host>` and `doctor <host>` through the published hosted entry point.
+Doctor authenticates without opening a remote command channel.
+Hosts must be enabled, have an ordinary binding and grant the signed-in caller shell access in addition to the normal Artium tool grant.
+Unknown and unauthorized host handles both return `NOT_FOUND`.
+Private keys and optional passphrases remain in the dedicated encrypted SSH credential store and become SecretRefs in a private per-call profile.
+Generic tenant credentials cannot configure or override SSH bindings.
+Ordinary accounts and credentials never fall back to sudo bindings.
+Every server public key must be independently verified and every resolved address must belong to the administrator-approved literal address set.
+Ambient SSH agents, local profiles, host paths, caller-selected identities and trust overrides are unavailable.
+Execution, sudo, reusable connections and retained execution results are not admitted in this read-only slice.
+Dedicated host and credential administration follows separately; a generic tool enablement or credential form cannot grant a host binding.
+Use the signed-in CLI's `doctor <host>` for a granted host, rather than the generic shared-credential health test.
+
 ## Kubernetes reads
 
 The [reviewed Kubernetes inventory](../tools/inventories/kubernetes-axi.json) owns admitted compact/native reads, the exact package pin and bundled kubectl digests.

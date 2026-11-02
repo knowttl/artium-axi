@@ -19,6 +19,7 @@ import { credentialCertificates } from '../store/trusted-certificates.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
+  'ssh-axi': 'Discovery and authentication only. Dedicated SSH host bindings and credentials are required; tenant credentials cannot enable SSH execution.',
   'technitium-axi': 'The pinned Technitium package is read-only. Use {}. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
   'gitea-axi': 'Classified metadata reads are admitted. Writes and attachment transfers are unavailable. Use {}.',
   'kubernetes-axi': 'Bounded Kubernetes reads and passive authorization reviews are admitted. Writes and streaming sessions are unavailable. Use {}.',
@@ -38,6 +39,7 @@ const settingsGuide = {
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
 const testGuide = {
+  'ssh-axi': 'doctor <granted-host> through the signed-in CLI; no shared tenant credential test is available',
   'technitium-axi': 'Technitium user session get (authenticated read)',
   'gitea-axi': 'Gitea doctor',
   'kubernetes-axi': 'Kubernetes pod read',
@@ -145,7 +147,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const writes = tool.writeAccess
     const awx = tool.name === 'awx-axi'
 
-    const test = formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
+    const test = tool.name === 'ssh-axi' ? '' : formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
     const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +
       `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}"><button class="toggle" role="switch" aria-checked="${tool.enabled}"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>Enabled</button></form>`
     const meta = `<span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span data-tool-state>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked <span data-check-time>${timestamp(tool.health.checkedAt, 'never')}</span></span>`
@@ -189,7 +191,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         main += formStart(api + '/origin', 'PUT', 'Save this controller address without sending credentials? A changed address removes the previous token and certificate trust.', '', 'card') +
           `<div class="card-head"><div><h2>Controller address</h2><p>For password sign-in, save the address first, then check its certificate and sign in below.</p></div></div><div class="card-body">${revisionInputs(credential.revision)}<label>Controller HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? '')}"></label><p>Changing the saved address removes the previous token and certificate trust.</p></div><div class="card-foot"><span>Sends no credentials.</span><div class="actions"><button class="btn btn-secondary btn-sm">Save controller address</button></div></div></form>`
       }
-      main += formStart(api + '/credential', 'PATCH', 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?', `data-save-tool="${tool.name}"`, 'card') +
+      main += tool.name === 'ssh-axi' ? noteCard('Dedicated SSH identity', '<p>SSH requires separately managed host trust, caller grants and encrypted ordinary account bindings. Generic tenant credentials cannot configure SSH. Host administration is not available in this read-only slice.</p>') : formStart(api + '/credential', 'PATCH', 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?', `data-save-tool="${tool.name}"`, 'card') +
         `<div class="card-head"><div><h2>Connection</h2><p>How Artium signs in to ${escape(product)}. Secrets are encrypted and never shown again.</p></div></div><div class="card-body">${revisionInputs(credential.revision)}${credentialFields(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), credential.metadata, credential.configured)}</div>
         <div class="card-foot"><label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label><div class="actions"><button class="btn btn-primary btn-sm">Save connection</button></div></div></form>`
       const aside = noteCard('What the test does', `<p>Runs one harmless read: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
@@ -198,7 +200,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     } else if (tab === 'writes') {
       panel = writesPanel()
     } else if (tab === 'certificates') {
-      panel = certificatesPanel()
+      panel = tool.name === 'ssh-axi' ? noteCard('SSH host trust', '<p>SSH uses independently verified server public keys and approved literal addresses in dedicated host bindings. HTTPS certificate settings do not configure SSH trust.</p>') : certificatesPanel()
     } else if (tab === 'access') {
       const rows = roles.map(role => `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'}</p></div>${icon('chev')}</div>`).join('')
       panel = card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',

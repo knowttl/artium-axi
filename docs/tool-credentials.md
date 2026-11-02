@@ -71,6 +71,17 @@ Certificate chain, validity, identity and fingerprint verification remain requir
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi info` for the first managed read.
 
+#### SSH
+
+SSH uses a dedicated encrypted credential store and per-host ordinary account bindings, with caller-specific shell grants.
+The generic tenant credential editor cannot configure SSH.
+This read-only slice does not yet expose dedicated host and credential administration.
+After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
+Doctor authenticates without remote execution and never falls back to a sudo binding.
+The public-key algorithm and key must be independently verified; every resolved address must belong to the approved literal address set.
+Do not supply private keys, passphrases, endpoints or trust settings in arguments.
+See [SSH read boundaries](safety.md#ssh-reads).
+
 #### Kubernetes
 
 At `/admin/tools/kubernetes-axi`, enter the HTTPS cluster `origin`, `certificateAuthority` issuing CA PEM and optional default `namespace`.

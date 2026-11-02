@@ -20,7 +20,7 @@ export function rotateKey(file: string, oldProvider: KeyProvider, newProvider: K
       const receipt = { old_key_id: oldKey.id, new_key_id: newKey.id }
       new Audit(db, Date.now, () => {}).change({ event: 'admin-change', action: 'rotate-key', targetId: newKey.id,
         userId: null, tool: null, requestId: randomUUID(), clientAddress: null, outcome: 'success' }, () => {
-        for (const table of ['credentials', 'provider_credentials']) {
+        for (const table of ['credentials', 'provider_credentials', 'ssh_credentials']) {
           const rows = db.prepare(`SELECT * FROM ${table} ORDER BY id`).all() as EncryptedCredential[]
           const update = db.prepare(`UPDATE ${table} SET schema_version = @schema_version,
             key_id = @key_id, nonce = @nonce, ciphertext = @ciphertext,

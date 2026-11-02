@@ -23,6 +23,7 @@ import { networkProfiles, networkReadPolicy } from '../adapters/network-reads.js
 import { technitiumProfile, technitiumWritePolicy } from '../adapters/technitium.js'
 import { giteaProfile, giteaReadPolicy } from '../adapters/gitea.js'
 import { kubernetesProfile, kubernetesReadPolicy } from '../adapters/kubernetes.js'
+import { sshReadPolicy } from '../adapters/ssh.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -43,10 +44,11 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const writePolicies = { 'kubernetes-axi': kubernetesReadPolicy, 'gitea-axi': giteaReadPolicy, 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+const credentialSchemas = { 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const writePolicies = { 'ssh-axi': sshReadPolicy, 'kubernetes-axi': kubernetesReadPolicy, 'gitea-axi': giteaReadPolicy, 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy }
 const publicFields = {
+  'ssh-axi': [],
   'kubernetes-axi': ['origin', 'auth', 'namespace', 'certificateAuthority', 'clientCertificate'],
   'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
   'gitea-axi': ['origin', 'tokenOrigin'],
@@ -66,6 +68,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'ssh-axi': [],
   'kubernetes-axi': ['token', 'privateKey'],
   'technitium-axi': ['token'],
   'gitea-axi': ['token'],
@@ -324,6 +327,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const actor = authorize(request)
     const tool = toolName(request)
     const input = parse(route.input, request.body)
+    if (tool === 'ssh-axi') throw new ArtiumError('INVALID_INPUT', 'SSH uses dedicated host bindings and credentials.')
     const saving = route === adminToolRoutes.save
     let value = parse(z.record(z.string(), z.unknown()), input.value)
     if (tool === 'gh-axi' && (value.auth === 'device' || ['accessToken', 'accessTokenExpiresAt', 'login'].some(key => Object.hasOwn(value, key)))) {

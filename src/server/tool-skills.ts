@@ -30,6 +30,11 @@ const overlays = {
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {
   try {
     const source = readFileSync(path, 'utf8')
+    if (tool === 'ssh-axi') {
+      const manifest = toolManifests[tool]
+      if (createHash('sha256').update(source).digest('hex') !== manifest.sources.find(entry => entry.path === 'README.md')?.sha256) throw new Error('Unreviewed skill')
+      return `---\nname: ssh-axi\ndescription: Discover granted SSH hosts and check managed authentication through Artium.\n---\n\n# SSH\n\nRun every command through artium-axi ssh-axi after signing in to Artium.\nUse artium-axi ssh-axi host list, host show <host> and doctor <host>.\nDiscovery lists only enabled hosts with an ordinary binding and a caller shell grant.\nDoctor authenticates without executing remote commands.\nArtium supplies the dedicated ordinary account and private key; no sudo or generic credential fallback is allowed.\nServer public keys must be independently approved and every resolved address must belong to the approved literal address set.\nDo not supply credentials, endpoints, trust overrides or local profiles in arguments.\nExecution, sudo, reusable connections and retained execution results are unavailable.\nUse each command with --help for the admitted surface.\n`
+    }
     if (tool === 'kubernetes-axi') {
       const manifest = toolManifests[tool]
       if (createHash('sha256').update(source).digest('hex') !== manifest.sources.find(entry => entry.path === 'skills/kubernetes-axi/SKILL.md')?.sha256) throw new Error('Unreviewed skill')

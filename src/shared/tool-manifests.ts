@@ -15,5 +15,6 @@ import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'jso
 import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 import technitium from '../../tools/inventories/technitium-axi.json' with { type: 'json' }
 import kubernetes from '../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
+import ssh from '../../tools/inventories/ssh-axi.json' with { type: 'json' }
 
-export const toolManifests = { 'gh-axi': gh, 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg, 'ldap-axi': ldap, 'ado-axi': ado, 'awx-axi': awx, 'tenable-axi': tenable, 'hybrid-axi': hybrid, 'checkpoint-axi': checkpoint, 'beyondtrust-axi': beyondtrust, 'unifi-axi': unifi, 'proxmox-axi': proxmox, 'technitium-axi': technitium, 'gitea-axi': gitea, 'kubernetes-axi': kubernetes }
+export const toolManifests = { 'gh-axi': gh, 'falcon-axi': falcon, 'vectra-axi': vectra, 'az-axi': az, 'mg-axi': mg, 'ldap-axi': ldap, 'ado-axi': ado, 'awx-axi': awx, 'tenable-axi': tenable, 'hybrid-axi': hybrid, 'checkpoint-axi': checkpoint, 'beyondtrust-axi': beyondtrust, 'unifi-axi': unifi, 'proxmox-axi': proxmox, 'technitium-axi': technitium, 'gitea-axi': gitea, 'kubernetes-axi': kubernetes, 'ssh-axi': ssh }

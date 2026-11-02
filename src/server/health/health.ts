@@ -166,6 +166,7 @@ export class ToolHealth {
         checkedAt, credentialRevision: reference?.revision ?? null, errorCode })
       throw failure
     }
+    if (tool === 'ssh-axi') throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     this.active.add(tool)
     const generation = this.generations.get(tool) ?? 0
     const args = healthReads[tool]

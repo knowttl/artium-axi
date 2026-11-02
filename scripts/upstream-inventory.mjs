@@ -15,6 +15,7 @@ import './technitium-inventory.ts'
 import './gitea-inventory.ts'
 import './falcon-inventory.ts'
 import './kubernetes-inventory.ts'
+import './ssh-inventory.ts'
 
 const root = new URL('../tools/', import.meta.url)
 const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))

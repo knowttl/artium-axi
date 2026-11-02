@@ -6,9 +6,26 @@ import { hostedGhOutput } from './gh-output.js'
 import { rewriteGhSuggestions } from '../../shared/gh-suggestions.js'
 import falcon from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
+import ssh from '../../../tools/inventories/ssh-axi.json' with { type: 'json' }
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
+  if (tool === 'ssh-axi' && invocation && result.exitCode === 0) {
+    if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE')
+    const json = result.stdout.trimStart().startsWith('{')
+    try {
+      const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
+      if (invocation.help) {
+        const route = ssh.commands.find(route => route.command === invocation.command)!
+        return { ...result, stdout: (json ? JSON.stringify : encode)({
+          command: `artium-axi ssh-axi${route.command === 'home' ? '' : ' ' + route.command}`,
+          flags: route.flags, commands: route.command === 'home' ? ssh.discovery.commands : [], help: [ssh.discovery.help],
+        }) + '\n' }
+      }
+      if (Array.isArray(document.help)) document.help = ['artium-axi ssh-axi host show <host>', 'artium-axi ssh-axi doctor <host>']
+      return { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n' }
+    } catch { if (/^\d+\.\d+\.\d+\s*$/.test(result.stdout)) return result; throw new ArtiumError('INVALID_RESPONSE') }
+  }
   if (tool === 'kubernetes-axi' && invocation?.help) {
     const route = kubernetes.commands.find(route => route.command === invocation.command)!
     const command = `artium-axi kubernetes-axi${route.command === 'home' ? '' : ' ' + route.command}`

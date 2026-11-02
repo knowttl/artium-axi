@@ -79,6 +79,7 @@ Write capabilities below require administrator opt-in.
 | Discovery and sessions | Identity, login, tools, doctor, update and setup | Client/session operations | [Commands](docs/commands.md) |
 | Falcon | Endpoint investigations and existing search, MalQuery and RTR history | Passive reads | [Capabilities](docs/safety.md#write-gates-by-tool) |
 | Kubernetes | Cluster resources, logs and passive authorization reviews | Bounded reads with managed token or client-certificate identity | [Capabilities](docs/safety.md#kubernetes-reads) |
+| SSH | Granted host discovery and authentication checks | Dedicated ordinary bindings; no remote execution | [Capabilities](docs/safety.md#ssh-reads) |
 | Vectra | Hosts, detections and response workflows | Reads; selected writes | [Credentials](docs/tool-credentials.md#vectra) |
 | Azure | Subscriptions, resources and queries | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure) |
 | Microsoft Graph | Entra, optional mail and hunting packs | Reads; selected writes | [Capabilities](docs/safety.md#microsoft-graph) |

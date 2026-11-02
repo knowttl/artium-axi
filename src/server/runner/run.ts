@@ -83,11 +83,12 @@ export async function runTool<Credential>(
     let reservation: ReturnType<ProtectedResults['reserve']> | undefined
     let failure: Extract<AuditEvent, { event: 'run-terminal' }>['failure']
     try {
-      const reference = await resolver.resolve(userId, adapter.name)
-      const prepared = await adapter.prepare(args, reference, input)
+      const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
+      const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
+        : await adapter.prepare(args, reference!, input)
       let privateBytes: Buffer | undefined
       if (prepared.protectedResult) {
-        if (!context.protectedResults) throw new ArtiumError('UNSUPPORTED_INPUT')
+        if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
         reservation = context.protectedResults.reserve({ userId, credential: reference, operation: prepared.protectedResult.operation })
       }
       write = prepared.write
@@ -104,13 +105,14 @@ export async function runTool<Credential>(
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
         return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
-          prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference),
+          prepared.secrets, { ...prepared.limits, trustedIpc: prepared.trustedIpc, signal: context.signal,
+            credentialTrust: reference ? readCredentialTrust(db, reference) : [],
             protectedResult: prepared.protectedResult?.source === 'file'
               ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
       })
       if (prepared.protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
-      if (privateBytes && reservation) {
+      if (privateBytes && reservation && reference) {
         authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)
         const current = await resolver.resolve(userId, adapter.name)
