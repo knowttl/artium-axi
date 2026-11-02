@@ -68,6 +68,7 @@ With the [tenant write switch](safety.md#write-gates-by-tool) enabled, use `--dr
 Configuration commands without `--help`, `--dry-run` or `--confirm` are refused; operational commands without `--confirm` remain previews.
 Previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
 Run a command with `--help` for its reviewed flags and required AWX resource permissions.
+AWX `--help` returns native help before private input handling; unused structured values are ignored and local input files are not read.
 See its [scope and managed equivalents](awx-parity.md) for client-local exceptions and planned delivery slices, and the [write boundary](safety.md#write-gates-by-tool) for current permissions.
 
 ## Technitium DNS
