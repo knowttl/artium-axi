@@ -2,12 +2,12 @@
   "generatedBy": "scripts/ssh-inventory.ts",
   "tool": "ssh-axi",
   "package": "@knowttl/ssh-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-4MZdMEJOgTmzAcjJXKcZd1TkrsH5TCL/QxupmhPNLojDjxlecAIucNMbwNJUQ0UTl3JRnHFnIUczGtTfS5GFdw==",
+  "version": "0.1.2",
+  "integrity": "sha512-uY/8DRC7yG8s5tEtRYcVVXK0fY/q2NfmqzBTuiuhVkm24qY+4mbVMYfan7Fyk0FdxB+1O2k6GHwOMiS73TCM3g==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "594933b4de6ef34164389e839dea25b84da5f4717d673e473272445a700bed01"
+      "sha256": "1b9b0eb9f568979eb8d235bbf252ce1d2d39de5d571482ab2efa842c44e8a9b1"
     },
     {
       "path": "axi-credential.schema.json",
@@ -19,7 +19,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "f8b1c5d5c81b61b76c6943f3df656d247f42e4427b244c77dd4e8dac4cc1743a"
+      "sha256": "57a3a5bba40433984bb2c4fdf20ae20be2e83ac356d768ca76332eab68df32ab"
     },
     {
       "path": "dist/arguments.d.ts",
@@ -99,7 +99,7 @@
     },
     {
       "path": "dist/output.js",
-      "sha256": "8fc09199093ea353aee7ac981e7a68271365da07f8c83e0ca97fa24682e9d114"
+      "sha256": "d3c0c957aaf80fcdf6923cf2948437d2e6ca517a1ccfdabb9b349ecfa1188d0b"
     },
     {
       "path": "dist/profile.d.ts",
@@ -373,6 +373,6 @@
       "host",
       "list"
     ],
-    "help": "Discover granted SSH hosts and authenticate without remote execution.\nUse host list, host show <host> or doctor <host>.\nHost keys and literal addresses are approved independently by administrators.\nCredentials are managed privately; configuration overrides, execution, sudo and reusable connections are unavailable.\n"
+    "help": "Discover granted SSH hosts and authenticate without remote execution.\nUse host list, host show <host> or doctor <host>.\nAdministrators manage dedicated encrypted keys, independently verified hosts, separate ordinary/sudo bindings and caller grants at /admin/ssh.\nHost keys and literal addresses are approved independently by administrators.\nCredentials are managed privately; configuration overrides, execution, sudo and reusable connections are unavailable.\n"
   }
 }

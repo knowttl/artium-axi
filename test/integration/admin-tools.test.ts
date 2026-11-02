@@ -694,7 +694,7 @@ test.each([
     VALUES ('synthetic-development-user', 'synthetic-host', ?)`).run(shell)
 
   const discovery = toolsResponseSchema.parse(await (await fetch(`${url}/v1/tools`, { headers })).json())
-  expect(discovery.tools.find(tool => tool.name === 'ssh-axi')).toEqual({ name: 'ssh-axi', version: '0.1.1', readOnly: true, status })
+  expect(discovery.tools.find(tool => tool.name === 'ssh-axi')).toEqual({ name: 'ssh-axi', version: '0.1.2', readOnly: true, status })
   expect(adminCredentialSchema.parse(await (await request('GET', '/ssh-axi/credential')).json())).toEqual({
     tool: 'ssh-axi', configured, revision: 0, updatedAt: null, updatedBy: null, metadata: {},
   })
@@ -1599,7 +1599,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'kubernetes-axi', version: '0.1.2', health: { status: 'disabled' } },
-    { name: 'ssh-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'ssh-axi', version: '0.1.2', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

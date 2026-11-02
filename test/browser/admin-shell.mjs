@@ -447,6 +447,49 @@ test('SSH administration explains dedicated identities without offering generic 
   `)
 })
 
+test('SSH dedicated administration provisions credentials, verified hosts and revision-checked bindings and grants', () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/ssh/credentials');
+    await page.fill('[name=id]', 'browser-key');
+    await page.fill('[name=privateKey]', 'CANARY-browser-ssh-key');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => [...document.querySelectorAll('[name=privateKey]')].every(input => input.value === '') && !document.documentElement.outerHTML.includes('CANARY-browser-ssh-key')), 'SSH key was redisplayed');
+    await page.open(base + '/admin/ssh');
+    check(await page.eval(() => !document.querySelector('[name=enabled]').checked && document.querySelector('[name=readOnly]').checked), 'New hosts must start disabled and read only');
+    await page.fill('[name=id]', 'browser-host');
+    await page.fill('[name=address]', '127.0.0.1');
+    await page.fill('[name=approvedHostKeys]', '["ssh-ed25519 YWJj"]');
+    await page.fill('[name=allowedAddresses]', '["127.0.0.1"]');
+    await page.fill('[name=independentVerification]', 'Synthetic offline browser verification');
+    await page.click('[name=enabled]');
+    await page.click('form[action$="/hosts"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/binding"] [name=expectedRevision][value="1"]');
+    await page.fill('form[action$="/binding"] [name=username]', 'ordinary');
+    await page.eval(() => { document.querySelector('form[action$="/binding"] [name=credential]').value = 'browser-key'; });
+    await page.click('form[action$="/binding"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/grant"] [name=expectedRevision][value="2"]');
+    await page.eval(() => { document.querySelector('form[action$="/grant"] [name=user]').value = 'synthetic-development-user'; });
+    await page.click('form[action$="/grant"] [name=shell]');
+    await page.click('form[action$="/grant"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/grant"] [name=expectedRevision][value="3"]');
+    check(await page.eval(async () => {
+      const data = await (await fetch('/v1/admin/ssh/hosts')).json();
+      return data.hosts[0].readOnly && data.hosts[0].enabled && data.bindings[0].credential === 'browser-key' && data.grants[0].shell === 1;
+    }), 'Saved host, binding and grant did not persist');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH host administration overflows at 420px');
+  `)
+})
+
 test('Kubernetes certificate editor saves separate fields and requires a key when the certificate changes', () => {
   browser(`
     await page.open(base + '/admin/tools/kubernetes-axi?tab=credential');

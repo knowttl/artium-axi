@@ -42,8 +42,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1
       '@knowttl/ssh-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/technitium-axi':
         specifier: 0.1.0
         version: 0.1.0
@@ -142,8 +142,8 @@ packages:
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/ssh-axi@0.1.1':
-    resolution: {integrity: sha512-4MZdMEJOgTmzAcjJXKcZd1TkrsH5TCL/QxupmhPNLojDjxlecAIucNMbwNJUQ0UTl3JRnHFnIUczGtTfS5GFdw==}
+  '@knowttl/ssh-axi@0.1.2':
+    resolution: {integrity: sha512-uY/8DRC7yG8s5tEtRYcVVXK0fY/q2NfmqzBTuiuhVkm24qY+4mbVMYfan7Fyk0FdxB+1O2k6GHwOMiS73TCM3g==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
@@ -608,7 +608,7 @@ snapshots:
       '@toon-format/toon': 2.3.1
       ajv: 8.20.0
 
-  '@knowttl/ssh-axi@0.1.1':
+  '@knowttl/ssh-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       ajv: 8.17.1

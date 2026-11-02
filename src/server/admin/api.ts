@@ -16,6 +16,7 @@ import { registerToolAdmin, type ToolAdminOptions } from './tools.js'
 import { registerProviderAdmin } from './providers.js'
 import { registerRoleRuleAdmin } from './role-rules.js'
 import { registerInvitationAdmin } from './invitations.js'
+import { registerSshAdmin } from './ssh.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
@@ -60,6 +61,7 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
   }
 
   registerToolAdmin(app, db, audit, authorize, tools)
+  registerSshAdmin(app, db, audit, authorize, tools.sshHosts)
   registerProviderAdmin(app, db, audit, authorize, providerCredentials)
   registerRoleRuleAdmin(app, db, audit, authorize)
   registerInvitationAdmin(app, db, audit, authorize)

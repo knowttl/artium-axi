@@ -72,7 +72,7 @@ const commands = {
   'kubernetes-axi': { usage: 'artium-axi kubernetes-axi [<args>]', purpose: 'Use Kubernetes with managed credentials and pinned kubectl.',
     flags: ['Writes default off. With administrator permission, use prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>. Saved requests bind your sign-in family and credential revision; inspect native partial or uncertain results without replaying mutations. Bulk deletion additionally requires administrator collectionDelete=true. server-dry-run -- <mutation> explicitly requests dryRun=All. Issuing CA trust is supported; saved leaf pins, file input, execution and streaming sessions are unavailable.'], example: 'artium-axi kubernetes-axi get pods' },
   'ssh-axi': { usage: 'artium-axi ssh-axi [<args>]', purpose: 'Discover granted SSH hosts and check managed authentication.',
-    flags: ['Use host list, host show <host> and doctor <host>. Authentication runs no remote command. Execution, sudo, reusable connections and local configuration are unavailable.'], example: 'artium-axi ssh-axi host list' },
+    flags: ['Use host list, host show <host> and doctor <host>. Administrators provision dedicated encrypted keys, independently verified hosts, separate ordinary/sudo bindings and caller grants at /admin/ssh. Authentication runs no remote command. Execution, sudo, reusable connections and local configuration are unavailable.'], example: 'artium-axi ssh-axi host list' },
 } as const
 
 export type HelpCommand = keyof typeof commands

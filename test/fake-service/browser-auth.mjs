@@ -16,6 +16,7 @@ import { SharedIdentityResolver } from '../../dist/src/server/policy/identity-re
 import { Runner } from '../../dist/src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../dist/src/server/store/db.js'
 import { ProviderCredentials } from '../../dist/src/server/store/provider-credentials.js'
+import { SshHosts } from '../../dist/src/server/store/ssh-hosts.js'
 import { EnvironmentKeyProvider } from '../../dist/src/server/store/key-provider.js'
 import { seedToolUser } from '../../dist/test/fixtures/tokens.js'
 import { EmbeddedSecretSource } from '../../dist/src/server/store/secret-source.js'
@@ -67,7 +68,7 @@ let callbackCookies
 const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters,
   ...(process.env.ARTIUM_TEST_SSO === '1' ? { ssoFetch: (...args) =>
     (args[0].startsWith('https://generic.example/') ? genericSso : sso).fetch(...args) } : {}),
-  credentialStore: store, providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
+  credentialStore: store, sshHosts: new SshHosts(db, key), providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
 Date.now = () => realNow() + offset

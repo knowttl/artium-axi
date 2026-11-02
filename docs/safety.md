@@ -169,8 +169,11 @@ Generic tenant credentials cannot configure or override SSH bindings.
 Ordinary accounts and credentials never fall back to sudo bindings.
 Every server public key must be independently verified and every resolved address must belong to the administrator-approved literal address set.
 Ambient SSH agents, local profiles, host paths, caller-selected identities and trust overrides are unavailable.
-Execution, sudo, reusable connections and retained execution results are not admitted in this read-only slice.
-See [SSH credential setup](tool-credentials.md#ssh) for administration availability.
+Administrators provision host trust, separate ordinary/sudo bindings, caller grants and encrypted key revisions at `/admin/ssh`.
+Host policy starts disabled and read only; configuration changes require recent administrator authentication, explicit confirmation and the current revision.
+Replacing a key never returns it; deleting a key removes its bindings without falling back to sudo credentials.
+Execution, sudo execution, reusable connections and retained execution results remain unavailable.
+See [SSH credential setup](tool-credentials.md#ssh) for provisioning and rotation.
 Use the signed-in CLI's `doctor <host>` for a granted host, rather than the generic shared-credential health test.
 
 ## Kubernetes reads

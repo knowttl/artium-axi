@@ -10,7 +10,6 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
-import { encryptCredential } from '../../src/server/store/crypto.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -33,7 +32,7 @@ const serverKey = makeKey()
 const ordinaryKey = makeKey(true)
 const sudoKey = makeKey(true)
 const approved = parse(serverKey)
-const ordinary = parse(ordinaryKey, passphrase)
+let ordinary = parse(ordinaryKey, passphrase)
 const sudo = parse(sudoKey, passphrase)
 const directory = mkdtempSync(join(tmpdir(), 'artium-ssh-probe-'))
 const counts = { transports: 0, commands: 0, channels: 0, usernames: [] as string[] }
@@ -58,30 +57,37 @@ const db = openStore(join(directory, 'data', 'artium.db'), provider)
 const runner = await Runner.create(join(directory, 'calls'))
 await seedToolUser(db)
 db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ssh-axi'; UPDATE users SET administrator = 1")
-const saveKey = (id: string, key: string) => {
-  const plaintext = Buffer.from(JSON.stringify({ privateKey: key, passphrase }))
-  try {
-    const encrypted = encryptCredential(id, 'ssh-axi', plaintext, provider.getKey())
-    db.prepare(`INSERT INTO ssh_credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, updated_at)
-      VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, 1)
-      ON CONFLICT(id) DO UPDATE SET nonce=excluded.nonce, ciphertext=excluded.ciphertext, authentication_tag=excluded.authentication_tag`).run(encrypted)
-  } finally { plaintext.fill(0) }
-}
-saveKey('ordinary-key', ordinaryKey); saveKey('sudo-key', sudoKey)
 const hostKey = `${approved.type} ${approved.getPublicSSH().toString('base64')}`
-db.prepare(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled)
-  VALUES ('granted', '127.0.0.1', ?, ?, '["127.0.0.1"]', 1), ('hidden', '127.0.0.1', ?, ?, '["127.0.0.1"]', 1)`).run(port, JSON.stringify([hostKey]), port, JSON.stringify([hostKey]))
-db.exec(`INSERT INTO ssh_bindings (host_id, username, credential_id, sudo) VALUES
-  ('granted', 'ordinary', 'ordinary-key', 0), ('granted', 'sudo-account', 'sudo-key', 1), ('hidden', 'ordinary', 'ordinary-key', 0);
-  INSERT INTO ssh_grants (user_id, host_id, shell, sudo) VALUES ('synthetic-development-user', 'granted', 1, 1)`)
 const store = createCredentialStore(db, provider)
+const hosts = new SshHosts(db, provider)
 const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, credentialStore: store,
-  resolver: new SharedIdentityResolver(store), environment: {},
-  adapters: [createSshAdapter(new SshHosts(db, provider), join(directory, 'writes.log'))] })
+  sshHosts: hosts, resolver: new SharedIdentityResolver(store), environment: {},
+  adapters: [createSshAdapter(hosts, join(directory, 'writes.log'))] })
 try {
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   assert.equal(login.statusCode, 200, login.body)
   const headers = { authorization: `Bearer ${login.json().accessToken}` }
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+  assert.equal(reauth.statusCode, 200, reauth.body)
+  const revisions = new Map<string, number>()
+  const admin = async (path: string, payload: Record<string, unknown>) => {
+    const response = await app.inject({ method: 'POST', url: `/v1/admin/ssh/${path}`,
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { confirm: true, ...payload } })
+    assert.equal(response.statusCode, 200, response.body)
+    const result = response.json() as { id: string, revision: number }
+    revisions.set(result.id, result.revision)
+  }
+  const saveKey = (id: string, privateKey: string) => admin('credential', { id, privateKey, passphrase, expectedRevision: revisions.get(id) ?? 0 })
+  await saveKey('ordinary-key', ordinaryKey)
+  await saveKey('sudo-key', sudoKey)
+  for (const id of ['granted', 'hidden']) {
+    await admin('hosts', { id, address: '127.0.0.1', port, approvedHostKeys: [hostKey], allowedAddresses: ['127.0.0.1'],
+      independentVerification: 'Synthetic isolated SSH peer key', enabled: true, readOnly: true,
+      commandSeconds: 600, outputBytes: 65536, idleMinutes: 60, expectedRevision: 0 })
+    await admin('binding', { host: id, username: 'ordinary', credential: 'ordinary-key', sudo: false, expectedRevision: revisions.get(id) })
+  }
+  await admin('binding', { host: 'granted', username: 'sudo-account', credential: 'sudo-key', sudo: true, expectedRevision: revisions.get('granted') })
+  await admin('grant', { host: 'granted', user: 'synthetic-development-user', shell: true, sudo: true, expectedRevision: revisions.get('granted') })
   const invoke = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/ssh-axi/run', headers, payload: { args } })
   for (const args of [[], ['host', 'list'], ['host', 'show', 'granted']]) {
     const response = await invoke([...args, '--json'])
@@ -98,6 +104,12 @@ try {
   assert.ok(counts.usernames.length > 0)
   assert.ok(counts.usernames.every(username => username === 'ordinary'))
   assert.equal(counts.channels, 0)
+  const replacement = makeKey(true)
+  ordinary = parse(replacement, passphrase)
+  await saveKey('ordinary-key', replacement)
+  const rotated = await invoke(['doctor', 'granted', '--json'])
+  assert.equal(rotated.json().exitCode, 0, rotated.body)
+  assert.equal(JSON.parse(rotated.json().stdout).authenticated, true)
   const before = counts.transports
   for (const host of ['hidden', 'unknown']) {
     const response = await invoke(['doctor', host])
@@ -129,11 +141,14 @@ try {
   assert.equal(JSON.parse(address.json().stdout).error.code, 'ADDRESS_DENIED')
   assert.equal(counts.usernames.length, authenticationCount)
   db.prepare('UPDATE ssh_hosts SET allowed_addresses = ? WHERE id = ?').run('["127.0.0.1"]', 'granted')
-  saveKey('ordinary-key', sudoKey)
+  await saveKey('ordinary-key', sudoKey)
   const failedOrdinary = await invoke(['doctor', 'granted', '--json'])
   assert.notEqual(failedOrdinary.json().exitCode, 0, failedOrdinary.body)
   assert.ok(counts.usernames.every(username => username === 'ordinary'))
   assert.equal(counts.channels, 0)
+  await admin('grant', { host: 'granted', user: 'synthetic-development-user', shell: false, sudo: false, expectedRevision: revisions.get('granted') })
+  assert.equal((await invoke(['doctor', 'granted'])).statusCode, 404)
+  assert.deepEqual(JSON.parse((await invoke(['host', 'list', '--json'])).json().stdout).hosts, [])
   db.exec("DELETE FROM role_tools WHERE tool = 'ssh-axi'")
   const denied = await invoke(['host', 'list'])
   assert.equal(denied.statusCode, 403, denied.body)
@@ -143,7 +158,8 @@ try {
   assert.doesNotMatch(audit, /CANARY|PRIVATE KEY|BEGIN RSA/)
   assert.ok(db.prepare("SELECT 1 FROM audit WHERE tool = 'ssh-axi' AND action = 'read'").get())
   console.log(JSON.stringify({ ssh: 'passed', transports: counts.transports, authenticatedAccounts: [...new Set(counts.usernames)], remoteChannels: counts.channels,
-    discovery: 'caller-filtered', trust: 'strict', addressSet: 'fixed', sudoFallback: 'refused', credentialCleanup: 'passed' }))
+    discovery: 'caller-filtered', trust: 'strict', addressSet: 'fixed', sudoFallback: 'refused', credentialCleanup: 'passed',
+    administration: 'public-api', keyRotation: 'authenticated', grantRevocation: 'immediate' }))
 } finally {
   await app.close()
   for (const connection of connections) connection.end()

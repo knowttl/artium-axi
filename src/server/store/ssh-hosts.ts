@@ -1,10 +1,19 @@
 import type Database from 'better-sqlite3'
 import type { KeyProvider } from './key-provider.js'
-import { decryptCredential, type EncryptedCredential } from './crypto.js'
+import { decryptCredential, encryptCredential, type EncryptedCredential } from './crypto.js'
 import { ArtiumError } from '../../shared/errors.js'
 
 export interface SshHost { id: string, address: string, port: number, username: string }
 interface Binding extends SshHost { approved_host_keys: string, allowed_addresses: string, credential_id: string }
+
+// Reusing a deleted handle must not make an old administrative draft current again.
+export function nextSshRevision(db: Database.Database, table: 'ssh_hosts' | 'ssh_credentials', id: string, revision: number, create = false): number {
+  const row = db.prepare(`SELECT revision FROM ${table} WHERE id = ?`).get(id) as { revision: number } | undefined
+  if (!row && !create) throw new ArtiumError('NOT_FOUND')
+  if ((row?.revision ?? 0) !== revision) throw new ArtiumError('REVISION_CONFLICT')
+  const retired = !row ? db.prepare('SELECT revision FROM ssh_retired_revisions WHERE kind=? AND id=?').get(table, id) as { revision: number } | undefined : undefined
+  return (row?.revision ?? retired?.revision ?? 0) + 1
+}
 
 export function hasSshConfiguration(db: Database.Database, userId: string | null = null): boolean {
   return Boolean(db.prepare(`SELECT 1 FROM ssh_hosts h JOIN ssh_bindings b ON b.host_id = h.id
@@ -15,6 +24,22 @@ export function hasSshConfiguration(db: Database.Database, userId: string | null
 // SSH credentials and host grants never fall back to generic tenant credentials or sudo bindings.
 export class SshHosts {
   constructor(private readonly db: Database.Database, private readonly provider: KeyProvider) {}
+
+  // The caller commits this replacement and its audit event in one transaction.
+  replaceCredential(id: string, value: { privateKey: string, passphrase?: string }, expectedRevision: number, actor: string): number {
+    const revision = nextSshRevision(this.db, 'ssh_credentials', id, expectedRevision, true)
+    const plaintext = Buffer.from(JSON.stringify(value))
+    try {
+      const encrypted = encryptCredential(id, 'ssh-axi', plaintext, this.provider.getKey())
+      this.db.prepare(`INSERT INTO ssh_credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, revision, updated_at, updated_by)
+        VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, @revision, @now, @actor)
+        ON CONFLICT(id) DO UPDATE SET schema_version=excluded.schema_version, key_id=excluded.key_id, nonce=excluded.nonce,
+        ciphertext=excluded.ciphertext, authentication_tag=excluded.authentication_tag, revision=excluded.revision,
+        updated_at=excluded.updated_at, updated_by=excluded.updated_by`)
+        .run({ ...encrypted, revision, now: Date.now(), actor })
+    } finally { plaintext.fill(0) }
+    return revision
+  }
 
   private bindings(userId: string): Binding[] {
     return this.db.prepare(`SELECT h.id, h.address, h.port, h.approved_host_keys, h.allowed_addresses,

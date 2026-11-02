@@ -19,7 +19,7 @@ const data = { generatedBy: 'scripts/ssh-inventory.ts', tool: 'ssh-axi', package
     writes: 'Execution, sudo, reusable connections and retained execution results are not admitted.' },
   requirements: { timeoutMs: 17_000, runtime: 'node' }, discovery: {
     commands: commands.filter(route => route.command !== 'home').map(route => route.command), example: ['host', 'list'],
-    help: 'Discover granted SSH hosts and authenticate without remote execution.\nUse host list, host show <host> or doctor <host>.\nHost keys and literal addresses are approved independently by administrators.\nCredentials are managed privately; configuration overrides, execution, sudo and reusable connections are unavailable.\n' } }
+    help: 'Discover granted SSH hosts and authenticate without remote execution.\nUse host list, host show <host> or doctor <host>.\nAdministrators manage dedicated encrypted keys, independently verified hosts, separate ordinary/sudo bindings and caller grants at /admin/ssh.\nHost keys and literal addresses are approved independently by administrators.\nCredentials are managed privately; configuration overrides, execution, sudo and reusable connections are unavailable.\n' } }
 const output = JSON.stringify(data, null, 2) + '\n'
 const target = new URL('inventories/ssh-axi.json', root)
 if (process.argv.includes('--write')) writeFileSync(target, output)

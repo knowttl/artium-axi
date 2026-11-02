@@ -23,7 +23,7 @@
     "@knowttl/gitea-axi": "0.1.1",
     "@knowttl/falcon-axi": "1.0.0-rc.2",
     "@knowttl/kubernetes-axi": "0.1.2",
-    "@knowttl/ssh-axi": "0.1.1"
+    "@knowttl/ssh-axi": "0.1.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": []
