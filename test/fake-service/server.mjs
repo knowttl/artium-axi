@@ -412,7 +412,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     if (/^\/api\/v2\/(project_updates|ad_hoc_commands)\/42\/stdout\/$/.test(url.pathname)) {
       const project = resources.get('/api/v2/projects/42/')
       const lines = ['Fetching repository', `fatal: unable to access '${project?.scm_url}'`,
-        'Documentation: https://scm.example/help', 'Fetch failed']
+        'Documentation: https://docs.example/help?section=git#retry', 'Fetch failed']
       const start = url.searchParams.has('tail') ? Math.max(0, lines.length - Number(url.searchParams.get('tail')))
         : Number(url.searchParams.get('start_line') ?? 0)
       const end = Math.min(lines.length, Number(url.searchParams.get('end_line') ?? lines.length))

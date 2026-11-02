@@ -622,14 +622,14 @@ test.each([
 )
 
 test.each([
-  { view: 'default', flags: [], range: '0-4 of 4', body: "Fetching repository\nfatal: unable to access '[SCM URL redacted]'\nDocumentation: https://scm.example/help\nFetch failed\n" },
-  { view: 'tail', flags: ['--tail', '3'], range: '1-4 of 4', body: "fatal: unable to access '[SCM URL redacted]'\nDocumentation: https://scm.example/help\nFetch failed\n" },
-  { view: 'lines', flags: ['--lines', '0-3'], range: '0-3 of 4', body: "Fetching repository\nfatal: unable to access '[SCM URL redacted]'\nDocumentation: https://scm.example/help\n" },
+  { view: 'default', flags: [], range: '0-4 of 4', body: "Fetching repository\nfatal: unable to access 'https://***@scm.example/repo?token=***&revision=***#***'\nDocumentation: https://docs.example/help?section=git#retry\nFetch failed\n" },
+  { view: 'tail', flags: ['--tail', '3'], range: '1-4 of 4', body: "fatal: unable to access 'https://***@scm.example/repo?token=***&revision=***#***'\nDocumentation: https://docs.example/help?section=git#retry\nFetch failed\n" },
+  { view: 'lines', flags: ['--lines', '0-3'], range: '0-3 of 4', body: "Fetching repository\nfatal: unable to access 'https://***@scm.example/repo?token=***&revision=***#***'\nDocumentation: https://docs.example/help?section=git#retry\n" },
 ].flatMap(view => [
   { ...view, reader: 'inferred', command: ['job', 'stdout', '42'], label: 'job_stdout' },
   { ...view, reader: 'explicit', command: ['job', 'stdout', '42', '--type', 'project-update'], label: 'job_stdout' },
   { ...view, reader: 'ad-hoc', command: ['ad-hoc', 'stdout', '42'], label: 'ad_hoc_stdout' },
-]))('AWX $reader raw $view logs hide stored SCM tokens with writes disabled (R2)', async ({ command, flags, range, body, label }) => {
+]))('AWX $reader raw $view logs hide stored SCM tokens and preserve ordinary URLs (R2, R3)', async ({ command, flags, range, body, label }) => {
   await withFakeService(async ({ directory, port }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -653,7 +653,7 @@ test.each([
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
     try {
-      const created = await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', 'https://scm.example/repo?token=CANARY-raw-scm', '--confirm'])
+      const created = await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', "https://CANARY-user:CANARY-password@scm.example/repo?token='CANARY-raw-scm&revision=42#CANARY-fragment", '--confirm'])
       expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
       const synced = await run(['project', 'sync', '42', '--confirm', '--wait'])
       expect(synced.json(), synced.body).toMatchObject({ exitCode: 0 })
