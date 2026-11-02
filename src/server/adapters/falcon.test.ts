@@ -117,6 +117,26 @@ test('managed Falcon profiles preserve the session cleanup grace period', async 
   expect(prepared.limits).toEqual({ timeoutMs: 65_000, terminationGraceMs: 12_000 })
 })
 
+test.each([
+  ['--sha256', 'a'.repeat(64)], ['--sha256=' + 'a'.repeat(64)],
+])('sandbox SHA-256 selector %j survives both preparation paths (R1)', async (...selector) => {
+  const args = ['sandbox', 'list', ...selector]
+  const adapter = createFalconAdapter({ getCredential: async () => ({ clientId: 'CANARY-falcon-id',
+    clientSecret: 'CANARY-falcon-secret', region: 'us-2' }) })
+  expect((await adapter.prepare(args, { id: 'synthetic', tool: 'falcon-axi' })).args)
+    .toEqual([toolPaths['falcon-axi'], ...args])
+  expect((await prepareFalcon(args, configuration)).args).toEqual([toolPaths['falcon-axi'], ...args])
+})
+
+test.each([
+  ['--sha256', 'a'.repeat(64)], ['--sha256=' + 'a'.repeat(64)],
+])('SHA-256 selector %j remains restricted to declaring commands (R1)', async (...selector) => {
+  const getCredential = vi.fn()
+  await expect(createFalconAdapter({ getCredential }).prepare(['detection', 'list', ...selector],
+    { id: 'synthetic', tool: 'falcon-axi' })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
 test.each(['', '\n', '   '])('empty secret file %j is unavailable', async value => {
   await writeFile(configuration.clientSecretFile, value)
   await expect(prepareFalcon([], configuration)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })

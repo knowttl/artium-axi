@@ -84,7 +84,7 @@ export function validateFalconArgs(args: readonly string[], input: RunnerInput =
   for (let index = length; index < args.length; index++) {
     const token = args[index]
     if (!token.startsWith('-')) { positionals.push(token); continue }
-    const match = /^--([a-z][a-z-]*)(?:=(.*))?$/s.exec(token)
+    const match = /^--([a-z][a-z0-9-]*)(?:=(.*))?$/s.exec(token)
     if (!match || !Object.hasOwn(flags, match[1])) throw unknownFlag('falcon-axi', selected.command, token,
       Object.keys(flags).filter(name => !inventory.unsafeOverrides.includes(name)))
     const [, name, inline] = match
