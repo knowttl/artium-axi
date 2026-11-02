@@ -813,8 +813,11 @@ test.each(['ca', 'pin'] as const)('Technitium saved %s trust matches the endpoin
       { args: ['user', 'session', 'get', '--json'] }, adapter, new SharedIdentityResolver(store),
       { requestId: 'alternate-tls-identity', clientAddress: null, protectedResults })
     expect(result.exitCode, result.stdout + result.stderr).toBe(0)
-    expect(protectedResults.take(JSON.parse(result.stdout).result.id, { userId: 'synthetic-development-user',
-      credential: reference, operation: 'OP-006' })).toEqual(Buffer.from(JSON.stringify(body)))
+    const downloaded = protectedResults.take(JSON.parse(result.stdout).result.id, { userId: 'synthetic-development-user',
+      credential: reference, operation: 'OP-006' })
+    expect(JSON.parse(downloaded.toString())).toEqual({ status: 'ok', username: 'synthetic-reader',
+      tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } })
+    expect(downloaded.toString()).not.toContain('CANARY-returned-session')
     await expect(health.check('technitium-axi', 'synthetic-development-user', 'manual-tls-identity', null)).resolves.toMatchObject({ status: 'ok' })
     await health.refresh('technitium-axi')
     expect(db.prepare('SELECT status, error_code FROM tool_health WHERE tool = ?').get('technitium-axi'))

@@ -64,7 +64,7 @@ async function withTechnitium(check: (fixture: {
 
 const reads = [
   { kind: 'JSON', args: ['user', 'session', 'get'], operation: 'OP-006', path: '/api/user/session/get', fields: { includeInfo: 'true' },
-    bytes: Buffer.from(JSON.stringify({ status: 'ok', username: 'synthetic-reader', token: 'CANARY-returned-session', tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } })) },
+    bytes: Buffer.from(JSON.stringify({ status: 'ok', username: 'synthetic-reader', tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } }) + '\n') },
   { kind: 'text', args: ['zone', 'export', '--zone=synthetic.test'], operation: 'OP-024', path: '/api/zones/export', fields: { zone: 'synthetic.test' },
     bytes: Buffer.from('synthetic.test. IN TXT "CANARY-technitium-token"\n') },
   { kind: 'CSV', args: ['log', 'export', '--name', 'synthetic', '--class-path', 'synthetic.reader'], operation: 'OP-139', path: '/api/logs/export', fields: { name: 'synthetic', classPath: 'synthetic.reader' },
@@ -86,6 +86,7 @@ test.each(reads)('Technitium $kind bytes remain private until one authenticated 
     const downloaded = await app.inject({ url: result.path, headers })
     expect(downloaded.statusCode).toBe(200)
     expect(downloaded.rawPayload).toEqual(item.bytes)
+    expect(downloaded.rawPayload.toString()).not.toContain('CANARY-returned-session')
     expect(downloaded.headers['cache-control']).toBe('no-store')
     expect((await app.inject({ url: result.path, headers })).json().error.code).toBe('NOT_FOUND')
     expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/CANARY-|synthetic\.test|synthetic\.reader/)
@@ -115,10 +116,27 @@ test('credential rotation invalidates an outstanding protected result', async ()
 })
 
 test.each(['true', 'false'])('native boolean parameters retain their explicit %s value', async value => {
-  await withTechnitium(async ({ cli, evidence }) => {
+  await withTechnitium(async ({ cli, app, headers, evidence }) => {
     const output = await cli(['technitium-axi', 'admin', 'ldap', 'get', '--include-groups', value, '--json'])
     expect(JSON.parse(output.stdout).response).toEqual({ ldapEnabled: false })
+    const downloaded = await app.inject({ url: JSON.parse(output.stdout).result.path, headers })
+    expect(downloaded.statusCode).toBe(200)
+    expect(JSON.parse(downloaded.body).response).toEqual({ ldapEnabled: false })
+    expect(downloaded.body).not.toContain('CANARY-ldap-password')
     expect((await evidence()).requests).toEqual([{ method: 'POST', path: '/api/admin/ldap/get', canaryReceived: true, fields: { includeGroups: value } }])
+  })
+})
+
+test('Technitium TOON session results retain only the redacted projection', async () => {
+  await withTechnitium(async ({ app, headers }) => {
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers,
+      payload: { args: ['user', 'session', 'get'] } })
+    const { decode } = await import('@toon-format/toon')
+    const projection = decode(response.json().stdout) as { result: { path: string } }
+    const downloaded = await app.inject({ url: projection.result.path, headers })
+    expect(downloaded.statusCode).toBe(200)
+    expect(decode(downloaded.body)).toEqual(JSON.parse(reads[0].bytes.toString()))
+    expect(downloaded.body).not.toContain('CANARY-returned-session')
   })
 })
 

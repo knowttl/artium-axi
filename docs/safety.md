@@ -198,7 +198,7 @@ Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; pass
 
 Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for retained file metadata.
-Technitium authenticated reads keep confidential bytes in private per-call files and bounded process memory, separate from ordinary stdout.
+Technitium authenticated reads store only the package's redacted projection for JSON results; native text, CSV and ZIP downloads keep their bytes in private per-call files and bounded process memory.
 Their one-time result references require the same user, operation and current credential revision, with current access checked again at retrieval.
 Only the result identifier, operation, byte count and SHA-256 enter the result audit event; confidential bytes never enter logs or audit.
 Result references expire after five minutes and disappear on restart; see [Technitium setup](tool-credentials.md#technitium-dns) for limits.

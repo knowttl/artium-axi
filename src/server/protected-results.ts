@@ -7,21 +7,30 @@ export interface ResultScope { userId: string, credential: CredentialReference, 
 
 // Confidential bytes stay in bounded process memory and require current access on retrieval.
 export class ProtectedResults {
-  private readonly entries = new Map<string, { scope: ResultScope, bytes?: Buffer, expires: number }>()
+  private readonly entries = new Map<string, { scope: ResultScope, bytes?: Buffer, expires: number, timer: NodeJS.Timeout }>()
 
-  clear(): void { this.entries.clear() }
+  private remove(id: string): void {
+    const entry = this.entries.get(id)
+    if (entry) {
+      clearTimeout(entry.timer)
+      entry.bytes = undefined
+      this.entries.delete(id)
+    }
+  }
+
+  clear(): void { for (const id of this.entries.keys()) this.remove(id) }
 
   reserve(scope: ResultScope) {
-    for (const [id, entry] of this.entries) if (entry.expires <= Date.now()) this.entries.delete(id)
+    for (const [id, entry] of this.entries) if (entry.expires <= Date.now()) this.remove(id)
     if (this.entries.size >= protectedResultLimits.total || [...this.entries.values()].filter(entry => entry.scope.userId === scope.userId).length >= protectedResultLimits.perUser) {
       throw new ArtiumError('TOO_MANY_CALLS')
     }
     const id = randomUUID()
-    const entry: { scope: ResultScope, bytes?: Buffer, expires: number } = {
+    const entry: { scope: ResultScope, bytes?: Buffer, expires: number, timer: NodeJS.Timeout } = {
       scope: { ...scope, credential: { ...scope.credential } }, expires: Date.now() + protectedResultLimits.lifetimeMs,
+      timer: setTimeout(() => this.remove(id), protectedResultLimits.lifetimeMs).unref(),
     }
     this.entries.set(id, entry)
-    setTimeout(() => this.entries.delete(id), protectedResultLimits.lifetimeMs).unref()
     return {
       commit: (bytes: Buffer) => {
         if (bytes.length > protectedResultLimits.bytes) throw new ArtiumError('OUTPUT_LIMIT')
@@ -30,18 +39,20 @@ export class ProtectedResults {
         return { id, operation: scope.operation, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
           path: `/v1/results/${scope.credential.tool}/${encodeURIComponent(scope.operation)}/${id}` }
       },
-      cancel: () => { this.entries.delete(id) },
+      cancel: () => { this.remove(id) },
     }
   }
 
   take(id: string, scope: ResultScope): Buffer {
     const entry = this.entries.get(id)
+    if (entry && entry.expires <= Date.now()) this.remove(id)
     if (!entry?.bytes || entry.expires <= Date.now() || entry.scope.userId !== scope.userId
       || entry.scope.operation !== scope.operation || entry.scope.credential.tool !== scope.credential.tool
       || entry.scope.credential.id !== scope.credential.id || entry.scope.credential.revision !== scope.credential.revision) {
       throw new ArtiumError('NOT_FOUND')
     }
-    this.entries.delete(id)
-    return entry.bytes
+    const bytes = entry.bytes
+    this.remove(id)
+    return bytes
   }
 }

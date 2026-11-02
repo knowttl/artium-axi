@@ -460,8 +460,9 @@ The connection test uses authenticated `user session get`; the unauthenticated `
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
 Native boolean parameters take explicit `true` or `false` values; `--include-zones` also accepts the native empty selection.
 Authenticated reads return their normal safe projection and an operation-bound `result` reference.
+JSON result downloads contain only that redacted projection; native text, CSV and ZIP downloads contain the exported bytes.
 Retrieve `result.path` once with an authenticated GET using the same Artium user, current tool grant and credential revision.
-The server returns the exact original JSON, text, CSV or ZIP bytes as an attachment and never executes or extracts them.
+The server returns result bytes as an attachment and never executes or extracts them.
 References expire after five minutes; results are limited to 1 MiB each, four pending references per user and 64 per server.
 Server restart removes all pending results.
 Caller result paths, local profiles, file input and writes are unavailable.

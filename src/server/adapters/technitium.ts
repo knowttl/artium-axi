@@ -15,7 +15,7 @@ export const technitiumWritePolicy = writePolicy({ reason: 'The pinned Technitiu
 function argumentsForRead(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
-    return { args: [...args], invocation: { command: 'version', help: false }, operation: undefined }
+    return { args: [...args], invocation: { command: 'version', help: false }, operation: undefined, resultSource: undefined }
   }
   const firstFlag = args.findIndex(arg => arg.startsWith('-'))
   const words = firstFlag < 0 ? args : args.slice(0, firstFlag)
@@ -43,7 +43,7 @@ function argumentsForRead(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   return { args: normalized, invocation: { command: command || 'home', help: seen.has('help') },
-    operation: seen.has('help') ? undefined : route.operation }
+    operation: seen.has('help') ? undefined : route.operation, resultSource: route.resultSource }
 }
 
 export function createTechnitiumAdapter(source: SecretSource): Adapter<unknown> {
@@ -57,7 +57,9 @@ export function createTechnitiumAdapter(source: SecretSource): Adapter<unknown> 
       if (reference.tool !== 'technitium-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       return { executable: process.execPath, args: [toolPaths['technitium-axi'], ...call.args], invocation: call.invocation,
         effect: 'read', protectedResult: call.operation && call.operation !== 'OP-001'
-          ? { name: 'technitium-result.bin', flag: '--result-file', operation: call.operation } : undefined,
+          ? call.resultSource === 'file'
+            ? { source: 'file', name: 'technitium-result.bin', flag: '--result-file', operation: call.operation }
+            : { source: 'projection', operation: call.operation } : undefined,
         ...technitiumProfile.prepare('technitium-axi', await source.getCredential(reference), undefined, true),
         limits: { timeoutMs: runnerLimits.timeoutMs } }
     } }

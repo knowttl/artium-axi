@@ -105,9 +105,11 @@ export async function runTool<Credential>(
         }
         return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
           prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference),
-            protectedResult: prepared.protectedResult ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
+            protectedResult: prepared.protectedResult?.source === 'file'
+              ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
       })
+      if (prepared.protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation) {
         authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)

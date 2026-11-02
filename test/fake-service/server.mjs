@@ -41,7 +41,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       if (req.method !== 'POST' || (url.pathname !== '/api/status' && !canaryReceived)) { res.writeHead(401); res.end('{}'); return }
       if (url.pathname === '/api/status') res.end(JSON.stringify({ status: 'ok', server: 'Technitium DNS', hasDefaultCredentials: false, ssoEnabled: false }))
       else if (url.pathname === '/api/user/session/get') res.end(JSON.stringify({ status: 'ok', username: 'synthetic-reader', token: 'CANARY-returned-session', tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } }))
-      else if (url.pathname === '/api/admin/ldap/get') res.end(JSON.stringify({ status: 'ok', response: { ldapEnabled: false } }))
+      else if (url.pathname === '/api/admin/ldap/get') res.end(JSON.stringify({ status: 'ok', response: { ldapEnabled: false, ldapBindPassword: 'CANARY-ldap-password' } }))
       else if (url.pathname === '/api/zones/export') {
         res.setHeader('content-type', 'text/plain')
         res.end('synthetic.test. IN TXT "CANARY-technitium-token"\n')

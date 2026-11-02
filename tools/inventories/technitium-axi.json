@@ -221,6 +221,7 @@
       "command": "user session get",
       "effect": "read",
       "operation": "OP-006",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -246,6 +247,7 @@
       "command": "user profile get",
       "effect": "read",
       "operation": "OP-012",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -261,6 +263,7 @@
       "command": "user check-for-update",
       "effect": "read",
       "operation": "OP-014",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -276,6 +279,7 @@
       "command": "dashboard metrics json",
       "effect": "read",
       "operation": "OP-015",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -291,6 +295,7 @@
       "command": "dashboard metrics text",
       "effect": "read",
       "operation": "OP-016",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -306,6 +311,7 @@
       "command": "dashboard stats get",
       "effect": "read",
       "operation": "OP-017",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -327,6 +333,7 @@
       "command": "dashboard stats get-top",
       "effect": "read",
       "operation": "OP-018",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -350,6 +357,7 @@
       "command": "zone list",
       "effect": "read",
       "operation": "OP-020",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -370,6 +378,7 @@
       "command": "zone catalog list",
       "effect": "read",
       "operation": "OP-021",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -386,6 +395,7 @@
       "command": "zone export",
       "effect": "read",
       "operation": "OP-024",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -403,6 +413,7 @@
       "command": "zone options get",
       "effect": "read",
       "operation": "OP-031",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -422,6 +433,7 @@
       "command": "zone permission get",
       "effect": "read",
       "operation": "OP-033",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -440,6 +452,7 @@
       "command": "zone dnssec view-ds",
       "effect": "read",
       "operation": "OP-037",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -457,6 +470,7 @@
       "command": "zone dnssec properties get",
       "effect": "read",
       "operation": "OP-038",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -474,6 +488,7 @@
       "command": "zone record get",
       "effect": "read",
       "operation": "OP-050",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -493,6 +508,7 @@
       "command": "cache list",
       "effect": "read",
       "operation": "OP-053",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -510,6 +526,7 @@
       "command": "allowed list",
       "effect": "read",
       "operation": "OP-056",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -528,6 +545,7 @@
       "command": "allowed export",
       "effect": "read",
       "operation": "OP-061",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -544,6 +562,7 @@
       "command": "blocked list",
       "effect": "read",
       "operation": "OP-062",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -562,6 +581,7 @@
       "command": "blocked export",
       "effect": "read",
       "operation": "OP-067",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -578,6 +598,7 @@
       "command": "app list",
       "effect": "read",
       "operation": "OP-068",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -594,6 +615,7 @@
       "command": "app list-store-apps",
       "effect": "read",
       "operation": "OP-069",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -610,6 +632,7 @@
       "command": "app config get",
       "effect": "read",
       "operation": "OP-075",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -627,6 +650,7 @@
       "command": "dns-client health-check",
       "effect": "read",
       "operation": "OP-078",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -645,6 +669,7 @@
       "command": "settings get",
       "effect": "read",
       "operation": "OP-079",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -660,6 +685,7 @@
       "command": "settings get-tsig-key-names",
       "effect": "read",
       "operation": "OP-081",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -675,6 +701,7 @@
       "command": "settings backup",
       "effect": "read",
       "operation": "OP-084",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -704,6 +731,7 @@
       "command": "dhcp lease list",
       "effect": "read",
       "operation": "OP-086",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -719,6 +747,7 @@
       "command": "dhcp scope list",
       "effect": "read",
       "operation": "OP-090",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -734,6 +763,7 @@
       "command": "dhcp scope get",
       "effect": "read",
       "operation": "OP-091",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -750,6 +780,7 @@
       "command": "admin session list",
       "effect": "read",
       "operation": "OP-098",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -766,6 +797,7 @@
       "command": "admin user list",
       "effect": "read",
       "operation": "OP-101",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -782,6 +814,7 @@
       "command": "admin user get",
       "effect": "read",
       "operation": "OP-103",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -800,6 +833,7 @@
       "command": "admin group list",
       "effect": "read",
       "operation": "OP-106",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -816,6 +850,7 @@
       "command": "admin group get",
       "effect": "read",
       "operation": "OP-108",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -834,6 +869,7 @@
       "command": "admin permission list",
       "effect": "read",
       "operation": "OP-111",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -850,6 +886,7 @@
       "command": "admin permission get",
       "effect": "read",
       "operation": "OP-112",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -867,6 +904,7 @@
       "command": "admin sso get",
       "effect": "read",
       "operation": "OP-114",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -883,6 +921,7 @@
       "command": "admin cluster state",
       "effect": "read",
       "operation": "OP-118",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -900,6 +939,7 @@
       "command": "admin cluster primary transfer-config",
       "effect": "read",
       "operation": "OP-125",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -917,6 +957,7 @@
       "command": "log list",
       "effect": "read",
       "operation": "OP-134",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -933,6 +974,7 @@
       "command": "log download",
       "effect": "read",
       "operation": "OP-135",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -951,6 +993,7 @@
       "command": "log query",
       "effect": "read",
       "operation": "OP-138",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -981,6 +1024,7 @@
       "command": "log export",
       "effect": "read",
       "operation": "OP-139",
+      "resultSource": "file",
       "flags": {
         "json": "boolean",
         "help": "boolean",
@@ -1008,6 +1052,7 @@
       "command": "admin ldap get",
       "effect": "read",
       "operation": "OP-141",
+      "resultSource": "projection",
       "flags": {
         "json": "boolean",
         "help": "boolean",

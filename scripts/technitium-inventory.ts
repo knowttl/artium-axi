@@ -8,11 +8,14 @@ const pkg = JSON.parse(readFileSync(source('package.json'), 'utf8')) as { name: 
 const pins = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>
 if (pkg.version !== pins[pkg.name].version) throw new Error('Technitium pin mismatch')
 const upstream = JSON.parse(readFileSync(source('command-inventory.json'), 'utf8')) as { commands: Command[] }
+const { readContracts } = await import(source('dist/read-contracts.js').href) as { readContracts: { id: string, kind: string }[] }
 const unsafeOverrides = ['config', 'profile', 'origin', 'token', 'api-key', 'allow-insecure-http', 'result-file', 'input-file']
 const values = ['--fields', '--max-bytes', '--max-requests', '--max-pages', '--max-elapsed-ms']
 const commands = [{ command: '', flags: { help: 'boolean', version: 'boolean', json: 'boolean' } as Record<string, string>, effect: 'read', operation: undefined },
   ...upstream.commands.filter(entry => entry.effect === 'read' || ['schema', 'inventory', 'auth status'].includes(entry.command))
     .map(entry => ({ command: entry.command, effect: 'read', operation: entry.operation,
+      resultSource: entry.operation && entry.operation !== 'OP-001'
+        ? readContracts.some(contract => contract.id === entry.operation && contract.kind !== 'json') ? 'file' : 'projection' : undefined,
       flags: Object.fromEntries(entry.flags.filter(flag => !unsafeOverrides.includes(flag.slice(2)))
         .map(flag => [flag.slice(2), [...values, ...entry.arguments.map(parameter => parameter.flag)].includes(flag) ? 'value' : 'boolean'])) }))]
 const sources = ['package.json', 'README.md', 'command-inventory.json', 'axi-credential.schema.json', 'bin/technitium-axi.js',
