@@ -2801,7 +2801,7 @@ Uses the selected managed AWX account; upstream identity/read diagnostics retain
 
 ### auth logout
 
-Removing a managed account is not upstream PAT revocation. Slice e must provide explicit token revocation under the target write policy.
+Raw managed auth logout remains refused; removing a managed account does not revoke its upstream PAT. Use user token-revoke under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |

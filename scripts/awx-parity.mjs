@@ -82,7 +82,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
 
 const localReasons = {
   'auth login': ['managed equivalent', 'Artium AWX account form accepts a PAT or exchanges username/password for a PAT; raw upstream login is blocked. Passwords and tokens use the managed credential store, never argv.'],
-  'auth logout': ['blocked', 'Removing a managed account is not upstream PAT revocation. Slice e must provide explicit token revocation under the target write policy.'],
+  'auth logout': ['blocked', 'Raw managed auth logout remains refused; removing a managed account does not revoke its upstream PAT. Use user token-revoke under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit.'],
   'config path': ['not applicable', 'Artium materializes private runner configuration. There is no client-owned upstream config path to expose.'],
   'profile list': ['managed equivalent', 'Use Artium account discovery and selection; upstream filesystem profiles are not caller-owned.'],
   'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
