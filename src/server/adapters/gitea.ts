@@ -19,8 +19,11 @@ function readArguments(args: readonly string[], input: RunnerInput = {}) {
     throw new ArtiumError('FLAG_BLOCKED')
   }
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) return { args: [...args], invocation: { command: 'version', help: false } }
+  if (args.length === 2 && args[1] === '--help' && inventory.commands.some(entry => entry.command.startsWith(args[0] + ' '))) {
+    return { args: [...args], invocation: { command: args[0], help: true } }
+  }
   const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
-    .find(entry => entry.command ? entry.command.split(' ').every((word, index) => args[index] === word) : !args.length || args[0].startsWith('--'))
+    .find(entry => entry.command ? entry.command.split(' ').every((word, index) => args[index] === word) : !args.length || args[0].startsWith('-'))
   if (!route) throw invalidCommand('gitea-axi', args, inventory.discovery.commands)
   const length = route.command ? route.command.split(' ').length : 0
   const flags: Record<string, string | undefined> = route.flags
@@ -50,11 +53,13 @@ function readArguments(args: readonly string[], input: RunnerInput = {}) {
       if (positions.length !== 1 && !(positions.length === 2 && positions[0] === 'GET')
         || parsed.values.method && (parsed.values.method !== 'GET' || positions.length === 2)) throw new ArtiumError('FLAG_BLOCKED')
       const raw = positions.at(-1)!
+      const separator = raw.indexOf('?')
+      const pathname = separator < 0 ? raw : raw.slice(0, separator)
+      const query = separator < 0 ? '' : raw.slice(separator + 1)
       let decoded: string
-      try { decoded = decodeURIComponent(raw) } catch { throw new ArtiumError('INVALID_INPUT') }
-      if (/^[a-z]+:/i.test(raw) || raw.startsWith('//') || /[\\#\s%]/.test(decoded)
-        || /%(?:2f|5c)/i.test(raw.split('?')[0]) || decoded.split(/[/?]/).some(part => part === '.' || part === '..')) throw new ArtiumError('INVALID_INPUT')
-      const [pathname, query = ''] = raw.split('?')
+      try { decoded = decodeURIComponent(pathname) } catch { throw new ArtiumError('INVALID_INPUT') }
+      if (/^[a-z]+:/i.test(raw) || raw.startsWith('//') || raw.includes('#') || /[\\#\s%]/.test(decoded)
+        || /%(?:2f|5c)/i.test(pathname) || decoded.split('/').some(part => part === '.' || part === '..')) throw new ArtiumError('INVALID_INPUT')
       if ([...new URLSearchParams(query).keys()].some(key => /token|secret|password|authorization|api.?key/i.test(key))) throw new ArtiumError('FLAG_BLOCKED')
       const path = pathname.startsWith('/api/v1/') || pathname === '/swagger.v1.json' ? pathname : '/api/v1/' + pathname.replace(/^\//, '')
       const routes = [...inventory.apiRoutes].sort((a, b) => b.path.replace(/\{[^}]+\}/g, '').length - a.path.replace(/\{[^}]+\}/g, '').length)
@@ -63,7 +68,9 @@ function readArguments(args: readonly string[], input: RunnerInput = {}) {
       if (path !== '/swagger.v1.json' && match?.effect !== 'read') throw new ArtiumError('FLAG_BLOCKED')
     } else if (positions.length) throw new ArtiumError('INVALID_INPUT')
   }
-  return { args: [...args], invocation: { command: command === 'dashboard' ? 'home' : command, help } }
+  const forwarded = [...args]
+  if (!route.command && forwarded[0]?.startsWith('-R')) forwarded[0] = '--repo' + (forwarded[0].length > 2 ? '=' + forwarded[0].slice(2) : '')
+  return { args: forwarded, invocation: { command: command === 'dashboard' ? 'home' : command, help } }
 }
 
 export function createGiteaAdapter(source: SecretSource): Adapter<unknown> {

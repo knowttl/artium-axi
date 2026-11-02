@@ -97,14 +97,17 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
           .replace(new RegExp(`^(?:artium-axi )?${tool} ?`), '')
         const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
           .find(route => usage === route.command || usage.startsWith(route.command + ' '))
-        const command = `artium-axi ${tool}${route?.command && route.command !== 'home' ? ` ${route.command}` : ''}`
+        const group = tool === 'gitea-axi' && inventory.discovery.commands.some(command => command.startsWith(usage + ' ')) ? usage : ''
+        const selected = route?.command || group
+        const command = `artium-axi ${tool}${selected && selected !== 'home' ? ` ${selected}` : ''}`
         document.command = command
         document.usage = `${command} [flags]`
-        document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
+        if (!group) document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
         document.examples = [`${command} --help`]
         if (document.commands) {
-          document.commands = inventory.discovery.commands
-          if (Object.hasOwn(document, 'count')) document.count = inventory.discovery.commands.length
+          const commands = inventory.discovery.commands.filter(command => !group || command.startsWith(group + ' '))
+          document.commands = commands
+          if (Object.hasOwn(document, 'count')) document.count = commands.length
         }
         if (document.bin) document.bin = `artium-axi ${tool}`
         document.help = [rewriteDiscoveryHelp(inventory.discovery.help, tool)]
