@@ -86,8 +86,7 @@ Acceptance scenarios in [the AWX integration suite](../test/integration/awx.test
 ## Templates and workflows (S6)
 
 The [command reference](commands.md) describes template/workflow variables, associations, graph edits and approval templates.
-The private input bridge normalizes YAML extra-variable objects to JSON for the pinned upstream parser.
-Node extra variables use the upstream `extra_data` field in private response metadata.
+See [structured input handling](client-reference.md#command-surface-and-subcommands) for extra-variable formats and private input metadata.
 Acceptance uses the public run API and fake AWX controller to verify preview/confirmation, disabled-write and AWX permission denials, association additions/removals, all graph edge types, approval nodes, private variable handling and interrupted node creation recovery through `template-nodes` and `template-node`.
 The synthetic onboarding journey provisions inventory, a host and a canary SSH machine credential, attaches the credential to a template and submits a connectivity launch.
 It verifies the controller request flow without executing a real playbook or contacting a target server.
