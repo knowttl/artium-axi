@@ -38,7 +38,7 @@ jobs:
       - name: Enable pnpm
         run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - run: pnpm build
       # Keep the registry URL but remove setup-node's placeholder authentication.
       - name: Enable npm OIDC trusted publishing
         run: |
