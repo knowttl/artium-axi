@@ -2,6 +2,7 @@
 
 Tracks #237's capability inventory and delivery slices, including the ordinary configuration writes implemented in slice b.
 The [S0 published-package audit](parity/awx-axi.md) records command and flag decisions, target authorization tiers, managed equivalents and counts against `@knowttl/awx-axi@0.1.11`.
+Its read/write target supersedes the earlier multi-permission delivery proposals below: one per-tenant writes switch, default off, for all mutations, and one release after the final slice.
 The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON inventory](../tools/inventories/awx-axi-parity.json) describe the installed `awx-axi` version pinned in [tools/package.json](../tools/package.json) and [tools/integrity.json](../tools/integrity.json).
 
 ## Reproduction and freshness
