@@ -253,6 +253,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       resources.delete(url.pathname)
       res.writeHead(204); res.end(); return
     }
+    if (req.method === 'DELETE' && /^\/api\/v2\/(inventories|inventory_sources)\/\d+\/$/.test(url.pathname)) {
+      if (!awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+      mutations++
+      resources.delete(url.pathname)
+      res.writeHead(204); res.end(); return
+    }
     if (req.method === 'POST' && url.pathname === '/api/v2/roles/42/users/') {
       let body = ''
       req.setEncoding('utf8')

@@ -484,6 +484,59 @@ test.each([
   })
 }, 60_000)
 
+test.each([
+  { kind: 'inventory', create: ['create', 'synthetic-inventory', '--organization', '7'], remove: 'delete',
+    list: ['inventory', 'list'], field: 'inventories', empty: '0 inventories found', path: '/api/v2/inventories/42/' },
+  { kind: 'source', create: ['source-create', 'synthetic-source', '--inventory', '7', '--source', 'scm'], remove: 'source-delete',
+    list: ['inventory-source', 'list'], field: 'inventory_sources', empty: '0 inventory sources found', path: '/api/v2/inventory_sources/42/' },
+].flatMap(resource => [
+  { outcome: 'removes the resource', allowWrites: true, permission: true, result: { exitCode: 0 }, remaining: resource.empty, count: '0 total', mutations: 2, deletes: 1 },
+  { outcome: 'refuses disabled writes', allowWrites: false, permission: true, result: { error: { code: 'FLAG_BLOCKED' } }, remaining: [{ id: 42 }], count: '1 total', mutations: 1, deletes: 0 },
+  { outcome: 'preserves the resource on permission denial', allowWrites: true, permission: false,
+    result: { exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') }, remaining: [{ id: 42 }], count: '1 total', mutations: 1, deletes: 1 },
+].map(scenario => ({ ...resource, ...scenario }))))(
+  'AWX $kind deletion $outcome (S4-001)', async ({ create, remove, list, field, path, allowWrites: enabled, permission, result, remaining, count, mutations, deletes }) => {
+    await withFakeService(async ({ directory, port, send }) => {
+      const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+      const db = openStore(join(directory, 'artium.db'), provider)
+      await seedToolUser(db)
+      db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+      let allowWrites = true
+      const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+      const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+        token: 'CANARY-awx-token', allowWrites }) })
+      const prepare = adapter.prepare.bind(adapter)
+      adapter.prepare = async (...input) => {
+        const call = await prepare(...input)
+        return { ...call, executable: process.execPath,
+          args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      }
+      const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+      const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+        resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+      const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+      const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+      try {
+        const created = await run(['inventory', ...create, '--confirm'])
+        expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+        allowWrites = enabled
+        await send(`/__awx/configuration-permission?enabled=${permission}`, 'POST')
+        const before = JSON.parse(await send('/__evidence'))
+        const removed = await run(['inventory', remove, '42', '--confirm'])
+        expect(removed.json(), removed.body).toMatchObject(result)
+        const evidence = JSON.parse(await send('/__evidence'))
+        expect(evidence.mutations).toBe(mutations)
+        expect(evidence.requests.slice(before.requests.length)).toHaveLength(deletes)
+        expect(evidence.requests.filter((request: { method: string }) => request.method === 'DELETE')).toEqual(
+          Array.from({ length: deletes }, () => ({ method: 'DELETE', path, auth: 'Bearer', canaryReceived: true })))
+        const listed = await run(list)
+        expect(listed.json(), listed.body).toMatchObject({ exitCode: 0 })
+        expect(decode(listed.json().stdout)).toMatchObject({ count, [field]: remaining })
+      } finally { await app.close(); db.close() }
+    })
+  }, 60_000,
+)
+
 test('AWX inventory variables remain private on later reads with writes disabled (S4)', async () => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
