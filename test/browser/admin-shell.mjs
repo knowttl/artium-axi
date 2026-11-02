@@ -1012,6 +1012,13 @@ test('Kubernetes mutation workflows default off and require the administrator sw
     await page.open(base + '/admin/tools/kubernetes-axi?tab=writes');
     await page.wait('form[action$="/write-access"]');
     check(await page.eval(() => document.querySelector('[data-write-access] input[role=switch]').checked === true), 'Administrator permission did not persist');
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=advanced');
+    await page.wait('[name=nativeSettings]');
+    check(await page.eval(() => {
+      const settings = JSON.parse(document.querySelector('[name=nativeSettings]').value);
+      return settings.allowWrites === true && settings.collectionDelete !== true;
+    }), 'Master switch enabled bulk deletion');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('server-dry-run')), 'Native workflow settings guidance missing');
   `)
 })
 
