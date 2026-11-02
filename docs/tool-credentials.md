@@ -36,9 +36,11 @@ Contents:
 - [Technitium DNS](#technitium-dns)
 - [Gitea](#gitea)
 - [Kubernetes](#kubernetes)
+- [SSH](#ssh)
 
 Configure only the tools you intend to use.
-At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+For tools with a shared credential, at `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+SSH uses [dedicated host bindings](#ssh).
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
 
 | Tool | Information to obtain | Fixed Artium credential test |
@@ -58,6 +60,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |
 | Gitea (`gitea-axi`) | See [Gitea setup](#gitea). | `doctor`. |
 | Kubernetes (`kubernetes-axi`) | See [Kubernetes setup](#kubernetes). | `get pods`. |
+| SSH (`ssh-axi`) | See [SSH setup](#ssh). | No shared credential test; check each granted host through the signed-in CLI. |
 
 #### UniFi
 
@@ -77,9 +80,6 @@ SSH uses a dedicated encrypted credential store and per-host ordinary account bi
 The generic tenant credential editor cannot configure SSH.
 This read-only slice does not yet expose dedicated host and credential administration.
 After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
-Doctor authenticates without remote execution and never falls back to a sudo binding.
-The public-key algorithm and key must be independently verified; every resolved address must belong to the approved literal address set.
-Do not supply private keys, passphrases, endpoints or trust settings in arguments.
 See [SSH read boundaries](safety.md#ssh-reads).
 
 #### Kubernetes

@@ -290,6 +290,7 @@ Each request has a five-second deadline; address or TLS connection failure stops
 Its certificate diagnostic reports whether the liveness request verified TLS, independently of the HTTP status or response body.
 If the connection or CA-file read fails before verification, the certificate remains unverified.
 `ok` passes; `checking` is reported as a pending pass while a check is running or queued, and `unknown`, `unconfigured`, `error` and `disabled` fail the health diagnostic.
+SSH with status `unknown` instead passes the configuration diagnostic with an explicit notice that authentication was not checked; run `artium-axi ssh-axi doctor <host>` for each granted host.
 For each tool with status `error`, doctor displays the server-reported category, for example `fail: beyondtrust-axi (error: UPSTREAM_RESPONSE_INVALID)`; if the server omits the category, doctor uses `TOOL_FAILED`.
 The final error and recovery advice reflect the first failed diagnostic, so an earlier failure can take precedence over a tool's category.
 If the client reports `CLI_OUTDATED`, follow the [client update guidance](#verified-client) or [npm alternative](#npm-client-alternative), according to your installation.
