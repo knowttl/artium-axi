@@ -77,7 +77,7 @@ Changing either identity field requires a new token.
 Artium stores the token encrypted and supplies it privately through a SecretRef.
 Use the existing certificate controls for private CA or certificate-pin trust.
 After testing, enabling and granting the tool, run `artium-axi gitea-axi doctor`, then `artium-axi gitea-axi issue view 42 --repo OWNER/NAME` for an existing item.
-Native writes and attachment transfers are unavailable in this read admission.
+See the [Gitea capability boundary](safety.md#gitea-reads) for supported operations and restrictions.
 
 #### Proxmox
 
