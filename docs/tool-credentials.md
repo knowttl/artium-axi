@@ -103,8 +103,7 @@ Artium stores the token encrypted and supplies it privately through a SecretRef.
 Use the existing certificate controls for private CA or certificate-pin trust.
 After testing, enabling and granting the tool, run `artium-axi gitea-axi doctor`, then `artium-axi gitea-axi issue view 42 --repo OWNER/NAME` for an existing item.
 See the [Gitea capability boundary](safety.md#gitea-reads) for supported operations and restrictions.
-Writes default off.
-Use the Writes tab to enable Allow writes and select the exact native operation IDs required by callers.
+See [write-permission administration](admin-guide.md#browser-administration) to grant the required native operations.
 Credentials and SecretRefs never belong in command arguments; text file inputs carry mutation content only.
 
 #### Proxmox

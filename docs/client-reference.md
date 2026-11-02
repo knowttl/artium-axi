@@ -147,7 +147,7 @@ It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`)
 Azure `api` captures non-terminal stdin only without an explicit body source (`--body`, `--body-file` or `--data`); method and path positionals do not supply a body.
 The pinned upstream accepts `--body` and `--body-file`; `--data` leaves stdin unread and is forwarded for normal unsupported-flag rejection.
 Flag values such as `--workspace <workspace>` do not count as positional input.
-Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-`, Hybrid Analysis `--body-file -`, and AWX credential `--inputs-file -` or user `--password-file -`.
+Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-`, Hybrid Analysis `--body-file -`, AWX credential `--inputs-file -` or user `--password-file -`, and the Gitea explicit stdin flags described below.
 An open pipe that does not reach EOF fails with `INVALID_INPUT` and exit code 2 before sending a request, even if it has already supplied bytes.
 Close stdin, pass a local file with the relevant file flag, or use `--body`/`--body-file` for Azure `api`.
 Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
@@ -185,6 +185,10 @@ Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared i
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
 Check Point stdin and server paths are unavailable.
+Gitea uploads local text or JSON through the file flags declared for each command in its [reviewed inventory](../tools/inventories/gitea-axi.json), including their short aliases.
+Explicit `--body-file -`, `--notes-file -` or `--input -` reads bounded caller stdin instead; other Gitea calls leave stdin unread.
+Repeat identical file or stdin bytes when confirming a preview; server paths, protected values and attachment transfers are unavailable.
+See the [Gitea capability boundary](safety.md#gitea-reads) for native preview and confirmation, and [recovery guidance](runbook.md#retention-and-export) for uncertain outcomes.
 For Graph hunting and mail rule create/update, `--file <local-path>` and `--file=<local-path>` upload the local file and rewrite the argument to the fixed name `query.kql` for hunting or `rule.json` for rules.
 Local paths containing a `..` component are refused.
 The run API requires the corresponding fixed upload name; the [reviewed Graph inventory](../tools/inventories/mg-axi.json)'s `adapterBoundary.inputs` owns upload constraints.

@@ -137,14 +137,12 @@ Credential-bearing, protected-value, attachment and unclassified raw routes are 
 Code search, pending workflow commands and local git workflows are unavailable through this adapter.
 Writes default off and require an administrator to enable Allow writes and select exact native operation IDs.
 The caller must also pass the matching `--allow-write` operation IDs and first use `--preview`.
-Inspect the returned plan and pass its UUID with `--confirm` on the identical command to execute it.
+Inspect the returned plan, then replace `--preview` with `--confirm UUID` on the identical command to execute it.
 Gitea binds confirmation to the managed identity, credential revision, policy, target, payload and observed preconditions.
 Named repository, issue, pull request, label and release mutations and classified raw API mutations retain the native write model and readback verification.
-Text file flags upload caller bytes into private per-call files; explicit `--body-file -`, `--notes-file -` and `--input -` consume caller stdin.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for text uploads and explicit caller stdin.
 Server paths, protected values and attachment transfers remain unavailable.
-The server retains Gitea's durable receipts and dispatch journal across calls.
-After an uncertain result, use `artium-axi gitea-axi write reconcile UUID` to inspect the native receipt and current remote observations, including when writes have been disabled.
-Do not retry an uncertain mutation; native attempt guards refuse redispatch.
+See [journal custody and recovery](runbook.md#retention-and-export) before handling an uncertain mutation.
 For `pr checks --watch`, any explicit `--timeout` must stay within the bound shown by `artium-axi gitea-axi pr checks --help`; larger values return `INVALID_INPUT` before forwarding.
 Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native read selectors and `artium-axi tools show gitea-axi` for the admitted commands.
 
@@ -207,7 +205,7 @@ Local fake-service checks do not establish live server acceptance.
 | LDAP | Fixed read-only. |
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
-| Gitea | Exact native operations require administrator grants, preview and bound confirmation; see the [capability boundary](#gitea-reads). |
+| Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [read-only capability boundary](#kubernetes-reads). |
 | SSH | See the [discovery and authentication boundary](#ssh-reads). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
