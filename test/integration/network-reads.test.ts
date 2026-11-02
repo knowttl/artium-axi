@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { decode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createNetworkReadAdapter } from '../../src/server/adapters/network-reads.js'
@@ -80,6 +81,23 @@ test.each(cases)('$tool reads through the installed public client with managed c
     expect((await cli(['tools', 'show', item.tool])).stdout).toContain(`artium-axi ${item.tool}`)
     expect((await cli([item.tool, ...item.args, '--help'])).stdout).toContain('help')
     expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(item.secret)
+  })
+})
+
+test.each([
+  ['get', '/version'], ['post', '/nodes/{node}/qemu'], ['put', '/access/acl'], ['delete', '/access/domains/{realm}'],
+].flatMap(words => [
+  { words, format: 'toon', parse: decode }, { words, format: 'json', parse: JSON.parse },
+]))('Proxmox schema $words help retains request context in $format', async ({ words, format, parse }) => {
+  await withTool(cases[1], async ({ cli, evidence }) => {
+    const result = await cli(['proxmox-axi', 'schema', ...words, '--help', '--format', format])
+    const document = parse(result.stdout) as { command: string, usage: string, flags: Record<string, string>, examples: string[] }
+    const command = `artium-axi proxmox-axi schema ${words.join(' ')}`
+    expect(document.command).toBe(command)
+    expect(document.usage).toBe(`${command} [flags]`)
+    expect(document.flags).toEqual({ catalogue: 'value', format: 'value', help: 'boolean' })
+    expect(document.examples).toEqual([`${command} --help`])
+    expect((await evidence()).requests).toEqual([])
   })
 })
 

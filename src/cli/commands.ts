@@ -183,8 +183,13 @@ async function main(args: string[]) {
     const { stdout, stderr, exitCode, truncated } = parsed.data
     if (truncated.stdout || truncated.stderr) output('stderr', `artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
     failureContext = 'rewriteSuggestions'
-    output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout))
-    output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr))
+    const forwarded = args.slice(1)
+    const firstFlag = forwarded.findIndex(arg => arg.startsWith('-'))
+    const invocation = command === 'unifi-axi' || command === 'proxmox-axi'
+      ? { command: forwarded.slice(0, firstFlag < 0 ? forwarded.length : firstFlag).join(' ') || 'home', help: forwarded.includes('--help') }
+      : undefined
+    output('stdout', rewriteSuggestions(stdout, command!, truncated.stdout, invocation))
+    output('stderr', rewriteSuggestions(stderr, command!, truncated.stderr, invocation))
     if (exitCode !== 0 && client.requestId) output('stderr', `${stderr && !stderr.endsWith('\n') ? '\n' : ''}artium-axi: request_id ${client.requestId}\n`)
     process.exitCode = exitCode
   }

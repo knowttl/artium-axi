@@ -66,7 +66,33 @@ export function createNetworkReadAdapter(tool: NetworkTool, source: SecretSource
     async prepare(args, reference, input) {
       const call = readArguments(tool, args, input)
       if (reference.tool !== tool) throw new ArtiumError('CREDENTIAL_INVALID')
-      return { ...call, executable: process.execPath, args: [toolPaths[tool], ...call.args], effect: 'read',
-        ...profile.prepare(tool, await source.getCredential(reference), undefined, true), limits: { timeoutMs: runnerLimits.timeoutMs } }
+      const credential = await source.getCredential(reference)
+      const prepared = profile.prepare(tool, credential, undefined, true)
+      const nodeArgs: string[] = []
+      if (tool === 'unifi-axi') {
+        const value = credential as { origin: string, tls?: { connectAddress?: string } }
+        if (value.tls?.connectAddress) {
+          const origin = new URL(value.origin)
+          const hostname = origin.hostname.replace(/^\[|\]$/g, '')
+          prepared.files.push({ name: 'unifi-axi/connect.cjs', content: `
+const tls = require('node:tls');
+const { connect } = require('node:net');
+const original = tls.connect;
+const address = ${JSON.stringify(value.tls.connectAddress)};
+const hostname = ${JSON.stringify(hostname)};
+const port = ${Number(origin.port || 443)};
+tls.connect = function (options, ...args) {
+  if (options.host === address && Number(options.port) === port) {
+    options = { ...options, host: hostname, socket: connect({ host: address, port }) };
+  }
+  return original.call(this, options, ...args);
+};
+require('node:module').syncBuiltinESMExports();
+` })
+          nodeArgs.push('--require', './unifi-axi/connect.cjs')
+        }
+      }
+      return { ...call, executable: process.execPath, args: [...nodeArgs, toolPaths[tool], ...call.args], effect: 'read',
+        ...prepared, limits: { timeoutMs: runnerLimits.timeoutMs } }
     } }
 }

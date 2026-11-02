@@ -69,7 +69,8 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
       const inventory = tool === 'unifi-axi' ? unifi : proxmox
       if (document.flags || document.commands) {
-        const usage = String(document.usage ?? document.command ?? '').replace(new RegExp(`^(?:artium-axi )?${tool} ?`), '')
+        const usage = String(invocation?.help ? invocation.command : document.usage ?? document.command ?? '')
+          .replace(new RegExp(`^(?:artium-axi )?${tool} ?`), '')
         const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
           .find(route => usage === route.command || usage.startsWith(route.command + ' '))
         const command = `artium-axi ${tool}${route?.command && route.command !== 'home' ? ` ${route.command}` : ''}`
