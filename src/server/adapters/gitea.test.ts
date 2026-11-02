@@ -66,7 +66,7 @@ test.each([
   { group: 'secret', children: ['secret list'] },
   { group: 'variable', children: ['variable list'] },
   { group: 'label', children: ['label list'] },
-  { group: 'search', children: ['search issues', 'search prs', 'search repos', 'search commits', 'search code'] },
+  { group: 'search', children: ['search issues', 'search prs', 'search repos', 'search commits'] },
 ])('Gitea $group help retains its group and only admitted children', async ({ group, children }) => {
   const args = [group, '--help']
   adapter.validateArgs(args)
@@ -85,4 +85,49 @@ test.each([
   ['workflow', '--help'], ['-x'], ['-R'], ['-R', 'example/project', '--repo', 'other/project'],
 ])('Gitea rejects unsupported groups and invalid root flags: %j', (...args) => {
   expect(() => adapter.validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+})
+
+test.each(['synthetic', '--help'])('Gitea refuses unavailable code search: %s', async argument => {
+  const args = ['search', 'code', argument]
+  expect(() => adapter.validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test('Gitea root discovery omits unavailable code search', async () => {
+  const call = await adapter.prepare(['--help'], reference)
+  const output = execFileSync(process.execPath, [native, ...call.args.slice(1)], { encoding: 'utf8' })
+  const document = decode(rewriteSuggestions(output, 'gitea-axi', false, call.invocation)) as { commands: string[] }
+  expect(document.commands).not.toContain('search code')
+  expect(document.commands).toContain('search repos')
+})
+
+test.each([
+  { watch: '--watch', timeout: '1' }, { watch: '--watch=true', timeout: '50' },
+])('Gitea checks watch accepts bounded timeout $timeout', async ({ watch, timeout }) => {
+  const args = ['pr', 'checks', '42', '--repo', 'example/project', watch, '--timeout', timeout]
+  adapter.validateArgs(args)
+  const call = await adapter.prepare(args, reference)
+  expect(call.args.slice(1)).toEqual(args)
+  expect(call.limits.timeoutMs).toBe(60_000)
+})
+
+test.each(['51', '120', '3600', '0', '-1', '1.5', 'NaN', 'Infinity'])('Gitea rejects watch timeouts outside the host budget: %s', async timeout => {
+  const args = ['pr', 'checks', '42', '--repo', 'example/project', '--watch', `--timeout=${timeout}`]
+  expect(() => adapter.validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test('Gitea checks reads without watching retain the host deadline', async () => {
+  const args = ['pr', 'checks', '42', '--repo', 'example/project', '--watch=false']
+  const call = await adapter.prepare(args, reference)
+  expect(call.args.slice(1)).toEqual(args)
+  expect(call.limits.timeoutMs).toBe(60_000)
+})
+
+test('Gitea checks help publishes the admitted watch timeout in TOON and JSON', async () => {
+  const call = await adapter.prepare(['pr', 'checks', '--help'], reference)
+  const output = execFileSync(process.execPath, [native, ...call.args.slice(1)], { encoding: 'utf8' })
+  const expected = { command: 'artium-axi gitea-axi pr checks', flags: { watch: 'boolean', timeout: 'value (1-50 seconds; requires --watch)' } }
+  expect(decode(rewriteSuggestions(output, 'gitea-axi', false, call.invocation))).toMatchObject(expected)
+  expect(JSON.parse(rewriteSuggestions(JSON.stringify(decode(output)), 'gitea-axi', false, call.invocation))).toMatchObject(expected)
 })

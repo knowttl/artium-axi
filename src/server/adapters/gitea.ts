@@ -45,6 +45,11 @@ function readArguments(args: readonly string[], input: RunnerInput = {}) {
   const positions = parsed.positionals
   const command = route.command || 'dashboard'
   if (!help) {
+    if (command === 'pr checks' && parsed.values.timeout !== undefined
+      && (!/^\d+$/.test(String(parsed.values.timeout)) || Number(parsed.values.timeout) < 1
+        || Number(parsed.values.timeout) > inventory.adapterBoundary.checksWatchTimeoutSeconds)) {
+      throw new ArtiumError('INVALID_INPUT', `Checks watch timeout must be from 1 to ${inventory.adapterBoundary.checksWatchTimeoutSeconds} seconds.`)
+    }
     if (['issue view', 'pr view', 'pr checks', 'pr diff'].includes(command)) {
       if (positions.length !== 1 || !/^[1-9]\d*$/.test(positions[0])) throw new ArtiumError('INVALID_INPUT')
     } else if (command === 'release view' || command.startsWith('search ') || command === 'org view') {

@@ -2757,7 +2757,8 @@
       "write",
       "setup",
       "update"
-    ]
+    ],
+    "checksWatchTimeoutSeconds": 50
   },
   "commands": [
     {
@@ -3083,31 +3084,6 @@
       "shortFlags": {
         "R": "repo"
       }
-    },
-    {
-      "command": "search code",
-      "effect": "read",
-      "flags": {
-        "help": "boolean",
-        "repo": "value",
-        "owner": "value",
-        "state": "value",
-        "label": "value",
-        "assignee": "value",
-        "author": "value",
-        "sort": "value",
-        "order": "value",
-        "limit": "value",
-        "fields": "value",
-        "review": "value",
-        "language": "value",
-        "stars": "value",
-        "revision": "value",
-        "draft": "boolean"
-      },
-      "shortFlags": {
-        "R": "repo"
-      }
     }
   ],
   "discovery": {
@@ -3133,8 +3109,7 @@
       "search issues",
       "search prs",
       "search repos",
-      "search commits",
-      "search code"
+      "search commits"
     ],
     "example": [
       "repo",
@@ -3142,6 +3117,6 @@
       "--repo",
       "<owner/name>"
     ],
-    "help": "Gitea managed reads. Repository reads require --repo OWNER/NAME.\nRaw api accepts GET and classified metadata paths only.\nWrites, local workflows, configuration overrides and attachment transfers are unavailable.\n"
+    "help": "Gitea managed reads. Repository reads require --repo OWNER/NAME.\nRaw api accepts GET and classified metadata paths only.\nUse pr checks --watch with --timeout from 1 to 50 seconds.\nWrites, local workflows, configuration overrides and attachment transfers are unavailable.\n"
   }
 }

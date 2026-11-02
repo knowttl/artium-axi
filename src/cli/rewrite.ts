@@ -103,6 +103,9 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
         document.command = command
         document.usage = `${command} [flags]`
         if (!group) document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
+        if (tool === 'gitea-axi' && route?.command === 'pr checks') {
+          document.flags = { ...route.flags, timeout: `value (1-${gitea.adapterBoundary.checksWatchTimeoutSeconds} seconds; requires --watch)` }
+        }
         document.examples = [`${command} --help`]
         if (document.commands) {
           const commands = inventory.discovery.commands.filter(command => !group || command.startsWith(group + ' '))
