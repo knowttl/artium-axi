@@ -53,7 +53,7 @@ test.each([
 
 test.each([
   { args: ['project', 'create', 'synthetic', '--scm-type', 'git', '--scm-url', 'scm.txt', '--scm-branch', 'main', '--credential', '9', '--dry-run'],
-    input: { files: [{ name: 'scm.txt', contentBase64: Buffer.from('https://synthetic:CANARY-scm@scm.example/repo').toString('base64') }] },
+    input: { files: [{ name: 'scm.txt', contentBase64: Buffer.from('https://scm.example/repo').toString('base64') }] },
     expected: { action: 'create', type: 'project', payload: { scm_type: 'git', scm_url: '[SCM URL redacted]', scm_branch: 'main', credential: 9 } } },
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', '{"mode":"run"}', '--dry-run'],
     input: {}, expected: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: '[structured input redacted, 14 bytes]' } },

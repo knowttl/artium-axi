@@ -52,7 +52,9 @@ The managed account form already supports PAT entry or username/password token a
 
 Every file flag, `--extra-vars @file`, and upstream stdin form is marked in the matrix.
 Private keys, passwords, tokens and other credential fields belong inside credential `--inputs-file` JSON, `--password-file`, launch `--credential-passwords-file` JSON, or managed account credentials, never secret argv flags.
-Notification configuration/messages, variables, module arguments and SCM URLs are marked as potentially secret-bearing structured input.
+Notification configuration/messages, variables, module arguments and SCM URLs use the private structured input channel.
+Project create/edit reject SCM URLs with userinfo, credential query parameters or fragments; SCM secrets belong in an AWX credential referenced by `--credential`, supplied through `credential create/edit --inputs-file`.
+Already-retained AWX logs from URLs set outside Artium are AWX-held data and are outside this input protection; Artium does not scan current projects to censor stdout.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for S2's TD-066 file channel, structured flag syntax, supported stdin forms and response placeholders.
 The [AWX write boundary](safety.md#write-gates-by-tool) owns supported input classes, private delivery guarantees and blocked paths or overrides.
 Managed account PAT/password entry stays in Artium's existing credential storage workflow, rather than becoming command input.

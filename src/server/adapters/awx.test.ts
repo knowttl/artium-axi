@@ -23,6 +23,36 @@ const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system
   'notification-template', 'activity-stream', 'team', 'role']
 
 test.each([
+  'https://CANARY-user@scm.example/repo',
+  'https://git:CANARY-password@scm.example/repo',
+  'https://git:%43ANARY-password@scm.example/repo',
+  'https://scm.example/repo?token=CANARY-secret',
+  'https://scm.example/repo?token=%43ANARY-secret',
+  "https://scm.example/repo?token='CANARY-secret",
+  'https://scm.example/repo?%74oken=CANARY-secret',
+  'https://scm.example/repo?api_key=CANARY-secret',
+  'https://scm.example/repo#access_token=CANARY-secret',
+  'https://scm.example/repo#CANARY-secret',
+  'https://scm.example/repo#100%',
+].flatMap(url => ['create', 'edit'].flatMap(verb => ['--dry-run', '--confirm'].flatMap(action => [
+  { url, args: ['project', verb, '42', '--scm-url', url, action], input: {} },
+  { url, args: ['project', verb, '42', `--scm-url=${url}`, action], input: {} },
+  { url, args: ['project', verb, '42', '--scm-url', 'scm.txt', action], input: {
+    files: [{ name: 'scm.txt', contentBase64: Buffer.from(url).toString('base64') }] } },
+]))))('rejects secret-bearing SCM input before execution: $args', async ({ args, input }) => {
+  await expect(adapter(true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT',
+    next: expect.stringContaining('credential create/edit --inputs-file') })
+})
+
+test.each(['project create', 'project edit', 'job stdout', 'ad-hoc stdout'])('%s help explains SCM credentials and retained-log scope', command => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('credential create/edit --inputs-file')
+  expect(help).toContain('Already-retained AWX logs from URLs set outside Artium are AWX-held data')
+})
+
+test.each([
   { args: ['schedule', 'edit', '42', '--extra-vars', '@/etc/hosts', '--dry-run'], input: {} },
   { args: ['schedule', 'edit', '42', '--extra-vars', 'vars.json', '--dry-run'], input: {
     files: [{ name: 'vars.json', contentBase64: Buffer.from('@/etc/hosts').toString('base64') }] } },

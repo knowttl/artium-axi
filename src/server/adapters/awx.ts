@@ -12,7 +12,7 @@ import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
-  blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
+  blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
@@ -90,6 +90,14 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
       const file = input.files?.find(file => file.name === value)
       const content = file ? Buffer.from(file.contentBase64, 'base64').toString('utf8') : value
       if (content.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
+      if (name === 'scm-url') {
+        const url = URL.parse(content)
+        if (!url || url.username || url.password || url.hash || [...url.searchParams.keys()].some(key =>
+          /password|passwd|passphrase|token|secret|credential|authorization|apikey|accesskey|privatekey|signature|^sig$|^auth$|^key$/i.test(key.replace(/[-_]/g, '')))) {
+          throw new ArtiumError('UNSUPPORTED_INPUT', 'SCM URLs must be valid URLs without userinfo, credential query parameters or fragments.',
+            'Use --credential to reference an AWX SCM credential. Supply its secrets through credential create/edit --inputs-file using the secure file channel.')
+        }
+      }
       normalized.push(`--${name}=private-input`)
       structured.push([normalized.length - 1, content])
     } else if (name.endsWith('-file')) {
@@ -130,14 +138,13 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const { structured, ...call } = normalized
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
-      const rawRead = !call.invocation.help && ['job stdout', 'ad-hoc stdout'].includes(call.invocation.command)
       const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command)
-      const bridge = privateInput || privateRead || rawRead
+      const bridge = privateInput || privateRead
       const output = bridge ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
       if (output) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, output }) })
       return { executable: bridge ? process.execPath : toolPaths['awx-axi'], ...call,
         ...(bridge ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
-        ...profile, limits: { timeoutMs: runnerLimits.timeoutMs, ...(output && !rawRead ? { privateOutput: output } : {}) } }
+        ...profile, limits: { timeoutMs: runnerLimits.timeoutMs, ...(output ? { privateOutput: output } : {}) } }
     },
   }
 }

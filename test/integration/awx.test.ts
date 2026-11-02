@@ -118,8 +118,6 @@ test.each([
     path: '/api/v2/ad_hoc_commands/', field: 'module_args', exitCode: 0 },
   { flag: 'args', args: ['ad-hoc', 'launch', '7', '--module-name', 'command'], trailing: ['--verbosity', '0'],
     path: '/api/v2/ad_hoc_commands/', field: 'module_args', exitCode: 0 },
-  { flag: 'scm-url', args: ['project', 'create', 'Synthetic SCM'], trailing: ['--scm-type', 'git'],
-    path: '/api/v2/projects/', field: 'scm_url', exitCode: 0 },
 ].flatMap(route => ['inline', 'separate', 'upload'].map(channel => ({ ...route, channel }))))(
   'AWX structured --$flag $channel input cannot redirect the managed token (R2)',
   async ({ flag, args, trailing, path, field, exitCode, channel }) => {
@@ -313,12 +311,12 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   { args: ['project', 'edit', '42', '--name', 'Updated project'], path: 'projects/42/', body: { name: 'Updated project' } },
   ...['create', 'edit'].flatMap(verb => ['inline', 'upload'].map(channel => ({
     args: ['project', verb, verb === 'create' ? 'Synthetic SCM project' : '42', '--organization', '7',
-      '--scm-type', 'git', '--scm-url', channel === 'inline' ? 'https://synthetic:CANARY-scm-password@scm.example/repo?token=CANARY-scm-token' : 'scm.txt',
+      '--scm-type', 'git', '--scm-url', channel === 'inline' ? 'https://scm.example/repo?ref=main' : 'scm.txt',
       '--scm-branch', 'synthetic-branch', '--credential', '9'],
     path: verb === 'create' ? 'projects/' : 'projects/42/',
     body: { ...(verb === 'create' ? { name: 'Synthetic SCM project' } : {}), organization: 7, scm_type: 'git',
-      scm_url: 'https://synthetic:CANARY-scm-password@scm.example/repo?token=CANARY-scm-token', scm_branch: 'synthetic-branch', credential: 9 },
-    input: channel === 'upload' ? { files: [upload('scm.txt', 'https://synthetic:CANARY-scm-password@scm.example/repo?token=CANARY-scm-token')] } : {},
+      scm_url: 'https://scm.example/repo?ref=main', scm_branch: 'synthetic-branch', credential: 9 },
+    input: channel === 'upload' ? { files: [upload('scm.txt', 'https://scm.example/repo?ref=main')] } : {},
     preview: { dry_run: { payload: { organization: 7, scm_type: 'git', scm_branch: 'synthetic-branch', credential: 9,
       scm_url: '[SCM URL redacted]' } } },
   }))),
@@ -622,15 +620,15 @@ test.each([
 )
 
 test.each([
-  { view: 'default', flags: [], range: '0-4 of 4', body: "Fetching repository\nfatal: unable to access 'https://***@scm.example/repo?token=***&revision=***#***'\nDocumentation: https://docs.example/help?section=git#retry\nFetch failed\n" },
-  { view: 'tail', flags: ['--tail', '3'], range: '1-4 of 4', body: "fatal: unable to access 'https://***@scm.example/repo?token=***&revision=***#***'\nDocumentation: https://docs.example/help?section=git#retry\nFetch failed\n" },
-  { view: 'lines', flags: ['--lines', '0-3'], range: '0-3 of 4', body: "Fetching repository\nfatal: unable to access 'https://***@scm.example/repo?token=***&revision=***#***'\nDocumentation: https://docs.example/help?section=git#retry\n" },
+  { view: 'default', flags: [], range: '0-4 of 4', body: "Fetching repository\nfatal: unable to access 'https://scm.example/repo?ref=main'\nDocumentation: https://docs.example/help?section=git#retry\nFetch failed\n" },
+  { view: 'tail', flags: ['--tail', '3'], range: '1-4 of 4', body: "fatal: unable to access 'https://scm.example/repo?ref=main'\nDocumentation: https://docs.example/help?section=git#retry\nFetch failed\n" },
+  { view: 'lines', flags: ['--lines', '0-3'], range: '0-3 of 4', body: "Fetching repository\nfatal: unable to access 'https://scm.example/repo?ref=main'\nDocumentation: https://docs.example/help?section=git#retry\n" },
 ].flatMap(view => [
-  { ...view, reader: 'inferred', command: ['job', 'stdout', '42'], label: 'job_stdout' },
-  { ...view, reader: 'explicit', command: ['job', 'stdout', '42', '--type', 'project-update'], label: 'job_stdout' },
-  { ...view, reader: 'ad-hoc', command: ['ad-hoc', 'stdout', '42'], label: 'ad_hoc_stdout' },
-]))('AWX $reader raw $view logs hide stored SCM tokens and preserve ordinary URLs (R2, R3)', async ({ command, flags, range, body, label }) => {
-  await withFakeService(async ({ directory, port }) => {
+  { ...view, reader: 'inferred', command: ['job', 'stdout', '42'], label: 'job_stdout', rejectedUrl: 'https://scm.example/repo?token=CANARY-raw' },
+  { ...view, reader: 'explicit', command: ['job', 'stdout', '42', '--type', 'project-update'], label: 'job_stdout', rejectedUrl: 'https://scm.example/repo?token=%43ANARY-encoded' },
+  { ...view, reader: 'ad-hoc', command: ['ad-hoc', 'stdout', '42'], label: 'ad_hoc_stdout', rejectedUrl: "https://scm.example/repo?token='CANARY-apostrophe" },
+]))('AWX $reader raw $view logs preserve ordinary URLs after SCM input validation (R3-R5)', async ({ command, flags, range, body, label, rejectedUrl }) => {
+  await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
@@ -651,9 +649,16 @@ test.each([
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
       resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
-    const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+    const run = (args: string[], input: RunInput = {}) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
     try {
-      const created = await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', "https://CANARY-user:CANARY-password@scm.example/repo?token='CANARY-raw-scm&revision=42#CANARY-fragment", '--confirm'])
+      const rejectedCreate = await run(['project', 'create', 'Synthetic SCM', '--scm-url', rejectedUrl, '--confirm'])
+      expect(rejectedCreate.json(), rejectedCreate.body).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT', next: expect.stringContaining('--credential') } })
+      expect(rejectedCreate.body).not.toContain('CANARY-')
+      const rejectedEdit = await run(['project', 'edit', '42', '--scm-url', 'scm.txt', '--dry-run'], { files: [upload('scm.txt', rejectedUrl)] })
+      expect(rejectedEdit.json(), rejectedEdit.body).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT', next: expect.stringContaining('--credential') } })
+      expect(rejectedEdit.body).not.toContain('CANARY-')
+      expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+      const created = await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', 'https://scm.example/repo?ref=main', '--credential', '9', '--confirm'])
       expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
       const synced = await run(['project', 'sync', '42', '--confirm', '--wait'])
       expect(synced.json(), synced.body).toMatchObject({ exitCode: 0 })
@@ -702,7 +707,7 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
     }
     try {
       await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', 'scm.txt', '--scm-branch', 'main', '--credential', '9', '--confirm'],
-        { files: [upload('scm.txt', 'https://synthetic:CANARY-project-password@scm.example/repo?token=CANARY-project-token')] })
+        { files: [upload('scm.txt', 'https://scm.example/repo')] })
       await run(['project', 'edit', '42', '--scm-branch', 'updated', '--credential', '10', '--confirm'])
       expect(await run(['project', 'sync', '42', '--dry-run'])).toMatchObject({ dry_run: { action: 'sync', project: 42 } })
       expect(await run(['project', 'sync', '42', '--confirm', '--wait'])).toMatchObject({ job: { id: 42, project: 42, status: 'successful' } })
@@ -716,7 +721,7 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
       allowWrites = true
       await send('/__awx/write-outcome?drop=true', 'POST')
       const interrupted = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: {
-        args: ['project', 'edit', '42', '--name', 'Recovered SCM', '--scm-url', 'https://scm.example/repo?token=CANARY-recovered', '--confirm'],
+        args: ['project', 'edit', '42', '--name', 'Recovered SCM', '--scm-url', 'https://scm.example/recovered', '--confirm'],
       } })
       expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
         next: expect.stringContaining('artium-axi awx-axi project list --limit 100') } })
@@ -731,7 +736,7 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
       }))
       allowWrites = true
       await send('/__awx/write-outcome?drop=false', 'POST')
-      await run(['project', 'edit', '42', '--scm-url', `https://scm.example/repo?token=CANARY-${'x'.repeat(1100)}`, '--confirm'])
+      await run(['project', 'edit', '42', '--scm-url', `https://scm.example/${'x'.repeat(1100)}`, '--confirm'])
       allowWrites = false
       expect(await run(['activity-stream', 'show', '3'])).toMatchObject({ 'activity-stream': { changes: '[activity changes redacted]' } })
       expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')

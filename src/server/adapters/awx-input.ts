@@ -22,7 +22,6 @@ const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-for
 const { parse } = await import(pathToFileURL(createRequire(awxModule).resolve('yaml')).href);
 const { redactValue } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);
 const { values, output: { fields, patterns } } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
-const rawOutput = ['job', 'ad-hoc'].includes(argv[0]) && argv[1] === 'stdout';
 for (const [index, value] of values) {
   const flag = argv[index].split('=', 1)[0];
   let content = value;
@@ -56,36 +55,10 @@ const redact = (value, key = '', depth = 0) => {
   return value;
 };
 const output = stream => ({ write(chunk) {
-  if (rawOutput) {
-    stream.write(String(chunk));
-    return;
-  }
   stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
 const { main } = await import(pathToFileURL(awxModule).href);
-const { createTransport } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);
-await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr),
-  ...(rawOutput ? { createTransport(env, signal, diagnostics) {
-    const transport = createTransport(env, {}, undefined, signal, diagnostics);
-    const getText = transport.getText.bind(transport);
-    transport.getText = async (...args) => {
-      const projects = await transport.getPaged('projects/', {}, null);
-      const secrets = new Set();
-      for (const project of projects.rows) {
-        if (!URL.canParse(project.scm_url)) continue;
-        const url = new URL(project.scm_url);
-        const values = [decodeURIComponent(url.username), decodeURIComponent(url.password), ...url.searchParams.values(), decodeURIComponent(url.hash.slice(1)), ...new URLSearchParams(url.hash.slice(1)).values()];
-        for (const value of values.filter(Boolean)) {
-          for (const form of [value, encodeURIComponent(value), new URLSearchParams({ v: value }).toString().slice(2), JSON.stringify(value).slice(1, -1)]) secrets.add(form);
-        }
-      }
-      const result = await getText(...args);
-      let content = result.content;
-      for (const secret of [...secrets].sort((a, b) => b.length - a.length)) content = content.replaceAll(secret, '***');
-      return { ...result, content };
-    };
-    return transport;
-  } } : {}) });
+await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr) });
 `
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {

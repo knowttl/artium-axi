@@ -161,8 +161,11 @@ See [upload audit metadata](admin-guide.md#audit-screen-and-api) for what is rec
 
 AWX file flags upload local bytes through this channel, including credential inputs/passwords, launch credential passwords, bulk hosts and notification configuration/messages.
 AWX structured flags (`--extra-vars`, `--variables`, `--source-vars`, `--module-args`, `--args`) accept inline text or `@local-file`; use a protected local file for secrets so they never enter the local CLI's process arguments.
-Project `--scm-url` uses the same private input channel and preserves the supplied text.
-Use `--scm-url @local-file` for sensitive URLs; URL bytes are not trimmed, so omit a trailing newline in the file.
+Project `--scm-url` uses the same private input channel and preserves accepted URL text.
+Create and edit reject URLs containing userinfo, credential query parameters or fragments, including percent-encoded and uploaded values.
+Use `--credential` to reference an AWX SCM credential and supply its secrets through `credential create/edit --inputs-file` using the secure file channel.
+Clean URLs can be supplied inline or with `--scm-url @local-file`.
+Already-retained AWX logs from URLs set outside Artium are AWX-held data and are outside Artium's SCM input protection; ordinary log URLs remain unchanged.
 Project previews retain SCM type, branch and credential references while replacing the URL with `[SCM URL redacted]`; project detail reads also hide stored URLs.
 The server loads those structured values privately into upstream memory, keeping hosted process arguments free of secrets.
 For `--extra-vars`, Artium normalizes JSON/YAML objects to JSON for the pinned upstream parser; other structured flags preserve their text.
