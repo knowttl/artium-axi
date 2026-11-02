@@ -62,6 +62,13 @@ const providerHelp: Record<string, string> = {
 }
 const downloadHelp = 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected.'
 const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
+  'technitium-axi': {
+    origin: 'Technitium HTTPS origin without a path, query or user information. Changing it requires a replacement token.',
+    auth: 'Use token authentication with the token supplied by your Technitium administrator.',
+    tokenKind: 'Choose the supplied token kind: api, session or single-use. Changing it requires a replacement token; single-use tokens are never retried.',
+    username: 'Optional username associated with the supplied token. This field does not sign in or change the token identity.',
+    tlsServerName: 'Optional DNS name verified in the server certificate when connecting to this origin. Certificate-chain and validity checks remain required.',
+  },
   'unifi-axi': {
     origin: 'UniFi Network HTTPS origin, without a path. Changing it requires a new API key.',
     siteId: 'Optional default site ID. Caller site selectors must still identify an admitted read.',
